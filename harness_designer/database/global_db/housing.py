@@ -1170,7 +1170,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('cover_position3d')
 
     @property
-    def cover_position3d(self) -> "_point.Point":
+    def cover_position3d(self) -> _point.Point:
         """Return the cover position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1205,7 +1205,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('seal_position3d')
 
     @property
-    def seal_position3d(self) -> "_point.Point":
+    def seal_position3d(self) -> _point.Point:
         """Return the seal position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1240,7 +1240,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('boot_position3d')
 
     @property
-    def boot_position3d(self) -> "_point.Point":
+    def boot_position3d(self) -> _point.Point:
         """Return the boot position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1275,7 +1275,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('tpa_lock_1_position3d')
 
     @property
-    def tpa_lock_1_position3d(self) -> "_point.Point":
+    def tpa_lock_1_position3d(self) -> _point.Point:
         """Return the TPA lock 1 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1310,7 +1310,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('tpa_lock_2_position3d')
 
     @property
-    def tpa_lock_2_position3d(self) -> "_point.Point":
+    def tpa_lock_2_position3d(self) -> _point.Point:
         """Return the TPA lock 2 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1345,7 +1345,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('cpa_lock_position3d')
 
     @property
-    def cpa_lock_position3d(self) -> "_point.Point":
+    def cpa_lock_position3d(self) -> _point.Point:
         """Return the CPA lock position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.

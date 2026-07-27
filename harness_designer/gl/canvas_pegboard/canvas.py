@@ -111,7 +111,7 @@ class Canvas(QOpenGLWidget):
     gl_aux2_dclick = Signal(object)
     gl_capture_lost = Signal(object)
 
-    def __init__(self, parent, config: "_config.Config.editor_pegboard" = None,
+    def __init__(self, parent, config: _config.Config.editor_pegboard = None,
                  size: QSize = None):
         """Initialise the :class:`Canvas` instance.
 
@@ -198,7 +198,7 @@ class Canvas(QOpenGLWidget):
         # incremental" pattern.
         self._bundle_strands: list["_layout_graph.BundleStrand"] = []
         self._bare_wire_strands: list["_layout_graph.BareWireStrand"] = []
-        self._bare_wire_strand_draws: list[tuple["_vbo.NonPooledVBOHandler", "_materials.GLMaterial"]] = []
+        self._bare_wire_strand_draws: list[tuple[_vbo.NonPooledVBOHandler, _materials.GLMaterial]] = []
         self._strand_draws_dirty = False
 
         # Phase 3 live node/edge graph -- the *same* PegboardNode/
@@ -269,8 +269,8 @@ class Canvas(QOpenGLWidget):
         # strands (_render_bundle_strands()), this genuinely is its own
         # one-off VBO, since a table drag line has no shared/pooled shape
         # to reuse. None whenever no table drag is in progress.
-        self._table_drag_anchor_pos: "_point.Point | None" = None
-        self._table_drag_current_pos: "_point.Point | None" = None
+        self._table_drag_anchor_pos: _point.Point | None = None
+        self._table_drag_current_pos: _point.Point | None = None
         self._table_drag_line_draw: tuple[_vbo.NonPooledVBOHandler, _materials.GLMaterial] | None = None
         self._table_drag_line_dirty = False
 
@@ -632,7 +632,7 @@ class Canvas(QOpenGLWidget):
         """
         return self._project
 
-    def begin_table_drag(self, anchor_world_pos: "_point.Point") -> None:
+    def begin_table_drag(self, anchor_world_pos: _point.Point) -> None:
         """Start rendering a leader line from *anchor_world_pos* to
         wherever a table overlay is currently being dragged -- called by
         ``tables_overlay._TitleStrip.mousePressEvent``.
@@ -651,7 +651,7 @@ class Canvas(QOpenGLWidget):
         self._table_drag_line_dirty = True
         self.Refresh()
 
-    def update_table_drag(self, table_world_pos: "_point.Point") -> None:
+    def update_table_drag(self, table_world_pos: _point.Point) -> None:
         """Update the leader line's table-side endpoint -- called on every
         mouse-move by ``tables_overlay._TitleStrip.mouseMoveEvent``.
 
@@ -1412,7 +1412,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
-    def rotation_gizmo_handle_world_pos(self) -> "_point.Point | None":
+    def rotation_gizmo_handle_world_pos(self) -> _point.Point | None:
         """Return the active gizmo's grab handle world position, or ``None``.
 
         ``None`` when no rotation gizmo is active, or when one is active

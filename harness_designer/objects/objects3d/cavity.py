@@ -81,7 +81,7 @@ class Cavity(_base3d.Base3D):
 
         parent.mainframe.editor3d.context.release()
 
-    def wire_surface_center(self) -> "_point.Point | None":
+    def wire_surface_center(self) -> _point.Point | None:
         """
         Return the world-space centroid of this cavity's wire-side mesh
         surface (or, for a cavity sharing its wire-side wall with others,

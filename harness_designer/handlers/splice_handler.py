@@ -58,7 +58,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
     """
     obj: _splice.Splice = None
 
-    def __init__(self, mainframe: "_ui.MainFrame", wire: "_wire.Wire | None" = None):
+    def __init__(self, mainframe: "_ui.MainFrame", wire: _wire.Wire | None = None):
         part_id = mainframe.editor_db.editor.splices.GetSelection()
 
         if part_id is None:
@@ -79,7 +79,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         self._compat_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
-        self._snapped_wire: "_wire.Wire | None" = None
+        self._snapped_wire: _wire.Wire | None = None
         self.part: "_db_splice.Splice | None" = None
 
         if part_id is None:
@@ -106,7 +106,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         for w in self.mainframe.project.wires:
             w.identify(None)
 
-    def _create_preview(self, wire: "_wire.Wire"):
+    def _create_preview(self, wire: _wire.Wire):
         """
         Tear down any existing preview and build a new one locked to *wire*.
         """

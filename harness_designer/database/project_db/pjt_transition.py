@@ -371,7 +371,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_part: "_transition.Transition | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def part(self) -> "_transition.Transition":
+    def part(self) -> _transition.Transition:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

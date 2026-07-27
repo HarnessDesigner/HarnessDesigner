@@ -341,7 +341,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
 
-        def iter_objs(obj, point: "_point.Point"):
+        def iter_objs(obj, point: _point.Point):
             """Iterate over the objs.
 
             UNKNOWN details are inferred from the callable name and signature.

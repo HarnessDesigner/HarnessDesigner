@@ -88,7 +88,7 @@ class BaseVar:
         raise NotImplementedError
 
     @property
-    def selected_material(self) -> "_materials.GLMaterial":
+    def selected_material(self) -> _materials.GLMaterial:
         """This object's own "selected" material -- exposed publicly so
         other objects can identify() themselves with it (e.g. a Wire
         showing its own WireLayouts in the selected color while the
@@ -300,7 +300,7 @@ class BaseVar:
 
         return np.any(hit_mask)
 
-    def identify(self, material: "_materials.GLMaterial | None"):
+    def identify(self, material: _materials.GLMaterial | None):
         """
         Temporarily override this object's own display material.
 

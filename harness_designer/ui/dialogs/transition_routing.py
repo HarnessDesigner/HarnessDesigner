@@ -278,7 +278,7 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
             src_grp.rebuild_list()
         dst_grp.rebuild_list()
 
-    def _group_for_list(self, list_widget: _WireList) -> "_BranchGroup | None":
+    def _group_for_list(self, list_widget: _WireList) -> _BranchGroup | None:
         for grp in self._branch_groups:
             if grp.list_widget is list_widget:
                 return grp

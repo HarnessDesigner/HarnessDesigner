@@ -292,7 +292,7 @@ class MouseHandler:
         return _do_nothing_func
 
     @property
-    def active_event(self) -> "_events.GLEvent | _events.GLObjectEvent | None":
+    def active_event(self) -> _events.GLEvent | _events.GLObjectEvent | None:
         """Return the active event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -302,7 +302,7 @@ class MouseHandler:
         """
         return self._gl_mouse_event
 
-    def _send_event(self, new_event: "_events.GLEvent | _events.GLObjectEvent",
+    def _send_event(self, new_event: _events.GLEvent | _events.GLObjectEvent,
                     qt_event) -> bool:
         """Execute the send event operation.
 

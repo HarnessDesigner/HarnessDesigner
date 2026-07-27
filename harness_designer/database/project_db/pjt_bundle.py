@@ -356,7 +356,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     _stored_part: "_bundle_cover.BundleCover | DefaultStoredValueType | None" = DefaultStoredValue
     
     @property
-    def part(self) -> "_bundle_cover.BundleCover":
+    def part(self) -> _bundle_cover.BundleCover:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

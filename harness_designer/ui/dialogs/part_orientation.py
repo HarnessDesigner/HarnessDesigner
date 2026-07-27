@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 def _obb_face_for_direction(
         local_obb: np.ndarray,
-        q: "_quaternion.Quaternion",
+        q: _quaternion.Quaternion,
         target_dir: np.ndarray) -> int:
     """Return the face index (0–5) whose outward normal, after rotating the
     local OBB by *q*, best aligns with *target_dir*.
@@ -207,7 +207,7 @@ class AxisLabel(_ObjectBase):
     obj3d: "AxisLabel3D" = None
 
     def __init__(self, dialog, text: str,
-                 position: "_point.Point", angle: _angle.Angle):
+                 position: _point.Point, angle: _angle.Angle):
         super().__init__(dialog, None)
         self.dialog = dialog
         self.obj3d = AxisLabel3D(self, text, position, angle)
@@ -227,7 +227,7 @@ class AxisLabel3D(_base3d.Base3D):
     """3D extruded text label indicating a canonical axis direction."""
 
     def __init__(self, parent: AxisLabel, text: str,
-                 position: "_point.Point", angle: _angle.Angle):
+                 position: _point.Point, angle: _angle.Angle):
         self.db_obj = None
 
         parent.dialog.context.acquire()
@@ -272,7 +272,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)
 
         self._model_db: "_Model3D | None" = None
-        self._part_model: "PartModel | None" = None
+        self._part_model: PartModel | None = None
         self._mainframe = parent
         self._selected_obj = None
         self.o_angle: _angle.Angle = None

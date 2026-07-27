@@ -26,7 +26,7 @@ Config = _config.Config.colors
 _SNAP_THRESHOLD = 5.0
 
 
-def _wire_segments(wire: "_wire.Wire"):
+def _wire_segments(wire: _wire.Wire):
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
     stop. Mirrors objects.objects3d.mixins.wire_type.WireTypeMixin's own
@@ -45,7 +45,7 @@ def _find_wire(
     mouse_pos: _point.Point,
     camera: "_camera.Camera",
     project
-) -> "_wire.Wire | None":
+) -> _wire.Wire | None:
     """Return the wire under the mouse, or the closest one within the snap threshold."""
     selected = _object_picker.find_object(
         mouse_pos, camera.objects_in_view, camera)
@@ -78,7 +78,7 @@ def _find_wire(
     return best_wire
 
 
-def _find_insertion_index(wire: "_wire.Wire", position: np.ndarray) -> int:
+def _find_insertion_index(wire: _wire.Wire, position: np.ndarray) -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
     waypoints come before a new one inserted there. Same technique as
@@ -107,9 +107,9 @@ def _find_insertion_index(wire: "_wire.Wire", position: np.ndarray) -> int:
 
 def _create_wire_layout_at_endpoint(
     project,
-    wire: "_wire.Wire",
+    wire: _wire.Wire,
     endpoint: str
-) -> "_wire_layout.WireLayout":
+) -> _wire_layout.WireLayout:
     if endpoint == 'start':
         point = wire.obj3d.start_position
     else:
@@ -125,10 +125,10 @@ def _create_wire_layout_at_endpoint(
 
 def _create_wire_layout_on_wire(
     project,
-    wire: "_wire.Wire",
+    wire: _wire.Wire,
     position: _point.Point,
     insert_idx: int | None = None,
-) -> "_wire_layout.WireLayout":
+) -> _wire_layout.WireLayout:
     """Insert a new interior waypoint into *wire*'s own path at
     *position* and mark it with a WireLayout.
 
@@ -185,7 +185,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
         self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
-        self._snapped_wire: "_wire.Wire | None" = None
+        self._snapped_wire: _wire.Wire | None = None
 
         pos_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
         layout_db = self.ptables.pjt_wire_layouts_table.insert(pos_db.db_id)

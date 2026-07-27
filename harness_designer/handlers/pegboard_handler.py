@@ -49,7 +49,7 @@ _SNAP_THRESHOLD_MM = 5.0
 _SNAP_THRESHOLD_SQ = _SNAP_THRESHOLD_MM ** 2
 
 
-def _find_edge_at_point(edges: list, world_pos: "_point.Point"):
+def _find_edge_at_point(edges: list, world_pos: _point.Point):
     """Return the closest :class:`PegboardEdge` to *world_pos*, within
     :data:`_SNAP_THRESHOLD_MM`, via point-to-segment nearest-distance --
     the same technique as
@@ -187,7 +187,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
 
         self._hit_edge_index: int = None
 
-    def hover(self, mouse_pos: "_point.Point"):
+    def hover(self, mouse_pos: _point.Point):
         """Hit-test *mouse_pos* (screen coordinates) against every live
         edge on the peg board (:func:`_find_edge_at_point`), recording the
         closest hit (if any) for :meth:`release_capture`.

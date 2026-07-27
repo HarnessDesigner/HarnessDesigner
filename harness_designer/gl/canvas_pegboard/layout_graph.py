@@ -67,7 +67,7 @@ class BundleStrand:
     x2: float
     z2: float
     width: float
-    color: "_color.Color"
+    color: _color.Color
 
 
 @dataclass
@@ -83,7 +83,7 @@ class BareWireStrand:
     x2: float
     z2: float
     width: float
-    color: "_color.Color"
+    color: _color.Color
 
 
 @dataclass
@@ -139,7 +139,7 @@ _MAX_SANE_WIRE_WIDTH_MM = 50.0
 _FALLBACK_STRAND_COLOR_RGB = (128, 128, 128)
 
 
-def _fallback_strand_color() -> "_color.Color":
+def _fallback_strand_color() -> _color.Color:
     """Mid-gray fallback used whenever a strand's real color can't be
     resolved (missing catalog part, missing color field, etc.)."""
     r, g, b = _FALLBACK_STRAND_COLOR_RGB
@@ -171,7 +171,7 @@ def _safe_bundle_width(bundle) -> float:
     return value
 
 
-def _bundle_strand_color(bundle) -> "_color.Color":
+def _bundle_strand_color(bundle) -> _color.Color:
     """Return *bundle*'s cover color, falling back to mid-gray.
 
     Falls back whenever ``bundle.part`` (the catalog ``BundleCover`` row)
@@ -514,7 +514,7 @@ def _safe_bare_wire_width(wire) -> float:
     return _DEFAULT_BARE_WIRE_WIDTH_MM
 
 
-def _bare_wire_strand_color(wire) -> "_color.Color":
+def _bare_wire_strand_color(wire) -> _color.Color:
     """Return *wire*'s own insulation color, falling back to mid-gray."""
     try:
         part = wire.part

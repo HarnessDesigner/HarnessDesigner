@@ -81,10 +81,10 @@ class BasePeg:
         parent: "_ObjectBase",
         db_obj: "_project_db.PJTEntryBase",
         vbo: "_vbo.VBOHandlerBase" = None,
-        angle: "_angle.Angle" = None,
-        position: "_point.Point" = None,
-        scale: "_point.Point" = None,
-        material: "_materials.GLMaterial" = None
+        angle: _angle.Angle = None,
+        position: _point.Point = None,
+        scale: _point.Point = None,
+        material: _materials.GLMaterial = None
     ):
         """
         Initialise the :class:`BasePeg` instance.
@@ -126,7 +126,7 @@ class BasePeg:
         # this anchor's own data-table(s) -- set by each real subclass's
         # __init__ (housing/splice/transition/terminal); left None for
         # every do-nothing objectspeg stub, and for a seated Terminal.
-        self.point3d_id: "int | None" = None
+        self.point3d_id: int | None = None
 
         if vbo is None:
             self._position = None
@@ -226,7 +226,7 @@ class BasePeg:
         """
         pass
 
-    def _update_scale(self, scale: "_point.Point"):
+    def _update_scale(self, scale: _point.Point):
         """Called when the anchor's scale changes."""
         self._o_scale = scale.copy()
 
@@ -235,7 +235,7 @@ class BasePeg:
 
         self.pegboard.Refresh()
 
-    def _update_position(self, position: "_point.Point"):
+    def _update_position(self, position: _point.Point):
         """Called when the anchor's peg-board position changes."""
         self._o_position = position.copy()
 
@@ -244,7 +244,7 @@ class BasePeg:
 
         self.pegboard.Refresh()
 
-    def _update_angle(self, angle: "_angle.Angle"):
+    def _update_angle(self, angle: _angle.Angle):
         """Called when the anchor's peg-board rotation changes."""
         self._o_angle = angle.copy()
 
@@ -386,7 +386,7 @@ class BasePeg:
         self.pegboard.Refresh()
 
     @property
-    def position(self) -> "_point.Point":
+    def position(self) -> _point.Point:
         """Return the position.
 
         :returns: Property value.
@@ -395,7 +395,7 @@ class BasePeg:
         return self._position
 
     @position.setter
-    def position(self, value: "_point.Point"):
+    def position(self, value: _point.Point):
         """Set the position.
 
         :param value: Value for ``_``.
@@ -408,7 +408,7 @@ class BasePeg:
         self._position = value
 
     @property
-    def angle(self) -> "_angle.Angle":
+    def angle(self) -> _angle.Angle:
         """Return the angle.
 
         :returns: Property value.
@@ -417,7 +417,7 @@ class BasePeg:
         return self._angle
 
     @angle.setter
-    def angle(self, value: "_angle.Angle"):
+    def angle(self, value: _angle.Angle):
         """
         Set the angle.
 
@@ -432,7 +432,7 @@ class BasePeg:
         self._angle = value
 
     @property
-    def scale(self) -> "_point.Point":
+    def scale(self) -> _point.Point:
         """Return the scale.
 
         :returns: Property value.
@@ -441,7 +441,7 @@ class BasePeg:
         return self._scale
 
     @scale.setter
-    def scale(self, value: "_point.Point"):
+    def scale(self, value: _point.Point):
         """Set the scale.
 
         :param value: Value for ``_``.
@@ -506,7 +506,7 @@ class BasePeg:
         return self._is_selected
 
     @property
-    def material(self) -> "_materials.GLMaterial":
+    def material(self) -> _materials.GLMaterial:
         """Return the material currently in effect (swaps to the
         selection-highlight material while :attr:`is_selected`).
 
@@ -575,7 +575,7 @@ class BasePeg:
         return [(self.point3d_id, float(self.position.x), float(self.position.z),
                  self._table_label())]
 
-    def table_anchor_live_position(self, point3d_id: int) -> "_point.Point":
+    def table_anchor_live_position(self, point3d_id: int) -> _point.Point:
         """Return the live, bound ``Point`` backing *point3d_id* -- one of
         this anchor's own :attr:`table_anchor_points` ids.
 

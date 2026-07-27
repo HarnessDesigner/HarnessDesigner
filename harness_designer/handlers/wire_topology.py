@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ..objects.project import Project
 
 
-def _segment_index(wire: "_wire.Wire", position: np.ndarray) -> int:
+def _segment_index(wire: _wire.Wire, position: np.ndarray) -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
     waypoints come before it."""
@@ -53,9 +53,9 @@ def _segment_index(wire: "_wire.Wire", position: np.ndarray) -> int:
 
 def split_wire_at_point(
     project: "Project",
-    wire: "_wire.Wire",
+    wire: _wire.Wire,
     coord_id_3d: int,
-) -> tuple["_wire.Wire", "_wire.Wire"]:
+) -> tuple[_wire.Wire, _wire.Wire]:
     """Fork *wire* into two new wires meeting at *coord_id_3d* -- an
     already-created ``pjt_points3d`` row (e.g. a splice/loop's own attach
     point). Interior waypoints are sliced at the corresponding position
@@ -176,9 +176,9 @@ def split_wire_at_point(
 
 def merge_wires(
     project: "Project",
-    wire_before: "_wire.Wire",
-    wire_after: "_wire.Wire",
-) -> "_wire.Wire":
+    wire_before: _wire.Wire,
+    wire_after: _wire.Wire,
+) -> _wire.Wire:
     """Merge two wires that were forked around a now-removed junction
     (splice/service loop) back into a single row spanning
     *wire_before*'s own start to *wire_after*'s own stop.

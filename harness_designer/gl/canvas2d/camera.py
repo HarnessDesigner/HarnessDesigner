@@ -108,15 +108,15 @@ class Camera:
                 GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
 
     @property
-    def projection(self) -> "np.ndarray | None":
+    def projection(self) -> np.ndarray | None:
         return self._projection
 
     @property
-    def modelview(self) -> "np.ndarray | None":
+    def modelview(self) -> np.ndarray | None:
         return self._modelview
 
     @property
-    def viewport(self) -> "np.ndarray | None":
+    def viewport(self) -> np.ndarray | None:
         return self._viewport
 
     @property

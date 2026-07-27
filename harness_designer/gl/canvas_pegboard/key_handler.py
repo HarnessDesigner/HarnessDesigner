@@ -166,7 +166,7 @@ class KeyHandler(QObject):
     call before ever getting to a keypress.
     """
 
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: _canvas.Canvas):
         """Initialise the :class:`KeyHandler` instance.
 
         :param canvas: Canvas instance.

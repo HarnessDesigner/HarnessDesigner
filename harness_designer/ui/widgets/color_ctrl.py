@@ -163,7 +163,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
-    def GetColor(self) -> '_color.Color':
+    def GetColor(self) -> _color.Color:
         """Execute the get colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.

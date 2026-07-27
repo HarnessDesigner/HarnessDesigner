@@ -33,7 +33,7 @@ class DimensionMixin(BaseMixin):
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
-    def scale(self) -> "_point.Point":
+    def scale(self) -> _point.Point:
         """Return the scale.
 
         UNKNOWN details are inferred from the callable name and signature.

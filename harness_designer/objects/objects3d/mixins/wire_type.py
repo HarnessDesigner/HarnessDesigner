@@ -85,7 +85,7 @@ class WireTypeMixin:
 
     def _point_on_wire(
         self,
-        mouse_pos: "_point.Point"
+        mouse_pos: _point.Point
     ) -> tuple[np.ndarray, int] | tuple[None, None]:
 
         """
@@ -201,7 +201,7 @@ class WireTypeMixin:
 
     def get_closest_point(
         self,
-        mouse_pos: "_point.Point"
+        mouse_pos: _point.Point
     ) -> tuple[_point.Point | None, _angle.Angle | None, int | None]:
 
         """
@@ -243,7 +243,7 @@ class WireTypeMixin:
 
     def get_closest_endpoint(
         self,
-        mouse_pos: "_point.Point",
+        mouse_pos: _point.Point,
         endpoint_tolerance=5.0
     ):
         """

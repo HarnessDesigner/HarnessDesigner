@@ -430,7 +430,7 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
 
         return cavity_tab
 
-    def commit_cavity(self, idx: int, item: '_analysis_panel.AnalysisItem') -> None:
+    def commit_cavity(self, idx: int, item: _analysis_panel.AnalysisItem) -> None:
         """Commit one analysis result to the DB and create its tab.
         ``idx`` is 0-based (the next free index after existing cavities).
         """

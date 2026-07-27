@@ -99,7 +99,7 @@ class KeyHandler:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: _canvas.Canvas):
         """Initialise the :class:`KeyHandler` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

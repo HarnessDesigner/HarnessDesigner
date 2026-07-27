@@ -26,7 +26,7 @@ import numpy as np
 from ...geometry.angle import quaternion as _quaternion
 
 
-def compute_local_up_direction(local_obb: np.ndarray, up_face_idx: int) -> "np.ndarray | None":
+def compute_local_up_direction(local_obb: np.ndarray, up_face_idx: int) -> np.ndarray | None:
     """Return the model's own local-space "up" direction, from its stored OBB.
 
     Calls :meth:`~harness_designer.handlers.handler_base.HandlerBase.obb_face_direction`
@@ -50,7 +50,7 @@ def compute_local_up_direction(local_obb: np.ndarray, up_face_idx: int) -> "np.n
     return HandlerBase.obb_face_direction(local_obb, local_obb, up_face_idx)
 
 
-def compute_flatten_quaternion(local_up_dir: np.ndarray) -> "_quaternion.Quaternion":
+def compute_flatten_quaternion(local_up_dir: np.ndarray) -> _quaternion.Quaternion:
     """Return the quaternion that rotates *local_up_dir* onto world ``+Y``.
 
     Standard shortest-arc quaternion construction -- the same shape as
@@ -91,7 +91,7 @@ def compute_flatten_quaternion(local_up_dir: np.ndarray) -> "_quaternion.Quatern
 
 def flatten_quaternion_for_model3d(
         local_obb: np.ndarray,
-        forward_up: list[int, int] | tuple[int, int]) -> "_quaternion.Quaternion":
+        forward_up: list[int, int] | tuple[int, int]) -> _quaternion.Quaternion:
     """Return the flatten quaternion for any Model3D-backed part (housing,
     splice, terminal, etc).
 
@@ -124,7 +124,7 @@ def flatten_quaternion_for_model3d(
     return compute_flatten_quaternion(local_up)
 
 
-def flatten_quaternion_for_transition(local_obb: np.ndarray) -> "_quaternion.Quaternion":
+def flatten_quaternion_for_transition(local_obb: np.ndarray) -> _quaternion.Quaternion:
     """Return the flatten quaternion for a transition.
 
     Transitions have no ``Model3D``/``forward_up`` at all, but

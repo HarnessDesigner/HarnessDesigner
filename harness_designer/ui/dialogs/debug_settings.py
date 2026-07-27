@@ -27,7 +27,7 @@ Config = _config.Config
 class _ColourPickerCtrl(QPushButton):
     """Minimal wx.ColourPickerCtrl replacement."""
 
-    def __init__(self, parent, colour: "_color.Color"):
+    def __init__(self, parent, colour: _color.Color):
         """Initialise the :class:`_ColourPickerCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -9,10 +9,10 @@ class ImageMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_image: "DefaultStoredValueType | _image.Image" = DefaultStoredValue
+    _stored_image: DefaultStoredValueType | _image.Image = DefaultStoredValue
 
     @property
-    def image(self) -> "_image.Image":
+    def image(self) -> _image.Image:
         """Return the image.
 
         UNKNOWN details are inferred from the callable name and signature.

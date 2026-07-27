@@ -111,7 +111,7 @@ class _MainTableInfo:
         :type table_name: str
         """
         self.table_name = table_name
-        self.columns: "OrderedDict[str, str]" = OrderedDict()
+        self.columns: OrderedDict[str, str] = OrderedDict()
         self.fk_target: Dict[str, str] = {}
 
         conn.execute(f'PRAGMA table_info("{table_name}")')
@@ -775,7 +775,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self.page_class = page_class
         self.mainframe = parent
         self.current_table: str = page_class.__table_name__
-        self.filters: "OrderedDict[str, _FilterPanelBase]" = OrderedDict()
+        self.filters: OrderedDict[str, _FilterPanelBase] = OrderedDict()
 
         self.info = _MainTableInfo(self.conn, self.current_table)
 

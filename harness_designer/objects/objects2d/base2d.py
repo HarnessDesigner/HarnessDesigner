@@ -206,7 +206,7 @@ class Base2D(_objectsvar.BaseVar):
         """
         pass
 
-    def hit_test(self, world_pos: "_point.Point") -> bool:
+    def hit_test(self, world_pos: _point.Point) -> bool:
         """
         Test if a point hits this object
 

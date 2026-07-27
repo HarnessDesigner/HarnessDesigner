@@ -50,8 +50,8 @@ def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
 
 
 def _mesh_world_triangles(
-    vbo, position: np.ndarray, angle: "_angle.Angle", scale: np.ndarray
-) -> "np.ndarray | None":
+    vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
+) -> np.ndarray | None:
     """(N, 3, 3) world-space triangles for a mesh at the given pose -- same
     transform the faces shader applies (scale, then rotate, then
     translate). None if the object has no mesh.
@@ -94,8 +94,8 @@ _OBB_TRIANGLE_INDICES = np.array([
 ], dtype=np.int32)
 
 
-def _candidate_obb(vbo, position: np.ndarray, angle: "_angle.Angle", scale: np.ndarray
-                   ) -> "np.ndarray | None":
+def _candidate_obb(vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
+                   ) -> np.ndarray | None:
     """(8, 3) world-space OBB corners for a hypothetical (not-yet-applied)
     pose -- same formula Base3D._compute_obb uses for its own (always
     current) .obb, just evaluated against a candidate instead of self.
@@ -170,7 +170,7 @@ def _rays_vs_triangles_batched(
     return hit
 
 
-def _meshes_intersect(tris_a: "np.ndarray | None", tris_b: "np.ndarray | None") -> bool:
+def _meshes_intersect(tris_a: np.ndarray | None, tris_b: np.ndarray | None) -> bool:
     """True if any edge of one mesh crosses a face of the other -- both
     directions batched in one call each via _rays_vs_triangles_batched,
     not a Python loop over edges.
@@ -233,8 +233,8 @@ def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndar
 
 
 def _is_clear(
-    vbo, position: np.ndarray, angle: "_angle.Angle", scale: np.ndarray,
-    my_obb: "np.ndarray | None", session: "_MoveSession",
+    vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
+    my_obb: np.ndarray | None, session: "_MoveSession",
 ) -> bool:
     """True if a candidate pose (my_obb, plus vbo/position/angle/scale to
     build real mesh data from if needed) doesn't intersect any candidate's
@@ -389,7 +389,7 @@ class WireServiceLoop(_base3d.Base3D):
 
         self._p2 += tmp - self._p2
 
-    def _update_position(self, position: "_point.Point"):
+    def _update_position(self, position: _point.Point):
         """Base3D recomputes OBB/AABB/floor-lock off the start point alone
         -- also keep the derived stop point in step with it, resolve any
         collision the move introduced (see _resolve_collision), and keep
@@ -400,7 +400,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._sync_stop_position()
         self._last_centroid = self._world_centroid()
 
-    def _update_angle(self, angle: "_angle.Angle"):
+    def _update_angle(self, angle: _angle.Angle):
         """Rotate the loop around its own centroid, not its start point.
 
         Base3D's rendering pivot is always objectPosition (the start
@@ -440,7 +440,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._sync_stop_position()
         self._last_centroid = self._world_centroid()
 
-    def _write_angle(self, target_angle: "_angle.Angle") -> None:
+    def _write_angle(self, target_angle: _angle.Angle) -> None:
         """Write target_angle's exact rotation into self._angle, bypassing
         its normal Euler-driven derivation. Caller is responsible for
         unbind/rebind of _update_angle around this if needed -- this
@@ -496,7 +496,7 @@ class WireServiceLoop(_base3d.Base3D):
             if w.obj3d.start_position.db_id in ids or w.obj3d.stop_position.db_id in ids
         ]
 
-    def _markers_on_attached_wires(self) -> "list[_wire_marker.WireMarker]":
+    def _markers_on_attached_wires(self) -> list["_wire_marker.WireMarker"]:
         """Wire markers sitting on either of this loop's attached wires --
         both a collision obstacle and a hard slide boundary (see
         _resolve_collision): sliding must never cross a marker to reach
@@ -719,7 +719,7 @@ class WireServiceLoop(_base3d.Base3D):
         neg_limit = max([bt for bt in boundary_ts if bt < t0], default=t0)
 
         step = max(float(scale_np[0]) * 0.5, 0.5)
-        best: "tuple[float, float, np.ndarray] | None" = None
+        best: tuple[float, float, np.ndarray] | None = None
 
         for limit, sign in ((pos_limit, 1.0), (neg_limit, -1.0)):
             t = t0
@@ -765,7 +765,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._last_resolved_position = self._position.as_numpy.copy()
         self._last_resolved_quat = np.array(self._angle.as_quat_float, dtype=np.float64)
 
-    def set_placement(self, position: "_point.Point", quat: np.ndarray) -> None:
+    def set_placement(self, position: _point.Point, quat: np.ndarray) -> None:
         """Snap the loop to an exact start position + rotation (a
         [w, x, y, z] quaternion) in one atomic step, bypassing the
         rotate-around-centroid compensation _update_angle normally applies.

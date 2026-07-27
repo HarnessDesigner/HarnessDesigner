@@ -31,7 +31,7 @@ class CanvasPegBoard(QtWidgets.QWidget):
     """
 
     def __init__(self, parent: "_ui.MainFrame",
-                 config: "_config.Config.editor_pegboard" = None, size=None):
+                 config: _config.Config.editor_pegboard = None, size=None):
         """Initialise the :class:`CanvasPegBoard` instance.
 
         :param parent: Parent object.

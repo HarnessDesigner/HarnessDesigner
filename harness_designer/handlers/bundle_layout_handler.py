@@ -26,7 +26,7 @@ Config = _config.Config.colors
 _SNAP_THRESHOLD = 5.0
 
 
-def _bundle_segments(bundle: "_bundle.Bundle"):
+def _bundle_segments(bundle: _bundle.Bundle):
     """Every (p1, p2) sub-segment of *bundle*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
     stop. Mirrors handlers.wire_layout_handler's own _wire_segments."""
@@ -42,7 +42,7 @@ def _find_bundle(
     mouse_pos: _point.Point,
     camera: "_camera.Camera",
     project
-) -> "_bundle.Bundle | None":
+) -> _bundle.Bundle | None:
     """
     Return the bundle under the mouse, or the closest one within the snap threshold.
     """
@@ -78,7 +78,7 @@ def _find_bundle(
     return best_bundle
 
 
-def _find_insertion_index(bundle: "_bundle.Bundle", position: np.ndarray) -> int:
+def _find_insertion_index(bundle: _bundle.Bundle, position: np.ndarray) -> int:
     """Return which sub-segment of *bundle*'s current path *position*
     falls closest to -- equivalently, how many of its existing interior
     waypoints come before a new one inserted there. Mirrors
@@ -105,10 +105,10 @@ def _find_insertion_index(bundle: "_bundle.Bundle", position: np.ndarray) -> int
 
 def _create_bundle_layout_at_endpoint(
     project,
-    bundle: "_bundle.Bundle",
+    bundle: _bundle.Bundle,
     endpoint: str,
     diameter: float
-) -> "_bundle_layout.BundleLayout":
+) -> _bundle_layout.BundleLayout:
 
     if endpoint == 'start':
         point = bundle.obj3d.start_position
@@ -125,11 +125,11 @@ def _create_bundle_layout_at_endpoint(
 
 def _create_bundle_layout_on_bundle(
     project,
-    bundle: "_bundle.Bundle",
+    bundle: _bundle.Bundle,
     position: _point.Point,
     diameter: float,
     insert_idx: int | None = None,
-) -> "_bundle_layout.BundleLayout":
+) -> _bundle_layout.BundleLayout:
     """Insert a new interior waypoint into *bundle*'s own path at
     *position* and mark it with a BundleLayout.
 
@@ -186,7 +186,7 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
         self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.bundle_highlight))
 
-        self._snapped_bundle: "_bundle.Bundle | None" = None
+        self._snapped_bundle: _bundle.Bundle | None = None
 
         pos_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
 

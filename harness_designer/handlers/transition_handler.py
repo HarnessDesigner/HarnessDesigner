@@ -272,7 +272,7 @@ def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
         ptables.pjt_concentric_wires_table.insert(layer_db.db_id, idx, cw.wire_id, False)
 
 
-def _find_bundle(mouse_pos, camera, project) -> "_bundle.Bundle | None":
+def _find_bundle(mouse_pos, camera, project) -> _bundle.Bundle | None:
     selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
     if isinstance(selected, _bundle.Bundle):
         return selected
@@ -310,7 +310,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
     Click finalises the placement, creating all required DB records (transition,
     branches, concentrics, invisible wire layouts and pass-through wire segments).
     """
-    obj: "_transition.Transition" = None
+    obj: _transition.Transition = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
         part_id = mainframe.editor_db.editor.transitions.GetSelection()
@@ -325,7 +325,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
 
         super().__init__(mainframe, part_id)
 
-        self._snapped_bundle: "_bundle.Bundle | None" = None
+        self._snapped_bundle: _bundle.Bundle | None = None
         self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.bundle_highlight))
 
@@ -614,7 +614,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 class RouteThroughBundleHandler(_handler_base.HandlerBase):
     """Reconnect an existing wire endpoint so it shares a selected bundle endpoint."""
 
-    def __init__(self, mainframe: "_ui.MainFrame", target: "_wire.Wire", is_start: bool):
+    def __init__(self, mainframe: "_ui.MainFrame", target: _wire.Wire, is_start: bool):
         super().__init__(mainframe, None)
         self.target = target
         self.is_start = is_start

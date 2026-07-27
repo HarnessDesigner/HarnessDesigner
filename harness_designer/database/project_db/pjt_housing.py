@@ -51,7 +51,7 @@ if TYPE_CHECKING:
 def _obb_face_direction(
         current_obb: np.ndarray,
         local_obb: np.ndarray,
-        face_idx: int) -> "np.ndarray | None":
+        face_idx: int) -> np.ndarray | None:
     """Return the normalized outward normal of *face_idx* using *current_obb*.
 
     Face membership is determined by sorting *local_obb* corners along the
@@ -384,7 +384,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cover_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
-    def cover_position3d(self) -> "_point.Point":
+    def cover_position3d(self) -> _point.Point:
         """Return the cover position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -451,7 +451,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
-    def seal_position3d(self) -> "_point.Point":
+    def seal_position3d(self) -> _point.Point:
         """Return the seal position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -518,7 +518,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_boot_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
-    def boot_position3d(self) -> "_point.Point":
+    def boot_position3d(self) -> _point.Point:
         """Return the boot position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -585,7 +585,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
-    def tpa_lock_1_position3d(self) -> "_point.Point":
+    def tpa_lock_1_position3d(self) -> _point.Point:
         """Return the tpa_lock_1 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -652,7 +652,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
-    def tpa_lock_2_position3d(self) -> "_point.Point":
+    def tpa_lock_2_position3d(self) -> _point.Point:
         """Return the tpa_lock_2 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -719,7 +719,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
-    def cpa_lock_position3d(self) -> "_point.Point":
+    def cpa_lock_position3d(self) -> _point.Point:
         """Return the cpa_lock position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1103,10 +1103,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             if int(pos.db_id[:-2]) not in skip_write_ids:
                 pos._process_callbacks()  # NOQA
 
-    _o_position3d: "_point.Point" = None
+    _o_position3d: _point.Point = None
 
     @property
-    def position3d(self) -> "_point.Point":
+    def position3d(self) -> _point.Point:
         """Return the position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1154,10 +1154,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             c_position = cavity.position2d
             c_position += delta
 
-    _o_position2d: "_point.Point" = None
+    _o_position2d: _point.Point = None
 
     @property
-    def position2d(self) -> "_point.Point":
+    def position2d(self) -> _point.Point:
         """Return the position 2D.
 
         UNKNOWN details are inferred from the callable name and signature.

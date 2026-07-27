@@ -125,7 +125,7 @@ class PegboardRotationRing:
 
         return np.asarray(world_dir, dtype=np.float32) * self._radius
 
-    def handle_world_pos(self, rotation_deg: float) -> "_point.Point":
+    def handle_world_pos(self, rotation_deg: float) -> _point.Point:
         """Return the world position of the grab handle.
 
         :param rotation_deg: The anchor's current in-plane rotation, in degrees.

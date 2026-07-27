@@ -318,7 +318,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     gl_camera_rotate = Signal(object)
     gl_camera_reset = Signal(object)
 
-    def __init__(self, parent, config: "_config.Config.editor3d",
+    def __init__(self, parent, config: _config.Config.editor3d,
                  size: QtCore.QSize = None, axis_overlay: bool = False):
         """Initialise the :class:`Canvas` instance.
 

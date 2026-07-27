@@ -24,7 +24,7 @@ class Terminal(_ObjectBase):
     """
     obj2d: _terminal_2d.Terminal = None
     obj3d: _terminal_3d.Terminal = None
-    objpeg: "_terminal_peg.Terminal" = None
+    objpeg: _terminal_peg.Terminal = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",

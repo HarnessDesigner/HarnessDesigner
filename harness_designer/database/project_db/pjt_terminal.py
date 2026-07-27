@@ -580,7 +580,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_wire_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
-    def wire_position3d(self) -> "_point.Point":
+    def wire_position3d(self) -> _point.Point:
         """Return the wire layout point (center of the terminal's back OBB face).
 
         This is where the terminal's WireLayout point sits, not the crimp
@@ -649,7 +649,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_attach_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
-    def attach_position3d(self) -> "_point.Point":
+    def attach_position3d(self) -> _point.Point:
         """Return the wire attachment/crimp point, 1/3 up from the back of
         the terminal toward the front.
 
@@ -783,7 +783,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
-    def seal_position3d(self) -> "_point.Point":
+    def seal_position3d(self) -> _point.Point:
         """Return the per-terminal seal position.
 
         Returns ``None`` until the seal is created and ``seal_point3d_id``
@@ -809,10 +809,10 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._stored_seal_position3d = None
         self._table.update(self._db_id, seal_point3d_id=value)
 
-    _stored_part: "_terminal.Terminal" = None
+    _stored_part: _terminal.Terminal = None
 
     @property
-    def part(self) -> "_terminal.Terminal":
+    def part(self) -> _terminal.Terminal:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

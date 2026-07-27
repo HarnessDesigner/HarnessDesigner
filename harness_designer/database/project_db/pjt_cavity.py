@@ -426,7 +426,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_terminal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def terminal_position3d(self) -> "_point.Point":
+    def terminal_position3d(self) -> _point.Point:
         """
         Return the terminal position 3D.
 
@@ -512,7 +512,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_wire_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def wire_position3d(self) -> "_point.Point":
+    def wire_position3d(self) -> _point.Point:
         """
         Return the wire-side layout point -- where a wire's WireLayout
         attaches on this cavity's wire-exit side. Lazily created and
@@ -628,7 +628,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
     @property
-    def terminal_position2d(self) -> "_point.Point":
+    def terminal_position2d(self) -> _point.Point:
         """
         Return the terminal position 2D.
 
@@ -684,7 +684,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._stored_seal
 
     @property
-    def seal_position3d(self) -> "_point.Point":
+    def seal_position3d(self) -> _point.Point:
         """
         Return the seal position 3D.
 

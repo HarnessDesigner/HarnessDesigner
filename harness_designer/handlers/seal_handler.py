@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
-def _find_attached_wire_part(mainframe, terminal: "_terminal.Terminal"):
+def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
     """Return the global wire part attached to *terminal*'s wire pin, or None."""
     pjt_terminal = terminal.db_obj
     wire_point3d_id = pjt_terminal.table.select(
@@ -76,7 +76,7 @@ def _find_attached_wire_part(mainframe, terminal: "_terminal.Terminal"):
     return mainframe.global_db.wires_table[rows[0][0]]
 
 
-def _get_terminal_seal_pns(mainframe, terminal: "_terminal.Terminal"):
+def _get_terminal_seal_pns(mainframe, terminal: _terminal.Terminal):
     """Return seal part numbers usable on *terminal*'s pin.
 
     The seal's OD (outer diameter — the part that sits in the cavity around
@@ -151,9 +151,9 @@ class AddSealHandler(_handler_base.HandlerBase):
     obj: _seal.Seal = None
 
     def __init__(self, mainframe: "_ui.MainFrame",
-                 housing: "_housing.Housing" = None,
-                 terminal: "_terminal.Terminal" = None,
-                 cavity: "_cavity.Cavity" = None,
+                 housing: _housing.Housing = None,
+                 terminal: _terminal.Terminal = None,
+                 cavity: _cavity.Cavity = None,
                  for_cavity: bool = False):
 
         self._housing = housing

@@ -276,7 +276,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     _stored_part: "_wire_marker.WireMarker | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def part(self) -> "_wire_marker.WireMarker":
+    def part(self) -> _wire_marker.WireMarker:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -644,7 +644,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_part: "_wire.Wire | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def part(self) -> "_wire.Wire":
+    def part(self) -> _wire.Wire:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

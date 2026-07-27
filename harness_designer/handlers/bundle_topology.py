@@ -22,9 +22,9 @@ if TYPE_CHECKING:
 
 def merge_bundles(
     project: "Project",
-    bundle_before: "_bundle.Bundle",
-    bundle_after: "_bundle.Bundle",
-) -> "_bundle.Bundle":
+    bundle_before: _bundle.Bundle,
+    bundle_after: _bundle.Bundle,
+) -> _bundle.Bundle:
     """Merge two bundles touching end-to-end into a single row spanning
     *bundle_before*'s own start to *bundle_after*'s own stop.
 

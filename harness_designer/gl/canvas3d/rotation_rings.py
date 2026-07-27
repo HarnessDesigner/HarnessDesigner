@@ -127,7 +127,7 @@ def validate_snap_angle(value) -> float:
     return hundredths / 100.0
 
 
-def slot_ring_angle(axis: str, euler: list | tuple) -> "_angle.Angle":
+def slot_ring_angle(axis: str, euler: list | tuple) -> _angle.Angle:
     """Return the orientation that maps the ring (XY plane) onto ``axis``.
 
     The Euler slots are nested (effective matrix ``Ry·Rx·Rz``), so each

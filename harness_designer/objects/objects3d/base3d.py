@@ -60,7 +60,7 @@ class Base3D(_objectsvar.BaseVar):
     # get_context_menu(self) override keeps working unchanged. Only
     # Wire.get_context_menu/WireMenu currently reads this (to place a new
     # marker at the actual click point instead of the wire's midpoint).
-    _context_menu_click_pos: "_point.Point | None" = None
+    _context_menu_click_pos: _point.Point | None = None
 
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,

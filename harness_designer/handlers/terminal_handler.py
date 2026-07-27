@@ -221,7 +221,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  housing: "_housing.Housing" = None,
-                 cavity: "_cavity.Cavity" = None):
+                 cavity: _cavity.Cavity = None):
         """
         Initialise the handler.
 

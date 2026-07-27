@@ -186,7 +186,7 @@ class EditorToolbar(QtWidgets.QToolBar):
 
         self.modeChanged.emit(id_)
 
-    def _on_obj_selected(self, evt: "_gl.GLObjectEvent"):
+    def _on_obj_selected(self, evt: _gl.GLObjectEvent):
         """Handle the obj selected event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -244,7 +244,7 @@ class EditorToolbar(QtWidgets.QToolBar):
 
             self._selected = None
 
-    def _on_obj_unselected(self, _: "_gl.GLObjectEvent"):
+    def _on_obj_unselected(self, _: _gl.GLObjectEvent):
         """Handle the obj unselected event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -400,7 +400,7 @@ class NoteToolbar(QtWidgets.QToolBar):
 
         return _make_icon(icon)
 
-    def on_obj2d_selected(self, evt: "_gl.GLObjectEvent"):
+    def on_obj2d_selected(self, evt: _gl.GLObjectEvent):
         """
         Handle the obj 2D selected event.
 
@@ -420,7 +420,7 @@ class NoteToolbar(QtWidgets.QToolBar):
             self._obj = None
             self.set_buttons(-1)
 
-    def on_obj2d_unselected(self, _: "_gl.GLObjectEvent"):
+    def on_obj2d_unselected(self, _: _gl.GLObjectEvent):
         """
         Handle the obj 2D unselected event.
 
@@ -430,7 +430,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         self._obj = None
         self.set_buttons(-1)
 
-    def on_obj3d_selected(self, evt: "_gl.GLObjectEvent"):
+    def on_obj3d_selected(self, evt: _gl.GLObjectEvent):
         """
         Handle the obj 3D selected event.
 
@@ -450,7 +450,7 @@ class NoteToolbar(QtWidgets.QToolBar):
             self._obj = None
             self.set_buttons(-1)
 
-    def on_obj3d_unselected(self, _: "_gl.GLObjectEvent"):
+    def on_obj3d_unselected(self, _: _gl.GLObjectEvent):
         """
         Handle the obj 3D unselected event.
 
@@ -614,7 +614,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
 
-    def _on_obj_selected(self, evt: "_gl.GLObjectEvent"):
+    def _on_obj_selected(self, evt: _gl.GLObjectEvent):
         obj = evt.GetGLObject()
 
         if isinstance(obj, _project_model.ProjectModel):

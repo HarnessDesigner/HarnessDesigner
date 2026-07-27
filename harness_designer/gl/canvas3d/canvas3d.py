@@ -20,7 +20,7 @@ class Canvas3D(QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, parent: "QWidget", config: "_config.Config.editor3d",
+    def __init__(self, parent: QWidget, config: "_config.Config.editor3d",
                  size, axis_overlay=False):
         """Initialise the :class:`Canvas3D` instance.
 

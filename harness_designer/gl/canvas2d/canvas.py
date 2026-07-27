@@ -80,7 +80,7 @@ class Canvas(QOpenGLWidget):
     gl_aux2_dclick = Signal(object)
     gl_capture_lost = Signal(object)
 
-    def __init__(self, parent, config: "_config.Config.editor2d", size: QSize = None):
+    def __init__(self, parent, config: _config.Config.editor2d, size: QSize = None):
         """Initialise the :class:`Canvas` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

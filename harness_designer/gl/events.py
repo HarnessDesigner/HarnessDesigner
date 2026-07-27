@@ -343,7 +343,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return self._mouse_buttons
 
-    def GetPosition(self) -> "_point.Point":
+    def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -353,7 +353,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return self._mouse_pos
 
-    def SetPosition(self, pos: "_point.Point") -> None:
+    def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -450,7 +450,7 @@ class GLEvent(_GLEventBase):
         """
         return self._mouse_buttons
 
-    def GetPosition(self) -> "_point.Point":
+    def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -460,7 +460,7 @@ class GLEvent(_GLEventBase):
         """
         return self._mouse_pos
 
-    def SetPosition(self, pos: "_point.Point") -> None:
+    def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -470,7 +470,7 @@ class GLEvent(_GLEventBase):
         """
         self._mouse_pos = pos
 
-    def GetWorldPosition(self) -> "_point.Point":
+    def GetWorldPosition(self) -> _point.Point:
         """Execute the get world position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -480,7 +480,7 @@ class GLEvent(_GLEventBase):
         """
         return self._world_pos
 
-    def SetWorldPosition(self, pos: "_point.Point") -> None:
+    def SetWorldPosition(self, pos: _point.Point) -> None:
         """Execute the set world position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -578,7 +578,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._mouse_buttons
 
-    def GetPosition(self) -> "_point.Point":
+    def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -588,7 +588,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._mouse_pos
 
-    def SetPosition(self, pos: "_point.Point") -> None:
+    def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -598,7 +598,7 @@ class GLObjectEvent(_GLEventBase):
         """
         self._mouse_pos = pos
 
-    def GetWorldPosition(self) -> "_point.Point":
+    def GetWorldPosition(self) -> _point.Point:
         """Execute the get world position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -608,7 +608,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._world_pos
 
-    def SetWorldPosition(self, pos: "_point.Point") -> None:
+    def SetWorldPosition(self, pos: _point.Point) -> None:
         """Execute the set world position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -906,7 +906,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._unicode_key = key
 
-    def GetPosition(self) -> "_point.Point":
+    def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -916,7 +916,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._pos
 
-    def SetPosition(self, pos: "_point.Point") -> None:
+    def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -926,7 +926,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._pos = pos
 
-    def GetWorldPosition(self) -> "_point.Point":
+    def GetWorldPosition(self) -> _point.Point:
         """Execute the get world position operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -936,7 +936,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._world_pos
 
-    def SetWorldPosition(self, pos: "_point.Point") -> None:
+    def SetWorldPosition(self, pos: _point.Point) -> None:
         """Execute the set world position operation.
 
         UNKNOWN details are inferred from the callable name and signature.

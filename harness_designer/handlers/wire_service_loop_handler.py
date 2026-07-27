@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
-def _wire_segments(wire: "_wire.Wire"):
+def _wire_segments(wire: _wire.Wire):
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
     stop. Mirrors handlers.wire_layout_handler's own _wire_segments (kept
@@ -92,12 +92,12 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
     jumps to a different wire. Hovering slides the preview along the wire;
     a click finalises the placement.
     """
-    obj: "_wire_service_loop.WireServiceLoop | None" = None
+    obj: _wire_service_loop.WireServiceLoop | None = None
 
     def __init__(
         self,
         mainframe: "_ui.MainFrame",
-        wire: "_wire.Wire",
+        wire: _wire.Wire,
         mouse_pos: _point.Point,
     ):
         """Cut *wire* and start the loop preview anchored at *mouse_pos*

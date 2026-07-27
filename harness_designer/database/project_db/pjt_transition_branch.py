@@ -325,7 +325,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         self.transition.update_objects()
 
     @property
-    def part(self) -> "_transition_branch.TransitionBranch":
+    def part(self) -> _transition_branch.TransitionBranch:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

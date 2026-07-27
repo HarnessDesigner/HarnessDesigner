@@ -18,7 +18,7 @@ class AnglePegMixin(BaseMixin):
     _anglepeg_db_id: str = None
     _stored_anglepeg: "_angle.Angle | DefaultStoredValueType" = DefaultStoredValue
 
-    def _update_anglepeg(self, angle: "_angle.Angle"):
+    def _update_anglepeg(self, angle: _angle.Angle):
         """Update the peg-board angle.
 
         :param angle: Value for ``angle``.
@@ -35,7 +35,7 @@ class AnglePegMixin(BaseMixin):
         self._populate('anglepeg')
 
     @property
-    def anglepeg(self) -> "_angle.Angle":
+    def anglepeg(self) -> _angle.Angle:
         """Return the peg-board angle.
 
         :returns: Property value.

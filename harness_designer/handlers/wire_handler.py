@@ -110,7 +110,7 @@ def _wire_layout_end_wire(wire_layout_obj, project, part_id):
     return None, None
 
 
-def _merge_wire_into(project, wire_obj: "_wire.Wire", other_wire: "_wire.Wire", other_end: str):
+def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, other_end: str):
     """Join *wire_obj*'s own (dangling) stop end to *other_wire*'s
     dangling *other_end* ('start' or 'stop'), merging them into a single
     row -- part_id must already match (checked by the caller).
@@ -281,10 +281,10 @@ def _check_terminal_compat(terminal_obj, wire_part):
 class AddWireHandler(_handler_base.HandlerBase):
     """Two-click interactive wire placement handler."""
 
-    obj: "_wire.Wire" = None
+    obj: _wire.Wire = None
 
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int = None,
-                 terminal: "_terminal.Terminal" = None):
+                 terminal: _terminal.Terminal = None):
         if terminal is not None:
             compat_pns = _get_terminal_compat_pns(mainframe, terminal)
 
@@ -319,7 +319,7 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         # Extension mode state (first click on a wire endpoint without a layout)
         self._extension_mode = False
-        self._source_wire: "_wire.Wire | None" = None
+        self._source_wire: _wire.Wire | None = None
         self._source_endpoint: str | None = None   # 'start' or 'stop'
         self._extension_dir: np.ndarray | None = None    # unit vector
         self._extension_origin: np.ndarray | None = None  # world-space origin
@@ -358,7 +358,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             else:
                 self._start_from_terminal(terminal, part_id)
 
-    def _start_from_terminal(self, terminal: "_terminal.Terminal", part_id: int):
+    def _start_from_terminal(self, terminal: _terminal.Terminal, part_id: int):
         """Pin the preview wire's start to *terminal* and enter phase 1 directly."""
         self.part = self.mainframe.global_db.wires_table[part_id]
         self._start_circuit_id = terminal.db_obj.circuit_id

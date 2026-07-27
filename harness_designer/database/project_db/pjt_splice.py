@@ -288,7 +288,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_branch_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def branch_position3d(self) -> "_point.Point":
+    def branch_position3d(self) -> _point.Point:
         """Return the branch position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -408,7 +408,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_part: "_splice.Splice | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def part(self) -> "_splice.Splice":
+    def part(self) -> _splice.Splice:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

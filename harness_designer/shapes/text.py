@@ -25,8 +25,8 @@ from ..gl import vbo as _vbo_handler
 
 
 def create(text: str, font_size: float, depth: float = 0.0,
-           font_style: "build123d.FontStyle" = build123d.FontStyle.REGULAR,
-           text_align: "list[build123d.TextAlign] | None" = None):
+           font_style: build123d.FontStyle = build123d.FontStyle.REGULAR,
+           text_align: list[build123d.TextAlign] | None = None):
     """Create vertex and face arrays for a text mesh, plus its measured
     width.
 
@@ -82,9 +82,9 @@ def create(text: str, font_size: float, depth: float = 0.0,
 
 
 def create_vbo(uuid_: str, text: str, font_size: float, depth: float = 0.0,
-               font_style: "build123d.FontStyle" = build123d.FontStyle.REGULAR,
-               text_align: "list[build123d.TextAlign] | None" = None
-               ) -> "tuple[_vbo_handler.PooledVBOHandler, float, float]":
+               font_style: build123d.FontStyle = build123d.FontStyle.REGULAR,
+               text_align: list[build123d.TextAlign] | None = None
+               ) -> tuple[_vbo_handler.PooledVBOHandler, float, float]:
     """Build (or, if *uuid_* is already registered, return the cached)
     ``PooledVBOHandler`` for *text*, plus its measured width/height. See
     the module docstring for the id-ownership convention and how to

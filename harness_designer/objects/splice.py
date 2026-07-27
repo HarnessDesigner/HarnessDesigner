@@ -22,7 +22,7 @@ class Splice(_ObjectBase):
     """
     obj2d: _splice_2d.Splice = None
     obj3d: _splice_3d.Splice = None
-    objpeg: "_splice_peg.Splice" = None
+    objpeg: _splice_peg.Splice = None
     db_obj: "_pjt_splice.PJTSplice" = None
 
     def __init__(self, mainframe: "_ui.MainFrame",

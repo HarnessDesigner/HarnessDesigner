@@ -60,7 +60,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
     that auto-sizes to span from the wire's start to its stop point.  A single
     click finalises the placement.
     """
-    obj: "_bundle.Bundle" = None
+    obj: _bundle.Bundle = None
     _preview_conc_db = None
 
     def __init__(self, mainframe: "_ui.MainFrame"):
@@ -84,7 +84,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
         self._wire_highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
-        self._snapped_wire: "_wire.Wire | None" = None
+        self._snapped_wire: _wire.Wire | None = None
         self.part: "_db_bundle_cover.BundleCover | None" = None
 
         if part_id is None:
@@ -107,11 +107,11 @@ class AddBundleHandler(_handler_base.HandlerBase):
         for w in self.mainframe.project.wires:
             w.identify(None)
 
-    def _bundle_diameter(self, wire: "_wire.Wire") -> float:
+    def _bundle_diameter(self, wire: _wire.Wire) -> float:
         wire_od = float(wire.db_obj.part.od_mm or 0.0) if wire.db_obj.part else 0.0
         return max(float(self.part.min_dia), wire_od)
 
-    def _create_preview(self, wire: "_wire.Wire"):
+    def _create_preview(self, wire: _wire.Wire):
         """Rebuild the preview bundle sized to *wire*'s full span."""
         if self.obj is not None:
             self.obj.delete()

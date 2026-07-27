@@ -418,13 +418,13 @@ class MeshSurfacePicker:
                 for comp in components]
 
     @staticmethod
-    def _coplanar(s: "Surface", ref: "Surface", normal_tol: float, dist_tol: float) -> bool:
+    def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
         return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
                 abs(s.plane_dist - ref.plane_dist) < dist_tol)
 
     @staticmethod
     def find_coplanar_surfaces(
-        reference: "Surface",
+        reference: Surface,
         all_surfaces: list,
         normal_tol: float = 0.02,
         dist_tol: float = 0.5,
@@ -436,7 +436,7 @@ class MeshSurfacePicker:
         return [s for s in all_surfaces
                 if MeshSurfacePicker._coplanar(s, reference, normal_tol, dist_tol)]
 
-    def surface_centroid(self, surface: "Surface") -> np.ndarray:
+    def surface_centroid(self, surface: Surface) -> np.ndarray:
         """
         Return the mean world-space position of all vertices belonging to surface.
         """

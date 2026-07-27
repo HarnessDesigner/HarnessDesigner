@@ -248,7 +248,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
     _stored_part: "_tpa_lock.TPALock | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
-    def part(self) -> "_tpa_lock.TPALock":
+    def part(self) -> _tpa_lock.TPALock:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

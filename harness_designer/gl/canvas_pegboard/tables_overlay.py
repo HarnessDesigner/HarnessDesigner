@@ -71,8 +71,8 @@ class _TitleStrip(QtWidgets.QWidget):
         super().__init__(owner)
 
         self._owner = owner
-        self._drag_start_global: "QtCore.QPointF | None" = None
-        self._drag_start_pos: "QtCore.QPoint | None" = None
+        self._drag_start_global: QtCore.QPointF | None = None
+        self._drag_start_pos: QtCore.QPoint | None = None
 
         self.setAutoFillBackground(True)
         self.setCursor(QtCore.Qt.CursorShape.SizeAllCursor)
@@ -112,7 +112,7 @@ class _TitleStrip(QtWidgets.QWidget):
         metrics = QtGui.QFontMetrics(font)
         self.setFixedHeight(metrics.height() + _TITLE_STRIP_VERTICAL_PADDING_PX)
 
-    def mousePressEvent(self, event: "QtGui.QMouseEvent") -> None:
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return
 
@@ -121,7 +121,7 @@ class _TitleStrip(QtWidgets.QWidget):
         self._owner.interacting = True
         self._owner.canvas.begin_table_drag(self._owner.anchor_live_position)
 
-    def mouseMoveEvent(self, event: "QtGui.QMouseEvent") -> None:
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         if self._drag_start_global is None:
             return
 
@@ -132,7 +132,7 @@ class _TitleStrip(QtWidgets.QWidget):
         self._owner.move(new_x, new_y)
         self._owner.canvas.update_table_drag(self._owner.center_world_pos())
 
-    def mouseReleaseEvent(self, event: "QtGui.QMouseEvent") -> None:
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return
 
@@ -196,7 +196,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
         # anchor list is rebuilt (load_project/add_anchor) -- rebuilding
         # doesn't invalidate the reference itself, it just re-fetches
         # whichever live Point the anchor currently has.
-        self.anchor_live_position: "_point.Point | None" = None
+        self.anchor_live_position: _point.Point | None = None
 
         self.setAutoFillBackground(True)
 
@@ -221,7 +221,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
         grip_row.addWidget(self._size_grip)
         layout.addLayout(grip_row)
 
-        self._model: "_table_model.PegboardTableModel | None" = None
+        self._model: _table_model.PegboardTableModel | None = None
 
         self._resize_commit_timer = QtCore.QTimer(self)
         self._resize_commit_timer.setSingleShot(True)
@@ -235,7 +235,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
     def set_label(self, label: str) -> None:
         self._title_strip.set_label(label)
 
-    def set_anchor_live_position(self, point: "_point.Point") -> None:
+    def set_anchor_live_position(self, point: _point.Point) -> None:
         """Store a *reference* to the owning anchor's own live, bound
         position Point -- see :attr:`anchor_live_position`'s docstring for
         why this must not be a copy.
@@ -284,7 +284,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
 
         self._title_strip.apply_zoom_scale(font_h)
 
-    def center_world_pos(self) -> "_point.Point":
+    def center_world_pos(self) -> _point.Point:
         """This table's own current screen-center, converted to world
         coordinates -- used to draw the in-progress drag leader line.
 
@@ -351,7 +351,7 @@ class TablesOverlay:
 
     def ensure_table(
         self, point3d_id: int, world_x: float, world_z: float, label: str,
-        rows: list, include_cavity_columns: bool, anchor_live_position: "_point.Point",
+        rows: list, include_cavity_columns: bool, anchor_live_position: _point.Point,
     ) -> None:
         """Create (or refresh) the table overlay for *point3d_id*.
 

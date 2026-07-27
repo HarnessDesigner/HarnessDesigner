@@ -390,7 +390,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @property
-    def scale(self) -> "_point.Point":
+    def scale(self) -> _point.Point:
         """Return the scale.
 
         UNKNOWN details are inferred from the callable name and signature.

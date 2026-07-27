@@ -134,7 +134,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._recalculate_geometry()
         self.editor3d.Refresh()
 
-    def set_start_position(self, point: "_point.Point") -> None:
+    def set_start_position(self, point: _point.Point) -> None:
         """Repoint this bundle's own start end to *point* entirely.
 
         Not a merge/delegation (see Point.attach for that) -- the old
@@ -147,7 +147,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p1.bind(self._update_position)
         self._recalculate_geometry()
 
-    def set_stop_position(self, point: "_point.Point") -> None:
+    def set_stop_position(self, point: _point.Point) -> None:
         """See set_start_position."""
         self._p2.unbind(self._update_position)
         self._p2 = point

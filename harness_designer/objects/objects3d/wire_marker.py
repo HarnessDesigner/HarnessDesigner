@@ -130,7 +130,7 @@ class WireMarker(_base3d.Base3D):
 
         return False
 
-    def _percent_for_point(self, line: "_line.Line", point: "_point.Point") -> float:
+    def _percent_for_point(self, line: _line.Line, point: _point.Point) -> float:
         """Return where ``point`` (assumed already on/near ``line``) sits
         as a percentage of the buffered usable range (0.0 = ``self._buffer``
         mm past ``line.p1``, 1.0 = ``self._buffer`` mm before ``line.p2``).
@@ -148,7 +148,7 @@ class WireMarker(_base3d.Base3D):
         percent = (raw_distance - self._buffer) / usable_length
         return max(0.0, min(1.0, percent))
 
-    def _point_for_percent(self, line: "_line.Line", percent: float) -> "_point.Point":
+    def _point_for_percent(self, line: _line.Line, percent: float) -> _point.Point:
         """Return the point on ``line`` at ``percent`` through the
         buffered usable range -- see :meth:`_percent_for_point`. Assumes
         the caller already checked :meth:`_wire_too_short`.
