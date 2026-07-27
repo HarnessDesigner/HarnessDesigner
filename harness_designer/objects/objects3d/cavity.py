@@ -159,7 +159,7 @@ class CavityMenu(QMenu):
     cavity object itself, or (with the "Add Wire" option) a highlighted
     wire-side plane.
     """
-    def __init__(self, cavity_3d: "Cavity"):
+    def __init__(self, cavity_3d: Cavity):
         """Initialise the :class:`CavityMenu` instance.
 
         :param cavity_3d: The cavity this menu was opened on. Its own

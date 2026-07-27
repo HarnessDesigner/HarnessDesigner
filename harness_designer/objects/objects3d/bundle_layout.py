@@ -69,28 +69,20 @@ class BundleLayout(_base3d.Base3D):
 
         parent.mainframe.editor3d.context.release()
 
-    def set_diameter(self, parent_bundle, value: float):
-        """Set the diameter.
+    def set_diameter(self, value: float):
+        """Set this layout's own displayed diameter to match whatever
+        bundle it sits on.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param parent_bundle: Value for ``parent_bundle``.
-        :type parent_bundle: UNKNOWN
-        :param value: Value to store or process.
-        :type value: float
+        A BundleLayout is always an ordinary interior waypoint of exactly
+        one bundle now (or none, if unattached) -- it never marks a
+        boundary between two separate bundle rows any more (see
+        objects.objects3d.bundle.Bundle.set_diameter), so there is no
+        sibling bundle at this same position left to cascade into.
         """
         self._diameter = value
         scale = _point.Point(value, value, value)
         diff = self._scale - scale
         self._scale += diff
-
-        for bundle in self.editor3d.mainframe.project.bundles:
-            if (
-                bundle.obj3d.position.db_id == self.position.db_id and
-                parent_bundle != bundle.obj3d
-            ):
-                bundle.obj3d.set_diameter(self, value)
-                break
 
     def get_context_menu(self):
         """Return the context menu.

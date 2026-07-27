@@ -24,13 +24,12 @@ case):
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QColor
+from PySide6 import QtGui
 
 from ... import image as _image
 
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QPixmap
     from ...objects import project as _project
     from ...database.project_db import pjt_wire as _pjt_wire
     from ...database.project_db import pjt_cavity as _pjt_cavity
@@ -73,14 +72,14 @@ class WireTableRow:
     never pays for image generation.
     """
     wire: "_pjt_wire.PJTWire"
-    conductor_index: "int | None" = None
-    conductor_count: "int | None" = None
-    group_color: "QColor | None" = None
+    conductor_index: int | None = None
+    conductor_count: int | None = None
+    group_color: QtGui.QColor | None = None
     cavity: "_pjt_cavity.PJTCavity | None" = None
-    image_pixmap: "QPixmap | None" = None
+    image_pixmap: QtGui.QPixmap | None = None
 
 
-def wire_image_pixmap(wire: "_pjt_wire.PJTWire") -> "QPixmap":
+def wire_image_pixmap(wire: "_pjt_wire.PJTWire") -> QtGui.QPixmap:
     """Build (or fetch, via ``image.images.build_wire``'s own internal
     color-triple cache) the 400x100 rendered wire swatch for *wire*.
 
@@ -112,7 +111,7 @@ def wire_image_pixmap(wire: "_pjt_wire.PJTWire") -> "QPixmap":
     return image.pixmap
 
 
-def _expand_multi_conductor(wire: "_pjt_wire.PJTWire", palette_index: list) -> list["WireTableRow"]:
+def _expand_multi_conductor(wire: "_pjt_wire.PJTWire", palette_index: list) -> list[WireTableRow]:
     """Expand *wire* into 1..N :class:`WireTableRow`\\ s.
 
     *palette_index* is a single-element mutable ``[int]`` cycling counter
@@ -145,7 +144,7 @@ def _expand_multi_conductor(wire: "_pjt_wire.PJTWire", palette_index: list) -> l
 
     r, g, b = _CABLE_GROUP_PALETTE_RGB[palette_index[0] % len(_CABLE_GROUP_PALETTE_RGB)]
     palette_index[0] += 1
-    group_color = QColor(r, g, b)
+    group_color = QtGui.QColor(r, g, b)
 
     return [
         WireTableRow(wire=wire, conductor_index=i + 1,
@@ -154,7 +153,7 @@ def _expand_multi_conductor(wire: "_pjt_wire.PJTWire", palette_index: list) -> l
     ]
 
 
-def wire_for_point3d(project: "_project.Project", point3d_id: "int | None") -> "_pjt_wire.PJTWire | None":
+def wire_for_point3d(project: "_project.Project", point3d_id: int | None) -> "_pjt_wire.PJTWire":
     """Reverse-resolve the :class:`PJTWire` attached at *point3d_id*.
 
     Mirrors ``PJTSplice.wires``'s own ``start_point3d_id``/
@@ -184,7 +183,7 @@ def wire_for_point3d(project: "_project.Project", point3d_id: "int | None") -> "
 
 def build_rows_for_housing(
     housing: "_pjt_housing.PJTHousing", project: "_project.Project",
-) -> list["WireTableRow"]:
+) -> list[WireTableRow]:
     """Build a housing table's rows: every seated cavity's wire, sorted
     ascending by the cavity's own template ``part.idx``.
 
@@ -216,7 +215,7 @@ def build_rows_for_housing(
     return rows
 
 
-def build_rows_for_splice(splice: "_pjt_splice.PJTSplice") -> list["WireTableRow"]:
+def build_rows_for_splice(splice: "_pjt_splice.PJTSplice") -> list[WireTableRow]:
     """Build a splice table's rows: start-side wires, then stop-side, then
     branch-side (``PJTSplice.wires``'s own group order).
 
@@ -238,7 +237,7 @@ def build_rows_for_splice(splice: "_pjt_splice.PJTSplice") -> list["WireTableRow
 
 def build_rows_for_transition_branch(
     branch: "_pjt_transition_branch.PJTTransitionBranch",
-) -> list["WireTableRow"]:
+) -> list[WireTableRow]:
     """Build one transition branch's table rows (one table per branch,
     not one combined table for the whole transition).
 
@@ -261,7 +260,7 @@ def build_rows_for_transition_branch(
 
 def build_rows_for_terminal(
     terminal: "_pjt_terminal.PJTTerminal", project: "_project.Project",
-) -> list["WireTableRow"]:
+) -> list[WireTableRow]:
     """Build a bare terminal table's rows: its single attached wire.
 
     :param terminal: The bare terminal anchor's owning row.

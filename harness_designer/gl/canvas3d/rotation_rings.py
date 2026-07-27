@@ -693,7 +693,7 @@ class DragRotate:
 
     def __init__(self, canvas: "_canvas.Canvas",
                  selected: "_objects.ObjectBase", axis: str,
-                 rings: "RotationRings"):
+                 rings: RotationRings):
         """Initialise the :class:`DragRotate` instance.
 
         :param canvas: Canvas instance.

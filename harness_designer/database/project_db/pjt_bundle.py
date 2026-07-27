@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from . import pjt_concentric as _pjt_concentric
     from . import pjt_bundle_layout as _pjt_bundle_layout
     from . import pjt_wire as _pjt_wire
+    from . import pjt_point3d as _pjt_point3d
 
     from ...objects import bundle as _bundle_obj
 
@@ -223,6 +224,40 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         else:
             self._obj = obj
 
+    def delete(self) -> None:
+        """Delete this bundle row, every interior waypoint row it owns,
+        and any BundleLayout marking one of those waypoints.
+
+        Mirrors PJTWire.delete -- bundle_id on pjt_points3d has no
+        DB-enforced FK (see create_database/points3d.py), so there is no
+        cascade delete to rely on; waypoint rows -- and any BundleLayout
+        referencing one -- are cleaned up here explicitly instead. Start/
+        stop themselves are never touched -- they're owned by whatever
+        transition/other bundle the endpoint is attached to, not by this
+        bundle.
+        """
+        layouts_table = self._table.db.pjt_bundle_layouts_table
+
+        for point in self.waypoints3d:
+            for row in layouts_table.select('id', position3d_id=point.db_id):
+                layout_db = layouts_table[row[0]]
+                layout_obj = layout_db.get_object()
+                if layout_obj is not None:
+                    layout_obj.delete()
+                else:
+                    layout_db.delete()
+
+            point.delete()
+
+        super().delete()
+
+    @property
+    def waypoints3d(self) -> list["_pjt_point3d.PJTPoint3D"]:
+        """Every interior 3D waypoint on this bundle, in chain order
+        (start and stop themselves are not included -- see
+        start_position3d/stop_position3d)."""
+        return self._table.db.pjt_points3d_table.for_bundle(self.db_id)
+
     @property
     def table(self) -> PJTBundlesTable:
         """Return the table.
@@ -236,8 +271,18 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
     @property
     def length_mm(self) -> float:
-        """Straight-line length between this segment's start and stop points, in mm."""
-        return _line.Line(self.start_position3d, self.stop_position3d).length()
+        """Total physical length: the sum of every sub-segment from
+        start, through each interior waypoint in order, to stop -- not
+        the straight-line distance between the two endpoints, since a
+        bundle can have any number of bends between them (see PJTWire.
+        length_mm, the same fix for the same reason)."""
+        points = [self.start_position3d, *(p.point for p in self.waypoints3d), self.stop_position3d]
+
+        total = 0.0
+        for a, b in zip(points, points[1:]):
+            total += _line.Line(a, b).length()
+
+        return total
 
     @property
     def length_m(self) -> float:

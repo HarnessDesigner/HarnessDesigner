@@ -157,7 +157,7 @@ class Terminal(_base2d.Base2D):
         GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
         self._bracket_vbo.render()
 
-    def _world_offset(self, local_x: float, local_z: float) -> "tuple[float, float, float]":
+    def _world_offset(self, local_x: float, local_z: float) -> tuple[float, float, float]:
         """Rotate a ``(local_x, 0, local_z)`` offset by this terminal's
         current ``angle2d.y`` -- see ``objects2d/housing.py``'s own
         ``_world_offset`` (same math, same reason).

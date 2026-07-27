@@ -195,7 +195,7 @@ class TableBase:
     """
     __table_name__: str = None
 
-    def __init__(self, db: "GLBTables", table_names: list['str'], splash: "_splash.Splash", load_database: bool):
+    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool):
         """Initialise the :class:`TableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -1120,6 +1120,59 @@ class Camera:
 
         return _point.Point(*(origin + t * direction))
 
+    def closest_point(self, points) -> tuple[int, np.ndarray] | tuple[None, None]:
+        """Return (index, point) of whichever of *points* is nearest this
+        camera's own eye position -- i.e. whichever one the camera would
+        actually see first if the others were occluding candidates at the
+        same screen location.
+
+        General-purpose -- usable from anywhere in the app that needs
+        "which of these points is actually in front", not just wire
+        picking. *points* accepts either shape:
+
+        - A single ``(-1, 3)`` numpy array -- handled as one vectorized
+          batch (``np.argmin`` over all rows at once), for callers that
+          already have their candidates packed that way.
+        - Any number of individual points, each either a `_point.Point`
+          or a plain (3,) array/sequence -- for callers building up
+          candidates one at a time (e.g. a for loop), no packing needed.
+
+        Ranking only, so distances are compared squared rather than via
+        an actual `norm`/sqrt call -- square root is monotonic (a < b iff
+        sqrt(a) < sqrt(b) for non-negative a, b), so the nearest-by-
+        squared-distance point is always the same one that's nearest by
+        real distance too.
+
+        :returns: (None, None) if *points* is empty.
+        """
+        eye = self.position.as_numpy
+
+        if isinstance(points, np.ndarray):
+            if points.shape[0] == 0:
+                return None, None
+
+            diffs = points - eye
+            dist_sq = np.sum(diffs * diffs, axis=1)
+            best_idx = int(np.argmin(dist_sq))
+
+            return best_idx, points[best_idx]
+
+        best_idx = None
+        best_point = None
+        best_dist_sq = None
+
+        for i, point in enumerate(points):
+            p = point.as_numpy if isinstance(point, _point.Point) else np.asarray(point)
+            vec = p - eye
+            dist_sq = float(np.dot(vec, vec))
+
+            if best_dist_sq is None or dist_sq < best_dist_sq:
+                best_dist_sq = dist_sq
+                best_idx = i
+                best_point = p
+
+        return best_idx, best_point
+
     @property
     def devicePixelRatio(self) -> float:
         return self.canvas.devicePixelRatio()

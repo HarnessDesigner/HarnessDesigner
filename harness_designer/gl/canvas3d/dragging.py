@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from . import canvas as _canvas
     from ... import objects as _objects
     from ...objects import wire as _wire_object
+    from ...objects import bundle as _bundle_object
 
 
 # Number of drag events to let pass before locking in the dominant axis.
@@ -130,30 +131,61 @@ class DragObject:
         self.last_pos = position.copy()
 
 
-class WireDragObject:
-    """Rigid-translate drag for a Wire: moves both endpoints together by
-    the same world-space delta, anchored on the wire's midpoint.
+class PathDragObject:
+    """Rigid-translate drag for a Wire or Bundle: moves the start point,
+    every interior waypoint, and the stop point together by the same
+    world-space delta, anchored on whichever point of the object's own
+    true path was actually under the mouse when the drag began.
 
-    A plain :class:`DragObject` can't be used for a wire -- it drags
-    ``obj3d.position``, which for a Wire is only the start endpoint (see
-    objects3d.wire.Wire.__init__), leaving the stop endpoint behind.
+    Wire and Bundle share the exact same shape here (see
+    objects.objects3d.mixins.wire_type.WireTypeMixin, which both of
+    their obj3d classes use) -- a single/start-stop 2-point row with any
+    number of ordered interior waypoints -- so one class handles both;
+    nothing below is Wire- or Bundle-specific.
+
+    A plain :class:`DragObject` can't be used for either -- it drags
+    ``obj3d.position``, which is only the start endpoint (see
+    objects3d.wire.Wire.__init__/objects3d.bundle.Bundle.__init__),
+    leaving everything else behind.
+
+    Anchoring on the straight start-to-stop chord's midpoint (as this
+    used to, for wires) is also wrong once there are any bends: that
+    point may not even sit on the object's actual path, and only
+    translating start/stop while leaving interior waypoints in place
+    tears its shape apart mid-drag instead of moving it as one rigid
+    body -- see WireTypeMixin.get_closest_point, which already walks the
+    true (waypoint-aware) path and is used here for both concerns: which
+    point to anchor on, and (via obj3d.db_obj.waypoints3d below) which
+    points to move.
 
     Only ever constructed for a wire where
     ``obj3d.is_housing_attached()`` is False (see mouse_handler.py) -- a
     housing-attached wire's position is derived from its housing, not
-    freely draggable.
+    freely draggable. Bundles have no housing-attachment concept at all
+    (a bundle's own end can only ever attach to a Transition, never a
+    Housing directly -- see objects.bundle.Bundle.set_sibling), so that
+    check doesn't apply to them.
     """
 
-    def __init__(self, canvas: "_canvas.Canvas", selected: "_wire_object.Wire"):
+    def __init__(self, canvas: "_canvas.Canvas",
+                 selected: "_wire_object.Wire | _bundle_object.Bundle",
+                 mouse_pos: _point.Point):
         self.canvas = canvas
         self.selected = selected
 
         obj3d = selected.obj3d
-        line = _line.Line(obj3d.start_position, obj3d.stop_position)
+        anchor, _angle, _seg_idx = obj3d.get_closest_point(mouse_pos)
+        if anchor is None:
+            # Degenerate (zero-length) wire -- nothing meaningful on its
+            # own path to anchor on; the straight chord's midpoint is at
+            # least a stable fallback (matches this class's old default).
+            line = _line.Line(obj3d.start_position, obj3d.stop_position)
+            anchor = line.point_from_start(line.length() / 2.0)
+
         # A fresh, unregistered Point (no db_id) -- purely a local
         # screen-projection anchor, tracked incrementally below exactly
         # like DragObject.last_pos, never itself persisted.
-        self._anchor = line.point_from_start(line.length() / 2.0)
+        self._anchor = anchor
 
         self.last_pos = self._anchor.copy()
         self.axis_lock = _point.Point(0, 0, 0)
@@ -206,6 +238,8 @@ class WireDragObject:
         stop_position = obj3d.stop_position
 
         start_position += delta3d
+        for waypoint in obj3d.db_obj.waypoints3d:
+            waypoint.point += delta3d
         stop_position += delta3d
 
         self._anchor += delta3d

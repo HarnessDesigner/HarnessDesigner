@@ -67,6 +67,12 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p1 = db_obj.start_position3d
         self._p2 = db_obj.stop_position3d
 
+        # Live Point objects for every interior waypoint (idx order), kept
+        # in sync with the DB via refresh_waypoints() -- called by whichever
+        # handler adds/removes/reorders this bundle's own waypoints
+        # (handlers.bundle_layout_handler, handlers.bundle_topology).
+        self._waypoint_points: list[_point.Point] = []
+
         position = self._p1
         angle = _angle.Angle()
         scale = _point.Point(self._diameter, self._diameter, 0.0)
@@ -74,12 +80,21 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
-        # Track wires in this bundle using weak references
-        # Wires hold strong references to bundles; bundles use weak refs to wires
+        # Track wires grouped inside this bundle using weak references --
+        # unrelated to the waypoint/sibling-graph work above; see
+        # objects.bundle.Bundle.set_sibling for this bundle's own trunk-end
+        # sibling (a Transition), which is a separate mechanism entirely.
         self._wires = []  # List of weak references to Wire objects
 
         self._p2.bind(self._update_position)
-        self._update_position(None)
+
+        # self.db_obj is only valid from here on (set by Base3D.__init__
+        # above) -- this is the first point waypoints3d/for_bundle can be
+        # queried, so the initial waypoint bind and the real (possibly
+        # multi-segment) geometry recompute both happen here, not earlier.
+        self._bind_waypoints()
+        self._recalculate_geometry()
+
         parent.mainframe.editor3d.context.release()
 
     @property
@@ -92,6 +107,52 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         radius = value / 2
         self._scale.x = radius
         self._scale.y = radius
+
+    def _bind_waypoints(self) -> None:
+        """(Re-)bind this bundle's own _update_position callback to every
+        current interior waypoint's live Point, unbinding it from whatever
+        set was bound before.
+
+        Called once at construction and again (as refresh_waypoints) by
+        any handler that adds/removes/reorders this bundle's own
+        waypoints, so live position-change callbacks always match the
+        current set.
+        """
+        for point in self._waypoint_points:
+            point.unbind(self._update_position)
+
+        self._waypoint_points = [wp.point for wp in self.db_obj.waypoints3d]
+
+        for point in self._waypoint_points:
+            point.bind(self._update_position)
+
+    def refresh_waypoints(self) -> None:
+        """Public entry point for handlers: call after this bundle's own
+        waypoint rows change (added, removed, or reordered) so live
+        callbacks, cached length, and geometry all catch up."""
+        self._bind_waypoints()
+        self._recalculate_geometry()
+        self.editor3d.Refresh()
+
+    def set_start_position(self, point: "_point.Point") -> None:
+        """Repoint this bundle's own start end to *point* entirely.
+
+        Not a merge/delegation (see Point.attach for that) -- the old
+        start point is left alone as an independent point, and *point*
+        must already be exactly where this bundle's start should be --
+        nothing here moves it.
+        """
+        self._p1.unbind(self._update_position)
+        self._p1 = point
+        self._p1.bind(self._update_position)
+        self._recalculate_geometry()
+
+    def set_stop_position(self, point: "_point.Point") -> None:
+        """See set_start_position."""
+        self._p2.unbind(self._update_position)
+        self._p2 = point
+        self._p2.bind(self._update_position)
+        self._recalculate_geometry()
 
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
@@ -113,26 +174,183 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
-    def _update_position(self, _: _point.Point):
-        """Calculate position, rotation, and scale from endpoints"""
+    def _recalculate_geometry(self):
+        """Compute total length, an aggregate angle, and OBB/AABB from the
+        bundle's current start/interior-waypoints/stop path.
 
-        # Calculate wire vector
-        wire_vector = (self._p1 - self._p2).as_numpy
-        length = np.linalg.norm(wire_vector)
+        Per-segment position/angle/scale for actual drawing and hit-
+        testing are computed fresh in render()/hit_test_step3 from
+        WireTypeMixin._segments() -- this only maintains the aggregate
+        values anything outside this class still reads (.scale, .angle,
+        .obb, .aabb).
+        """
+        segments = self._segments()
 
-        if length < 0.001:
-            length = 0.001  # Prevent zero length
+        total_length = 0.0
+        for seg_p1, seg_p2 in segments:
+            total_length += float(np.linalg.norm(seg_p2 - seg_p1))
 
-        self._scale.z = length
+        if total_length < 0.001:
+            total_length = 0.001  # Prevent zero length
 
-        direction = wire_vector / length
+        self._scale.z = total_length
 
-        # Rotation: align +Z axis with wire direction
-        new_angle = self._rotation_from_direction(direction)
-        self._angle._q = new_angle._q  # NOQA
+        # Aggregate angle: the overall start->stop chord direction. Not
+        # used for drawing (each segment computes its own), kept only for
+        # any other code reading .angle on a bundle.
+        a = self._p1.as_numpy
+        b = self._p2.as_numpy
+        chord = b - a
+        chord_length = float(np.linalg.norm(chord))
+        if chord_length >= 0.001:
+            angle = self._rotation_from_direction(chord / chord_length)
+            self._angle._q = angle._q  # NOQA
 
         self._compute_obb()
         self._compute_aabb()
+
+    def _update_position(self, _: _point.Point):
+        """Recompute geometry immediately, not deferred to the next render
+        pass -- bound to the start/stop endpoints and every interior
+        waypoint (see _bind_waypoints), so any of them moving keeps the
+        bundle's aggregate scale/OBB/AABB current before the next repaint.
+        """
+        self._recalculate_geometry()
+
+    def _segment_transforms(self):
+        """Yield (position, angle, scale, length) for every sub-segment of
+        this bundle's current path -- the values render()/hit_test_step3
+        both draw/test against, computed fresh each call since a bundle's
+        waypoints can change at any time."""
+        diameter = self._scale.x
+
+        for seg_p1, seg_p2 in self._segments():
+            seg_vec = seg_p2 - seg_p1
+            seg_len = float(np.linalg.norm(seg_vec))
+            if seg_len < 1e-6:
+                continue
+
+            direction = seg_vec / seg_len
+            seg_angle = self._rotation_from_direction(direction)
+            seg_position = _point.Point(*seg_p1)
+            seg_scale = _point.Point(diameter, diameter, seg_len)
+
+            yield seg_position, seg_angle, seg_scale, seg_len
+
+    def _compute_obb(self):
+        """Union AABB across every sub-segment, expressed as an 8-corner
+        box (same shape find_object/_ray_intersect_obb expects) -- a
+        single rigid OBB has no meaningful orientation for a bundle with
+        more than one bend, so this degenerates to the same envelope as
+        _compute_aabb rather than a tight rotated box. Conservative but
+        always correct; see hit_test_step3 for the precise, per-segment
+        mesh test."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        if corners is None:
+            return
+
+        mins = corners.min(axis=0)
+        maxs = corners.max(axis=0)
+
+        self._obb = np.array([
+            [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
+            [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
+            [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
+            [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
+        ], dtype=np.float32)
+
+    def _compute_aabb(self):
+        """See _compute_obb -- same union-of-segments envelope."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        if corners is None:
+            return
+
+        aabb = _utils.adjust_aabb(corners)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
+
+    def _segment_world_corners(self):
+        """World-space AABB corners (8 per segment) for every sub-segment,
+        stacked into one array -- the shared building block for both
+        _compute_obb and _compute_aabb's union-of-segments envelope."""
+        local_min = self._vbo.local_aabb[0]
+        local_max = self._vbo.local_aabb[1]
+        x1, y1, z1 = local_min
+        x2, y2, z2 = local_max
+
+        local_corners = np.array([
+            [x1, y1, z1], [x1, y1, z2],
+            [x1, y2, z1], [x1, y2, z2],
+            [x2, y1, z1], [x2, y1, z2],
+            [x2, y2, z1], [x2, y2, z2]
+        ], dtype=np.float32)
+
+        all_corners = []
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            corners = local_corners * seg_scale.as_numpy
+            corners = corners @ seg_angle
+            corners = corners + seg_position.as_numpy
+            all_corners.append(corners)
+
+        if not all_corners:
+            # Every sub-segment is degenerate (start and stop, and any
+            # waypoints between them, all coincide) -- a point-sized box
+            # at the bundle's own position is still a valid, if trivial,
+            # bound (see objects.objects3d.wire's identical fallback).
+            point = self._p1.as_numpy
+            return np.tile(point, (8, 1)).astype(np.float32)
+
+        return np.concatenate(all_corners, axis=0)
+
+    def hit_test_step3(self, ray_origin, ray_dir):
+        """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
+        tests every sub-segment's own transformed triangles individually
+        instead of assuming one rigid transform for the whole bundle."""
+        if self._vbo is None:
+            return False
+
+        vertices_local = self._vbo.vertices.reshape(-1, 3)
+        if len(vertices_local) % 3:
+            return False
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            ray_object = ray_origin - seg_position.as_numpy
+
+            vertices = (vertices_local * seg_scale.as_numpy) @ seg_angle
+            verts = vertices.reshape(-1, 3, 3)
+
+            if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
+                return True
+
+        return False
+
+    def render(self, faces_program, edges_program, vertices_program):
+        """Render every sub-segment of the bundle's current path.
+
+        Geometry is always current by the time this runs --
+        _update_position recomputes it synchronously the moment any
+        endpoint or waypoint moves, so there is nothing to catch up on
+        here. Each sub-segment is drawn as its own straight cylinder by
+        temporarily pointing this object's position/angle/scale at that
+        segment before delegating to Base3D.render() -- reuses its
+        existing faces/edges/normals/vertices debug-config gating and
+        material handling unchanged, once per segment.
+        """
+        real_position, real_angle, real_scale = self._position, self._angle, self._scale
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+            super().render(faces_program, edges_program, vertices_program)
+
+        self._position, self._angle, self._scale = real_position, real_angle, real_scale
 
     @staticmethod
     def _rotation_from_direction(direction):
@@ -158,38 +376,38 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return _angle.Angle.from_axis_angle(axis, angle)
 
-    def set_diameter(self, parent_layout, value: float):
-        """Set the diameter.
+    def set_diameter(self, value: float):
+        """Set this bundle's own diameter, and -- if either end is
+        attached to a Transition (see objects.bundle.Bundle.set_sibling)
+        -- that branch's own diameter to match, so the fitting's opening
+        always reflects whatever bundle currently plugs into it.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param parent_layout: Value for ``parent_layout``.
-        :type parent_layout: UNKNOWN
-        :param value: Value to store or process.
-        :type value: float
+        There is nothing further to cascade into past a Transition: under
+        the waypoint model, two bundle rows never share an endpoint with
+        each other directly any more (ordinary bends are same-row
+        waypoints; a bundle's own end can only ever attach to a
+        Transition; two bundles touching merge into one row instead of
+        staying two, see handlers.bundle_topology.merge_bundles) -- so
+        the old cross-row cascade through BundleLayout.set_diameter this
+        replaces no longer has any boundary to walk across.
         """
-        # TODO: set transition branch diameter
-        #       finish code to cascade bundle diameter
-        #       through layouts from one end of the bundle to the other stopping
-        #       at a boot, the end of the bundle or a transition branch
         self._diameter = value
         self._scale.x = value
         self._scale.y = value
 
-        if parent_layout.position.db_id == self._p1.db_id:
-            for layout in self.editor3d.mainframe.project.bundle_layouts:
-                if layout.obj3d.position.db_id == self._p2.db_id:
-                    layout.obj3d.set_diameter(self, value)
-                    break
-            else:
-                for transition in self.editor3d.mainframe.project.transitions:
-                    index = transition.obj3d.get_branch_index(self._p2)
+        bundle_obj = self.parent
 
-        else:
-            for layout in self.editor3d.mainframe.project.bundle_layouts:
-                if layout.obj3d.position.db_id == self._p1.db_id:
-                    layout.obj3d.set_diameter(self, value)
-                    break
+        for transition in (bundle_obj.start_sibling, bundle_obj.stop_sibling):
+            if transition is None:
+                continue
+
+            branch_id = transition.branch_id_of(bundle_obj)
+            if branch_id is None:
+                continue
+
+            branch = getattr(transition.db_obj, f'branch{branch_id}')
+            if branch is not None:
+                branch.diameter = value
 
     def add_wire(self, wire):
         """Add a wire.
@@ -316,21 +534,33 @@ class BundleMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     def on_add_handle(self):
-        """Insert a bundle layout (drag handle) at the middle of the bundle.
+        """Insert a bundle layout (drag handle) at the point on the bundle
+        that was right-clicked to open this menu (falls back to the
+        bundle's midpoint if no click point was captured -- e.g. the menu
+        was opened some other way).
 
-        The bundle is split into two segments that share the layout point.
+        No row split -- the new waypoint is inserted into the bundle's
+        own ordered path at whichever position the click actually
+        projects onto (see _create_bundle_layout_on_bundle), mirroring
+        objects.objects3d.wire.WireMenu.on_add_handle.
         """
         from ...handlers import bundle_layout_handler as _bundle_layout_handler
 
         bundle = self.selected.parent
         project = self.selected.mainframe.project
 
-        line = _line.Line(self.selected.start_position,
-                          self.selected.stop_position)
-        midpoint = line.point_from_start(line.length() / 2.0)
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+        position = insert_idx = None
+        if click_pos is not None:
+            position, _angle, insert_idx = self.selected.get_closest_point(click_pos)
+
+        if position is None:
+            line = _line.Line(self.selected.start_position,
+                              self.selected.stop_position)
+            position = line.point_from_start(line.length() / 2.0)
 
         _bundle_layout_handler._create_bundle_layout_on_bundle(  # NOQA
-            project, bundle, midpoint)
+            project, bundle, position, self.selected.diameter, insert_idx)
 
         self.selected.editor3d.Refresh()
 

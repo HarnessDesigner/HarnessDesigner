@@ -15,6 +15,7 @@ from ... import handlers as _handlers
 from ...objects import housing as _housing
 from ...objects import terminal as _terminal
 from ...objects import wire as _wire
+from ...objects import bundle as _bundle
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -871,8 +872,9 @@ class MouseHandler:
                                 # instead of starting a no-op drag.
                                 self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
                                 refresh = True
-                            elif isinstance(selected, _wire.Wire):
-                                self._drag_obj = _dragging.WireDragObject(self.canvas, selected)
+                            elif isinstance(selected, (_wire.Wire, _bundle.Bundle)):
+                                self._drag_obj = _dragging.PathDragObject(
+                                    self.canvas, selected, mouse_pos)
                             else:
                                 self._drag_obj = _dragging.DragObject(self.canvas, selected)
                         else:

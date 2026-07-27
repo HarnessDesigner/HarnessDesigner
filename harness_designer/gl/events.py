@@ -18,8 +18,8 @@ received directly by the connected handler — no conversion step needed.
 
 from typing import TYPE_CHECKING, Union
 
-from PySide6.QtGui import QCursor
-from PySide6.QtWidgets import QApplication
+from PySide6 import QtGui
+from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from ..geometry import point as _point
@@ -224,7 +224,7 @@ class GLCameraEvent(_GLEventBase):
 
     @classmethod
     def from_canvas(cls, type_, canvas):
-        global_pos = QCursor.pos()
+        global_pos = QtGui.QCursor.pos()
         local_pos = canvas.mapFromGlobal(global_pos)
 
         if not canvas.rect().contains(local_pos):
@@ -239,7 +239,7 @@ class GLCameraEvent(_GLEventBase):
         mouse_pos = _point.Point(local_pos.x(), local_pos.y())
         instance.SetPosition(mouse_pos)
 
-        btns = QApplication.mouseButtons()
+        btns = QtWidgets.QApplication.mouseButtons()
         flags = BTN_NONE
 
         if btns & QtCore.Qt.MouseButton.LeftButton:
@@ -666,7 +666,7 @@ class GLKeyEvent(_GLEventBase):
         self._raw_key_flags: int = 0
         self._unicode_key: int = 0
 
-    def GetMouseEvent(self) -> "GLObjectEvent | GLEvent | None":
+    def GetMouseEvent(self) -> GLObjectEvent | GLEvent | None:
         """Execute the get mouse event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -676,7 +676,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._mouse_event
 
-    def SetMouseEvent(self, evt: "GLObjectEvent | GLEvent | None") -> None:
+    def SetMouseEvent(self, evt: GLObjectEvent | GLEvent | None) -> None:
         """Execute the set mouse event operation.
 
         UNKNOWN details are inferred from the callable name and signature.

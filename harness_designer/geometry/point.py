@@ -422,7 +422,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self.__ref_count__ = 0
 
     @property
-    def db_id(self) -> "str | int | None":
+    def db_id(self) -> str | int | None:
         """
         Return the canonical database id for this Point.
 
@@ -437,7 +437,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self._db_id
 
     @db_id.setter
-    def db_id(self, value: "str | int | None") -> None:
+    def db_id(self, value: str | int | None) -> None:
         self._db_id = value
 
     def __enter__(self):

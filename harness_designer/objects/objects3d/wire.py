@@ -2,7 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-import weakref
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
 from OpenGL import GL
@@ -19,6 +18,7 @@ from ...shapes import helix as _helix
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
+from ... import utils as _utils
 from . import mixins as _mixins
 
 if TYPE_CHECKING:
@@ -30,7 +30,7 @@ Config = _config.Config.editor3d
 
 # Real-world mm of extra headroom built into the shared stripe helix mesh
 # beyond whatever's currently required (see WireStripe._ensure_stripe_capacity).
-# A live drag/preview can then grow a wire's stripe_clip_stop without
+# A live drag/preview can then grow a wire's own total length without
 # forcing a GPU buffer reallocation on every frame -- only once the
 # overshoot itself is exhausted does the mesh actually need to regrow.
 _HELIX_OVERSHOOT_MM = 1000.0
@@ -70,6 +70,13 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p1 = db_obj.start_position3d
         self._p2 = db_obj.stop_position3d
 
+        # Live Point objects for every interior waypoint (idx order),
+        # kept in sync with the DB via refresh_waypoints() -- called by
+        # whichever handler adds/removes/reorders this wire's own
+        # waypoints (handlers.wire_layout_handler, handlers.wire_handler,
+        # objects.terminal.Terminal.add_wire).
+        self._waypoint_points: list[_point.Point] = []
+
         self._length = self._calc_length()
 
         position = self._p1
@@ -81,13 +88,6 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._wires = []  # List of weak references to Wire objects
 
         self._p2.bind(self._update_position)
-
-        # Weakref to whichever wire's start point is this wire's own stop
-        # point (the next segment in a split chain) -- see the sibling
-        # property. Set by whichever handler creates that continuation
-        # (handlers.wire_layout_handler._split_wire_at_point,
-        # handlers.wire_handler.AddWireHandler).
-        self._sibling_ref = None
 
         vbo = _cylinder.create_vbo()
         angle = _angle.Angle()
@@ -116,6 +116,11 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         # both endpoints already drive recalculation via their point bindings.
         self._angle.unbind(self._update_angle)
 
+        # self.db_obj is only valid from here on (set by Base3D.__init__
+        # above) -- this is the first point waypoints3d/for_wire can be
+        # queried, so the initial waypoint bind and the real (possibly
+        # multi-segment) geometry recompute both happen here, not earlier.
+        self._bind_waypoints()
         self._recalculate_geometry()
 
         parent.mainframe.editor3d.context.release()
@@ -125,6 +130,14 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         return self._length
 
     def _calc_length(self):
+        """Straight-line seed length used only to size this wire's
+        initial scale before Base3D.__init__ runs (self.db_obj isn't
+        valid yet, so this can't query waypoints3d) -- a brand new wire
+        row never has any waypoints yet anyway. _recalculate_geometry
+        (called at the end of __init__, and on every subsequent endpoint/
+        waypoint move) replaces this with the true, possibly multi-segment
+        polyline length via WireTypeMixin._segments().
+        """
         x1, y1, z1 = self._p1.as_numpy.tolist()
         x2, y2, z2 = self._p2.as_numpy.tolist()
 
@@ -134,59 +147,30 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return math.sqrt(dx * dx + dy * dy + dz * dz)
 
-    @property
-    def stripe_clip_start(self) -> float:
-        if self._stripe is None:
-            return 0.0
+    def _bind_waypoints(self) -> None:
+        """(Re-)bind this wire's own _update_position callback to every
+        current interior waypoint's live Point, unbinding it from whatever
+        set was bound before.
 
-        return self.db_obj.stripe_clip_start
-
-    @stripe_clip_start.setter
-    def stripe_clip_start(self, value: float) -> None:
-        """Set this wire's own offset into the shared stripe helix mesh.
-
-        Persists the new value and, if it actually changed, cascades
-        the same shift onward: whichever wire continues from this
-        one's stop point (see sibling) gets its own stripe_clip_start
-        set to this wire's new stripe_clip_stop -- which triggers this
-        exact same check in its own setter, one hop at a time, only as
-        far as an actual change reaches.
+        Called once at construction and again (as refresh_waypoints) by
+        any handler that adds/removes/reorders this wire's own waypoints,
+        so live position-change callbacks always match the current set.
         """
-        if abs(value - self.db_obj.stripe_clip_start) < 1e-6:
-            return
+        for point in self._waypoint_points:
+            point.unbind(self._update_position)
 
-        self.db_obj.stripe_clip_start = value
+        self._waypoint_points = [wp.point for wp in self.db_obj.waypoints3d]
 
-        next_obj = self.sibling
-        if next_obj is not None:
-            next_obj.stripe_clip_start = self.stripe_clip_stop
+        for point in self._waypoint_points:
+            point.bind(self._update_position)
 
+    def refresh_waypoints(self) -> None:
+        """Public entry point for handlers: call after this wire's own
+        waypoint rows change (added, removed, or reordered) so live
+        callbacks, cached length, and geometry all catch up."""
+        self._bind_waypoints()
+        self._recalculate_geometry()
         self.editor3d.Refresh()
-
-    @property
-    def stripe_clip_stop(self):
-        if self._stripe is None:
-            return 0.0
-
-        return self._length + self.stripe_clip_start
-
-    @property
-    def sibling(self) -> "Wire | None":
-        """The wire whose start point is this wire's own stop point --
-        i.e. the next segment in a chain split by a wire layout point.
-        Set at creation time by whichever handler creates that
-        continuation (see _split_wire_at_point, AddWireHandler). Backed
-        by a plain weakref (see the setter) so a deleted sibling just
-        reads back as None -- nothing to clean up.
-        """
-        if self._sibling_ref is None:
-            return None
-
-        return self._sibling_ref()
-
-    @sibling.setter
-    def sibling(self, wire_obj: "Wire | None") -> None:
-        self._sibling_ref = None if wire_obj is None else weakref.ref(wire_obj)
 
     @property
     def start_position(self):
@@ -228,6 +212,28 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return False
 
+    def set_start_position(self, point: "_point.Point") -> None:
+        """Repoint this wire's own start end to *point* entirely.
+
+        Not a merge/delegation (see Point.attach for that) -- the old
+        start point is left alone as an independent point (e.g. becoming
+        a permanent interior waypoint the instant before this is called;
+        see handlers.wire_handler.AddWireHandler._commit_waypoint, the
+        only caller today), and *point* must already be exactly where
+        this wire's start should be -- nothing here moves it.
+        """
+        self._p1.unbind(self._update_position)
+        self._p1 = point
+        self._p1.bind(self._update_position)
+        self._recalculate_geometry()
+
+    def set_stop_position(self, point: "_point.Point") -> None:
+        """See set_start_position."""
+        self._p2.unbind(self._update_position)
+        self._p2 = point
+        self._p2.bind(self._update_position)
+        self._recalculate_geometry()
+
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -239,72 +245,216 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._update_position(None)
 
     def _recalculate_geometry(self):
-        """Compute wire direction, length, angle, OBB and AABB from current endpoints."""
-        a = self._p1.as_numpy
-        b = self._p2.as_numpy
+        """Compute total length, an aggregate angle, and OBB/AABB from
+        the wire's current start/interior-waypoints/stop path.
 
-        wire_vector = b - a
-        length = math.sqrt(wire_vector[0] * wire_vector[0] +
-                           wire_vector[1] * wire_vector[1] +
-                           wire_vector[2] * wire_vector[2])
+        Per-segment position/angle/scale for actual drawing and hit-
+        testing are computed fresh in render()/hit_test_step3 from
+        WireTypeMixin._segments() -- this only maintains the aggregate
+        values anything outside this class still reads (.length, .scale,
+        .angle, .obb, .aabb).
+        """
+        segments = self._segments()
 
-        if length < 0.001:
+        total_length = 0.0
+        for seg_p1, seg_p2 in segments:
+            total_length += float(np.linalg.norm(seg_p2 - seg_p1))
+
+        if total_length < 0.001:
             return
 
-        self._length = length
-        self._scale.z = length
+        self._length = total_length
+        self._scale.z = total_length
 
         if self._stripe is not None:
-            self._stripe._ensure_stripe_capacity(self.mainframe, self.stripe_clip_start + length)  # NOQA
+            self._stripe._ensure_stripe_capacity(self.mainframe, total_length)  # NOQA
 
-            # Push this wire's new stripe_clip_stop onto whichever wire
-            # continues from it (see sibling) -- the stripe_clip_start
-            # setter itself no-ops if the value didn't actually change,
-            # and cascades onward through its own sibling otherwise.
-            next_obj = self.sibling
-            if next_obj is not None:
-                next_obj.stripe_clip_start = self.stripe_clip_stop
-
-        direction = wire_vector / length
-
-        # Rotation: align +Z axis with wire direction
-        angle = self._rotation_from_direction(direction)
-        self._angle._q = angle._q  # NOQA
+        # Aggregate angle: the overall start->stop chord direction. Not
+        # used for drawing (each segment computes its own), kept only for
+        # any other code reading .angle on a wire.
+        a = self._p1.as_numpy
+        b = self._p2.as_numpy
+        chord = b - a
+        chord_length = float(np.linalg.norm(chord))
+        if chord_length >= 0.001:
+            angle = self._rotation_from_direction(chord / chord_length)
+            self._angle._q = angle._q  # NOQA
 
         self._compute_obb()
         self._compute_aabb()
 
     def _update_position(self, _: _point.Point):
         """Recompute geometry immediately, not deferred to the next
-        render pass.
-
-        The stripe_clip_start cascade to sibling (see
-        _recalculate_geometry/the stripe_clip_start setter) has to
-        happen synchronously and deterministically: render order across
-        wires isn't guaranteed to follow chain order, so deferring this
-        would let a downstream wire render with a stale stripe_clip_start
-        for a frame -- or worse, depending on which wire's render()
-        happens to run first that frame.
+        render pass -- bound to the start/stop endpoints and every
+        interior waypoint (see _bind_waypoints), so any of them moving
+        keeps the wire's aggregate length/OBB/AABB and the stripe's
+        mesh capacity current before the next repaint.
         """
 
         self._recalculate_geometry()
 
-    def render(self, faces_program, edges_program, vertices_program):
-        """Render the wire. Geometry is always current by the time this
-        runs -- _update_position/_update_angle recompute it synchronously
-        the moment an endpoint moves, so there is nothing to catch up on
-        here."""
-        super().render(faces_program, edges_program, vertices_program)
+    def _segment_transforms(self):
+        """Yield (position, angle, scale, length) for every sub-segment
+        of this wire's current path -- the values render()/hit_test_step3
+        both draw/test against, computed fresh each call since a wire's
+        waypoints can change at any time."""
+        diameter = self._scale.x
 
-        # The stripe is a plain attribute, not a separately-registered scene
-        # object (canvas.add_object is never called for it), so nothing else
-        # ever calls its render() -- piggyback on the wire's own render pass.
-        # Suppressed while selected: the wire body above already switched to
-        # the selected material/color (Base3D.material), and the stripe
-        # can't be independently clicked (it's never in objects_in_view) so
-        # there's no selection state of its own to visually represent.
-        if self._stripe is not None and not self.is_selected:
-            self._stripe.render(faces_program, edges_program, vertices_program)
+        for seg_p1, seg_p2 in self._segments():
+            seg_vec = seg_p2 - seg_p1
+            seg_len = float(np.linalg.norm(seg_vec))
+            if seg_len < 1e-6:
+                continue
+
+            direction = seg_vec / seg_len
+            seg_angle = self._rotation_from_direction(direction)
+            seg_position = _point.Point(*seg_p1)
+            seg_scale = _point.Point(diameter, diameter, seg_len)
+
+            yield seg_position, seg_angle, seg_scale, seg_len
+
+    def _compute_obb(self):
+        """Union AABB across every sub-segment, expressed as an 8-corner
+        box (same shape find_object/_ray_intersect_obb expects) -- a
+        single rigid OBB has no meaningful orientation for a wire with
+        more than one bend, so this degenerates to the same envelope as
+        _compute_aabb rather than a tight rotated box. Conservative (a
+        click near an elbow but off the actual tube can still register a
+        hit) but always correct; see hit_test_step3 for the precise,
+        per-segment mesh test."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        if corners is None:
+            return
+
+        mins = corners.min(axis=0)
+        maxs = corners.max(axis=0)
+
+        self._obb = np.array([
+            [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
+            [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
+            [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
+            [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
+        ], dtype=np.float32)
+
+    def _compute_aabb(self):
+        """See _compute_obb -- same union-of-segments envelope."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        if corners is None:
+            return
+
+        aabb = _utils.adjust_aabb(corners)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
+
+    def _segment_world_corners(self):
+        """World-space AABB corners (8 per segment) for every sub-segment,
+        stacked into one array -- the shared building block for both
+        _compute_obb and _compute_aabb's union-of-segments envelope."""
+        local_min = self._vbo.local_aabb[0]
+        local_max = self._vbo.local_aabb[1]
+        x1, y1, z1 = local_min
+        x2, y2, z2 = local_max
+
+        local_corners = np.array([
+            [x1, y1, z1], [x1, y1, z2],
+            [x1, y2, z1], [x1, y2, z2],
+            [x2, y1, z1], [x2, y1, z2],
+            [x2, y2, z1], [x2, y2, z2]
+        ], dtype=np.float32)
+
+        all_corners = []
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            corners = local_corners * seg_scale.as_numpy
+            corners = corners @ seg_angle
+            corners = corners + seg_position.as_numpy
+            all_corners.append(corners)
+
+        if not all_corners:
+            # Every sub-segment is degenerate (start and stop, and any
+            # waypoints between them, all coincide) -- a real state a
+            # wire can transiently be in (e.g. a wire service loop's own
+            # placeholder "gap" wire, deleted a moment after construction
+            # -- see handlers.wire_service_loop_handler._split_wire_for_
+            # loop). A point-sized box at the wire's own position is
+            # still a valid, if trivial, bound -- returning None left obb/
+            # aabb permanently unset (None) instead.
+            point = self._p1.as_numpy
+            return np.tile(point, (8, 1)).astype(np.float32)
+
+        return np.concatenate(all_corners, axis=0)
+
+    def hit_test_step3(self, ray_origin, ray_dir):
+        """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
+        tests every sub-segment's own transformed triangles individually
+        instead of assuming one rigid transform for the whole wire."""
+        if self._vbo is None:
+            return False
+
+        vertices_local = self._vbo.vertices.reshape(-1, 3)
+        if len(vertices_local) % 3:
+            return False
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            ray_object = ray_origin - seg_position.as_numpy
+
+            vertices = (vertices_local * seg_scale.as_numpy) @ seg_angle
+            verts = vertices.reshape(-1, 3, 3)
+
+            if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
+                return True
+
+        return False
+
+    def render(self, faces_program, edges_program, vertices_program):
+        """Render every sub-segment of the wire's current path.
+
+        Geometry is always current by the time this runs --
+        _update_position recomputes it synchronously the moment any
+        endpoint or waypoint moves, so there is nothing to catch up on
+        here. Each sub-segment is drawn as its own straight cylinder by
+        temporarily pointing this object's (and the stripe's) position/
+        angle/scale at that segment before delegating to Base3D.render()
+        -- reuses its existing faces/edges/normals/vertices debug-config
+        gating and material handling unchanged, once per segment.
+        """
+        real_position, real_angle, real_scale = self._position, self._angle, self._scale
+
+        draw_stripe = self._stripe is not None and not self.is_selected
+        if draw_stripe:
+            stripe_position = self._stripe._position  # NOQA
+            stripe_angle = self._stripe._angle  # NOQA
+
+        stripe_offset = 0.0
+
+        for seg_position, seg_angle, seg_scale, seg_len in self._segment_transforms():
+            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+            super().render(faces_program, edges_program, vertices_program)
+
+            if draw_stripe:
+                # Stripe geometry ignores scale.z entirely (see
+                # gl.shaders.faces' vertex shader) -- only x/y (bumped past
+                # the wire's own radius) matter, so its own scale.z value
+                # is irrelevant; position/angle must match this segment.
+                self._stripe._position = seg_position  # NOQA
+                self._stripe._angle = seg_angle  # NOQA
+                self._stripe.render_segment(
+                    faces_program, edges_program, vertices_program,
+                    stripe_offset, stripe_offset + seg_len)
+
+            stripe_offset += seg_len
+
+        self._position, self._angle, self._scale = real_position, real_angle, real_scale
+        if draw_stripe:
+            self._stripe._position = stripe_position  # NOQA
+            self._stripe._angle = stripe_angle  # NOQA
 
     def set_selected(self, flag: bool):
         """Set the selected.
@@ -399,7 +549,7 @@ class WireStripe(_base3d.Base3D):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, parent: "_wire.Wire", wire: "Wire", color: _color.Color, scale: _point.Point,
+    def __init__(self, parent: "_wire.Wire", wire: Wire, color: _color.Color, scale: _point.Point,
                  angle: _angle.Angle, position: _point.Point):
         """Initialise the :class:`WireStripe` instance.
 
@@ -419,11 +569,19 @@ class WireStripe(_base3d.Base3D):
         :type position: :class:`_point.Point`
         """
 
-        # Read db_obj.stripe_clip_start directly rather than through the
-        # stripe_clip_stop property: wire._stripe is still None until
-        # Wire.__init__'s `self._stripe = WireStripe(...)` assignment
-        # completes, so the property would read back 0.0 right now.
-        required = wire.db_obj.stripe_clip_start + wire.length
+        # wire.length isn't trustworthy yet at this point in Wire.__init__
+        # -- it's still the plain straight-line p1/p2 seed from
+        # Wire._calc_length, computed before _recalculate_geometry ever
+        # runs (see Wire.__init__'s ordering). wire.db_obj/start_position/
+        # stop_position are already valid by now though (set by
+        # Base3D.__init__, just above), so the true, possibly multi-
+        # segment polyline length -- what this stripe actually needs
+        # capacity for, e.g. reloading an already-bent wire -- can be
+        # computed directly here via the same WireTypeMixin._segments()
+        # walk Wire itself uses.
+        required = sum(
+            float(np.linalg.norm(seg_p2 - seg_p1))
+            for seg_p1, seg_p2 in wire._segments())  # NOQA
         self._ensure_stripe_capacity(parent.mainframe, required)
 
         # Already big enough after _ensure_stripe_capacity -- this just
@@ -442,9 +600,10 @@ class WireStripe(_base3d.Base3D):
         # matter how that's biased, so the fix is to not be coincident in
         # the first place. z is irrelevant here: faces.py's vertex shader
         # skips z-scaling entirely for stripe geometry (stripeClipStop >
-        # 0), so it doesn't need to track the wire's live length -- see
-        # stripe_clip_start/stripe_clip_stop on Wire, read directly by
-        # this class's own render() override below.
+        # 0), so it doesn't need to track any segment's live length -- see
+        # the clip_start/clip_stop args Wire.render() passes into
+        # render_segment below, computed fresh per segment as it walks
+        # the wire's own waypoints.
         stripe_scale = _point.Point(scale.x + 0.1, scale.y + 0.1, scale.z)
         _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
 
@@ -452,8 +611,9 @@ class WireStripe(_base3d.Base3D):
     def _ensure_stripe_capacity(mainframe, required: float) -> None:
         """Grow the shared wire-stripe helix mesh -- and persist the new
         true-required max back onto the project row -- if `required`
-        (a wire's own end position in the shared mesh, i.e. its
-        stripe_clip_stop) exceeds what's currently stored.
+        (a wire's own total length, the furthest any of its segments'
+        clip windows will ever reach into the shared mesh) exceeds what's
+        currently stored.
 
         Takes `mainframe` explicitly rather than reading self.mainframe:
         called from __init__ before Base3D.__init__ has set it (the vbo
@@ -482,15 +642,22 @@ class WireStripe(_base3d.Base3D):
         subclass doesn't define this)."""
         return True
 
-    def render(self, faces_program, edges_program, vertices_program):
-        """Set stripeStartLength for this stripe's own draw, then reset
-        it to zero right after.
+    def render_segment(self, faces_program, edges_program, vertices_program,
+                        clip_start: float, clip_stop: float):
+        """Draw this stripe windowed to [clip_start, clip_stop] -- one
+        call per wire sub-segment, made by Wire.render() with this
+        stripe's own _position/_angle already pointed at that segment.
 
-        Unlike stripeClipLength (which every object explicitly sets on
-        every draw call -- see Base3D._render_geometry), only WireStripe
-        ever touches this uniform, so it has to clean up after itself:
-        GL uniform state persists on the program across draw calls, and
-        a nonzero value left behind would otherwise leak into whatever
+        clip_start/clip_stop are now computed fresh by the caller (a
+        running total of preceding segment lengths) rather than read from
+        a persisted, cross-row-cascaded value -- see gl.shaders.faces'
+        stripeClipStart/stripeClipStop uniforms for what they mean to the
+        shader; nothing else about the windowing mechanism changes.
+
+        Resets the uniforms to 0.0 right after, same as the single-shot
+        render() this replaces -- only WireStripe ever touches them, and
+        GL uniform state persists on the program across draw calls, so a
+        nonzero value left behind would otherwise leak into whatever
         renders next on the same faces_program.
         """
         if not self.is_visible:
@@ -500,8 +667,8 @@ class WireStripe(_base3d.Base3D):
         stop_loc = GL.glGetUniformLocation(faces_program, "stripeClipStop")
 
         GL.glUseProgram(faces_program)
-        GL.glUniform1f(start_loc, self._wire.stripe_clip_start)
-        GL.glUniform1f(stop_loc, self._wire.stripe_clip_stop)
+        GL.glUniform1f(start_loc, clip_start)
+        GL.glUniform1f(stop_loc, clip_stop)
 
         super().render(faces_program, edges_program, vertices_program)
 
@@ -658,18 +825,34 @@ class WireMenu(QMenu):
         return line.point_from_start(line.length() / 2.0)
 
     def on_add_handle(self):
-        """Insert a wire layout (drag handle) at the middle of the wire.
+        """Insert a wire layout (drag handle) at the point on the wire
+        that was right-clicked to open this menu (falls back to the
+        wire's midpoint if no click point was captured -- e.g. the menu
+        was opened some other way).
 
-        The wire is split into two segments that share the layout point.
+        No row split any more -- the new waypoint is inserted into the
+        wire's own ordered path at whichever position the click actually
+        projects onto (see _create_wire_layout_on_wire), same as
+        on_add_marker's own click-position handling below.
         """
         from ...handlers import wire_layout_handler as _wire_layout_handler
 
         wire = self.selected.parent
         project = self.selected.mainframe.project
-        midpoint = self._midpoint()
+
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+        position = insert_idx = None
+        if click_pos is not None:
+            position, _angle, insert_idx = self.selected.get_closest_point(click_pos)
+
+        if position is None:
+            # No click captured -- fall back to the wire's own midpoint;
+            # _create_wire_layout_on_wire works out the insertion index
+            # itself in that case (see its insert_idx=None default).
+            position = self._midpoint()
 
         _wire_layout_handler._create_wire_layout_on_wire(  # NOQA
-            project, wire, midpoint)
+            project, wire, position, insert_idx)
 
         self.selected.editor3d.Refresh()
 
@@ -693,7 +876,7 @@ class WireMenu(QMenu):
             click_pos = self.selected._context_menu_click_pos  # NOQA
             position = None
             if click_pos is not None:
-                position, _ = self.selected.get_closest_point(click_pos)
+                position, _angle, _idx = self.selected.get_closest_point(click_pos)
 
             if position is None:
                 position = self._midpoint()

@@ -612,7 +612,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self._populate('wire_position3d_id')
 
     @property
-    def wire_point3d_id_raw(self) -> "int | None":
+    def wire_point3d_id_raw(self) -> int | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if a wire has
         never been routed to this cavity yet.
 

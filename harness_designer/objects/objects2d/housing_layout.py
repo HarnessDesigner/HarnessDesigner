@@ -70,7 +70,7 @@ def _apply_placement(housing: "_housing_obj.Housing", x: float, z: float, angle_
     housing.db_obj.angle2d.y = angle_deg
 
 
-def _assign_sides(housings: list) -> "tuple[list, list, list]":
+def _assign_sides(housings: list) -> tuple[list, list, list]:
     """Split *housings* (already sorted by cavity count, descending) into
     ``(left, right, remaining)``.
 
@@ -112,7 +112,7 @@ def _assign_sides(housings: list) -> "tuple[list, list, list]":
     return left, right, remaining
 
 
-def _assign_top_bottom(remaining: list) -> "tuple[list, list]":
+def _assign_top_bottom(remaining: list) -> tuple[list, list]:
     """Greedily split *remaining* (still cavity-count descending) between
     top/bottom, always adding the next (largest remaining) housing to
     whichever side currently has the smaller total -- the standard

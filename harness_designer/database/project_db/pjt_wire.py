@@ -25,6 +25,7 @@ from .mixins import (
 
 if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
+    from . import pjt_point3d as _pjt_point3d
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire_marker as _pjt_wire_marker
     from ...geometry import point as _point
@@ -129,8 +130,7 @@ class PJTWiresTable(PJTTableBase):
 
     def insert(self, part_id: int, name: str, circuit_id: int, start_point3d_id: int | None, stop_point3d_id: int | None,
                start_point2d_id: int | None, stop_point2d_id: int | None, is_visible3d: bool, is_visible2d: bool,
-               layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool,
-               stripe_clip_start: float = 0.0) -> "PJTWire":
+               layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool) -> "PJTWire":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -157,12 +157,6 @@ class PJTWiresTable(PJTTableBase):
         :type layer_id: int | None
         :param is_filler_wire: Boolean flag for whether filler wire.
         :type is_filler_wire: bool
-        :param stripe_clip_start: Offset (mm) into the shared stripe helix
-            mesh where this wire's own start sits -- 0.0 for a standalone
-            wire, or ``predecessor.stripe_clip_start + predecessor.length``
-            for one created by splitting an existing wire, or continuing
-            from an existing wire's stop point.
-        :type stripe_clip_start: float
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWire`
         """
@@ -172,8 +166,7 @@ class PJTWiresTable(PJTTableBase):
                                     start_point2d_id=start_point2d_id, stop_point2d_id=stop_point2d_id,
                                     is_visible3d=int(is_visible3d), is_visible2d=int(is_visible2d),
                                     layer_view_point_id=layer_view_point_id, layer_id=layer_id,
-                                    is_filler_wire=int(is_filler_wire),
-                                    stripe_clip_start=float(stripe_clip_start))
+                                    is_filler_wire=int(is_filler_wire))
 
         return PJTWire(self, db_id, self.project_id)
 
@@ -289,6 +282,48 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
             self._obj = weakref.ref(obj, self.__release_obj_ref)
         else:
             self._obj = obj
+
+    def delete(self) -> None:
+        """Delete this wire row, every interior waypoint row it owns, and
+        any WireLayout marking one of those waypoints.
+
+        wire_id on pjt_points2d/pjt_points3d has no DB-enforced FK (see
+        create_database/points2d.py/points3d.py -- a real FK back to
+        pjt_wires would be a circular module import), so there is no
+        cascade delete to rely on; waypoint rows -- and any WireLayout
+        that references one -- are cleaned up here explicitly instead
+        (deleting the point but leaving its layout behind would orphan a
+        row referencing a now-deleted point3d/point2d id). Start/stop
+        themselves are never touched -- they're owned by whatever
+        terminal/splice/service-loop/other wire the endpoint is attached
+        to, not by this wire.
+        """
+        layouts_table = self._table.db.pjt_wire_layouts_table
+
+        for point, id_field in ((p, 'position3d_id') for p in self.waypoints3d):
+            self._delete_layouts_at(layouts_table, id_field, point.db_id)
+            point.delete()
+
+        for point in self.waypoints2d:
+            self._delete_layouts_at(layouts_table, 'position2d_id', point.db_id)
+            point.delete()
+
+        super().delete()
+
+    @staticmethod
+    def _delete_layouts_at(layouts_table, id_field: str, point_id: int) -> None:
+        """Delete every WireLayout referencing *point_id* via *id_field*
+        (``position3d_id`` or ``position2d_id``) -- through its own live
+        object if one exists (so obj3d/obj2d teardown and the project's
+        own wire_layouts list stay consistent), falling back to a raw row
+        delete otherwise."""
+        for row in layouts_table.select('id', **{id_field: point_id}):
+            layout_db = layouts_table[row[0]]
+            layout_obj = layout_db.get_object()
+            if layout_obj is not None:
+                layout_obj.delete()
+            else:
+                layout_db.delete()
 
     @property
     def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
@@ -449,36 +484,37 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._table.update(self._db_id, is_filler_wire=int(value))
         self._populate('is_filler_wire')
 
-    _stored_stripe_clip_start: float | DefaultStoredValueType = DefaultStoredValue
+    @property
+    def waypoints3d(self) -> list["_pjt_point3d.PJTPoint3D"]:
+        """Every interior 3D waypoint on this wire, in chain order (start
+        and stop themselves are not included -- see start_position3d/
+        stop_position3d)."""
+        return self._table.db.pjt_points3d_table.for_wire(self.db_id)
 
     @property
-    def stripe_clip_start(self) -> float:
-        """Offset (mm) into the shared stripe helix mesh where this
-        wire's own start sits -- see ``PJTWiresTable.insert``. Only
-        meaningful for wires with a stripe (see ``has_stripe``).
-        """
-        if self._stored_stripe_clip_start is DefaultStoredValue:
-            self._stored_stripe_clip_start = float(
-                self._table.select('stripe_clip_start', id=self._db_id)[0][0])
-
-        return self._stored_stripe_clip_start
-
-    @stripe_clip_start.setter
-    def stripe_clip_start(self, value: float):
-        self._stored_stripe_clip_start = float(value)
-        self._table.update(self._db_id, stripe_clip_start=float(value))
-        self._populate('stripe_clip_start')
+    def waypoints2d(self) -> list["_pjt_point2d.PJTPoint2D"]:
+        """Every interior 2D waypoint on this wire, in chain order (start
+        and stop themselves are not included -- see start_position2d/
+        stop_position2d)."""
+        return self._table.db.pjt_points2d_table.for_wire(self.db_id)
 
     @property
     def length_mm(self) -> float:
-        """Return the length mm.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """Total physical length: the sum of every sub-segment from
+        start, through each interior waypoint in order, to stop -- not
+        the straight-line distance between the two endpoints, since a
+        wire can have any number of bends between them.
 
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        return _line.Line(self.start_position3d, self.stop_position3d).length()
+        points = [self.start_position3d, *(p.point for p in self.waypoints3d), self.stop_position3d]
+
+        total = 0.0
+        for a, b in zip(points, points[1:]):
+            total += _line.Line(a, b).length()
+
+        return total
 
     @property
     def length_m(self) -> float:

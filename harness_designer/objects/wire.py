@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
+import weakref
 
 from . import ObjectBase as _ObjectBase
 from .objects2d import wire as _wire_2d
@@ -11,6 +12,7 @@ from .objectspeg import wire as _wire_peg
 if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_wire as _pjt_wire
+    from . import wire_layout as _wire_layout_obj
 
 
 class Wire(_ObjectBase):
@@ -44,7 +46,122 @@ class Wire(_ObjectBase):
         self.obj3d = _wire_3d.Wire(self, db_obj)
         self.objpeg = _wire_peg.Wire(self, db_obj)
 
+        # Sibling graph: whatever this wire's own start/stop end attaches to
+        # -- a Terminal, Splice, or WireServiceLoop, never another Wire (two
+        # wires touching are merged into one row instead of staying linked,
+        # see handlers.wire_handler's wire-to-wire join). Each end holds at
+        # most one sibling; the thing on the other side may hold several
+        # (Terminal.wires, Splice.branch_wires) -- see set_sibling.
+        self._start_sibling_ref = None
+        self._stop_sibling_ref = None
+
         self.mainframe.add_object(self)
+
+    @property
+    def start_sibling(self):
+        """Whatever this wire's start end attaches to (Terminal, Splice,
+        WireServiceLoop), or None for a dangling/free-space end."""
+        return None if self._start_sibling_ref is None else self._start_sibling_ref()
+
+    @property
+    def stop_sibling(self):
+        """Whatever this wire's stop end attaches to (Terminal, Splice,
+        WireServiceLoop), or None for a dangling/free-space end."""
+        return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
+
+    def set_sibling(self, other, end: str) -> None:
+        """Record *other* as what this wire's *end* ('start' or 'stop')
+        attaches to.
+
+        One-sided: this only stores this wire's own side of the link. The
+        reverse direction (Terminal.add_wire, Splice.set_siblings/add_wire,
+        WireServiceLoop.set_siblings) is a separate, explicit call made by
+        whichever handler is wiring the two objects together -- see
+        handlers.splice_handler/handlers.wire_service_loop_handler.
+
+        :param other: The Terminal/Splice/WireServiceLoop object attached
+            at *end*, or None to clear it.
+        :param end: 'start' or 'stop'.
+        """
+        ref = None if other is None else weakref.ref(other)
+
+        if end == 'start':
+            self._start_sibling_ref = ref
+        elif end == 'stop':
+            self._stop_sibling_ref = ref
+        else:
+            raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
+
+    @property
+    def layouts(self) -> list["_wire_layout_obj.WireLayout"]:
+        """Every WireLayout marking a point on this wire's own path --
+        its true start/stop and every interior waypoint."""
+        point_ids = {self.db_obj.start_position3d_id, self.db_obj.stop_position3d_id}
+        point_ids.update(wp.db_id for wp in self.db_obj.waypoints3d)
+
+        return [
+            layout for layout in self.mainframe.project.wire_layouts
+            if layout.db_obj.position3d_id in point_ids
+        ]
+
+    def set_selected(self, flag):
+        """Select this wire, and show every WireLayout on its own path
+        in the selected color too -- via identify(), not set_selected()
+        (the layouts themselves never become the true selection;
+        mainframe only ever tracks one at a time, see
+        ObjectBase.set_selected)."""
+        super().set_selected(flag)
+
+        for layout in self.layouts:
+            if layout.obj3d is not None:
+                layout.obj3d.identify(layout.obj3d.selected_material if flag else None)
+            if layout.obj2d is not None:
+                layout.obj2d.identify(layout.obj2d.selected_material if flag else None)
+
+    def trace_run(self) -> tuple[float, float]:
+        """Walk outward from both ends of this wire through any attached
+        Splice/WireServiceLoop, summing physical length (mm) and
+        resistance across every Wire in the same electrical run.
+
+        Stops at a Terminal or a dangling end -- continuing a run across a
+        mated connector interface (terminal-to-terminal) isn't supported
+        yet; there's no housing-mating model to walk through.
+
+        :returns: (total_length_mm, total_resistance)
+        """
+        seen = set()
+        total_length = 0.0
+        total_resistance = 0.0
+        stack = [self]
+
+        while stack:
+            wire = stack.pop()
+            db_id = wire.db_obj.db_id
+            if db_id in seen:
+                continue
+            seen.add(db_id)
+
+            total_length += wire.db_obj.length_mm
+            total_resistance += wire.db_obj.resistance
+
+            for sibling in (wire.start_sibling, wire.stop_sibling):
+                if sibling is None:
+                    continue
+
+                # Splice (wires: start+stop+branch) and Terminal (wires:
+                # open list) both expose every attached wire the same way;
+                # WireServiceLoop exposes its fixed pair via start_sibling/
+                # stop_sibling instead (same shape as Wire itself).
+                if hasattr(sibling, 'wires'):
+                    for w in sibling.wires:
+                        if w is not wire and w.db_obj.db_id not in seen:
+                            stack.append(w)
+                elif hasattr(sibling, 'start_sibling'):
+                    for w in (sibling.start_sibling, sibling.stop_sibling):
+                        if w is not None and w is not wire and w.db_obj.db_id not in seen:
+                            stack.append(w)
+
+        return total_length, total_resistance
 
     def delete(self):
         # TODO: If a wire segment is connected to other wire segments

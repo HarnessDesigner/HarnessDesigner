@@ -110,6 +110,102 @@ def _wire_layout_end_wire(wire_layout_obj, project, part_id):
     return None, None
 
 
+def _merge_wire_into(project, wire_obj: "_wire.Wire", other_wire: "_wire.Wire", other_end: str):
+    """Join *wire_obj*'s own (dangling) stop end to *other_wire*'s
+    dangling *other_end* ('start' or 'stop'), merging them into a single
+    row -- part_id must already match (checked by the caller).
+
+    *wire_obj*'s own current stop point becomes a permanent interior
+    waypoint marking the seam (a WireLayout is dropped there), same as an
+    ordinary bend; *other_wire*'s own waypoints follow, reversed first if
+    joining to its start (so the merged chain still reads start->stop in
+    one consistent direction), renumbered to continue. circuit_id is
+    inherited from whichever of the two already had one set, not
+    required to match. Both original rows are deleted; returns the new
+    merged wire.
+    """
+    ptables = project.ptables
+    mainframe = project.mainframe
+
+    seam_point_id = int(wire_obj.obj3d.stop_position.db_id[:-2])
+    own_waypoints = wire_obj.db_obj.waypoints3d
+    seam_idx = len(own_waypoints)
+
+    part_id = wire_obj.db_obj.part_id
+    name = wire_obj.db_obj.name
+    circuit_id = wire_obj.db_obj.circuit_id
+    if circuit_id is None:
+        circuit_id = other_wire.db_obj.circuit_id
+    layer_id = wire_obj.db_obj.layer_id
+    layer_view_point_id = wire_obj.db_obj.layer_view_position_id
+    is_filler_wire = wire_obj.db_obj.is_filler_wire
+    is_visible3d = wire_obj.db_obj.is_visible3d
+    is_visible2d = wire_obj.db_obj.is_visible2d
+
+    start_id_3d = int(wire_obj.obj3d.start_position.db_id[:-2])
+    start_id_2d = wire_obj.db_obj.start_position2d_id
+
+    if other_end == 'start':
+        stop_id_3d = int(other_wire.obj3d.stop_position.db_id[:-2])
+        stop_id_2d = other_wire.db_obj.stop_position2d_id
+        other_waypoints = other_wire.db_obj.waypoints3d  # already start->stop order
+        other_stop_sibling = other_wire.stop_sibling
+    else:
+        stop_id_3d = int(other_wire.obj3d.start_position.db_id[:-2])
+        stop_id_2d = other_wire.db_obj.start_position2d_id
+        other_waypoints = list(reversed(other_wire.db_obj.waypoints3d))
+        other_stop_sibling = other_wire.start_sibling
+
+    orig_start_sibling = wire_obj.start_sibling
+
+    merged_db = ptables.pjt_wires_table.insert(
+        part_id, name, circuit_id,
+        start_id_3d, stop_id_3d,
+        start_id_2d, stop_id_2d,
+        is_visible3d, is_visible2d,
+        layer_view_point_id, layer_id, is_filler_wire)
+
+    for i, wp in enumerate(own_waypoints):
+        wp.wire_id = merged_db.db_id
+        wp.idx = i
+
+    seam_point = ptables.pjt_points3d_table[seam_point_id]
+    seam_point.wire_id = merged_db.db_id
+    seam_point.idx = seam_idx
+
+    for i, wp in enumerate(other_waypoints):
+        wp.wire_id = merged_db.db_id
+        wp.idx = seam_idx + 1 + i
+
+    merged_obj = _wire.Wire(mainframe, merged_db)
+
+    layout_db = ptables.pjt_wire_layouts_table.insert(seam_point_id)
+    layout_obj = _wire_layout.WireLayout(mainframe, layout_db)
+    project.add_wire_layout(layout_obj)
+
+    if orig_start_sibling is not None:
+        merged_obj.set_sibling(orig_start_sibling, 'start')
+        orig_start_sibling.replace_wire(wire_obj, merged_obj)
+    if other_stop_sibling is not None:
+        merged_obj.set_sibling(other_stop_sibling, 'stop')
+        other_stop_sibling.replace_wire(other_wire, merged_obj)
+
+    project.add_wire(merged_obj)
+
+    old_ids = (wire_obj.db_obj.db_id, other_wire.db_obj.db_id)
+    for marker in project.wire_markers:
+        if marker.db_obj.wire_id in old_ids:
+            marker.db_obj.wire_id = merged_db.db_id
+            marker.obj3d.rebind_wire(merged_db)
+
+    for w in (wire_obj, other_wire):
+        if mainframe.get_selected() is w:
+            w.set_selected(False)
+        w.delete()
+
+    return merged_obj
+
+
 def _get_terminal_compat_pns(mainframe, terminal_obj):
     """Return wire part numbers whose outer diameter fits *terminal_obj*'s crimp range."""
     term_part = terminal_obj.db_obj.part
@@ -138,7 +234,7 @@ def _get_terminal_compat_pns(mainframe, terminal_obj):
     return [row[0] for row in table.fetchall()]
 
 
-def _check_terminal_compat(terminal_obj, wire_part, project):
+def _check_terminal_compat(terminal_obj, wire_part):
     """Return (is_compatible, message_or_None).
 
     Checks:
@@ -164,17 +260,14 @@ def _check_terminal_compat(terminal_obj, wire_part, project):
         return False, f'Wire {wire_dia:.2f} mm — terminal max is {dia_max:.2f} mm'
 
     if cross_max is not None and wire_cross is not None:
-        pos_id = terminal_obj.db_obj.position3d_id
-        existing = 0.0
-        for w in project.wires:
-            sp = w.obj3d.start_position.db_id
-            ep2 = w.obj3d.stop_position.db_id
-
-            matched = (sp and int(sp[:-2]) == pos_id) or (ep2 and int(ep2[:-2]) == pos_id)
-            if matched:
-                p = w.db_obj.part
-                if p is not None and p.size_mm2 is not None:
-                    existing += p.size_mm2
+        # For the hover-preview message only -- terminal_obj.add_wire
+        # (called once the attach is actually committed) makes this exact
+        # same check itself against its own .wires list, which is the
+        # real enforcement; this is purely so the incompatibility overlay
+        # can show a number before the user commits to anything.
+        existing = sum(
+            w.db_obj.part.size_mm2 for w in terminal_obj.wires
+            if w.db_obj.part is not None and w.db_obj.part.size_mm2 is not None)
 
         total = existing + wire_cross
 
@@ -183,34 +276,6 @@ def _check_terminal_compat(terminal_obj, wire_part, project):
                            f' — terminal max is {cross_max:.1f} mm²')
 
     return True, None
-
-
-def _predecessor_stripe_clip_start(mainframe, start_point3d_id: int):
-    """Return (stripe_clip_start, predecessor_wire_obj3d) for a new wire
-    whose own start point is `start_point3d_id`.
-
-    If an existing wire's stop point matches, the new wire continues its
-    stripe pattern -- stripe_clip_start inherits from that wire's own
-    stripe_clip_start + length, and predecessor_wire_obj3d is returned
-    so the caller can set its sibling once the new wire object exists.
-    (0.0, None) when nothing precedes it (a fresh chain start, or a
-    bare/terminal-attached endpoint).
-    """
-    predecessor_db = mainframe.project.ptables.pjt_wires_table.find_by_stop_point3d_id(
-        start_point3d_id)
-
-    if predecessor_db is None:
-        return 0.0, None
-
-    predecessor_wire_obj = predecessor_db.get_object()
-    if predecessor_wire_obj is None or predecessor_wire_obj.obj3d is None:
-        # Predecessor row exists but isn't a live scene object right now
-        # (shouldn't normally happen -- every wire in an open project has
-        # one) -- fall back to its persisted value, no sibling to set.
-        return predecessor_db.stripe_clip_start, None
-
-    predecessor_obj3d = predecessor_wire_obj.obj3d
-    return predecessor_obj3d.stripe_clip_start + predecessor_obj3d.length, predecessor_obj3d
 
 
 class AddWireHandler(_handler_base.HandlerBase):
@@ -255,29 +320,31 @@ class AddWireHandler(_handler_base.HandlerBase):
         # Extension mode state (first click on a wire endpoint without a layout)
         self._extension_mode = False
         self._source_wire: "_wire.Wire | None" = None
-        self._source_endpoint: "str | None" = None   # 'start' or 'stop'
-        self._extension_dir: "np.ndarray | None" = None    # unit vector
-        self._extension_origin: "np.ndarray | None" = None  # world-space origin
-        self._extension_original_pos: "np.ndarray | None" = None  # for cancel rollback
+        self._source_endpoint: str | None = None   # 'start' or 'stop'
+        self._extension_dir: np.ndarray | None = None    # unit vector
+        self._extension_origin: np.ndarray | None = None  # world-space origin
+        self._extension_original_pos: np.ndarray | None = None  # for cancel rollback
 
         # Temporary stop-point DB id created for the preview wire
-        self._preview_stop_point_id: "int | None" = None
+        self._preview_stop_point_id: int | None = None
 
         # Start-click context
-        self._start_point_id: "int | None" = None
-        self._start_circuit_id: "int | None" = None
+        self._start_point_id: int | None = None
+        self._start_circuit_id: int | None = None
 
-        # Wires/WireLayouts already committed to the DB this session (crimp
-        # -> terminal-back / cavity-back routing stubs, plus any mid-route
-        # waypoints from repeated free-space clicks) -- rolled back by
-        # cancel() and left alone by finalize_at_last_point()/normal finish.
-        self._committed_wires: list = []
+        # WireLayouts dropped this session by _commit_waypoint() (one per
+        # user-confirmed free-space click) -- rolled back by cancel(), and
+        # the last one popped by finalize_at_last_point() if discarding
+        # the in-progress segment leaves it marking a terminus instead of
+        # a joint. Never includes terminal.add_wire's own back/cavity
+        # layouts -- those live for as long as self.obj itself does,
+        # cleaned up as part of deleting the wire row (see PJTWire.delete),
+        # not tracked separately here.
         self._committed_layouts: list = []
 
         # True once at least one _commit_waypoint() (a real, user-confirmed
-        # free-space click) has landed -- distinct from _committed_wires/
-        # _committed_layouts being non-empty, which can also just mean the
-        # wire started on a terminal (routing stubs, not a user waypoint).
+        # free-space click) has landed -- distinct from a fresh self.obj
+        # already having waypoints from terminal.add_wire's own routing.
         # finalize_at_last_point() uses this to decide between "keep what's
         # committed" and "the user never confirmed anything, cancel it all".
         self._has_committed_waypoint = False
@@ -296,10 +363,15 @@ class AddWireHandler(_handler_base.HandlerBase):
         self.part = self.mainframe.global_db.wires_table[part_id]
         self._start_circuit_id = terminal.db_obj.circuit_id
 
-        start_point_id, initial_pos = self._route_from_terminal(
-            terminal, self.part, self._start_circuit_id)
-        self._start_point_id = start_point_id
+        # Placeholder start -- terminal.add_wire below overwrites it with
+        # the terminal's own true attach point and extends this same
+        # wire's own waypoint list through the terminal's back point (and,
+        # if seated in a cavity, the cavity's own wire-position point too)
+        # -- see objects.terminal.Terminal.add_wire. No separate stub
+        # wires/rows are created for that routing any more.
+        placeholder_id = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
+        initial_pos = terminal.db_obj.attach_position3d
         stop_db = self.ptables.pjt_points3d_table.insert(
             float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
 
@@ -307,112 +379,18 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
 
-        stripe_clip_start, predecessor_obj3d = _predecessor_stripe_clip_start(
-            self.mainframe, start_point_id)
-
         wire_db = self.ptables.pjt_wires_table.insert(
             part_id, name, self._start_circuit_id,
-            start_point_id, stop_db.db_id,
-            None, None, True, False, None, None, False,
-            stripe_clip_start=stripe_clip_start)
+            placeholder_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
         self.obj.identify(self._preview_material)
+
+        terminal.add_wire(self.obj, 'start')
+        self.ptables.pjt_points3d_table[placeholder_id].delete()
+
         self._phase = 1
-
-        if predecessor_obj3d is not None:
-            predecessor_obj3d.sibling = self.obj.obj3d
-
-    def _route_from_terminal(self, terminal: "_terminal.Terminal", wire_part, circuit_id):
-        """
-        Auto-route the physical stub between a terminal's true crimp point
-        (1/3 of the way from its back toward its front) and its wire-side
-        layout point, dropping a :class:`WireLayout` there -- and, when the
-        terminal sits in a cavity, continuing on from there with a second
-        stub to a second :class:`WireLayout` at the cavity's own wire-side
-        layout point.  Both stub segments are committed immediately (not
-        preview) since both of their endpoints are already known.
-
-        Returns ``(point3d_id, position)`` for the last layout in the
-        chain -- what the caller should use as its own wire's start/stop
-        point instead of the terminal's raw point.
-
-        The terminal's crimp/attach point, its back (layout) point, and
-        the cavity's wire-side (layout) point are all read directly off
-        PJTTerminal.attach_position3d / wire_position3d and PJTCavity.
-        wire_position3d rather than computed and copied into a fresh
-        pjt_points3d row each time here -- they're shared, persisted
-        references (lazily created on first access), which is what lets
-        PJTHousing's move/angle batch updates keep a wire attached to its
-        terminal/cavity when the housing moves.
-        """
-        pjt_terminal = terminal.db_obj
-        pjt_cavity = pjt_terminal.cavity
-
-        project = self.mainframe.project
-        name = f'{wire_part.manufacturer.name} {wire_part.part_number}'
-
-        attach_db_id = pjt_terminal.attach_point3d_id
-        back_db_id = pjt_terminal.wire_point3d_id
-
-        # The wire referencing back_db_id must exist in the DB *before* the
-        # WireLayout is constructed -- WireLayout.__init__ reads its
-        # diameter/color from db_obj.attached_wires, which queries wires by
-        # point3d_id at construction time; building the layout first leaves
-        # nothing to find and it silently falls back to a generic gray 3mm
-        # default.
-        stripe_clip_start, predecessor_obj3d = _predecessor_stripe_clip_start(
-            self.mainframe, attach_db_id)
-
-        stub_db = self.ptables.pjt_wires_table.insert(
-            wire_part.db_id, name, circuit_id,
-            attach_db_id, back_db_id,
-            None, None, True, False, None, None, False,
-            stripe_clip_start=stripe_clip_start)
-
-        stub_obj = _wire.Wire(self.mainframe, stub_db)
-        project.add_wire(stub_obj)
-        self._committed_wires.append(stub_obj)
-
-        if predecessor_obj3d is not None:
-            predecessor_obj3d.sibling = stub_obj.obj3d
-
-        back_layout_db = self.ptables.pjt_wire_layouts_table.insert(back_db_id)
-        back_layout_obj = _wire_layout.WireLayout(self.mainframe, back_layout_db)
-        project.add_wire_layout(back_layout_obj)
-        self._committed_layouts.append(back_layout_obj)
-
-        last_point_id = back_db_id
-        last_pos = back_layout_db.position3d
-
-        if pjt_cavity is not None:
-            cav_back_db_id = pjt_cavity.wire_position3d_id
-
-            # Same ordering requirement as the back-of-terminal stub above.
-            # stub2 continues directly from stub_obj (its start point is
-            # exactly stub_obj's own stop point) -- no lookup needed, the
-            # predecessor is already in hand.
-            stub2_db = self.ptables.pjt_wires_table.insert(
-                wire_part.db_id, name, circuit_id,
-                back_db_id, cav_back_db_id,
-                None, None, True, False, None, None, False,
-                stripe_clip_start=stub_obj.obj3d.stripe_clip_start + stub_obj.obj3d.length)
-
-            stub2_obj = _wire.Wire(self.mainframe, stub2_db)
-            project.add_wire(stub2_obj)
-            self._committed_wires.append(stub2_obj)
-
-            stub_obj.obj3d.sibling = stub2_obj.obj3d
-
-            cav_layout_db = self.ptables.pjt_wire_layouts_table.insert(cav_back_db_id)
-            cav_layout_obj = _wire_layout.WireLayout(self.mainframe, cav_layout_db)
-            project.add_wire_layout(cav_layout_obj)
-            self._committed_layouts.append(cav_layout_obj)
-
-            last_point_id = cav_back_db_id
-            last_pos = cav_layout_db.position3d
-
-        return last_point_id, last_pos
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -515,7 +493,7 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         if isinstance(picked, _terminal.Terminal):
             if wire_part is not None:
-                ok, msg = _check_terminal_compat(picked, wire_part, project)
+                ok, msg = _check_terminal_compat(picked, wire_part)
                 if not ok:
                     self._overlay.show_message(mouse_pos, msg)
                     self._clear_hover()
@@ -567,7 +545,7 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         if isinstance(picked, _terminal.Terminal):
             if wire_part is not None:
-                ok, msg = _check_terminal_compat(picked, wire_part, project)
+                ok, msg = _check_terminal_compat(picked, wire_part)
                 if not ok:
                     self._overlay.show_message(mouse_pos, msg)
                     self._clear_hover()
@@ -621,6 +599,13 @@ class AddWireHandler(_handler_base.HandlerBase):
         picked = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
 
+        # Set below only when picked is a Terminal -- terminal.add_wire is
+        # called on it once self.obj exists, at the end of this method,
+        # since it needs the real wire object (not just a point id) to
+        # attach the start end to and extend with its own routing
+        # waypoints. None everywhere else.
+        start_terminal = None
+
         if isinstance(picked, _wire_layout.WireLayout):
             attached = picked.db_obj.attached_wires
             if attached:
@@ -632,19 +617,27 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         elif isinstance(picked, _terminal.Terminal):
             # A wire part must already be chosen to route the terminal's
-            # stub segment(s) -- unlike free space, there's no part-search
-            # fallback for a terminal-first click, so bail before creating
-            # anything (matches the part_id is None guard below).
+            # own back/cavity waypoints -- unlike free space, there's no
+            # part-search fallback for a terminal-first click, so bail
+            # before creating anything (matches the part_id is None guard
+            # below).
             if wire_part is None:
                 return
 
-            ok, _ = _check_terminal_compat(picked, wire_part, project)
+            ok, _ = _check_terminal_compat(picked, wire_part)
             if not ok:
                 return
 
             self._start_circuit_id = picked.db_obj.circuit_id
-            start_point_id, initial_pos = self._route_from_terminal(
-                picked, wire_part, self._start_circuit_id)
+            start_terminal = picked
+
+            # Placeholder -- terminal.add_wire (below, once self.obj
+            # exists) overwrites this with the terminal's own true attach
+            # point and extends self.obj's own waypoint list through its
+            # back/cavity points. No separate stub wires/rows.
+            start_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+            start_point_id = start_db.db_id
+            initial_pos = picked.db_obj.attach_position3d
 
         elif isinstance(picked, _splice.Splice):
             start_point_id = picked.db_obj.branch_position3d_id
@@ -734,21 +727,18 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
 
-        stripe_clip_start, predecessor_obj3d = _predecessor_stripe_clip_start(
-            self.mainframe, start_point_id)
-
         wire_db = self.ptables.pjt_wires_table.insert(
             self.part_id, name, self._start_circuit_id,
             start_point_id, stop_db.db_id,
-            None, None, True, False, None, None, False,
-            stripe_clip_start=stripe_clip_start)
+            None, None, True, False, None, None, False)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
         self.obj.identify(self._preview_material)
         self._phase = 1
 
-        if predecessor_obj3d is not None:
-            predecessor_obj3d.sibling = self.obj.obj3d
+        if start_terminal is not None:
+            start_terminal.add_wire(self.obj, 'start')
+            self.ptables.pjt_points3d_table[start_point_id].delete()
 
     def _handle_second_click(self, mouse_pos):
         project = self.mainframe.project
@@ -768,36 +758,80 @@ class AddWireHandler(_handler_base.HandlerBase):
             picked = None
 
         circuit_id = self._start_circuit_id
-        # Point to attach the preview stop to; None means the preview stop is already final.
-        real_stop_point = None
 
         if isinstance(picked, _terminal.Terminal):
             if wire_part is not None:
-                ok, _ = _check_terminal_compat(picked, wire_part, project)
+                ok, _ = _check_terminal_compat(picked, wire_part)
                 if not ok:
                     return  # blocked; user already sees overlay message
 
             if circuit_id is None:
                 circuit_id = picked.db_obj.circuit_id
 
-            if wire_part is not None:
-                _, real_stop_point = self._route_from_terminal(
-                    picked, wire_part, circuit_id)
-            else:
-                # Shouldn't normally happen by phase 1 (a preview wire with
-                # a known part already exists), but fall back to the raw
-                # terminal point rather than routing with no part to name
-                # the stub segments after.
-                real_stop_point = picked.wire_position
+            # Discard the temporary preview stop point -- terminal.add_wire
+            # overwrites stop_position3d_id with the terminal's own true
+            # attach point and extends this same wire's own waypoint list
+            # through its back (and, if seated in a cavity, the cavity's
+            # own wire-position) point.
+            stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+            picked.add_wire(self.obj, 'stop')
+            self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
         elif isinstance(picked, _wire_layout.WireLayout):
             end_wire, _ = _wire_layout_end_wire(picked, project, self.part_id)
             if end_wire is not None:
-                real_stop_point = picked.obj3d.position
+                # picked.obj3d.position is the same live, singleton Point
+                # object end_wire's own endpoint already uses (Point
+                # instances are singletons keyed by db_id -- see
+                # database.project_db.pjt_point3d.PJTPoint3D's docstring),
+                # so pointing this wire's own stop at it directly gives
+                # the same live sharing a .attach() delegation would, with
+                # no delegation machinery needed.
+                stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+                self.obj.obj3d.set_stop_position(picked.obj3d.position)
+                self.obj.db_obj.stop_position3d_id = picked.db_obj.position3d_id
+                self.ptables.pjt_points3d_table[stale_stop_id].delete()
             # else: mid-wire or mismatched part — preview stop already at world pos; keep as-is
 
         elif isinstance(picked, _splice.Splice):
-            real_stop_point = picked.obj3d.wire_position
+            stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+            self.obj.obj3d.set_stop_position(picked.obj3d.wire_position)
+            self.obj.db_obj.stop_position3d_id = picked.db_obj.branch_position3d_id
+            self.ptables.pjt_points3d_table[stale_stop_id].delete()
+
+            picked.add_wire(self.obj)
+            self.obj.set_sibling(picked, 'stop')
+
+        elif isinstance(picked, _wire.Wire):
+            # Joining this (still-dangling) wire's stop to another,
+            # separately-drawn dangling wire's endpoint -- they're the
+            # same physical wire once connected, so they merge into one
+            # row (with a WireLayout at the seam) rather than staying
+            # linked; see _merge_wire_into.
+            world_np = self.camera.get_position_on_focal_plane(mouse_pos).as_numpy
+            start_np = picked.obj3d.start_position.as_numpy
+            stop_np = picked.obj3d.stop_position.as_numpy
+            near_start = float(np.linalg.norm(world_np - start_np)) < _SNAP_THRESHOLD
+            near_stop = float(np.linalg.norm(world_np - stop_np)) < _SNAP_THRESHOLD
+
+            if not near_start and not near_stop:
+                self._commit_waypoint()
+                return
+
+            if picked.db_obj.part_id != self.obj.db_obj.part_id:
+                self._overlay.show_message(
+                    mouse_pos, 'Different wire part — cannot join')
+                return
+
+            other_end = 'start' if near_start else 'stop'
+            merged = _merge_wire_into(project, self.obj, picked, other_end)
+            self.obj = merged
+
+            self.obj.identify(None)
+            self._cleanup()
+            self._destroy_overlay()
+            self._finalized = True
+            return
 
         else:
             # Free space — not the end of the wire, just an intermediate
@@ -807,21 +841,6 @@ class AddWireHandler(_handler_base.HandlerBase):
             # attach targets above, or via right-click/Escape.
             self._commit_waypoint()
             return
-
-        # Attach the real endpoint to the preview stop so mutations propagate both ways.
-        # The preview wire is retained as the committed wire without recreating it.
-        # Base3D.position's setter forbids ever reassigning which Point instance
-        # a live object refers to (see wire.obj3d._p2), so the preview's own
-        # stop point can't just be swapped out for the real one -- .attach()
-        # (delegation) is the only way to make it track the real point live.
-        # But that alone only holds for this session: the wire's own DB row
-        # still stores its original preview point's id. Repointing
-        # stop_position3d_id here makes the sharing durable across reloads,
-        # matching how _route_from_terminal's internal stubs share ids
-        # directly instead of relying on delegation at all.
-        if real_stop_point is not None:
-            real_stop_point.attach(self.obj.obj3d.stop_position)
-            self.obj.db_obj.stop_position3d_id = int(real_stop_point.db_id[:-2])
 
         if circuit_id != self._start_circuit_id:
             self.obj.db_obj.circuit_id = circuit_id
@@ -835,12 +854,15 @@ class AddWireHandler(_handler_base.HandlerBase):
 
     def _commit_waypoint(self) -> None:
         """
-        Commit the current live preview segment as a real wire ending at
-        its current (already mouse-tracked) stop position, drop a
-        :class:`WireLayout` there, and start a fresh preview segment
-        continuing from it.  Called when a mid-placement click lands in
-        free space instead of on an attachable target; stays in phase 1
-        (loops back for the next click) rather than finalizing.
+        Commit the current live preview stop position as a permanent
+        interior waypoint on this *same* wire (no new ``pjt_wires`` row --
+        see handlers.wire_layout_handler._create_wire_layout_on_wire, the
+        same operation performed inline here since the wire is still
+        being drawn), drop a :class:`WireLayout` there, and continue the
+        preview from a fresh stop point past it.  Called when a mid-
+        placement click lands in free space instead of on an attachable
+        target; stays in phase 1 (loops back for the next click) rather
+        than finalizing.
         """
         project = self.mainframe.project
 
@@ -849,36 +871,28 @@ class AddWireHandler(_handler_base.HandlerBase):
         stop_point_id = self._preview_stop_point_id
         stop_pos = self.obj.obj3d.stop_position
 
+        existing = self.obj.db_obj.waypoints3d
+        new_idx = len(existing)
+
+        point = self.ptables.pjt_points3d_table[stop_point_id]
+        point.wire_id = self.obj.db_obj.db_id
+        point.idx = new_idx
+
         layout_db = self.ptables.pjt_wire_layouts_table.insert(stop_point_id)
         layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
         project.add_wire_layout(layout_obj)
         self._committed_layouts.append(layout_obj)
 
-        self.obj.identify(None)
-        project.add_wire(self.obj)
-        self._committed_wires.append(self.obj)
-
         new_stop_db = self.ptables.pjt_points3d_table.insert(
             float(stop_pos.x), float(stop_pos.y), float(stop_pos.z))
         self._preview_stop_point_id = new_stop_db.db_id
 
-        name = f'{self.part.manufacturer.name} {self.part.part_number}'
-
-        # The just-committed self.obj (above) continues directly into this
-        # new segment -- its stop point is exactly this wire's start point,
-        # and it's already in hand, so no predecessor lookup is needed.
-        predecessor_obj3d = self.obj.obj3d
-
-        wire_db = self.ptables.pjt_wires_table.insert(
-            self.part_id, name, self._start_circuit_id,
-            stop_point_id, new_stop_db.db_id,
-            None, None, True, False, None, None, False,
-            stripe_clip_start=predecessor_obj3d.stripe_clip_stop)
-
-        self.obj = _wire.Wire(self.mainframe, wire_db)
-        self.obj.identify(self._preview_material)
-
-        predecessor_obj3d.sibling = self.obj.obj3d
+        # The just-committed point becomes a permanent interior waypoint;
+        # the wire's own stop moves on to the fresh point, continuing the
+        # live preview -- same wire object and row throughout.
+        self.obj.db_obj.stop_position3d_id = new_stop_db.db_id
+        self.obj.obj3d.set_stop_position(new_stop_db.point)
+        self.obj.obj3d.refresh_waypoints()
 
     # ------------------------------------------------------------------
     # Finishing early / cancellation
@@ -886,19 +900,21 @@ class AddWireHandler(_handler_base.HandlerBase):
 
     def finalize_at_last_point(self) -> None:
         """
-        Right-click: end the wire at the last confirmed point (the start of
-        the current live preview segment), discarding that in-progress,
-        not-yet-committed segment rather than tracking the mouse further or
-        finalizing at the cursor.
+        Right-click: end the wire at the last confirmed point, discarding
+        the current in-progress, not-yet-committed segment rather than
+        tracking the mouse further or finalizing at the cursor.
 
         If the user has confirmed at least one real waypoint (a free-space
-        left-click, via _commit_waypoint()), everything already committed
-        (routing stubs, prior waypoints) is left in place as the finished
-        wire. If not -- e.g. the wire was started on a terminal and
-        right-clicked immediately, with only the initial crimp/routing
-        stubs committed and no destination ever confirmed -- there's
+        left-click, via _commit_waypoint()), that waypoint is promoted
+        back to being this wire's own true stop (undoing the "continue
+        past it" part of _commit_waypoint, which had already moved the
+        stop on to the now-discarded in-progress point) and everything
+        else committed before it is left in place as the finished wire.
+        If not -- e.g. the wire was started on a terminal and
+        right-clicked immediately, with only its own back/cavity routing
+        waypoints in place and no destination ever confirmed -- there's
         nothing meaningful to finish, so the whole thing is cancelled
-        instead of leaving a routing-stub-only fragment behind.
+        instead of leaving a routing-only fragment behind.
         """
         if self._finalized or self._phase == 0:
             return
@@ -916,22 +932,37 @@ class AddWireHandler(_handler_base.HandlerBase):
             self._finalized = True
             return
 
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None
+        # Discard the in-progress (never-confirmed) stop point and
+        # promote the last confirmed waypoint back to being this wire's
+        # own true stop -- see WireTypeMixin._segments()/waypoints3d:
+        # ordered by idx, so [-1] is the most recently committed one.
+        stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+        last_waypoint = self.obj.db_obj.waypoints3d[-1]
+        last_point = last_waypoint.point
+
+        last_waypoint.wire_id = None
+        last_waypoint.idx = None
+
+        self.obj.db_obj.stop_position3d_id = last_waypoint.db_id
+        self.obj.obj3d.set_stop_position(last_point)
+
+        self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
         # _commit_waypoint() eagerly drops a WireLayout at every free-space
         # click, on the assumption the run continues past it. Discarding
         # the in-progress segment above can leave the very last one of
-        # those with only a single wire attached -- a layout marks a joint
-        # between two sections, never a terminus, so remove it here; the
-        # wire still ends at the exact same point, just without a layout
+        # those marking what's now this wire's own terminus instead of a
+        # joint between two sections -- remove it in that case; the wire
+        # still ends at the exact same point, just without a layout
         # marker rendered there.
         if self._committed_layouts:
             last_layout = self._committed_layouts[-1]
             if len(last_layout.db_obj.attached_wires) < 2:
                 last_layout.delete()
                 self._committed_layouts.pop()
+
+        self.obj.obj3d.refresh_waypoints()
+        self.mainframe.project.add_wire(self.obj)
 
         self._cleanup()
         self._destroy_overlay()
@@ -948,17 +979,18 @@ class AddWireHandler(_handler_base.HandlerBase):
 
             ep += orig_pt - ep
 
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None
-
-        for wire_obj in reversed(self._committed_wires):
-            wire_obj.delete()
-        self._committed_wires = []
-
+        # Every committed WireLayout sits on one of self.obj's own
+        # waypoints, so deleting the wire below would clean these up too
+        # (see PJTWire.delete) -- deleted explicitly here anyway for
+        # symmetry with finalize_at_last_point's own bookkeeping of this
+        # same list, and so the list is always left empty either way.
         for layout_obj in reversed(self._committed_layouts):
             layout_obj.delete()
         self._committed_layouts = []
+
+        if self.obj is not None:
+            self.obj.delete()
+            self.obj = None
 
         self._cleanup()
         self._destroy_overlay()

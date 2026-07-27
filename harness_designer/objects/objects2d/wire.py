@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import math
 
+import numpy as np
 from OpenGL import GL
 from PySide6.QtWidgets import QMenu
 
@@ -12,6 +13,7 @@ from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ... import config as _config
 from ...gl import materials as _materials
+from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
 
@@ -106,60 +108,191 @@ class Wire(_base2d.Base2D):
         self._recalculate_geometry()
         parent.mainframe.editor2d.editor.context.release()
 
+    def _segments(self) -> list[tuple]:
+        """Every (p1, p2) sub-segment from start, through each interior
+        2D waypoint in idx order, to stop -- as numpy arrays. A wire with
+        no interior 2D waypoints (still the common case -- the schematic
+        editor's own wire-drawing tool doesn't exist yet) is just the one
+        (start, stop) pair, same as before this wire could have any bends
+        of its own in this view."""
+        points = [self._p1.as_numpy]
+        for waypoint in self.db_obj.waypoints2d:
+            points.append(waypoint.point.as_numpy)
+        points.append(self._p2.as_numpy)
+
+        return list(zip(points, points[1:]))
+
     def _calc_length(self) -> float:
+        """Straight-line seed length used only to size this wire's
+        initial scale before Base2D.__init__ runs (self.db_obj isn't set
+        yet) -- see objects3d/wire.py's Wire._calc_length for the same
+        reasoning. _recalculate_geometry replaces this with the true,
+        possibly multi-segment length once db_obj is valid."""
         a = self._p1.as_numpy
         b = self._p2.as_numpy
         dx = b[0] - a[0]
         dz = b[2] - a[2]
         return math.sqrt(dx * dx + dz * dz)
 
+    def _segment_transforms(self):
+        """Yield (position, angle, scale, length) for every sub-segment
+        of this wire's current 2D path."""
+        diameter = self._scale.x
+
+        for seg_p1, seg_p2 in self._segments():
+            dx = seg_p2[0] - seg_p1[0]
+            dz = seg_p2[2] - seg_p1[2]
+            seg_len = math.sqrt(dx * dx + dz * dz)
+            if seg_len < 1e-6:
+                continue
+
+            seg_angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+            seg_angle.y = math.degrees(math.atan2(dx, dz))
+            seg_position = _point.Point(*seg_p1)
+            seg_scale = _point.Point(diameter, diameter, seg_len)
+
+            yield seg_position, seg_angle, seg_scale, seg_len
+
     def _recalculate_geometry(self):
-        """Recompute this wire's length, angle, and OBB/AABB from its
-        current endpoints -- called (via :meth:`_update_position`)
-        whenever either endpoint moves.
+        """Recompute this wire's total length and OBB/AABB from its
+        current path -- called (via :meth:`_update_position`) whenever
+        any endpoint or interior waypoint moves.
+
+        Per-segment position/angle/scale for actual drawing are computed
+        fresh in render()/render_extras from _segment_transforms(); this
+        only maintains the aggregate values anything outside this class
+        still reads (.scale, .angle, .obb, .aabb).
         """
-        a = self._p1.as_numpy
-        b = self._p2.as_numpy
+        total_length = 0.0
+        for seg_p1, seg_p2 in self._segments():
+            dx = seg_p2[0] - seg_p1[0]
+            dz = seg_p2[2] - seg_p1[2]
+            total_length += math.sqrt(dx * dx + dz * dz)
 
-        dx = b[0] - a[0]
-        dz = b[2] - a[2]
-        length = math.sqrt(dx * dx + dz * dz)
-
-        if length < 0.001:
+        if total_length < 0.001:
             return
 
-        self._length = length
-        self._scale.z = length
+        self._length = total_length
+        self._scale.z = total_length
 
         if self._stripe_material is not None:
             _helix.create_vbo(self._length)
 
-        # Rotate local +Z (the cylinder's own length axis when
-        # unrotated) to align with (dx, dz) -- angle sign verified
-        # empirically against _rotate_about_y (objects2d/base2d.py):
-        # local +Z (0,0,1) rotates to (sin(deg), 0, cos(deg)), so
-        # aligning with an arbitrary (dx, dz) needs atan2(dx, dz).
-        self._angle.y = math.degrees(math.atan2(dx, dz))
+        # Aggregate angle: overall start->stop chord direction, kept only
+        # for any other code reading .angle on a wire (not used for
+        # drawing -- each segment computes its own, see render()).
+        a = self._p1.as_numpy
+        b = self._p2.as_numpy
+        dx = b[0] - a[0]
+        dz = b[2] - a[2]
+        chord_length = math.sqrt(dx * dx + dz * dz)
+        if chord_length >= 0.001:
+            self._angle.y = math.degrees(math.atan2(dx, dz))
 
         self._compute_obb()
         self._compute_aabb()
 
+    def _segment_world_corners(self):
+        """World-space AABB corners (8 per segment) for every sub-segment,
+        stacked into one array -- mirrors objects3d/wire.py's Wire of
+        the same name, the shared building block for _compute_obb/
+        _compute_aabb's union-of-segments envelope."""
+        local_min = self._vbo.local_aabb[0]
+        local_max = self._vbo.local_aabb[1]
+        x1, y1, z1 = local_min
+        x2, y2, z2 = local_max
+
+        local_corners = np.array([
+            [x1, y1, z1], [x1, y1, z2],
+            [x1, y2, z1], [x1, y2, z2],
+            [x2, y1, z1], [x2, y1, z2],
+            [x2, y2, z1], [x2, y2, z2]
+        ], dtype=np.float32)
+
+        all_corners = []
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            corners = local_corners * seg_scale.as_numpy
+            corners = corners @ seg_angle
+            corners = corners + seg_position.as_numpy
+            all_corners.append(corners)
+
+        if not all_corners:
+            # See objects3d/wire.py's Wire._segment_world_corners -- same
+            # degenerate (all-zero-length) fallback.
+            point = self._p1.as_numpy
+            return np.tile(point, (8, 1)).astype(np.float32)
+
+        return np.concatenate(all_corners, axis=0)
+
+    def _compute_obb(self):
+        """Union AABB across every sub-segment -- see objects3d/wire.py's
+        Wire._compute_obb for why this degenerates to the same envelope
+        as _compute_aabb rather than a single tight rotated box."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        if corners is None:
+            return
+
+        mins = corners.min(axis=0)
+        maxs = corners.max(axis=0)
+
+        self._obb = np.array([
+            [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
+            [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
+            [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
+            [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
+        ], dtype=np.float32)
+
+    def _compute_aabb(self):
+        """See _compute_obb -- same union-of-segments envelope."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        if corners is None:
+            return
+
+        aabb = _utils.adjust_aabb(corners)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
+
     def _update_position(self, _position: _point.Point):
-        """Recompute geometry immediately whenever either endpoint
-        moves -- mirrors ``objects3d/wire.py``'s ``Wire._update_position``
-        exactly (this wire's own ``numpy_position`` cache is never read;
-        ``_p1``/``_p2`` are read fresh from the live Point objects every
-        time, so there's nothing for the inherited ``BaseVar``
-        implementation to usefully update here).
+        """Recompute geometry immediately whenever any endpoint or
+        interior waypoint moves -- mirrors
+        ``objects3d/wire.py``'s ``Wire._update_position`` exactly (this
+        wire's own ``numpy_position`` cache is never read; every point is
+        read fresh from its live Point object every time, so there's
+        nothing for the inherited ``BaseVar`` implementation to usefully
+        update here).
         """
         self._recalculate_geometry()
 
+    def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
+        """Render every sub-segment of the wire's current 2D path,
+        mirroring ``objects3d/wire.py``'s ``Wire.render`` -- temporarily
+        points this object at each segment's own position/angle/scale
+        before delegating to the base class's single-transform draw call,
+        once per segment.
+        """
+        real_position, real_angle, real_scale = self._position, self._angle, self._scale
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+            super().render(program, pos_loc, rot_loc, scale_loc, normal_loc)
+
+        self._position, self._angle, self._scale = real_position, real_angle, real_scale
+
     def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
         """Render this wire's stripe (if its part has a stripe color) as
-        a clipped window into the shared helix mesh -- see the class
-        docstring. Piggybacks on this wire's own render pass, same as
-        ``objects3d/wire.py``'s ``WireStripe`` (not a separately-
-        registered scene object; nothing else ever calls this for it).
+        a clipped window into the shared helix mesh, once per sub-segment
+        -- see the class docstring. Piggybacks on this wire's own render
+        pass, same as ``objects3d/wire.py``'s ``WireStripe`` (not a
+        separately-registered scene object; nothing else ever calls this
+        for it).
         """
         if self._stripe_material is None or self._position is None:
             return
@@ -171,14 +304,19 @@ class Wire(_base2d.Base2D):
 
         self._stripe_material.set(program)
         GL.glUniform1i(normal_loc, 0)
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
-        GL.glUniform3f(scale_loc, *self._scale.as_float)
-        GL.glUniform3f(pos_loc, self._position.x, 0.0, self._position.z)
 
-        GL.glUniform1f(start_loc, 0.0)
-        GL.glUniform1f(stop_loc, self._length)
+        stripe_offset = 0.0
+        for seg_position, seg_angle, _seg_scale, seg_len in self._segment_transforms():
+            GL.glUniform4f(rot_loc, *[float(str(v)) for v in seg_angle.as_quat_numpy.tolist()])
+            GL.glUniform3f(scale_loc, *self._scale.as_float)
+            GL.glUniform3f(pos_loc, seg_position.x, 0.0, seg_position.z)
 
-        stripe_vbo.render()
+            GL.glUniform1f(start_loc, stripe_offset)
+            GL.glUniform1f(stop_loc, stripe_offset + seg_len)
+
+            stripe_vbo.render()
+
+            stripe_offset += seg_len
 
         GL.glUniform1f(start_loc, 0.0)
         GL.glUniform1f(stop_loc, 0.0)

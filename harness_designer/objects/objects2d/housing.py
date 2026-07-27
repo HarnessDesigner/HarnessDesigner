@@ -101,7 +101,7 @@ class Housing(_base2d.Base2D):
         parent.mainframe.editor2d.editor.context.release()
 
     def _recompute(self, db_obj, position: _point.Point, angle: _angle.Angle
-                   ) -> "tuple[float, float]":
+                   ) -> tuple[float, float]:
         """(Re)compute this housing's fixed cavity-axis extent, rebuild
         the corner label, push every cavity's/seated terminal's own
         world position2d/angle2d (see :meth:`_layout_children`), and
@@ -361,7 +361,7 @@ class Housing(_base2d.Base2D):
         GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
         self._corner_label_vbo.render()
 
-    def _world_offset(self, local_x: float, local_z: float) -> "tuple[float, float, float]":
+    def _world_offset(self, local_x: float, local_z: float) -> tuple[float, float, float]:
         """Rotate a ``(local_x, 0, local_z)`` offset by this housing's
         current ``angle2d.y`` (about world Y -- the axis a Y=0-flat 2D
         primitive must spin about to stay flat; the source that writes

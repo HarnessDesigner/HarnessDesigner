@@ -21,7 +21,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
-from . import wire_layout_handler as _wire_layout_handler
+from . import wire_topology as _wire_topology
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from ..geometry import line as _line
@@ -40,32 +40,44 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
+def _wire_segments(wire: "_wire.Wire"):
+    """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
+    arrays -- start, through each interior waypoint in idx order, to
+    stop. Mirrors handlers.wire_layout_handler's own _wire_segments (kept
+    as a small local helper here rather than reaching into
+    objects.objects3d.mixins.wire_type.WireTypeMixin._segments directly,
+    matching this codebase's existing style for this exact duplication --
+    see handlers.wire_topology._segment_index)."""
+    points = [wire.obj3d.start_position.as_numpy]
+    for waypoint in wire.db_obj.waypoints3d:
+        points.append(waypoint.point.as_numpy)
+    points.append(wire.obj3d.stop_position.as_numpy)
+
+    return list(zip(points, points[1:]))
+
+
 class _SplitState:
     """Snapshot of the wire that's been split to make room for the loop --
     everything needed to look up the current halves while the preview
     slides, and to fully reverse the split if it's abandoned (cancel).
+
+    Much smaller than it used to be: handlers.wire_topology.split_wire_at_
+    point/merge_wires now own the waypoint-slicing, marker-reassignment,
+    and sibling-re-homing bookkeeping this class used to snapshot by hand.
     """
     wire1: _wire.Wire = None
     wire2: _wire.Wire = None
     layout1: _wire_layout.WireLayout = None
     layout2: _wire_layout.WireLayout = None
-    # The *original* wire's own fixed endpoints -- stable for the whole
-    # preview session, unlike wire1/wire2's own start/stop, one of which is
-    # always the loop's own live-dragged point (see _closest_point_on_line).
+    # The endpoints of whichever single sub-segment of the *original*
+    # wire's path the loop was placed on -- stable for the whole preview
+    # session, unlike wire1/wire2's own start/stop, one of which is always
+    # the loop's own live-dragged point (see _closest_point_on_line). Not
+    # the wire's own overall start/stop: a bent wire's true path can have
+    # any number of waypoints between them, and the loop -- a straight
+    # helix insert -- can only ever slide within the one segment it was
+    # placed on, not across a bend.
     line: _line.Line = None
-    part_id: int = None
-    name: str = None
-    circuit_id: int | None = None
-    layer_id: int | None = None
-    layer_view_position_id: int | None = None
-    is_filler_wire: bool = None
-    is_visible3d: bool = None
-    is_visible2d: bool = None
-    stripe_clip_start: float = None
-    original_start_id: int = None
-    original_stop_id: int = None
-    backref_wire: _wire.Wire | None = None
-    moved_markers: list = None
 
 
 # ---------------------------------------------------------------------------
@@ -96,13 +108,19 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
 
-        self._split_state: "_SplitState | None" = None
+        self._split_state: _SplitState | None = None
 
-        line = _line.Line(wire.obj3d.start_position, wire.obj3d.stop_position)
-        position, wire_angle = self._closest_point_on_line(line, mouse_pos)
+        # get_closest_point already walks the wire's true path -- start,
+        # through every interior waypoint, to stop -- and returns which
+        # sub-segment the click landed on. Projecting onto the wire's
+        # overall start/stop chord instead (as this used to) is only
+        # correct for a wire with no bends; for a bent wire it can land
+        # the loop off the actual wire path entirely and split the wrong
+        # segment.
+        position, wire_angle, seg_idx = wire.obj3d.get_closest_point(mouse_pos)
 
         with mainframe.editor3d.context:
-            self._create_preview(wire, position, wire_angle)
+            self._create_preview(wire, position, wire_angle, seg_idx)
 
     # ------------------------------------------------------------------
     # Helpers
@@ -146,9 +164,11 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         wire: _wire.Wire,
         position: _point.Point,
         wire_angle: _angle.Angle,
+        seg_idx: int,
     ):
-        """Cut *wire* and build the loop preview at *position*. Called
-        once, from __init__.
+        """Cut *wire* and build the loop preview at *position*, on sub-
+        segment *seg_idx* of its current path. Called once, from
+        __init__.
 
         *wire* is split *before* the WireServiceLoop 3D object is
         constructed: that object's own __init__ runs collision avoidance
@@ -179,10 +199,14 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
             True, q_arr)
 
         self._split_state = self._split_wire_for_loop(
-            wire, p_start_db.db_id, p_stop_db.db_id)
+            wire, p_start_db.db_id, p_stop_db.db_id, seg_idx)
 
         self.obj = _wire_service_loop.WireServiceLoop(self.mainframe, loop_db)
         self.obj.identify(self._preview_material)
+
+        self.obj.set_siblings(self._split_state.wire1, self._split_state.wire2)
+        self._split_state.wire1.set_sibling(self.obj, 'stop')
+        self._split_state.wire2.set_sibling(self.obj, 'start')
 
         # The whole rest of this placement (every hover update until
         # commit or cancel) is one continuous move, in the same sense a
@@ -213,69 +237,42 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         wire: _wire.Wire,
         start_point_id: int,
         stop_point_id: int,
+        seg_idx: int,
     ) -> _SplitState:
         """Cut *wire* into two pieces around a gap spanning
         start_point_id/stop_point_id, and insert a WireLayout at each cut.
 
-        Reuses wire_layout_handler._split_wire_at_point twice (once per cut
-        point) rather than reimplementing its sibling-chain/marker-
-        reattachment/teardown handling, then discards the middle segment the
-        two calls leave behind -- the loop occupies that span, not a wire.
+        Reuses handlers.wire_topology.split_wire_at_point twice (once per
+        cut point) rather than reimplementing its waypoint-slicing/
+        marker-reattachment/sibling-re-homing handling, then discards the
+        middle segment the two calls leave behind -- the loop occupies
+        that span, not a wire.
         """
         project = self.mainframe.project
         mainframe = self.mainframe
-        orig = wire.db_obj
 
         state = _SplitState()
-        state.part_id = orig.part_id
-        state.name = orig.name
-        state.circuit_id = orig.circuit_id
-        state.layer_id = orig.layer_id
-        state.layer_view_position_id = orig.layer_view_position_id
-        state.is_filler_wire = orig.is_filler_wire
-        state.is_visible3d = orig.is_visible3d
-        state.is_visible2d = orig.is_visible2d
-        state.stripe_clip_start = orig.stripe_clip_start
-        state.original_start_id = int(wire.obj3d.start_position.db_id[:-2])
-        state.original_stop_id = int(wire.obj3d.stop_position.db_id[:-2])
         # Captured now, while wire.obj3d is still the real, unsplit wire --
-        # these are the wire's own permanent endpoints, never touched by
-        # the drag (only the loop's own start/stop points move), so this
-        # stays valid and stable for the rest of the preview session.
-        state.line = _line.Line(wire.obj3d.start_position, wire.obj3d.stop_position)
+        # the endpoints of the one sub-segment (seg_idx) the loop was
+        # placed on, never touched by the drag (only the loop's own start/
+        # stop points move), so this stays valid and stable for the rest
+        # of the preview session.
+        seg_p1, seg_p2 = _wire_segments(wire)[seg_idx]
+        state.line = _line.Line(_point.Point(*seg_p1), _point.Point(*seg_p2))
 
-        # Something may already chain *into* this wire (w.sibling is
-        # wire.obj3d) -- _split_wire_at_point never updates that
-        # back-reference, so capture it now, before the wire it points at
-        # is deleted, and repoint it once the split is done.
-        state.backref_wire = None
-        for w in project.wires:
-            if w.obj3d.sibling is wire.obj3d:
-                state.backref_wire = w
-                break
-
-        state.moved_markers = [
-            m for m in project.wire_markers if m.db_obj.wire_id == orig.db_id]
-
-        wire_b, wire_a = _wire_layout_handler._split_wire_at_point(  # NOQA
+        wire_b, wire_a = _wire_topology.split_wire_at_point(
             project, wire, start_point_id)
-        wire_d, wire_c = _wire_layout_handler._split_wire_at_point(  # NOQA
+        wire_d, wire_c = _wire_topology.split_wire_at_point(
             project, wire_b, stop_point_id)
 
         # wire_c spans start_point_id -> stop_point_id -- the loop lives
         # there instead of a wire; discard it with the same teardown
-        # _split_wire_at_point itself uses.
+        # split_wire_at_point itself uses.
         if mainframe.get_selected() is wire_c:
             wire_c.set_selected(False)
         wire_c.delete()
 
         state.wire1, state.wire2 = wire_a, wire_d
-
-        # wire_a's sibling still points at wire_b, which is now deleted --
-        # bridge across the loop directly.
-        state.wire1.obj3d.sibling = state.wire2.obj3d
-        if state.backref_wire is not None:
-            state.backref_wire.obj3d.sibling = state.wire1.obj3d
 
         # Layouts are constructed only now that wire1/wire2 already
         # reference the shared points -- WireLayout.__init__ derives its
@@ -292,30 +289,16 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         return state
 
     def _restore_wire_from_split(self, state: _SplitState) -> None:
-        """Reverse _split_wire_for_loop: delete both layouts and both split
-        wires, and re-insert a single wire spanning the original endpoints
-        with the original wire's own properties.
-        """
+        """Reverse _split_wire_for_loop: delete both layouts, then merge
+        wire1/wire2 back into a single wire via handlers.wire_topology.
+        merge_wires (waypoints, markers, and sibling re-homing all handled
+        there)."""
         project = self.mainframe.project
-        mainframe = self.mainframe
 
-        forward_sibling = state.wire2.obj3d.sibling
+        for layout_obj in (state.layout1, state.layout2):
+            layout_obj.delete()
 
-        restored_db = self.ptables.pjt_wires_table.insert(
-            state.part_id, state.name, state.circuit_id,
-            state.original_start_id, state.original_stop_id,
-            None, None, state.is_visible3d, state.is_visible2d,
-            state.layer_view_position_id, state.layer_id, state.is_filler_wire,
-            stripe_clip_start=state.stripe_clip_start)
-
-        restored_obj = _wire.Wire(mainframe, restored_db)
-        restored_obj.obj3d.sibling = forward_sibling
-        if state.backref_wire is not None:
-            state.backref_wire.obj3d.sibling = restored_obj.obj3d
-
-        for marker in state.moved_markers:
-            marker.db_obj.wire_id = restored_db.db_id
-            marker.obj3d.rebind_wire(restored_db)
+        _wire_topology.merge_wires(project, state.wire1, state.wire2)
 
         for layout_obj in (state.layout1, state.layout2):
             layout_obj.delete()

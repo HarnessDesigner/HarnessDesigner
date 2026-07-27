@@ -129,10 +129,10 @@ class PJTPointPeg(PJTEntryBase):
         self._stored_z = value
         self._table.update(self._db_id, z=value)
 
-    _stored_bundle_id: "int | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_bundle_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
-    def bundle_id(self) -> "int | None":
+    def bundle_id(self) -> int | None:
         """Return the id of the bundle this waypoint belongs to, or
         ``None`` for an anchor's own position row.
 
@@ -145,15 +145,15 @@ class PJTPointPeg(PJTEntryBase):
         return self._stored_bundle_id
 
     @bundle_id.setter
-    def bundle_id(self, value: "int | None"):
+    def bundle_id(self, value: int | None):
         self._stored_bundle_id = value
         self._table.update(self._db_id, bundle_id=value)
         self._populate('bundle_id')
 
-    _stored_idx: "int | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_idx: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
-    def idx(self) -> "int | None":
+    def idx(self) -> int | None:
         """Return this waypoint's 0-based order along the bundle chain,
         or ``None`` for an anchor's own position row.
 
@@ -166,7 +166,7 @@ class PJTPointPeg(PJTEntryBase):
         return self._stored_idx
 
     @idx.setter
-    def idx(self, value: "int | None"):
+    def idx(self, value: int | None):
         self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')

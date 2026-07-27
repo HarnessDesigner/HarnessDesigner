@@ -57,7 +57,7 @@ class FocalPoint3D(_generic_3d.Generic):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    def __init__(self, parent: "FocalPoint"):
+    def __init__(self, parent: FocalPoint):
         """Initialise the :class:`FocalPoint3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

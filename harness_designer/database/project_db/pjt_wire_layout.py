@@ -201,21 +201,35 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
 
     @property
     def attached_wires(self) -> list["_pjt_wire.PJTWire"]:
-        """Return the attached wires.
+        """Return the wire(s) this layout marks a point on.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Checks two cases: this point is some wire's own true start/stop
+        (a layout placed at an endpoint, or a splice/service-loop's own
+        cut point -- possibly two wires, one on each side); or, failing
+        that, the point is tagged as an interior waypoint (wire_id) of a
+        single wire's own path -- an ordinary bend, or one of a
+        terminal's own back/cavity routing points (see
+        objects.terminal.Terminal.add_wire) -- ``wire_id`` has no
+        DB-enforced FK (see create_database/points3d.py), so this is a
+        second, explicit lookup rather than something a join could do.
 
-        :returns: Property value. UNKNOWN details.
+        :returns: Property value.
         :rtype: list['_pjt_wire.PJTWire']
         """
-        res = []
         point_id = self.position3d_id
         db_ids = self._table.db.pjt_wires_table.select(
             "id", OR=True, start_point3d_id=point_id, stop_point3d_id=point_id)
-        for db_id in db_ids:
-            res.append(self._table.db.pjt_wires_table[db_id[0]])
 
-        return res
+        res = [self._table.db.pjt_wires_table[db_id[0]] for db_id in db_ids]
+        if res:
+            return res
+
+        point = self._table.db.pjt_points3d_table[point_id]
+        wire_id = point.wire_id
+        if wire_id is not None:
+            return [self._table.db.pjt_wires_table[wire_id]]
+
+        return []
 
     @property
     def table(self) -> PJTWireLayoutsTable:

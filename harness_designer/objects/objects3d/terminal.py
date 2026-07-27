@@ -360,64 +360,70 @@ class Terminal(_base3d.Base3D):
         return TerminalMenu(self.mainframe.editor3d.editor, self)
 
     def _delete(self):
-        self._delete_wire_routing_stub()
+        self._dangle_attached_wires()
         super()._delete()
 
-    def _delete_wire_routing_stub(self):
-        """Remove the internal wire-routing stub(s)/layout(s) this terminal
-        owns.
+    def _dangle_attached_wires(self):
+        """Detach every wire attached to this terminal (see
+        objects.terminal.Terminal.add_wire/.wires), leaving each dangling
+        at its own fresh point wherever its own routing through this
+        terminal last reached, instead of deleted or left referencing a
+        point this terminal (and its cavity, if seated) own.
 
-        See handlers.wire_handler._route_from_terminal for how these are
-        built: a stub wire + WireLayout from the terminal's own crimp
-        point (attach_point3d_id) to its wire-side layout point
-        (wire_point3d_id) -- and, when seated in a cavity, a second stub +
-        layout continuing on from there to the cavity's own wire-side
-        point. Same behavior either way: whatever real wire(s) continue
-        from the last point in that chain are left dangling there, not
-        deleted, and every wire past the first sharing that point gets its
-        own new point at the same coordinates so removing this terminal
-        doesn't leave them all still joined to each other.
+        add_wire tags a wire's own back point (and, if seated in a
+        cavity, the cavity's own wire-position point) as its interior
+        waypoints -- those are removed here along with their WireLayouts,
+        since they're only meaningful while this terminal exists. Each
+        wire gets its own new point at the same location (not a shared
+        one) so more than one wire attached here doesn't end up still
+        joined to the others through a point that no longer represents a
+        real connection.
         """
-        db_obj = self.db_obj
+        terminal_obj = self.parent
         ptables = self.mainframe.project.ptables
+        db_obj = self.db_obj
 
-        attach_id = db_obj.attach_point3d_id_raw
         back_id = db_obj.wire_point3d_id_raw
+        cavity = db_obj.cavity
+        cav_back_id = cavity.wire_point3d_id_raw if cavity is not None else None
+        routing_ids = {i for i in (back_id, cav_back_id) if i is not None}
 
-        if attach_id is None or back_id is None:
+        if not routing_ids:
             return
 
-        self._delete_wire_stub_between(ptables, attach_id, back_id)
-        self._delete_layout_at(ptables, back_id)
+        last_routing_id = cav_back_id if cav_back_id is not None else back_id
+        last_pos = ptables.pjt_points3d_table[last_routing_id].point
 
-        final_point_id = back_id
-
-        cavity = db_obj.cavity
-        if cavity is not None:
-            cav_back_id = cavity.wire_point3d_id_raw
-            if cav_back_id is not None:
-                self._delete_wire_stub_between(ptables, back_id, cav_back_id)
-                self._delete_layout_at(ptables, cav_back_id)
-                final_point_id = cav_back_id
-
-        if final_point_id != back_id:
-            from ...handlers.transition_handler import _delete_point_if_orphaned
-            _delete_point_if_orphaned(ptables, back_id)
-
-        self._detach_extra_wires_at(ptables, final_point_id)
-
-    @staticmethod
-    def _delete_wire_stub_between(ptables, start_id, stop_id):
-        """Delete the wire (if any) spanning exactly start_id -> stop_id."""
-        for row in ptables.pjt_wires_table.select('id', start_point3d_id=start_id):
-            wire_db = ptables.pjt_wires_table[row[0]]
-            if wire_db.stop_position3d_id != stop_id:
+        for wire in list(terminal_obj.wires):
+            wire_db = wire.db_obj
+            waypoints = wire_db.waypoints3d
+            removed = [wp for wp in waypoints if wp.db_id in routing_ids]
+            if not removed:
                 continue
 
-            obj = wire_db.get_object()
-            if obj is not None:
-                obj.delete()
-            break
+            remaining = sorted(
+                (wp for wp in waypoints if wp.db_id not in routing_ids),
+                key=lambda w: w.idx)
+            for i, wp in enumerate(remaining):
+                wp.idx = i
+
+            is_start = wire.start_sibling is terminal_obj
+
+            new_point = ptables.pjt_points3d_table.insert(*last_pos.as_float)
+            if is_start:
+                wire_db.start_position3d_id = new_point.db_id
+                wire.obj3d.set_start_position(new_point.point)
+                wire.set_sibling(None, 'start')
+            else:
+                wire_db.stop_position3d_id = new_point.db_id
+                wire.obj3d.set_stop_position(new_point.point)
+                wire.set_sibling(None, 'stop')
+
+            for wp in removed:
+                self._delete_layout_at(ptables, wp.db_id)
+                wp.delete()
+
+            wire.obj3d.refresh_waypoints()
 
     @staticmethod
     def _delete_layout_at(ptables, point_id):
@@ -429,32 +435,6 @@ class Terminal(_base3d.Base3D):
             if obj is not None:
                 obj.delete()
             break
-
-    @staticmethod
-    def _detach_extra_wires_at(ptables, point_id):
-        """Give every wire but the first one attached at point_id its own
-        new point at the same coordinates.
-
-        Only the first wire found keeps the shared point -- it becomes
-        uniquely its own once the terminal and its routing stub(s) are
-        gone. Every additional wire sharing the point would otherwise
-        stay joined to it (and to each other) through a point that no
-        longer represents a real connection.
-        """
-        x, y, z = ptables.pjt_points3d_table[point_id].point.as_float
-        seen_first = False
-
-        for column in ('start_point3d_id', 'stop_point3d_id'):
-            for row in ptables.pjt_wires_table.select('id', **{column: point_id}):
-                wire_db = ptables.pjt_wires_table[row[0]]
-
-                if not seen_first:
-                    seen_first = True
-                    continue
-
-                new_point = ptables.pjt_points3d_table.insert(x, y, z)
-                attr = column.replace('_point3d_id', '_position3d_id')
-                setattr(wire_db, attr, new_point.db_id)
 
 
 class TerminalMenu(QMenu):

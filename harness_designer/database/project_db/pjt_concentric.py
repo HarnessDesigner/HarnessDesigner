@@ -164,7 +164,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         for db_id in db_ids:
             layers.append(self.table.db.pjt_concentric_layers_table[db_id[0]])
 
-        return sorted(layers, key=lambda x: x.index)
+        return sorted(layers, key=lambda x: x.idx)
 
     @property
     def table(self) -> PJTConcentricsTable:

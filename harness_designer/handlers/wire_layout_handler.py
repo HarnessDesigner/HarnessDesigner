@@ -3,13 +3,11 @@
 """Interactive handler logic for adding wire layout points.
 """
 
-import math
 import numpy as np
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
-from ..geometry import line as _line
 from ..gl import object_picker as _object_picker
 from ..objects import wire_layout as _wire_layout
 from ..objects import wire as _wire
@@ -26,6 +24,21 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 _SNAP_THRESHOLD = 5.0
+
+
+def _wire_segments(wire: "_wire.Wire"):
+    """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
+    arrays -- start, through each interior waypoint in idx order, to
+    stop. Mirrors objects.objects3d.mixins.wire_type.WireTypeMixin's own
+    _segments (kept as a small local helper here rather than reaching
+    into that mixin, matching this file's existing style of self-
+    contained module-level helpers)."""
+    points = [wire.obj3d.start_position.as_numpy]
+    for waypoint in wire.db_obj.waypoints3d:
+        points.append(waypoint.point.as_numpy)
+    points.append(wire.obj3d.stop_position.as_numpy)
+
+    return list(zip(points, points[1:]))
 
 
 def _find_wire(
@@ -48,22 +61,48 @@ def _find_wire(
         if not w.is_in_3dview:
             continue
 
-        p1 = w.obj3d.start_position.as_numpy
-        p2 = w.obj3d.stop_position.as_numpy
-        seg = p2 - p1
-        seg_len_sq = float(np.dot(seg, seg))
-        if seg_len_sq < 1e-8:
-            continue
+        for p1, p2 in _wire_segments(w):
+            seg = p2 - p1
+            seg_len_sq = float(np.dot(seg, seg))
+            if seg_len_sq < 1e-8:
+                continue
 
-        t = max(0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
-        closest = p1 + t * seg
-        dist_sq = float(np.sum((world_pos - closest) ** 2))
+            t = max(0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
+            closest = p1 + t * seg
+            dist_sq = float(np.sum((world_pos - closest) ** 2))
 
-        if dist_sq < best_dist_sq:
-            best_dist_sq = dist_sq
-            best_wire = w
+            if dist_sq < best_dist_sq:
+                best_dist_sq = dist_sq
+                best_wire = w
 
     return best_wire
+
+
+def _find_insertion_index(wire: "_wire.Wire", position: np.ndarray) -> int:
+    """Return which sub-segment of *wire*'s current path *position* falls
+    closest to -- equivalently, how many of its existing interior
+    waypoints come before a new one inserted there. Same technique as
+    handlers.wire_topology._segment_index (duplicated locally rather than
+    imported -- that module is for the splice/service-loop fork/merge
+    case specifically; this file never forks a wire's own row anymore)."""
+    best_idx = 0
+    best_dist = None
+
+    for i, (p1, p2) in enumerate(_wire_segments(wire)):
+        seg = p2 - p1
+        seg_len_sq = float(np.dot(seg, seg))
+        if seg_len_sq < 1e-12:
+            continue
+
+        t = max(0.0, min(1.0, float(np.dot(position - p1, seg)) / seg_len_sq))
+        closest = p1 + t * seg
+        dist = float(np.sum((position - closest) ** 2))
+
+        if best_dist is None or dist < best_dist:
+            best_dist = dist
+            best_idx = i
+
+    return best_idx
 
 
 def _create_wire_layout_at_endpoint(
@@ -87,113 +126,48 @@ def _create_wire_layout_at_endpoint(
 def _create_wire_layout_on_wire(
     project,
     wire: "_wire.Wire",
-    position: _point.Point
+    position: _point.Point,
+    insert_idx: int | None = None,
 ) -> "_wire_layout.WireLayout":
-    pos_db = project.ptables.pjt_points3d_table.insert(
-        float(position.x), float(position.y), float(position.z))
-    coord_id = pos_db.db_id
+    """Insert a new interior waypoint into *wire*'s own path at
+    *position* and mark it with a WireLayout.
 
-    db_obj = project.ptables.pjt_wire_layouts_table.insert(coord_id)
+    Unlike the row-splitting this used to do, no new ``pjt_wires`` row is
+    created -- an ordinary bend is just a tagged waypoint (``wire_id``/
+    ``idx``) on the same wire, shifting every existing waypoint at or
+    past the insertion point up by one index. Mirrors
+    ``handlers.pegboard_handler._insert_waypoint_on_edge``'s own shift-
+    in-reverse-order technique for a bundle's waypoint chain.
 
-    # Split the wire (creates the two new pjt_wires rows referencing
-    # coord_id as their shared endpoint) BEFORE constructing the
-    # WireLayout object -- WireLayout.__init__ derives its diameter/
-    # color from db_obj.attached_wires, which queries pjt_wires for
-    # rows whose start/stop point matches coord_id. Constructing it
-    # first would find nothing yet and silently fall back to the
-    # hardcoded default (3.0mm, gray).
-    _split_wire_at_point(project, wire, coord_id)
+    *insert_idx* should be the segment index
+    ``wire.obj3d.get_closest_point`` already found *position* on -- that
+    walk already determines which segment (and so which insertion index)
+    wins, so passing it through here avoids a second, separate walk over
+    the same segments to re-derive it. Only computed here (via
+    _find_insertion_index) when the caller doesn't have one on hand, e.g.
+    a position that didn't come from get_closest_point at all (the
+    wire's own midpoint, when no click was captured).
+    """
+    ptables = project.ptables
 
+    if insert_idx is None:
+        insert_idx = _find_insertion_index(wire, position.as_numpy)
+
+    existing = wire.db_obj.waypoints3d
+    for waypoint in reversed(existing[insert_idx:]):
+        waypoint.idx = waypoint.idx + 1
+
+    pos_db = ptables.pjt_points3d_table.insert(
+        float(position.x), float(position.y), float(position.z),
+        wire_id=wire.db_obj.db_id, idx=insert_idx)
+
+    db_obj = ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
     layout_obj = _wire_layout.WireLayout(project.mainframe, db_obj)
     project.add_wire_layout(layout_obj)
 
+    wire.obj3d.refresh_waypoints()
+
     return layout_obj
-
-
-def _split_wire_at_point(
-    project,
-    original_wire: "_wire.Wire",
-    shared_coord_id: int
-) -> tuple["_wire.Wire", "_wire.Wire"]:
-    orig = original_wire.db_obj
-    part_id = orig.part_id
-    name = orig.name
-    circuit_id = orig.circuit_id
-    layer_id = orig.layer_id
-    layer_view_point_id = orig.layer_view_position_id
-    is_filler_wire = orig.is_filler_wire
-    is_visible3d = orig.is_visible3d
-    is_visible2d = orig.is_visible2d
-
-    start_id = int(original_wire.obj3d.start_position.db_id[:-2])
-    stop_id = int(original_wire.obj3d.stop_position.db_id[:-2])
-
-    # wire1 keeps the original wire's own start point, so it inherits its
-    # stripe_clip_start unchanged -- wire2 starts exactly where wire1 now
-    # ends, so its stripe_clip_start is wire1's stripe_clip_start plus
-    # wire1's own (freshly split) length. See objects.objects3d.wire.Wire
-    # and gl.shaders.faces' stripeClipStart/stripeClipStop uniforms.
-    wire1_stripe_clip_start = orig.stripe_clip_start
-
-    wire1_db = project.ptables.pjt_wires_table.insert(
-        part_id, name, circuit_id, start_id, shared_coord_id,
-        None, None, is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire,
-        stripe_clip_start=wire1_stripe_clip_start)
-
-    p1 = wire1_db.start_position3d.as_numpy
-    p2 = wire1_db.stop_position3d.as_numpy
-    dx = p2[0] - p1[0]
-    dy = p2[1] - p1[1]
-    dz = p2[2] - p1[2]
-    wire1_length = math.sqrt(dx * dx + dy * dy + dz * dz)
-    wire2_stripe_clip_start = wire1_stripe_clip_start + wire1_length
-
-    wire2_db = project.ptables.pjt_wires_table.insert(
-        part_id, name, circuit_id, shared_coord_id, stop_id,
-        None, None, is_visible3d, is_visible2d,
-        layer_view_point_id, layer_id, is_filler_wire,
-        stripe_clip_start=wire2_stripe_clip_start)
-
-    wire1_obj = _wire.Wire(project.mainframe, wire1_db)
-    wire2_obj = _wire.Wire(project.mainframe, wire2_db)
-
-    # wire2 takes over the "back half" of the original wire's identity
-    # (same stop point), so it inherits whatever wire came after the
-    # original wire in the chain, if any -- and wire1 now continues
-    # into wire2, same as the original wire continued into whatever
-    # wire2 just inherited.
-    wire2_obj.obj3d.sibling = original_wire.obj3d.sibling
-    wire1_obj.obj3d.sibling = wire2_obj.obj3d
-
-    project.add_wire(wire1_obj)
-    project.add_wire(wire2_obj)
-
-    # The original wire row is about to be deleted outright below (not
-    # just re-pointed), so any wire marker attached to it via wire_id
-    # would otherwise be orphaned -- still bound to the old start/stop
-    # Points, with a wire_id that no longer resolves to any row. Move
-    # each one onto whichever new half-segment it actually still sits
-    # on (its own world position didn't change, only the wire data
-    # model split around it).
-    orig_start = original_wire.obj3d.start_position
-    split_distance = _line.Line(orig_start, wire1_obj.obj3d.stop_position).length()
-
-    for marker in project.wire_markers:
-        if marker.db_obj.wire_id != orig.db_id:
-            continue
-
-        marker_distance = _line.Line(orig_start, marker.obj3d.position).length()
-        new_wire = wire1_obj if marker_distance <= split_distance else wire2_obj
-
-        marker.db_obj.wire_id = new_wire.db_obj.db_id
-        marker.obj3d.rebind_wire(new_wire.db_obj)
-
-    if project.mainframe.get_selected() is original_wire:
-        original_wire.set_selected(False)
-    original_wire.delete()
-
-    return wire1_obj, wire2_obj
 
 
 class AddWireLayoutHandler(_handler_base.HandlerBase):
@@ -262,7 +236,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
         self.obj.obj3d.is_visible = True
 
     def release_capture(self) -> None:
-        """Finalize placement: split the wire or attach to an endpoint.
+        """Finalize placement: insert a waypoint or attach to an endpoint.
         """
         if self._finalized:
             return
@@ -296,12 +270,20 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
             # delegator forwards db_id to its root) so the sharing survives
             # a reload instead of only existing as a live delegation.
             self.obj.db_obj.position3d_id = int(self.obj.obj3d.position.db_id[:-2])
-        else:
-            coord_id = int(self.obj.obj3d.position.db_id[:-2])
-            _split_wire_at_point(self.mainframe.project, wire, coord_id)
 
-        self.obj.obj3d.is_visible = True
-        self.mainframe.project.add_wire_layout(self.obj)
+            self.obj.obj3d.is_visible = True
+            self.mainframe.project.add_wire_layout(self.obj)
+        else:
+            # Discard the throwaway preview point/layout row created in
+            # __init__ -- _create_wire_layout_on_wire makes the real one
+            # at the correct waypoint position/index, on the wire's own
+            # row (no split), and registers it with the project itself.
+            preview_position = _point.Point(*self.obj.obj3d.position.as_float)
+            self.obj.delete()
+            self.obj = _create_wire_layout_on_wire(
+                self.mainframe.project, wire, preview_position)
+            self.obj.obj3d.is_visible = True
+
         self.obj = None
 
     def cancel(self):

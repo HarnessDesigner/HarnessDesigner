@@ -75,7 +75,7 @@ class PJTPoints2DTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, x: float, y: float) -> "PJTPoint2D":
+    def insert(self, x: float, y: float, wire_id: int = None, idx: int = None) -> "PJTPoint2D":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,11 +84,30 @@ class PJTPoints2DTable(PJTTableBase):
         :type x: float
         :param y: Y-coordinate value.
         :type y: float
+        :param wire_id: Owning wire, for an interior waypoint row --
+            ``None`` for an anchor's own position row.
+        :type wire_id: int | None
+        :param idx: 0-based order along the wire's waypoint chain, for a
+            waypoint row -- ``None`` for an anchor's own position row.
+        :type idx: int | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTPoint2D`
         """
-        db_id = PJTTableBase.insert(self, x=x, y=y)
+        db_id = PJTTableBase.insert(self, x=x, y=y, wire_id=wire_id, idx=idx)
         return PJTPoint2D(self, db_id, self.project_id)
+
+    def for_wire(self, wire_id: int) -> list["PJTPoint2D"]:
+        """Return every interior waypoint on a wire, ordered by ``idx`` ascending.
+
+        :param wire_id: Identifier of the wire whose waypoints to fetch.
+        :type wire_id: int
+        :returns: The wire's interior waypoints, in chain order.
+        :rtype: list['PJTPoint2D']
+        """
+        rows = self.select('id', 'idx', wire_id=wire_id)
+        rows = sorted(rows, key=lambda row: row[1])
+
+        return [self[row[0]] for row in rows]
 
 
 class PJTPoint2D(PJTEntryBase):
@@ -178,6 +197,46 @@ class PJTPoint2D(PJTEntryBase):
         """
         self._stored_y = value
         self._table.update(self._db_id, y=value)
+
+    _stored_wire_id: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    def wire_id(self) -> int | None:
+        """Return the id of the wire this waypoint belongs to, or
+        ``None`` for an anchor's own position row.
+
+        :returns: The referenced ``pjt_wires`` row id, or ``None``.
+        :rtype: int | None
+        """
+        if self._stored_wire_id is DefaultStoredValue:
+            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
+
+        return self._stored_wire_id
+
+    @wire_id.setter
+    def wire_id(self, value: int | None):
+        self._stored_wire_id = value
+        self._table.update(self._db_id, wire_id=value)
+
+    _stored_idx: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    def idx(self) -> int | None:
+        """Return this waypoint's 0-based order along the wire's chain,
+        or ``None`` for an anchor's own position row.
+
+        :returns: The order index, or ``None``.
+        :rtype: int | None
+        """
+        if self._stored_idx is DefaultStoredValue:
+            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
+
+        return self._stored_idx
+
+    @idx.setter
+    def idx(self, value: int | None):
+        self._stored_idx = value
+        self._table.update(self._db_id, idx=value)
 
     _stored_point2d: _point.Point = None
 

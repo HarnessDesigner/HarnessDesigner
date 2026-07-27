@@ -117,7 +117,7 @@ def _obb_triangles(obb: np.ndarray) -> np.ndarray:
 
 
 def _rays_vs_triangles_batched(
-    ray_origins: np.ndarray, ray_dirs: np.ndarray, tris: np.ndarray, max_t: "float | None" = None
+    ray_origins: np.ndarray, ray_dirs: np.ndarray, tris: np.ndarray, max_t: float | None = None
 ) -> np.ndarray:
     """Möller-Trumbore ray-triangle intersection, batched over *both* M
     rays and N triangles at once via numpy broadcasting -- returns an
@@ -335,15 +335,15 @@ class WireServiceLoop(_base3d.Base3D):
         scale = _point.Point(diameter, diameter, diameter)
         angle = db_obj.angle3d
 
-        self._last_centroid: "np.ndarray | None" = None
+        self._last_centroid: np.ndarray | None = None
         # Last pose _resolve_collision actually verified as clear -- the
         # fallback to revert to if a later resolve attempt can't find any
         # clear spot at all (see _resolve_collision).
-        self._last_resolved_position: "np.ndarray | None" = None
-        self._last_resolved_quat: "np.ndarray | None" = None
+        self._last_resolved_position: np.ndarray | None = None
+        self._last_resolved_quat: np.ndarray | None = None
         # Set by begin_move_session/cleared by end_move_session -- see
         # both, and _resolve_collision.
-        self._move_session: "_MoveSession | None" = None
+        self._move_session: _MoveSession | None = None
 
         _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 

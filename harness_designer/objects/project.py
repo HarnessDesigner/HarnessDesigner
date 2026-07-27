@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from PySide6 import QtWidgets
 import time
+import weakref as _weakref
 
 from . import boot as _boot
 from . import bundle as _bundle
@@ -36,6 +37,111 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.project
+
+
+def _reconcile_wire_sibling_graph(project: "Project") -> None:
+    """Rebuild the in-memory sibling graph (Wire <-> Terminal/Splice/
+    WireServiceLoop) from persisted point-id matches.
+
+    set_sibling/add_wire/set_siblings only ever build weakref bookkeeping
+    in memory -- nothing about the graph itself is a DB column (a wire's
+    own start/stop point ids already encode it; see
+    objects.wire.Wire.set_sibling) -- so a freshly reloaded project has
+    none of it until this runs once, after every Terminal/Wire/
+    WireServiceLoop/Splice for the project already exists (see
+    Project.load_project's own load order, which loads Splice last of
+    the four for exactly this reason).
+
+    Reaches directly into each object's own sibling-tracking attributes
+    (_wire_refs, _start_sibling_ref, etc.) rather than through add_wire()/
+    set_siblings() themselves -- those also perform the DB-mutation side
+    of a *fresh* attach (routing waypoints, cross-section checks) that a
+    reload must never redo; only the in-memory bookkeeping needs
+    rebuilding here, from geometry already persisted.
+    """
+    for wire in project.wires:
+        start_id = wire.db_obj.start_position3d_id
+        stop_id = wire.db_obj.stop_position3d_id
+
+        for terminal in project.terminals:
+            attach_id = terminal.db_obj.attach_point3d_id_raw
+            if attach_id is None:
+                continue
+            if attach_id == start_id:
+                wire.set_sibling(terminal, 'start')
+                terminal._wire_refs.append(_weakref.ref(wire))  # NOQA
+            if attach_id == stop_id:
+                wire.set_sibling(terminal, 'stop')
+                terminal._wire_refs.append(_weakref.ref(wire))  # NOQA
+
+        for splice in project.splices:
+            sdb = splice.db_obj
+            if sdb.start_position3d_id == start_id:
+                wire.set_sibling(splice, 'start')
+                splice._start_sibling_ref = _weakref.ref(wire)  # NOQA
+            if sdb.start_position3d_id == stop_id:
+                wire.set_sibling(splice, 'stop')
+                splice._start_sibling_ref = _weakref.ref(wire)  # NOQA
+            if sdb.stop_position3d_id == start_id:
+                wire.set_sibling(splice, 'start')
+                splice._stop_sibling_ref = _weakref.ref(wire)  # NOQA
+            if sdb.stop_position3d_id == stop_id:
+                wire.set_sibling(splice, 'stop')
+                splice._stop_sibling_ref = _weakref.ref(wire)  # NOQA
+            if sdb.branch_position3d_id == start_id:
+                wire.set_sibling(splice, 'start')
+                splice._branch_wire_refs.append(_weakref.ref(wire))  # NOQA
+            if sdb.branch_position3d_id == stop_id:
+                wire.set_sibling(splice, 'stop')
+                splice._branch_wire_refs.append(_weakref.ref(wire))  # NOQA
+
+        for loop in project.wire_service_loops:
+            ldb = loop.db_obj
+            if ldb.start_position3d_id == start_id:
+                wire.set_sibling(loop, 'start')
+                loop._start_sibling_ref = _weakref.ref(wire)  # NOQA
+            if ldb.start_position3d_id == stop_id:
+                wire.set_sibling(loop, 'stop')
+                loop._start_sibling_ref = _weakref.ref(wire)  # NOQA
+            if ldb.stop_position3d_id == start_id:
+                wire.set_sibling(loop, 'start')
+                loop._stop_sibling_ref = _weakref.ref(wire)  # NOQA
+            if ldb.stop_position3d_id == stop_id:
+                wire.set_sibling(loop, 'stop')
+                loop._stop_sibling_ref = _weakref.ref(wire)  # NOQA
+
+
+def _reconcile_bundle_sibling_graph(project: "Project") -> None:
+    """Rebuild the in-memory sibling graph (Bundle <-> Transition) from
+    persisted point-id matches, mirroring _reconcile_wire_sibling_graph
+    above -- see objects.bundle.Bundle.set_sibling and
+    objects.transition.Transition.add_bundle for why none of this is a
+    DB column needing no reconciliation in the first place.
+
+    Reaches directly into Transition._bundle_refs rather than through
+    add_bundle() itself -- that call also performs the DB-mutation side
+    of a *fresh* attach (nothing here, today, but see add_bundle's own
+    docstring), which a reload must never redo; only the in-memory
+    bookkeeping needs rebuilding here, from geometry already persisted.
+    """
+    for bundle in project.bundles:
+        bdb = bundle.db_obj
+        start_id = bdb.start_position3d_id
+        stop_id = bdb.stop_position3d_id
+
+        for transition in project.transitions:
+            for branch_id in range(1, 7):
+                branch = getattr(transition.db_obj, f'branch{branch_id}')
+                if branch is None:
+                    continue
+
+                branch_point_id = branch.position3d_id
+                if branch_point_id == start_id:
+                    bundle.set_sibling(transition, 'start')
+                    transition._bundle_refs[branch_id] = _weakref.ref(bundle)  # NOQA
+                if branch_point_id == stop_id:
+                    bundle.set_sibling(transition, 'stop')
+                    transition._bundle_refs[branch_id] = _weakref.ref(bundle)  # NOQA
 
 
 class Project:
@@ -283,6 +389,12 @@ class Project:
             _splice.Splice, db_ids, self._splices,
             mainframe.object_browser.add_splice, count, self._obj_count)
 
+        # Terminal/Wire/WireServiceLoop/Splice all exist by now -- rebuild
+        # the in-memory sibling graph between them from persisted point-id
+        # matches (set_sibling/add_wire's own bookkeeping is weakrefs only,
+        # nothing DB-persisted -- see objects.wire.Wire.set_sibling).
+        _reconcile_wire_sibling_graph(self)
+
         count = _load_objects(
             ptables.pjt_bundles_table, 'Bundle',
             _bundle.Bundle, db_ids, self._bundles,
@@ -297,6 +409,12 @@ class Project:
             ptables.pjt_transitions_table, 'Transition',
             _transition.Transition, db_ids, self._transitions,
             mainframe.object_browser.add_transition, count, self._obj_count)
+
+        # Bundle/Transition both exist by now -- rebuild the in-memory
+        # sibling graph between them from persisted point-id matches
+        # (see _reconcile_wire_sibling_graph above for why this is a
+        # from-scratch rebuild rather than something reload can skip).
+        _reconcile_bundle_sibling_graph(self)
 
         stop_time = time.time()
 

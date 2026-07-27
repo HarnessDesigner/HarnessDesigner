@@ -561,7 +561,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             return seal
 
     @property
-    def wire_point3d_id(self) -> "int | None":
+    def wire_point3d_id(self) -> int | None:
         """Return the ``pjt_points3d`` row id for the wire layout point
         (see :attr:`wire_position3d`), lazily creating and persisting it on
         first access when the ``wire_point3d_id`` column is NULL.  ``None``
@@ -601,7 +601,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._stored_wire_position3d.point
 
     @property
-    def wire_point3d_id_raw(self) -> "int | None":
+    def wire_point3d_id_raw(self) -> int | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if this
         terminal's layout point has never been computed.
 
@@ -616,7 +616,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
     @property
-    def attach_point3d_id(self) -> "int | None":
+    def attach_point3d_id(self) -> int | None:
         """Return the ``pjt_points3d`` row id for the wire attachment/crimp
         point (see :attr:`attach_position3d`), lazily creating and
         persisting it on first access when the ``attach_point3d_id`` column
@@ -634,7 +634,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return attach_point3d_id
 
     @property
-    def attach_point3d_id_raw(self) -> "int | None":
+    def attach_point3d_id_raw(self) -> int | None:
         """The raw ``attach_point3d_id`` column value, ``None`` if this
         terminal's crimp point has never been computed.
 
@@ -666,7 +666,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return self._stored_attach_position3d.point
 
-    def _wire_side_extent(self) -> "tuple[float, float] | None":
+    def _wire_side_extent(self) -> tuple[float, float] | None:
         """Return (front_z, back_z): this terminal's own local Z distance
         from its origin (position3d) to its front (mating-side, +Z) and
         back (wire-side, -Z) faces. None only when this terminal has no
@@ -799,7 +799,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._stored_seal_position3d.point
 
     @property
-    def seal_point3d_id(self) -> "int | None":
+    def seal_point3d_id(self) -> int | None:
         """Return the DB row id of the seal position point, or ``None``."""
         return self._table.select('seal_point3d_id', id=self._db_id)[0][0]
 

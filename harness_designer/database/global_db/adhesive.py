@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable
+from typing import Iterable as _Iterable, Union as _Union
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import DescriptionMixin
@@ -182,7 +182,7 @@ class Adhesive(EntryBase, DescriptionMixin):
         self._table.update(self._db_id, accessory_part_nums=db_value)
         self._populate('accessory_part_nums')
 
-    _stored_accessories: "DefaultStoredValueType | list[_accessory.Accessory]" = DefaultStoredValue
+    _stored_accessories: _Union["DefaultStoredValueType", list["_accessory.Accessory"]] = DefaultStoredValue
 
     @property
     def accessories(self) -> list["_accessory.Accessory"]:

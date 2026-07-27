@@ -861,6 +861,10 @@ class MainFrame(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(0, self._open_project)
 
     def _open_project(self):
+        from .. import shapes
+
+        shapes.cache_primitives(self)
+
         from ..objects import project as _proj
 
         self.editor_db.load_db(self.global_db)

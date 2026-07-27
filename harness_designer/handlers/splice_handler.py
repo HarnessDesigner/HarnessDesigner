@@ -2,12 +2,12 @@
 
 """Interactive handler logic for inserting splices into wires."""
 
-import math
 import numpy as np
 from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QDialog
 
 from . import handler_base as _handler_base
+from . import wire_topology as _wire_topology
 from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..ui.dialogs import part_search as _part_search
@@ -169,7 +169,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         if self.obj is None:
             return
 
-        point, _ = wire.obj3d.get_closest_point(mouse_pos)
+        point, _angle, _idx = wire.obj3d.get_closest_point(mouse_pos)
         if point is None:
             return
 
@@ -197,7 +197,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
 
         wire = self._snapped_wire
 
-        position, wire_angle = wire.obj3d.get_closest_point(
+        position, wire_angle, _idx = wire.obj3d.get_closest_point(
             self._captured_position)
 
         if None in (position, wire_angle):
@@ -222,57 +222,29 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         stop_p += target_stop - stop_p
         branch_p += position - branch_p
 
-        # IDs for the DB records
-        original_start_id = int(wire.obj3d.start_position.db_id[:-2])
-        original_stop_id = int(wire.obj3d.stop_position.db_id[:-2])
         splice_start_id = int(start_p.db_id[:-2])
         splice_stop_id = int(stop_p.db_id[:-2])
 
         circuit_id = wire.db_obj.circuit_id
-        part_id = wire.db_obj.part_id
-        name = wire.db_obj.name
 
-        # wire1 keeps the original wire's own start point, so it inherits
-        # its stripe_clip_start unchanged -- wire2 starts exactly where
-        # wire1 now ends, same cascade as wire_layout_handler._split_wire_at_point.
-        wire1_stripe_clip_start = wire.db_obj.stripe_clip_start
+        project = self.mainframe.project
 
-        # Wire 1: original start → splice start
-        wire1_db = self.ptables.pjt_wires_table.insert(
-            part_id, name, circuit_id,
-            original_start_id, splice_start_id,
-            None, None, True,
-            False, None, None, False,
-            stripe_clip_start=wire1_stripe_clip_start)
-
-        p1 = wire1_db.start_position3d.as_numpy
-        p2 = wire1_db.stop_position3d.as_numpy
-        dx = p2[0] - p1[0]
-        dy = p2[1] - p1[1]
-        dz = p2[2] - p1[2]
-        wire1_length = math.sqrt(dx * dx + dy * dy + dz * dz)
-        wire2_stripe_clip_start = wire1_stripe_clip_start + wire1_length
-
-        # Wire 2: splice stop → original stop
-        wire2_db = self.ptables.pjt_wires_table.insert(
-            part_id, name, circuit_id,
-            splice_stop_id, original_stop_id,
-            None, None, True,
-            False, None, None, False,
-            stripe_clip_start=wire2_stripe_clip_start)
-
-        wire1_obj = _wire.Wire(self.mainframe, wire1_db)
-        wire2_obj = _wire.Wire(self.mainframe, wire2_db)
-
-        wire2_obj.obj3d.sibling = wire.obj3d.sibling
-        wire1_obj.obj3d.sibling = wire2_obj.obj3d
-
-        self.mainframe.project.add_wire(wire1_obj)
-        self.mainframe.project.add_wire(wire2_obj)
-
-        wire.delete()
+        # Fork the wire around the splice's own body -- wire_before keeps
+        # the original wire's own start (through splice_start_id);
+        # splitting the resulting "after" piece again at splice_stop_id
+        # discards the middle span (splice_start_id -> splice_stop_id),
+        # which the splice's own body occupies instead of a wire.
+        wire_before, wire_rest = _wire_topology.split_wire_at_point(
+            project, wire, splice_start_id)
+        wire_gap, wire_after = _wire_topology.split_wire_at_point(
+            project, wire_rest, splice_stop_id)
+        wire_gap.delete()
 
         self.obj.db_obj.circuit_id = circuit_id
+        self.obj.set_siblings(wire_before, wire_after)
+        wire_before.set_sibling(self.obj, 'stop')
+        wire_after.set_sibling(self.obj, 'start')
+
         self.mainframe.project.add_splice(self.obj)
         self.obj = None
 

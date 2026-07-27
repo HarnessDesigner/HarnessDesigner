@@ -264,7 +264,7 @@ class PJTTableBase:
     """
     __table_name__: str = None
 
-    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list['str'], splash: "_splash.Splash"):
+    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: "_splash.Splash"):
         """Initialise the :class:`PJTTableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

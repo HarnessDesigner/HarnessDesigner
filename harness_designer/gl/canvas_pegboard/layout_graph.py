@@ -100,7 +100,7 @@ class PegboardNode:
     x: float
     z: float
     anchor: object
-    waypoint_id: "int | None"
+    waypoint_id: int | None
 
 
 @dataclass
@@ -201,7 +201,7 @@ def _resolve_chain_endpoint(
     point3d_id: int,
     anchors_by_point3d_id: dict,
     project: "_project.Project",
-) -> "PegboardNode":
+) -> PegboardNode:
     """Resolve one bundle endpoint (``start_position3d_id``/
     ``stop_position3d_id``) to a :class:`PegboardNode`.
 
@@ -239,7 +239,7 @@ def build_bundle_chain(
     bundle,
     anchors_by_point3d_id: dict,
     project: "_project.Project",
-) -> list["PegboardNode"]:
+) -> list[PegboardNode]:
     """Build the ordered node chain for one :class:`PJTBundle` row.
 
     ``[start_node, *waypoint_nodes_in_sequence_order, stop_node]`` --
@@ -278,8 +278,8 @@ _MIN_CHAIN_DISTANCE_MM = 1e-9
 
 def _build_chain_edges(
     bundle,
-    nodes: list["PegboardNode"],
-) -> list["PegboardEdge"]:
+    nodes: list[PegboardNode],
+) -> list[PegboardEdge]:
     """Build the length-budgeted edges between every consecutive pair of
     *nodes* in one bundle's chain (see :func:`build_bundle_chain`).
 
@@ -342,7 +342,7 @@ def _build_chain_edges(
 def build_bundle_graph(
     project: "_project.Project",
     anchors_by_point3d_id: dict,
-) -> tuple[list["PegboardNode"], list["PegboardEdge"]]:
+) -> tuple[list[PegboardNode], list[PegboardEdge]]:
     """Build the full peg-board node/edge graph for every bundle in *project*.
 
     Shared, top-level entry point for rendering (see
@@ -383,7 +383,7 @@ def build_bundle_graph(
 def build_bundle_strands(
     project: "_project.Project",
     anchors_by_point3d_id: dict,
-) -> list["BundleStrand"]:
+) -> list[BundleStrand]:
     """Build one flat :class:`BundleStrand` per peg-board graph edge.
 
     Phase 3 upgrade from Phase 2's single straight start->stop segment: a
@@ -428,8 +428,8 @@ def build_bundle_strands(
 
 def build_bundle_strands_for_edges(
     project: "_project.Project",
-    edges: list["PegboardEdge"],
-) -> list["BundleStrand"]:
+    edges: list[PegboardEdge],
+) -> list[BundleStrand]:
     """Build one :class:`BundleStrand` per already-built *edge*, in the same
     order (Phase 3).
 
@@ -535,7 +535,7 @@ def _bare_wire_strand_color(wire) -> "_color.Color":
     return color
 
 
-def build_bare_wire_strands(project: "_project.Project") -> list["BareWireStrand"]:
+def build_bare_wire_strands(project: "_project.Project") -> list[BareWireStrand]:
     """Build one thin :class:`BareWireStrand` per bare-terminated wire end.
 
     Implements the plan's visibility-filtering "bundle-with-bare-terminal-

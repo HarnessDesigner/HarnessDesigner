@@ -142,60 +142,61 @@ class WireLayout(_base3d.Base3D):
         super()._delete()
 
     def _reconnect_wires(self):
-        """Merge the two wire segments meeting at this layout back into one.
+        """Remove this layout's own bend from whatever wire(s) it sits on.
 
-        Mirrors handlers.wire_layout_handler._split_wire_at_point in
-        reverse. A layout with only one attached wire was placed at an
-        existing endpoint (handlers.wire_layout_handler.
-        _create_wire_layout_at_endpoint), not a split -- nothing to
-        reconnect there, just let the layout itself get deleted.
+        Two cases, by how many distinct wire rows attach here (see
+        PJTWireLayout.attached_wires): exactly one -- the common case now,
+        an ordinary bend is just a waypoint on a single wire -- simply
+        drops that waypoint (renumbering every later one down by one) and
+        deletes its point row, leaving the wire a straight line between
+        its remaining neighbors; exactly two -- a genuine seam between
+        separate rows (a splice/service-loop's own cut point, or a wire-
+        to-wire join's seam -- see handlers.wire_handler._merge_wire_into)
+        -- merges them back into one via handlers.wire_topology.
+        merge_wires, mirroring handlers.wire_topology.split_wire_at_point
+        in reverse. A layout with zero here sits at an actual endpoint
+        (handlers.wire_layout_handler._create_wire_layout_at_endpoint),
+        never tagged as anyone's waypoint -- nothing to reconnect.
         """
         pjt_wires = self.db_obj.attached_wires
-        if len(pjt_wires) != 2:
-            return
-
-        objs = []
-        for pjt_wire in pjt_wires:
-            obj = pjt_wire.get_object()
-            if obj is None:
-                return
-            objs.append(obj)
-
-        wire_a, wire_b = objs
         point_id = self.db_obj.position3d_id
 
-        if wire_a.db_obj.stop_position3d_id == point_id:
-            upstream, downstream = wire_a, wire_b
-        else:
-            upstream, downstream = wire_b, wire_a
+        if len(pjt_wires) == 2:
+            objs = [pjt_wire.get_object() for pjt_wire in pjt_wires]
+            if None in objs:
+                return
 
-        from .. import wire as _wire_obj
+            wire_a, wire_b = objs
+            if wire_a.db_obj.stop_position3d_id == point_id:
+                upstream, downstream = wire_a, wire_b
+            else:
+                upstream, downstream = wire_b, wire_a
 
-        project = self.mainframe.project
-        up_db = upstream.db_obj
-        down_db = downstream.db_obj
+            from ..handlers import wire_topology as _wire_topology
 
-        merged_db = project.ptables.pjt_wires_table.insert(
-            up_db.part_id, up_db.name, up_db.circuit_id,
-            up_db.start_position3d_id, down_db.stop_position3d_id,
-            None, None, up_db.is_visible3d, up_db.is_visible2d,
-            up_db.layer_view_position_id, up_db.layer_id, up_db.is_filler_wire,
-            stripe_clip_start=up_db.stripe_clip_start)
+            _wire_topology.merge_wires(self.mainframe.project, upstream, downstream)
+            return
 
-        merged_obj = _wire_obj.Wire(self.mainframe, merged_db)
-        merged_obj.obj3d.sibling = downstream.obj3d.sibling
+        if len(pjt_wires) != 1:
+            return
 
-        for marker in project.wire_markers:
-            if marker.db_obj.wire_id not in (up_db.db_id, down_db.db_id):
-                continue
+        ptables = self.mainframe.project.ptables
+        point = ptables.pjt_points3d_table[point_id]
 
-            marker.db_obj.wire_id = merged_db.db_id
-            marker.obj3d.rebind_wire(merged_db)
+        if point.wire_id is None:
+            return
 
-        project.add_wire(merged_obj)
+        removed_idx = point.idx
+        wire_db = pjt_wires[0]
+        for waypoint in wire_db.waypoints3d:
+            if waypoint.idx > removed_idx:
+                waypoint.idx = waypoint.idx - 1
 
-        upstream.delete()
-        downstream.delete()
+        wire_obj = wire_db.get_object()
+        point.delete()
+
+        if wire_obj is not None:
+            wire_obj.obj3d.refresh_waypoints()
 
     def get_context_menu(self):
         """Return the context menu.

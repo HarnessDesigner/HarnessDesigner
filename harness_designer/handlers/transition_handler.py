@@ -77,12 +77,10 @@ def _delete_point_if_orphaned(ptables, point_id: int) -> None:
     con.commit()
 
 
-def _insert_wire(ptables, part_id, name, circuit_id, start_id, stop_id, visible: bool,
-                 stripe_clip_start: float = 0.0):
+def _insert_wire(ptables, part_id, name, circuit_id, start_id, stop_id, visible: bool):
     return ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, start_id, stop_id,
-        None, None, visible, False, None, None, False,
-        stripe_clip_start=stripe_clip_start)
+        None, None, visible, False, None, None, False)
 
 
 def _insert_bundle(ptables, part_id, start_id, stop_id):
@@ -442,8 +440,9 @@ class AddTransitionHandler(_handler_base.HandlerBase):
         center_db = ptables.pjt_points3d_table.insert(
             float(snap_pos.x), float(snap_pos.y), float(snap_pos.z))
         init_angle = _angle.Angle()
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
         transition_db = ptables.pjt_transitions_table.insert(
-            self.part_id, center_db.db_id, init_angle, '')
+            self.part_id, name, center_db.db_id, init_angle)
         _set_angle_from_bundle(transition_db, bundle)
 
         # Branch 1 — trunk
@@ -478,18 +477,44 @@ class AddTransitionHandler(_handler_base.HandlerBase):
 
             for cw in assigned:
                 pjt_wire = cw.wire
-                stripe_clip_start, _ = _wire_handler._predecessor_stripe_clip_start(  # NOQA
-                    self.mainframe, trunk_point_id)
                 ptables.pjt_wires_table.insert(
                     pjt_wire.part_id, pjt_wire.name, pjt_wire.circuit_id,
                     trunk_point_id, br_pt_id,
-                    None, None, False, False, None, None, False,
-                    stripe_clip_start=stripe_clip_start)
+                    None, None, False, False, None, None, False)
 
-        if not is_at_endpoint:
+        if is_at_endpoint:
+            end = endpoint
+        else:
+            # Per the "a Transition never forks a bundle" rule, the bundle
+            # doesn't split into two rows here -- it simply shrinks to end
+            # exactly at the transition's own trunk point. Whatever lay
+            # past that point (waypoints and the original far endpoint)
+            # is abandoned entirely rather than replaced with a second
+            # bundle; wires that ran through the abandoned portion become
+            # bare/uncovered until a fresh bundle cover is wrapped over
+            # them later (see handlers.bundle_handler.AddBundleHandler).
             from . import bundle_layout_handler as _blh
 
-            _blh._split_bundle_at_point(project, bundle, trunk_point_id)
+            snap_np = np.array([float(snap_pos.x), float(snap_pos.y), float(snap_pos.z)])
+            split_idx = _blh._find_insertion_index(bundle, snap_np)
+
+            layouts_table = ptables.pjt_bundle_layouts_table
+            for point in bundle.db_obj.waypoints3d[split_idx:]:
+                for row in layouts_table.select('id', position3d_id=point.db_id):
+                    layout_db = layouts_table[row[0]]
+                    layout_obj = layout_db.get_object()
+                    if layout_obj is not None:
+                        layout_obj.delete()
+                    else:
+                        layout_db.delete()
+
+                point.delete()
+
+            bundle.db_obj.stop_position3d_id = trunk_point_id
+            bundle.obj3d.set_stop_position(pt_db.point)
+            end = 'stop'
+
+        transition_obj.add_bundle(bundle, end, 1)
 
         project.add_transition(transition_obj)
         self._finalized = True
@@ -758,13 +783,9 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             end_p3d = self.ptables.pjt_points3d_table.insert(
                 float(pos.x), float(pos.y), float(pos.z))
 
-            stripe_clip_start, _ = _wire_handler._predecessor_stripe_clip_start(  # NOQA
-                self.mainframe, self._seg_start_id)
-
             wire_db = _insert_wire(
                 self.ptables, self.part_id, self._wire_name(), None,
-                self._seg_start_id, end_p3d.db_id, visible=True,
-                stripe_clip_start=stripe_clip_start)
+                self._seg_start_id, end_p3d.db_id, visible=True)
 
             self._preview = _wire.Wire(self.mainframe, wire_db)
             self.mainframe.add_object(self._preview)
@@ -864,21 +885,22 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
         intermediate_layout_points = set()
         name = self._wire_name()
-        stripe_clip_start, predecessor_obj3d = _wire_handler._predecessor_stripe_clip_start(  # NOQA
-            self.mainframe, self._segments[0][0])
 
+        # NOTE: each routed segment still becomes its own pjt_wires row
+        # here (pre-dating the single-wire/waypoint model -- see
+        # handlers.wire_handler.AddWireHandler._commit_waypoint for the
+        # up-to-date equivalent); stripe continuity across these rows is
+        # no longer stitched via a persisted/cascaded value or a runtime
+        # sibling link (both removed), so consecutive segments' stripes
+        # each start fresh rather than visually continuing -- a follow-up
+        # to fold this tool onto the same one-wire-plus-waypoints model
+        # would fix that as a side effect.
         for i, (start_id, stop_id, visible) in enumerate(self._segments):
             wire_db = _insert_wire(
-                self.ptables, self.part_id, name, None, start_id, stop_id, visible=visible,
-                stripe_clip_start=stripe_clip_start)
+                self.ptables, self.part_id, name, None, start_id, stop_id, visible=visible)
 
             wire_obj = _wire.Wire(self.mainframe, wire_db)
             self.mainframe.project.add_wire(wire_obj)
-
-            if predecessor_obj3d is not None:
-                predecessor_obj3d.sibling = wire_obj.obj3d
-            predecessor_obj3d = wire_obj.obj3d
-            stripe_clip_start = predecessor_obj3d.stripe_clip_start + predecessor_obj3d.length
 
             if not visible and (i + 1 < len(self._segments) and
                                 not self._segments[i + 1][2]):

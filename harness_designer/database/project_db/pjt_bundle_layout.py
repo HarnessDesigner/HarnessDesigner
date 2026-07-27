@@ -208,22 +208,30 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
 
     @property
     def attached_bundles(self) -> list["_pjt_bundle.PJTBundle"]:
-        """Return the attached bundles.
+        """Every bundle whose true start/stop lands on this layout's point.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Falls back to the ``bundle_id`` tag on the point itself when no
+        start/stop match is found -- the layout sits on an interior
+        waypoint rather than a bundle's true endpoint, mirroring
+        ``PJTWireLayout.attached_wires``.
 
-        :returns: Property value. UNKNOWN details.
+        :returns: Bundles attached at this layout's position.
         :rtype: list['_pjt_bundle.PJTBundle']
         """
-        res = []
         point_id = self.position3d_id
         db_ids = self._table.db.pjt_bundles_table.select(
             "id", OR=True, start_point3d_id=point_id, stop_point3d_id=point_id)
 
-        for db_id in db_ids:
-            res.append(self._table.db.pjt_wires_table[db_id[0]])
+        res = [self._table.db.pjt_bundles_table[db_id[0]] for db_id in db_ids]
+        if res:
+            return res
 
-        return res
+        point = self._table.db.pjt_points3d_table[point_id]
+        bundle_id = point.bundle_id
+        if bundle_id is not None:
+            return [self._table.db.pjt_bundles_table[bundle_id]]
+
+        return []
 
     @property
     def table(self) -> PJTBundleLayoutsTable:

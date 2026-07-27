@@ -271,7 +271,7 @@ class Canvas(QOpenGLWidget):
         # to reuse. None whenever no table drag is in progress.
         self._table_drag_anchor_pos: "_point.Point | None" = None
         self._table_drag_current_pos: "_point.Point | None" = None
-        self._table_drag_line_draw: "tuple['_vbo.NonPooledVBOHandler', '_materials.GLMaterial'] | None" = None
+        self._table_drag_line_draw: tuple[_vbo.NonPooledVBOHandler, _materials.GLMaterial] | None = None
         self._table_drag_line_dirty = False
 
         if size is not None:

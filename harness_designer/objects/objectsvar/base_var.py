@@ -88,6 +88,15 @@ class BaseVar:
         raise NotImplementedError
 
     @property
+    def selected_material(self) -> "_materials.GLMaterial":
+        """This object's own "selected" material -- exposed publicly so
+        other objects can identify() themselves with it (e.g. a Wire
+        showing its own WireLayouts in the selected color while the
+        layouts themselves aren't the true selection; see
+        objects.wire.Wire.set_selected)."""
+        return self._selected_material
+
+    @property
     def vbo(self):
         return self._vbo
 
@@ -291,17 +300,37 @@ class BaseVar:
 
         return np.any(hit_mask)
 
-    def identify(self, material: list[float] | None):
+    def identify(self, material: "_materials.GLMaterial | None"):
         """
-        Identify an object.
+        Temporarily override this object's own display material.
 
-        The handler classes use this function to identify what objects are
-        compatable with an object that is being added
+        Handler classes use this to highlight objects compatible with
+        whatever is currently being added/placed (see e.g.
+        handlers.bundle_handler._highlight_compatible_wires), and
+        objects.wire.Wire.set_selected uses it to show a wire's own
+        WireLayouts in the selected color while the layouts themselves
+        aren't the true selection (mainframe only ever tracks one true
+        selected object at a time).
 
-        :type material: list[float] | None
+        An object is only ever identified with one material or the
+        other, never both -- passing a new one simply replaces whatever
+        is currently showing, independent of is_selected; passing None
+        clears the override and falls back to whatever is_selected
+        would normally show (see set_selected, whose own _material/
+        _is_opaque assignment this mirrors).
+
+        :param material: The material to display this object as, or
+            None to clear the override.
+        :type material: :class:`_materials.GLMaterial` | None
         """
-        # TODO: Complete this function
-        pass
+        if material is not None:
+            self._material = material
+        elif self._is_selected:
+            self._material = self._selected_material
+        else:
+            self._material = self._unselected_material
+
+        self._is_opaque[0] = int(self._material.is_opaque)
 
     def _update_position(self, position: _point.Point):
         """
