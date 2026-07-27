@@ -2,6 +2,8 @@
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
+from .. import image as _image
+
 
 class ImageMixin(BaseMixin):
     """Represent an image mixin in :mod:`harness_designer.database.global_db.mixins.image`.

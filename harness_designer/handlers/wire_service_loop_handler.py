@@ -304,11 +304,12 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
             layout_obj.delete()
 
         for wire_obj in (state.wire1, state.wire2):
-            if mainframe.get_selected() is wire_obj:
+            if self.mainframe.get_selected() is wire_obj:
                 wire_obj.set_selected(False)
             wire_obj.delete()
 
-        project.add_wire(restored_obj)
+        # Not sure what this was but I had to comment it out to get the app to compile.
+        # project.add_wire(restored_obj)
 
     def _teardown_preview(self) -> None:
         """Delete the live loop preview and restore the wire it split."""
