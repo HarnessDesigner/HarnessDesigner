@@ -312,8 +312,10 @@ class AddTransitionHandler(_handler_base.HandlerBase):
     """
     obj: _transition.Transition = None
 
-    def __init__(self, mainframe: "_ui.MainFrame"):
-        part_id = mainframe.editor_db.editor.transitions.GetSelection()
+    def __init__(self, mainframe: "_ui.MainFrame", part_id=None):
+        if part_id is None:
+            part_id = mainframe.editor_db.editor.transitions.GetSelection()
+
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _trans_editor_page.TransitionsPage,

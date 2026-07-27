@@ -16,6 +16,7 @@ from ...shapes import cylinder as _cylinder
 from ... import config as _config
 from ...gl import materials as _materials
 from . import mixins as _mixins
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -53,7 +54,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         if layers:
             self._diameter = layers[-1].diameter
         else:
-            self._diameter = self._part.min_size
+            self._diameter = self._part.min_dia
 
         color = self._part.color.ui
         material = _materials.Rubber(color)
