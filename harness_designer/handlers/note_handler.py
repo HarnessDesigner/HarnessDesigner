@@ -80,10 +80,7 @@ class AddNoteHandler(_handler_base.HandlerBase):
         deferred placement work.
         """
 
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
+        if self._finalized or self._captured_position is None:
             return
 
         obj = self.obj

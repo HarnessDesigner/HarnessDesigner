@@ -81,6 +81,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
+
         self._wire_highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.wire_highlight))
 
@@ -108,7 +109,11 @@ class AddBundleHandler(_handler_base.HandlerBase):
             w.identify(None)
 
     def _bundle_diameter(self, wire: _wire.Wire) -> float:
-        wire_od = float(wire.db_obj.part.od_mm or 0.0) if wire.db_obj.part else 0.0
+        if wire.db_obj.part:
+            wire_od = float(wire.db_obj.part.od_mm or 0.0)
+        else:
+            wire_od = 0.0
+
         return max(float(self.part.min_dia), wire_od)
 
     def _create_preview(self, wire: _wire.Wire):
@@ -152,12 +157,18 @@ class AddBundleHandler(_handler_base.HandlerBase):
 
         selected = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
-        wire = selected if isinstance(selected, _wire.Wire) else None
+
+        if isinstance(selected, _wire.Wire):
+            wire = selected
+        else:
+            wire = None
 
         if wire is None or not _wire_fits_bundle(self.part, wire):
             if self.obj is not None:
                 self.obj.obj3d.is_visible = False
+
             self._snapped_wire = None
+
             return
 
         if wire is not self._snapped_wire:
@@ -167,13 +178,12 @@ class AddBundleHandler(_handler_base.HandlerBase):
             self.obj.obj3d.is_visible = True
 
     def release_capture(self):
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
-            return
-
-        if self._snapped_wire is None or self.obj is None:
+        if (
+            self._finalized or
+            self._snapped_wire is None or
+            self.obj is None or
+            self._captured_position is None
+        ):
             return
 
         self._clear_wire_highlights()
@@ -189,6 +199,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
         diameter = self._bundle_diameter(wire)
         layer_db = self.ptables.pjt_concentric_layers_table.insert(
             0, 1, 0, self._preview_conc_db.db_id, diameter)
+
         self.ptables.pjt_concentric_wires_table.insert(
             layer_db.db_id, 0, wire.db_obj.db_id, False)
 
@@ -198,6 +209,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
 
     def cancel(self):
         self._clear_wire_highlights()
+
         if self.obj is not None:
             self.obj.delete()
             self.obj = None

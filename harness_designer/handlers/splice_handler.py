@@ -137,8 +137,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
 
         db_obj = self.ptables.pjt_splices_table.insert(
             self.part_id, name,
-            start_db.db_id, stop_db.db_id, branch_db.db_id,
-            None, None)
+            start_db.db_id, stop_db.db_id, branch_db.db_id, None, None)
 
         self.obj = _splice.Splice(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
@@ -159,6 +158,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         if wire is None or not _wire_fits(self.part, wire):
             if self.obj is not None:
                 self.obj.obj3d.is_visible = False
+
             self._snapped_wire = None
             return
 
@@ -185,11 +185,12 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         self.obj.obj3d.is_visible = True
 
     def release_capture(self):
-        if self._finalized:
-            return
-        if self._captured_position is None:
-            return
-        if self._snapped_wire is None or self.obj is None:
+        if (
+            self._finalized or
+            self._captured_position is None or
+            self._snapped_wire is None or
+            self.obj is None
+        ):
             return
 
         self._clear_wire_highlights()
@@ -200,7 +201,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         position, wire_angle, _idx = wire.obj3d.get_closest_point(
             self._captured_position)
 
-        if None in (position, wire_angle):
+        if position is None or wire_angle is None:
             self.obj.delete()
             return
 
@@ -236,8 +237,10 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         # which the splice's own body occupies instead of a wire.
         wire_before, wire_rest = _wire_topology.split_wire_at_point(
             project, wire, splice_start_id)
+
         wire_gap, wire_after = _wire_topology.split_wire_at_point(
             project, wire_rest, splice_stop_id)
+
         wire_gap.delete()
 
         self.obj.db_obj.circuit_id = circuit_id
@@ -250,6 +253,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
 
     def cancel(self):
         self._clear_wire_highlights()
+
         if self.obj is not None:
             self.obj.delete()
             self.obj = None

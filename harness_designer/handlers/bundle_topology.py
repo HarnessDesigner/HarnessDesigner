@@ -60,17 +60,27 @@ def merge_bundles(
     merged_db.stop_position3d_id = stop_id_3d
 
     offset_3d = len(before_waypoints3d)
+
     for i, wp in enumerate(before_waypoints3d):
         wp.bundle_id = merged_db.db_id
         wp.idx = i
+
     for i, wp in enumerate(after_waypoints3d):
         wp.bundle_id = merged_db.db_id
         wp.idx = offset_3d + i
 
-    merged_concentric = ptables.pjt_concentrics_table.insert(merged_db.db_id, None)
+    merged_concentric = ptables.pjt_concentrics_table.insert(merged_db.db_id,
+                                                             None)
 
-    before_layers = bundle_before.db_obj.concentric.layers if bundle_before.db_obj.concentric else []
-    after_layers = bundle_after.db_obj.concentric.layers if bundle_after.db_obj.concentric else []
+    if bundle_before.db_obj.concentric:
+        before_layers = bundle_before.db_obj.concentric.layers
+    else:
+        before_layers = []
+
+    if bundle_after.db_obj.concentric:
+        after_layers = bundle_after.db_obj.concentric.layers
+    else:
+        after_layers = []
 
     for layer in before_layers:
         layer.concentric_id = merged_concentric.db_id
@@ -85,6 +95,7 @@ def merge_bundles(
     if orig_start_sibling is not None:
         merged_obj.set_sibling(orig_start_sibling, 'start')
         orig_start_sibling.replace_bundle(bundle_before, merged_obj)
+
     if orig_stop_sibling is not None:
         merged_obj.set_sibling(orig_stop_sibling, 'stop')
         orig_stop_sibling.replace_bundle(bundle_after, merged_obj)
@@ -100,6 +111,7 @@ def merge_bundles(
     for b in (bundle_before, bundle_after):
         if mainframe.get_selected() is b:
             b.set_selected(False)
+
         b.delete()
 
     return merged_obj

@@ -69,8 +69,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
             _color.Color(*Config.add_object.housing_highlight))
 
         self._compat_highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.splice_highlight)
-        )
+            _color.Color(*Config.add_object.splice_highlight))
 
         self.compat_housings = []
         self.project_housings = []
@@ -117,6 +116,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
 
             db_obj = self.ptables.pjt_cpa_locks_table.insert(
                 part_id, name, pos_id, None)
+
         else:
             pos_id = self._housing.db_obj.cpa_lock_position3d_id
 
@@ -163,11 +163,13 @@ class AddCPALockHandler(_handler_base.HandlerBase):
         if housing is None:
             point = world_pos
             self._snapped = None
+
             if prev_snapped is not None:
                 self.reset_angle(self.obj)
         else:
             point = housing.db_obj.cpa_lock_position3d
             self._snapped = housing
+
             if prev_snapped is not housing:
                 self.set_angle_from_housing(self.obj, housing)
 
@@ -182,10 +184,7 @@ class AddCPALockHandler(_handler_base.HandlerBase):
         deferred placement work.
         """
 
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
+        if self._finalized or self._captured_position is None:
             return
 
         if self._housing is None:

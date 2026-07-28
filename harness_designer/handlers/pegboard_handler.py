@@ -214,10 +214,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
         ``AddBundleLayoutHandler.release_capture``'s own "nothing snapped,
         do nothing" guard.
         """
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
+        if self._finalized or self._captured_position is None:
             return
 
         self._finalized = True

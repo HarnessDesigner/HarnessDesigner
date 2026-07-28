@@ -72,7 +72,10 @@ class AddHousingHandler(_handler_base.HandlerBase):
         self.part = self.mainframe.project.gtables.housings_table[part_id]
         name = f'{self.part.manufacturer.name} {self.part.part_number}'
         position = self.ptables.pjt_points3d_table.insert(0, 0, 0)
-        db_obj = self.ptables.pjt_housings_table.insert(self.part_id, name, position.db_id)
+
+        db_obj = self.ptables.pjt_housings_table.insert(
+            self.part_id, name, position.db_id)
+
         self.obj = _housing.Housing(self.mainframe, db_obj)
 
     def hover(self, mouse_pos: _point.Point):
@@ -100,10 +103,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
         Handle release of the captured position and complete any deferred placement work.
         """
 
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
+        if self._finalized or self._captured_position is None:
             return
 
         self._finalized = True

@@ -102,7 +102,11 @@ def _get_terminal_seal_pns(mainframe, terminal: _terminal.Terminal):
     compat_pns = [pn for pn in term_part.compat_seals_array if pn]
 
     wire_part = _find_attached_wire_part(mainframe, terminal)
-    wire_od = wire_part.od_mm if wire_part is not None else None
+
+    if wire_part is None:
+        wire_od = None
+    else:
+        wire_od = wire_part.od_mm
 
     clauses = ['s.o_dia > ?']
     params = [term_size]
@@ -266,8 +270,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             pos_id = self._housing.db_obj.seal_position3d_id
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, name, pos_id, self._housing.db_obj.db_id,
-                None, None)
+                part_id, name, pos_id, self._housing.db_obj.db_id, None, None)
 
         elif self._terminal is not None:
             # Mode 2: SWS on terminal – instant at cavity midpoint.
@@ -280,8 +283,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, name, p3d.db_id, None,
-                self._terminal.db_obj.db_id, None)
+                part_id, name, p3d.db_id, None, self._terminal.db_obj.db_id, None)
 
         elif self._cavity is not None:
             # Mode 3: PLUG or dummy pin on cavity – instant.
@@ -298,8 +300,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, name, p3d.db_id, None,
-                None, pjt_cavity.db_id)
+                part_id, name, p3d.db_id, None, None, pjt_cavity.db_id)
 
         elif self._housing is not None and self._for_cavity:
             # Mode 1b: interactive preview locked to this housing's cavities.
@@ -317,8 +318,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, name, pos_obj.db_id, None,
-                None, None)
+                part_id, name, pos_obj.db_id, None, None, None)
 
         else:
             # Mode 4: free interactive – target type depends on seal type.
@@ -366,8 +366,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             pos_obj = self.ptables.pjt_points3d_table.insert(0, 0, 0)
 
             db_obj = self.ptables.pjt_seals_table.insert(
-                part_id, name, pos_obj.db_id, None,
-                None, None)
+                part_id, name, pos_obj.db_id, None, None, None)
 
         self.obj = _seal.Seal(self.mainframe, db_obj)
         self.obj.identify(self._preview_material)
@@ -424,8 +423,7 @@ class AddSealHandler(_handler_base.HandlerBase):
         # Instant-attach modes have no hover interaction.
         is_interactive = (
             self._for_cavity or
-            (self._housing is None and self._terminal is None
-             and self._cavity is None)
+            (self._housing is None and self._terminal is None and self._cavity is None)
         )
 
         if not is_interactive:

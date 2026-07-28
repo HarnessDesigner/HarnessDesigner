@@ -20,7 +20,7 @@ class HandlerBase:
     Base class for the 3d handlers
     """
 
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: int | None):
         """
         Initialize the object and capture the state required for later interaction.
 
@@ -76,6 +76,7 @@ class HandlerBase:
         yaw = math.degrees(math.atan2(float(r[0][2]), float(r[2][2])))
         roll = math.degrees(math.atan2(float(r[1][0]), float(r[1][1])))
         result = [pitch, yaw, roll]
+
         for i in range(3):
             while result[i] - prev_euler_deg[i] > 180.0:
                 result[i] -= 360.0
@@ -122,16 +123,17 @@ class HandlerBase:
 
         fwd = cls.obb_face_direction(rotated, local_obb, fwd_face)
         up = cls.obb_face_direction(rotated, local_obb, up_face)
+
         if fwd is None or up is None:
             return False
 
-        right = np.cross(up, fwd)
+        right = np.cross(up, fwd)  # NOQA
         rn = float(np.linalg.norm(right))
         if rn < 1e-8:
             return False
 
         right /= rn
-        up = np.cross(fwd, right)
+        up = np.cross(fwd, right)  # NOQA
         rot_mat = np.column_stack([right, up, fwd])
 
         obj_angle = acc_obj.obj3d.angle
@@ -188,13 +190,13 @@ class HandlerBase:
         if fwd is None or up is None:
             return False
 
-        right = np.cross(up, fwd)
+        right = np.cross(up, fwd)  # NOQA
         rn = float(np.linalg.norm(right))
         if rn < 1e-8:
             return False
 
         right /= rn
-        up = np.cross(fwd, right)
+        up = np.cross(fwd, right)  # NOQA
         rot_mat = np.column_stack([right, up, fwd])
 
         obj_angle = acc_obj.obj3d.angle
@@ -212,6 +214,7 @@ class HandlerBase:
         obj_angle._q.y = q_c.y  # NOQA
         obj_angle._q.z = q_c.z  # NOQA
         obj_angle._process_callbacks()  # NOQA
+
         return True
 
     @staticmethod

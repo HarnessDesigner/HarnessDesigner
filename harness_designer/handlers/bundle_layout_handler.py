@@ -31,8 +31,10 @@ def _bundle_segments(bundle: _bundle.Bundle):
     arrays -- start, through each interior waypoint in idx order, to
     stop. Mirrors handlers.wire_layout_handler's own _wire_segments."""
     points = [bundle.obj3d.start_position.as_numpy]
+
     for waypoint in bundle.db_obj.waypoints3d:
         points.append(waypoint.point.as_numpy)
+
     points.append(bundle.obj3d.stop_position.as_numpy)
 
     return list(zip(points, points[1:]))
@@ -245,10 +247,7 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
     def release_capture(self) -> None:
         """Finalize placement: insert a waypoint or attach to an endpoint.
         """
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
+        if self._finalized or self._captured_position is None:
             return
 
         bundle = self._snapped_bundle
@@ -291,6 +290,7 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
             self.obj.delete()
             self.obj = _create_bundle_layout_on_bundle(
                 self.mainframe.project, bundle, preview_position, diameter)
+
             self.obj.obj3d.is_visible = True
 
         self.obj = None
