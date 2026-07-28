@@ -187,7 +187,7 @@ cdef class FastBVHBuilder:
         # Convert C structs to NumPy arrays for OpenCL
         return self._convert_to_numpy_arrays()
 
-    cdef int build_recursive_nogil(self, int start, int end) nogil:
+    cdef int build_recursive_nogil(self, int start, int end) noexcept nogil:
         """
         Recursively build BVH tree (GIL-free for performance)
 
@@ -269,7 +269,7 @@ cdef class FastBVHBuilder:
 
         return node_idx
 
-    cdef void sort_indices_by_centroid_nogil(self, int start, int end, int axis) nogil:
+    cdef void sort_indices_by_centroid_nogil(self, int start, int end, int axis) noexcept nogil:
         """
         Sort primitive indices by centroid coordinate along given axis
 
@@ -289,7 +289,7 @@ cdef class FastBVHBuilder:
         else:
             self.quicksort_nogil(start, end, axis)
 
-    cdef void insertion_sort_nogil(self, int start, int end, int axis) nogil:
+    cdef void insertion_sort_nogil(self, int start, int end, int axis) noexcept nogil:
         """Insertion sort (fast for small ranges)"""
         cdef:
             int i, j
@@ -307,7 +307,7 @@ cdef class FastBVHBuilder:
 
             self.indices[j + 1] = temp_idx
 
-    cdef void quicksort_nogil(self, int start, int end, int axis) nogil:
+    cdef void quicksort_nogil(self, int start, int end, int axis) noexcept nogil:
         """Quicksort (fast for large ranges)"""
         if end - start <= 1:
             return
@@ -317,7 +317,7 @@ cdef class FastBVHBuilder:
         self.quicksort_nogil(start, pivot_idx, axis)
         self.quicksort_nogil(pivot_idx + 1, end, axis)
 
-    cdef int partition_nogil(self, int start, int end, int axis) nogil:
+    cdef int partition_nogil(self, int start, int end, int axis) noexcept nogil:
         """Partition for quicksort"""
         cdef:
             int pivot_idx = start + (end - start) // 2

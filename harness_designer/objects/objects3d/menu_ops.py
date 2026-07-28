@@ -26,8 +26,17 @@ _colors_config = _config.Config.colors
 
 def select_object(obj3d: "_base3d.Base3D"):
     """Make the object the active selection in all of the editors."""
-    parent = obj3d.parent
-    current = obj3d.mainframe.get_selected()
+    select_object_for_object(obj3d.mainframe, obj3d.parent)
+
+
+def select_object_for_object(mainframe, parent):
+    """Make ``parent`` the active selection in all of the editors.
+
+    Split out from :func:`select_object` so callers that only hold the
+    :class:`ObjectBase` wrapper (e.g. the object browser tree, which never
+    touches ``obj3d``) can drive the same deselect-old/select-new sequence.
+    """
+    current = mainframe.get_selected()
 
     if current is not None and current is not parent:
         current.set_selected(False)
@@ -67,9 +76,18 @@ def show_properties(obj3d: "_base3d.Base3D"):
     selection, object editor tabs) while it is open, and any value changes
     apply to the 3d object in real time.
     """
+    show_properties_for_object(obj3d.mainframe, obj3d.parent)
+
+
+def show_properties_for_object(mainframe, parent):
+    """Open the modeless properties dialog for the ``parent`` wrapper object.
+
+    Split out from :func:`show_properties` so callers that only hold the
+    :class:`ObjectBase` wrapper (e.g. the object browser tree, which never
+    touches ``obj3d``) can open the same dialog.
+    """
     from ...ui.dialogs import properties_dialog as _properties_dialog
 
-    parent = obj3d.parent
     db_obj = parent.db_obj
 
     if db_obj is None:
@@ -89,7 +107,7 @@ def show_properties(obj3d: "_base3d.Base3D"):
                   type(parent).__name__)
 
     dlg = _properties_dialog.PropertiesDialog(
-        obj3d.mainframe, name + ' Properties', tab_widget, db_obj)
+        mainframe, name + ' Properties', tab_widget, db_obj)
 
     def _cleanup(*_):
         # release the db object so the live position/angle callbacks bound

@@ -133,19 +133,27 @@ class PJTTerminalsTable(PJTTableBase):
 
         raise KeyError(item)
 
-    def insert(self, part_id: int, name: str, position2d_id: int, position3d_id: int, cavity_id: int) -> "PJTTerminal":
+    def insert(self, part_id: int, name: str, position2d_id: int | None,
+               position3d_id: int | None, cavity_id: int | None) -> "PJTTerminal":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
         :type part_id: int
+
+        :param name: Name for the part.
+        :type name: str
+
         :param position2d_id: Identifier for the position 2D.
         :type position2d_id: int
+
         :param position3d_id: Identifier for the position 3D.
         :type position3d_id: int
+
         :param cavity_id: Identifier for the cavity.
         :type cavity_id: int
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTTerminal`
         """

@@ -35,11 +35,20 @@ def CallLater(func, *args) -> None:
 def CallAfter(func, *args) -> None:
     """Schedule a callable to execute on the Qt main thread.
 
+    A no-op before :class:`App` is constructed (e.g. the package gets
+    imported for its side effects - stdout/stderr redirection starts as
+    soon as ``logger`` is imported - without ever building an ``App``,
+    such as a CI build importing the package to compile extensions).
+    There's no main thread to dispatch to yet, so there's nothing to do.
+
     :param func: Callable to invoke later.
     :type func: collections.abc.Callable
     :param args: Positional arguments passed to ``func``.
     :type args: tuple
     """
+    if _call_on_main is None:
+        return
+
     _call_on_main.emit(lambda f=func, a=args: f(*a))  # NOQA
 
 

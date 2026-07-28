@@ -279,8 +279,12 @@ class Project:
         mainframe.editor3d.context.release()
 
         def _load_objects(table_, label, obj_cls, ids_, container,
-                          add_func, cur_count, max_count):
+                          cur_count, max_count):
             # helper function for loading a project
+            # note: the object browser tree is populated by
+            # mainframe.add_object -- every wrapper's __init__ calls it
+            # unconditionally (project_load or not), so there is no
+            # separate add-to-browser step here.
 
             for db_obj_ in table_:
                 cur_count += 1
@@ -293,9 +297,6 @@ class Project:
                 db_obj_.merge_packet_data(db_obj_.build_monitor_packet(), ids_)
                 container[db_obj_.db_id] = gui_obj
 
-                if add_func is not None:
-                    add_func(gui_obj)
-
                 _logger.info(f'{label} Loaded - db_id: {db_obj_.db_id}')
 
             return cur_count
@@ -304,12 +305,12 @@ class Project:
         count = _load_objects(
             ptables.pjt_notes_table, 'Note',
             _note.Note, db_ids, self._notes,
-            mainframe.object_browser.add_note, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_circuits_table, 'Circuit',
             _circuit.Circuit, db_ids, self._circuits,
-            mainframe.object_browser.add_circuit, count, self._obj_count)
+            count, self._obj_count)
 
         # Loaded before housings: a housing whose model is already cached
         # from a prior session runs its Model3D.load() callback (_set_model,
@@ -326,68 +327,67 @@ class Project:
         count = _load_objects(
             ptables.pjt_cavities_table, 'Cavity',
             _cavity.Cavity, db_ids, self._cavities,
-            mainframe.object_browser.add_cavity, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_housings_table, 'Housing',
             _housing.Housing, db_ids, self._housings,
-            mainframe.object_browser.add_housing, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_covers_table, 'Cover',
             _cover.Cover, db_ids, self._covers,
-            mainframe.object_browser.add_cover, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_cpa_locks_table, 'CPA Lock',
             _cpa_lock.CPALock, db_ids, self._cpa_locks,
-            mainframe.object_browser.add_cpa_lock, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_tpa_locks_table, 'TPA Lock',
             _tpa_lock.TPALock, db_ids, self._tpa_locks,
-            mainframe.object_browser.add_tpa_lock, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_boots_table, 'Boot',
             _boot.Boot, db_ids, self._boots,
-            mainframe.object_browser.add_boot, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_terminals_table, 'Terminal',
             _terminal.Terminal, db_ids, self._terminals,
-            mainframe.object_browser.add_terminal, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_seals_table, 'Seal',
             _seal.Seal, db_ids, self._seals,
-            mainframe.object_browser.add_seal,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',
             _wire.Wire, db_ids, self._wires,
-            mainframe.object_browser.add_wire, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
             _wire_service_loop.WireServiceLoop, db_ids, self._wire_service_loops,
-            mainframe.object_browser.add_wire_service_loop, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wire_markers_table, 'Wire Marker',
             _wire_marker.WireMarker, db_ids, self._wire_markers,
-            mainframe.object_browser.add_wire_marker, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wire_layouts_table, 'Wire Layout',
             _wire_layout.WireLayout, db_ids, self._wire_layouts,
-            None, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_splices_table, 'Splice',
             _splice.Splice, db_ids, self._splices,
-            mainframe.object_browser.add_splice, count, self._obj_count)
+            count, self._obj_count)
 
         # Terminal/Wire/WireServiceLoop/Splice all exist by now -- rebuild
         # the in-memory sibling graph between them from persisted point-id
@@ -398,17 +398,17 @@ class Project:
         count = _load_objects(
             ptables.pjt_bundles_table, 'Bundle',
             _bundle.Bundle, db_ids, self._bundles,
-            mainframe.object_browser.add_bundle, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_bundle_layouts_table, 'Bundle Layout',
             _bundle_layout.BundleLayout, db_ids, self._bundle_layouts,
-            None, count, self._obj_count)
+            count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_transitions_table, 'Transition',
             _transition.Transition, db_ids, self._transitions,
-            mainframe.object_browser.add_transition, count, self._obj_count)
+            count, self._obj_count)
 
         # Bundle/Transition both exist by now -- rebuild the in-memory
         # sibling graph between them from persisted point-id matches

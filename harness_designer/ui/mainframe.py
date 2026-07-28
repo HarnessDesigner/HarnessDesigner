@@ -2456,6 +2456,53 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.add_object(obj)
         self.editor3d.add_object(obj)
         self.editor_pegboard.add_object(obj)
+        self._add_to_object_browser(obj)
+
+    def _add_to_object_browser(self, obj: "_objects.ObjectBase") -> None:
+        """Register ``obj`` under the appropriate category in the object
+        browser tree, if it is a part type the browser tracks.
+
+        Single dispatch point for populating the browser -- covers both a
+        freshly-placed object (this runs from :meth:`add_object`, which
+        every wrapper's ``__init__`` calls unconditionally) and project load
+        (``objects.project.Project`` loads objects in dependency order, and
+        each one's ``__init__`` still calls ``mainframe.add_object`` the same
+        way). Gizmo/non-part objects (e.g. ``RotationRings``, ``MoveArrows``)
+        and part types the browser has no category for (project, generic,
+        project_model, wire_layout, bundle_layout) fall through untouched.
+        """
+        if obj.is_boot:
+            self.object_browser.add_boot(obj)
+        elif obj.is_bundle:
+            self.object_browser.add_bundle(obj)
+        elif obj.is_cavity:
+            self.object_browser.add_cavity(obj)
+        elif obj.is_circuit:
+            self.object_browser.add_circuit(obj)
+        elif obj.is_cover:
+            self.object_browser.add_cover(obj)
+        elif obj.is_cpa_lock:
+            self.object_browser.add_cpa_lock(obj)
+        elif obj.is_housing:
+            self.object_browser.add_housing(obj)
+        elif obj.is_note:
+            self.object_browser.add_note(obj)
+        elif obj.is_seal:
+            self.object_browser.add_seal(obj)
+        elif obj.is_splice:
+            self.object_browser.add_splice(obj)
+        elif obj.is_terminal:
+            self.object_browser.add_terminal(obj)
+        elif obj.is_tpa_lock:
+            self.object_browser.add_tpa_lock(obj)
+        elif obj.is_transition:
+            self.object_browser.add_transition(obj)
+        elif obj.is_wire:
+            self.object_browser.add_wire(obj)
+        elif obj.is_wire_marker:
+            self.object_browser.add_wire_marker(obj)
+        elif obj.is_wire_service_loop:
+            self.object_browser.add_wire_service_loop(obj)
 
     def remove_object(self, obj):
         """Remove the object.
@@ -2482,6 +2529,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor3d.set_selected(obj)
         self.editor2d.set_selected(obj)
         self.editor_pegboard.set_selected(obj)
+        self.object_browser.set_selected(obj)
         _app.CallLater(self.editor_obj.set_selected, obj)
 
         if obj is None:
