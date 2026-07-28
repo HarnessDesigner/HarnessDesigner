@@ -131,6 +131,7 @@ def _female_terminal_position(part, pjt_cavity):
     pos += pjt_cavity.part.position3d
     pos @= pjt_cavity.angle3d
     pos += pjt_cavity.housing.position3d
+
     return pos.as_float
 
 
@@ -151,6 +152,7 @@ def _male_terminal_position(part, pjt_cavity):
     pos += pjt_cavity.part.position3d
     pos @= pjt_cavity.angle3d
     pos += pjt_cavity.housing.position3d
+
     return pos.as_float
 
 
@@ -305,6 +307,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                     'SELECT part_number FROM terminals WHERE blade_size=? AND gender_id=?;',
                     (size, housing_gender_id))
                 pns.extend(row[0] for row in table.fetchall())
+
             if pns:
                 return list(set(pns))
 
@@ -348,6 +351,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                     'AND gender_id=?;',
                     (size, housing_gender_id))
                 pns.extend(row[0] for row in table.fetchall())
+
             if pns:
                 return list(set(pns))
 
@@ -362,6 +366,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                 'WHERE blade_size<=? '
                 'AND gender_id=?;',
                 (max_dim, housing_gender_id))
+
             return list(set(row[0] for row in table.fetchall()))
 
         return []
@@ -437,8 +442,12 @@ class AddTerminalHandler(_handler_base.HandlerBase):
                 gender_match = (g_housing.gender_id == part_gender_id)
                 terminal_sizes = g_cavity.terminal_sizes
 
-                if (terminal_sizes and blade_size
-                        and blade_size in terminal_sizes and gender_match):
+                if (
+                    terminal_sizes and
+                    blade_size and
+                    blade_size in terminal_sizes and
+                    gender_match
+                ):
                     cavity.identify(self._compat_highlight_material)
                     self.project_cavities.append(cavity)
                     continue
@@ -498,6 +507,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         if snapped is None:
             point = world_pos
             self._snapped = None
+
             if prev_snapped is not None:
                 self.reset_angle(self.obj)
         else:
@@ -509,6 +519,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             point = _point.Point(x, y, z)
 
             self._snapped = snapped
+
             if prev_snapped is not snapped:
                 self.set_angle_from_cavity(self.obj, snapped.db_obj)
 
@@ -521,10 +532,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         Finalise terminal placement.
         """
 
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
+        if self._finalized or self._captured_position is None:
             return
 
         if self._cavity is None:
