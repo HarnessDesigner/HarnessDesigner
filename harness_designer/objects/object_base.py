@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from .objects2d import base2d as _base2d
     from .objectspeg import basepeg as _basepeg
     from ..database import project_db as _project_db
+    from ..gl import materials as _materials
 
 
 class ObjectBase:
@@ -38,7 +39,7 @@ class ObjectBase:
         self._treeitem = None
         self.db_obj = db_obj
 
-    def identify(self, material: list[float] | None):
+    def identify(self, material: _materials.GLMaterial | None) -> None:
         """Execute the identify operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -52,7 +53,10 @@ class ObjectBase:
         if self.obj3d is not None:
             self.obj3d.identify(material)
 
-    def set_treeitem(self, treeitem):
+        if self.objpeg is not None:
+            self.objpeg.identify(material)
+
+    def set_treeitem(self, treeitem) -> None:
         """Set the treeitem.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -72,7 +76,7 @@ class ObjectBase:
         """
         return self._treeitem
 
-    def delete(self):
+    def delete(self) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -93,7 +97,7 @@ class ObjectBase:
 
         self.mainframe.remove_object(self)
 
-    def close(self):
+    def close(self) -> None:
         """Execute the close operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -106,13 +110,13 @@ class ObjectBase:
         #       accidentally deleting something I shuldn't be.
         raise NotImplementedError
 
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
+        :type flag: bool
         """
         self._is_selected = flag
 

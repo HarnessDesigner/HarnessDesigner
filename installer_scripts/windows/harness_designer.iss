@@ -93,6 +93,11 @@ Filename: "{tmp}\dep_installer.exe"; \
     StatusMsg: "Installing required components (PySide6)..."; \
     Flags: waituntilterminated
 
+; Offer to launch the app from the Finish page, checked by default.
+Filename: "{app}\{#AppExeName}"; \
+    Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; \
+    Flags: nowait postinstall skipifsilent
+
 [UninstallDelete]
 ; dep_installer.exe pip-installs PySide6/GPU packages directly into {app},
 ; so Inno's uninstaller (which only tracks files it copied via [Files]) can't

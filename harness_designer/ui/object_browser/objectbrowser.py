@@ -1179,6 +1179,31 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._treectrl.setCurrentItem(item)
         self._treectrl.scrollToItem(item)
 
+    def _resolve_object(self, obj):
+        """
+        Resolve a value pulled from a tree item's stored weakref to the
+        :class:`_object_base.ObjectBase` wrapper the rest of this method
+        operates on.
+
+        Canonical entries (see :meth:`_mark_canonical`) store the wrapper
+        directly, but cross-reference children -- e.g. the "Housing: X"
+        entry nested under a cavity's canonical entry, or "Cavity: X" under
+        a housing (see :meth:`add_housing`, :meth:`add_cavity`, etc.) --
+        store the referenced object's raw DB row instead, so search can
+        match it by name. DB rows expose ``get_object()`` to get back to
+        their wrapper; :class:`_object_base.ObjectBase` does not, so that
+        is what tells the two apart here.
+
+        :param obj: Value resolved from a tree item's stored weakref.
+        :rtype: _object_base.ObjectBase | None
+        """
+
+        get_object = getattr(obj, 'get_object', None)
+        if get_object is None:
+            return obj
+
+        return get_object()
+
     def select_object(self, obj: "_object_base.ObjectBase") -> None:
         """
         Make ``obj`` the active selection in every editor. Called by
@@ -1188,6 +1213,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         :param obj: Object whose tree item was clicked.
         :type obj: :class:`_object_base.ObjectBase`
         """
+
+        obj = self._resolve_object(obj)
+        if obj is None:
+            return
 
         if obj is self.mainframe.get_selected():
             return
@@ -1207,6 +1236,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         :param obj: Object whose tree item was double-clicked.
         :type obj: :class:`_object_base.ObjectBase`
         """
+
+        obj = self._resolve_object(obj)
+        if obj is None:
+            return
 
         from ...objects.objects3d import menu_ops as _menu_ops
 

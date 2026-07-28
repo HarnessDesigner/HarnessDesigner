@@ -264,8 +264,10 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         self._preview_material = _materials.Plastic(
             _color.Color(*Config.add_object.preview_color))
+
         self._highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.housing_highlight))
+
         self._compat_highlight_material = _materials.Plastic(
             _color.Color(*Config.add_object.splice_highlight))
 

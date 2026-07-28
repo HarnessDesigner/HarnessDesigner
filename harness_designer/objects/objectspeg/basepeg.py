@@ -11,6 +11,7 @@ from ... import color as _color
 from ... import config as _config
 from ... import utils as _utils
 from ...gl import materials as _materials
+from .. import objectsvar as _objectsvar
 
 from ... import debug as _debug
 
@@ -38,7 +39,7 @@ _IDENTITY_QUAT = (1.0, 0.0, 0.0, 0.0)
 _IDENTITY_TOLERANCE = 1e-6
 
 
-class BasePeg:
+class BasePeg(_objectsvar.BaseVar):
     """
     Base class for Peg Board Editor representations of objects.
 
@@ -115,12 +116,7 @@ class BasePeg:
         :type material: :class:`_materials.GLMaterial` | None
         """
 
-        self.parent: "_ObjectBase" = parent
-
         self.pegboard: "_editor_pegboard.EditorPegBoard" = parent.mainframe.editor_pegboard
-        self.mainframe: "_ui.MainFrame" = parent.mainframe
-
-        self.db_obj = db_obj
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching and
         # this anchor's own data-table(s) -- set by each real subclass's
@@ -128,130 +124,11 @@ class BasePeg:
         # every do-nothing objectspeg stub, and for a seated Terminal.
         self.point3d_id: int | None = None
 
-        if vbo is None:
-            self._position = None
-            self._o_position = None
+        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
-            self._angle = None
-            self._o_angle = None
-
-            self._scale = None
-            self._o_scale = None
-
-            self._unselected_material = None
-            self._material = None
-
-            self._selected_material = None
-            self._is_opaque = np.array([1], dtype=np.uint8)
-
-        else:
-
-            self._position = position
-            self._o_position = position.copy()
-
-            self._angle = angle
-            self._o_angle = angle.copy()
-
-            self._scale = scale
-            self._o_scale = scale.copy()
-
-            position.bind(self._update_position)
-            angle.bind(self._update_angle)
-            scale.bind(self._update_scale)
-
-            self._unselected_material = material
-            self._material = material
-
-            selected_color = _color.Color(*Config.selected_color)
-            self._selected_material = _materials.Generic(selected_color)
-
-            self._is_opaque = np.array([int(material.is_opaque)], dtype=np.uint8)
-
-        self._is_selected = False
-        self._is_deleted = False
-
-        self._vbo = vbo
-
-        if self._vbo is not None:
-            self._vbo.acquire()
-
-        self._aabb: np.ndarray = np.ascontiguousarray(
-                np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32))
-
-        self._obb: np.ndarray = None
-
-        self._compute_obb()
-        self._compute_aabb()
-
-    def _compute_obb(self):
-        if self._vbo is None:
-            return
-
-        local_obb = self._vbo.local_obb * self._scale
-        local_obb @= self._angle
-        self._obb = local_obb + self._position
-
-    def _compute_aabb(self):
-        if self._vbo is None:
-            return
-
-        local_min = self._vbo.local_aabb[0]
-        local_max = self._vbo.local_aabb[1]
-
-        x1, y1, z1 = local_min
-        x2, y2, z2 = local_max
-
-        corners = np.array([
-            [x1, y1, z1], [x1, y1, z2],
-            [x1, y2, z1], [x1, y2, z2],
-            [x2, y1, z1], [x2, y1, z2],
-            [x2, y2, z1], [x2, y2, z2]
-        ], dtype=np.float32)
-
-        corners *= self._scale.as_numpy
-        corners @= self._angle
-        corners += self._position.as_numpy
-
-        aabb = _utils.adjust_aabb(corners)
-
-        for i in range(2):
-            for j in range(3):
-                self._aabb[i][j] = aabb[i][j]
-
-    def identify(self, material: list[float] | None):
-        """Execute the identify operation.
-
-        :param material: Value for ``color``.
-        :type material: list[float] | None
-        """
-        pass
-
-    def _update_scale(self, scale: _point.Point):
-        """Called when the anchor's scale changes."""
-        self._o_scale = scale.copy()
-
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.pegboard.Refresh()
-
-    def _update_position(self, position: _point.Point):
-        """Called when the anchor's peg-board position changes."""
-        self._o_position = position.copy()
-
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.pegboard.Refresh()
-
-    def _update_angle(self, angle: _angle.Angle):
-        """Called when the anchor's peg-board rotation changes."""
-        self._o_angle = angle.copy()
-
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.pegboard.Refresh()
+    @property
+    def editor(self):
+        return self.pegboard
 
     def _apply_flatten_if_untouched(self, euler: tuple) -> None:
         """Apply a computed "lay it flat" Euler orientation to
@@ -384,146 +261,7 @@ class BasePeg:
     def _delete(self):
         self._is_deleted = True
         self.pegboard.Refresh()
-
-    @property
-    def position(self) -> _point.Point:
-        """Return the position.
-
-        :returns: Property value.
-        :rtype: :class:`_point.Point`
-        """
-        return self._position
-
-    @position.setter
-    def position(self, value: _point.Point):
-        """Set the position.
-
-        :param value: Value for ``_``.
-        :type value: :class:`_point.Point`
-        :raises AttributeError: Raised when the operation cannot be completed.
-        """
-        if id(value) != id(self._position):
-            raise AttributeError('Position is only able to be modified not set')
-
-        self._position = value
-
-    @property
-    def angle(self) -> _angle.Angle:
-        """Return the angle.
-
-        :returns: Property value.
-        :rtype: :class:`_angle.Angle`
-        """
-        return self._angle
-
-    @angle.setter
-    def angle(self, value: _angle.Angle):
-        """
-        Set the angle.
-
-        :param value: Value for ``_``.
-        :type value: :class:`_angle.Angle`
-        :raises AttributeError: Raised when the operation cannot be completed.
-        """
-
-        if id(value) != id(self._angle):
-            raise AttributeError('Angle is only able to be modified not set')
-
-        self._angle = value
-
-    @property
-    def scale(self) -> _point.Point:
-        """Return the scale.
-
-        :returns: Property value.
-        :rtype: :class:`_point.Point`
-        """
-        return self._scale
-
-    @scale.setter
-    def scale(self, value: _point.Point):
-        """Set the scale.
-
-        :param value: Value for ``_``.
-        :type value: :class:`_point.Point`
-        :raises AttributeError: Raised when the operation cannot be completed.
-        """
-
-        if id(value) != id(self._scale):
-            raise AttributeError('Scale is only able to be modified not set')
-
-        self._scale = value
-
-    @property
-    def obb(self) -> np.ndarray:
-        """Return the OBB.
-
-        :returns: Property value.
-        :rtype: :class:`np.ndarray`
-        """
-        return self._obb
-
-    @property
-    def aabb(self) -> np.ndarray:
-        """Return the world-space AABB (``[[min_x,min_y,min_z],
-        [max_x,max_y,max_z]]``) -- kept live-current by
-        :meth:`_compute_aabb`, called on every position/angle/scale
-        mutation and after :meth:`_set_model` swaps in a real mesh. This
-        is what hit-testing (``gl.canvas_pegboard.mouse_handler.
-        _find_anchor_at_point``) reads -- never stale, never a separately
-        cached half-width/half-depth pair.
-
-        :returns: Property value.
-        :rtype: :class:`np.ndarray`
-        """
-        return self._aabb
-
-    def set_selected(self, flag: bool):
-        """Set the selected.
-
-        :param flag: Value for ``flag``.
-        :type flag: bool
-        """
-        if self._material is None:
-            self._is_selected = flag
-            return
-
-        if flag:
-            self._material = self._selected_material
-        else:
-            self._material = self._unselected_material
-
-        self._is_opaque[0] = int(self._material.is_opaque)
-        self._is_selected = flag
-
-    @property
-    def is_selected(self) -> bool:
-        """Return the is selected.
-
-        :returns: Property value.
-        :rtype: bool
-        """
-        return self._is_selected
-
-    @property
-    def material(self) -> _materials.GLMaterial:
-        """Return the material currently in effect (swaps to the
-        selection-highlight material while :attr:`is_selected`).
-
-        :returns: Property value.
-        :rtype: :class:`_materials.GLMaterial`
-        """
-        return self._material
-
-    @property
-    def vbo(self) -> "_vbo.VBOHandlerBase":
-        """Return the real 3D mesh VBO, or ``None`` (see :attr:`is_active`).
-
-        :returns: Property value.
-        :rtype: :class:`_vbo.VBOHandlerBase` | None
-        """
-        return self._vbo
-
+    
     @property
     def smooth(self) -> bool:
         """Return whether the mesh renders with smooth (vertex) normals.

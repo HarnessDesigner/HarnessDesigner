@@ -300,7 +300,7 @@ class BaseVar:
 
         return np.any(hit_mask)
 
-    def identify(self, material: _materials.GLMaterial | None):
+    def identify(self, material: _materials.GLMaterial | None) -> None:
         """
         Temporarily override this object's own display material.
 
