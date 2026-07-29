@@ -330,7 +330,10 @@ class BaseVar:
         else:
             self._material = self._unselected_material
 
-        self._is_opaque[0] = int(self._material.is_opaque)
+        if self._material is None:
+            self._is_opaque[0] = 1
+        else:
+            self._is_opaque[0] = int(self._material.is_opaque)
 
     def _update_position(self, position: _point.Point):
         """
@@ -512,7 +515,11 @@ class BaseVar:
         else:
             self._material = self._unselected_material
 
-        self._is_opaque[0] = int(self._material.is_opaque)
+        if self._material is None:
+            self._is_opaque[0] = 1
+        else:
+            self._is_opaque[0] = int(self._material.is_opaque)
+
         self._is_selected = flag
 
     def delete(self):

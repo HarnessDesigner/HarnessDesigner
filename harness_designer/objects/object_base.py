@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+from ..gl import materials as _materials
+
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -9,7 +11,6 @@ if TYPE_CHECKING:
     from .objects2d import base2d as _base2d
     from .objectspeg import basepeg as _basepeg
     from ..database import project_db as _project_db
-    from ..gl import materials as _materials
 
 
 class ObjectBase:

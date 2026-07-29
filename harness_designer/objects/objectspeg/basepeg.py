@@ -6,22 +6,19 @@ import numpy as np
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from ...geometry.angle import quaternion as _quaternion
 from ... import color as _color
 from ... import config as _config
-from ... import utils as _utils
 from ...gl import materials as _materials
 from .. import objectsvar as _objectsvar
+from ...gl import vbo as _vbo
 
 from ... import debug as _debug
 
 
 if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
-    from ... import ui as _ui
     from ...ui import editor_pegboard as _editor_pegboard
     from ...database import project_db as _project_db
-    from ...gl import vbo as _vbo
     from ...database.global_db import model3d as _model3d
 
 
@@ -130,6 +127,33 @@ class BasePeg(_objectsvar.BaseVar):
     def editor(self):
         return self.pegboard
 
+    def _is_visible_callback(self, *_, **__):
+        pass
+
+    @property
+    def is_visible(self) -> bool:
+        """
+        Get object visibility
+
+        :rtype: bool
+        """
+
+        return True
+
+    @is_visible.setter
+    def is_visible(self, value: bool):
+        """
+        Set object visibility.
+
+        :type value: bool
+        """
+
+        pass
+
+    @property
+    def _selected_color(self) -> _color.Color:
+        return _color.Color(*Config.selected_color)
+
     def _apply_flatten_if_untouched(self, euler: tuple) -> None:
         """Apply a computed "lay it flat" Euler orientation to
         :attr:`angle`, but only if the anchor's rotation is still at the
@@ -176,8 +200,6 @@ class BasePeg(_objectsvar.BaseVar):
         :param model: The now-loaded model.
         :type model: :class:`_model3d.Model3D`
         """
-        from ...gl import vbo as _vbo
-
         self.pegboard.context.acquire()
 
         uuid = model.uuid
@@ -261,7 +283,7 @@ class BasePeg(_objectsvar.BaseVar):
     def _delete(self):
         self._is_deleted = True
         self.pegboard.Refresh()
-    
+
     @property
     def smooth(self) -> bool:
         """Return whether the mesh renders with smooth (vertex) normals.
