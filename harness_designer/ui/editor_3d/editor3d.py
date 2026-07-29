@@ -101,6 +101,15 @@ class Editor3D(_dock_base.DockBase):
 
         self._ui_obj.remove_object(obj)
 
+    def clear(self) -> None:
+        """
+        Drop every scene object in bulk, without touching the database.
+
+        See :meth:`harness_designer.gl.canvas3d.canvas.Canvas.clear`.
+        """
+
+        self._ui_obj.clear()
+
     def bind(self, signal_name, handler):
         """
         Execute the bind operation.

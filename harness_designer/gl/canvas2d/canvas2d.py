@@ -123,6 +123,13 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._canvas.remove_object(obj)
 
+    def clear(self) -> None:
+        """Drop every scene object in bulk, without touching the database.
+
+        See :meth:`harness_designer.gl.canvas2d.canvas.Canvas.clear`.
+        """
+        self._canvas.clear()
+
     def __enter__(self):
         """Enter the managed context.
 

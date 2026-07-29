@@ -595,6 +595,23 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()  # Qt: schedules a repaint (≈ wx Refresh)
 
+    def clear(self) -> None:
+        """Drop every scene object in bulk, without touching the database.
+
+        Used when tearing down the current project so a different one can
+        load in its place (see ``ui.mainframe.MainFrame.unload``) --
+        resets the same tracking structures :meth:`remove_object` does,
+        but in one shot instead of one O(n) scan per object, since a
+        project can hold thousands of objects.
+        """
+        self._object_refs = []
+        self._objects_in_view = []
+        self._object_addr_mapping = {}
+        self._object_data = [[], [], [], [], [], [], [], [], [], []]
+        self._objects = []
+        self._selected = None
+        self.update()
+
     # ------------------------------------------------------------------
     # Reference-counting context manager (unchanged)
     # ------------------------------------------------------------------

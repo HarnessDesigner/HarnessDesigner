@@ -99,16 +99,24 @@ class EditorObjPanel(QtWidgets.QWidget):
                 self.control.hide()
                 self.sizer.removeWidget(self.control)
                 self.control.setParent(self.mainframe)
+                # self.control is a per-table CLASS-level singleton widget
+                # (see PJT*Table._control/start_control), reused for the
+                # lifetime of the app -- clearing its db_obj here (not just
+                # detaching this panel's own pointer to it) is what lets
+                # the outgoing object actually become collectible instead
+                # of staying pinned by the widget forever.
+                self.control.set_obj(None)
                 self.control = None
         else:
             control = obj.db_obj.table.control
             control.set_obj(obj.db_obj)
             control.setParent(self)
 
-            if self.control is not None:
+            if self.control is not None and self.control is not control:
                 self.control.hide()
                 self.sizer.removeWidget(self.control)
                 self.control.setParent(self.mainframe)
+                self.control.set_obj(None)
 
             self.sizer.addWidget(control, 1)
             # Qt does not have wx.EXPAND|wx.ALL; margins go on the layout

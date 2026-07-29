@@ -440,11 +440,39 @@ class Project:
             self.mainframe.process_manager.send(**kwargs)
 
     def close(self):
-        # TODO: Write code to close an open project.
-        #       This includes removing all objects from all editors as well
-        #       as resetting the VBO buffers. I am sure there are some other
-        #       things I have missed and I will add them as I think of them.
-        pass
+        """Drop every reference this project holds to its own registered
+        objects, without touching the database or calling any object's
+        own ``delete()``.
+
+        Used when switching to a different project while the app is
+        running -- see :meth:`harness_designer.ui.mainframe.MainFrame.
+        unload`, the only caller, which clears every *other* place that
+        holds a reference to these same objects (the three canvases, the
+        object browser, the object editor dock, the current selection)
+        before calling this. Once nothing referencing them is left, normal
+        GC/weakref teardown releases their pooled VBOs back to the pool
+        (see ``gl.vbo.VBOSingleton._remove_ref``) -- nothing here needs to
+        touch a VBO directly.
+        """
+        self._boots.clear()
+        self._bundles.clear()
+        self._bundle_layouts.clear()
+        self._covers.clear()
+        self._cpa_locks.clear()
+        self._housings.clear()
+        self._notes.clear()
+        self._seals.clear()
+        self._splices.clear()
+        self._terminals.clear()
+        self._tpa_locks.clear()
+        self._transitions.clear()
+        self._wires.clear()
+        self._wire_markers.clear()
+        self._wire_service_loops.clear()
+        self._wire_layouts.clear()
+        self._circuits.clear()
+        self._cavities.clear()
+        self._model = None
 
     def delete(self):
         """Delete every object in the project, then the project's own row.
@@ -542,15 +570,23 @@ class Project:
         self.ptables.projects_table.set_object_count(self.project_id, value)
 
     @classmethod
-    def select_project(cls, mainframe: "_ui.MainFrame") -> "Project":
-        """Execute the select project operation.
+    def resolve_project_id(cls, mainframe: "_ui.MainFrame") -> tuple[str, int] | None:
+        """Show the open-project dialog and resolve the chosen name to a
+        project id, creating a new project row via ``AddProjectDialog`` if
+        the typed name doesn't exist yet.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Split out of :meth:`select_project` so a caller that needs to
+        inspect the resolved id *before* deciding whether to construct a
+        new :class:`Project` (e.g. :meth:`harness_designer.ui.mainframe.
+        MainFrame.load_project`, which no-ops if the user picked the
+        project that's already open) can reuse the exact same picking/
+        creation flow without duplicating it.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_ui.MainFrame`
-        :returns: Return value. UNKNOWN details.
-        :rtype: :class:`Project`
+        :returns: ``(project_name, project_id)``, or ``None`` if the user
+            canceled.
+        :rtype: tuple[str, int] | None
         """
         from ..ui.dialogs.project_dialog import OpenProjectDialog
 
@@ -568,7 +604,7 @@ class Project:
             if res != QtWidgets.QDialog.DialogCode.Rejected:
                 project_name = dlg.GetValue()
             else:
-                return
+                return None
         finally:
             dlg.deleteLater()
         connector.execute(f'SELECT id FROM projects WHERE name = "{project_name}";')
@@ -597,7 +633,26 @@ class Project:
                 connector.commit()
                 project_id = connector.lastrowid
             else:
-                return cls.select_project(mainframe)
+                return cls.resolve_project_id(mainframe)
+
+        return project_name, project_id
+
+    @classmethod
+    def select_project(cls, mainframe: "_ui.MainFrame") -> "Project":
+        """Execute the select project operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param mainframe: Main application frame.
+        :type mainframe: :class:`_ui.MainFrame`
+        :returns: Return value. UNKNOWN details.
+        :rtype: :class:`Project`
+        """
+        resolved = cls.resolve_project_id(mainframe)
+        if resolved is None:
+            return
+
+        project_name, project_id = resolved
 
         db_obj = mainframe.project_db.projects_table[project_id]
 

@@ -540,6 +540,28 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    def clear(self) -> None:
+        """Drop every anchor/strand in bulk, without touching the database.
+
+        The empty-state twin of :meth:`load_project` -- that method needs
+        a real project to walk (:meth:`_collect_anchors` dereferences it
+        directly), so it can't be reused here with ``project=None``. Used
+        when tearing down the current project so a different one can load
+        in its place (see ``ui.mainframe.MainFrame.unload``).
+        """
+        self.exit_rotation_mode()
+
+        self._project = None
+        self._anchors = []
+        self._nodes = []
+        self._edges = []
+        self._bundle_strands = []
+        self._bare_wire_strands = []
+        self.tables_overlay.clear()
+        self._strand_draws_dirty = True
+
+        self.update()
+
     def add_anchor(self, obj_pegboard: "_basepeg.BasePeg") -> None:
         """Incrementally register one anchor, without a full rebuild.
 

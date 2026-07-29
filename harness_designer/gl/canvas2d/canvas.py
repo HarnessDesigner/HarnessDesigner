@@ -310,6 +310,17 @@ class Canvas(QOpenGLWidget):
         except ValueError:
             pass
 
+    def clear(self) -> None:
+        """Drop every scene object in bulk, without touching the database.
+
+        Used when tearing down the current project so a different one can
+        load in its place (see ``ui.mainframe.MainFrame.unload``).
+        """
+        self._objects = []
+        self._selected = None
+        self._hovered = None
+        self.update()
+
     @property
     def objects(self):
         """Return the objects.

@@ -24,3 +24,12 @@ class FileMenu(QtWidgets.QMenu):
 
         super().__init__('File', mainframe)
         self.mainframe = mainframe
+
+        self.addAction('Load Project...').triggered.connect(self.on_load_project)
+
+    def on_load_project(self):
+        """
+        Handle the load project action.
+        """
+
+        self.mainframe.load_project()

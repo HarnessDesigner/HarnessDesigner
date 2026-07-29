@@ -150,6 +150,15 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.load_project(project)
 
+    def clear(self) -> None:
+        """
+        Drop every anchor/strand in bulk, without touching the database.
+
+        See :meth:`harness_designer.gl.canvas_pegboard.canvas.Canvas.clear`.
+        """
+
+        self._ui_obj.clear()
+
     @property
     def editor(self) -> "EditorPegBoardPanel":
         return self._ui_obj
@@ -271,3 +280,11 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         :type project: :class:`harness_designer.objects.project.Project`
         """
         self._canvas.load_project(project)
+
+    def clear(self) -> None:
+        """
+        Forward to the inner GL canvas's bulk teardown.
+
+        See :meth:`harness_designer.gl.canvas_pegboard.canvas.Canvas.clear`.
+        """
+        self._canvas.clear()

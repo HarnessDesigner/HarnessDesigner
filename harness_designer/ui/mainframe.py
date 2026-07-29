@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Union
 
+import gc
+
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 
@@ -880,6 +882,36 @@ class MainFrame(QtWidgets.QMainWindow):
         # None, if the user canceled the open dialog) is actually assigned.
         if self._project is not None:
             self.editor_pegboard.load_project(self._project)
+
+    def load_project(self):
+        """Handler for the ``File > Load Project...`` menu action.
+
+        Shows the same open-project dialog :meth:`objects.project.Project.
+        select_project` uses at startup, but can run any time the app is
+        already open (``_open_project`` above only ever runs once, from
+        ``showEvent``). Picking the project that's already loaded is a
+        no-op -- there is no reason to tear down and reload it. Picking a
+        different one constructs a new ``Project`` the same way
+        ``select_project`` does, which -- via ``PJTTables.load()`` --
+        calls :meth:`unload` first to release every in-memory reference to
+        the outgoing project before the new project's objects load.
+        """
+        from ..objects import project as _proj
+
+        resolved = _proj.Project.resolve_project_id(self)
+        if resolved is None:
+            return
+
+        project_name, project_id = resolved
+
+        if self._project is not None and project_id == self._project.project_id:
+            return
+
+        db_obj = self.project_db.projects_table[project_id]
+        _proj.Config.last_project = project_name
+
+        self.project = _proj.Project(self, db_obj, project_name, project_id)
+        self.editor_pegboard.load_project(self._project)
 
     # ------------------------------------------------------------------
     # GL object event handlers (3D canvas)
@@ -2673,11 +2705,53 @@ class MainFrame(QtWidgets.QMainWindow):
             self._obj_handler = _handlers.AddCoverHandler(self, selected)
 
     def unload(self):
-        """Execute the unload operation.
+        """Tear down the currently loaded project's in-memory state,
+        without touching the database or deleting anything.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        The sole caller is ``database.project_db.pjt_bases.PJTTables.
+        load()``, which runs this as its very first step, before it
+        re-scopes every ``PJT*Table`` wrapper to a (possibly different)
+        project id -- so this fires for every project load, including the
+        very first one at startup (when there is nothing yet to tear down,
+        hence the early return) and every subsequent switch made through
+        :meth:`load_project`/``objects.project.Project.select_project``.
+
+        Clears every reference this app holds to the outgoing project's
+        objects -- any in-progress placement handler, the current
+        selection, the three canvases' scene lists, the object browser
+        tree, the object editor dock, and the ``Project``'s own per-type
+        registries -- so the pooled VBOs those objects hold onto
+        (``gl.vbo.PooledVBOHandler``) can be released back to the pool.
+        Never calls ``ObjectBase.delete()``/``db_obj.delete()`` -- the DB
+        rows and the project's own row are untouched; ``self._project``
+        itself is left as-is, since ``objects.project.Project.__init__``
+        (the only thing that ever calls this, indirectly) always
+        overwrites it with the new project moments after this returns.
         """
-        pass
+        old_project = self._project
+        if old_project is None:
+            return
+
+        if self._obj_handler is not None:
+            if not self._obj_handler.is_finalized:
+                self._obj_handler.cancel()
+            self._obj_handler = None
+
+        self._selected_obj = None
+        self.editor3d.set_selected(None)
+        self.editor2d.set_selected(None)
+        self.editor_pegboard.set_selected(None)
+        self.object_browser.set_selected(None)
+        self.editor_obj.set_selected(None)
+
+        self.editor3d.clear()
+        self.editor2d.clear()
+        self.editor_pegboard.clear()
+        self.object_browser.reset()
+
+        old_project.close()
+
+        gc.collect()
 
     def open_database(self, splash):
         """Open the database.
