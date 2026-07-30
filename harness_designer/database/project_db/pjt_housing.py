@@ -1029,6 +1029,19 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             if cwp is not None:
                 wire_positions.append(cwp)
 
+            # A wire seal on this terminal has its own independent point
+            # (deliberately NOT shared with/attached to any of the
+            # terminal's own points above -- see handlers.seal_handler,
+            # which needs it independently user-positionable), so it
+            # must be included here explicitly to ride along with the
+            # housing at all -- nothing else in this method would ever
+            # touch it otherwise.
+            seal = terminal.seal
+            if seal is not None:
+                sp = seal.position3d
+                if sp is not None:
+                    wire_positions.append(sp)
+
         skip_write_ids = {int(p.db_id[:-2])
                           for p in cavity_positions + accessory_positions + wire_positions}
 
@@ -1255,6 +1268,15 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 cwp = cavity.wire_position3d
                 if cwp is not None:
                     skip_write_positions.append(cwp)
+
+                # A wire seal on this terminal has its own independent
+                # point (see _update_position3d above for why) -- must be
+                # included here too so it rotates along with the housing.
+                seal = terminal.seal
+                if seal is not None:
+                    sp = seal.position3d
+                    if sp is not None:
+                        skip_write_positions.append(sp)
 
         skip_write_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
                                      self.tpa_lock_2_position3d, self.boot_position3d,
