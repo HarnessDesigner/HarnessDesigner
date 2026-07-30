@@ -92,21 +92,20 @@ class Wire(_base2d.Base2D):
         # WireLayout use a static, unbound identity Angle.
         angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
-        parent.mainframe.editor2d.editor.context.acquire()
-        vbo = _cylinder.create_vbo()
+        with parent.mainframe.editor2d.editor.context:
+            vbo = _cylinder.create_vbo()
 
-        if self._stripe_material is not None:
-            _helix.create_vbo(self._length)
+            if self._stripe_material is not None:
+                _helix.create_vbo(self._length)
 
-        # Base2D.__init__ (below) already binds self._p1 (passed as
-        # position) to _update_position -- this covers the other
-        # endpoint, so either one moving recomputes geometry.
-        self._p2.bind(self._update_position)
+            # Base2D.__init__ (below) already binds self._p1 (passed as
+            # position) to _update_position -- this covers the other
+            # endpoint, so either one moving recomputes geometry.
+            self._p2.bind(self._update_position)
 
-        super().__init__(parent, db_obj, vbo, angle, self._p1, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, self._p1, scale, material)
 
-        self._recalculate_geometry()
-        parent.mainframe.editor2d.editor.context.release()
+            self._recalculate_geometry()
 
     def _segments(self) -> list[tuple]:
         """Every (p1, p2) sub-segment from start, through each interior

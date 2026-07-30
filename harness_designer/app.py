@@ -5,6 +5,7 @@
 import sys
 import time
 import threading
+import traceback as _traceback
 
 from . import logger
 
@@ -16,6 +17,40 @@ from PySide6.QtCore import Qt
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 _call_on_main = None
+
+
+def _qt_message_handler(msg_type, context, message):
+    """Log every Qt-native qDebug/qWarning/qCritical/qFatal message.
+
+    Installed via qInstallMessageHandler in App._init -- see that call
+    site for why this exists (Qt's own C++-side diagnostics, like a
+    cross-thread OpenGL makeCurrent() failure, never raise a catchable
+    Python exception, so this is the only way to ever see one logged).
+
+    :param msg_type: The Qt message severity (QtDebugMsg/QtInfoMsg/
+        QtWarningMsg/QtCriticalMsg/QtFatalMsg).
+    :param context: QMessageLogContext -- may have empty file/line/
+        function fields depending on build config.
+    :param message: The message text.
+    """
+    from PySide6.QtCore import QtMsgType
+
+    thread_name = threading.current_thread().name
+    location = f'{context.file}:{context.line}' if context.file else ''
+    text = f'[Qt] {message} (thread={thread_name}){" " + location if location else ""}'
+
+    # The handler runs synchronously on whatever thread actually triggered
+    # the Qt-side qWarning/qCritical call (a Python->C++ call in practice,
+    # e.g. QOpenGLWidget.makeCurrent()) -- format_stack() here captures
+    # that SAME thread's real Python call chain at this exact moment, the
+    # one piece of information a bare Qt message never carries on its own.
+    stack = ''.join(_traceback.format_stack())
+    text += f'\nPython call stack (thread={thread_name}) at time of message:\n{stack}'
+
+    if msg_type in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):
+        logger.error(text)
+    else:
+        logger.warning(text)
 
 
 def CallLater(func, *args) -> None:
@@ -148,6 +183,16 @@ class App(QObject):
         # Set up logger
         self.logger = logger
         logger.startup()
+
+        # Capture Qt's own native warnings/errors (e.g. "Cannot make
+        # QOpenGLContext current in a different thread") into the log --
+        # these come from Qt's C++ side (qWarning/qCritical), not a raised
+        # Python exception, so no try/except anywhere in Python code would
+        # ever catch one. Logging the thread name lets an intermittent,
+        # timing-dependent GL-threading issue actually be tracked down
+        # from a real occurrence instead of guessed at.
+        from PySide6.QtCore import qInstallMessageHandler
+        qInstallMessageHandler(_qt_message_handler)
 
         from . import config as _config
         from . import themes as _themes

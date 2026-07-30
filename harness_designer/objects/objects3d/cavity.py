@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6.QtWidgets import QMenu, QMessageBox
 from PySide6.QtCore import QTimer
 from OpenGL import GL
 import numpy as np
@@ -50,36 +50,34 @@ class Cavity(_base3d.Base3D):
         :type db_obj: :class:`_pjt_cavity.PJTCavity`
         """
 
-        parent.mainframe.editor3d.context.acquire()
-        self._part = db_obj.part
-        scale = db_obj.part.scale
-        # Use the global part angle for the Base3D binding (drives _update_angle
-        # when the part definition changes). The project-specific world-space
-        # angle is stored separately and used for rendering.
-        angle = db_obj.angle3d
-        position = db_obj.position3d
-        material = _materials.Metallic(_color.Color(200, 200, 200, 75))
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
+            scale = db_obj.part.scale
+            # Use the global part angle for the Base3D binding (drives _update_angle
+            # when the part definition changes). The project-specific world-space
+            # angle is stored separately and used for rendering.
+            angle = db_obj.angle3d
+            position = db_obj.position3d
+            material = _materials.Metallic(_color.Color(200, 200, 200, 75))
 
-        if db_obj.part.round_terminal:
-            vbo = _cylinder.create_vbo()
-        else:
-            vbo = _box.create_vbo()
+            if db_obj.part.round_terminal:
+                vbo = _cylinder.create_vbo()
+            else:
+                vbo = _box.create_vbo()
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
-        self.surf_idx: int = -1
-        self.wire_surf_idx: int = -1
-        # Index into the owning Housing3D._cavity_markers, set instead of
-        # wire_surf_idx when Cavity.render_wire_marker is True (the wire
-        # side has no distinguishable real mesh surface of its own).
-        self.wire_marker_idx: int = -1
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            self.surf_idx: int = -1
+            self.wire_surf_idx: int = -1
+            # Index into the owning Housing3D._cavity_markers, set instead of
+            # wire_surf_idx when Cavity.render_wire_marker is True (the wire
+            # side has no distinguishable real mesh surface of its own).
+            self.wire_marker_idx: int = -1
 
-        # Which side of this cavity the housing's last try_pick_cavity hit
-        # landed on -- set by Housing3D._select_marker/on_surface_selected,
-        # read by CavityMenu to decide whether "Add Wire" belongs on the
-        # menu.
-        self._selected_is_wire_side: bool = False
-
-        parent.mainframe.editor3d.context.release()
+            # Which side of this cavity the housing's last try_pick_cavity hit
+            # landed on -- set by Housing3D._select_marker/on_surface_selected,
+            # read by CavityMenu to decide whether "Add Wire" belongs on the
+            # menu.
+            self._selected_is_wire_side: bool = False
 
     def wire_surface_center(self) -> _point.Point | None:
         """
@@ -173,8 +171,17 @@ class CavityMenu(QMenu):
 
         pjt_cavity = cavity_3d.db_obj
         has_terminal = pjt_cavity.terminal is not None
-        has_seal = pjt_cavity.seal is not None
-        terminal_sealable = has_terminal and pjt_cavity.terminal.part.sealing
+
+        # A cavity holds a terminal XOR a cavity-level (plug) seal, never
+        # both -- pjt_cavity.seal only ever finds a seal linked via
+        # cavity_id. Once a terminal is seated, any seal on it (a wire
+        # seal) is linked via terminal_id instead, invisible to
+        # pjt_cavity.seal -- must go through pjt_cavity.terminal.seal to
+        # see it. See PJTHousing._update_angle3d for the same distinction.
+        if has_terminal:
+            has_seal = pjt_cavity.terminal.seal is not None
+        else:
+            has_seal = pjt_cavity.seal is not None
 
         if has_terminal:
             action = self.addAction('Edit Terminal')
@@ -184,15 +191,13 @@ class CavityMenu(QMenu):
             action.setEnabled(not has_seal)
             action.triggered.connect(self.on_add_terminal)
 
-        if has_seal:
-            action = self.addAction('Edit Seal')
-            action.triggered.connect(self.on_edit_seal)
-        elif has_terminal and terminal_sealable:
-            action = self.addAction('Add Wire Seal')
-            action.triggered.connect(self.on_add_wire_seal)
-        elif not has_terminal:
-            action = self.addAction('Add Plug Seal')
-            action.triggered.connect(self.on_add_plug_seal)
+        # Single "Add Seal" covers both a cavity plug seal (no terminal
+        # present) and a wire seal on the terminal (terminal present) --
+        # on_add_seal decides which; grayed out once one is already
+        # attached rather than switching to a separate "Edit" action.
+        action = self.addAction('Add Seal')
+        action.setEnabled(not has_seal)
+        action.triggered.connect(self.on_add_seal)
 
         if cavity_3d._selected_is_wire_side:  # NOQA
             action = self.addAction('Add Wire')
@@ -219,18 +224,40 @@ class CavityMenu(QMenu):
             lambda: _handlers.AddTerminalHandler(
                 mainframe, housing=housing_wrapper, cavity=cavity_obj))
 
-    def on_add_wire_seal(self):
-        """Attach a wire seal to the terminal already in this cavity."""
+    def on_add_seal(self):
+        """Add a seal: a wire seal onto the terminal already in this
+        cavity if one is seated, otherwise a plug seal into the cavity
+        itself."""
         from ... import handlers as _handlers
 
+        mainframe = self._cavity_3d.mainframe
         terminal_db = self._cavity_3d.db_obj.terminal
+
         if terminal_db is None:
+            cavity_obj = self._cavity_3d.parent
+            _menu_ops.run_attached_handler(
+                lambda: _handlers.AddSealHandler(mainframe, cavity=cavity_obj))
             return
+
         terminal_obj = terminal_db.get_object()
         if terminal_obj is None:
             return
 
-        mainframe = self._cavity_3d.mainframe
+        if not terminal_db.part.sealing:
+            # Manufacturer-scraped catalog data isn't reliable enough to
+            # block a wire seal outright just because this terminal's own
+            # "sealing" field came back 0/unset -- confirm with the user
+            # instead of silently trusting or silently ignoring it.
+            res = QMessageBox.question(
+                mainframe,
+                'Add Wire Seal',
+                f'"{terminal_db.part.part_number}" is not marked as a '
+                f'sealable terminal in the parts catalog. Add a wire '
+                f'seal to it anyway?')
+
+            if res != QMessageBox.StandardButton.Yes:
+                return
+
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddSealHandler(mainframe, terminal=terminal_obj))
 
@@ -250,16 +277,6 @@ class CavityMenu(QMenu):
             mainframe,
             lambda: _handlers.AddWireHandler(mainframe, terminal=terminal_obj))
 
-    def on_add_plug_seal(self):
-        """Attach a cavity plug seal to this cavity."""
-        from ... import handlers as _handlers
-
-        mainframe = self._cavity_3d.mainframe
-        cavity_obj = self._cavity_3d.parent
-
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(mainframe, cavity=cavity_obj))
-
     def on_edit_terminal(self):
         """Open the properties dialog for the terminal already in this cavity."""
         def _do():
@@ -267,19 +284,6 @@ class CavityMenu(QMenu):
             if terminal_db is None:
                 return
             parent = terminal_db.get_object()
-            if parent is None or parent.obj3d is None:
-                return
-            _menu_ops.show_properties(parent.obj3d)
-
-        QTimer.singleShot(0, _do)
-
-    def on_edit_seal(self):
-        """Open the properties dialog for the seal already in this cavity."""
-        def _do():
-            seal_db = self._cavity_3d.db_obj.seal
-            if seal_db is None:
-                return
-            parent = seal_db.get_object()
             if parent is None or parent.obj3d is None:
                 return
             _menu_ops.show_properties(parent.obj3d)

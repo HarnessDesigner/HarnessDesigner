@@ -21,7 +21,6 @@ from ...gl import materials as _materials
 from ... import config as _config
 
 from ... import debug as _debug
-from ... import logger as _logger
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
@@ -97,56 +96,53 @@ class Housing(_base3d.Base3D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_housing.PJTHousing`
         """
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
 
-        self._part = db_obj.part
+            model = self._part.model3d
 
-        model = self._part.model3d
+            vbo = _box.create_vbo()
 
-        vbo = _box.create_vbo()
+            width = self._part.width
+            height = self._part.height
+            length = self._part.length
 
-        width = self._part.width
-        height = self._part.height
-        length = self._part.length
+            if 0.0 in (length, width, height):
+                length_ctrl = _float_ctrl.FloatCtrl(
+                    None, 'Length', 0.00, 500.0, 0.01)
 
-        if 0.0 in (length, width, height):
-            length_ctrl = _float_ctrl.FloatCtrl(
-                None, 'Length', 0.00, 500.0, 0.01)
+                width_ctrl = _float_ctrl.FloatCtrl(
+                    None, 'Width', 0.00, 500.0, 0.01)
 
-            width_ctrl = _float_ctrl.FloatCtrl(
-                None, 'Width', 0.00, 500.0, 0.01)
+                height_ctrl = _float_ctrl.FloatCtrl(
+                    None, 'Height', 0.00, 500.0, 0.01)
 
-            height_ctrl = _float_ctrl.FloatCtrl(
-                None, 'Height', 0.00, 500.0, 0.01)
+                length_ctrl.SetValue(length)
+                width_ctrl.SetValue(width)
+                height_ctrl.SetValue(height)
 
-            length_ctrl.SetValue(length)
-            width_ctrl.SetValue(width)
-            height_ctrl.SetValue(height)
+                dlg = _error_dialog.ErrorDialog(
+                    parent.mainframe,
+                    'Dimensions are not valid.\n\nPlease set correct dimensions.',
+                    'Dimension Error', length_ctrl, width_ctrl, height_ctrl)
 
-            dlg = _error_dialog.ErrorDialog(
-                parent.mainframe,
-                'Dimensions are not valid.\n\nPlease set correct dimensions.',
-                'Dimension Error', length_ctrl, width_ctrl, height_ctrl)
+                while 0.0 in (length, width, height):
+                    dlg.exec()
+                    length = length_ctrl.GetValue()
+                    width = width_ctrl.GetValue()
+                    height = height_ctrl.GetValue()
 
-            while 0.0 in (length, width, height):
-                dlg.exec()
-                length = length_ctrl.GetValue()
-                width = width_ctrl.GetValue()
-                height = height_ctrl.GetValue()
+                db_obj.length = length
+                db_obj.width = width
+                db_obj.height = height
 
-            db_obj.length = length
-            db_obj.width = width
-            db_obj.height = height
+            scale = _point.Point(width, height, length)
+            material = _materials.Plastic(self._part.color.ui)
+            angle = db_obj.angle3d
 
-        scale = _point.Point(width, height, length)
-        material = _materials.Plastic(self._part.color.ui)
-        angle = db_obj.angle3d
-
-        _base3d.Base3D.__init__(
-            self, parent, db_obj, vbo, angle, db_obj.position3d,
-            scale, material)
-
-        parent.mainframe.editor3d.context.release()
+            _base3d.Base3D.__init__(
+                self, parent, db_obj, vbo, angle, db_obj.position3d,
+                scale, material)
 
         canvas3d = parent.mainframe.editor3d.editor
         self._picker = _mesh_surface_picker.MeshSurfacePicker(self, canvas3d)
@@ -163,46 +159,21 @@ class Housing(_base3d.Base3D):
         return [c.obj3d for c in self.parent.cavities
                 if c is not None and c.obj3d is not None]
 
-    @_debug.logfunc
     def _set_model(self, model):
-        # Diagnostic wrapper: this callback runs from the background
-        # model-download dispatch (see process.manager -> app.CallAfter),
-        # and a real "Cannot make QOpenGLContext current in a different
-        # thread" crash has been observed here despite that dispatch
-        # looking correctly main-thread-marshaled on inspection -- catch
-        # and log the full traceback here (matching the catch/log/continue
-        # pattern used throughout gl.canvas3d.canvas's own render loop)
-        # instead of letting it take the app down, so the real call stack
-        # can be captured and the actual cause tracked down. Remove this
-        # wrapper once that's done -- it's a temporary diagnostic aid, not
-        # a fix.
-        try:
-            self._set_model_impl(model)
-        except Exception as err:  # NOQA
-            _logger.traceback(err, 'Housing._set_model error')
-
-    def _set_model_impl(self, model):
         # This callback runs from the background model-download dispatch
         # (process.manager), which never acquires a GL context before
         # calling it -- unlike the normal __init__ path, which already
-        # wraps its own dialog/VBO work in an acquire/release pair.
+        # wraps its own dialog/VBO work in a `with context:` block.
         #
-        # Deliberately NOT held across dlg.exec() below: GLContext.acquire()
-        # only calls the real makeCurrent() when its ref count is 0 --
-        # nested acquire() calls just increment the count and trust it's
-        # still current. HousingEditorDialog has its own embedded 3D
-        # preview canvas with its own separate GLContext (dialog.context),
-        # which repaints throughout dlg.exec()'s modal event loop -- every
-        # such repaint calls makeCurrent() on THAT context, silently
-        # stealing thread-current-ness away from whatever's held here. Any
-        # GL work deeper in the dialog's lifetime (Cavity3D construction,
-        # apply_analysis, build()) would then see ref>0 from an acquire
-        # held here, skip re-establishing it, and crash on the next real
-        # QOpenGLContext.currentContext() check. Everything inside the
-        # dialog already correctly acquires its own context immediately
-        # before touching GL (see cavity_obj.py/accessory_obj.py/
-        # housing_obj.py) -- only the parts directly in this method need
-        # their own acquire.
+        # Deliberately NOT held across dlg.exec() below: HousingEditorDialog
+        # has its own embedded 3D preview canvas with its own separate
+        # GLContext (dialog.context), which repaints throughout dlg.exec()'s
+        # modal event loop -- every such repaint calls makeCurrent() on THAT
+        # context, silently stealing thread-current-ness away from whatever
+        # this method holds. Everything inside the dialog already correctly
+        # acquires its own context immediately before touching GL (see
+        # cavity_obj.py/accessory_obj.py/housing_obj.py) -- only the parts
+        # directly in this method need their own `with`.
         mainframe_ctx = self.parent.mainframe.editor3d.context
 
         for cavity in self._part.cavities:
@@ -211,10 +182,9 @@ class Housing(_base3d.Base3D):
         else:
             from ...ui.dialogs import housing_editor
 
-            mainframe_ctx.acquire()
-            dlg = housing_editor.HousingEditorDialog(self.parent.mainframe)
-            dlg.SetValue(self._part)
-            mainframe_ctx.release()
+            with mainframe_ctx:
+                dlg = housing_editor.HousingEditorDialog(self.parent.mainframe)
+                dlg.SetValue(self._part)
 
             dlg.exec()
             dlg.deleteLater()
@@ -226,17 +196,16 @@ class Housing(_base3d.Base3D):
             # cavities finally exist.
             self.db_obj.update_cavities()
 
-        mainframe_ctx.acquire()
+        # super()._set_model() already wraps its own VBO work in
+        # `with ... .context:` internally -- no outer wrap needed here.
         super()._set_model(model)
-        mainframe_ctx.release()
 
         # match_cavity_surfaces' own caller in handlers.housing_handler
         # (AddHousingHandler.release_capture) runs from a mouse-click event
         # on the editor3d canvas, which already has a context implicitly
-        # current -- this callback doesn't, hence the acquire here too.
-        mainframe_ctx.acquire()
-        self.match_cavity_surfaces()
-        mainframe_ctx.release()
+        # current -- this callback doesn't, hence the `with` here.
+        with mainframe_ctx:
+            self.match_cavity_surfaces()
 
     @property
     def seal_position(self) -> _point.Point:

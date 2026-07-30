@@ -75,66 +75,63 @@ class Splice(_base3d.Base3D):
         :type db_obj: :class:`_pjt_splice.PJTSplice`
         """
 
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
 
-        self._part = db_obj.part
+            self._p1 = db_obj.start_position3d
+            self._p2 = db_obj.stop_position3d
+            self._p3 = db_obj.branch_position3d
 
-        self._p1 = db_obj.start_position3d
-        self._p2 = db_obj.stop_position3d
-        self._p3 = db_obj.branch_position3d
+            angle = _angle.Angle.from_points(self._p1, self._p2)
 
-        angle = _angle.Angle.from_points(self._p1, self._p2)
+            model = self._part.model3d
 
-        model = self._part.model3d
+            length = self._part.length
 
-        length = self._part.length
+            wires = db_obj.wires
 
-        wires = db_obj.wires
+            area1 = [0.0]
+            area2 = [0.0]
 
-        area1 = [0.0]
-        area2 = [0.0]
+            for wire in wires[0]:
+                dia = wire.od_mm
+                area = math.pi * ((dia / 2.0) ** 2.0)
+                area1.append(area)
 
-        for wire in wires[0]:
-            dia = wire.od_mm
-            area = math.pi * ((dia / 2.0) ** 2.0)
-            area1.append(area)
+            for wire in wires[-1]:
+                dia = wire.od_mm
+                area = math.pi * ((dia / 2.0) ** 2.0)
+                area2.append(area)
 
-        for wire in wires[-1]:
-            dia = wire.od_mm
-            area = math.pi * ((dia / 2.0) ** 2.0)
-            area2.append(area)
+            area1 = sum(area1)
+            area2 = sum(area2)
 
-        area1 = sum(area1)
-        area2 = sum(area2)
+            if area1:
+                dia1 = 2.0 * math.sqrt(area1 / math.pi)
+            else:
+                dia1 = 0.0
 
-        if area1:
-            dia1 = 2.0 * math.sqrt(area1 / math.pi)
-        else:
-            dia1 = 0.0
+            if area2:
+                dia2 = 2.0 * math.sqrt(area2 / math.pi)
+            else:
+                dia2 = 0.0
 
-        if area2:
-            dia2 = 2.0 * math.sqrt(area2 / math.pi)
-        else:
-            dia2 = 0.0
+            if dia2 > dia1:
+                dia = dia2
+            else:
+                dia = dia1
 
-        if dia2 > dia1:
-            dia = dia2
-        else:
-            dia = dia1
+            scale = _point.Point(dia, dia, length)
 
-        scale = _point.Point(dia, dia, length)
+            vbo = _cylinder.create_vbo()
 
-        vbo = _cylinder.create_vbo()
+            position = self._p1
 
-        position = self._p1
+            material = _materials.Rubber(self._part.color.ui)
 
-        material = _materials.Rubber(self._part.color.ui)
-
-        _base3d.Base3D.__init__(
-            self, parent, db_obj, vbo, angle, position,
-            scale, material)
-
-        parent.mainframe.editor3d.context.release()
+            _base3d.Base3D.__init__(
+                self, parent, db_obj, vbo, angle, position,
+                scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,

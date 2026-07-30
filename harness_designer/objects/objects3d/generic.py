@@ -25,7 +25,6 @@ class Generic(_base3d.Base3D):
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial):
 
-        parent.mainframe.editor3d.context.acquire()
-        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
-        parent.mainframe.editor3d.context.release()
+        with parent.mainframe.editor3d.context:
+            _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
 

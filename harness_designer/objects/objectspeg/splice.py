@@ -40,20 +40,17 @@ class Splice(_basepeg.BasePeg):
         # point (derived there from summed wire cross-sectional area, not
         # recomputed here) -- never vbo=None (see housing.py's own
         # comment on this for why).
-        parent.mainframe.editor_pegboard.context.acquire()
+        with parent.mainframe.editor_pegboard.context:
+            vbo = _cylinder.create_vbo()
 
-        vbo = _cylinder.create_vbo()
-
-        _basepeg.BasePeg.__init__(
-            self, parent, db_obj,
-            vbo=vbo,
-            angle=db_obj.anglepeg,
-            position=db_obj.position_peg,
-            scale=obj3d.scale,
-            material=obj3d.material,
-        )
-
-        parent.mainframe.editor_pegboard.context.release()
+            _basepeg.BasePeg.__init__(
+                self, parent, db_obj,
+                vbo=vbo,
+                angle=db_obj.anglepeg,
+                position=db_obj.position_peg,
+                scale=obj3d.scale,
+                material=obj3d.material,
+            )
 
         self.smooth = getattr(obj3d, 'smooth', False)
 

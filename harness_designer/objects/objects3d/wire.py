@@ -54,89 +54,87 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire.PJTWire`
         """
-        parent.mainframe.editor3d.context.acquire()
-        self._stripe = None
+        with parent.mainframe.editor3d.context:
+            self._stripe = None
 
-        self._part = db_obj.part
-        color = self._part.color.ui
-        stripe_color = self._part.stripe_color
-        diameter = self._part.od_mm
+            self._part = db_obj.part
+            color = self._part.color.ui
+            stripe_color = self._part.stripe_color
+            diameter = self._part.od_mm
 
-        # Wires hold strong references to bundles as a sanity check
-        self._bundle = None
+            # Wires hold strong references to bundles as a sanity check
+            self._bundle = None
 
-        material = _materials.Plastic(color)
+            material = _materials.Plastic(color)
 
-        # Bare-conductor look for whichever end segment(s) crimp into a
-        # terminal (see render()) -- conductor_dia_mm already falls back
-        # to an AWG-derived estimate when the wire_size_dia column is
-        # NULL; od_mm * 2/3 is the final fallback for a part missing both,
-        # per the same ratio a stranded conductor's copper core typically
-        # is of its own fully-insulated OD.
-        conductor_dia = self._part.conductor_dia_mm
-        if not conductor_dia:
-            conductor_dia = diameter * (2.0 / 3.0)
+            # Bare-conductor look for whichever end segment(s) crimp into a
+            # terminal (see render()) -- conductor_dia_mm already falls back
+            # to an AWG-derived estimate when the wire_size_dia column is
+            # NULL; od_mm * 2/3 is the final fallback for a part missing both,
+            # per the same ratio a stranded conductor's copper core typically
+            # is of its own fully-insulated OD.
+            conductor_dia = self._part.conductor_dia_mm
+            if not conductor_dia:
+                conductor_dia = diameter * (2.0 / 3.0)
 
-        self._conductor_dia = conductor_dia
-        self._conductor_material = _materials.Polished(self._part.core_material.color.ui)
+            self._conductor_dia = conductor_dia
+            self._conductor_material = _materials.Polished(self._part.core_material.color.ui)
 
-        self._p1 = db_obj.start_position3d
-        self._p2 = db_obj.stop_position3d
+            self._p1 = db_obj.start_position3d
+            self._p2 = db_obj.stop_position3d
 
-        # Live Point objects for every interior waypoint (idx order),
-        # kept in sync with the DB via refresh_waypoints() -- called by
-        # whichever handler adds/removes/reorders this wire's own
-        # waypoints (handlers.wire_layout_handler, handlers.wire_handler,
-        # objects.terminal.Terminal.add_wire).
-        self._waypoint_points: list[_point.Point] = []
+            # Live Point objects for every interior waypoint (idx order),
+            # kept in sync with the DB via refresh_waypoints() -- called by
+            # whichever handler adds/removes/reorders this wire's own
+            # waypoints (handlers.wire_layout_handler, handlers.wire_handler,
+            # objects.terminal.Terminal.add_wire).
+            self._waypoint_points: list[_point.Point] = []
 
-        self._length = self._calc_length()
+            self._length = self._calc_length()
 
-        position = self._p1
+            position = self._p1
 
-        scale = _point.Point(diameter, diameter, self._length)
+            scale = _point.Point(diameter, diameter, self._length)
 
-        # Track wires in this bundle using weak references
-        # Wires hold strong references to bundles; bundles use weak refs to wires
-        self._wires = []  # List of weak references to Wire objects
+            # Track wires in this bundle using weak references
+            # Wires hold strong references to bundles; bundles use weak refs to wires
+            self._wires = []  # List of weak references to Wire objects
 
-        self._p2.bind(self._update_position)
+            self._p2.bind(self._update_position)
 
-        vbo = _cylinder.create_vbo()
-        angle = _angle.Angle()
+            vbo = _cylinder.create_vbo()
+            angle = _angle.Angle()
 
-        # Built before the stripe -- WireStripe's own OBB/AABB are copied
-        # from this wire's, so the wire must already have real _obb/_aabb
-        # attributes (set by Base3D.__init__) before WireStripe.__init__
-        # (itself calling Base3D.__init__, which calls _compute_obb/_aabb)
-        # can safely read them. Binding position/angle/scale here first also
-        # means this wire's own _update_* callbacks (which recompute its
-        # _obb/_aabb) fire before the stripe's on any later shared change.
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            # Built before the stripe -- WireStripe's own OBB/AABB are copied
+            # from this wire's, so the wire must already have real _obb/_aabb
+            # attributes (set by Base3D.__init__) before WireStripe.__init__
+            # (itself calling Base3D.__init__, which calls _compute_obb/_aabb)
+            # can safely read them. Binding position/angle/scale here first also
+            # means this wire's own _update_* callbacks (which recompute its
+            # _obb/_aabb) fire before the stripe's on any later shared change.
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
-        if stripe_color is not None:
-            self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
-            # WireStripe's db_obj is always None (it's not its own DB row --
-            # see WireStripe.__init__), so Base3D.__init__ hits the
-            # `except AttributeError: self._is_visible = False` branch and
-            # the stripe is built permanently invisible. Sync it to the
-            # wire's own just-computed visibility here.
-            self._stripe.is_visible = self._is_visible
+            if stripe_color is not None:
+                self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
+                # WireStripe's db_obj is always None (it's not its own DB row --
+                # see WireStripe.__init__), so Base3D.__init__ hits the
+                # `except AttributeError: self._is_visible = False` branch and
+                # the stripe is built permanently invisible. Sync it to the
+                # wire's own just-computed visibility here.
+                self._stripe.is_visible = self._is_visible
 
-            self.editor3d.Refresh()
+                self.editor3d.Refresh()
 
-        # _update_angle just calls _update_position(None) — redundant since
-        # both endpoints already drive recalculation via their point bindings.
-        self._angle.unbind(self._update_angle)
+            # _update_angle just calls _update_position(None) — redundant since
+            # both endpoints already drive recalculation via their point bindings.
+            self._angle.unbind(self._update_angle)
 
-        # self.db_obj is only valid from here on (set by Base3D.__init__
-        # above) -- this is the first point waypoints3d/for_wire can be
-        # queried, so the initial waypoint bind and the real (possibly
-        # multi-segment) geometry recompute both happen here, not earlier.
-        self._bind_waypoints()
-        self._recalculate_geometry()
-
-        parent.mainframe.editor3d.context.release()
+            # self.db_obj is only valid from here on (set by Base3D.__init__
+            # above) -- this is the first point waypoints3d/for_wire can be
+            # queried, so the initial waypoint bind and the real (possibly
+            # multi-segment) geometry recompute both happen here, not earlier.
+            self._bind_waypoints()
+            self._recalculate_geometry()
 
     @property
     def length(self) -> float:

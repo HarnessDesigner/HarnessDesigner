@@ -54,99 +54,96 @@ class Terminal(_base3d.Base3D):
         :type db_obj: :class:`_pjt_terminal.PJTTerminal`
         """
 
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
+            color = self._part.plating.color
+            self._color = color.ui
+            material = _materials.Polished(color.ui)
 
-        self._part = db_obj.part
-        color = self._part.plating.color
-        self._color = color.ui
-        material = _materials.Polished(color.ui)
+            model = self._part.model3d
 
-        model = self._part.model3d
+            is_round = self._part.round_terminal
 
-        is_round = self._part.round_terminal
+            if is_round:
+                vbo = _cylinder.create_vbo()
+            else:
+                vbo = _box.create_vbo()
 
-        if is_round:
-            vbo = _cylinder.create_vbo()
-        else:
-            vbo = _box.create_vbo()
+            # Placeholder/analog geometry shown while the real model downloads
+            # (or when none is assigned) -- fall back to the cavity's own
+            # dimensions when this part is missing any of its own measurements.
+            pjt_cavity = db_obj.cavity
+            if pjt_cavity is not None:
+                width, height, length = self._part.effective_size(pjt_cavity.part)
+            else:
+                width, height, length = self._part.width, self._part.height, self._part.length
 
-        # Placeholder/analog geometry shown while the real model downloads
-        # (or when none is assigned) -- fall back to the cavity's own
-        # dimensions when this part is missing any of its own measurements.
-        pjt_cavity = db_obj.cavity
-        if pjt_cavity is not None:
-            width, height, length = self._part.effective_size(pjt_cavity.part)
-        else:
-            width, height, length = self._part.width, self._part.height, self._part.length
+            if model is None:
+                family = self._part.family.name.lower()
+                series = self._part.series.name.lower()
 
-        if model is None:
-            family = self._part.family.name.lower()
-            series = self._part.series.name.lower()
+                if family == 'deutsch' or series == 'deutsch':
+                    pn = self._part.part_number
 
-            if family == 'deutsch' or series == 'deutsch':
-                pn = self._part.part_number
-
-                for pre in (
-                    '2362989-1', '5960-203-04141', '0460-256',
-                    '0460-002', '0460-010', '0460-202', '0460-204'
-                ):
-                    if pn.startswith(pre):
-                        filepath = os.path.join(_GENERIC_MODEL_PATH, 'deutsch terminal male solid.stl')
-                        model = parent.mainframe.global_db.models3d_table.insert(filepath)
-
-                        if model is not None:
-                            self._part.model3d_id = model.db_id
-
-                        break
-                else:
                     for pre in (
-                        '0462-004', '0462-005', '0462-006',
-                        '0462-201', '0462-203'
+                        '2362989-1', '5960-203-04141', '0460-256',
+                        '0460-002', '0460-010', '0460-202', '0460-204'
                     ):
                         if pn.startswith(pre):
-                            filepath = os.path.join(_GENERIC_MODEL_PATH, 'deutsch terminal female solid.stl')
+                            filepath = os.path.join(_GENERIC_MODEL_PATH, 'deutsch terminal male solid.stl')
                             model = parent.mainframe.global_db.models3d_table.insert(filepath)
 
                             if model is not None:
                                 self._part.model3d_id = model.db_id
-            else:
-                gender = self._part.gender
-                blade_size = self._part.blade_size
 
-                if gender is not None and blade_size:
-                    gender = gender.name
-                    filename = f'generic terminal {gender.lower()} {blade_size}'
+                            break
+                    else:
+                        for pre in (
+                            '0462-004', '0462-005', '0462-006',
+                            '0462-201', '0462-203'
+                        ):
+                            if pn.startswith(pre):
+                                filepath = os.path.join(_GENERIC_MODEL_PATH, 'deutsch terminal female solid.stl')
+                                model = parent.mainframe.global_db.models3d_table.insert(filepath)
 
-                    if is_round:
-                        filename += ' round'
+                                if model is not None:
+                                    self._part.model3d_id = model.db_id
+                else:
+                    gender = self._part.gender
+                    blade_size = self._part.blade_size
 
-                    filename += '.stp'
+                    if gender is not None and blade_size:
+                        gender = gender.name
+                        filename = f'generic terminal {gender.lower()} {blade_size}'
 
-                    filepath = os.path.join(_GENERIC_MODEL_PATH, filename)
-                    if os.path.exists(filepath):
-                        model = parent.mainframe.global_db.models3d_table.insert(filepath)
+                        if is_round:
+                            filename += ' round'
 
-                        if model is not None:
-                            self._part.model3d_id = model.db_id
+                        filename += '.stp'
 
-        scale = _point.Point(width, height, length)
-        angle = db_obj.angle3d
+                        filepath = os.path.join(_GENERIC_MODEL_PATH, filename)
+                        if os.path.exists(filepath):
+                            model = parent.mainframe.global_db.models3d_table.insert(filepath)
 
-        _base3d.Base3D.__init__(
-            self, parent, db_obj, vbo, angle, db_obj.position3d,
-            scale, material)
+                            if model is not None:
+                                self._part.model3d_id = model.db_id
 
-        # Cavity surface overlay (wire-side always, pin-side for
-        # female/undetermined-gender terminals) — resolved lazily in
-        # render() and cached until the owning cavity changes.
-        self._overlay_cavity_id = None
-        self._overlay_housing_3d = None
-        self._overlay_cavity_obj = None
-        self._overlay_wire_surf_idx: int = None
-        self._overlay_wire_marker_idx: int = None
-        self._overlay_pin_surf_idx: int = None
+            scale = _point.Point(width, height, length)
+            angle = db_obj.angle3d
 
-        parent.mainframe.editor3d.context.release()
+            _base3d.Base3D.__init__(
+                self, parent, db_obj, vbo, angle, db_obj.position3d,
+                scale, material)
+
+            # Cavity surface overlay (wire-side always, pin-side for
+            # female/undetermined-gender terminals) — resolved lazily in
+            # render() and cached until the owning cavity changes.
+            self._overlay_cavity_id = None
+            self._overlay_housing_3d = None
+            self._overlay_cavity_obj = None
+            self._overlay_wire_surf_idx: int = None
+            self._overlay_wire_marker_idx: int = None
+            self._overlay_pin_surf_idx: int = None
 
         # model.load()'s callback (_set_model) always fires, whether the
         # model needed a fresh download/conversion or was already cached

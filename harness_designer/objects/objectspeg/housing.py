@@ -41,20 +41,17 @@ class Housing(_basepeg.BasePeg):
         # the real mesh once model.load()'s callback fires (_set_model) --
         # never vbo=None, which would leave position/angle/scale/material
         # unset entirely (see BasePeg.__init__'s vbo-is-None branch).
-        parent.mainframe.editor_pegboard.context.acquire()
+        with parent.mainframe.editor_pegboard.context:
+            vbo = _box.create_vbo()
 
-        vbo = _box.create_vbo()
-
-        _basepeg.BasePeg.__init__(
-            self, parent, db_obj,
-            vbo=vbo,
-            angle=db_obj.anglepeg,
-            position=db_obj.position_peg,
-            scale=obj3d.scale,
-            material=obj3d.material,
-        )
-
-        parent.mainframe.editor_pegboard.context.release()
+            _basepeg.BasePeg.__init__(
+                self, parent, db_obj,
+                vbo=vbo,
+                angle=db_obj.anglepeg,
+                position=db_obj.position_peg,
+                scale=obj3d.scale,
+                material=obj3d.material,
+            )
 
         self.smooth = getattr(obj3d, 'smooth', False)
 

@@ -343,15 +343,13 @@ class BaseVar:
 
         :type position: :class:`_point.Point`
         """
-        self.editor.context.acquire()
+        with self.editor.context:
+            self._o_position = position.copy()
+            self.numpy_position[:] = position.as_numpy
 
-        self._o_position = position.copy()
-        self.numpy_position[:] = position.as_numpy
+            self._compute_obb()
+            self._compute_aabb()
 
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.editor.context.release()
         self.editor.Refresh(False)
 
     def _update_angle(self, angle: _angle.Angle):
@@ -363,15 +361,13 @@ class BaseVar:
         :type angle: :class:`_angle.Angle`
         """
 
-        self.editor.context.acquire()
+        with self.editor.context:
+            self._o_angle = angle.copy()
+            self._angle_inverse = -angle
 
-        self._o_angle = angle.copy()
-        self._angle_inverse = -angle
+            self._compute_obb()
+            self._compute_aabb()
 
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.editor.context.release()
         self.editor.Refresh(False)
 
     def _update_scale(self, scale: _point.Point):
@@ -383,14 +379,11 @@ class BaseVar:
         :type scale: :class:`_point.Point`
         """
 
-        self.editor.context.acquire()
+        with self.editor.context:
+            self._o_scale = scale.copy()
 
-        self._o_scale = scale.copy()
-
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.editor.context.release()
+            self._compute_obb()
+            self._compute_aabb()
 
         self.editor.Refresh(False)
 

@@ -1046,6 +1046,18 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                     continue
 
                 objects_in_view.append(obj)
+
+                # A selected, translucent object is deferred to a later
+                # pass (see _on_draw, right after this method returns) so
+                # it always renders AFTER every opaque object in the scene
+                # regardless of where it falls in this loop's arbitrary
+                # bucket order -- otherwise whichever opaque objects (e.g.
+                # a housing's own interior terminals/wires) happen to be
+                # drawn after it here would get fully overwritten instead
+                # of showing through it.
+                if obj is self._selected and not obj.obj3d.is_opaque:
+                    continue
+
                 obj.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
             except Exception as err:  # NOQA
                 _logger.traceback(err, 'object render error')
@@ -1110,6 +1122,30 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             return
 
         self._draw_scene(objs)
+
+        # Deferred full-color pass for the selected, translucent object --
+        # see the matching "continue" in _draw_scene's own object loop,
+        # which skips it there specifically so it always renders here,
+        # after every opaque object in the scene already has its own
+        # color+depth in the buffers. Depth writes are disabled for this
+        # one render call so it still can't block whatever draws after it
+        # (the depth-only pass below, the floor) -- it only ever reads the
+        # depth buffer (correct occlusion against anything genuinely in
+        # front of it, e.g. another housing between it and the camera)
+        # and blends its own color on top of whatever's already there
+        # (a housing's own interior terminals/wires, for instance)
+        # instead of unconditionally overwriting them.
+        if self._selected is not None and hasattr(self._selected, 'obj3d'):
+            obj3d = self._selected.obj3d
+            if not obj3d.is_opaque:
+                GL.glDepthMask(GL.GL_FALSE)
+
+                try:
+                    obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+                except Exception as err:  # NOQA
+                    _logger.traceback(err, 'selected object deferred render error')
+
+                GL.glDepthMask(GL.GL_TRUE)
 
         # Supplemental depth-only pass for selected (semi-transparent) objects.
         #

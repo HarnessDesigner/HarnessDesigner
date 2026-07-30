@@ -43,22 +43,19 @@ class Boot(_base3d.Base3D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_boot.PJTBoot`
         """
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
 
-        self._part = db_obj.part
+            model = self._part.model3d
 
-        model = self._part.model3d
+            vbo = _sphere.create_vbo()
 
-        vbo = _sphere.create_vbo()
+            scale = _point.Point(3.0, 3.0, 3.0)
+            material = _materials.Rubber(self._part.color.ui)
+            angle = db_obj.angle3d
 
-        scale = _point.Point(3.0, 3.0, 3.0)
-        material = _materials.Rubber(self._part.color.ui)
-        angle = db_obj.angle3d
-
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
-                                scale, material)
-
-        parent.mainframe.editor3d.context.release()
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
+                                    scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,

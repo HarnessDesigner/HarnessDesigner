@@ -321,50 +321,47 @@ class WireServiceLoop(_base3d.Base3D):
         :type db_obj: :class:`_pjt_wire_service_loop.PJTWireServiceLoop`
         """
 
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
+            color = self._part.color.ui
+            material = _materials.Plastic(color)
 
-        self._part = db_obj.part
-        color = self._part.color.ui
-        material = _materials.Plastic(color)
+            position = db_obj.start_position3d
+            position2 = db_obj.stop_position3d
 
-        position = db_obj.start_position3d
-        position2 = db_obj.stop_position3d
+            vbo = _cylinder_helix.create_vbo()
+            diameter = self._part.od_mm
+            scale = _point.Point(diameter, diameter, diameter)
+            angle = db_obj.angle3d
 
-        vbo = _cylinder_helix.create_vbo()
-        diameter = self._part.od_mm
-        scale = _point.Point(diameter, diameter, diameter)
-        angle = db_obj.angle3d
+            self._last_centroid: np.ndarray | None = None
+            # Last pose _resolve_collision actually verified as clear -- the
+            # fallback to revert to if a later resolve attempt can't find any
+            # clear spot at all (see _resolve_collision).
+            self._last_resolved_position: np.ndarray | None = None
+            self._last_resolved_quat: np.ndarray | None = None
+            # Set by begin_move_session/cleared by end_move_session -- see
+            # both, and _resolve_collision.
+            self._move_session: _MoveSession | None = None
 
-        self._last_centroid: np.ndarray | None = None
-        # Last pose _resolve_collision actually verified as clear -- the
-        # fallback to revert to if a later resolve attempt can't find any
-        # clear spot at all (see _resolve_collision).
-        self._last_resolved_position: np.ndarray | None = None
-        self._last_resolved_quat: np.ndarray | None = None
-        # Set by begin_move_session/cleared by end_move_session -- see
-        # both, and _resolve_collision.
-        self._move_session: _MoveSession | None = None
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            self._p1 = position
+            self._p2 = position2
 
-        self._p1 = position
-        self._p2 = position2
+            # Always derive the stop point fresh from the start point/angle/
+            # scale rather than trusting whatever was last persisted -- keeps
+            # this the single source of truth regardless of how the row got
+            # here (self-heals any stale data from before this existed).
+            self._last_centroid = self._world_centroid()
+            self._sync_stop_position()
 
-        # Always derive the stop point fresh from the start point/angle/
-        # scale rather than trusting whatever was last persisted -- keeps
-        # this the single source of truth regardless of how the row got
-        # here (self-heals any stale data from before this existed).
-        self._last_centroid = self._world_centroid()
-        self._sync_stop_position()
-
-        # Collision avoidance runs "anytime a service loop is being moved"
-        # (see _resolve_collision) -- that includes the very first
-        # placement, not just later interactive moves.
-        self._resolve_collision()
-        self._sync_stop_position()
-        self._last_centroid = self._world_centroid()
-
-        parent.mainframe.editor3d.context.release()
+            # Collision avoidance runs "anytime a service loop is being moved"
+            # (see _resolve_collision) -- that includes the very first
+            # placement, not just later interactive moves.
+            self._resolve_collision()
+            self._sync_stop_position()
+            self._last_centroid = self._world_centroid()
 
     def _world_centroid(self) -> np.ndarray:
         """World-space centroid of the loop's own OBB -- the rotation pivot

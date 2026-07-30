@@ -74,21 +74,19 @@ class Cavity3D(_base3d.Base3D):
         material = _materials.Plastic(
             _color.Color(0.8, 0.3, 0.3, 1.0))
 
-        parent.dialog.mainframe.editor3d.context.acquire()
+        with parent.dialog.mainframe.editor3d.context:
+            vbo = self.build()
 
-        vbo = self.build()
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo,
+                                    self._angle, self._position, self._scale,
+                                    material)
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo,
-                                self._angle, self._position, self._scale,
-                                material)
+            self._selected_material = _materials.Plastic(
+                _color.Color(0.3, 1.0, 0.3, 1.0))
 
-        self._selected_material = _materials.Plastic(
-            _color.Color(0.3, 1.0, 0.3, 1.0))
-
-        self._is_visible = True
-        self.autoplace = False
-        self.editor3d.Refresh(False)
-        parent.dialog.mainframe.editor3d.context.release()
+            self._is_visible = True
+            self.autoplace = False
+            self.editor3d.Refresh(False)
 
     def set_selected(self, flag: bool):
         """Set the selected.
@@ -322,22 +320,18 @@ class Cavity3D(_base3d.Base3D):
         yaw = math.degrees(float(np.arctan2(R[0, 2], R[2, 2])))
         roll = math.degrees(float(np.arctan2(R[1, 0], R[1, 1])))
 
-        ctx = self.dialog.context
-        ctx.acquire()
+        with self.dialog.context:
+            with self._angle:
+                self._angle.x = pitch
+                self._angle.y = yaw
 
-        with self._angle:
-            self._angle.x = pitch
-            self._angle.y = yaw
+            self._angle.z = roll
 
-        self._angle.z = roll
+            with self._position:
+                self._position.x = float(pos[0])
+                self._position.y = float(pos[1])
 
-        with self._position:
-            self._position.x = float(pos[0])
-            self._position.y = float(pos[1])
-
-        self._position.z = float(pos[2])
-
-        ctx.release()
+            self._position.z = float(pos[2])
 
         w2, h2, l2 = width / 2.0, height / 2.0, length / 2.0
 
@@ -365,24 +359,21 @@ class Cavity3D(_base3d.Base3D):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self.editor3d.mainframe.editor3d.context.acquire()
+        with self.editor3d.mainframe.editor3d.context:
+            if self.is_round:
+                width = height = float(_d(self.width) / _d(2.0))
+                self._vbo = _cylinder.create_vbo()
+            else:
+                width = self.width
+                height = self.height
+                self._vbo = _box.create_vbo()
 
-        if self.is_round:
-            width = height = float(_d(self.width) / _d(2.0))
-            self._vbo = _cylinder.create_vbo()
-        else:
-            width = self.width
-            height = self.height
-            self._vbo = _box.create_vbo()
+            self._vbo.acquire()
 
-        self._vbo.acquire()
+            with self._scale:
+                self._scale.x = width
+                self._scale.y = height
 
-        with self._scale:
-            self._scale.x = width
-            self._scale.y = height
-
-        self._scale.z = self.length
-
-        self.editor3d.mainframe.editor3d.context.release()
+            self._scale.z = self.length
 
         return self._vbo

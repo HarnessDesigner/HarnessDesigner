@@ -70,60 +70,59 @@ class Housing3D(_base3d.Base3D):
         self.dialog: "_housing_editor.HousingEditorDialog" = parent.dialog
         self.db_obj = db_obj
 
-        parent.dialog.mainframe.editor3d.context.acquire()
-        model = db_obj.model3d
+        with parent.dialog.mainframe.editor3d.context:
+            model = db_obj.model3d
 
-        angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
-        position3d = _point.Point(0.0, 0.0, 0.0)
+            angle3d = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+            position3d = _point.Point(0.0, 0.0, 0.0)
 
-        if model is None:
-            length = db_obj.length
-            width = db_obj.width
-            height = db_obj.height
+            if model is None:
+                length = db_obj.length
+                width = db_obj.width
+                height = db_obj.height
 
-            scale3d = _point.Point(width, height, length)
-            vbo = _box.create_vbo()
-        else:
-            uuid = model.uuid
-            scale3d = _point.Point(1.0, 1.0, 1.0)
-
-            if uuid in _vbo.PooledVBOHandler:
-                vbo = _vbo.PooledVBOHandler(uuid)
+                scale3d = _point.Point(width, height, length)
+                vbo = _box.create_vbo()
             else:
-                packed = np.load(model.data_path).reshape(-1, 3)
+                uuid = model.uuid
+                scale3d = _point.Point(1.0, 1.0, 1.0)
 
-                angle = model.angle3d
-                position = model.position3d
-                count = model.vertex_count
+                if uuid in _vbo.PooledVBOHandler:
+                    vbo = _vbo.PooledVBOHandler(uuid)
+                else:
+                    packed = np.load(model.data_path).reshape(-1, 3)
 
-                obb = model.obb
-                aabb = model.aabb
+                    angle = model.angle3d
+                    position = model.position3d
+                    count = model.vertex_count
 
-                obb @= angle
-                aabb @= angle
+                    obb = model.obb
+                    aabb = model.aabb
 
-                obb += position
-                aabb += position
+                    obb @= angle
+                    aabb @= angle
 
-                packed @= angle
-                packed[:count] += position
+                    obb += position
+                    aabb += position
 
-                packed = packed.reshape(-1)
+                    packed @= angle
+                    packed[:count] += position
 
-                vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
+                    packed = packed.reshape(-1)
 
-        material = _materials.Plastic(
-            _color.Color(0.6, 0.6, 0.8, 0.6))
+                    vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
 
-        _base3d.Base3D.__init__(
-            self, parent, db_obj, vbo, angle3d, position3d, scale3d, material)
+            material = _materials.Plastic(
+                _color.Color(0.6, 0.6, 0.8, 0.6))
 
-        self._selected_material = _materials.Plastic(
-            _color.Color(0.3, 0.8, 0.3, 1.0))
+            _base3d.Base3D.__init__(
+                self, parent, db_obj, vbo, angle3d, position3d, scale3d, material)
 
-        self._is_visible = True
-        self.editor3d.Refresh(False)
-        parent.dialog.mainframe.editor3d.context.release()
+            self._selected_material = _materials.Plastic(
+                _color.Color(0.3, 0.8, 0.3, 1.0))
+
+            self._is_visible = True
+            self.editor3d.Refresh(False)
 
     def _update_position(self, position: _point.Point):
         """Update the position.

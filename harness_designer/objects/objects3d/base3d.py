@@ -112,78 +112,75 @@ class Base3D(_objectsvar.BaseVar):
 
     @_debug.logfunc
     def _set_model(self, model: "_model3d.Model3D"):
-        self.parent.mainframe.editor3d.context.acquire()
+        with self.parent.mainframe.editor3d.context:
+            uuid = model.uuid
 
-        uuid = model.uuid
+            try:
+                # this checks the stored part size against the actual calculated
+                # size of the part using the models obb. This is done with the angle
+                # of the part set beforehand.
+                o_size = self.db_obj.part.size  # NOQA
+                size = model.size
+                if size != o_size:
+                    self.db_obj.part.size = size  # NOQA
+            except AttributeError:
+                pass
 
-        try:
-            # this checks the stored part size against the actual calculated
-            # size of the part using the models obb. This is done with the angle
-            # of the part set beforehand.
-            o_size = self.db_obj.part.size  # NOQA
-            size = model.size
-            if size != o_size:
-                self.db_obj.part.size = size  # NOQA
-        except AttributeError:
-            pass
+            if uuid in _vbo.PooledVBOHandler:
+                vbo = _vbo.PooledVBOHandler(uuid)
+            else:
+                packed = np.load(model.data_path).reshape(-1, 3)
 
-        if uuid in _vbo.PooledVBOHandler:
-            vbo = _vbo.PooledVBOHandler(uuid)
-        else:
-            packed = np.load(model.data_path).reshape(-1, 3)
+                angle = model.angle3d
+                position = model.position3d
+                count = model.vertex_count
 
-            angle = model.angle3d
-            position = model.position3d
-            count = model.vertex_count
+                obb = model.obb
+                aabb = model.aabb
 
-            obb = model.obb
-            aabb = model.aabb
+                obb @= angle
+                aabb @= angle
 
-            obb @= angle
-            aabb @= angle
+                obb += position
+                aabb += position
 
-            obb += position
-            aabb += position
+                packed @= angle
+                packed[:count] += position
 
-            packed @= angle
-            packed[:count] += position
+                packed = packed.reshape(-1)
 
-            packed = packed.reshape(-1)
+                vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
+            vbo.acquire()
 
-            vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
-        vbo.acquire()
+            self._vbo = vbo
+            try:
+                scale = self.db_obj.scale3d  # NOQA
+                self._scale.unbind(self._update_scale)
+                self._scale = scale
+                self._o_scale = self._scale.copy()
+                self._scale.bind(self._update_scale)
 
-        self._vbo = vbo
-        try:
-            scale = self.db_obj.scale3d  # NOQA
-            self._scale.unbind(self._update_scale)
-            self._scale = scale
-            self._o_scale = self._scale.copy()
-            self._scale.bind(self._update_scale)
+            except AttributeError:
+                pass
 
-        except AttributeError:
-            pass
+            self.position.unbind(self._update_position)
+            self.angle.unbind(self._update_angle)
 
-        self.position.unbind(self._update_position)
-        self.angle.unbind(self._update_angle)
+            self._compute_obb()
+            self._compute_aabb()
 
-        self._compute_obb()
-        self._compute_aabb()
+            if (
+                not self._floor_lock_exempt and
+                self.editor3d.config.floor.enable_floor_lock and
+                self._aabb[0][1] < Config.floor.ground_height
+            ):
+                y = _d(self.position.y)
+                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
 
-        if (
-            not self._floor_lock_exempt and
-            self.editor3d.config.floor.enable_floor_lock and
-            self._aabb[0][1] < Config.floor.ground_height
-        ):
-            y = _d(self.position.y)
-            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+                self.position.y = float(y)
 
-            self.position.y = float(y)
-
-        self.position.bind(self._update_position)
-        self.angle.bind(self._update_angle)
-
-        self.parent.mainframe.editor3d.context.release()
+            self.position.bind(self._update_position)
+            self.angle.bind(self._update_angle)
 
         self.editor3d.Refresh()
 
@@ -203,22 +200,20 @@ class Base3D(_objectsvar.BaseVar):
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
-            self.editor3d.context.acquire()
+            with self.editor3d.context:
+                y = _d(position.y)
+                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
 
-            y = _d(position.y)
-            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+                position.unbind(self._update_position)
+                position.y = float(y)
+                position.bind(self._update_position)
 
-            position.unbind(self._update_position)
-            position.y = float(y)
-            position.bind(self._update_position)
+                self._o_position = position.copy()
+                self.numpy_position[:] = position.as_numpy
 
-            self._o_position = position.copy()
-            self.numpy_position[:] = position.as_numpy
+                self._compute_obb()
+                self._compute_aabb()
 
-            self._compute_obb()
-            self._compute_aabb()
-
-            self.editor3d.context.release()
             self.editor3d.Refresh(False)
 
     def _update_angle(self, angle: _angle.Angle):
@@ -236,15 +231,13 @@ class Base3D(_objectsvar.BaseVar):
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
-            self.editor3d.context.acquire()
-            y = _d(self._position.y)
-            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+            with self.editor3d.context:
+                y = _d(self._position.y)
+                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
 
-            self._position.unbind(self._update_position)
-            self._position.y = float(y)
-            self._position.bind(self._update_position)
-
-            self.editor3d.context.release()
+                self._position.unbind(self._update_position)
+                self._position.y = float(y)
+                self._position.bind(self._update_position)
 
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
@@ -262,16 +255,13 @@ class Base3D(_objectsvar.BaseVar):
             self.editor3d.config.floor.enable_floor_lock and
             self._aabb[0][1] < Config.floor.ground_height
         ):
-            self.editor3d.context.acquire()
+            with self.editor3d.context:
+                y = _d(self._position.y)
+                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
 
-            y = _d(self._position.y)
-            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
-
-            self._position.unbind(self._update_position)
-            self._position.y = float(y)
-            self._position.bind(self._update_position)
-
-            self.editor3d.context.release()
+                self._position.unbind(self._update_position)
+                self._position.y = float(y)
+                self._position.bind(self._update_position)
 
     def delete(self):
         """Execute the delete operation.

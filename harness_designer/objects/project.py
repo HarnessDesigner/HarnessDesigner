@@ -158,24 +158,23 @@ class Project:
         uuid = model3d.uuid
         project_obj = self.mainframe.project_db.projects_table[self.project_id]
 
-        self.mainframe.editor3d.context.acquire()
-        if uuid in _vbo_handler.PooledVBOHandler:
-            vbo = _vbo_handler.PooledVBOHandler(uuid)
-        else:
-            v_count = model3d.vertex_count
-            obb = model3d.obb
-            aabb = model3d.aabb
-            data_path = model3d.data_path
-            packed = np.load(data_path)
+        with self.mainframe.editor3d.context:
+            if uuid in _vbo_handler.PooledVBOHandler:
+                vbo = _vbo_handler.PooledVBOHandler(uuid)
+            else:
+                v_count = model3d.vertex_count
+                obb = model3d.obb
+                aabb = model3d.aabb
+                data_path = model3d.data_path
+                packed = np.load(data_path)
 
-            angle = model3d.angle3d
-            packed @= angle
-            aabb @= angle
-            obb @= angle
+                angle = model3d.angle3d
+                packed @= angle
+                aabb @= angle
+                obb @= angle
 
-            vbo = _vbo_handler.PooledVBOHandler(uuid, packed, v_count, aabb, obb)
+                vbo = _vbo_handler.PooledVBOHandler(uuid, packed, v_count, aabb, obb)
 
-        self.mainframe.editor3d.context.release()
         self._model = _project_model.ProjectModel(self.mainframe, project_obj, vbo)
 
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project.Project", project_name: str, project_id: int):
@@ -271,12 +270,11 @@ class Project:
         # very first live drag/preview after loading would immediately
         # trigger a regrow. VBO creation requires an acquired GL context,
         # same as every other VBO-creating call site (e.g. Wire.__init__).
-        mainframe.editor3d.context.acquire()
-        # we have to store the VBO in a variable this way it doesn't get GC'd
-        # If we store it as a variable name that goes unusedCython may throw a
-        # a warning for it.
-        _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
-        mainframe.editor3d.context.release()
+        with mainframe.editor3d.context:
+            # we have to store the VBO in a variable this way it doesn't get GC'd
+            # If we store it as a variable name that goes unusedCython may throw a
+            # a warning for it.
+            _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
         def _load_objects(table_, label, obj_cls, ids_, container,
                           cur_count, max_count):

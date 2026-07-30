@@ -70,10 +70,9 @@ class WireLayout(_base2d.Base2D):
         diameter = Config.wire_layout.diameter
         scale = _point.Point(diameter, diameter, diameter)
 
-        parent.mainframe.editor2d.editor.context.acquire()
-        vbo = _sphere.create_vbo()
-        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
-        parent.mainframe.editor2d.editor.context.release()
+        with parent.mainframe.editor2d.editor.context:
+            vbo = _sphere.create_vbo()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
 
 class WireLayoutMenu(QMenu):

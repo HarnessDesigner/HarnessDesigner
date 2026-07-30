@@ -30,18 +30,16 @@ class ProjectModel(_base3d.Base3D):
     db_obj: "_project.Project" = None
 
     def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project", vbo):
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            color = db_obj.color.ui
+            scale = _point.Point(10.0, 10.0, 10.0)
+            position = _point.Point(0.0, 0.0, 0.0)
+            material = _materials.Plastic(color)
+            angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
-        color = db_obj.color.ui
-        scale = _point.Point(10.0, 10.0, 10.0)
-        position = _point.Point(0.0, 0.0, 0.0)
-        material = _materials.Plastic(color)
-        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+            _base3d.Base3D.__init__(
+                self, parent, db_obj, vbo, angle, position, scale, material)
 
-        _base3d.Base3D.__init__(
-            self, parent, db_obj, vbo, angle, position, scale, material)
-
-        parent.mainframe.editor3d.context.release()
         self._is_visible = True
         self.mainframe.editor3d.Refresh()
 

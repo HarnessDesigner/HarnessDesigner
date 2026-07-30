@@ -58,23 +58,20 @@ class Terminal(_basepeg.BasePeg):
         # cylinder (matching the catalog part's own round_terminal flag),
         # scaled to obj3d's own already-computed width/height/length Scale
         # point -- never vbo=None (see housing.py's own comment on this).
-        parent.mainframe.editor_pegboard.context.acquire()
+        with parent.mainframe.editor_pegboard.context:
+            if self._part.round_terminal:
+                vbo = _cylinder.create_vbo()
+            else:
+                vbo = _box.create_vbo()
 
-        if self._part.round_terminal:
-            vbo = _cylinder.create_vbo()
-        else:
-            vbo = _box.create_vbo()
-
-        _basepeg.BasePeg.__init__(
-            self, parent, db_obj,
-            vbo=vbo,
-            angle=db_obj.anglepeg,
-            position=db_obj.position_peg,
-            scale=obj3d.scale,
-            material=obj3d.material,
-        )
-
-        parent.mainframe.editor_pegboard.context.release()
+            _basepeg.BasePeg.__init__(
+                self, parent, db_obj,
+                vbo=vbo,
+                angle=db_obj.anglepeg,
+                position=db_obj.position_peg,
+                scale=obj3d.scale,
+                material=obj3d.material,
+            )
 
         self.smooth = getattr(obj3d, 'smooth', False)
 

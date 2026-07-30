@@ -47,56 +47,54 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         :type db_obj: :class:`_pjt_bundle.PJTBundle`
         """
 
-        parent.mainframe.editor3d.context.acquire()
-        self._part = db_obj.part
+        with parent.mainframe.editor3d.context:
+            self._part = db_obj.part
 
-        layers = db_obj.concentric.layers
-        if layers:
-            self._diameter = layers[-1].diameter
-        else:
-            self._diameter = self._part.min_dia
+            layers = db_obj.concentric.layers
+            if layers:
+                self._diameter = layers[-1].diameter
+            else:
+                self._diameter = self._part.min_dia
 
-        color = self._part.color.ui
-        material = _materials.Rubber(color)
+            color = self._part.color.ui
+            material = _materials.Rubber(color)
 
-        start_layout = db_obj.start_layout
-        stop_layout = db_obj.stop_layout
+            start_layout = db_obj.start_layout
+            stop_layout = db_obj.stop_layout
 
-        self._is_start_clickable = start_layout is None
-        self._is_stop_clickable = stop_layout is None
+            self._is_start_clickable = start_layout is None
+            self._is_stop_clickable = stop_layout is None
 
-        self._p1 = db_obj.start_position3d
-        self._p2 = db_obj.stop_position3d
+            self._p1 = db_obj.start_position3d
+            self._p2 = db_obj.stop_position3d
 
-        # Live Point objects for every interior waypoint (idx order), kept
-        # in sync with the DB via refresh_waypoints() -- called by whichever
-        # handler adds/removes/reorders this bundle's own waypoints
-        # (handlers.bundle_layout_handler, handlers.bundle_topology).
-        self._waypoint_points: list[_point.Point] = []
+            # Live Point objects for every interior waypoint (idx order), kept
+            # in sync with the DB via refresh_waypoints() -- called by whichever
+            # handler adds/removes/reorders this bundle's own waypoints
+            # (handlers.bundle_layout_handler, handlers.bundle_topology).
+            self._waypoint_points: list[_point.Point] = []
 
-        position = self._p1
-        angle = _angle.Angle()
-        scale = _point.Point(self._diameter, self._diameter, 0.0)
-        vbo = _cylinder.create_vbo()
+            position = self._p1
+            angle = _angle.Angle()
+            scale = _point.Point(self._diameter, self._diameter, 0.0)
+            vbo = _cylinder.create_vbo()
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
-        # Track wires grouped inside this bundle using weak references --
-        # unrelated to the waypoint/sibling-graph work above; see
-        # objects.bundle.Bundle.set_sibling for this bundle's own trunk-end
-        # sibling (a Transition), which is a separate mechanism entirely.
-        self._wires = []  # List of weak references to Wire objects
+            # Track wires grouped inside this bundle using weak references --
+            # unrelated to the waypoint/sibling-graph work above; see
+            # objects.bundle.Bundle.set_sibling for this bundle's own trunk-end
+            # sibling (a Transition), which is a separate mechanism entirely.
+            self._wires = []  # List of weak references to Wire objects
 
-        self._p2.bind(self._update_position)
+            self._p2.bind(self._update_position)
 
-        # self.db_obj is only valid from here on (set by Base3D.__init__
-        # above) -- this is the first point waypoints3d/for_bundle can be
-        # queried, so the initial waypoint bind and the real (possibly
-        # multi-segment) geometry recompute both happen here, not earlier.
-        self._bind_waypoints()
-        self._recalculate_geometry()
-
-        parent.mainframe.editor3d.context.release()
+            # self.db_obj is only valid from here on (set by Base3D.__init__
+            # above) -- this is the first point waypoints3d/for_bundle can be
+            # queried, so the initial waypoint bind and the real (possibly
+            # multi-segment) geometry recompute both happen here, not earlier.
+            self._bind_waypoints()
+            self._recalculate_geometry()
 
     @property
     def diameter(self) -> float:

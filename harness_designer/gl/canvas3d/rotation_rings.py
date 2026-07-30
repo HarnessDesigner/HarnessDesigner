@@ -386,19 +386,16 @@ class Rings3D(_base3d.Base3D):
         # object (and write it to the database)
         self._floor_guard = True
 
-        mainframe.editor3d.context.acquire()
+        with mainframe.editor3d.context:
+            self._ring_buf = _vbo.NonPooledVBOHandler(ring_packed, ring_count)
+            self._ring_buf.acquire()
 
-        self._ring_buf = _vbo.NonPooledVBOHandler(ring_packed, ring_count)
-        self._ring_buf.acquire()
+            self._handle_buf = _vbo.NonPooledVBOHandler(handle_packed, handle_count)
+            self._handle_buf.acquire()
 
-        self._handle_buf = _vbo.NonPooledVBOHandler(handle_packed, handle_count)
-        self._handle_buf.acquire()
-
-        # vbo=None: Rings3D overrides render()/_compute_aabb()/_compute_obb()
-        _base3d.Base3D.__init__(self, parent, None, None,
-                                angle, obj3d.position, scale, material)
-
-        mainframe.editor3d.context.release()
+            # vbo=None: Rings3D overrides render()/_compute_aabb()/_compute_obb()
+            _base3d.Base3D.__init__(self, parent, None, None,
+                                    angle, obj3d.position, scale, material)
 
         self._floor_guard = False
         self._is_visible = True

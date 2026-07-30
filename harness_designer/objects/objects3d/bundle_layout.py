@@ -46,28 +46,26 @@ class BundleLayout(_base3d.Base3D):
         :type db_obj: :class:`_pjt_bundle_layout.PJTBundleLayout`
         """
 
-        parent.mainframe.editor3d.context.acquire()
-        bundles = db_obj.attached_bundles
+        with parent.mainframe.editor3d.context:
+            bundles = db_obj.attached_bundles
 
-        if bundles:
-            bundle = bundles[-1]
-            layers = bundle.concentric.layers
-            self._diameter = layers[-1].diameter
-            color = bundle.part.color.ui
-        else:
-            self._diameter = db_obj.diameter
-            color = _color.Color(0.5, 0.5, 0.5, 1.0)
+            if bundles:
+                bundle = bundles[-1]
+                layers = bundle.concentric.layers
+                self._diameter = layers[-1].diameter
+                color = bundle.part.color.ui
+            else:
+                self._diameter = db_obj.diameter
+                color = _color.Color(0.5, 0.5, 0.5, 1.0)
 
-        material = _materials.Rubber(color)
+            material = _materials.Rubber(color)
 
-        scale = _point.Point(self._diameter, self._diameter, self._diameter)
-        vbo = _sphere.create_vbo()
-        angle = _angle.Angle()
-        position = db_obj.position3d
+            scale = _point.Point(self._diameter, self._diameter, self._diameter)
+            vbo = _sphere.create_vbo()
+            angle = _angle.Angle()
+            position = db_obj.position3d
 
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
-
-        parent.mainframe.editor3d.context.release()
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
     def set_diameter(self, value: float):
         """Set this layout's own displayed diameter to match whatever

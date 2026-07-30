@@ -152,48 +152,45 @@ class PartModel3D(_base3d.Base3D):
     def __init__(self, parent: PartModel, model_db: "_Model3D"):
         self.db_obj = model_db
 
-        parent.dialog.context.acquire()
-
-        uuid = model_db.uuid
-        if uuid in _vbo.PooledVBOHandler:
-            vbo = _vbo.PooledVBOHandler(uuid)
-        else:
-            data_path = model_db.data_path
-            if data_path is not None:
-                packed = np.load(model_db.data_path).reshape(-1, 3)
-
-                angle = model_db.angle3d
-                position = model_db.position3d
-                count = model_db.vertex_count
-
-                obb = model_db.obb
-                aabb = model_db.aabb
-
-                obb @= angle
-                aabb @= angle
-
-                obb += position
-                aabb += position
-
-                packed @= angle
-                packed[:count] += position
-
-                packed = packed.reshape(-1)
-
-                vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
+        with parent.dialog.context:
+            uuid = model_db.uuid
+            if uuid in _vbo.PooledVBOHandler:
+                vbo = _vbo.PooledVBOHandler(uuid)
             else:
-                vbo = None
+                data_path = model_db.data_path
+                if data_path is not None:
+                    packed = np.load(model_db.data_path).reshape(-1, 3)
 
-        # Working copies — not bound to DB until accept()
-        angle = model_db.angle3d
-        pos = model_db.position3d
-        scale = model_db.scale
-        material = _materials.Plastic(_color.Color(0.6, 0.6, 0.8, 1.0))
+                    angle = model_db.angle3d
+                    position = model_db.position3d
+                    count = model_db.vertex_count
 
-        _base3d.Base3D.__init__(self, parent, model_db, vbo, angle, pos, scale, material)
-        self._is_visible = True
+                    obb = model_db.obb
+                    aabb = model_db.aabb
 
-        parent.dialog.context.release()
+                    obb @= angle
+                    aabb @= angle
+
+                    obb += position
+                    aabb += position
+
+                    packed @= angle
+                    packed[:count] += position
+
+                    packed = packed.reshape(-1)
+
+                    vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
+                else:
+                    vbo = None
+
+            # Working copies — not bound to DB until accept()
+            angle = model_db.angle3d
+            pos = model_db.position3d
+            scale = model_db.scale
+            material = _materials.Plastic(_color.Color(0.6, 0.6, 0.8, 1.0))
+
+            _base3d.Base3D.__init__(self, parent, model_db, vbo, angle, pos, scale, material)
+            self._is_visible = True
 
     def set_selected(self, flag):
         pass
@@ -230,24 +227,21 @@ class AxisLabel3D(_base3d.Base3D):
                  position: _point.Point, angle: _angle.Angle):
         self.db_obj = None
 
-        parent.dialog.context.acquire()
+        with parent.dialog.context:
+            model = build123d.Text(
+                text, font_size=8.0,
+                text_align=[build123d.TextAlign.CENTER, build123d.TextAlign.CENTER])
 
-        model = build123d.Text(
-            text, font_size=8.0,
-            text_align=[build123d.TextAlign.CENTER, build123d.TextAlign.CENTER])
+            model = build123d.extrude(model, 0.5)
+            vertices, faces = _utils.convert_model_to_mesh(model)
+            packed, count = _utils.compute_normals(vertices, faces)
+            vbo = _vbo.NonPooledVBOHandler(packed, count)
 
-        model = build123d.extrude(model, 0.5)
-        vertices, faces = _utils.convert_model_to_mesh(model)
-        packed, count = _utils.compute_normals(vertices, faces)
-        vbo = _vbo.NonPooledVBOHandler(packed, count)
+            scale = _point.Point(1.0, 1.0, 1.0)
+            material = _materials.Plastic(_color.Color(1.0, 0.85, 0.0, 1.0))
 
-        scale = _point.Point(1.0, 1.0, 1.0)
-        material = _materials.Plastic(_color.Color(1.0, 0.85, 0.0, 1.0))
-
-        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
-        self._is_visible = True
-
-        parent.dialog.context.release()
+            _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
+            self._is_visible = True
 
     def set_selected(self, flag):
         pass
@@ -362,43 +356,42 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self.canvas.update()
 
         self._model_db = model_db
-        self._mainframe.editor3d.context.acquire()
-        self._part_model = PartModel(self, model_db)
+        with self._mainframe.editor3d.context:
+            self._part_model = PartModel(self, model_db)
 
-        self.o_angle = self._model_db.angle3d.copy()
-        self.o_position = self._model_db.position3d.copy()
+            self.o_angle = self._model_db.angle3d.copy()
+            self.o_position = self._model_db.position3d.copy()
 
-        # Point the ctrl at the working position so slider changes go to the
-        # 3D model directly; the DB write happens only on accept().
-        working_pos = self._part_model.obj3d.position
-        self.position_ctrl.set_obj(working_pos)
+            # Point the ctrl at the working position so slider changes go to the
+            # 3D model directly; the DB write happens only on accept().
+            working_pos = self._part_model.obj3d.position
+            self.position_ctrl.set_obj(working_pos)
 
-        # Compute label placement from model AABB
-        aabb = self._part_model.obj3d.aabb
-        if aabb is not None:
-            cx = float((aabb[0][0] + aabb[1][0]) / 2)
-            cy = float((aabb[0][1] + aabb[1][1]) / 2)
-            cz = float((aabb[0][2] + aabb[1][2]) / 2)
-            ext = max(
-                abs(float(aabb[1][0]) - float(aabb[0][0])),
-                abs(float(aabb[1][1]) - float(aabb[0][1])),
-                abs(float(aabb[1][2]) - float(aabb[0][2])),
-            )
-            dist = ext * 0.7 + 5.0
-        else:
-            cx = cy = cz = 0.0
-            dist = 15.0
+            # Compute label placement from model AABB
+            aabb = self._part_model.obj3d.aabb
+            if aabb is not None:
+                cx = float((aabb[0][0] + aabb[1][0]) / 2)
+                cy = float((aabb[0][1] + aabb[1][1]) / 2)
+                cz = float((aabb[0][2] + aabb[1][2]) / 2)
+                ext = max(
+                    abs(float(aabb[1][0]) - float(aabb[0][0])),
+                    abs(float(aabb[1][1]) - float(aabb[0][1])),
+                    abs(float(aabb[1][2]) - float(aabb[0][2])),
+                )
+                dist = ext * 0.7 + 5.0
+            else:
+                cx = cy = cz = 0.0
+                dist = 15.0
 
-        fwd_pos = _point.Point(cx, cy, cz + dist)
-        fwd_angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
-        AxisLabel(self, 'FORWARD', fwd_pos, fwd_angle)
+            fwd_pos = _point.Point(cx, cy, cz + dist)
+            fwd_angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+            AxisLabel(self, 'FORWARD', fwd_pos, fwd_angle)
 
-        # TOP label at +Y: text in XY plane, rotate -90° around X to face +Y
-        top_pos = _point.Point(cx, cy + dist, cz)
-        top_angle = _angle.Angle.from_euler(-90.0, 0.0, 0.0)
-        AxisLabel(self, 'TOP', top_pos, top_angle)
+            # TOP label at +Y: text in XY plane, rotate -90° around X to face +Y
+            top_pos = _point.Point(cx, cy + dist, cz)
+            top_angle = _angle.Angle.from_euler(-90.0, 0.0, 0.0)
+            AxisLabel(self, 'TOP', top_pos, top_angle)
 
-        self._mainframe.editor3d.context.release()
         self._update_forward_up()
 
     def _on_rotate_left(self):

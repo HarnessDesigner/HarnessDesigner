@@ -60,10 +60,9 @@ class Splice(_base2d.Base2D):
         scale = _point.Point(diameter, diameter, diameter)
         material = _materials.Generic(_color.Color(*Config.colors.splice))
 
-        parent.mainframe.editor2d.editor.context.acquire()
-        vbo = _sphere.create_vbo()
-        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
-        parent.mainframe.editor2d.editor.context.release()
+        with parent.mainframe.editor2d.editor.context:
+            vbo = _sphere.create_vbo()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
 
 class SpliceMenu(QMenu):

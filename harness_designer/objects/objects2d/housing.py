@@ -86,19 +86,17 @@ class Housing(_base2d.Base2D):
         # text VBO _recompute() builds, and Base2D.__init__'s own
         # vbo.acquire()) needs a current context -- acquired once here and
         # held for all of it.
-        parent.mainframe.editor2d.editor.context.acquire()
-        vbo = _rectangle.create_vbo()
+        with parent.mainframe.editor2d.editor.context:
+            vbo = _rectangle.create_vbo()
 
-        # self._position/._angle don't exist until Base2D.__init__ (below)
-        # runs, so _recompute takes this housing's own position/angle
-        # explicitly rather than reading self -- see _layout_children.
-        cavity_extent, text_extent = self._recompute(db_obj, position, angle)
+            # self._position/._angle don't exist until Base2D.__init__ (below)
+            # runs, so _recompute takes this housing's own position/angle
+            # explicitly rather than reading self -- see _layout_children.
+            cavity_extent, text_extent = self._recompute(db_obj, position, angle)
 
-        scale = _point.Point(text_extent, 1.0, cavity_extent)
+            scale = _point.Point(text_extent, 1.0, cavity_extent)
 
-        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
-
-        parent.mainframe.editor2d.editor.context.release()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
     def _recompute(self, db_obj, position: _point.Point, angle: _angle.Angle
                    ) -> tuple[float, float]:
@@ -178,16 +176,13 @@ class Housing(_base2d.Base2D):
         gains/loses its terminal, so the schematic never needs a manual
         refresh to pick those up.
         """
-        self.editor2d.editor.context.acquire()
-        try:
+        with self.editor2d.editor.context:
             cavity_extent, text_extent = self._recompute(
                 self.db_obj, self._position, self._angle)
 
             with self._scale:
                 self._scale.x = text_extent
                 self._scale.z = cavity_extent
-        finally:
-            self.editor2d.editor.context.release()
 
         self.editor2d.Refresh()
 

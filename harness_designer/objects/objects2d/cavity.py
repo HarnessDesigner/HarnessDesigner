@@ -67,10 +67,9 @@ class Cavity(_base2d.Base2D):
         scale = _point.Point(1.0, 1.0, 1.0)
         material = _materials.Generic(_color.Color(*Config.colors.label))
 
-        parent.mainframe.editor2d.editor.context.acquire()
-        vbo, _width, _height = self._build()
-        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
-        parent.mainframe.editor2d.editor.context.release()
+        with parent.mainframe.editor2d.editor.context:
+            vbo, _width, _height = self._build()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         self._housing = None  # Reference to parent housing
 
@@ -96,15 +95,12 @@ class Cavity(_base2d.Base2D):
         see ``BaseVar._compute_obb``/``_compute_aabb``). Bound to fire
         whenever this cavity's own name changes.
         """
-        self.editor2d.editor.context.acquire()
-        try:
+        with self.editor2d.editor.context:
             vertices, faces, _width, _height = _text.create(**self._mesh_args())
             packed, count = _utils.compute_normals(vertices, faces)
             self._vbo.update(packed, count)
             self._compute_obb()
             self._compute_aabb()
-        finally:
-            self.editor2d.editor.context.release()
 
         self.editor2d.Refresh()
 

@@ -273,14 +273,22 @@ class AddSealHandler(_handler_base.HandlerBase):
                 part_id, name, pos_id, self._housing.db_obj.db_id, None, None)
 
         elif self._terminal is not None:
-            # Mode 2: SWS on terminal – instant at cavity midpoint.
-            pjt_cavity = self._terminal.db_obj.cavity
-            if pjt_cavity is not None:
-                tx, ty, tz = self._cavity_midpoint(pjt_cavity)
-            else:
-                tx, ty, tz = self._terminal.db_obj.position3d.as_float
-
-            p3d = self.ptables.pjt_points3d_table.insert(tx, ty, tz)
+            # Mode 2: SWS on terminal -- instant, centered on the
+            # terminal's own back point. Unlike Mode 1a's housing-slot
+            # seal (which really does belong to the housing and shares
+            # its point row), a wire seal must stay independently
+            # user-positionable -- sharing/attaching to the terminal's
+            # own wire_point3d_id row was tried and caused the seal to
+            # fly off during a housing move/rotate (PJTHousing.
+            # _update_position3d/_update_angle3d's batch transform isn't
+            # built to expect a foreign point silently riding along with
+            # the terminal's own tracked points; see the housing-cascade
+            # fix below that adds the seal's point explicitly instead).
+            # So: a fresh, independent point, just seeded at the
+            # terminal's current back-point coordinates.
+            wire_pos = self._terminal.db_obj.wire_position3d
+            p3d = self.ptables.pjt_points3d_table.insert(
+                float(wire_pos.x), float(wire_pos.y), float(wire_pos.z))
 
             db_obj = self.ptables.pjt_seals_table.insert(
                 part_id, name, p3d.db_id, None, self._terminal.db_obj.db_id, None)
@@ -391,12 +399,10 @@ class AddSealHandler(_handler_base.HandlerBase):
             if isinstance(target, _housing.Housing):
                 positions.append(target.db_obj.seal_position3d)
             elif isinstance(target, _terminal.Terminal):
-                pjt_cav = target.db_obj.cavity
-                if pjt_cav is not None:
-                    x, y, z = self._cavity_midpoint(pjt_cav)
-                    positions.append(_point.Point(x, y, z))
-                else:
-                    positions.append(target.db_obj.position3d)
+                # The terminal's own back point, same as Mode 2 in
+                # set_part() -- centers the seal there, not the cavity's
+                # own midpoint.
+                positions.append(target.db_obj.wire_position3d)
 
             else:  # Cavity
                 pjt_cav = target.db_obj
@@ -448,15 +454,14 @@ class AddSealHandler(_handler_base.HandlerBase):
                     self.set_angle_from_housing(self.obj, snapped)
 
             elif isinstance(snapped, _terminal.Terminal):
+                # The terminal's own back point, same as Mode 2 in
+                # set_part() -- not the cavity's own midpoint.
+                point = snapped.db_obj.wire_position3d
                 pjt_cav = snapped.db_obj.cavity
-                if pjt_cav is not None:
-                    x, y, z = self._cavity_midpoint(pjt_cav)
-                    point = _point.Point(x, y, z)
-                    if prev_snapped is not snapped:
+                if prev_snapped is not snapped:
+                    if pjt_cav is not None:
                         self.set_angle_from_cavity(self.obj, pjt_cav)
-                else:
-                    point = snapped.db_obj.position3d
-                    if prev_snapped is not snapped:
+                    else:
                         self.reset_angle(self.obj)
 
             else:  # Cavity
@@ -517,6 +522,15 @@ class AddSealHandler(_handler_base.HandlerBase):
                 for t in self.mainframe.project.terminals:
                     t.identify(None)
 
+                # Deliberately NOT attached/merged to the terminal's own
+                # wire_position3d point (unlike the housing-slot case
+                # above) -- a wire seal must stay independently
+                # user-positionable, and merging was tried and caused the
+                # seal to fly off during a housing move/rotate. The
+                # preview's own independent point (already tracking the
+                # terminal via hover()) is left as-is; see the housing
+                # cascade fix that keeps it correctly moving with the
+                # terminal without merging the two points.
                 pjt_cav = self._snapped.db_obj.cavity
                 if pjt_cav is not None:
                     self.set_angle_from_cavity(self.obj, pjt_cav)

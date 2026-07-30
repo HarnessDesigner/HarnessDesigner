@@ -200,39 +200,36 @@ class BasePeg(_objectsvar.BaseVar):
         :param model: The now-loaded model.
         :type model: :class:`_model3d.Model3D`
         """
-        self.pegboard.context.acquire()
+        with self.pegboard.context:
+            uuid = model.uuid
 
-        uuid = model.uuid
+            if uuid in _vbo.PooledVBOHandler:
+                vbo = _vbo.PooledVBOHandler(uuid)
+            else:
+                vbo = _vbo.create_model_vbo(model)
 
-        if uuid in _vbo.PooledVBOHandler:
-            vbo = _vbo.PooledVBOHandler(uuid)
-        else:
-            vbo = _vbo.create_model_vbo(model)
+            vbo.acquire()
 
-        vbo.acquire()
+            self._vbo = vbo
 
-        self._vbo = vbo
+            # Mirrors Base3D._set_model exactly: once the real mesh is in,
+            # swap the placeholder-derived scale (width/height/length, or
+            # diameter/length -- whatever the real subclass's __init__ built
+            # it from) for the row's own live, DB-backed scale3d, if it has
+            # one (Housing/Splice/Terminal all do, via Scale3DMixin). Without
+            # this, the peg board would keep rendering at the placeholder's
+            # frozen scale forever, never picking up scale3d or its live edits.
+            try:
+                scale = self.db_obj.scale3d  # NOQA
+                self._scale.unbind(self._update_scale)
+                self._scale = scale
+                self._o_scale = self._scale.copy()
+                self._scale.bind(self._update_scale)
+            except AttributeError:
+                pass
 
-        # Mirrors Base3D._set_model exactly: once the real mesh is in,
-        # swap the placeholder-derived scale (width/height/length, or
-        # diameter/length -- whatever the real subclass's __init__ built
-        # it from) for the row's own live, DB-backed scale3d, if it has
-        # one (Housing/Splice/Terminal all do, via Scale3DMixin). Without
-        # this, the peg board would keep rendering at the placeholder's
-        # frozen scale forever, never picking up scale3d or its live edits.
-        try:
-            scale = self.db_obj.scale3d  # NOQA
-            self._scale.unbind(self._update_scale)
-            self._scale = scale
-            self._o_scale = self._scale.copy()
-            self._scale.bind(self._update_scale)
-        except AttributeError:
-            pass
-
-        self._compute_obb()
-        self._compute_aabb()
-
-        self.pegboard.context.release()
+            self._compute_obb()
+            self._compute_aabb()
 
         flatten_hook = getattr(self, '_flatten_hook', None)
         if flatten_hook is not None:

@@ -54,10 +54,9 @@ class Note(_base3d.Base3D):
         # keys its own PooledVBOHandler (see Base3D._set_model).
         self._text_uuid = str(_uuid_module.uuid4())
 
-        parent.mainframe.editor3d.context.acquire()
-        vbo, _width, _height = self._build()
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
-        parent.mainframe.editor3d.context.release()
+        with parent.mainframe.editor3d.context:
+            vbo, _width, _height = self._build()
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
     def _mesh_args(self) -> dict:
         """Current ``shapes.text.create``/``create_vbo`` args, from this
@@ -94,34 +93,30 @@ class Note(_base3d.Base3D):
     def set_size(self, size):
         self.db_obj.size3d = size
 
-        self.editor3d.context.acquire()
-        self._rebuild()
-        self.editor3d.context.release()
+        with self.editor3d.context:
+            self._rebuild()
         self.editor3d.Refresh()
 
     def set_style(self, style):
         self.db_obj.style3d = style
 
-        self.editor3d.context.acquire()
-        self._rebuild()
-        self.editor3d.context.release()
+        with self.editor3d.context:
+            self._rebuild()
         self.editor3d.Refresh()
 
     def set_alignment(self, alignment):
         self.db_obj.h_align3d = alignment
 
-        self.editor3d.context.acquire()
-        self._rebuild()
-        self.editor3d.context.release()
+        with self.editor3d.context:
+            self._rebuild()
         self.editor3d.Refresh()
 
     def set_text(self, text: str):
         """Set the note text and rebuild the 3d geometry."""
         self.db_obj.notes = text
 
-        self.editor3d.context.acquire()
-        self._rebuild()
-        self.editor3d.context.release()
+        with self.editor3d.context:
+            self._rebuild()
         self.editor3d.Refresh()
 
     def get_context_menu(self):

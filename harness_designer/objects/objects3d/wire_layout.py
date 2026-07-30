@@ -47,26 +47,24 @@ class WireLayout(_base3d.Base3D):
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
 
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._bundle_layout_point_id = None
 
-        self._bundle_layout_point_id = None
+            wires = db_obj.attached_wires
+            if wires:
+                diameter = wires[0].part.od_mm
+                color = wires[0].part.color.ui
+            else:
+                diameter = 3.0
+                color = _color.Color(0.5, 0.5, 0.5, 1.0)
 
-        wires = db_obj.attached_wires
-        if wires:
-            diameter = wires[0].part.od_mm
-            color = wires[0].part.color.ui
-        else:
-            diameter = 3.0
-            color = _color.Color(0.5, 0.5, 0.5, 1.0)
+            material = _materials.Plastic(color)
 
-        material = _materials.Plastic(color)
-
-        scale = _point.Point(diameter, diameter, diameter)
-        vbo = _sphere.create_vbo()
-        angle = _angle.Angle()
-        position = db_obj.position3d
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
-        parent.mainframe.editor3d.context.release()
+            scale = _point.Point(diameter, diameter, diameter)
+            vbo = _sphere.create_vbo()
+            angle = _angle.Angle()
+            position = db_obj.position3d
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
     @property
     def wire_position(self) -> _point.Point:

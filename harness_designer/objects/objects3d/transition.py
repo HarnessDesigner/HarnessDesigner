@@ -249,12 +249,11 @@ class Transition(_base3d.Base3D):
 
         scale = _point.Point(1.0, 1.0, 1.0)
 
-        parent.mainframe.editor3d.context.acquire()
-        packed, count = _utils.compute_normals(self._vertices, self._faces)
-        vbo = _vbo.NonPooledVBOHandler(packed, count)
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
-                                scale, material)
-        parent.mainframe.editor3d.context.release()
+        with parent.mainframe.editor3d.context:
+            packed, count = _utils.compute_normals(self._vertices, self._faces)
+            vbo = _vbo.NonPooledVBOHandler(packed, count)
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
+                                    scale, material)
 
     def build(self):
         """Execute the build operation.
@@ -278,10 +277,9 @@ class Transition(_base3d.Base3D):
 
         self._vertices, self._faces = _utils.convert_model_to_mesh(self._model)
 
-        self.editor3d.context.acquire()
-        packed, count = _utils.compute_normals(self._vertices, self._faces)
-        self._vbo.update(packed, count)
-        self.editor3d.context.release()
+        with self.editor3d.context:
+            packed, count = _utils.compute_normals(self._vertices, self._faces)
+            self._vbo.update(packed, count)
         self.editor3d.update()
 
     def _update_angle(self, angle: _angle.Angle):
@@ -366,20 +364,18 @@ class Branch(_base3d.Base3D):
         :type position: :class:`_point.Point`
         """
 
-        parent.mainframe.editor3d.context.acquire()
+        with parent.mainframe.editor3d.context:
+            self._diameter = diameter
 
-        self._diameter = diameter
+            vbo = _sphere.create_vbo()
+            scale = _point.Point(diameter, diameter, diameter)
+            angle = _angle.Angle()
 
-        vbo = _sphere.create_vbo()
-        scale = _point.Point(diameter, diameter, diameter)
-        angle = _angle.Angle()
+            color = _color.Color(1.0, 0.3, 0.3, 1.0)
+            material = _materials.Rubber(color)
 
-        color = _color.Color(1.0, 0.3, 0.3, 1.0)
-        material = _materials.Rubber(color)
-
-        _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position,
-                                scale, material)
-        parent.mainframe.editor3d.context.release()
+            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position,
+                                    scale, material)
 
         color = _color.Color(0.3, 1.0, 0.3, 1.0)
         self._selected_material = _materials.Rubber(color)

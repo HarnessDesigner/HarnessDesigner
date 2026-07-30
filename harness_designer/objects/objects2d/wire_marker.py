@@ -63,63 +63,61 @@ class WireMarker(_base2d.Base2D):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire_marker.PJTWireMarker`
         """
-        parent.mainframe.editor2d.editor.context.acquire()
+        with parent.mainframe.editor2d.editor.context:
 
-        self._part = db_obj.part
-        position = db_obj.position2d
-        wire = db_obj.wire
-        wire_p1 = wire.start_position2d
-        wire_p2 = wire.stop_position2d
+            self._part = db_obj.part
+            position = db_obj.position2d
+            wire = db_obj.wire
+            wire_p1 = wire.start_position2d
+            wire_p2 = wire.stop_position2d
 
-        # self._position is the marker's CENTER, and the marker itself
-        # spans self._marker_length along the wire, so its center can
-        # never come closer to either endpoint than half that length --
-        # otherwise it hangs off the end of a short enough wire. _buffer
-        # adds a further 3mm of clearance on top of that half-length.
-        self._marker_length = 5.0
-        self._buffer = self._marker_length / 2.0 + 3.0
+            # self._position is the marker's CENTER, and the marker itself
+            # spans self._marker_length along the wire, so its center can
+            # never come closer to either endpoint than half that length --
+            # otherwise it hangs off the end of a short enough wire. _buffer
+            # adds a further 3mm of clearance on top of that half-length.
+            self._marker_length = 5.0
+            self._buffer = self._marker_length / 2.0 + 3.0
 
-        line = _line.Line(wire_p2, wire_p1)
-        self._percent = 0.5
+            line = _line.Line(wire_p2, wire_p1)
+            self._percent = 0.5
 
-        if not self._wire_too_short(line.length()):
-            self._percent = self._percent_for_point(line, position)
+            if not self._wire_too_short(line.length()):
+                self._percent = self._percent_for_point(line, position)
 
-            # _percent_for_point already clamps to the buffered range --
-            # snap the DB-backed position to match so a marker placed
-            # (via click, midpoint fallback, etc.) too close to an end
-            # starts buffered instead of only snapping in on the next
-            # wire move.
-            buffered = self._point_for_percent(line, self._percent)
-            delta = buffered - position
-            with position:
-                position += delta
+                # _percent_for_point already clamps to the buffered range --
+                # snap the DB-backed position to match so a marker placed
+                # (via click, midpoint fallback, etc.) too close to an end
+                # starts buffered instead of only snapping in on the next
+                # wire move.
+                buffered = self._point_for_percent(line, self._percent)
+                delta = buffered - position
+                with position:
+                    position += delta
 
-        material = _materials.Generic(self._part.color.ui)
+            material = _materials.Generic(self._part.color.ui)
 
-        diameter = Config.wire.diameter
-        length = self._marker_length
+            diameter = Config.wire.diameter
+            length = self._marker_length
 
-        if wire.has_stripe:
-            scale = _point.Point(diameter + 0.22, diameter + 0.22, length)
-        else:
-            scale = _point.Point(diameter + 0.05, diameter + 0.05, length)
+            if wire.has_stripe:
+                scale = _point.Point(diameter + 0.22, diameter + 0.22, length)
+            else:
+                scale = _point.Point(diameter + 0.05, diameter + 0.05, length)
 
-        vbo = _cylinder.create_vbo()
+            vbo = _cylinder.create_vbo()
 
-        dx = wire_p2.x - wire_p1.x
-        dz = wire_p2.z - wire_p1.z
-        angle = _angle.Angle.from_euler(0.0, math.degrees(math.atan2(dx, dz)), 0.0)
+            dx = wire_p2.x - wire_p1.x
+            dz = wire_p2.z - wire_p1.z
+            angle = _angle.Angle.from_euler(0.0, math.degrees(math.atan2(dx, dz)), 0.0)
 
-        self._p1 = wire_p1
-        self._p2 = wire_p2
+            self._p1 = wire_p1
+            self._p2 = wire_p2
 
-        wire_p1.bind(self._update_position)
-        wire_p2.bind(self._update_position)
+            wire_p1.bind(self._update_position)
+            wire_p2.bind(self._update_position)
 
-        super().__init__(parent, db_obj, vbo, angle, position, scale, material)
-
-        parent.mainframe.editor2d.editor.context.release()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
     def _wire_too_short(self, length: float) -> bool:
         """Return whether ``length`` is too short to fit this marker plus
