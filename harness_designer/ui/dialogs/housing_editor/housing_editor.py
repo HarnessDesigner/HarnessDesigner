@@ -79,11 +79,11 @@ class PlaneTreePanel(QtWidgets.QWidget):
     """
 
     # (group_idx, surf_local_idx)  –  surf_local_idx = -1 means whole group
-    selectionChanged = QtCore.Signal(int, int)
-    removeRequested = QtCore.Signal(int, int)
-    accepted = QtCore.Signal()
+    selectionChanged: QtCore.SignalInstance = QtCore.Signal(int, int)
+    removeRequested: QtCore.SignalInstance = QtCore.Signal(int, int)
+    accepted: QtCore.SignalInstance = QtCore.Signal()
     # Emitted from the group-node context menu: (group_idx, 'circle'|'rect')
-    addManualRequested = QtCore.Signal(int, str)
+    addManualRequested: QtCore.SignalInstance = QtCore.Signal(int, str)
 
     def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
@@ -716,16 +716,18 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             self._btn_wire, self._btn_trm_plane, self._btn_terminal)
 
         self._btn_wire.clicked.connect(
-            lambda checked:
-            self._on_mode_btn('wire', self._btn_wire, checked))
+            lambda *_:
+            self._on_mode_btn('wire', self._btn_wire, self._btn_wire.isChecked()))
 
         self._btn_trm_plane.clicked.connect(
-            lambda checked:
-            self._on_mode_btn('terminal_plane', self._btn_trm_plane, checked))
+            lambda *_:
+            self._on_mode_btn(
+                'terminal_plane', self._btn_trm_plane, self._btn_trm_plane.isChecked()))
 
         self._btn_terminal.clicked.connect(
-            lambda checked:
-            self._on_mode_btn('terminal', self._btn_terminal, checked))
+            lambda *_:
+            self._on_mode_btn(
+                'terminal', self._btn_terminal, self._btn_terminal.isChecked()))
 
         self._btn_analyze.clicked.connect(self.run_analysis)
         self._btn_clear_terms.clicked.connect(self._clear_terminals)

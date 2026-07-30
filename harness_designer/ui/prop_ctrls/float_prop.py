@@ -106,14 +106,14 @@ class FloatProperty(QtWidgets.QWidget):
         """
 
         value = round(value, self._precision)
-        value = _d(value)
+        d = _d(value)
         inc = _d(self._inc)
 
-        remaining = value % inc
+        remaining = d % inc
         if remaining:
-            value += inc - remaining
+            d += inc - remaining
 
-        value = float(value)
+        value = float(d)
 
         if value > self._max_val:
             value = self._max_val

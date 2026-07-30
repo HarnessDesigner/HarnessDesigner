@@ -134,7 +134,7 @@ class Cavity(_base3d.Base3D):
     def _update_position(self, position: _point.Point):
         accessory = self.db_obj.terminal or self.db_obj.seal
         if accessory is not None:
-            delta = position = self._o_position
+            delta = position - self._o_position
             pos = accessory.position3d
             pos += delta
 

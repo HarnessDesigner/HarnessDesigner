@@ -523,31 +523,33 @@ class Line:
 
         # Determine offset direction
         if offset_dir is not None:
-            offset_dir = offset_dir.as_numpy
+            offset_dir_np = offset_dir.as_numpy
 
-            if np.linalg.norm(offset_dir) == 0:
+            if np.linalg.norm(offset_dir_np) == 0:
                 if plane is None:
                     raise ValueError("Offset direction vector must be non-zero.")
 
-                offset_dir = None
+                offset_dir_np = None
             else:
                 # Normalize the offset direction vector
-                offset_dir = offset_dir / np.linalg.norm(offset_dir)
+                offset_dir_np = offset_dir_np / np.linalg.norm(offset_dir_np)
+        else:
+            offset_dir_np = None
 
-        if offset_dir is None:
+        if offset_dir_np is None:
             # Set the offset direction based on the specified plane
             if plane == 'x':
-                offset_dir = np.array([1, 0, 0], dtype=float)
+                offset_dir_np = np.array([1, 0, 0], dtype=float)
             elif plane == 'y':
-                offset_dir = np.array([0, 1, 0], dtype=float)
+                offset_dir_np = np.array([0, 1, 0], dtype=float)
             elif plane == 'z':
-                offset_dir = np.array([0, 0, 1], dtype=float)
+                offset_dir_np = np.array([0, 0, 1], dtype=float)
             else:
                 raise ValueError(f"Invalid plane specified: {plane}. "
                                  f"Valid options are 'x', 'y', or 'z'.")
 
         # Scale the offset direction by the given distance
-        offset_vector = offset_dir * float(offset)
+        offset_vector = offset_dir_np * float(offset)
 
         # Compute the points on the parallel line
         p1 = p1 + offset_vector

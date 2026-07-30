@@ -83,9 +83,9 @@ class CompatSealsMixin(BaseMixin):
         """
         self._stored_compat_seals_array = value
         self._stored_compat_seals = DefaultStoredValue
-        value = ", ".join(value)
+        real_value = ", ".join(value)
 
-        self._table.update(self._db_id, compat_seals=value)
+        self._table.update(self._db_id, compat_seals=real_value)
         self._populate('compat_seals_array')
 
 

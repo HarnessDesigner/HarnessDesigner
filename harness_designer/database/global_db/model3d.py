@@ -556,8 +556,8 @@ class Model3D(EntryBase):
         :type value: list[int, int]
         """
         self._stored_forward_up = value
-        value = str(value)[1:-1]
-        self._table.update(self._db_id, forward_up=value)
+        real_value = str(value)[1:-1]
+        self._table.update(self._db_id, forward_up=real_value)
 
     _stored_target_count: int | DefaultStoredValueType = DefaultStoredValue
 

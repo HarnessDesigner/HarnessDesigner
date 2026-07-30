@@ -42,10 +42,11 @@ class SmoothMixin(BaseMixin):
         
         self._stored_smooth = value
 
-        if value is not None:
-            value = int(value)
+        real_value = value
+        if real_value is not None:
+            real_value = int(real_value)
 
-        self._table.update(self._db_id, smooth=value)
+        self._table.update(self._db_id, smooth=real_value)
         self._populate('smooth')
 
 

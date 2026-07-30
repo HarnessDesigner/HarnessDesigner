@@ -83,9 +83,9 @@ class CompatHousingsMixin(BaseMixin):
         """
         self._stored_compat_housings_array = value
         self._stored_compat_housings = DefaultStoredValue
-        value = ", ".join(value)
+        real_value = ", ".join(value)
 
-        self._table.update(self._db_id, compat_housings=value)
+        self._table.update(self._db_id, compat_housings=real_value)
         self._populate('compat_housings_array')
 
 

@@ -760,12 +760,12 @@ class Camera:
         # to prevent gimbal lock from occuring when looking straight up or
         # straight down. You can set it to a smaller number but do not increase
         # it past 89.9 otherwise gimbal lock can occur.
-        p1 = p1.as_numpy
-        p2 = p2.as_numpy
+        p1_np = p1.as_numpy
+        p2_np = p2.as_numpy
 
         max_pitch = 89.9
 
-        offset = p1 - p2
+        offset = p1_np - p2_np
         dist = np.linalg.norm(offset)
 
         if dist < 1e-6:
@@ -830,7 +830,7 @@ class Camera:
                     # explicitly restore original distance to avoid shrink/grow
                     final_offset = rotated * (dist / rnorm)
 
-        new_point = p2 + final_offset
+        new_point = p2_np + final_offset
 
         return _point.Point(new_point[0], new_point[1], new_point[2])
 

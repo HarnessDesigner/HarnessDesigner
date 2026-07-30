@@ -427,16 +427,16 @@ class Quaternion:
         """
 
         if isinstance(other, (int, float)):
-            other = np.array(
+            other_arr = np.array(
                 [other, other, other, other], dtype=np.float32)
 
         elif not isinstance(other, Quaternion):
             raise TypeError
         else:
-            other = other.as_numpy
+            other_arr = other.as_numpy
 
         w1, x1, y1, z1 = self.as_decimal
-        w2, x2, y2, z2 = [_d(str(item)) for item in other.tolist()]
+        w2, x2, y2, z2 = [_d(str(item)) for item in other_arr.tolist()]
 
         def _div(v1, v2):
             """
@@ -475,14 +475,14 @@ class Quaternion:
         """
 
         if isinstance(other, (int, float)):
-            other = np.array([other, other, other, other], dtype=np.float32)
+            other_arr = np.array([other, other, other, other], dtype=np.float32)
         elif not isinstance(other, Quaternion):
             raise TypeError(type(other))
         else:
-            other = other.as_numpy
+            other_arr = other.as_numpy
 
         w1, x1, y1, z1 = self.as_decimal
-        w2, x2, y2, z2 = [_d(str(item)) for item in other.tolist()]
+        w2, x2, y2, z2 = [_d(str(item)) for item in other_arr.tolist()]
 
         def _div(v1, v2):
             """

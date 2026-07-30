@@ -83,9 +83,9 @@ class CompatTerminalsMixin(BaseMixin):
         """
         self._stored_compat_terminals_array = value
         self._stored_compat_terminals = DefaultStoredValue
-        value = ', '.join(value)
+        real_value = ', '.join(value)
 
-        self._table.update(self._db_id, compat_terminals=value)
+        self._table.update(self._db_id, compat_terminals=real_value)
         self._populate('compat_terminals_array')
 
 

@@ -248,7 +248,7 @@ def _set_angle_from_bundle(transition_db_obj, bundle) -> None:
 
     obj_angle = transition_db_obj.angle3d
     old_euler = obj_angle.as_euler_float
-    new_euler = _handler_base._euler_from_matrix_continuous(rot_mat, old_euler)
+    new_euler = _handler_base.HandlerBase.euler_from_matrix_continuous(rot_mat, old_euler)
     obj_angle._q.w, obj_angle._q.x = float(qw), float(qx)  # NOQA
     obj_angle._q.y, obj_angle._q.z = float(qy), float(qz)  # NOQA
     cache = obj_angle._Angle__euler_angles  # NOQA
