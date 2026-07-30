@@ -105,13 +105,21 @@ def _female_terminal_position(part, pjt_cavity):
     Return the female-terminal position: the FRONT of the terminal pin
     (not its center) lands on the cavity's front (mating-side) face.
 
-    Local-point-then-rotate-then-translate, but built up in the
-    housing's own local frame first: the global cavity's position3d
-    (its center, in housing-local space) plus our local Z offset, all
-    rotated together by the project cavity's full world angle3d, then
-    translated by the HOUSING's world position -- not pjt_cavity's own
-    (already-world-transformed) position3d, which would double-apply
-    the housing's rotation on top of an already-rotated point.
+    A terminal is a rigid child of its cavity, exactly like a cavity is
+    a rigid child of its housing (see database.project_db.pjt_cavity.
+    PJTCavitiesTable.insert, whose own position3d = c_position3d @
+    h_angle3d + h_position3d -- rotate the LOCAL offset by the PARENT's
+    angle, then translate by the PARENT's own already-correct world
+    position; never re-derive the parent's own position from further up
+    the chain). This mirrors that exactly one level down: our local Z
+    offset, rotated by the cavity's own world angle3d, translated by the
+    cavity's own world position3d. Confirmed the right parent to build
+    from (not the housing) by PJTHousing._update_angle3d, which moves a
+    cavity's terminal rigidly along with it on every housing move/rotate
+    and sets the terminal's own angle3d to exactly mirror the cavity's --
+    i.e. the rest of the system already treats "terminal rides rigidly
+    with its cavity" as the invariant; this is just the initial-placement
+    formula catching up to match it.
 
     Sign note: this is the CAVITY's own local Z, not the terminal
     part-model convention -- Cavity3D.apply_analysis builds a cavity's
@@ -128,9 +136,8 @@ def _female_terminal_position(part, pjt_cavity):
     z_offset = cav_length / 2.0 - front_z
 
     pos = _point.Point(0.0, 0.0, z_offset)
-    pos += pjt_cavity.part.position3d
     pos @= pjt_cavity.angle3d
-    pos += pjt_cavity.housing.position3d
+    pos += pjt_cavity.position3d
 
     return pos.as_float
 
@@ -149,9 +156,8 @@ def _male_terminal_position(part, pjt_cavity):
     z_offset = cav_length / 2.0 - front_z + length / 3.0
 
     pos = _point.Point(0.0, 0.0, z_offset)
-    pos += pjt_cavity.part.position3d
     pos @= pjt_cavity.angle3d
-    pos += pjt_cavity.housing.position3d
+    pos += pjt_cavity.position3d
 
     return pos.as_float
 

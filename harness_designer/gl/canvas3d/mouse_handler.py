@@ -863,16 +863,27 @@ class MouseHandler:
                             cur_selected is not None and
                             selected == cur_selected
                         ):
-                            if (
-                                isinstance(selected, _wire.Wire) and
-                                selected.obj3d.is_housing_attached()
-                            ):
-                                # Position is derived from the housing --
-                                # not freely draggable. Pan the camera
-                                # instead of starting a no-op drag.
-                                self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
-                                refresh = True
-                            elif isinstance(selected, (_wire.Wire, _bundle.Bundle)):
+                            if isinstance(selected, _wire.Wire):
+                                start_anchored, stop_anchored = _dragging.wire_end_anchors(
+                                    self.canvas.mainframe.project, selected)
+
+                                if start_anchored and stop_anchored:
+                                    # Both ends derived from a cavity/
+                                    # terminal -- nothing on this wire is
+                                    # freely draggable. Pan the camera
+                                    # instead of starting a no-op drag.
+                                    self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
+                                    refresh = True
+                                elif start_anchored:
+                                    self._drag_obj = _dragging.EndpointDragObject(
+                                        self.canvas, selected, 'stop')
+                                elif stop_anchored:
+                                    self._drag_obj = _dragging.EndpointDragObject(
+                                        self.canvas, selected, 'start')
+                                else:
+                                    self._drag_obj = _dragging.PathDragObject(
+                                        self.canvas, selected, mouse_pos)
+                            elif isinstance(selected, _bundle.Bundle):
                                 self._drag_obj = _dragging.PathDragObject(
                                     self.canvas, selected, mouse_pos)
                             else:

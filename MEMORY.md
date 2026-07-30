@@ -463,6 +463,23 @@ Every `PJT*Table` wrapper (`database/project_db/pjt_*.py`) has a `_control`/`con
 
 **How to apply:** Fixed in `EditorObjPanel.set_selected` — both the deselect-to-`None` branch and the swap-to-a-different-object branch now call `self.control.set_obj(None)` on whatever control is being detached, guarded by `self.control is not control` in the swap branch (so reselecting a different object of the *same* table type, which reuses the same singleton widget, doesn't immediately clobber the just-set new `db_obj`). If a new "set the object editor dock's control singleton to X" call site is ever added, apply the same guard/clear discipline. If auditing for similar leaks elsewhere, the pattern to search for is: a class-level (not instance-level) attribute that's a strong reference, set once, and any place that "detaches" it without also nulling out whatever object-specific state it's holding.
 
+### Rigid-child positioning convention: offset @ parent.angle3d + parent.position3d
+Any object positioned as a rigid child of another placed object (cavity-in-housing, terminal-in-cavity, and by the same logic anything placed relative to a terminal/cavity/housing in the future) must compute its world position as:
+
+```python
+pos = local_offset            # child's own local-frame offset from the parent
+pos @= parent.angle3d          # rotate by the PARENT's own already-correct world angle
+pos += parent.position3d       # translate by the PARENT's own already-correct world position
+```
+
+**Never** re-derive from further up the chain (e.g. skip the immediate parent and rebuild from the grandparent's position plus a catalog-local offset) — that's the bug this entry documents.
+
+**Why:** Confirmed 2026-07-29 by cross-referencing three independent pieces of evidence: (1) `database.project_db.pjt_cavity.PJTCavitiesTable.insert()` (`pjt_cavity.py:251-252`) computes a fresh cavity's `position3d` as exactly `c_position3d @ h_angle3d; += h_position3d` — local catalog offset rotated by the **housing's** angle, translated by the **housing's** position (not the cavity's own combined angle, which is a separate additive value used only for the cavity's own displayed orientation). (2) Empirically verified against a real project row: plugging real housing/cavity catalog data through that exact formula reproduces the DB's actual stored cavity position to 5 decimal places. (3) `PJTHousing._update_angle3d`/`_update_position3d` (`pjt_housing.py:980-1420`, the housing move/rotate handlers) already treat a terminal as a rigid child of its cavity everywhere else in the system: on any housing move/rotate, `terminal.position3d` is batch-transformed in the exact same rigid group as `cavity.position3d` (never independently recomputed), and `terminal.angle3d` is explicitly set to **mirror the cavity's own angle3d exactly** (`pjt_housing.py:1370-1373`, comment: "Terminal/seal angle mirrors its cavity's angle exactly").
+
+`handlers.terminal_handler._male_terminal_position`/`_female_terminal_position` originally violated this — built the terminal's position from `pjt_cavity.part.position3d` (global catalog local offset) rotated by `pjt_cavity.angle3d` then translated by `pjt_cavity.housing.position3d`, i.e. re-deriving the housing→cavity leg of the chain from scratch instead of just building on the cavity's own already-correct `position3d`. Silent bug (no exception, no crash) — produced a plausible-looking but wrong position, off by a not-obviously-meaningful delta, that only diverged from the cavity's real position; discovered by directly comparing the formula's output against real project DB rows for a terminal placed in a freshly-added-this-session cavity ("cavity is visually correct, terminal is not" was the original symptom report).
+
+**How to apply:** Fixed 2026-07-29 in both `_male_terminal_position`/`_female_terminal_position` (`handlers/terminal_handler.py`) to `pos = Point(0,0,z_offset); pos @= pjt_cavity.angle3d; pos += pjt_cavity.position3d`. If a similar "silently wrong but plausible-looking position" bug turns up for any other object type positioned relative to a parent, check first whether its placement formula uses the *immediate* parent's own already-correct `position3d`/`angle3d`, or whether it's (incorrectly) re-deriving from a grandparent + catalog-local data.
+
 ### Selection interaction convention
 For list-style widgets: `itemSelected(row)` fires on any selection or selection change; `itemUnselected()` fires only on the transition from something-selected to nothing-selected (including programmatic clears like filter/sort resets). Deselection must always be possible: click the selected row to toggle off, click empty area, or press Escape.
 

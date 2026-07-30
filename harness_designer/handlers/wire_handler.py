@@ -28,7 +28,7 @@ End-click variants (phase 1, non-extension):
 """
 
 import numpy as np
-from PySide6.QtWidgets import QLabel, QDialog
+from PySide6.QtWidgets import QLabel, QDialog, QMessageBox
 from PySide6.QtCore import Qt
 from typing import TYPE_CHECKING
 
@@ -246,18 +246,19 @@ def _check_terminal_compat(terminal_obj, wire_part):
     if term_part is None:
         return True, None
 
-    dia_min = term_part.wire_size_dia_min
-    dia_max = term_part.wire_size_dia_max
-    cross_max = term_part.wire_size_cross_max
+    awg_min = term_part.wire_size_awg_min
+    awg_max = term_part.wire_size_awg_max
 
-    wire_dia = wire_part.od_mm
+    wire_awg = wire_part.size_awg
+
+    cross_max = term_part.wire_size_cross_max
     wire_cross = wire_part.size_mm2
 
-    if dia_min is not None and wire_dia < dia_min:
-        return False, f'Wire {wire_dia:.2f} mm — terminal min is {dia_min:.2f} mm'
+    if awg_min is not None and wire_awg < awg_min:
+        return False, f'Wire {wire_awg} AWG — terminal min is {awg_min} AWG'
 
-    if dia_max is not None and wire_dia > dia_max:
-        return False, f'Wire {wire_dia:.2f} mm — terminal max is {dia_max:.2f} mm'
+    if awg_max is not None and wire_awg > awg_max:
+        return False, f'Wire {wire_awg} AWG — terminal max is {wire_awg} AWG'
 
     if cross_max is not None and wire_cross is not None:
         # For the hover-preview message only -- terminal_obj.add_wire
@@ -361,6 +362,20 @@ class AddWireHandler(_handler_base.HandlerBase):
     def _start_from_terminal(self, terminal: _terminal.Terminal, part_id: int):
         """Pin the preview wire's start to *terminal* and enter phase 1 directly."""
         self.part = self.mainframe.global_db.wires_table[part_id]
+
+        # Unlike the hover/first-click terminal-start paths (_hover_phase0,
+        # _handle_first_click), nothing has checked compatibility yet here --
+        # the part-search dialog above is pre-filtered by diameter but does
+        # not enforce it, and diameter compatibility doesn't imply
+        # cross-section compatibility. Check before creating anything.
+        ok, msg = _check_terminal_compat(terminal, self.part)
+        if not ok:
+            msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+            if button == QMessageBox.StandardButton.No:
+                self._finalized = True
+                return
+
         self._start_circuit_id = terminal.db_obj.circuit_id
 
         # Placeholder start -- terminal.add_wire below overwrites it with
@@ -385,9 +400,28 @@ class AddWireHandler(_handler_base.HandlerBase):
             None, None, True, False, None, None, False)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
-        self.obj.identify(self._preview_material)
+        # self.obj.identify(self._preview_material)
 
-        terminal.add_wire(self.obj, 'start')
+        if not terminal.add_wire(self.obj, 'start'):
+            # Belt-and-suspenders: the compat check above should already
+            # prevent this, but never leave a wire row with its start still
+            # pointing at the placeholder about to be deleted -- that's
+            # exactly what produced a wire rendering at world origin (and
+            # crashing on the next project reload with an orphaned FK)
+            # before this check existed. PJTWire.delete() never touches
+            # start/stop points (they're owned by whatever they're attached
+            # to, not the wire), so the placeholder and preview stop point
+            # need cleaning up explicitly.
+            self.obj.delete()
+            self.obj = None
+            self.ptables.pjt_points3d_table[placeholder_id].delete()
+            self.ptables.pjt_points3d_table[stop_db.db_id].delete()
+            QMessageBox.warning(
+                self.mainframe, 'Incompatible Wire',
+                'This wire is no longer compatible with the terminal.')
+            self._finalized = True
+            return
+
         self.ptables.pjt_points3d_table[placeholder_id].delete()
 
         self._phase = 1
@@ -624,9 +658,12 @@ class AddWireHandler(_handler_base.HandlerBase):
             if wire_part is None:
                 return
 
-            ok, _ = _check_terminal_compat(picked, wire_part)
+            ok, msg = _check_terminal_compat(picked, wire_part)
             if not ok:
-                return
+                msg += '\n\nDo you want to use this wire?'
+                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+                if button == QMessageBox.StandardButton.No:
+                    return
 
             self._start_circuit_id = picked.db_obj.circuit_id
             start_terminal = picked
@@ -733,7 +770,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             None, None, True, False, None, None, False)
 
         self.obj = _wire.Wire(self.mainframe, wire_db)
-        self.obj.identify(self._preview_material)
+        # self.obj.identify(self._preview_material)
         self._phase = 1
 
         if start_terminal is not None:
@@ -761,9 +798,12 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         if isinstance(picked, _terminal.Terminal):
             if wire_part is not None:
-                ok, _ = _check_terminal_compat(picked, wire_part)
+                ok, msg = _check_terminal_compat(picked, wire_part)
                 if not ok:
-                    return  # blocked; user already sees overlay message
+                    msg += '\n\nDo you want to use this wire?'
+                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+                    if button == QMessageBox.StandardButton.No:
+                        return
 
             if circuit_id is None:
                 circuit_id = picked.db_obj.circuit_id

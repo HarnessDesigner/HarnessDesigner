@@ -292,6 +292,19 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     # envelope but not the actual box) is kept as a lower-priority
     # fallback so objects near the edge of the screen-space pick
     # tolerance don't just disappear; see _ray_intersect_obb.
+    #
+    # Neither envelope test is precise enough to accept on its own: a
+    # multi-segment object (Wire/Bundle) can't have a real oriented box at
+    # all -- BaseVar3D.obb documents that it degenerates to the same loose
+    # axis-aligned union-of-segments envelope as its own aabb for those
+    # types -- so a ray passing anywhere through that envelope (which can
+    # be huge for a routed, multi-bend wire) would otherwise register as
+    # a hit far from the actual thin cylinder, stealing the pick from
+    # whatever's really under the cursor (e.g. a housing/cavity behind a
+    # routed wire). hit_test_step3 -- a real per-triangle mesh test,
+    # already correctly implemented per-segment on Wire/Bundle and against
+    # the whole mesh on every other object -- is the actual precision
+    # gate; only a candidate that passes it is accepted as a genuine hit.
     hits = []
     fallback_hits = []
     for _, obj in candidates:
@@ -299,12 +312,13 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
         obb = wrapped.obb
         hit, t_hit = _ray_intersect_obb(origin, direc, obb) if obb is not None else (False, None)
         if hit:
-            hits.append((t_hit, obj))
+            if wrapped.hit_test_step3(origin, direc):
+                hits.append((t_hit, obj))
             continue
 
         wmin, wmax = wrapped.aabb
         hit, t_hit = _ray_intersect_aabb(origin, direc, wmin, wmax)
-        if hit:
+        if hit and wrapped.hit_test_step3(origin, direc):
             fallback_hits.append((t_hit, obj))
 
     if not hits:

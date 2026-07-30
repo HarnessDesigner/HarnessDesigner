@@ -67,6 +67,19 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         material = _materials.Plastic(color)
 
+        # Bare-conductor look for whichever end segment(s) crimp into a
+        # terminal (see render()) -- conductor_dia_mm already falls back
+        # to an AWG-derived estimate when the wire_size_dia column is
+        # NULL; od_mm * 2/3 is the final fallback for a part missing both,
+        # per the same ratio a stranded conductor's copper core typically
+        # is of its own fully-insulated OD.
+        conductor_dia = self._part.conductor_dia_mm
+        if not conductor_dia:
+            conductor_dia = diameter * (2.0 / 3.0)
+
+        self._conductor_dia = conductor_dia
+        self._conductor_material = _materials.Polished(self._part.core_material.color.ui)
+
         self._p1 = db_obj.start_position3d
         self._p2 = db_obj.stop_position3d
 
@@ -413,6 +426,23 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return False
 
+    def _conductor_segment_ends(self) -> tuple[bool, bool]:
+        """Return (start_is_conductor, stop_is_conductor) -- whether the
+        first/last sub-segment crimps directly into a Terminal and should
+        render bare-conductor-sized/colored instead of at the wire's own
+        insulation diameter/material (see render()).
+
+        Checked via the sibling graph (parent.start_sibling/stop_sibling,
+        a cheap weakref lookup already maintained by Terminal.add_wire/
+        AddWireHandler) rather than the raw db_obj point ids -- a splice
+        or wire-service-loop sibling never gets the conductor treatment,
+        only an actual Terminal.
+        """
+        from .. import terminal as _terminal
+
+        return (isinstance(self.parent.start_sibling, _terminal.Terminal),
+                isinstance(self.parent.stop_sibling, _terminal.Terminal))
+
     def render(self, faces_program, edges_program, vertices_program):
         """Render every sub-segment of the wire's current path.
 
@@ -424,21 +454,50 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         angle/scale at that segment before delegating to Base3D.render()
         -- reuses its existing faces/edges/normals/vertices debug-config
         gating and material handling unchanged, once per segment.
+
+        The one segment nearest each end that crimps into a Terminal
+        (see _conductor_segment_ends) renders at the conductor's own
+        diameter/material instead -- a short bare-conductor look at the
+        crimp, matching real hardware, rather than full insulation OD
+        running straight into the terminal. Suppressed while selected,
+        same as the stripe overlay below, so the selection highlight
+        stays a single uniform color across the whole wire.
         """
-        real_position, real_angle, real_scale = self._position, self._angle, self._scale
+        real_position, real_angle, real_scale, real_material = (
+            self._position, self._angle, self._scale, self._material)
 
         draw_stripe = self._stripe is not None and not self.is_selected
+
+        if self.is_selected:
+            conductor_start = conductor_stop = False
+        else:
+            conductor_start, conductor_stop = self._conductor_segment_ends()
+
         if draw_stripe:
             stripe_position = self._stripe._position  # NOQA
             stripe_angle = self._stripe._angle  # NOQA
 
         stripe_offset = 0.0
+        segments = list(self._segment_transforms())
+        last_idx = len(segments) - 1
 
-        for seg_position, seg_angle, seg_scale, seg_len in self._segment_transforms():
-            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+        for i, (seg_position, seg_angle, seg_scale, seg_len) in enumerate(segments):
+            is_conductor = (
+                (i == 0 and conductor_start) or
+                (i == last_idx and conductor_stop))
+
+            self._position, self._angle = seg_position, seg_angle
+
+            if is_conductor:
+                self._scale = _point.Point(self._conductor_dia, self._conductor_dia, seg_len)
+                self._material = self._conductor_material
+            else:
+                self._scale = seg_scale
+                self._material = real_material
+
             super().render(faces_program, edges_program, vertices_program)
 
-            if draw_stripe:
+            if draw_stripe and not is_conductor:
                 # Stripe geometry ignores scale.z entirely (see
                 # gl.shaders.faces' vertex shader) -- only x/y (bumped past
                 # the wire's own radius) matter, so its own scale.z value
@@ -451,7 +510,8 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
             stripe_offset += seg_len
 
-        self._position, self._angle, self._scale = real_position, real_angle, real_scale
+        self._position, self._angle, self._scale, self._material = (
+            real_position, real_angle, real_scale, real_material)
         if draw_stripe:
             self._stripe._position = stripe_position  # NOQA
             self._stripe._angle = stripe_angle  # NOQA

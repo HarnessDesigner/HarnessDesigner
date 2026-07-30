@@ -645,7 +645,7 @@ class Config(metaclass=ConfigDB):
             housing = [0.55, 0.75, 0.95, 1.0]
             housing_outline = [0.15, 0.25, 0.45, 1.0]
             # Selection highlight -- mirrors Config.editor_pegboard.selected_color's role.
-            selected = [0.2, 0.6, 0.2, 0.35]
+            selected = [0.2, 0.6, 0.2, 0.25]
             label = [0.1, 0.1, 0.1, 1.0]
             splice = [0.0, 0.0, 0.0, 1.0]
 
@@ -732,7 +732,7 @@ class Config(metaclass=ConfigDB):
 
         # Selection highlight material color -- mirrors
         # Config.editor3d.selected_color's role exactly.
-        selected_color = [0.2, 0.6, 0.2, 0.35]
+        selected_color = [0.2, 0.6, 0.2, 0.25]
 
         class virtual_canvas(metaclass=ConfigDB):
             """Virtual canvas size for peg board editing."""
@@ -824,7 +824,7 @@ class Config(metaclass=ConfigDB):
     class editor3d(metaclass=ConfigDB):
         """3D editor rendering and navigation settings."""
         background_color = [0.20, 0.20, 0.20, 1.0]
-        selected_color = [0.2, 0.6, 0.2, 0.35]
+        selected_color = [0.2, 0.6, 0.2, 0.25]
 
         class lighting(metaclass=ConfigDB):
             """Default 3D scene lighting values."""

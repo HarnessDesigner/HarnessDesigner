@@ -11,6 +11,7 @@ from . import move_arrows as _move_arrows
 if TYPE_CHECKING:
     from . import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import project as _project
     from ...objects import wire as _wire_object
     from ...objects import bundle as _bundle_object
 
@@ -20,6 +21,52 @@ if TYPE_CHECKING:
 # jitter (worse on high-resolution mice), which picks the wrong axis far
 # more often than a settled delta does.
 _AXIS_LOCK_SETTLE_EVENTS = 2
+
+
+def wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
+    """Return (start_anchored, stop_anchored) for *wire_obj*.
+
+    An end is "anchored" when it sits at a cavity's or terminal's own
+    wire-routing point (Cavity.wire_position3d, Terminal.wire_position3d/
+    attach_position3d) -- that end's position is derived from the
+    cavity/terminal's own placement, not something a drag should move
+    directly. Deliberately kept here rather than as a method on the Wire
+    object itself -- this is purely a drag/move-handling decision, not
+    something the object needs to know about itself; see
+    mouse_handler.py's on_mouse_motion, the only caller.
+
+    An end that is NOT anchored is always safe to drag freely even when
+    another wire's endpoint happens to share the exact same live Point
+    (a plain junction, not a cavity/terminal routing point) -- moving a
+    shared Point via its own `+=` already propagates to everything else
+    bound to it for free (see geometry.point.Point), so no separate
+    "is another wire attached here" check is needed: only the cavity/
+    terminal case requires special handling (leaving that end fixed).
+    """
+    obj3d = wire_obj.obj3d
+    start_id = int(obj3d.start_position.db_id[:-2])
+    stop_id = int(obj3d.stop_position.db_id[:-2])
+
+    start_anchored = False
+    stop_anchored = False
+
+    for cavity in project.cavities:
+        wire_point_id = cavity.db_obj.wire_point3d_id_raw
+        if wire_point_id == start_id:
+            start_anchored = True
+        if wire_point_id == stop_id:
+            stop_anchored = True
+
+    for terminal in project.terminals:
+        wire_point_id = terminal.db_obj.wire_point3d_id_raw
+        attach_point_id = terminal.db_obj.attach_point3d_id_raw
+
+        if start_id in (wire_point_id, attach_point_id):
+            start_anchored = True
+        if stop_id in (wire_point_id, attach_point_id):
+            stop_anchored = True
+
+    return start_anchored, stop_anchored
 
 
 class DragObject:
@@ -158,13 +205,15 @@ class PathDragObject:
     point to anchor on, and (via obj3d.db_obj.waypoints3d below) which
     points to move.
 
-    Only ever constructed for a wire where
-    ``obj3d.is_housing_attached()`` is False (see mouse_handler.py) -- a
-    housing-attached wire's position is derived from its housing, not
-    freely draggable. Bundles have no housing-attachment concept at all
-    (a bundle's own end can only ever attach to a Transition, never a
-    Housing directly -- see objects.bundle.Bundle.set_sibling), so that
-    check doesn't apply to them.
+    For a Wire, only ever constructed when neither end is anchored (see
+    wire_end_anchors() above and mouse_handler.py, the only caller) -- an
+    end derived from a cavity's/terminal's own position is not freely
+    draggable; see EndpointDragObject for the case where exactly one end
+    is anchored. Bundles have no housing-attachment concept at all (a
+    bundle's own end can only ever attach to a Transition, never a
+    Housing directly -- see objects.bundle.Bundle.set_sibling), so
+    wire_end_anchors doesn't apply to them and this is always the right
+    choice for a Bundle.
     """
 
     def __init__(self, canvas: "_canvas.Canvas",
@@ -239,8 +288,98 @@ class PathDragObject:
 
         start_position += delta3d
         for waypoint in obj3d.db_obj.waypoints3d:
-            waypoint.point += delta3d
+            point = waypoint.point
+            point += delta3d
         stop_position += delta3d
+
+        self._anchor += delta3d
+        self.last_pos = self._anchor.copy()
+
+
+class EndpointDragObject:
+    """Drag only one end (``'start'`` or ``'stop'``) of a Wire -- the
+    other end, and every interior waypoint, stay exactly where they are.
+
+    Constructed instead of PathDragObject when exactly one of a wire's
+    two ends is anchored to a cavity's/terminal's own routing point (see
+    wire_end_anchors()) -- that end can't move (it's derived from the
+    cavity/terminal), but the other, free end still needs to be
+    draggable; a whole-body PathDragObject would incorrectly try to drag
+    the anchored end too. *end* is always the non-anchored one; the
+    caller (mouse_handler.py) has already determined that from
+    wire_end_anchors() before constructing this.
+
+    Moving the free end via its own live Point's ``+=`` (below) already
+    propagates to anything else bound to that same Point for free (e.g.
+    another wire's own end sharing it at a plain junction) -- no
+    separate handling needed for that case, only the anchored case is
+    special (see wire_end_anchors()'s own docstring).
+    """
+
+    def __init__(self, canvas: "_canvas.Canvas", selected: "_wire_object.Wire", end: str):
+        if end not in ('start', 'stop'):
+            raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
+
+        self.canvas = canvas
+        self.selected = selected
+        self.end = end
+
+        obj3d = selected.obj3d
+        moving_point = obj3d.start_position if end == 'start' else obj3d.stop_position
+
+        # A fresh, unregistered Point (no db_id) -- purely a local
+        # screen-projection anchor, tracked incrementally below exactly
+        # like PathDragObject's own _anchor, never itself persisted.
+        self._anchor = moving_point.copy()
+
+        self.last_pos = self._anchor.copy()
+        self.axis_lock = _point.Point(0, 0, 0)
+        self.move_arrows: _move_arrows.MoveArrows = None
+
+        self.pick_offset = None
+        self._settle_events = 0
+
+    def delete(self):
+        if self.move_arrows is not None:
+            self.move_arrows.delete()
+
+        self.move_arrows = None
+
+    @_debug.logfunc
+    def __call__(self, delta):
+        anchor_screen = self.canvas.camera.ProjectPoint(self._anchor)
+        depth = anchor_screen.z
+
+        screen_new = anchor_screen + delta
+        screen_new.z = depth
+
+        world_hit = self.canvas.camera.UnprojectPoint(screen_new)
+        pick_world = self.canvas.camera.UnprojectPoint(anchor_screen)
+
+        if self.pick_offset is None:
+            self.pick_offset = self._anchor - pick_world
+
+        world_hit += self.pick_offset
+
+        delta3d = world_hit - self.last_pos
+
+        if tuple(self.axis_lock) == (0.0, 0.0, 0.0):
+            self._settle_events += 1
+            if self._settle_events < _AXIS_LOCK_SETTLE_EVENTS:
+                return
+
+            axis_values = {'x': abs(delta3d.x), 'y': abs(delta3d.y), 'z': abs(delta3d.z)}
+            dominant_axis = max(axis_values, key=axis_values.get)
+            setattr(self.axis_lock, dominant_axis, 1.0)
+
+            self.move_arrows = _move_arrows.MoveArrows(
+                self._anchor, dominant_axis, self.canvas.mainframe, self.selected.obj3d.aabb)
+
+        delta3d *= self.axis_lock
+
+        obj3d = self.selected.obj3d
+        moving_point = obj3d.start_position if self.end == 'start' else obj3d.stop_position
+        moving_point += delta3d
 
         self._anchor += delta3d
         self.last_pos = self._anchor.copy()

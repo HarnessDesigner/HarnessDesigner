@@ -11,6 +11,7 @@ from ...geometry import angle as _angle
 from ...geometry import point as _point
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import resources as _resources
+from ... import logger as _logger
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
@@ -82,22 +83,46 @@ class Models3DTable(TableBase):
 
     def insert(self, path: str) -> "Model3D":  # NOQA
         """
-        Execute the insert operation.
+        Get-or-create a ``models3d`` row for *path*, without touching the
+        filesystem.
 
-        :param path: Filesystem path.
+        Unlike ``database.create_database.models3d.get_model3d_id`` (used
+        only by the database BUILD process to bulk-import a directory of
+        source models into managed storage, moving each file into
+        ``model_path`` as it goes -- that behavior must stay exactly as
+        it is there), this runtime insert leaves *path* exactly as given:
+        no move, no copy, no rename. The file itself is only ever read,
+        never relocated, later and on demand by
+        :func:`harness_designer.resources.collect_resource` when the
+        model actually gets processed/converted -- see
+        ``objects.objects3d.terminal.Terminal.__init__``'s generic-model
+        fallback, the caller this exists for, which needs to be able to
+        point many different parts at the very same shared source file
+        without that file disappearing out from under it on first use.
+
+        :param path: Filesystem path or URL to the model file.
         :type path: str
-        :returns: Return value. UNKNOWN details.
-        :rtype: :class:`Model3D`
+        :returns: The existing or newly-created row, or ``None`` when
+            *path* is falsy.
+        :rtype: :class:`Model3D` | None
         """
+
+        if not path:
+            return None
 
         self._con.execute(f'SELECT id FROM models3d WHERE path="{path}";')
         rows = self._con.fetchall()
+
         if rows:
             db_id = rows[0][0]
         else:
-            db_id = _models3d.get_model3d_id(self._con, path)
-            if db_id is None:
-                return None
+            _logger.database(f'adding model3d ("{path}")')
+
+            self._con.execute('INSERT INTO models3d (path) VALUES (?);', (path,))
+            self._con.commit()
+            db_id = self._con.lastrowid
+
+            _logger.database(f'model3d added "{path}" = {db_id}')
 
         return Model3D(self, db_id)
 
