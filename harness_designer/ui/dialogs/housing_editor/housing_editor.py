@@ -26,12 +26,14 @@ Config = _dialog_config.Config
 
 
 def _shape_polygon_points(kind: str, params: dict, segments: int = 24) -> list:
-    """Build world-space outline points for a manually-drawn cavity marker.
+    """
+    Build world-space outline points for a manually-drawn cavity marker.
 
     ``params`` matches the schema produced by
     ``connector_analysis.classify_loop``/``plane_frame``: ``center``, ``u``,
     ``v``, plus ``radius`` (circle) or ``half_w``/``half_h`` (rect).
     """
+
     center = np.asarray(params['center'], dtype=np.float64)
     u = np.asarray(params['u'], dtype=np.float64)
     v = np.asarray(params['v'], dtype=np.float64)
@@ -39,10 +41,12 @@ def _shape_polygon_points(kind: str, params: dict, segments: int = 24) -> list:
     if kind == 'circle':
         r = float(params['radius'])
         angles = np.linspace(0.0, 2.0 * np.pi, segments, endpoint=False)
+
         return [center + r * (np.cos(a) * u + np.sin(a) * v) for a in angles]
 
     hw = float(params['half_w'])
     hh = float(params['half_h'])
+
     return [
         center - hw * u - hh * v,
         center + hw * u - hh * v,
@@ -89,7 +93,10 @@ class PlaneTreePanel(QtWidgets.QWidget):
         super().__init__(parent)
 
         self._sel_group: int = -1
-        self._sel_surf: int = -1   # local index inside the group, -1 = whole group
+
+        # local index inside the group, -1 = whole group
+        self._sel_surf: int = -1
+
         self._is_terminal: bool = False
 
         layout = QtWidgets.QVBoxLayout(self)
@@ -104,14 +111,14 @@ class PlaneTreePanel(QtWidgets.QWidget):
         self._tree.setHeaderHidden(True)
         self._tree.setSelectionMode(
             QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-        self._tree.setStyleSheet(
-            'QTreeWidget::item:selected {'
-            '  background-color: #cc1100;'
-            '  color: white;'
-            '}'
-        )
+
+        self._tree.setStyleSheet('QTreeWidget::item:selected {'
+                                 '  background-color: #cc1100;'
+                                 '  color: white;}')
+
         self._tree.setContextMenuPolicy(
             QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+
         self._tree.customContextMenuRequested.connect(self._on_ctx_menu)
 
         layout.addWidget(self._tree, 1)
@@ -139,7 +146,8 @@ class PlaneTreePanel(QtWidgets.QWidget):
         label: str = 'Selected Surfaces',
         is_terminal: bool = False,
     ) -> None:
-        """Rebuild the tree from plane groups.
+        """
+        Rebuild the tree from plane groups.
 
         groups[g] is the list of surface indices for plane group g.
         surfaces is the full picker surface list (for triangle-count labels).
@@ -147,6 +155,7 @@ class PlaneTreePanel(QtWidgets.QWidget):
         "Add Circle Cavity" / "Add Rectangle Cavity" (terminal-plane mode
         only — used to hand-mark cavities on a single continuous plane).
         """
+
         self._is_terminal = is_terminal
         self._label.setText(label)
         self._tree.clear()
@@ -155,23 +164,26 @@ class PlaneTreePanel(QtWidgets.QWidget):
 
         for g, group in enumerate(groups):
             n = len(group)
+
             parent_item = QtWidgets.QTreeWidgetItem(
                 self._tree,
-                [f'Plane {g + 1}  —  {n} surface{"s" if n != 1 else ""}'],
-            )
+                [f'Plane {g + 1}  —  {n} surface{"s" if n != 1 else ""}'])
+
             parent_item.setData(
                 0, QtCore.Qt.ItemDataRole.UserRole, (g, -1))
+
             font = parent_item.font(0)
             font.setBold(True)
             parent_item.setFont(0, font)
 
             for s, si in enumerate(group):
                 n_tris = len(surfaces[si].tri_indices)
+
                 child = QtWidgets.QTreeWidgetItem(
                     parent_item,
                     [f'  Surface {s + 1}  —  {n_tris}'
-                     f' tri{"s" if n_tris != 1 else ""}'],
-                )
+                     f' tri{"s" if n_tris != 1 else ""}'])
+
                 child.setData(
                     0, QtCore.Qt.ItemDataRole.UserRole, (g, s))
 
@@ -185,9 +197,7 @@ class PlaneTreePanel(QtWidgets.QWidget):
     def selection(self) -> tuple[int, int]:
         return self._sel_group, self._sel_surf
 
-    def _on_item_clicked(
-        self, item: QtWidgets.QTreeWidgetItem, _col: int
-    ) -> None:
+    def _on_item_clicked(self, item: QtWidgets.QTreeWidgetItem, _col: int) -> None:
         g, s = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         if g == self._sel_group and s == self._sel_surf:
             # Same item clicked again → deselect
@@ -220,6 +230,7 @@ class PlaneTreePanel(QtWidgets.QWidget):
             act = menu.addAction('Add Circle Cavity')
             act.triggered.connect(
                 lambda: self.addManualRequested.emit(g, 'circle'))
+
             act = menu.addAction('Add Rectangle Cavity')
             act.triggered.connect(
                 lambda: self.addManualRequested.emit(g, 'rect'))
@@ -247,15 +258,15 @@ class SurfaceOverlay(QtWidgets.QWidget):
     def eventFilter(self, obj, event):
         if event.type() == QtCore.QEvent.Type.Resize:
             self.setGeometry(QtCore.QRect(0, 0, obj.width(), obj.height()))
+
         return False
 
     def paintEvent(self, event):
         dlg = self._dialog
-
         if not dlg.surfaces or dlg.vertices is None:
             return
 
-        camera = dlg.canvas._canvas.camera
+        camera = dlg.canvas._canvas.camera  # NOQA
 
         if camera.clip is None or camera.viewport is None:
             return
@@ -264,7 +275,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
         # viewport is in physical pixels; divide by DPR for logical QPainter coords.
         clip_mat = camera.clip.astype(np.float64)
         vx, vy, vw, vh = camera.viewport
-        dpr = dlg.canvas._canvas.devicePixelRatio()
+        dpr = dlg.canvas._canvas.devicePixelRatio()  # NOQA
 
         painter = QtGui.QPainter(self)
         painter.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
@@ -287,12 +298,13 @@ class SurfaceOverlay(QtWidgets.QWidget):
 
             return QtCore.QPointF(sx, sy)
 
-        def draw_surf(surf, r, g, b, alpha=80):
-            painter.setBrush(QtGui.QBrush(QtGui.QColor(r, g, b, alpha)))
-            for ti in surf.tri_indices:
-                pts = [project(verts[3 * ti + k]) for k in range(3)]
-                if all(p is not None for p in pts):
-                    painter.drawPolygon(QtGui.QPolygonF(pts))
+        def draw_surf(surf_, r_, g_, b_, alpha=80):
+            painter.setBrush(QtGui.QBrush(QtGui.QColor(r_, g_, b_, alpha)))
+            for ti_ in surf_.tri_indices:
+                pts_ = [project(verts[3 * ti_ + k]) for k in range(3)]
+
+                if all(p is not None for p in pts_):
+                    painter.drawPolygon(QtGui.QPolygonF(pts_))
 
         mode = dlg.select_mode
         g_sel = dlg.plane_sel_group
@@ -307,9 +319,11 @@ class SurfaceOverlay(QtWidgets.QWidget):
                 if wire_g < 0:
                     draw_surf(dlg.surfaces[si], 255, 140, 0, 80)
                 elif g == wire_g and (wire_s < 0 or s == wire_s):
-                    draw_surf(dlg.surfaces[si], 255, 40, 40, 200)   # selected → bright red
+                    # selected → bright red
+                    draw_surf(dlg.surfaces[si], 255, 40, 40, 200)
                 else:
-                    draw_surf(dlg.surfaces[si], 255, 140, 0, 20)    # unselected → dim orange
+                    # unselected → dim orange
+                    draw_surf(dlg.surfaces[si], 255, 140, 0, 20)
 
         # --- terminal plane groups (blue) ---
         term_g = g_sel if mode == 'terminal_plane' else -1
@@ -320,18 +334,24 @@ class SurfaceOverlay(QtWidgets.QWidget):
                 if term_g < 0:
                     draw_surf(dlg.surfaces[si], 51, 153, 255, 80)
                 elif g == term_g and (term_s < 0 or s == term_s):
-                    draw_surf(dlg.surfaces[si], 255, 40, 40, 200)   # selected → bright red
+                    # selected → bright red
+                    draw_surf(dlg.surfaces[si], 255, 40, 40, 200)
                 else:
-                    draw_surf(dlg.surfaces[si], 51, 153, 255, 20)   # unselected → dim blue
+                    # unselected → dim blue
+                    draw_surf(dlg.surfaces[si], 51, 153, 255, 20)
 
-        # --- selected cavity surface highlights (only when not in a pick mode) ---
+        # --- selected cavity surface highlights
+        # (only when not in a pick mode) ---
         if dlg.select_mode is None:
             w_si = dlg.selected_cavity_wire_si
             t_si = dlg.selected_cavity_term_si
+
             if 0 <= w_si < len(dlg.surfaces):
-                draw_surf(dlg.surfaces[w_si], 255, 220, 0, 120)    # yellow = wire
+                # yellow = wire
+                draw_surf(dlg.surfaces[w_si], 255, 220, 0, 120)
             if 0 <= t_si < len(dlg.surfaces):
-                draw_surf(dlg.surfaces[t_si], 0, 210, 255, 120)    # cyan = terminal
+                # cyan = terminal
+                draw_surf(dlg.surfaces[t_si], 0, 210, 255, 120)
 
         # --- individual terminals (per-surface colours) ---
         for idx in dlg.terminal_surf_idxs:
@@ -343,6 +363,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
         if dlg.analysis_panel.isVisible():
             items = dlg.analysis_panel.items()
             selected = dlg.analysis_selected
+
             for i, item in enumerate(items):
                 if i == selected:
                     rgba = (80, 255, 80, 130)
@@ -359,18 +380,21 @@ class SurfaceOverlay(QtWidgets.QWidget):
                         painter.drawPolygon(QtGui.QPolygonF(pts))
 
         # --- manually-drawn cavity markers (single-plane housings) ---
-        def draw_shape(kind, params, r, g, b, a=140):
+        def draw_shape(kind, params, r_, g_, b_, a_=140):
             poly_pts = [project(pt) for pt in _shape_polygon_points(kind, params)]
             if all(p is not None for p in poly_pts):
-                painter.setBrush(QtGui.QBrush(QtGui.QColor(r, g, b, a)))
+                painter.setBrush(QtGui.QBrush(QtGui.QColor(r_, g_, b_, a_)))
                 painter.drawPolygon(QtGui.QPolygonF(poly_pts))
 
         for m in dlg.manual_cavities:
-            draw_shape(m['kind'], m['params'], 40, 220, 80)     # green = finalized
+            # green = finalized
+            draw_shape(m['kind'], m['params'], 40, 220, 80)
 
         if dlg.draw_preview is not None:
-            draw_shape(dlg.draw_preview['kind'], dlg.draw_preview['params'],
-                       255, 60, 60, 170)                         # red = live drag
+            # red = live drag
+            draw_shape(dlg.draw_preview['kind'],
+                       dlg.draw_preview['params'],
+                       255, 60, 60, 170)
 
         painter.end()
 
@@ -379,13 +403,15 @@ def _ray_plane_hit(
     origin: np.ndarray, direction: np.ndarray,
     normal: np.ndarray, point_on_plane: np.ndarray,
 ) -> Optional[np.ndarray]:
-    """Intersect a world-space ray with an (unbounded) plane.
+    """
+    Intersect a world-space ray with an (unbounded) plane.
 
     Unlike ``MeshSurfacePicker.pick_surface_at``, this does not require the
     hit to land inside any particular triangle — used while dragging out a
     manually-drawn cavity marker, since the shape can grow past the seed
     triangle's own boundary.
     """
+
     denom = float(direction @ normal)
     if abs(denom) < 1e-9:
         return None
@@ -406,11 +432,11 @@ class _SurfaceSelectFilter(QtCore.QObject):
     """
 
     def __init__(self, dialog: "HousingEditorDialog"):
-        super().__init__(dialog.canvas._canvas)
+        super().__init__(dialog.canvas._canvas)  # NOQA
         self._dialog = dialog
         self._is_moved = False
 
-        dialog.canvas._canvas.installEventFilter(self)
+        dialog.canvas._canvas.installEventFilter(self)  # NOQA
 
     # ── manual draw mode ─────────────────────────────────────────────────────
 
@@ -428,10 +454,12 @@ class _SurfaceSelectFilter(QtCore.QObject):
         normal = np.asarray(surf.normal, dtype=np.float64)
         normal /= np.linalg.norm(normal) + 1e-12
         point = normal * float(surf.plane_dist)
+
         return normal, point
 
     def _ray_at(self, event: QtGui.QMouseEvent):
         pos = event.position().toPoint()
+
         return self._dialog._picker.compute_ray_world(pos.x(), pos.y())  # NOQA
 
     def _start_draw(self, event: QtGui.QMouseEvent) -> None:
@@ -466,26 +494,28 @@ class _SurfaceSelectFilter(QtCore.QObject):
 
     def _update_draw(self, event: QtGui.QMouseEvent) -> None:
         dlg = self._dialog
-        if dlg._draw_center is None:
+        if dlg._draw_center is None:  # NOQA
             return
 
         origin, direction = self._ray_at(event)
         if origin is None:
             return
 
-        hit = _ray_plane_hit(origin, direction, dlg._draw_normal, dlg._draw_center)
+        hit = _ray_plane_hit(origin, direction,
+                             dlg._draw_normal, dlg._draw_center)  # NOQA
         if hit is None:
             return
 
-        delta = hit - dlg._draw_center
-        du = float(delta @ dlg._draw_u)
-        dv = float(delta @ dlg._draw_v)
+        delta = hit - dlg._draw_center  # NOQA
+        du = float(delta @ dlg._draw_u)  # NOQA
+        dv = float(delta @ dlg._draw_v)  # NOQA
         dlg.draw_preview = dict(
             kind=dlg.draw_mode,
             params=dict(
-                normal=dlg._draw_normal.astype(np.float32),
-                u=dlg._draw_u.astype(np.float32), v=dlg._draw_v.astype(np.float32),
-                center=dlg._draw_center.astype(np.float32),
+                normal=dlg._draw_normal.astype(np.float32),  # NOQA
+                u=dlg._draw_u.astype(np.float32),   # NOQA
+                v=dlg._draw_v.astype(np.float32),  # NOQA
+                center=dlg._draw_center.astype(np.float32),  # NOQA
                 radius=float(np.hypot(du, dv)), half_w=abs(du), half_h=abs(dv)))
 
         if dlg.surface_overlay is not None:
@@ -504,14 +534,15 @@ class _SurfaceSelectFilter(QtCore.QObject):
         min_size = 0.05
         if preview is not None:
             p = preview['params']
+
             if max(p['radius'], p['half_w'], p['half_h']) >= min_size:
                 dlg.manual_cavities.append(preview)
                 n = len(dlg.manual_cavities)
-                dlg._set_status(
+                dlg._set_status(  # NOQA
                     f'{n} cavity shape{"s" if n != 1 else ""} drawn manually.'
                     f' Run Analyze when ready.')
             else:
-                dlg._set_status('Draw too small — discarded.')
+                dlg._set_status('Draw too small — discarded.')  # NOQA
 
         dlg.draw_preview = None
         dlg.draw_mode = None
@@ -530,16 +561,23 @@ class _SurfaceSelectFilter(QtCore.QObject):
             if t == QtCore.QEvent.Type.MouseButtonPress:
                 if event.button() == QtCore.Qt.MouseButton.LeftButton:
                     self._start_draw(event)
+
                     return True
+
             elif t == QtCore.QEvent.Type.MouseMove:
-                if dlg._draw_active:
+                if dlg._draw_active:  # NOQA
                     self._update_draw(event)
+
                     return True
+
             elif t == QtCore.QEvent.Type.MouseButtonRelease:
-                if (event.button() == QtCore.Qt.MouseButton.LeftButton and
-                        dlg._draw_active):
+                if (
+                    event.button() == QtCore.Qt.MouseButton.LeftButton and
+                    dlg._draw_active  # NOQA
+                ):
                     self._finish_draw()
                     return True
+
             return False
 
         if t == QtCore.QEvent.Type.MouseButtonPress:
@@ -566,7 +604,9 @@ class _SurfaceSelectFilter(QtCore.QObject):
 
 
 class HousingEditorDialog(_dialog_base.BaseDialog):
-    """Housing editor with integrated surface-picking for cavity detection."""
+    """
+    Housing editor with integrated surface-picking for cavity detection.
+    """
 
     def __init__(self, parent: "_ui.MainFrame"):
         self.db_obj = None
@@ -594,13 +634,16 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.surfaces: list = []
         self._picker: Optional[_MeshSurfacePicker] = None
         self.select_mode: Optional[str] = None
-        # Plane groups: each entry is a list of surface indices on one clicked plane.
+        # Plane groups: each entry is a list of
+        # surface indices on one clicked plane.
         self.wire_plane_groups: list[list[int]] = []
         self.term_plane_groups: list[list[int]] = []
-        # Seed surface index per group — used to re-expand when tolerance changes.
+        # Seed surface index per group — used to
+        # re-expand when tolerance changes.
         self.wire_plane_seeds: list[int] = []
         self.term_plane_seeds: list[int] = []
-        # Per-group sets of surfaces the user manually removed; excluded from re-expansion.
+        # Per-group sets of surfaces the user manually removed;
+        # excluded from re-expansion.
         self.wire_plane_excludes: list[set[int]] = []
         self.term_plane_excludes: list[set[int]] = []
         # Plane distance tolerance for coplanar grouping.
@@ -610,8 +653,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.terminal_surf_colors: dict[int, tuple[float, float, float]] = {}
         self.terminal_overrides: dict[int, str] = {}
         self.term_color_idx: int = 0
-        # Tree selection: which group and which surface within it are highlighted.
-        # plane_sel_surf = -1 means the whole group is highlighted.
+        # Tree selection: which group and which surface within it
+        # are highlighted. plane_sel_surf = -1 means the whole
+        # group is highlighted.
         self.plane_sel_group: int = -1
         self.plane_sel_surf: int = -1
         # Surfaces highlighted because the matching cavity tab is selected.
@@ -624,10 +668,18 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         # ── manual cavity drawing (single-plane housings) ──────────────────────
         # Draw a circle/rect directly on a selected terminal plane when the
         # housing has no distinct recessed mesh surface per cavity.
-        self.draw_mode: Optional[str] = None       # 'circle' | 'rect' | None
-        self.draw_group: int = -1                  # term_plane_groups index being drawn on
-        self.draw_preview: Optional[dict] = None    # live params while dragging
-        self._draw_active: bool = False             # button currently held
+
+        # 'circle' | 'rect' | None
+        self.draw_mode: Optional[str] = None
+
+        # term_plane_groups index being drawn on
+        self.draw_group: int = -1
+
+        # live params while dragging
+        self.draw_preview: Optional[dict] = None
+
+        # button currently held
+        self._draw_active: bool = False
         self._draw_center: Optional[np.ndarray] = None
         self._draw_normal: Optional[np.ndarray] = None
         self._draw_u: Optional[np.ndarray] = None
@@ -673,6 +725,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         self._btn_clear_terms = QtWidgets.QPushButton(
             'Clear Terminals', toolbar)
+
         self._btn_clear_terms.setStyleSheet('QPushButton { padding: 4px 12px; }')
 
         self._btn_clear_all = QtWidgets.QPushButton('Clear All', toolbar)
@@ -700,10 +753,16 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         tb_layout.addSpacing(12)
 
         self._tol_label = QtWidgets.QLabel('Tol: 0.05', toolbar)
+
         self._tol_slider = QtWidgets.QSlider(
             QtCore.Qt.Orientation.Horizontal, toolbar)
-        self._tol_slider.setRange(1, 50)   # 0.01 – 0.50 in 0.01 steps
-        self._tol_slider.setValue(5)        # default 0.05
+
+        # 0.01 – 0.50 in 0.01 steps
+        self._tol_slider.setRange(1, 50)
+
+        # default 0.05
+        self._tol_slider.setValue(5)
+
         self._tol_slider.setFixedWidth(100)
         tb_layout.addWidget(self._tol_label)
         tb_layout.addWidget(self._tol_slider)
@@ -753,8 +812,13 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         v_layout = QtWidgets.QVBoxLayout(self.panel)
         h_layout = QtWidgets.QHBoxLayout()
         h_layout.addWidget(self.canvas, 1)
-        h_layout.addWidget(self.plane_list_panel)  # shown in wire/terminal_plane mode
-        h_layout.addWidget(self.analysis_panel)    # shown/hidden by load()
+
+        # shown in wire/terminal_plane mode
+        h_layout.addWidget(self.plane_list_panel)
+
+        # shown/hidden by load()
+        h_layout.addWidget(self.analysis_panel)
+
         v_layout.addLayout(h_layout, 1)
         v_layout.addWidget(toolbar)
         v_layout.addSpacing(5)
@@ -784,16 +848,22 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         # Install surface-picking event filter on the inner GL widget
         self.surface_filter = _SurfaceSelectFilter(self)
-        self.surface_overlay = SurfaceOverlay(self.canvas._canvas, self)
+        self.surface_overlay = SurfaceOverlay(self.canvas._canvas, self)  # NOQA
 
         # Housing3D pre-bakes model.angle3d / model.position3d into the VBO so
         # its own position/angle/scale are identity.  MeshSurfacePicker therefore
         # works in world space — no additional transform is applied to the ray.
         self._picker = _MeshSurfacePicker(self.housing.obj3d, self.canvas)
-        self.vertices = self._picker.vertices   # (N*3, 3) float64, world space
-        self.surfaces = self._picker.surfaces   # MeshSurfacePicker.Surface list
+
+        # (N*3, 3) float64, world space
+        self.vertices = self._picker.vertices
+
+        # MeshSurfacePicker.Surface list
+        self.surfaces = self._picker.surfaces
+
         self._set_status(
             f'Mesh loaded — {len(self.surfaces)} surfaces detected')
+
         self.update()
 
     # ── surface picking ───────────────────────────────────────────────────────
@@ -801,7 +871,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def pick_surface_at(self, px: int, py: int) -> int:
         if self._picker is None:
             return -1
+
         idx, _ = self._picker.pick_surface_at(px, py)
+
         return idx
 
     # ── selection modes ───────────────────────────────────────────────────────
@@ -877,6 +949,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def _coplanar_idxs(self, idx: int) -> list[int]:
         ref = self.surfaces[idx]
         tol = self.plane_tol
+
         return [
             i for i, s in enumerate(self.surfaces)
             if (float(np.dot(s.normal, ref.normal)) > 0.98
@@ -905,6 +978,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             self.plane_sel_group = -1
             self.plane_sel_surf = -1
             n = len(groups)
+
             self._set_status(
                 f'{label}: plane removed ({n} plane{"s" if n != 1 else ""} selected)')
         else:
@@ -912,6 +986,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             seeds.append(idx)
             excludes.append(set())
             n = len(groups)
+
             self._set_status(
                 f'{label}: {len(plane_idxs)} surface'
                 f'{"s" if len(plane_idxs) != 1 else ""} added'
@@ -922,6 +997,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def _reload_plane_tree(self, is_wire: bool) -> None:
         groups = self.wire_plane_groups if is_wire else self.term_plane_groups
         label = 'Wire Surfaces' if is_wire else 'Terminal Surfaces'
+
         self.plane_list_panel.load(
             groups, self.surfaces, label, is_terminal=not is_wire)
 
@@ -939,11 +1015,14 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             n = np.asarray(m['params']['normal'], dtype=np.float64)
             n /= np.linalg.norm(n) + 1e-12
             d = float(np.asarray(m['params']['center'], dtype=np.float64) @ n)
+
             for gi, seed in enumerate(self.term_plane_seeds):
                 s = self.surfaces[seed]
+
                 if (float(np.dot(s.normal, n)) > 0.98 and
                         abs(float(s.plane_dist) - d) < tol):
                     covered.add(gi)
+
         return covered
 
     def _match_wire_surface(self, n_t, boundary_pts, wire_surf_items):
@@ -990,10 +1069,12 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             c_t = boundary_pts.mean(axis=0)
             c_t_perp = c_t - float(np.dot(c_t, n_t)) * n_t
             best_d = float('inf')
+
             for wsi, ws in wire_surf_items:
                 wc = _analysis.surface_centroid(ws, self.vertices)
                 c_w_perp = wc - float(np.dot(wc, n_t)) * n_t
                 d = float(np.linalg.norm(c_t_perp - c_w_perp))
+
                 if d < best_d:
                     best_d = d
                     best_ws_si, best_ws, best_wc = wsi, ws, wc
@@ -1006,11 +1087,11 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             return
 
         covered_groups = self._manual_covered_group_idxs()
-        all_terminal = [
-            i for gi, grp in enumerate(self.term_plane_groups)
-            if gi not in covered_groups
-            for i in grp
-        ]
+
+        all_terminal = [i for gi, grp in enumerate(self.term_plane_groups)
+                        if gi not in covered_groups
+                        for i in grp]
+
         for i in self.terminal_surf_idxs:
             if i not in all_terminal:
                 all_terminal.append(i)
@@ -1020,11 +1101,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             return
 
         # Flatten all selected wire surfaces, keeping their picker surface index.
-        wire_surf_items: list[tuple[int, object]] = [
-            (si, self.surfaces[si])
-            for grp in self.wire_plane_groups
-            for si in grp
-        ]
+        wire_surf_items: list[tuple[int, object]] = [(si, self.surfaces[si])
+                                                     for grp in self.wire_plane_groups
+                                                     for si in grp]
 
         results = []
         for ti in all_terminal:
@@ -1033,7 +1112,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             n_t /= np.linalg.norm(n_t) + 1e-12
 
             try:
-                kind, params = _analysis.get_surface_shape(term_surf, self.vertices)
+                kind, params = _analysis.get_surface_shape(
+                    term_surf, self.vertices)
+
                 override = self.terminal_overrides.get(ti)
                 if override in ('circle', 'rect'):
                     kind = override
@@ -1044,7 +1125,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                 best_ws_si, best_ws, best_wc = self._match_wire_surface(
                     n_t, boundary_pts, wire_surf_items)
 
-                kind, params, verts, _norms = _analysis.generate_terminal_geometry(
+                (kind, params,
+                 verts, _norms) = _analysis.generate_terminal_geometry(
                     term_surf, best_ws, self.vertices,
                     kind_override=self.terminal_overrides.get(ti),
                     length_factor=self.length_factor,
@@ -1066,10 +1148,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             # below for the legitimate wire-side sharing case).
             wire_indices = [best_ws_si]
             term_indices = [ti]
-            results.append(
-                (kind, params, d_start, d_end, proj_u, proj_v, verts,
-                 best_ws_si, ti, False, wire_indices, term_indices)
-            )
+
+            results.append((kind, params, d_start, d_end, proj_u, proj_v, verts,
+                            best_ws_si, ti, False, wire_indices, term_indices))
 
         # Manually-drawn cavities: kind/params are already known (from the
         # user's drag), so skip generate_terminal_geometry's mesh-boundary
@@ -1099,10 +1180,10 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             proj_u = float(c_t @ u_ax)
             proj_v = float(c_t @ v_ax)
             wire_indices = [best_ws_si]
+
             results.append(
                 (m['kind'], params, d_start, d_end, proj_u, proj_v, verts,
-                 best_ws_si, -1, True, wire_indices, [])
-            )
+                 best_ws_si, -1, True, wire_indices, []))
 
         if not results:
             self._set_status('Analysis produced no results.')
@@ -1123,13 +1204,14 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                 wire_si_counts[wire_si] = wire_si_counts.get(wire_si, 0) + 1
 
         # Sort: top-to-bottom (decreasing proj_v), left-to-right (increasing proj_u)
-        results.sort(key=lambda r: (-r[5], r[4]))
+        results.sort(key=lambda r_: (-r_[5], r_[4]))
 
         # Build preview items — names continue from existing cavity count
         existing = len(self.cavity_panel.cavities) if self.cavity_panel else 0
         items = []
         for i, (kind, params, d_start, d_end, _pu, _pv, verts, wire_si,
                 term_si, is_manual, wire_indices, term_indices) in enumerate(results):
+
             item = _analysis_panel.AnalysisItem(
                 name=str(existing + i + 1),
                 kind=kind,
@@ -1208,10 +1290,12 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             expanded = self._coplanar_idxs(seed)
             self.wire_plane_groups[i] = [
                 si for si in expanded if si not in self.wire_plane_excludes[i]]
+
         for i, seed in enumerate(self.term_plane_seeds):
             expanded = self._coplanar_idxs(seed)
             self.term_plane_groups[i] = [
                 si for si in expanded if si not in self.term_plane_excludes[i]]
+
         if self.select_mode == 'wire':
             self._reload_plane_tree(is_wire=True)
         elif self.select_mode == 'terminal_plane':
@@ -1287,6 +1371,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             if s < len(groups[g]):
                 removed_si = groups[g].pop(s)
                 excludes[g].add(removed_si)
+
                 if not groups[g]:
                     groups.pop(g)
                     seeds.pop(g)
@@ -1295,23 +1380,27 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.plane_sel_group = -1
         self.plane_sel_surf = -1
         self._reload_plane_tree(is_wire)
+
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
     def _on_plane_accepted(self) -> None:
         for btn in self._mode_btns:
             btn.setChecked(False)
+
         self.select_mode = None
         self.plane_sel_group = -1
         self.plane_sel_surf = -1
         self.plane_list_panel.hide()
         self._set_status('')
+
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
     def _on_cavity_selected(self, wire_si: int, term_si: int) -> None:
         self.selected_cavity_wire_si = wire_si
         self.selected_cavity_term_si = term_si
+
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
@@ -1323,6 +1412,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def closeEvent(self, event):
         if self._picker is not None:
             self._picker.cleanup()
+
         self.canvas.cleanup()
         super().closeEvent(event)
 

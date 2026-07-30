@@ -71,7 +71,7 @@ def _obb_face_direction(
 
 def _euler_from_matrix_continuous(
         rot_mat: np.ndarray,
-        prev_euler_deg: list[float] | None) -> list:
+        prev_euler_deg: tuple[float] | None) -> list[float, float, float]:
     """YXZ Euler decomposition matching :meth:`Quaternion.as_euler`.
 
     *rot_mat* columns are ``[right, up, forward]``.  Each angle is
