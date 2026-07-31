@@ -227,7 +227,10 @@ def do(func):
     if _FROZEN:
         return func
 
-    arg_spec = inspect.getfullargspec(func)
+    try:
+        arg_spec = inspect.getfullargspec(func)
+    except TypeError:
+        return func
 
     arg_names = arg_spec.args
     arg_annot = arg_spec.annotations
