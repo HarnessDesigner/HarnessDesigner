@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import base2d as _base2d
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class Boot(_base2d.Base2D):
     _parent: "_boot.Boot" = None
     db_obj: "_pjt_boot.PJTBoot"
 
+    @_check_types.do
     def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot"):
         """Initialise the :class:`Boot` instance.
 

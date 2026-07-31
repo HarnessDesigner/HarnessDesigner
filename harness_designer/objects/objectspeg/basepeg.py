@@ -13,6 +13,7 @@ from .. import objectsvar as _objectsvar
 from ...gl import vbo as _vbo
 
 from ... import debug as _debug
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -74,6 +75,7 @@ class BasePeg(_objectsvar.BaseVar):
     already use for live 3D dragging.
     """
 
+    @_check_types.do
     def __init__(
         self,
         parent: "_ObjectBase",
@@ -124,13 +126,16 @@ class BasePeg(_objectsvar.BaseVar):
         super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
     @property
+    @_check_types.do
     def editor(self):
         return self.pegboard
 
+    @_check_types.do
     def _is_visible_callback(self, *_, **__):
         pass
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """
         Get object visibility
@@ -141,6 +146,7 @@ class BasePeg(_objectsvar.BaseVar):
         return True
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool):
         """
         Set object visibility.
@@ -151,9 +157,11 @@ class BasePeg(_objectsvar.BaseVar):
         pass
 
     @property
+    @_check_types.do
     def _selected_color(self) -> _color.Color:
         return _color.Color(*Config.selected_color)
 
+    @_check_types.do
     def _apply_flatten_if_untouched(self, euler: tuple) -> None:
         """Apply a computed "lay it flat" Euler orientation to
         :attr:`angle`, but only if the anchor's rotation is still at the
@@ -185,6 +193,7 @@ class BasePeg(_objectsvar.BaseVar):
         self._angle.z = ez
 
     @_debug.logfunc
+    @_check_types.do
     def _set_model(self, model: "_model3d.Model3D"):
         """Async model-load callback -- mirrors
         ``objects.objects3d.base3d.Base3D._set_model`` exactly (same
@@ -246,6 +255,7 @@ class BasePeg(_objectsvar.BaseVar):
         self.pegboard.add_object(self.parent)
 
     @property
+    @_check_types.do
     def obj(self) -> "_ObjectBase":
         """Return the owning :class:`ObjectBase` wrapper (back-reference).
 
@@ -259,6 +269,7 @@ class BasePeg(_objectsvar.BaseVar):
         return self.parent
 
     @property
+    @_check_types.do
     def is_active(self) -> bool:
         """Return whether this anchor has a real, rendered peg-board
         presence right now.
@@ -274,14 +285,17 @@ class BasePeg(_objectsvar.BaseVar):
         """
         return self._vbo is not None
 
+    @_check_types.do
     def delete(self):
         self.parent.delete()
 
+    @_check_types.do
     def _delete(self):
         self._is_deleted = True
         self.pegboard.Refresh()
 
     @property
+    @_check_types.do
     def smooth(self) -> bool:
         """Return whether the mesh renders with smooth (vertex) normals.
 
@@ -291,6 +305,7 @@ class BasePeg(_objectsvar.BaseVar):
         return getattr(self, '_smooth', False)
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool) -> None:
         self._smooth = bool(value)
 
@@ -298,6 +313,7 @@ class BasePeg(_objectsvar.BaseVar):
     # Peg Board Editor data-table overlays (gl.canvas_pegboard.tables_overlay)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _table_label(self) -> str:
         """Title-strip text for this anchor's own (single) data table.
 
@@ -308,6 +324,7 @@ class BasePeg(_objectsvar.BaseVar):
         return name or type(self.obj).__name__
 
     @property
+    @_check_types.do
     def table_anchor_points(self) -> list:
         """Every ``(point3d_id, world_x, world_z, label)`` this anchor
         needs its own data table for.
@@ -332,6 +349,7 @@ class BasePeg(_objectsvar.BaseVar):
         return [(self.point3d_id, float(self.position.x), float(self.position.z),
                  self._table_label())]
 
+    @_check_types.do
     def table_anchor_live_position(self, point3d_id: int) -> _point.Point:
         """Return the live, bound ``Point`` backing *point3d_id* -- one of
         this anchor's own :attr:`table_anchor_points` ids.
@@ -361,6 +379,7 @@ class BasePeg(_objectsvar.BaseVar):
         """
         return self.position
 
+    @_check_types.do
     def build_table_rows(self, project, point3d_id: int) -> list:
         """Return this anchor's wire rows for the table anchored at
         *point3d_id* -- one of the id(s) :attr:`table_anchor_points`
@@ -381,6 +400,7 @@ class BasePeg(_objectsvar.BaseVar):
         return []
 
     @property
+    @_check_types.do
     def table_include_cavity_columns(self) -> bool:
         """Whether this anchor's table(s) should include the Cavity
         Index/Cavity Name columns -- ``True`` only for

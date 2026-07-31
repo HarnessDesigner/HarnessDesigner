@@ -10,6 +10,7 @@ from ...geometry import angle as _angle
 from . import base2d as _base2d
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Generic(_base2d.Base2D):
     """
     _parent: "_generic.Generic" = None
 
+    @_check_types.do
     def __init__(self, parent: "_generic.Generic", ):
         """Initialise the :class:`Generic` instance.
 

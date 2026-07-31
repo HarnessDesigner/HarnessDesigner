@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class Rotate2DMenu(QtWidgets.QMenu):
@@ -9,6 +10,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, obj):
         """Initialise the :class:`Rotate2DMenu` instance.
 
@@ -33,6 +35,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
         act = self.addAction('Rotate 180\u00b0')
         act.triggered.connect(self.on_pos_180)
 
+    @_check_types.do
     def on_pos_90(self):
         """Handle the pos 90 event.
 
@@ -40,6 +43,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
         """
         pass
 
+    @_check_types.do
     def on_neg_90(self):
         """Handle the neg 90 event.
 
@@ -47,6 +51,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
         """
         pass
 
+    @_check_types.do
     def on_pos_180(self):
         """Handle the pos 180 event.
 
@@ -61,6 +66,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, obj):
         """Initialise the :class:`Mirror2DMenu` instance.
 
@@ -81,6 +87,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
         act = self.addAction('Y')
         act.triggered.connect(self.on_y)
 
+    @_check_types.do
     def on_x(self):
         """Handle the x event.
 
@@ -88,6 +95,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
         """
         pass
 
+    @_check_types.do
     def on_y(self):
         """Handle the y event.
 
@@ -102,6 +110,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`Rotate3DMenu` instance.
 
@@ -125,6 +134,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.addAction('Z +90\u00b0').triggered.connect(self.on_z_pos_90)
         self.addAction('Z -90\u00b0').triggered.connect(self.on_z_neg_90)
 
+    @_check_types.do
     def on_x_pos_90(self):
         """Handle the x pos 90 event.
 
@@ -137,6 +147,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.x = x
 
+    @_check_types.do
     def on_x_neg_90(self):
         """Handle the x neg 90 event.
 
@@ -149,6 +160,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.x = x
 
+    @_check_types.do
     def on_y_pos_90(self):
         """Handle the y pos 90 event.
 
@@ -161,6 +173,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.y = y
 
+    @_check_types.do
     def on_y_neg_90(self):
         """Handle the y neg 90 event.
 
@@ -173,6 +186,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.y = y
 
+    @_check_types.do
     def on_z_pos_90(self):
         """Handle the z pos 90 event.
 
@@ -185,6 +199,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.z = z
 
+    @_check_types.do
     def on_z_neg_90(self):
         """Handle the z neg 90 event.
 
@@ -204,6 +219,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`Mirror3DMenu` instance.
 
@@ -221,6 +237,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
         self.addAction('Y').triggered.connect(self.on_y)
         self.addAction('Z').triggered.connect(self.on_z)
 
+    @_check_types.do
     def on_x(self):
         """Handle the x event.
 
@@ -234,6 +251,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.x = x
 
+    @_check_types.do
     def on_y(self):
         """Handle the y event.
 
@@ -246,6 +264,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
 
         self.selected.obj3d.angle.y = y
 
+    @_check_types.do
     def on_z(self):
         """Handle the z event.
 

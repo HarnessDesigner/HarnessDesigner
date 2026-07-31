@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin, DescriptionMixin
+from ... import check_types as _check_types
 
 
 class ManufacturersTable(TableBase):
@@ -13,6 +14,7 @@ class ManufacturersTable(TableBase):
     """
     __table_name__ = 'manufacturers'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -25,6 +27,7 @@ class ManufacturersTable(TableBase):
 
         return manufacturers.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -39,6 +42,7 @@ class ManufacturersTable(TableBase):
         data_path = self._con.db_data.open(splash)
         manufacturers.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -48,6 +52,7 @@ class ManufacturersTable(TableBase):
 
         manufacturers.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Manufacturer"]:
         """Iterate over the available items.
 
@@ -60,6 +65,7 @@ class ManufacturersTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Manufacturer(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Manufacturer":
         """Return the requested item.
 
@@ -83,6 +89,7 @@ class ManufacturersTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, name: str, description: str, address: str, contact_person: str,
                phone: str, ext: str, email: str, website: str) -> "Manufacturer":
         """Execute the insert operation.
@@ -116,6 +123,7 @@ class ManufacturersTable(TableBase):
         return Manufacturer(self, db_id)
 
     @property
+    @_check_types.do
     def choices(self) -> list[str]:
         """Return the choices.
 
@@ -134,6 +142,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     """
     _table: ManufacturersTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -152,6 +161,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _stored_address: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def address(self) -> str:
         """Return the address.
 
@@ -166,6 +176,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_address
 
     @address.setter
+    @_check_types.do
     def address(self, value: str):
         """Set the address.
 
@@ -181,6 +192,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _stored_contact_person: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def contact_person(self) -> str:
         """Return the contact person.
 
@@ -195,6 +207,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_contact_person
 
     @contact_person.setter
+    @_check_types.do
     def contact_person(self, value: str):
         """Set the contact person.
 
@@ -210,6 +223,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _stored_phone: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def phone(self) -> str:
         """Return the phone.
 
@@ -224,6 +238,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_phone
 
     @phone.setter
+    @_check_types.do
     def phone(self, value: str):
         """Set the phone.
 
@@ -239,6 +254,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _stored_ext: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ext(self) -> str:
         """Return the ext.
 
@@ -253,6 +269,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_ext
 
     @ext.setter
+    @_check_types.do
     def ext(self, value: str):
         """Set the ext.
 
@@ -268,6 +285,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _stored_email: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def email(self) -> str:
         """Return the email.
 
@@ -282,6 +300,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_email
 
     @email.setter
+    @_check_types.do
     def email(self, value: str):
         """Set the email.
 
@@ -297,6 +316,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     _stored_website: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def website(self) -> str:
         """Return the website.
 
@@ -311,6 +331,7 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_website
 
     @website.setter
+    @_check_types.do
     def website(self, value: str):
         """Set the website.
 

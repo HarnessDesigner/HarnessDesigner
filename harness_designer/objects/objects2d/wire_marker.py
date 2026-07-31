@@ -15,6 +15,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from ...shapes import cylinder as _cylinder
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ class WireMarker(_base2d.Base2D):
     # objects.objectsvar.base_var.BaseVar._pick_priority.
     _pick_priority = 1
 
+    @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
                  db_obj: "_pjt_wire_marker.PJTWireMarker"):
         """Initialise the :class:`WireMarker` instance.
@@ -119,6 +121,7 @@ class WireMarker(_base2d.Base2D):
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+    @_check_types.do
     def _wire_too_short(self, length: float) -> bool:
         """Return whether ``length`` is too short to fit this marker plus
         its end buffer on each side, logging an error when it is.
@@ -138,6 +141,7 @@ class WireMarker(_base2d.Base2D):
 
         return False
 
+    @_check_types.do
     def _percent_for_point(self, line: _line.Line, point: _point.Point) -> float:
         """Return where ``point`` (assumed already on/near ``line``) sits
         as a percentage of the buffered usable range (0.0 = ``self._buffer``
@@ -156,6 +160,7 @@ class WireMarker(_base2d.Base2D):
         percent = (raw_distance - self._buffer) / usable_length
         return max(0.0, min(1.0, percent))
 
+    @_check_types.do
     def _point_for_percent(self, line: _line.Line, percent: float) -> _point.Point:
         """Return the point on ``line`` at ``percent`` through the
         buffered usable range -- see :meth:`_percent_for_point`. Assumes
@@ -167,6 +172,7 @@ class WireMarker(_base2d.Base2D):
 
         return line.point_from_start(distance)
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Update the position.
 
@@ -218,6 +224,7 @@ class WireMarker(_base2d.Base2D):
 
         self.editor2d.Refresh()
 
+    @_check_types.do
     def rebind_wire(self, wire_db_obj: "_pjt_wire.PJTWire") -> None:
         """Reattach this marker to a different :class:`PJTWire` row.
 
@@ -275,6 +282,7 @@ class WireMarkerMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`WireMarkerMenu` instance.
 
@@ -311,8 +319,10 @@ class WireMarkerMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_set_label(self):
         """Edit the marker label."""
+        @_check_types.do
         def _do():
             from PySide6.QtWidgets import QInputDialog
 
@@ -330,6 +340,7 @@ class WireMarkerMenu(QMenu):
 
         QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def on_flip_label(self):
         """Handle the flip label event.
 
@@ -337,6 +348,7 @@ class WireMarkerMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_select(self):
         """Handle the select event.
 
@@ -344,6 +356,7 @@ class WireMarkerMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_clone(self):
         """Handle the clone event.
 
@@ -351,6 +364,7 @@ class WireMarkerMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 
@@ -358,6 +372,7 @@ class WireMarkerMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_properties(self):
         """Handle the properties event.
 

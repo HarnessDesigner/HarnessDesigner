@@ -19,6 +19,7 @@ from .mixins import (
     WeightMixin, WeightControl,
     WireSizeMixin, WireSizeControl
 )
+from ... import check_types as _check_types
 
 
 class WireMarkersTable(TableBase):
@@ -31,6 +32,7 @@ class WireMarkersTable(TableBase):
     _control: "WireMarkerControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "WireMarkerControl":
         """Return the control.
 
@@ -44,6 +46,7 @@ class WireMarkersTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -56,6 +59,7 @@ class WireMarkersTable(TableBase):
 
         return wire_markers.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -71,6 +75,7 @@ class WireMarkersTable(TableBase):
 
         wire_markers.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -80,6 +85,7 @@ class WireMarkersTable(TableBase):
 
         wire_markers.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["WireMarker"]:
         """Iterate over the available items.
 
@@ -92,6 +98,7 @@ class WireMarkersTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield WireMarker(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "WireMarker":
         """Return the requested item.
 
@@ -115,6 +122,7 @@ class WireMarkersTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, image_id: int, datasheet_id: int,
                cad_id: int, color_id: int, min_diameter: float, max_diameter: float, length: float) -> "WireMarker":
         """Execute the insert operation.
@@ -153,6 +161,7 @@ class WireMarkersTable(TableBase):
         return WireMarker(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -232,6 +241,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     _table: WireMarkersTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -258,6 +268,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     _stored_weight: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def weight(self) -> float:
         """Return the weight.
 
@@ -272,6 +283,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         return self._stored_weight
 
     @weight.setter
+    @_check_types.do
     def weight(self, value: float):
         """Set the weight.
 
@@ -287,6 +299,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     _stored_has_label: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def has_label(self) -> bool:
         """Return the has label.
 
@@ -301,6 +314,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         return self._stored_has_label
 
     @has_label.setter
+    @_check_types.do
     def has_label(self, value: bool):
         """Set the has label.
 
@@ -316,6 +330,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     _stored_min_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def min_diameter(self) -> float:
         """Return the min diameter.
 
@@ -330,6 +345,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         return self._stored_min_diameter
 
     @min_diameter.setter
+    @_check_types.do
     def min_diameter(self, value: float):
         """Set the min diameter.
 
@@ -345,6 +361,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     _stored_max_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_diameter(self) -> float:
         """Return the max diameter.
 
@@ -359,6 +376,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         return self._stored_max_diameter
 
     @max_diameter.setter
+    @_check_types.do
     def max_diameter(self, value: float):
         """Set the max diameter.
 
@@ -374,6 +392,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
     _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def length(self) -> float:
         """Return the length.
 
@@ -388,6 +407,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         return self._stored_length
 
     @length.setter
+    @_check_types.do
     def length(self, value: float):
         """Set the length.
 
@@ -407,6 +427,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: WireMarker):
         """Set the obj.
 
@@ -417,6 +438,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -459,6 +481,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
                 self.max_diameter_ctrl.setEnabled(True)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_min_diameter(self, evt):
         """Handle the min diameter event.
 
@@ -470,6 +493,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.min_diameter = value
 
+    @_check_types.do
     def _on_max_diameter(self, evt):
         """Handle the max diameter event.
 
@@ -481,6 +505,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.max_diameter = value
 
+    @_check_types.do
     def _on_length(self, evt):
         """Handle the length event.
 
@@ -492,6 +517,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.length = value
 
+    @_check_types.do
     def _on_label(self, evt):
         """Handle the label event.
 
@@ -503,6 +529,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.has_label = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`WireMarkerControl` instance.
 

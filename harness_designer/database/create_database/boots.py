@@ -22,8 +22,10 @@ from . import housings as _housings
 
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_boots(con, data: tuple[dict] | list[dict]):
     """
     Add a boots.
@@ -39,6 +41,7 @@ def add_boots(con, data: tuple[dict] | list[dict]):
         add_boot(con, **line)
 
 
+@_check_types.do
 def add_boot(con, part_number, description, mfg=None, family=None, series=None,
              color=None, material=None, direction=None, image=None, datasheet=None,
              cad=None, min_temp=None, max_temp=None, model3d=None, length=0.0,
@@ -162,6 +165,7 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
         return con.lastrowid
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.

@@ -6,6 +6,7 @@ from ...geometry import point as _point
 from ...geometry import line as _line
 from ... import debug as _debug
 from . import move_arrows as _move_arrows
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
 _AXIS_LOCK_SETTLE_EVENTS = 2
 
 
+@_check_types.do
 def wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
     """Return (start_anchored, stop_anchored) for *wire_obj*.
 
@@ -75,6 +77,7 @@ class DragObject:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         """Initialise the :class:`DragObject` instance.
 
@@ -103,6 +106,7 @@ class DragObject:
         if hasattr(selected.obj3d, 'begin_move_session'):
             selected.obj3d.begin_move_session()
 
+    @_check_types.do
     def delete(self):
         """Execute the delete operation.
 
@@ -117,6 +121,7 @@ class DragObject:
         self.move_arrows = None
 
     @_debug.logfunc
+    @_check_types.do
     def __call__(self, delta):
         """Call the instance.
 
@@ -216,6 +221,7 @@ class PathDragObject:
     choice for a Bundle.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas",
                  selected: "_wire_object.Wire | _bundle_object.Bundle",
                  mouse_pos: _point.Point):
@@ -243,6 +249,7 @@ class PathDragObject:
         self.pick_offset = None
         self._settle_events = 0
 
+    @_check_types.do
     def delete(self):
         if self.move_arrows is not None:
             self.move_arrows.delete()
@@ -250,6 +257,7 @@ class PathDragObject:
         self.move_arrows = None
 
     @_debug.logfunc
+    @_check_types.do
     def __call__(self, delta):
         anchor_screen = self.canvas.camera.ProjectPoint(self._anchor)
         depth = anchor_screen.z
@@ -316,6 +324,7 @@ class EndpointDragObject:
     special (see wire_end_anchors()'s own docstring).
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_wire_object.Wire", end: str):
         if end not in ('start', 'stop'):
             raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
@@ -339,6 +348,7 @@ class EndpointDragObject:
         self.pick_offset = None
         self._settle_events = 0
 
+    @_check_types.do
     def delete(self):
         if self.move_arrows is not None:
             self.move_arrows.delete()
@@ -346,6 +356,7 @@ class EndpointDragObject:
         self.move_arrows = None
 
     @_debug.logfunc
+    @_check_types.do
     def __call__(self, delta):
         anchor_screen = self.canvas.camera.ProjectPoint(self._anchor)
         depth = anchor_screen.z

@@ -47,6 +47,7 @@ is safe against deletions mid-scan.
 from typing import TYPE_CHECKING
 
 from ... import config as _config
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import pjt_bases as _pjt_bases
@@ -85,6 +86,7 @@ class ProjectCleanup:
                 self._idle_timer.stop()
     """
 
+    @_check_types.do
     def __init__(self, project: "_project.Project"):
         """Initialise the :class:`ProjectCleanup` instance.
 
@@ -101,6 +103,7 @@ class ProjectCleanup:
         self._tables_3d = [table for table in project.ptables.tables if table.has_points3d]
         self._tables_2d = [table for table in project.ptables.tables if table.has_points3d]
 
+    @_check_types.do
     def process_chunk(self) -> bool:
         """
         Process one batch of BATCH_SIZE point IDs.
@@ -127,6 +130,7 @@ class ProjectCleanup:
 
         return False
 
+    @_check_types.do
     def _process_batch(self, table_name: str, tables: list["_pjt_bases.PJTTableBase"],
                        cursor: int) -> bool:
         """
@@ -186,6 +190,7 @@ class ProjectCleanup:
 
         return new_cursor
 
+    @_check_types.do
     def _delete_batch(self, table_name: str, orphan_ids: list[int]):
         """
         Delete a set of orphaned point IDs from *table_name* in one query.

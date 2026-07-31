@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
@@ -11,6 +11,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...gl import vbo as _vbo
+from ... import check_types as _check_types
 
 
 Config = _config.Config.colors
@@ -29,10 +30,11 @@ class BaseVar:
     # wire they sit on/inside).
     _pick_priority: int = 0
 
-    def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
-                 vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
-                 position: _point.Point, scale: _point.Point,
-                 material: _materials.GLMaterial):
+    @_check_types.do
+    def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
+                 vbo: _vbo.PooledVBOHandler | None, angle: _angle.Angle | None,
+                 position: _point.Point | None, scale: _point.Point | None,
+                 material: _materials.GLMaterial | None):
 
         self._is_selected = False
         self._is_visible = False
@@ -84,10 +86,12 @@ class BaseVar:
         self._compute_aabb()
 
     @property
+    @_check_types.do
     def _selected_color(self) -> _color.Color:
         raise NotImplementedError
 
     @property
+    @_check_types.do
     def selected_material(self) -> _materials.GLMaterial:
         """This object's own "selected" material -- exposed publicly so
         other objects can identify() themselves with it (e.g. a Wire
@@ -97,16 +101,20 @@ class BaseVar:
         return self._selected_material
 
     @property
+    @_check_types.do
     def vbo(self):
         return self._vbo
 
     @property
+    @_check_types.do
     def editor(self):
         raise NotImplementedError
 
+    @_check_types.do
     def _is_visible_callback(self, *_, **__):
         raise NotImplementedError
 
+    @_check_types.do
     def _compute_obb(self):
         if self._vbo is None:
             return
@@ -124,6 +132,7 @@ class BaseVar:
         local_obb @= self._angle
         self._obb = local_obb + self._position
 
+    @_check_types.do
     def _compute_aabb(self):
         if self._vbo is None:
             return
@@ -160,6 +169,7 @@ class BaseVar:
             for j in range(3):
                 self._aabb[i][j] = aabb[i][j]
 
+    @_check_types.do
     def hit_test_step1(self, ray_origin, ray_direction):
         """
         Stage 1: Test against cached AABB
@@ -173,6 +183,7 @@ class BaseVar:
 
         return np.min(tmax) >= max(0, np.max(tmin))
 
+    @_check_types.do
     def hit_test_step2(self, ray_origin, ray_direction):
         """
         Stage 2: Test against cached OBB
@@ -194,6 +205,7 @@ class BaseVar:
 
         return np.min(tmax) >= max(0, np.max(tmin))
 
+    @_check_types.do
     def hit_test_step3(self, ray_origin, ray_dir):
         """
         Stage 3: Vectorized ray-mesh intersection
@@ -219,6 +231,7 @@ class BaseVar:
         return hit
 
     @staticmethod
+    @_check_types.do
     def _ray_triangles_intersect_vectorized(
         ray_origin, ray_dir, vertices, max_t=None):  # NOQA
 
@@ -300,6 +313,7 @@ class BaseVar:
 
         return np.any(hit_mask)
 
+    @_check_types.do
     def identify(self, material: _materials.GLMaterial | None) -> None:
         """
         Temporarily override this object's own display material.
@@ -335,6 +349,7 @@ class BaseVar:
         else:
             self._is_opaque[0] = int(self._material.is_opaque)
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """
         Update the position.
@@ -352,6 +367,7 @@ class BaseVar:
 
         self.editor.Refresh(False)
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """
         Update the angle.
@@ -370,6 +386,7 @@ class BaseVar:
 
         self.editor.Refresh(False)
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """
         Update the scale.
@@ -388,6 +405,7 @@ class BaseVar:
         self.editor.Refresh(False)
 
     @property
+    @_check_types.do
     def position(self) -> _point.Point:
         """
         Get the position.
@@ -397,6 +415,7 @@ class BaseVar:
         return self._position
 
     @position.setter
+    @_check_types.do
     def position(self, value: _point.Point):
         """
         Set the position.
@@ -413,6 +432,7 @@ class BaseVar:
         self._position = value
 
     @property
+    @_check_types.do
     def angle(self) -> _angle.Angle:
         """
         Get the angle.
@@ -423,6 +443,7 @@ class BaseVar:
         return self._angle
 
     @angle.setter
+    @_check_types.do
     def angle(self, value: _angle.Angle):
         """
         Set the angle.
@@ -439,6 +460,7 @@ class BaseVar:
         self._angle = value
 
     @property
+    @_check_types.do
     def scale(self) -> _point.Point:
         """
         Get the scale.
@@ -449,6 +471,7 @@ class BaseVar:
         return self._scale
 
     @scale.setter
+    @_check_types.do
     def scale(self, value: _point.Point):
         """
         Set the scale.
@@ -465,6 +488,7 @@ class BaseVar:
         self._scale = value
 
     @property
+    @_check_types.do
     def obb(self) -> np.ndarray:
         """
         Return the OBB.
@@ -475,6 +499,7 @@ class BaseVar:
         return self._obb
 
     @property
+    @_check_types.do
     def aabb(self) -> np.ndarray:
         """
         Return the AABB.
@@ -485,6 +510,7 @@ class BaseVar:
         return self._aabb
 
     @property
+    @_check_types.do
     def is_selected(self) -> bool:
         """
         Get if the object is selected.
@@ -495,6 +521,7 @@ class BaseVar:
 
         return self._is_selected
 
+    @_check_types.do
     def set_selected(self, flag: bool):
         """
         Set if the object is selected.
@@ -515,6 +542,7 @@ class BaseVar:
 
         self._is_selected = flag
 
+    @_check_types.do
     def delete(self):
         """
         Execute the delete operation.
@@ -526,6 +554,7 @@ class BaseVar:
 
         self.parent.delete()
 
+    @_check_types.do
     def _delete(self):
         """
         Any object specific taredown should occur in this function
@@ -534,6 +563,7 @@ class BaseVar:
         self.editor.Refresh()
 
     @property
+    @_check_types.do
     def material(self) -> _materials.GLMaterial:
         """
         Gets the current GL material being used
@@ -547,6 +577,7 @@ class BaseVar:
         return self._material
 
     @property
+    @_check_types.do
     def is_opaque(self) -> np.ndarray:
         """
         Get the objects opacity
@@ -557,6 +588,7 @@ class BaseVar:
 
         return self._is_opaque
 
+    @_check_types.do
     def get_context_menu(self):  # NOQA
         """
         Get the context menu.
@@ -567,6 +599,7 @@ class BaseVar:
         return None
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """
         Get object visibility
@@ -577,6 +610,7 @@ class BaseVar:
         raise NotImplementedError
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool):
         """
         Set object visibility.

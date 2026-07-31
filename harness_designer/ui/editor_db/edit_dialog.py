@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDialogButtonBox
 
 from ..dialogs import dialog_base as _dialog_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ class EditDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", title, db_obj):
         """Initialise the :class:`EditDialog` instance.
 
@@ -46,6 +48,7 @@ class EditDialog(_dialog_base.BaseDialog):
         self.db_obj = db_obj
         self.mainframe = parent
 
+    @_check_types.do
     def Destroy(self):
         """Execute the destroy operation.
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class CompatSealsMixin(BaseMixin):
     _stored_compat_seals: list["_seal.Seal"] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_seals(self) -> list["_seal.Seal"]:
         """Return the compat seals.
 
@@ -54,6 +56,7 @@ class CompatSealsMixin(BaseMixin):
     _stored_compat_seals_array: list[str] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_seals_array(self) -> list[str]:
         """Return the compat seals array.
 
@@ -73,6 +76,7 @@ class CompatSealsMixin(BaseMixin):
         return self._stored_compat_seals_array
 
     @compat_seals_array.setter
+    @_check_types.do
     def compat_seals_array(self, value: list[str]):
         """Set the compat seals array.
 
@@ -95,6 +99,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`CompatSealsControl` instance.
 
@@ -108,6 +113,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
 
         self.propertyChanged.connect(self._on_compat_housings)
 
+    @_check_types.do
     def set_obj(self, db_obj: CompatSealsMixin):
         """Set the obj.
 
@@ -125,6 +131,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
             self.SetValue(db_obj.compat_seals_array)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat housings event.
 

@@ -3,6 +3,7 @@
 from ..pjt_bases import (PJTTableBase, PJTEntryBase,
                          DefaultStoredValue as _DefaultStoredValue,
                          DefaultStoredValueType as _DefaultStoredValueType)
+from .... import check_types as _check_types
 
 
 DefaultStoredValue = _DefaultStoredValue
@@ -19,6 +20,7 @@ class BaseMixin:
     _obj = None
 
     @property
+    @_check_types.do
     def table(self):
         """Return the table.
 
@@ -29,6 +31,7 @@ class BaseMixin:
         """
         return self._table
 
+    @_check_types.do
     def _populate(self, tag):
         """Execute the populate operation.
 

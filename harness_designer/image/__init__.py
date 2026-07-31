@@ -12,6 +12,7 @@ from PIL import Image as _Image
 from . import utils
 
 from PySide6.QtGui import QPixmap, QCursor
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class Image:
     :type png_data: bytes | None
     """
 
+    @_check_types.do
     def __init__(self, name, path=None, png_data=None):
         """Initialize an image wrapper.
 
@@ -47,6 +49,7 @@ class Image:
         self.name = name
 
     @property
+    @_check_types.do
     def png_data(self):
         """Return the PNG bytes for the image.
 
@@ -61,6 +64,7 @@ class Image:
             return f.read()
 
     @property
+    @_check_types.do
     def pil(self) -> _Image.Image:
         """Return the image as a PIL ``RGBA`` image.
 
@@ -71,6 +75,7 @@ class Image:
 
     # Kept for any callers that still use .pil_image (alias)
     @property
+    @_check_types.do
     def pil_image(self) -> _Image.Image:
         """Return the image as a PIL image alias.
 
@@ -80,6 +85,7 @@ class Image:
         return self.pil
 
     @property
+    @_check_types.do
     def pixmap(self) -> QPixmap:
         """Return the image as a Qt pixmap.
 
@@ -89,6 +95,7 @@ class Image:
         return utils.bytes_data_2_qpixmap(self.png_data)
 
     @property
+    @_check_types.do
     def disabled_pixmap(self) -> QPixmap:
         """Return a greyscale, lower-opacity pixmap for disabled UI states.
 
@@ -108,6 +115,7 @@ class Image:
         return utils.pil_image_2_qpixmap(disabled)
 
     @property
+    @_check_types.do
     def cursor(self) -> QCursor:
         """Return the image as a centered Qt cursor.
 
@@ -116,6 +124,7 @@ class Image:
         """
         return utils.pil_image_2_qcursor(self.pil)
 
+    @_check_types.do
     def crop(self, x1, y1, x2, y2):
         """Return a cropped copy of the image.
 
@@ -134,6 +143,7 @@ class Image:
         pil = pil.crop((x1, y1, x2, y2))
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
+    @_check_types.do
     def resize(self, w: int, h: int) -> "Image":
         """Return a resized copy of the image.
 
@@ -147,6 +157,7 @@ class Image:
         pil = utils.resize_pil_image(self.pil, w, h)
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
+    @_check_types.do
     def rotate(self, angle: int | float) -> "Image":
         """Return a rotated copy of the image.
 
@@ -158,6 +169,7 @@ class Image:
         pil = utils.rotate_pil_image(self.pil, angle)
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
+    @_check_types.do
     def recolor(self, r, g, b):
         """Return a copy of the image with RGB channels replaced.
 
@@ -186,6 +198,7 @@ class Image:
         recolored.close()
         return res
 
+    @_check_types.do
     def __or__(self, other: "Image"):
         """Combine two images using the current ``|`` composition logic.
 
@@ -228,6 +241,7 @@ class Image:
 
         return Image(f'{self.name}|{other.name}', png_data=data)
 
+    @_check_types.do
     def __add__(self, other: "Image") -> "Image":
         """Composite other on top of self (centred), both as PIL images."""
         img1 = self.pil
@@ -259,6 +273,7 @@ class ImageLoader:
     :type path: str
     """
 
+    @_check_types.do
     def __init__(self, path):
         """Initialize the lazy image loader.
 
@@ -291,6 +306,7 @@ class ImageLoader:
             self.__wire_image_cache__ = {}
             self.build_wire = self.__build_wire
 
+    @_check_types.do
     def __build_wire(
         self,
         primary_color: "_color.Color",
@@ -333,6 +349,7 @@ class ImageLoader:
 
         return wire
 
+    @_check_types.do
     def __getattr__(self, item):
         """Load a sub-loader or :class:`Image` on first attribute access.
 
@@ -502,6 +519,7 @@ if TYPE_CHECKING:
         wire_shadow: Image = ...
 
         @staticmethod
+        @_check_types.do
         def build_wire(
             primary_color: "_color.Color",  # NOQA
             stripe_color: "_color.Color | None",  # NOQA

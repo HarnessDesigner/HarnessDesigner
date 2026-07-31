@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import base2d as _base2d
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class Cover(_base2d.Base2D):
     _parent: "_cover.Cover" = None
     db_obj: "_pjt_cover.PJTCover"
 
+    @_check_types.do
     def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
         """Initialise the :class:`Cover` instance.
 

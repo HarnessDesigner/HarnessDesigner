@@ -20,8 +20,10 @@ from . import points3d as _points3d
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_bundle_covers(con, data: tuple[dict] | list[dict]):
     """
     Add a bundle covers.
@@ -37,6 +39,7 @@ def add_bundle_covers(con, data: tuple[dict] | list[dict]):
         add_bundle_cover(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.
@@ -97,6 +100,7 @@ def add_records(con, splash, data_path):
     os.chdir(cwd)
 
 
+@_check_types.do
 def add_bundle_cover(con, part_number, description, mfg=None, family=None, series=None,
                      color=None, material=None, image=None, datasheet=None, cad=None,
                      shrink_temp=None, min_temp=None, max_temp=None, protection=None,

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import protection as _protection
@@ -19,6 +20,7 @@ class ProtectionMixin(BaseMixin):
     _stored_protection_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def protection_id(self) -> int:
         """Return the protection ID.
 
@@ -33,6 +35,7 @@ class ProtectionMixin(BaseMixin):
         return self._stored_protection_id
 
     @protection_id.setter
+    @_check_types.do
     def protection_id(self, value: int):
         """Set the protection ID.
 
@@ -49,6 +52,7 @@ class ProtectionMixin(BaseMixin):
     _stored_protections: "DefaultStoredValueType | _protection.Protection" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def protections(self) -> "_protection.Protection":
         """Return the protections.
 
@@ -69,6 +73,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`ProtectionControl` instance.
 
@@ -84,6 +89,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
 
         self.propertyChanged.connect(self._on_protection)
 
+    @_check_types.do
     def set_obj(self, db_obj: ProtectionMixin):
         """Set the obj.
 
@@ -112,6 +118,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
 
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_protection(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the protection event.
 

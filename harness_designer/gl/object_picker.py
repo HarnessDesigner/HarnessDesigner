@@ -6,6 +6,7 @@ import numpy as np
 from math import inf
 
 from .. import debug as _debug
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
     from .canvas2d import camera as _camera2d
 
 
+@_check_types.do
 def _unproject_from_ndc(ndc, inv_mvp):
     """
     ndc: (x,y,z) in [-1,1]
@@ -31,6 +33,7 @@ def _unproject_from_ndc(ndc, inv_mvp):
 
 
 # Ray vs AABB (slab method)
+@_check_types.do
 def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
     """Execute the ray intersect AABB operation.
 
@@ -82,6 +85,7 @@ def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
 # corner 0 = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z. A rigid
 # rotation + per-axis local scale preserves that edge structure, so this
 # holds for any BaseVar.obb regardless of orientation.
+@_check_types.do
 def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
     """Test a ray against an oriented bounding box.
 
@@ -131,6 +135,7 @@ def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
     return False, None
 
 
+@_check_types.do
 def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera3d.Camera | _camera2d.Camera"):
     """
     Build a 2D screen bbox from projecting ALL 8 AABB corners.
@@ -187,6 +192,7 @@ def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera3d.Camera | _camera2d.Ca
 
 
 @_debug.logfunc
+@_check_types.do
 def _pick_candidates_at_mouse(mx, my, scene_objects,
                               camera: "_camera3d.Camera | _camera2d.Camera",
                               tol_pixels=3.0, attr='obj3d'):  # NOQA
@@ -224,6 +230,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
 
 @_debug.logfunc
+@_check_types.do
 def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.Camera",
                 current_selection=None, attr='obj3d'):
     """Ray-cast from *mouse_pos* against every object in *scene_objects*

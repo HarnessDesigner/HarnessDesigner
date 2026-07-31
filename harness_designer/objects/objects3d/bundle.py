@@ -17,6 +17,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from . import mixins as _mixins
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
     parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 
+    @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
                  db_obj: "_pjt_bundle.PJTBundle"):
         """Initialise the :class:`Bundle` instance.
@@ -97,16 +99,19 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
             self._recalculate_geometry()
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         return self._diameter
 
     @diameter.setter
+    @_check_types.do
     def diameter(self, value: float):
         self._diameter = value
         radius = value / 2
         self._scale.x = radius
         self._scale.y = radius
 
+    @_check_types.do
     def _bind_waypoints(self) -> None:
         """(Re-)bind this bundle's own _update_position callback to every
         current interior waypoint's live Point, unbinding it from whatever
@@ -125,6 +130,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         for point in self._waypoint_points:
             point.bind(self._update_position)
 
+    @_check_types.do
     def refresh_waypoints(self) -> None:
         """Public entry point for handlers: call after this bundle's own
         waypoint rows change (added, removed, or reordered) so live
@@ -133,6 +139,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._recalculate_geometry()
         self.editor3d.Refresh()
 
+    @_check_types.do
     def set_start_position(self, point: _point.Point) -> None:
         """Repoint this bundle's own start end to *point* entirely.
 
@@ -146,6 +153,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p1.bind(self._update_position)
         self._recalculate_geometry()
 
+    @_check_types.do
     def set_stop_position(self, point: _point.Point) -> None:
         """See set_start_position."""
         self._p2.unbind(self._update_position)
@@ -153,6 +161,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p2.bind(self._update_position)
         self._recalculate_geometry()
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
 
@@ -163,6 +172,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         pass
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -173,6 +183,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
+    @_check_types.do
     def _recalculate_geometry(self):
         """Compute total length, an aggregate angle, and OBB/AABB from the
         bundle's current start/interior-waypoints/stop path.
@@ -208,6 +219,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._compute_obb()
         self._compute_aabb()
 
+    @_check_types.do
     def _update_position(self, _: _point.Point):
         """Recompute geometry immediately, not deferred to the next render
         pass -- bound to the start/stop endpoints and every interior
@@ -216,6 +228,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._recalculate_geometry()
 
+    @_check_types.do
     def _segment_transforms(self):
         """Yield (position, angle, scale, length) for every sub-segment of
         this bundle's current path -- the values render()/hit_test_step3
@@ -236,6 +249,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
             yield seg_position, seg_angle, seg_scale, seg_len
 
+    @_check_types.do
     def _compute_obb(self):
         """Union AABB across every sub-segment, expressed as an 8-corner
         box (same shape find_object/_ray_intersect_obb expects) -- a
@@ -261,6 +275,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
             [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
 
+    @_check_types.do
     def _compute_aabb(self):
         """See _compute_obb -- same union-of-segments envelope."""
         if self._vbo is None:
@@ -276,6 +291,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
             for j in range(3):
                 self._aabb[i][j] = aabb[i][j]
 
+    @_check_types.do
     def _segment_world_corners(self):
         """World-space AABB corners (8 per segment) for every sub-segment,
         stacked into one array -- the shared building block for both
@@ -309,6 +325,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return np.concatenate(all_corners, axis=0)
 
+    @_check_types.do
     def hit_test_step3(self, ray_origin, ray_dir):
         """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
         tests every sub-segment's own transformed triangles individually
@@ -331,6 +348,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return False
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         """Render every sub-segment of the bundle's current path.
 
@@ -352,6 +370,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
 
     @staticmethod
+    @_check_types.do
     def _rotation_from_direction(direction):
         """Create quaternion to rotate +Z axis to align with direction"""
         # Unit cylinder points along +Z, rotate it to point along 'direction'
@@ -375,6 +394,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return _angle.Angle.from_axis_angle(axis, angle)
 
+    @_check_types.do
     def set_diameter(self, value: float):
         """Set this bundle's own diameter, and -- if either end is
         attached to a Transition (see objects.bundle.Bundle.set_sibling)
@@ -408,6 +428,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
             if branch is not None:
                 branch.diameter = value
 
+    @_check_types.do
     def add_wire(self, wire):
         """Add a wire.
 
@@ -424,6 +445,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         if wire.is_visible:
             wire.is_visible = False
 
+    @_check_types.do
     def remove_wire(self, wire):
         """Remove the wire.
 
@@ -443,12 +465,14 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
                 wire.is_visible = True
                 break
 
+    @_check_types.do
     def _on_wire_deleted(self, ref):
         """Callback when a wire is garbage collected."""
         if ref in self._wires:
             self._wires.remove(ref)
 
     @property
+    @_check_types.do
     def wires(self):
         """Get all wires in this bundle (that still exist)."""
         for ref in self._wires[:]:
@@ -459,6 +483,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
                 yield wire
 
     @property
+    @_check_types.do
     def wire_count(self) -> int:
         """Return the number of wires in this bundle."""
         count = 0
@@ -470,6 +495,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return count
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -481,11 +507,13 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
         return BundleMenu(self.mainframe.editor3d.editor, self)
 
     @property
+    @_check_types.do
     def start_position(self):
         """Wire start position (Point instance)"""
         return self._p1
 
     @property
+    @_check_types.do
     def stop_position(self):
         """Wire stop position (Point instance)"""
         return self._p2
@@ -497,6 +525,7 @@ class BundleMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`BundleMenu` instance.
 
@@ -532,6 +561,7 @@ class BundleMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_handle(self):
         """Insert a bundle layout (drag handle) at the point on the bundle
         that was right-clicked to open this menu (falls back to the
@@ -563,12 +593,14 @@ class BundleMenu(QMenu):
 
         self.selected.editor3d.Refresh()
 
+    @_check_types.do
     def on_add_transition(self):
         """Start the interactive transition placement flow."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
 
+        @_check_types.do
         def _factory():
             part_id = _menu_ops.get_part_id(
                 mainframe, 'transitions',
@@ -581,6 +613,7 @@ class BundleMenu(QMenu):
 
         _menu_ops.start_handler(mainframe, _factory)
 
+    @_check_types.do
     def on_wire_contents(self):
         """Open the read-only wire-contents dialog for this bundle."""
         from ...ui.dialogs import bundle_wires_dialog as _dlg
@@ -590,14 +623,17 @@ class BundleMenu(QMenu):
         dlg.exec()
         dlg.deleteLater()
 
+    @_check_types.do
     def on_select(self):
         """Make this bundle the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this bundle from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this bundle's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

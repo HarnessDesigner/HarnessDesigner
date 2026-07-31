@@ -20,6 +20,7 @@ from .mixins import (
     TemperatureMixin, TemperatureControl,
     PlatingControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class WiresTable(TableBase):
     _control: "WireControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "WireControl":
         """Return the control.
 
@@ -50,6 +52,7 @@ class WiresTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -63,6 +66,7 @@ class WiresTable(TableBase):
         data_path = self._con.db_data.open(splash)
         wires.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -75,6 +79,7 @@ class WiresTable(TableBase):
 
         return wires.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -90,6 +95,7 @@ class WiresTable(TableBase):
 
         wires.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -99,6 +105,7 @@ class WiresTable(TableBase):
 
         wires.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Wire"]:
         """Iterate over the available items.
 
@@ -111,6 +118,7 @@ class WiresTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Wire(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Wire":
         """Return the requested item.
 
@@ -134,6 +142,7 @@ class WiresTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, family_id: int, series_id: int,
                image_id: int, datasheet_id: int, cad_id: int, color_id: int, addl_color_ids: list,
                material_id: int, num_conductors: int, shielded: bool, tpi: int, conductor_dia_mm: float,
@@ -197,6 +206,7 @@ class WiresTable(TableBase):
         return Wire(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -321,6 +331,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     _table: WiresTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -356,6 +367,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_resistance_1km: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def resistance_1km(self) -> float:
         """Return the resistance 1km.
 
@@ -370,6 +382,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_resistance_1km
 
     @resistance_1km.setter
+    @_check_types.do
     def resistance_1km(self, value: float):
         """Set the resistance 1km.
 
@@ -383,6 +396,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('resistance_1km')
 
     @property
+    @_check_types.do
     def resistance_1kft(self) -> float:
         """Return the resistance 1kft.
 
@@ -394,6 +408,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self.resistance_ft * 1000
 
     @resistance_1kft.setter
+    @_check_types.do
     def resistance_1kft(self, value: float):
         """Set the resistance 1kft.
 
@@ -405,6 +420,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self.resistance_ft = value / 1000
 
     @property
+    @_check_types.do
     def resistance_m(self) -> float:
         """Return the resistance m.
 
@@ -417,6 +433,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return resistance / 1000
 
     @resistance_m.setter
+    @_check_types.do
     def resistance_m(self, value: float):
         """Set the resistance m.
 
@@ -429,6 +446,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self.resistance_1km = value
 
     @property
+    @_check_types.do
     def resistance_ft(self) -> float:
         """Return the resistance ft.
 
@@ -441,6 +459,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return resistance * 3.28084
 
     @resistance_ft.setter
+    @_check_types.do
     def resistance_ft(self, value: float):
         """Set the resistance ft.
 
@@ -455,6 +474,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_weight_1km: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def weight_1km(self) -> float:
         """Return the weight 1km.
 
@@ -469,6 +489,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_weight_1km
 
     @weight_1km.setter
+    @_check_types.do
     def weight_1km(self, value: float):
         """Set the weight 1km.
 
@@ -482,6 +503,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('weight_1km')
 
     @property
+    @_check_types.do
     def weight_1kft(self) -> float:
         """Return the weight 1kft.
 
@@ -493,6 +515,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self.weight_lb_ft * 1000
 
     @weight_1kft.setter
+    @_check_types.do
     def weight_1kft(self, value: float):
         """Set the weight 1kft.
 
@@ -504,6 +527,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self.weight_lb_ft = value / 1000
 
     @property
+    @_check_types.do
     def weight_g_m(self) -> float:
         """Return the weight g m.
 
@@ -516,6 +540,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return weight / 1000
 
     @weight_g_m.setter
+    @_check_types.do
     def weight_g_m(self, value: float):
         """Set the weight g m.
 
@@ -528,6 +553,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self.weight_1km = value
 
     @property
+    @_check_types.do
     def weight_g_ft(self) -> float:
         """Return the weight g ft.
 
@@ -540,6 +566,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return weight * 3.28084
 
     @weight_g_ft.setter
+    @_check_types.do
     def weight_g_ft(self, value: float):
         """Set the weight g ft.
 
@@ -552,6 +579,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self.weight_g_m = value
 
     @property
+    @_check_types.do
     def weight_lb_ft(self) -> float:
         """Return the weight lb ft.
 
@@ -564,6 +592,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return weight / 453.592
 
     @weight_lb_ft.setter
+    @_check_types.do
     def weight_lb_ft(self, value: float):
         """Set the weight lb ft.
 
@@ -578,6 +607,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_volts: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def volts(self) -> float:
         """Return the volts.
 
@@ -592,6 +622,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_volts
 
     @volts.setter
+    @_check_types.do
     def volts(self, value: float):
         """Set the volts.
 
@@ -607,6 +638,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_od_mm: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def od_mm(self) -> float:
         """Return the od mm.
 
@@ -621,6 +653,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_od_mm
 
     @od_mm.setter
+    @_check_types.do
     def od_mm(self, value: float):
         """Set the od mm.
 
@@ -636,6 +669,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_shielded: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def shielded(self) -> bool:
         """Return the shielded.
 
@@ -650,6 +684,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_shielded
 
     @shielded.setter
+    @_check_types.do
     def shielded(self, value: bool):
         """Set the shielded.
 
@@ -665,6 +700,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_strands: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def strands(self) -> int:
         """Return the strands.
 
@@ -679,6 +715,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_strands
 
     @strands.setter
+    @_check_types.do
     def strands(self, value: int):
         """Set the strands.
 
@@ -702,6 +739,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_tpi: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def tpi(self) -> int:
         """Return the tpi.
 
@@ -716,6 +754,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_tpi
 
     @tpi.setter
+    @_check_types.do
     def tpi(self, value: int):
         """Set the tpi.
 
@@ -731,6 +770,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_num_conductors: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def num_conductors(self) -> int:
         """Return the num conductors.
 
@@ -745,6 +785,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_num_conductors
 
     @num_conductors.setter
+    @_check_types.do
     def num_conductors(self, value: int):
         """Set the num conductors.
 
@@ -760,6 +801,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_core_material: "DefaultStoredValueType | _plating.Plating" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def core_material(self) -> "_plating.Plating":
         """Return the core material.
 
@@ -776,6 +818,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_core_material_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def core_material_id(self) -> int:
         """Return the core material ID.
 
@@ -790,6 +833,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_core_material_id
 
     @core_material_id.setter
+    @_check_types.do
     def core_material_id(self, value: int):
         """Set the core material ID.
 
@@ -807,6 +851,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_conductor_dia_mm: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def conductor_dia_mm(self) -> float:
         """Return the conductor dia mm.
 
@@ -826,6 +871,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_conductor_dia_mm
 
     @conductor_dia_mm.setter
+    @_check_types.do
     def conductor_dia_mm(self, value: float):
         """Set the conductor dia mm.
 
@@ -845,6 +891,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('conductor_dia_mm')
 
     @property
+    @_check_types.do
     def conductor_dia_in(self) -> float:
         """Return the conductor dia in.
 
@@ -856,6 +903,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return _utils.awg_to_d_in(self.size_awg, self.strands)
 
     @conductor_dia_in.setter
+    @_check_types.do
     def conductor_dia_in(self, value: float):
         """Set the conductor dia in.
 
@@ -869,6 +917,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_size_mm2: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def size_mm2(self) -> float:
         """Return the size mm 2.
 
@@ -899,6 +948,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_size_mm2
 
     @size_mm2.setter
+    @_check_types.do
     def size_mm2(self, value: float):
         """Set the size mm 2.
 
@@ -919,6 +969,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_size_awg: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def size_awg(self) -> int:
         """Return the size awg.
 
@@ -949,6 +1000,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_size_awg
 
     @size_awg.setter
+    @_check_types.do
     def size_awg(self, value: int):
         """Set the size awg.
 
@@ -967,6 +1019,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('size_awg')
 
     @property
+    @_check_types.do
     def size_in2(self) -> float:
         """Return the size in 2.
 
@@ -978,6 +1031,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return _utils.mm2_to_in2(self.size_mm2, self.strands)
 
     @size_in2.setter
+    @_check_types.do
     def size_in2(self, value: float):
         """Set the size in 2.
 
@@ -989,6 +1043,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self.size_mm2 = _utils.in2_to_mm2(value, self.strands)
 
     @property
+    @_check_types.do
     def in2_symbol(self) -> str:
         """Return the in 2 symbol.
 
@@ -1000,6 +1055,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return 'in²'
 
     @property
+    @_check_types.do
     def mm2_symbol(self) -> str:
         """Return the mm 2 symbol.
 
@@ -1013,6 +1069,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_stripe_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def stripe_color(self) -> "_color.Color":
         """Return the stripe color.
 
@@ -1029,6 +1086,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_stripe_color_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def stripe_color_id(self) -> int | None:
         """Return the stripe color ID.
 
@@ -1043,6 +1101,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_stripe_color_id
 
     @stripe_color_id.setter
+    @_check_types.do
     def stripe_color_id(self, value: int | None):
         """Set the stripe color ID.
 
@@ -1064,6 +1123,7 @@ class WireControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: Wire):
         """Set the obj.
 
@@ -1074,6 +1134,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -1142,6 +1203,7 @@ class WireControl(QTabWidget, LazyTabMixin):
             self.core_material_ctrl.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_tpi(self, evt):
         """Handle the tpi event.
 
@@ -1153,6 +1215,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.tpi = value
 
+    @_check_types.do
     def _on_weight_1km(self, evt):
         """Handle the weight 1km event.
 
@@ -1164,6 +1227,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.weight_1km = value
 
+    @_check_types.do
     def _on_volts(self, evt):
         """Handle the volts event.
 
@@ -1175,6 +1239,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.volts = value
 
+    @_check_types.do
     def _on_resistance_1km(self, evt):
         """Handle the resistance 1km event.
 
@@ -1186,6 +1251,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.resistance_1km = value
 
+    @_check_types.do
     def _on_num_conductors(self, evt):
         """Handle the num conductors event.
 
@@ -1197,6 +1263,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.num_conductors = value
 
+    @_check_types.do
     def _on_strands(self, evt):
         """Handle the strands event.
 
@@ -1213,6 +1280,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
         self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
 
+    @_check_types.do
     def _on_shielded(self, evt):
         """Handle the shielded event.
 
@@ -1224,6 +1292,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.shielded = value
 
+    @_check_types.do
     def _on_conductor_dia_mm(self, evt):
         """Handle the conductor dia mm event.
 
@@ -1237,6 +1306,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
         self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
 
+    @_check_types.do
     def _on_size_mm2(self, evt):
         """Handle the size mm 2 event.
 
@@ -1251,6 +1321,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
         self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
 
+    @_check_types.do
     def _on_size_awg(self, evt):
         """Handle the size awg event.
 
@@ -1264,6 +1335,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
         self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
 
+    @_check_types.do
     def _on_od_mm(self, evt):
         """Handle the od mm event.
 
@@ -1275,6 +1347,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.od_mm = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`WireControl` instance.
 

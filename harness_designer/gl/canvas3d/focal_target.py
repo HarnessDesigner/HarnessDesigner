@@ -13,6 +13,7 @@ from ...geometry import point as _point
 from ... import color as _color
 from ... import config as _config
 from ...shapes import sphere as _sphere
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -27,6 +28,7 @@ class FocalPoint(_generic.Generic):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`FocalPoint` instance.
 
@@ -57,6 +59,7 @@ class FocalPoint3D(_generic_3d.Generic):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: FocalPoint):
         """Initialise the :class:`FocalPoint3D` instance.
 

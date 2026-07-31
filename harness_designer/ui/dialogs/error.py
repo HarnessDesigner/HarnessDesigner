@@ -34,6 +34,7 @@ Usage:
 from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class ErrorDialog(QtWidgets.QDialog):
@@ -55,6 +56,7 @@ class ErrorDialog(QtWidgets.QDialog):
     :type widgets: tuple[QWidget]
     """
 
+    @_check_types.do
     def __init__(self, parent, message: str, title: str,
                  *widgets: tuple[QtWidgets.QWidget]) -> None:
         """Initialise the :class:`ErrorDialog` instance.

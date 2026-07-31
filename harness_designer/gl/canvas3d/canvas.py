@@ -24,6 +24,7 @@ from . import floor as _floor
 from . import culling as _culling
 from .. import events as _events
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
@@ -38,6 +39,7 @@ class CanvasEventFilter(QtCore.QObject):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas):
         """Initialise the :class:`CanvasEventFilter` instance.
 
@@ -51,6 +53,7 @@ class CanvasEventFilter(QtCore.QObject):
         super().__init__()
         canvas.installEventFilter(self)
 
+    @_check_types.do
     def eventFilter(self, obj, event):
         """Execute the event filter operation.
 
@@ -318,6 +321,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     gl_camera_rotate = Signal(object)
     gl_camera_reset = Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, config: _config.Config.editor3d,
                  size: QtCore.QSize = None, axis_overlay: bool = False):
         """Initialise the :class:`Canvas` instance.
@@ -425,6 +429,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # -----------------------------------------------------------------
 
     @property
+    @_check_types.do
     def axis_overlay(self):
         """Return the axis overlay.
 
@@ -436,6 +441,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         return self._axis_overlay
 
     @property
+    @_check_types.do
     def objects_in_view(self) -> list:
         """Return the objects in view.
 
@@ -446,6 +452,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         return self._objects_in_view
 
+    @_check_types.do
     def set_mode(self, mode: int) -> None:
         """Set the mode.
 
@@ -463,6 +470,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_debug.logfunc
+    @_check_types.do
     def set_angle_view(self, x, y, z):
         """Set the angle view.
 
@@ -500,6 +508,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # Object management (unchanged from wx version)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_selected(self, obj):
         """Set the selected.
 
@@ -510,6 +519,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         self._selected = obj
 
+    @_check_types.do
     def get_selected(self):
         """Return the selected.
 
@@ -520,6 +530,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         return self._selected
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -552,6 +563,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         found_container.append([aabb_min, aabb_max, pos, is_opaque, obj_address])
         self._objects.append(obj)
 
+    @_check_types.do
     def __remove_obj_ref(self, ref):
         """Remove the obj ref.
 
@@ -565,6 +577,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         except ValueError:
             pass
 
+    @_check_types.do
     def remove_object(self, obj):
         """Remove the object.
 
@@ -595,6 +608,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()  # Qt: schedules a repaint (≈ wx Refresh)
 
+    @_check_types.do
     def clear(self) -> None:
         """Drop every scene object in bulk, without touching the database.
 
@@ -616,6 +630,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # Reference-counting context manager (unchanged)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def __enter__(self) -> Self:
         """Enter the managed context.
 
@@ -624,6 +639,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self._ref_count += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the managed context.
 
@@ -638,6 +654,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def Refresh(self, *args, **kwargs):
         """wx-compatible name; delegates to Qt update()."""
         if self._ref_count:
@@ -650,6 +667,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_debug.logfunc
+    @_check_types.do
     def TruckPedestal(self, dx: float, dy: float) -> None:
         """Execute the truck pedestal operation.
 
@@ -668,6 +686,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self.camera.TruckPedestal(dx * sens, dy * sens, self.config.truck_pedestal.speed)
 
     @_debug.logfunc
+    @_check_types.do
     def Zoom(self, dx: float, _=None):
         """Execute the zoom operation.
 
@@ -681,6 +700,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
+    @_check_types.do
     def Rotate(self, dx: float, dy: float) -> None:
         """Execute the rotate operation.
 
@@ -699,6 +719,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self.camera.Rotate(dx * sens, dy * sens)
 
     @_debug.logfunc
+    @_check_types.do
     def Walk(self, dx: float, dy: float) -> None:
         """Execute the walk operation.
 
@@ -722,6 +743,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self.PanTilt(look_dx * 2.0, 0.0)
 
     @_debug.logfunc
+    @_check_types.do
     def PanTilt(self, dx: float, dy: float) -> None:
         """Execute the pan tilt operation.
 
@@ -745,6 +767,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # Qt: initializeGL + paintGL + resizeGL  (SwapBuffers implicit)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def initializeGL(self):
         """Called once by Qt after the GL context is created.
         Qt guarantees the context is already current here — no makeCurrent needed."""
@@ -804,6 +827,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             _logger.traceback(err, 'initializeGL')
             raise
 
+    @_check_types.do
     def notify_virtual_size_changed(self, width: int, height: int) -> None:
         """
         Called by Canvas3D.set_virtual_size() (and on first initialisation)
@@ -828,6 +852,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def resizeGL(self, width: int, height: int):
         """
         Called by Qt whenever the *widget geometry* changes.
@@ -853,6 +878,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self.size = (self._virtual_w, self._virtual_h)
         # else: ignore — virtual size is managed by notify_virtual_size_changed
 
+    @_check_types.do
     def paintGL(self):
         """
         Called by Qt to render a frame. Context is already current here.
@@ -909,6 +935,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # Internal GL helpers (unchanged rendering logic)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_focal_target(self, flag):
         """Set the focal target.
 
@@ -919,6 +946,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         """
         return
 
+    @_check_types.do
     def set_draw_grid(self, flag):
         """Set the draw grid.
 
@@ -933,6 +961,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             _logger.traceback(err, 'set floor error')
 
     @_debug.logfunc
+    @_check_types.do
     def _draw_scene(self, obj_data):
         """Draw the scene.
 
@@ -1077,6 +1106,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 _logger.traceback(err, 'object render removal error')
 
     @_debug.logfunc
+    @_check_types.do
     def _on_draw(self):
         """Handle the draw event.
 
@@ -1213,6 +1243,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # Snapshot (returns QImage instead of wx.Bitmap)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def take_snapshot(self) -> QtGui.QImage:
         """Execute the take snapshot operation.
 
@@ -1227,6 +1258,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         return self.grabFramebuffer().convertToFormat(
             QtGui.QImage.Format.Format_RGB888)
 
+    @_check_types.do
     def cleanup(self):
         """Clean up GL resources before widget destruction."""
         # Currently no explicit cleanup needed - shaders/programs are

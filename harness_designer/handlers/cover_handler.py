@@ -16,6 +16,7 @@ from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import color as _color
 from .. import utils as _utils
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
     """
     obj: _cover.Cover = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", housing: "_housing.Housing" = None):
         """
         Initialize the object and capture the state required for later interaction.
@@ -81,6 +83,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
         else:
             self.set_part(part_id)
 
+    @_check_types.do
     def set_part(self, part_id):
         if self.obj is not None:
             self.obj.delete()
@@ -128,6 +131,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
             self.set_angle_from_housing(self.obj, self._housing)
 
     @property
+    @_check_types.do
     def snap_pool(self):
         housing_cover_positions = []
         housings = []
@@ -141,6 +145,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
 
         return _utils.SnapPool(housings, housing_cover_positions)
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """
         Update preview or highlight state for the supplied mouse position.
@@ -176,6 +181,7 @@ class AddCoverHandler(_handler_base.HandlerBase):
         delta = point - position
         position += delta
 
+    @_check_types.do
     def release_capture(self) -> None:
         """
         Handle release of the captured position and complete any

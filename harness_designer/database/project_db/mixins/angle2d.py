@@ -5,6 +5,7 @@ import uuid
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
+from .... import check_types as _check_types
 
 
 class Angle2DMixin(BaseMixin):
@@ -15,6 +16,7 @@ class Angle2DMixin(BaseMixin):
     _angle2d_db_id: str = None
     _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
+    @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
 
@@ -34,6 +36,7 @@ class Angle2DMixin(BaseMixin):
         self._populate('angle2d')
 
     @property
+    @_check_types.do
     def angle2d(self) -> _angle.Angle:
         """Return the angle 2D.
 
@@ -64,6 +67,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Angle2DControl` instance.
 
@@ -78,6 +82,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
 
         self.propertyChanged.connect(self._on_angle)
 
+    @_check_types.do
     def _on_angle(self, evt):
         """Handle the angle event.
 
@@ -88,6 +93,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         """
         self.db_obj.angle2d.z = evt.GetValue()
 
+    @_check_types.do
     def set_obj(self, db_obj: Angle2DMixin):
         """Set the obj.
 

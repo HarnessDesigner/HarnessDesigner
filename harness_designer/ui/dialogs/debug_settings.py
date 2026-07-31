@@ -15,6 +15,7 @@ from ... import config as _config
 # We provide a small ColourPickerCtrl shim below that matches the wx API
 # used in this file (GetColour / SetColour).
 from PySide6.QtWidgets import QPushButton, QColorDialog
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ Config = _config.Config
 class _ColourPickerCtrl(QPushButton):
     """Minimal wx.ColourPickerCtrl replacement."""
 
+    @_check_types.do
     def __init__(self, parent, colour: _color.Color):
         """Initialise the :class:`_ColourPickerCtrl` instance.
 
@@ -42,6 +44,7 @@ class _ColourPickerCtrl(QPushButton):
         self._apply_color(colour)
         self.clicked.connect(self._pick)
 
+    @_check_types.do
     def _apply_color(self, c):
         """Execute the apply color operation.
 
@@ -59,6 +62,7 @@ class _ColourPickerCtrl(QPushButton):
         self.setStyleSheet(
             f'background-color: {qc.name()}; min-width: 40px; min-height: 20px;')
 
+    @_check_types.do
     def _pick(self):
         """Execute the pick operation.
 
@@ -78,6 +82,7 @@ class _ColourPickerCtrl(QPushButton):
 
             self._apply_color(new_c)
 
+    @_check_types.do
     def GetColour(self):
         """Execute the get colour operation.
 
@@ -95,6 +100,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame"):
         """Initialise the :class:`DebugSettingsDialog` instance.
 
@@ -254,6 +260,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
 
         vsizer.addWidget(functions_box)
 
+    @_check_types.do
     def SetValues(self):
         """Execute the set values operation.
 
@@ -262,6 +269,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        @_check_types.do
         def _get_color(picker):
             """Return the color.
 

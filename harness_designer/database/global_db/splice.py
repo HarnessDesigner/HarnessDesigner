@@ -23,6 +23,7 @@ from .mixins import (
     TemperatureMixin, TemperatureControl,
     DimensionMixin, DimensionControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ class SplicesTable(TableBase):
     _control: "SpliceControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "SpliceControl":
         """Return the control.
 
@@ -52,6 +54,7 @@ class SplicesTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -65,6 +68,7 @@ class SplicesTable(TableBase):
         data_path = self._con.db_data.open(splash)
         splices.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -77,6 +81,7 @@ class SplicesTable(TableBase):
 
         return splices.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -92,6 +97,7 @@ class SplicesTable(TableBase):
 
         splices.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -101,6 +107,7 @@ class SplicesTable(TableBase):
 
         splices.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Splice"]:
         """Iterate over the available items.
 
@@ -112,6 +119,7 @@ class SplicesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Splice(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Splice":
         """Return the requested item.
 
@@ -135,6 +143,7 @@ class SplicesTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_number: str, description: str, mfg_id: int, family_id: int,
                series_id: int, material_id: int, color_id: int, plating_id: int,
                type_id: int, min_dia: float, max_dia: float, resistance: float,
@@ -184,6 +193,7 @@ class SplicesTable(TableBase):
         return Splice(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -279,6 +289,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
     _table: SplicesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -309,6 +320,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     _stored_type: "DefaultStoredValueType | _splice_types.SpliceType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def type(self) -> "_splice_types.SpliceType":
         """Return the type.
 
@@ -326,6 +338,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     _stored_type_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def type_id(self) -> int:
         """Return the type ID.
 
@@ -340,6 +353,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         return self._stored_type_id
 
     @type_id.setter
+    @_check_types.do
     def type_id(self, value: int):
         """Set the type ID.
 
@@ -357,6 +371,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     _stored_resistance: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -371,6 +386,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         return self._stored_resistance
 
     @resistance.setter
+    @_check_types.do
     def resistance(self, value: float):
         """Set the resistance.
 
@@ -386,6 +402,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     _stored_min_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def min_dia(self) -> float:
         """Return the min dia.
 
@@ -400,6 +417,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         return self._stored_min_dia
 
     @min_dia.setter
+    @_check_types.do
     def min_dia(self, value: float):
         """Set the min dia.
 
@@ -415,6 +433,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
     _stored_max_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_dia(self) -> float:
         """Return the max dia.
 
@@ -429,6 +448,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
         return self._stored_max_dia
 
     @max_dia.setter
+    @_check_types.do
     def max_dia(self, value: float):
         """Set the max dia.
 
@@ -450,6 +470,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
 
     # TODO: Add splice types
 
+    @_check_types.do
     def set_obj(self, db_obj: Splice):
         """Set the obj.
 
@@ -460,6 +481,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -516,6 +538,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
             self.wire_size_page.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_resistance(self, evt):
         """Handle the resistance event.
 
@@ -527,6 +550,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.resistance = value
 
+    @_check_types.do
     def _on_max_dia(self, evt):
         """Handle the max dia event.
 
@@ -538,6 +562,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.max_dia = value
 
+    @_check_types.do
     def _on_min_dia(self, evt):
         """Handle the min dia event.
 
@@ -549,6 +574,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.min_dia = value
 
+    @_check_types.do
     def _on_splice_type(self, evt):
         """Handle the splice type event.
 
@@ -576,6 +602,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
 
         self.db_obj.type_id = db_id
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`SpliceControl` instance.
 

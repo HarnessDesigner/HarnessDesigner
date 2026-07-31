@@ -12,6 +12,7 @@ from ..widgets import text_ctrl as _text_ctrl
 from ... import config as _config
 from . import dialog_base as _dialog_base
 from ..widgets import color_ctrl as _color_ctrl
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, name, table: "_project.ProjectsTable"):
         """Initialise the :class:`AddProjectDialog` instance.
 
@@ -96,6 +98,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         vsizer.addLayout(hsizer)
         vsizer.addWidget(self.color_ctrl)
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -114,6 +117,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
                 int(color.db_id)
                 )
 
+    @_check_types.do
     def _on_name_text(self, _text: str = ''):
         """Handle the name text event.
 
@@ -123,6 +127,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         :type _text: str
         """
 
+        @_check_types.do
         def _do():
             """Execute the do operation.
 
@@ -141,6 +146,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
 
         QtCore.QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def _on_user_model_text(self, _text: str = ''):
         """Handle the user model text event.
 
@@ -150,6 +156,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         :type _text: str
         """
 
+        @_check_types.do
         def _do():
             """Execute the do operation.
 
@@ -169,6 +176,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
 
         QtCore.QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def _on_open_file(self):
         """Handle the open file event.
 

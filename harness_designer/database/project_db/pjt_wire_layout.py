@@ -15,6 +15,7 @@ from .mixins import (
     Visible2DMixin, Visible3DControl,
     SmoothMixin, SmoothControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class PJTWireLayoutsTable(PJTTableBase):
     _control: "PJTWireLayoutControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTWireLayoutControl":
         """Return the control.
 
@@ -47,6 +49,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -58,6 +61,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         cls._control = PJTWireLayoutControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -70,6 +74,7 @@ class PJTWireLayoutsTable(PJTTableBase):
 
         return wire_layouts.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -79,6 +84,7 @@ class PJTWireLayoutsTable(PJTTableBase):
 
         wire_layouts.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -88,6 +94,7 @@ class PJTWireLayoutsTable(PJTTableBase):
 
         wire_layouts.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTWireLayout"]:
         """Iterate over the available items.
 
@@ -99,6 +106,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireLayout(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTWireLayout":
         """Return the requested item.
 
@@ -118,6 +126,7 @@ class PJTWireLayoutsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, point3d_id: int) -> "PJTWireLayout":
         """Execute the insert operation.
 
@@ -141,6 +150,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
 
     _table: PJTWireLayoutsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -163,6 +173,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_wire_layout_obj.WireLayout":
         """Return the object.
 
@@ -176,6 +187,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -186,6 +198,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_wire_layout_obj.WireLayout"):
         """Set the object.
 
@@ -200,6 +213,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
             self._obj = obj
 
     @property
+    @_check_types.do
     def attached_wires(self) -> list["_pjt_wire.PJTWire"]:
         """Return the wire(s) this layout marks a point on.
 
@@ -232,6 +246,7 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
         return []
 
     @property
+    @_check_types.do
     def table(self) -> PJTWireLayoutsTable:
         """Return the table.
 
@@ -249,6 +264,7 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTWireLayout):
         """Set the obj.
 
@@ -259,6 +275,7 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -271,6 +288,7 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
             self.visible3d_ctrl.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTWireLayoutControl` instance.
 

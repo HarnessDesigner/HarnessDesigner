@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin
+from ... import check_types as _check_types
 
 
 class FileTypesTable(TableBase):
@@ -13,6 +14,7 @@ class FileTypesTable(TableBase):
     """
     __table_name__ = 'file_types'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -25,6 +27,7 @@ class FileTypesTable(TableBase):
 
         return file_types.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -39,6 +42,7 @@ class FileTypesTable(TableBase):
         data_path = self._con.db_data.open(splash)
         file_types.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -48,6 +52,7 @@ class FileTypesTable(TableBase):
 
         file_types.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["FileType"]:
         """Iterate over the available items.
 
@@ -59,6 +64,7 @@ class FileTypesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield FileType(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "FileType":
         """Return the requested item.
 
@@ -83,6 +89,7 @@ class FileTypesTable(TableBase):
         raise KeyError(item)
 
     @property
+    @_check_types.do
     def choices(self) -> list[str]:
         """Return the choices.
 
@@ -93,6 +100,7 @@ class FileTypesTable(TableBase):
         """
         return [row[0] for row in self.execute(f'SELECT DISTINCT name FROM {self.__table_name__};')]
 
+    @_check_types.do
     def insert(self, name: str, mfg_id: int, description: str) -> "FileType":
         """Execute the insert operation.
 
@@ -118,6 +126,7 @@ class FileType(EntryBase, NameMixin):
     """
     _table: FileTypesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -135,6 +144,7 @@ class FileType(EntryBase, NameMixin):
     _stored_extension: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def extension(self) -> str:
         """Return the extension.
 
@@ -149,6 +159,7 @@ class FileType(EntryBase, NameMixin):
         return self._stored_extension
 
     @extension.setter
+    @_check_types.do
     def extension(self, value: str):
         """Set the extension.
 
@@ -164,6 +175,7 @@ class FileType(EntryBase, NameMixin):
     _stored_mimetype: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def mimetype(self) -> str:
         """Return the mimetype.
 
@@ -178,6 +190,7 @@ class FileType(EntryBase, NameMixin):
         return self._stored_mimetype
 
     @mimetype.setter
+    @_check_types.do
     def mimetype(self, value: str):
         """Set the mimetype.
 
@@ -193,6 +206,7 @@ class FileType(EntryBase, NameMixin):
     _stored_is_model: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_model(self) -> bool:
         """Return the is model.
 
@@ -207,6 +221,7 @@ class FileType(EntryBase, NameMixin):
         return self._stored_is_model
 
     @is_model.setter
+    @_check_types.do
     def is_model(self, value: bool):
         """Set the is model.
 

@@ -13,12 +13,14 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Signal, QObject, QTimer
 
 from PySide6.QtCore import Qt
+from . import check_types as _check_types
 
 QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 _call_on_main = None
 
 
+@_check_types.do
 def _qt_message_handler(msg_type, context, message):
     """Log every Qt-native qDebug/qWarning/qCritical/qFatal message.
 
@@ -53,6 +55,7 @@ def _qt_message_handler(msg_type, context, message):
         logger.warning(text)
 
 
+@_check_types.do
 def CallLater(func, *args) -> None:
     """Schedule a callable to execute after the current event handler returns.
 
@@ -67,6 +70,7 @@ def CallLater(func, *args) -> None:
     QTimer.singleShot(0, lambda f=func, a=args: f(*a))
 
 
+@_check_types.do
 def CallAfter(func, *args) -> None:
     """Schedule a callable to execute on the Qt main thread.
 
@@ -90,6 +94,7 @@ def CallAfter(func, *args) -> None:
 _after_start_cbs = []
 
 
+@_check_types.do
 def CallAfterStart(func, *args) -> None:
     _after_start_cbs.append((func, args))
 
@@ -106,6 +111,7 @@ class App(QObject):
     handling for :mod:`harness_designer`.
     """
 
+    @_check_types.do
     def __init__(self, args):
         """Initialise application state and cross-thread signals.
 
@@ -127,6 +133,7 @@ class App(QObject):
 
         _call_on_main = self._signals.call_on_main
 
+    @_check_types.do
     def setStyleSheet(self, style_sheet):
         self._qt_app.setStyleSheet(style_sheet)
 
@@ -134,6 +141,7 @@ class App(QObject):
     # Qt signal dispatch — runs on main thread
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _dispatch(self, fn):  # NOQA
         """Execute a zero-argument callable on the main thread.
 
@@ -142,6 +150,7 @@ class App(QObject):
         """
         fn()
 
+    @_check_types.do
     def call_after(self, fn):
         """Schedule fn() to run on the Qt main thread (like wx.CallAfter)."""
         self._signals.call_on_main.emit(fn)
@@ -150,6 +159,7 @@ class App(QObject):
     # Startup sequence  (replaces OnInit + OnEventLoopEnter + _thread_loop)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _init(self):
         """Runs on the main thread before the event loop starts."""
 
@@ -213,11 +223,13 @@ class App(QObject):
         self._start_loading_thread()
         return True
 
+    @_check_types.do
     def _start_loading_thread(self):
         """Start the background worker that finishes application startup."""
         t = threading.Thread(target=self._thread_loop, daemon=True)
         t.start()
 
+    @_check_types.do
     def _thread_loop(self):
         """Runs on the background thread — mirrors the original _thread_loop."""
         import harness_designer as _hd
@@ -227,6 +239,7 @@ class App(QObject):
         error = [False]
 
         # ---- import mainframe on main thread ----
+        @_check_types.do
         def _import_mainframe():
             """Import and construct the main frame on the UI thread.
 
@@ -276,6 +289,7 @@ class App(QObject):
         try:
             _hd._mainframe.open_database(self.splash)  # NOQA
         except Exception as err:
+            @_check_types.do
             def _do(e=err):
                 """Report a database-open failure on the main thread.
 
@@ -299,6 +313,7 @@ class App(QObject):
         self.splash.SetText('DONE!')
         time.sleep(0.50)
 
+        @_check_types.do
         def _do():
             """Show the main frame after startup completes.
 
@@ -308,6 +323,7 @@ class App(QObject):
 
         self.call_after(_do)
 
+        @_check_types.do
         def _do():
             for func, args in _after_start_cbs:
                 func(*args)
@@ -318,6 +334,7 @@ class App(QObject):
     # Entry point
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def MainLoop(self):
         """Initialise the application and run the Qt event loop.
 
@@ -331,6 +348,7 @@ class App(QObject):
         result = self._qt_app.exec()
         sys.exit(result)
 
+    @_check_types.do
     def OnExit(self):
         """Called automatically by MainLoop when the event loop ends."""
         from . import config

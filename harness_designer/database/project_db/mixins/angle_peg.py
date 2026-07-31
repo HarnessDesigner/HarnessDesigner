@@ -4,6 +4,7 @@ import uuid
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
+from .... import check_types as _check_types
 
 
 class AnglePegMixin(BaseMixin):
@@ -18,6 +19,7 @@ class AnglePegMixin(BaseMixin):
     _anglepeg_db_id: str = None
     _stored_anglepeg: "_angle.Angle | DefaultStoredValueType" = DefaultStoredValue
 
+    @_check_types.do
     def _update_anglepeg(self, angle: _angle.Angle):
         """Update the peg-board angle.
 
@@ -35,6 +37,7 @@ class AnglePegMixin(BaseMixin):
         self._populate('anglepeg')
 
     @property
+    @_check_types.do
     def anglepeg(self) -> _angle.Angle:
         """Return the peg-board angle.
 

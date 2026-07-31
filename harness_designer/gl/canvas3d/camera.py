@@ -200,6 +200,7 @@ from ...geometry import angle as _angle
 from ...geometry import line as _line
 from ... import debug as _debug
 from .. import events as _events
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -232,6 +233,7 @@ class Camera:
 
     __doc__ = __doc__
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """
         Initialise the :class:`Camera` instance.
@@ -275,6 +277,7 @@ class Camera:
         self._focal_position.bind(self._update_camera)
 
     @property
+    @_check_types.do
     def field_of_view(self) -> float:
         """
         Return the field of view.
@@ -291,10 +294,12 @@ class Camera:
         return self._fov
 
     @property
+    @_check_types.do
     def clip(self) -> np.ndarray:
         return self._clip
 
     @property
+    @_check_types.do
     def inv_clip(self) -> np.ndarray:
         """
         Return the cached inverse of the clip (projection × modelview) matrix.
@@ -307,6 +312,7 @@ class Camera:
         return self._inv_clip
 
     @property
+    @_check_types.do
     def forward(self) -> np.ndarray:
         """
         Return the normalised unit vector pointing from the camera position
@@ -317,15 +323,17 @@ class Camera:
         return self._forward
 
     @property
+    @_check_types.do
     def focal_distance(self) -> float:
         """
         Return the distance from the camera position to the focal point.
 
         :rtype: float
         """
-        return self._focal_distance
+        return float(str(self._focal_distance))
 
     @property
+    @_check_types.do
     def up(self) -> np.ndarray:
         """
         Return the up direction vector.
@@ -335,6 +343,7 @@ class Camera:
         return self._up
 
     @property
+    @_check_types.do
     def position(self) -> _point.Point:
         """
         Return the camera position.
@@ -346,6 +355,7 @@ class Camera:
         return self._position
 
     @property
+    @_check_types.do
     def focal_position(self) -> _point.Point:
         """
         Return the focal position.
@@ -357,6 +367,7 @@ class Camera:
         return self._focal_position
 
     @property
+    @_check_types.do
     def projection(self) -> np.ndarray:
         """
         Return the projection.
@@ -367,6 +378,7 @@ class Camera:
         return self._projection
 
     @property
+    @_check_types.do
     def modelview(self) -> np.ndarray:
         """
         Return the modelview.
@@ -377,6 +389,7 @@ class Camera:
         return self._modelview
 
     @property
+    @_check_types.do
     def viewport(self) -> np.ndarray:
         """
         Return the viewport.
@@ -387,6 +400,7 @@ class Camera:
         return self._viewport
 
     @property
+    @_check_types.do
     def frustum_normals(self) -> np.ndarray:
         """
         Return the frustum normals.
@@ -397,6 +411,7 @@ class Camera:
         return self._frustum_normals
 
     @property
+    @_check_types.do
     def frustum_distances(self) -> np.ndarray:
         """
         Return the frustum distances.
@@ -407,6 +422,7 @@ class Camera:
         return self._frustum_distances
 
     @property
+    @_check_types.do
     def objects_in_view(self):
         """
         Return the objects in view.
@@ -414,6 +430,7 @@ class Camera:
         return self.canvas.objects_in_view
 
     @property
+    @_check_types.do
     def orthonormalized_axes(self) -> tuple[
         np.ndarray, np.ndarray, np.ndarray]:  # NOQA
         """
@@ -427,6 +444,7 @@ class Camera:
         """
         return self._forward, self._right, self._up
 
+    @_check_types.do
     def _send_event(self, type_):
         event = _events.GLCameraEvent.from_canvas(type_, self.canvas)
 
@@ -454,6 +472,7 @@ class Camera:
     #     return fov_degrees
 
     @property
+    @_check_types.do
     def aspect_ratio(self) -> float:
         """
         Return the aspect ratio.
@@ -465,6 +484,7 @@ class Camera:
 
         return float(self._viewport[2]) / float(self._viewport[3])
 
+    @_check_types.do
     def Reset(self):
         """
         Reset the camers back to its home position.
@@ -487,6 +507,7 @@ class Camera:
         self._update_camera(None)
         self._send_event(_events.EVT_GL_CAMERA_RESET)
 
+    @_check_types.do
     def SetTopDownLock(self, enable: bool):
         """
         Enable/disable the locked straight-down ("bird's-eye") view.
@@ -517,6 +538,7 @@ class Camera:
         self._is_dirty = True
         self._update_camera(None)
 
+    @_check_types.do
     def _update_camera(self, _=None):
         """
         Update the camera.
@@ -537,6 +559,7 @@ class Camera:
         _app.CallAfter(self.canvas.update)
 
     @property
+    @_check_types.do
     def has_camera_moved(self) -> bool:
         """
         Has the camera moved.
@@ -549,6 +572,7 @@ class Camera:
         return res
 
     @staticmethod
+    @_check_types.do
     def _extract_frustum_planes(view_proj: np.ndarray) -> np.ndarray:
         """
         Returns planes as an array shape (6,4): [A,B,C,D] per plane.
@@ -584,6 +608,7 @@ class Camera:
 
         return planes
 
+    @_check_types.do
     def Set(self):
         """
         Set the camera positon.
@@ -599,6 +624,7 @@ class Camera:
         self._update_views()
 
     @_debug.logfunc
+    @_check_types.do
     def _calculate_camera(self):
         """
         Calculate the camera.
@@ -682,6 +708,7 @@ class Camera:
         self._focal_distance = focal_distance
 
     @_debug.logfunc
+    @_check_types.do
     def _update_views(self):
         """
         Update the views.
@@ -724,7 +751,8 @@ class Camera:
                 self._fov = 0.0
 
     @_debug.logfunc
-    def Rotate(self, dx: int, dy: int):
+    @_check_types.do
+    def Rotate(self, dx: int | float, dy: int | float):
         """
         Moves the camera position keeping the focused point locked.
 
@@ -750,8 +778,9 @@ class Camera:
 
     @staticmethod
     @_debug.logfunc
-    def _rotate_about(dx: int, dy: int,
-                      p1: _point.Point, p2: _point.Point) -> np.ndarray:
+    @_check_types.do
+    def _rotate_about(dx: int | float, dy: int | float,
+                      p1: _point.Point, p2: _point.Point) -> _point.Point:
         """
         Moves the camera position keeping the focused point locked.
         """
@@ -769,10 +798,11 @@ class Camera:
         dist = np.linalg.norm(offset)
 
         if dist < 1e-6:
-            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            return _point.Point(0.0, 0.0, 0.0)
 
         up = _WORLD_UP.copy()
 
+        @_check_types.do
         def _rodrigues(v, k, angle_rad):
             """
             Execute the rodrigues operation.
@@ -797,7 +827,7 @@ class Camera:
         yaw_offset_n = np.linalg.norm(yaw_offset)
 
         if yaw_offset_n < 1e-6:
-            return np.array([0.0, 0.0, 0.0], dtype=np.float32)
+            return _point.Point(0.0, 0.0, 0.0)
 
         yaw_dir = yaw_offset / yaw_offset_n
 
@@ -835,7 +865,8 @@ class Camera:
         return _point.Point(new_point[0], new_point[1], new_point[2])
 
     @_debug.logfunc
-    def PanTilt(self, dx: int, dy: int):
+    @_check_types.do
+    def PanTilt(self, dx: int | float, dy: int | float):
         """
         Pan and Tilt camera movements.
 
@@ -862,6 +893,7 @@ class Camera:
         self._send_event(_events.EVT_GL_CAMERA_ROTATE)
 
     @_debug.logfunc
+    @_check_types.do
     def Zoom(self, delta, *_):
         """
         This has a similiar movement appearance as Dolly except there are hard
@@ -900,7 +932,8 @@ class Camera:
         self._send_event(_events.EVT_GL_CAMERA_ZOOM)
 
     @_debug.logfunc
-    def Walk(self, dx: int, dy: int, speed: float):
+    @_check_types.do
+    def Walk(self, dx: int | float, dy: int | float, speed: float):
         """
         This movement is a bit tricky to explain in terms of camera movement.
         If you think about what you do as a person when you walk this will
@@ -951,7 +984,8 @@ class Camera:
         self._send_event(_events.EVT_GL_CAMERA_WALK)
 
     @_debug.logfunc
-    def TruckPedestal(self, dx: int, dy: int, speed: float):
+    @_check_types.do
+    def TruckPedestal(self, dx: int | float, dy: int | float, speed: float):
         """
         Truck (left right) and Pedestal (up down).
 
@@ -991,6 +1025,7 @@ class Camera:
         self._send_event(_events.EVT_GL_CAMERA_TRUCKPEDISTAL)
 
     @_debug.logfunc
+    @_check_types.do
     def CenterOn(self, world_position: _point.Point) -> None:
         """
         Recenter the orbit pivot on *world_position* without changing
@@ -1015,6 +1050,7 @@ class Camera:
         self._send_event(_events.EVT_GL_CAMERA_WALK)
 
     @_debug.logfunc
+    @_check_types.do
     def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:
         """
         Projects a 3D world coordinate to a 2D screen coordinate.
@@ -1051,6 +1087,7 @@ class Camera:
         return _point.Point(screen_x, screen_y, screen_z)
 
     @_debug.logfunc
+    @_check_types.do
     def UnprojectPoint(self, point: _point.Point) -> _point.Point:
         """
         Projects a 2D screen coordinate to a 3D world coordinate.
@@ -1078,6 +1115,7 @@ class Camera:
 
         return _point.Point(*(clip_point[:3] / clip_point[3]))
 
+    @_check_types.do
     def unproject_from_ndc(self, x, y, z):
         """
         ndc: (x,y,z) in [-1,1]
@@ -1092,6 +1130,7 @@ class Camera:
         world /= world[3]
         return world[:3]
 
+    @_check_types.do
     def get_position_on_focal_plane(self, point: _point.Point) -> _point.Point:
         vx, vy, vw, vh = self.viewport
 
@@ -1120,6 +1159,7 @@ class Camera:
 
         return _point.Point(*(origin + t * direction))
 
+    @_check_types.do
     def closest_point(self, points) -> tuple[int, np.ndarray] | tuple[None, None]:
         """Return (index, point) of whichever of *points* is nearest this
         camera's own eye position -- i.e. whichever one the camera would
@@ -1174,5 +1214,6 @@ class Camera:
         return best_idx, best_point
 
     @property
+    @_check_types.do
     def devicePixelRatio(self) -> float:
         return self.canvas.devicePixelRatio()

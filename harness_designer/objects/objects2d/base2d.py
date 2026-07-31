@@ -17,6 +17,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from ...gl import vbo as _vbo
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
+@_check_types.do
 def _quat_about_y(degrees: float) -> _quaternion.Quaternion:
     """Return the quaternion rotating *degrees* about world Y.
 
@@ -45,6 +47,7 @@ def _quat_about_y(degrees: float) -> _quaternion.Quaternion:
     return _quaternion.Quaternion.from_axis_angle([0.0, 1.0, 0.0], math.radians(degrees))
 
 
+@_check_types.do
 def _rotate_about_y(points: np.ndarray, degrees: float) -> np.ndarray:
     """Rotate an ``(N, 3)`` array of points about world Y by *degrees*.
 
@@ -73,6 +76,7 @@ class Base2D(_objectsvar.BaseVar):
     unchanged (``vbo`` stays ``None``).
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
@@ -125,10 +129,12 @@ class Base2D(_objectsvar.BaseVar):
             self._compute_aabb()
 
     @property
+    @_check_types.do
     def editor(self):
         return self.editor2d
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """Return the is visible.
 
@@ -140,6 +146,7 @@ class Base2D(_objectsvar.BaseVar):
         return self._is_visible
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool):
         """Set the is visible.
 
@@ -155,13 +162,16 @@ class Base2D(_objectsvar.BaseVar):
             pass
 
     @property
+    @_check_types.do
     def _selected_color(self) -> _color.Color:
         return _color.Color(*Config.colors.selected)
 
+    @_check_types.do
     def _is_visible_callback(self, *_, **__):
         self._is_visible = self.db_obj.is_visible2d  # NOQA
         self.mainframe.editor2d.Refresh()
 
+    @_check_types.do
     def _render_geometry(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
         """Render this object's VBO using the already-bound *program*.
 
@@ -190,6 +200,7 @@ class Base2D(_objectsvar.BaseVar):
     # against their own manual geometry as before.
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def render_gl(self) -> None:
         """
         Legacy immediate-mode render hook -- unused by VBO-backed objects
@@ -198,6 +209,7 @@ class Base2D(_objectsvar.BaseVar):
         """
         pass
 
+    @_check_types.do
     def render_selection(self, program: int, proj, view) -> None:
         """
         Render selection highlight using the schematic2d shader.
@@ -206,6 +218,7 @@ class Base2D(_objectsvar.BaseVar):
         """
         pass
 
+    @_check_types.do
     def hit_test(self, world_pos: _point.Point) -> bool:
         """
         Test if a point hits this object
@@ -218,6 +231,7 @@ class Base2D(_objectsvar.BaseVar):
         """
         return False
 
+    @_check_types.do
     def get_bounds(self):
         """
         Get the world-space bounding box from the OBB/AABB ``BaseVar``
@@ -235,6 +249,7 @@ class Base2D(_objectsvar.BaseVar):
         (min_x, _, min_z), (max_x, _, max_z) = self._aabb
         return float(min_x), float(min_z), float(max_x), float(max_z)
 
+    @_check_types.do
     def move_to(self, world_x: float, world_y: float):
         """
         Move this object to a new position

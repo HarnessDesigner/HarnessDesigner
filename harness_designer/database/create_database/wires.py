@@ -25,8 +25,10 @@ from . import concentric_layers as _concentric_layers
 
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_wires(con, data: tuple[dict] | list[dict]):
     """Add a wires.
 
@@ -41,6 +43,7 @@ def add_wires(con, data: tuple[dict] | list[dict]):
         add_wire(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 
@@ -101,6 +104,7 @@ def add_records(con, splash, data_path):
     os.chdir(cwd)
 
 
+@_check_types.do
 def add_wire(con, part_number, description, mfg=None, family=None, series=None,
              color=None, image=None, datasheet=None, cad=None, min_temp=None,
              max_temp=None, material=None, stripe_color=None, core_material=None,

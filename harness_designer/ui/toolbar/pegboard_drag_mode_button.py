@@ -17,6 +17,7 @@ existing icon asset for either concept.
 
 from PySide6 import QtCore
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class PegboardDragModeButton(QtWidgets.QToolButton):
@@ -35,6 +36,7 @@ class PegboardDragModeButton(QtWidgets.QToolButton):
 
     dragModeChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget):
         super().__init__(parent)
 
@@ -51,10 +53,12 @@ class PegboardDragModeButton(QtWidgets.QToolButton):
 
     # ── public API ─────────────────────────────────────────────────────────
 
+    @_check_types.do
     def GetDragMode(self) -> str:
         """Return the current drag mode ("clamp" or "pull")."""
         return self._mode
 
+    @_check_types.do
     def SetDragMode(self, mode: str) -> None:
         """Set the drag mode programmatically (no signal emitted)."""
         self._mode = 'pull' if mode == 'pull' else 'clamp'
@@ -62,11 +66,13 @@ class PegboardDragModeButton(QtWidgets.QToolButton):
 
     # ── internals ──────────────────────────────────────────────────────────
 
+    @_check_types.do
     def _on_clicked(self, _: bool = False) -> None:
         self._mode = 'pull' if self._mode == 'clamp' else 'clamp'
         self._refresh()
         self.dragModeChanged.emit(self._mode)
 
+    @_check_types.do
     def _refresh(self) -> None:
         label = 'Pull' if self._mode == 'pull' else 'Clamp'
         self.setText(label)

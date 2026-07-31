@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import material as _material
+from ... import check_types as _check_types
 
 
 class GlowingMaterial(_material.GLMaterial):
@@ -13,6 +14,7 @@ class GlowingMaterial(_material.GLMaterial):
     _specular = (0.70, 0.70, 0.70)
     _shine = 92.0
 
+    @_check_types.do
     def __init__(self, color):
         """Initialise the :class:`GlowingMaterial` instance.
 

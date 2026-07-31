@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from ... import check_types as _check_types
 
 
 class ChoiceCtrl(QtWidgets.QWidget):
@@ -17,6 +18,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
 
     valueChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
+    @_check_types.do
     def __init__(self, parent=None, label: str = '', choices=None):
         """Initialise the :class:`ChoiceCtrl` instance.
 
@@ -48,6 +50,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_index_changed(self):
         """Emit :attr:`valueChanged` with the text of the newly selected item."""
         self.valueChanged.emit(self.ctrl.currentText())
@@ -56,6 +59,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     # wx-compatible API
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def Enable(self, flag: bool = True):
         """Enable or disable both the label and the dropdown.
 
@@ -65,6 +69,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
 
+    @_check_types.do
     def SetToolTip(self, text: str):
         """Set the tooltip on both the label and the dropdown.
 
@@ -76,6 +81,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
+    @_check_types.do
     def SetSelection(self, n: int):
         """Select the item at zero-based index *n*.
 
@@ -84,6 +90,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         self.ctrl.setCurrentIndex(n)
 
+    @_check_types.do
     def GetSelection(self) -> int:
         """Return the index of the currently selected item.
 
@@ -92,6 +99,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         return self.ctrl.currentIndex()
 
+    @_check_types.do
     def SetStringSelection(self, value: str):
         """Select the first item whose text exactly matches *value*.
 
@@ -104,6 +112,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         if idx >= 0:
             self.ctrl.setCurrentIndex(idx)
 
+    @_check_types.do
     def GetStringSelection(self) -> str:
         """Return the text of the currently selected item.
 
@@ -112,6 +121,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         return self.ctrl.currentText()
 
+    @_check_types.do
     def GetCount(self) -> int:
         """Return the total number of items in the dropdown.
 
@@ -120,10 +130,12 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         return self.ctrl.count()
 
+    @_check_types.do
     def Clear(self):
         """Remove all items from the dropdown."""
         self.ctrl.clear()
 
+    @_check_types.do
     def Delete(self, n: int):
         """Remove the item at zero-based index *n*.
 
@@ -132,6 +144,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         self.ctrl.removeItem(n)
 
+    @_check_types.do
     def Insert(self, item: str, pos: int):
         """Insert *item* before the item currently at index *pos*.
 
@@ -142,6 +155,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         self.ctrl.insertItem(pos, item)
 
+    @_check_types.do
     def Append(self, item: str) -> int:
         """Append a single item and return its new index.
 
@@ -153,6 +167,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         self.ctrl.addItem(item)
         return self.ctrl.count() - 1
 
+    @_check_types.do
     def AppendItems(self, items):
         """Append multiple items to the end of the dropdown.
 
@@ -161,6 +176,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         self.ctrl.addItems(list(items))
 
+    @_check_types.do
     def Set(self, items):
         """Replace all existing items with *items*.
 
@@ -171,6 +187,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         if items:
             self.ctrl.addItems(list(items))
 
+    @_check_types.do
     def GetItems(self) -> list[str]:
         """Return all item strings as an ordered list.
 
@@ -179,6 +196,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         """
         return [self.ctrl.itemText(i) for i in range(self.ctrl.count())]
 
+    @_check_types.do
     def SetItems(self, items: list[str]):
         """Replace all existing items with *items* (alias for :meth:`Set`).
 

@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from ... import check_types as _check_types
 
 
 class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
@@ -11,6 +12,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     without modification.
     """
 
+    @_check_types.do
     def __init__(self, parent=None, choices=None):
         """Initialise the :class:`AutoCompleteTextCtrl` instance.
 
@@ -35,6 +37,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     # ------------------------------------------------------------------
     # Internal helper
     # ------------------------------------------------------------------
+    @_check_types.do
     def _rebuild_completer(self):
         """Execute the rebuild completer operation.
 
@@ -46,6 +49,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     # ------------------------------------------------------------------
     # wx-compatible choice management
     # ------------------------------------------------------------------
+    @_check_types.do
     def Clear(self):
         """Execute the clear operation.
 
@@ -54,6 +58,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._choices.clear()
         self._rebuild_completer()
 
+    @_check_types.do
     def Delete(self, n: int):
         """Execute the delete operation.
 
@@ -65,6 +70,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._choices.pop(n)
         self._rebuild_completer()
 
+    @_check_types.do
     def Insert(self, item: str, pos: int):
         """Execute the insert operation.
 
@@ -78,6 +84,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._choices.insert(pos, item)
         self._rebuild_completer()
 
+    @_check_types.do
     def Set(self, items):
         """Execute the set operation.
 
@@ -89,6 +96,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._choices = list(items)
         self._rebuild_completer()
 
+    @_check_types.do
     def SetItems(self, items):
         """Execute the set items operation.
 
@@ -99,6 +107,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         """
         self.Set(items)
 
+    @_check_types.do
     def Append(self, item):
         """Execute the append operation.
 
@@ -116,6 +125,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     # ------------------------------------------------------------------
     # Value access (QLineEdit already provides text()/setText())
     # ------------------------------------------------------------------
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -129,6 +139,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self.setText(value)
         self.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class TemperatureMixin(BaseMixin):
     _stored_min_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def min_temp(self) -> "_temperature.Temperature":
         """Return the min temp.
 
@@ -39,6 +41,7 @@ class TemperatureMixin(BaseMixin):
     _stored_min_temp_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def min_temp_id(self) -> int:
         """Return the min temp ID.
 
@@ -53,6 +56,7 @@ class TemperatureMixin(BaseMixin):
         return self._stored_min_temp_id
 
     @min_temp_id.setter
+    @_check_types.do
     def min_temp_id(self, value: int):
         """Set the min temp ID.
 
@@ -70,6 +74,7 @@ class TemperatureMixin(BaseMixin):
     _stored_max_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_temp(self) -> "_temperature.Temperature":
         """Return the max temp.
 
@@ -90,6 +95,7 @@ class TemperatureMixin(BaseMixin):
     _stored_max_temp_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_temp_id(self) -> int:
         """Return the max temp ID.
 
@@ -104,6 +110,7 @@ class TemperatureMixin(BaseMixin):
         return self._stored_max_temp_id
 
     @max_temp_id.setter
+    @_check_types.do
     def max_temp_id(self, value: int):
         """Set the max temp ID.
 
@@ -125,6 +132,7 @@ class TemperatureControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`TemperatureControl` instance.
 
@@ -147,6 +155,7 @@ class TemperatureControl(_prop_ctrls.Category):
         self.min_temp_ctrl.propertyChanged.connect(self._on_min_temp)
         self.max_temp_ctrl.propertyChanged.connect(self._on_max_temp)
 
+    @_check_types.do
     def set_obj(self, db_obj: TemperatureMixin):
         """Set the obj.
 
@@ -182,6 +191,7 @@ class TemperatureControl(_prop_ctrls.Category):
             self.min_temp_ctrl.setEnabled(True)
             self.max_temp_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_min_temp(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the min temp event.
 
@@ -213,6 +223,7 @@ class TemperatureControl(_prop_ctrls.Category):
 
         self.db_obj.min_temp_id = db_id
 
+    @_check_types.do
     def _on_max_temp(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the max temp event.
 

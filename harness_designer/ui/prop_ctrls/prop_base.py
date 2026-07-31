@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Signal
 
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class Property(QWidget):
@@ -16,6 +17,7 @@ class Property(QWidget):
 
     propertyChanged = Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label, orientation=None):
         """Initialise the :class:`Property` instance.
 
@@ -64,12 +66,14 @@ class Property(QWidget):
                 sizer.addWidget(self._static_box, 1)
                 self.setLayout(sizer)
 
+    @_check_types.do
     def addWidget(self, widget):
         if isinstance(self._sizer, QHBoxLayout):
             self._sizer.addWidget(widget)
         else:
             self._sizer.addWidget(widget, 1)
 
+    @_check_types.do
     def SetToolTip(self, text):
         """Execute the set tool tip operation.
 
@@ -85,6 +89,7 @@ class Property(QWidget):
         else:
             QWidget.setToolTip(self, text)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         """Execute the get label operation.
 
@@ -95,6 +100,7 @@ class Property(QWidget):
         """
         return self._label
 
+    @_check_types.do
     def SetLabel(self, value: str):
         """Execute the set label operation.
 
@@ -109,6 +115,7 @@ class Property(QWidget):
         elif self._st is not None:
             self._st.setText(value + ':')
 
+    @_check_types.do
     def _send_changed_event(self, value_type, value):
         """Execute the send changed event operation.
 

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtCore import Signal
+from ... import check_types as _check_types
 
 
 class PropertyEvent:
@@ -9,6 +10,7 @@ class PropertyEvent:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self):
         """Initialise the :class:`PropertyEvent` instance.
 
@@ -19,6 +21,7 @@ class PropertyEvent:
         self._property_type = None
         self._value = None
 
+    @_check_types.do
     def GetName(self) -> str:
         """Execute the get name operation.
 
@@ -29,6 +32,7 @@ class PropertyEvent:
         """
         return self._name
 
+    @_check_types.do
     def SetName(self, value: str):
         """Execute the set name operation.
 
@@ -39,6 +43,7 @@ class PropertyEvent:
         """
         self._name = value
 
+    @_check_types.do
     def SetProperty(self, value):
         """Execute the set property operation.
 
@@ -49,6 +54,7 @@ class PropertyEvent:
         """
         self._property = value
 
+    @_check_types.do
     def Getproperty(self):
         """Execute the getproperty operation.
 
@@ -59,6 +65,7 @@ class PropertyEvent:
         """
         return self._property
 
+    @_check_types.do
     def SetPropertyType(self, value):
         """Execute the set property type operation.
 
@@ -69,6 +76,7 @@ class PropertyEvent:
         """
         self._property_type = value
 
+    @_check_types.do
     def GetPropertyType(self):
         """Execute the get property type operation.
 
@@ -79,6 +87,7 @@ class PropertyEvent:
         """
         return self._property_type
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -89,6 +98,7 @@ class PropertyEvent:
         """
         return self._value
 
+    @_check_types.do
     def SetValue(self, value):
         """Execute the set value operation.
 

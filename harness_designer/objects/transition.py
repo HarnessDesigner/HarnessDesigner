@@ -7,6 +7,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import transition as _transition_2d
 from .objects3d import transition as _transition_3d
 from .objectspeg import transition as _transition_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class Transition(_ObjectBase):
     objpeg: _transition_peg.Transition = None
     db_obj: "_pjt_transition.PJTTransition" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_transition.PJTTransition", project_load=False):
         """Initialise the :class:`Transition` instance.
@@ -58,11 +60,13 @@ class Transition(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def bundle_at(self, branch_id: int) -> "_bundle_obj.Bundle | None":
         """Return the Bundle attached at *branch_id* (1-6), or None."""
         ref = self._bundle_refs.get(branch_id)
         return None if ref is None else ref()
 
+    @_check_types.do
     def branch_id_of(self, bundle: "_bundle_obj.Bundle") -> int | None:
         """Return which branch slot (1-6) *bundle* is attached at, or
         None if it isn't attached to this transition at all."""
@@ -72,6 +76,7 @@ class Transition(_ObjectBase):
         return None
 
     @property
+    @_check_types.do
     def bundles(self) -> list["_bundle_obj.Bundle"]:
         """Every Bundle currently attached to any branch of this transition."""
         res = []
@@ -81,6 +86,7 @@ class Transition(_ObjectBase):
                 res.append(bundle)
         return res
 
+    @_check_types.do
     def add_bundle(self, bundle: "_bundle_obj.Bundle", end: str, branch_id: int) -> None:
         """Attach *bundle* to this transition at *branch_id* (1-6).
 
@@ -97,6 +103,7 @@ class Transition(_ObjectBase):
         self._bundle_refs[branch_id] = weakref.ref(bundle)
         bundle.set_sibling(self, end)
 
+    @_check_types.do
     def replace_bundle(self, old: "_bundle_obj.Bundle", new: "_bundle_obj.Bundle") -> None:
         """Re-home whichever branch slot(s) reference *old* to *new*
         instead -- used when two bundles merge into one row (see
@@ -107,6 +114,7 @@ class Transition(_ObjectBase):
             if ref() is old:
                 self._bundle_refs[branch_id] = weakref.ref(new)
 
+    @_check_types.do
     def delete(self):
         # TODO: Branches should be left dangling. layouts at each branch should
         #       be removed. Wires should be left alone.

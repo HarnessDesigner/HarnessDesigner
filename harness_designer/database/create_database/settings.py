@@ -4,8 +4,10 @@ import os
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def get_setting(con, name):  # NOQA
     """Return the setting.
 
@@ -23,6 +25,7 @@ def get_setting(con, name):  # NOQA
     return res[0][0]
 
 
+@_check_types.do
 def add_records(con, splash, appdata):
     """Add a records.
 
@@ -89,6 +92,7 @@ def add_records(con, splash, appdata):
     con.commit()
 
 
+@_check_types.do
 def add_setting(con, key, value, commit=True):
     """Add a setting.
 

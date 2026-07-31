@@ -12,6 +12,7 @@ from ....shapes import box as _box
 from ....gl import vbo as _vbo
 from ....gl import materials as _materials
 from .... import color as _color
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ class Housing(_objects.ObjectBase):
     """
     obj3d: "Housing3D" = None
 
+    @_check_types.do
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
                  housing: "_housing.Housing"):
         """Initialise the :class:`Housing` instance.
@@ -44,6 +46,7 @@ class Housing(_objects.ObjectBase):
 
         parent.add_object(self)
 
+    @_check_types.do
     def set_selected(self, flag):
         pass
         # if self.dialog.can_select:
@@ -57,6 +60,7 @@ class Housing3D(_base3d.Base3D):
     """
     db_obj: "_housing.Housing" = None
 
+    @_check_types.do
     def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
         """Initialise the :class:`Housing3D` instance.
 
@@ -124,6 +128,7 @@ class Housing3D(_base3d.Base3D):
             self._is_visible = True
             self.editor3d.Refresh(False)
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Update the position.
 

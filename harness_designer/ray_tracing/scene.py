@@ -12,6 +12,7 @@ import numpy as np
 from .. import config as _config
 from . import bvh_processor as _bvh_processor
 from . import light as _light
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class Scene:
 
     """Collect camera state, scene objects, materials, and lighting for the ray-tracing renderer.
     """
+    @_check_types.do
     def __init__(self, width, height, camera: "_camera.Camera"):
         """Initialize the object and capture the state required for later interaction.
 
@@ -44,6 +46,7 @@ class Scene:
         self.camera_up = camera.up
         self.fov = camera.field_of_view
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object to the scene so it can be included in later rendering work.
 
@@ -52,6 +55,7 @@ class Scene:
         """
         self.objects.append(obj)
 
+    @_check_types.do
     def load_environment_map(self, image_path):
         """Load an environment map image and enable environment-map rendering.
 
@@ -61,6 +65,7 @@ class Scene:
         self.environment_map = Image.open(image_path).convert('RGB')
         Config.environment_map.enable = True
 
+    @_check_types.do
     def generate_environment(self, size):
         """Generate a simple gradient environment image for the scene.
 
@@ -80,6 +85,7 @@ class Scene:
 
         self.environment_map = img
 
+    @_check_types.do
     def build(self):
         """Build flattened geometry, BVH, material, and lighting arrays for GPU rendering.
 

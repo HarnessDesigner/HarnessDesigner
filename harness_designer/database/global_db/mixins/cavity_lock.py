@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class CavityLockMixin(BaseMixin):
     _stored_cavity_lock: "DefaultStoredValueType | _cavity_lock.CavityLock" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cavity_lock(self) -> "_cavity_lock.CavityLock":
         """Return the cavity lock.
 
@@ -38,6 +40,7 @@ class CavityLockMixin(BaseMixin):
     _stored_cavity_lock_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cavity_lock_id(self) -> int:
         """Return the cavity lock ID.
 
@@ -52,6 +55,7 @@ class CavityLockMixin(BaseMixin):
         return self._stored_cavity_lock_id
 
     @cavity_lock_id.setter
+    @_check_types.do
     def cavity_lock_id(self, value: int):
         """Set the cavity lock ID.
 
@@ -72,6 +76,7 @@ class CavityLockControl(_prop_ctrls.Property):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`CavityLockControl` instance.
 
@@ -92,6 +97,7 @@ class CavityLockControl(_prop_ctrls.Property):
         self.name_ctrl.propertyChanged.connect(self._on_name)
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
+    @_check_types.do
     def set_obj(self, db_obj: CavityLockMixin):
         """Set the obj.
 
@@ -120,6 +126,7 @@ class CavityLockControl(_prop_ctrls.Property):
             self.name_ctrl.setEnabled(True)
             self.desc_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name event.
 
@@ -149,6 +156,7 @@ class CavityLockControl(_prop_ctrls.Property):
         self.db_obj.cavity_lock_id = db_id
         self.desc_ctrl.SetValue(desc)
 
+    @_check_types.do
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the desc event.
 

@@ -6,11 +6,13 @@ from . import circuits as _circuits
 from . import wires as _wires
 
 from .. import db_connectors as _con
+from ... import check_types as _check_types
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
 
 
+@_check_types.do
 def add_pjt_wire_service_loop(con, project_id, part_id, name='', start_point3d_id=None,
                               stop_point3d_id=None, circuit_id=None, notes='',
                               quat3d=[1.0, 0.0, 0.0, 0.0], angle3d=[0.0, 0.0, 0.0],

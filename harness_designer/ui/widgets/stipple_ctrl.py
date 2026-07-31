@@ -5,6 +5,7 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 
 from . import checkbox_ctrl as _checkbox_ctrl
+from ... import check_types as _check_types
 
 
 class StippleEditor(QtWidgets.QWidget):
@@ -37,6 +38,7 @@ class StippleEditor(QtWidgets.QWidget):
     # widget background
     _C_BG = QtGui.QColor(28,  28,  28)
 
+    @_check_types.do
     def __init__(self, value: int = 0, parent: QtWidgets.QWidget = None):
         super().__init__(parent)
 
@@ -46,10 +48,12 @@ class StippleEditor(QtWidgets.QWidget):
         self._drag_on = None
 
     # ── public API ────────────────────────────────────────────────────────────
+    @_check_types.do
     def GetValue(self) -> int:
         """Current uint32 stipple pattern value."""
         return self._value
 
+    @_check_types.do
     def SetValue(self, v: int):
         v = int(v) & 0xFFFFFFFF
         if v != self._value:
@@ -58,6 +62,7 @@ class StippleEditor(QtWidgets.QWidget):
             self.valueChanged.emit(self._value)
 
     # ── geometry ──────────────────────────────────────────────────────────────
+    @_check_types.do
     def _rect(self, i: int) -> QtCore.QRect:
         """Return the bounding QRect of square i."""
         size = self.size()
@@ -78,6 +83,7 @@ class StippleEditor(QtWidgets.QWidget):
 
         return QtCore.QRect(x, y, steps, h)
 
+    @_check_types.do
     def _index_at(self, pt: QtCore.QPoint) -> int:
         """
         Return the bit index under pt, or -1 if pt is not inside any square.
@@ -89,9 +95,11 @@ class StippleEditor(QtWidgets.QWidget):
         return -1
 
     # ── bit helpers ───────────────────────────────────────────────────────────
+    @_check_types.do
     def _bit(self, i: int) -> bool:
         return bool(self._value & (1 << i))
 
+    @_check_types.do
     def _set_bit(self, i: int, on: bool):
         if on:
             self._value |= (1 << i)
@@ -102,6 +110,7 @@ class StippleEditor(QtWidgets.QWidget):
         self.valueChanged.emit(self._value)
 
     # ── mouse events ──────────────────────────────────────────────────────────
+    @_check_types.do
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             i = self._index_at(event.position().toPoint())
@@ -110,17 +119,20 @@ class StippleEditor(QtWidgets.QWidget):
                 self._drag_on = not self._bit(i)
                 self._set_bit(i, self._drag_on)
 
+    @_check_types.do
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         if self._drag_on is not None:
             i = self._index_at(event.position().toPoint())
             if i >= 0:
                 self._set_bit(i, self._drag_on)
 
+    @_check_types.do
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._drag_on = None
 
     # ── paint ─────────────────────────────────────────────────────────────────
+    @_check_types.do
     def paintEvent(self, event):
         p = QtGui.QPainter(self)
         pen = QtGui.QPen(self._C_BORDER, 1)
@@ -138,6 +150,7 @@ class StippleEditor(QtWidgets.QWidget):
 
 class StippleCtrl(QtWidgets.QWidget):
 
+    @_check_types.do
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -153,10 +166,12 @@ class StippleCtrl(QtWidgets.QWidget):
         sizer.addWidget(self.stipple_ctrl, 1)
         sizer.addWidget(self.offset_ctrl)
 
+    @_check_types.do
     def SetValue(self, pattern: int, offset: bool) -> None:
         self.stipple_ctrl.SetValue(pattern)
         self.offset_ctrl.SetValue(offset)
 
+    @_check_types.do
     def GetValue(self) -> tuple[int, bool]:
         return self.stipple_ctrl.GetValue(), self.offset_ctrl.GetValue()
 

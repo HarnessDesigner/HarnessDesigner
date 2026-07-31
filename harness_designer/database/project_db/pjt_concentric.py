@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NotesMixin
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class PJTConcentricsTable(PJTTableBase):
     """
     __table_name__ = 'pjt_concentrics'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -33,6 +35,7 @@ class PJTConcentricsTable(PJTTableBase):
 
         return concentrics.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -42,6 +45,7 @@ class PJTConcentricsTable(PJTTableBase):
 
         concentrics.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -51,6 +55,7 @@ class PJTConcentricsTable(PJTTableBase):
 
         concentrics.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTConcentric"]:
         """Iterate over the available items.
 
@@ -62,6 +67,7 @@ class PJTConcentricsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTConcentric(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTConcentric":
         """Return the requested item.
 
@@ -81,6 +87,7 @@ class PJTConcentricsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, bundle_id: int | None, transition_branch_id: int | None) -> "PJTConcentric":
         """Execute the insert operation.
 
@@ -106,6 +113,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     """
     _table: PJTConcentricsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -150,6 +158,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     #         self._obj = obj
 
     @property
+    @_check_types.do
     def layers(self) -> list["_pjt_concentric_layer.PJTConcentricLayer"]:
         """Return the layers.
 
@@ -167,6 +176,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         return sorted(layers, key=lambda x: x.idx)
 
     @property
+    @_check_types.do
     def table(self) -> PJTConcentricsTable:
         """Return the table.
 
@@ -180,6 +190,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     _stored_bundle: "_pjt_bundle.PJTBundle | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def bundle(self) -> "_pjt_bundle.PJTBundle":
         """Return the bundle.
 
@@ -200,6 +211,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     _stored_bundle_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def bundle_id(self) -> int:
         """Return the bundle ID.
 
@@ -214,6 +226,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         return self._stored_bundle_id
 
     @bundle_id.setter
+    @_check_types.do
     def bundle_id(self, value: int):
         """Set the bundle ID.
 
@@ -231,6 +244,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     _stored_transition_branch: "_pjt_transition_branches.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def transition_branch(self) -> "_pjt_transition_branches.PJTTransitionBranch":
         """Return the transition branch.
 
@@ -251,6 +265,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     _stored_transition_branch_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def transition_branch_id(self) -> int:
         """Return the transition branch ID.
 
@@ -265,6 +280,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         return self._stored_transition_branch_id
 
     @transition_branch_id.setter
+    @_check_types.do
     def transition_branch_id(self, value: int):
         """Set the transition branch ID.
 
@@ -280,6 +296,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         self._populate('transition_branch_id')
 
     @property
+    @_check_types.do
     def propgrid(self) -> _prop_ctrls.Category:
         """Return the propgrid.
 

@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class HousingMixin(BaseMixin):
     _stored_housing: "DefaultStoredValueType | _pjt_housing.PJTHousing | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def housing(self) -> "_pjt_housing.PJTHousing":
         """Return the housing.
 
@@ -38,6 +40,7 @@ class HousingMixin(BaseMixin):
     _stored_housing_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def housing_id(self) -> int:
         """Return the housing ID.
 
@@ -52,6 +55,7 @@ class HousingMixin(BaseMixin):
         return self._stored_housing_id
 
     @housing_id.setter
+    @_check_types.do
     def housing_id(self, value: int):
         """Set the housing ID.
 

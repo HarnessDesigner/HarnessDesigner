@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class CompatTerminalsMixin(BaseMixin):
     _stored_compat_terminals: list["_terminal.Terminal"] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_terminals(self) -> list["_terminal.Terminal"]:
         """Return the compat terminals.
 
@@ -54,6 +56,7 @@ class CompatTerminalsMixin(BaseMixin):
     _stored_compat_terminals_array: list[str] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_terminals_array(self) -> list[str]:
         """Return the compat terminals array.
 
@@ -73,6 +76,7 @@ class CompatTerminalsMixin(BaseMixin):
         return self._stored_compat_terminals_array
 
     @compat_terminals_array.setter
+    @_check_types.do
     def compat_terminals_array(self, value: list[str]):
         """Set the compat terminals array.
 
@@ -95,6 +99,7 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`CompatTerminalsControl` instance.
 
@@ -108,6 +113,7 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
 
         self.propertyChanged.connect(self._on_compat_housings)
 
+    @_check_types.do
     def set_obj(self, db_obj: CompatTerminalsMixin):
         """Set the obj.
 
@@ -125,6 +131,7 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
             self.SetValue(db_obj.compat_terminals_array)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat housings event.
 

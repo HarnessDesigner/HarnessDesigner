@@ -4,8 +4,10 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 import os
 import json
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.
@@ -49,6 +51,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
+@_check_types.do
 def add_color(con, name, rgb, id=None, commit=True): # NOQA
     """
     Add a color.
@@ -86,6 +89,7 @@ def add_color(con, name, rgb, id=None, commit=True): # NOQA
         return con.lastrowid
 
 
+@_check_types.do
 def get_color_id(con, name):
     """
     Return the color ID.

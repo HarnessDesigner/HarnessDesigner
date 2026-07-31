@@ -9,6 +9,7 @@ from ...gl import canvas_pegboard as _canvas_pegboard
 from ...objects.objectspeg import basepeg as _basepeg
 from ... import config as _config
 from .. import dock_base as _dock_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class EditorPegBoard(_dock_base.DockBase):
     and ``editor3d`` without special-casing it.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorPegBoard` instance.
@@ -44,6 +46,7 @@ class EditorPegBoard(_dock_base.DockBase):
                          QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
 
     @property
+    @_check_types.do
     def context(self):
         """Return the GL context manager owned by the inner canvas.
 
@@ -58,6 +61,7 @@ class EditorPegBoard(_dock_base.DockBase):
         return self._ui_obj.context
 
     @property
+    @_check_types.do
     def camera(self):
         """Return the camera owned by the inner canvas.
 
@@ -68,6 +72,7 @@ class EditorPegBoard(_dock_base.DockBase):
         """
         return self._ui_obj.camera
 
+    @_check_types.do
     def set_selected(self, obj):
         """
         Set the selected.
@@ -82,6 +87,7 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.set_selected(obj)
 
+    @_check_types.do
     def add_object(self, obj):
         """
         Add an object.
@@ -96,6 +102,7 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.add_object(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         """
         Remove the object.
@@ -110,6 +117,7 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.remove_object(obj)
 
+    @_check_types.do
     def bind(self, signal_name, handler):
         """
         Execute the bind operation.
@@ -122,6 +130,7 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.bind(signal_name, handler)
 
+    @_check_types.do
     def set_clone_obj(self, obj):
         """
         Set the clone obj.
@@ -135,6 +144,7 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.set_clone_obj(obj)
 
+    @_check_types.do
     def load_project(self, project) -> None:
         """
         Rebuild the peg board's full static anchor list from *project*.
@@ -150,6 +160,7 @@ class EditorPegBoard(_dock_base.DockBase):
 
         self._ui_obj.load_project(project)
 
+    @_check_types.do
     def clear(self) -> None:
         """
         Drop every anchor/strand in bulk, without touching the database.
@@ -160,6 +171,7 @@ class EditorPegBoard(_dock_base.DockBase):
         self._ui_obj.clear()
 
     @property
+    @_check_types.do
     def editor(self) -> "EditorPegBoardPanel":
         return self._ui_obj
 
@@ -176,6 +188,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
     ``Config.editor2d.virtual_canvas``.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`EditorPegBoardPanel` instance.
 
@@ -206,6 +219,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
 
         super().__init__(parent, Config, size)
 
+    @_check_types.do
     def set_selected(self, obj):
         """
         Repaint so the peg board's selection highlight picks up a
@@ -224,6 +238,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         """
         self._canvas.update()
 
+    @_check_types.do
     def add_object(self, obj):
         """
         Register *obj*'s peg-board anchor with the inner canvas, if it has
@@ -247,6 +262,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
 
         self._canvas.add_anchor(objpeg)
 
+    @_check_types.do
     def remove_object(self, obj):
         """
         Unregister *obj*'s peg-board anchor from the inner canvas, if it
@@ -263,6 +279,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
 
         self._canvas.remove_anchor(objpeg)
 
+    @_check_types.do
     def set_clone_obj(self, obj):
         """
         No-op: Phase 1 has no clone/paste model for the peg board yet.
@@ -272,6 +289,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         """
         pass
 
+    @_check_types.do
     def load_project(self, project) -> None:
         """
         Forward to the inner GL canvas's full anchor-list rebuild.
@@ -281,6 +299,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         """
         self._canvas.load_project(project)
 
+    @_check_types.do
     def clear(self) -> None:
         """
         Forward to the inner GL canvas's bulk teardown.

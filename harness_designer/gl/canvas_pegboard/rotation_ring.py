@@ -31,6 +31,7 @@ from .. import materials as _materials
 from ..canvas3d import rotation_rings as _rotation_rings
 from ... import color as _color
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -86,6 +87,7 @@ class PegboardRotationRing:
     ``enter_rotation_mode()`` call time.
     """
 
+    @_check_types.do
     def __init__(self, anchor: "_basepeg.BasePeg"):
         """Initialise the :class:`PegboardRotationRing` instance.
 
@@ -110,6 +112,7 @@ class PegboardRotationRing:
         self._handle_buf = _vbo.NonPooledVBOHandler(handle_packed, handle_count)
         self._material = _materials.Generic(_color.Color(*_RING_COLOR_RGB))
 
+    @_check_types.do
     def _handle_world_offset(self, rotation_deg: float) -> np.ndarray:
         """Return the handle's world-space XZ offset from the anchor center.
 
@@ -125,6 +128,7 @@ class PegboardRotationRing:
 
         return np.asarray(world_dir, dtype=np.float32) * self._radius
 
+    @_check_types.do
     def handle_world_pos(self, rotation_deg: float) -> _point.Point:
         """Return the world position of the grab handle.
 
@@ -146,6 +150,7 @@ class PegboardRotationRing:
             self._anchor.position.z + float(offset[2]),
         )
 
+    @_check_types.do
     def render(self, program: int, rotation_deg: float) -> None:
         """Render the ring and its grab handle under the already-bound
         ``schematic2d`` *program*.
@@ -183,6 +188,7 @@ class PegboardRotationRing:
         GL.glUniform3f(scale_loc, self._handle_scale, self._handle_scale, self._handle_scale)
         self._handle_buf.render()
 
+    @_check_types.do
     def release(self) -> None:
         """Release this gizmo's GL buffers.
 

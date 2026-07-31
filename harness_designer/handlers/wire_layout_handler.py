@@ -14,6 +14,7 @@ from ..objects import wire as _wire
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ Config = _config.Config.colors
 _SNAP_THRESHOLD = 5.0
 
 
+@_check_types.do
 def _wire_segments(wire: _wire.Wire):
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
@@ -41,6 +43,7 @@ def _wire_segments(wire: _wire.Wire):
     return list(zip(points, points[1:]))
 
 
+@_check_types.do
 def _find_wire(
     mouse_pos: _point.Point,
     camera: "_camera.Camera",
@@ -78,6 +81,7 @@ def _find_wire(
     return best_wire
 
 
+@_check_types.do
 def _find_insertion_index(wire: _wire.Wire, position: np.ndarray) -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
@@ -105,6 +109,7 @@ def _find_insertion_index(wire: _wire.Wire, position: np.ndarray) -> int:
     return best_idx
 
 
+@_check_types.do
 def _create_wire_layout_at_endpoint(
     project,
     wire: _wire.Wire,
@@ -123,6 +128,7 @@ def _create_wire_layout_at_endpoint(
     return layout_obj
 
 
+@_check_types.do
 def _create_wire_layout_on_wire(
     project,
     wire: _wire.Wire,
@@ -174,6 +180,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
     """Handle interactive placement of wire layout points along existing wires."""
     obj: _wire_layout.WireLayout = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """Initialize the handler and create the placement preview.
 
@@ -192,6 +199,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
         self.obj = _wire_layout.WireLayout(mainframe, layout_db)
         self.obj.obj3d.is_visible = False
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """Snap the preview to the nearest wire and update its diameter and color.
 
@@ -235,6 +243,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
 
         self.obj.obj3d.is_visible = True
 
+    @_check_types.do
     def release_capture(self) -> None:
         """Finalize placement: insert a waypoint or attach to an endpoint.
         """
@@ -286,6 +295,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
 
         self.obj = None
 
+    @_check_types.do
     def cancel(self):
         """Cancel placement and clean up the preview."""
         if self._snapped_wire is not None:

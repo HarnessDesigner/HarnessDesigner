@@ -16,6 +16,7 @@ from ...gl import vbo as _vbo
 from .. import objectsvar as _objectsvar
 
 from ... import debug as _debug
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -62,6 +63,7 @@ class Base3D(_objectsvar.BaseVar):
     # marker at the actual click point instead of the wire's midpoint).
     _context_menu_click_pos: _point.Point | None = None
 
+    @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
@@ -99,18 +101,22 @@ class Base3D(_objectsvar.BaseVar):
         scale.bind(self._update_scale)
 
     @property
+    @_check_types.do
     def _selected_color(self) -> _color.Color:
         return _color.Color(*Config.selected_color)
 
     @property
+    @_check_types.do
     def editor(self):
         return self.editor3d
 
+    @_check_types.do
     def _is_visible_callback(self, *_, **__):
         self._is_visible = self.db_obj.is_visible3d  # NOQA
         self.mainframe.editor3d.Refresh()
 
     @_debug.logfunc
+    @_check_types.do
     def _set_model(self, model: "_model3d.Model3D"):
         with self.parent.mainframe.editor3d.context:
             uuid = model.uuid
@@ -184,6 +190,7 @@ class Base3D(_objectsvar.BaseVar):
 
         self.editor3d.Refresh()
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Update the position.
 
@@ -216,6 +223,7 @@ class Base3D(_objectsvar.BaseVar):
 
             self.editor3d.Refresh(False)
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -239,6 +247,7 @@ class Base3D(_objectsvar.BaseVar):
                 self._position.y = float(y)
                 self._position.bind(self._update_position)
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
 
@@ -263,6 +272,7 @@ class Base3D(_objectsvar.BaseVar):
                 self._position.y = float(y)
                 self._position.bind(self._update_position)
 
+    @_check_types.do
     def delete(self):
         """Execute the delete operation.
 
@@ -272,6 +282,7 @@ class Base3D(_objectsvar.BaseVar):
         """
         self.parent.delete()
 
+    @_check_types.do
     def _delete(self):
         """
         Any object specific taredown should occur in this function
@@ -279,6 +290,7 @@ class Base3D(_objectsvar.BaseVar):
         self._is_deleted = True
         self.editor3d.Refresh()
 
+    @_check_types.do
     def _render_geometry(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
         """Render the object geometry using the active shader program.
 
@@ -299,6 +311,7 @@ class Base3D(_objectsvar.BaseVar):
 
         self._vbo.render()
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         """Execute the render operation.
 
@@ -428,6 +441,7 @@ class Base3D(_objectsvar.BaseVar):
             GL.glVertex3f(p1[0], y, p1[2])
             GL.glEnd()
 
+    @_check_types.do
     def _render_aabb(self):
         """Render the AABB.
 
@@ -455,6 +469,7 @@ class Base3D(_objectsvar.BaseVar):
                 (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
             ], dtype=np.int32)
 
+        @_check_types.do
         def _render_edges(v, e):
             """Render the edges.
 
@@ -478,6 +493,7 @@ class Base3D(_objectsvar.BaseVar):
         GL.glColor4f(1.0, 0.2, 0.2, 1.0)
         _render_edges(vertices, edges)
 
+    @_check_types.do
     def _render_obb(self):
         """Render the OBB.
 
@@ -500,6 +516,7 @@ class Base3D(_objectsvar.BaseVar):
                 (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
             ], dtype=np.int32)
 
+        @_check_types.do
         def _render_bb(v, f):
             """Render the bb.
 
@@ -527,6 +544,7 @@ class Base3D(_objectsvar.BaseVar):
             GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
             GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
 
+        @_check_types.do
         def _render_edges(v, e):
             """Render the edges.
 
@@ -553,6 +571,7 @@ class Base3D(_objectsvar.BaseVar):
         _render_edges(vertices.reshape(-1, 3), edges)
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """Return the is visible.
 
@@ -564,6 +583,7 @@ class Base3D(_objectsvar.BaseVar):
         return self._is_visible
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool):
         """Set the is visible.
 

@@ -9,6 +9,7 @@ from ....geometry import angle as _angle
 from ....gl import materials as _materials
 from .... import color as _color
 from ....shapes import sphere as _sphere
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class HousingAccessory(_objects.ObjectBase):
     """
     obj3d: "HousingAccessory3D" = None
 
+    @_check_types.do
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
                  position: _point.Point, color: _color.Color):
         """Initialise the :class:`HousingAccessory` instance.
@@ -52,6 +54,7 @@ class HousingAccessory3D(_base3d.Base3D):
     """
     db_obj: "_housing.Housing" = None
 
+    @_check_types.do
     def __init__(self, parent: HousingAccessory,
                  position: _point.Point, color: _color.Color):
         """Initialise the :class:`HousingAccessory3D` instance.
@@ -85,6 +88,7 @@ class HousingAccessory3D(_base3d.Base3D):
             self._is_visible = True
             self.editor3d.Refresh(False)
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Update the position.
 

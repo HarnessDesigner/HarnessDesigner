@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import cover as _cover_2d
 from .objects3d import cover as _cover_3d
 from .objectspeg import cover as _cover_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Cover(_ObjectBase):
     objpeg: _cover_peg.Cover = None
     db_obj: "_pjt_cover.PJTCover" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cover.PJTCover", project_load=False):
         """Initialise the :class:`Cover` instance.
@@ -45,6 +47,7 @@ class Cover(_ObjectBase):
         self.objpeg = _cover_peg.Cover(self, db_obj)
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_cover(self.db_obj.db_id)

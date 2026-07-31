@@ -4,6 +4,10 @@
 from typing import Union
 
 from decimal import Decimal as _Decimal, Context as _Context
+import numpy as np
+
+from .. import check_types as _check_types
+
 
 
 class Decimal(_Decimal):
@@ -23,7 +27,8 @@ class Decimal(_Decimal):
     This wrapper fixes that issue.
     """
 
-    def __new__(cls, value: Union["Decimal", int, float, str], *args, **kwargs):
+    @_check_types.do
+    def __new__(cls, value: Union[np.intc, np.float32, "Decimal", _Decimal, int, float, str], *args, **kwargs):
         """
         Create a :class:`Decimal` from a value coerced through ``float``.
 
@@ -37,11 +42,12 @@ class Decimal(_Decimal):
         :rtype: :class:`Decimal`
         """
 
-        value = str(float(value))
+        value = str(float(str(value)))
 
         return super().__new__(cls, value, *args, **kwargs)
 
-    def __ipow__(self, power: Union["Decimal", int, float], modulo=None):
+    @_check_types.do
+    def __ipow__(self, power: Union[np.intc, np.float32, _Decimal, "Decimal", int, float], modulo=None):
         """
         Return ``self`` raised to ``power`` as :class:`Decimal`.
 
@@ -56,7 +62,8 @@ class Decimal(_Decimal):
         power = Decimal(power)
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
-    def __pow__(self, power: Union["Decimal", int, float], modulo=None):
+    @_check_types.do
+    def __pow__(self, power: Union[np.intc, np.float32, _Decimal, "Decimal", int, float], modulo=None):
         """
         Return ``self`` raised to ``power``.
 
@@ -71,7 +78,8 @@ class Decimal(_Decimal):
         power = Decimal(power)
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
-    def __rpow__(self, __value: Union["Decimal", int, float],
+    @_check_types.do
+    def __rpow__(self, __value: Union[np.intc, np.float32, _Decimal, "Decimal", int, float],
                  __mod: _Context | None = None) -> "Decimal":
 
         """
@@ -88,6 +96,7 @@ class Decimal(_Decimal):
         other = Decimal(__value)
         return Decimal(_Decimal.__rpow__(self, other, __mod))
 
+    @_check_types.do
     def __neg__(self):
         """
         Return the negation of ``self``.
@@ -98,6 +107,7 @@ class Decimal(_Decimal):
 
         return Decimal(_Decimal.__neg__(self))
 
+    @_check_types.do
     def __pos__(self):
         """
         Return ``self`` unary-plussed (normalized per :class:`decimal.Decimal` rules).
@@ -108,6 +118,7 @@ class Decimal(_Decimal):
 
         return Decimal(_Decimal.__pos__(self))
 
+    @_check_types.do
     def __abs__(self):
         """
         Return the absolute value of ``self``.
@@ -118,7 +129,8 @@ class Decimal(_Decimal):
 
         return Decimal(_Decimal.__abs__(self))
 
-    def __iadd__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __iadd__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the sum of ``self`` and ``other``.
 
@@ -131,7 +143,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__add__(self, other))
 
-    def __add__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __add__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the sum of ``self`` and ``other``.
 
@@ -144,7 +157,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__add__(self, other))
 
-    def __radd__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __radd__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the sum of ``other`` and ``self``.
 
@@ -157,7 +171,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__radd__(self, other))
 
-    def __isub__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __isub__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the difference of ``self`` and ``other``.
 
@@ -170,7 +185,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__sub__(self, other))
 
-    def __sub__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __sub__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the difference of ``self`` and ``other``.
 
@@ -183,7 +199,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__sub__(self, other))
 
-    def __rsub__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __rsub__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the difference of ``other`` and ``self``.
 
@@ -196,7 +213,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__rsub__(self, other))
 
-    def __imul__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __imul__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the product of ``self`` and ``other``.
 
@@ -209,7 +227,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__mul__(self, other))
 
-    def __mul__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __mul__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the product of ``self`` and ``other``.
 
@@ -222,7 +241,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__mul__(self, other))
 
-    def __rmul__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __rmul__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the product of ``other`` and ``self``.
 
@@ -235,7 +255,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__rmul__(self, other))
 
-    def __itruediv__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __itruediv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the quotient of ``self`` and ``other``.
 
@@ -248,7 +269,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__truediv__(self, other))
 
-    def __truediv__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __truediv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the quotient of ``self`` and ``other``.
 
@@ -261,7 +283,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__truediv__(self, other))
 
-    def __rtruediv__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __rtruediv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the quotient of ``other`` and ``self``.
 
@@ -274,7 +297,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__rtruediv__(self, other))
 
-    def __ifloordiv__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __ifloordiv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the floor-division result of ``self`` and ``other``.
 
@@ -287,7 +311,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__floordiv__(self, other))
 
-    def __floordiv__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __floordiv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         eturn the floor-division result of ``self`` and ``other``.
 
@@ -300,7 +325,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__floordiv__(self, other))
 
-    def __rfloordiv__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __rfloordiv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return the floor-division result of ``other`` and ``self``.
 
@@ -313,7 +339,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__rfloordiv__(self, other))
 
-    def __imod__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __imod__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return ``self`` modulo ``other``.
 
@@ -326,7 +353,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__mod__(self, other))
 
-    def __mod__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __mod__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return ``self`` modulo ``other``.
 
@@ -339,7 +367,8 @@ class Decimal(_Decimal):
         other = Decimal(other)
         return Decimal(_Decimal.__mod__(self, other))
 
-    def __rmod__(self, other: Union["Decimal", int, float]):
+    @_check_types.do
+    def __rmod__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
         """
         Return ``other`` modulo ``self``.
 

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from PySide6 import QtWidgets, QtCore
 
 from . import dialog_base as _dialog_base
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects.objects3d import bundle as _objects3d_bundle
@@ -17,12 +18,14 @@ if TYPE_CHECKING:
 # Wire label helpers
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def _color_name(color_obj) -> str:
     if color_obj is None:
         return 'None'
     return str(color_obj.name)
 
 
+@_check_types.do
 def _wire_label(conc_wire) -> str:
     pjt_wire = conc_wire.wire
     part = pjt_wire.part
@@ -40,6 +43,7 @@ def _wire_label(conc_wire) -> str:
     return f'{circuit_name}  ·  {nc}C  ·  {size_mm2:.2f}mm²({size_awg}AWG)  ·  {primary}/{stripe}'
 
 
+@_check_types.do
 def _effective_diameter(conc_wires) -> float:
     total_area = sum(
         math.pi * (cw.wire.part.od_mm / 2.0) ** 2
@@ -62,10 +66,12 @@ class BundleWiresDialog(_dialog_base.BaseDialog):
     with no drag-and-drop — wires are shown for reference only.
     """
 
+    @_check_types.do
     def __init__(self, parent, bundle_3d: "_objects3d_bundle.Bundle"):
         super().__init__(parent, 'Bundle Wire Contents', size=(620, 420))
         self._build_ui(bundle_3d)
 
+    @_check_types.do
     def _build_ui(self, bundle_3d: "_objects3d_bundle.Bundle"):
         bundle_db = bundle_3d.db_obj
         g_part = bundle_db.part  # BundleCover global part
@@ -139,5 +145,6 @@ class BundleWiresDialog(_dialog_base.BaseDialog):
         panel_layout.setContentsMargins(0, 0, 0, 0)
         panel_layout.addWidget(scroll)
 
+    @_check_types.do
     def GetValue(self):
         return None

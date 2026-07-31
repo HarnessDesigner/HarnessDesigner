@@ -20,6 +20,7 @@ from ...gl import materials as _materials
 from ...shapes import rectangle as _rectangle
 from ...shapes import text as _text
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -56,6 +57,7 @@ class Housing(_base2d.Base2D):
     _parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing"
 
+    @_check_types.do
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
         """Initialise the :class:`Housing` instance.
@@ -98,6 +100,7 @@ class Housing(_base2d.Base2D):
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+    @_check_types.do
     def _recompute(self, db_obj, position: _point.Point, angle: _angle.Angle
                    ) -> tuple[float, float]:
         """(Re)compute this housing's fixed cavity-axis extent, rebuild
@@ -148,6 +151,7 @@ class Housing(_base2d.Base2D):
 
         return cavity_extent, text_extent
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Re-run :meth:`_layout_children` after the inherited OBB/AABB
         update -- a housing's cavities/terminals are positioned in
@@ -162,6 +166,7 @@ class Housing(_base2d.Base2D):
             self._sorted_cavities, self._cavity_extent, self._text_extent,
             position, self._angle)
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """See :meth:`_update_position` -- same reason, for rotation."""
         super()._update_angle(angle)
@@ -169,6 +174,7 @@ class Housing(_base2d.Base2D):
             self._sorted_cavities, self._cavity_extent, self._text_extent,
             self._position, angle)
 
+    @_check_types.do
     def _rebuild(self, _entry=None):
         """Re-run :meth:`_recompute` and update this housing's live scale
         from the result -- bound (see :meth:`_bind_callbacks`) to fire
@@ -186,6 +192,7 @@ class Housing(_base2d.Base2D):
 
         self.editor2d.Refresh()
 
+    @_check_types.do
     def _bind_callbacks(self, cavities):
         """Bind every DB callback that should trigger :meth:`_rebuild`:
         each cavity's own name (its sort order, and so its slot, can
@@ -203,23 +210,27 @@ class Housing(_base2d.Base2D):
             self._db_callbacks.append(cavity.bind(self._rebuild, 'name'))
             self._db_callbacks.append(cavity.bind(self._rebuild, 'terminal_id'))
 
+    @_check_types.do
     def _unbind_callbacks(self):
         for cb in self._db_callbacks:
             cb.unbind()
 
         self._db_callbacks = []
 
+    @_check_types.do
     def _release_corner_label(self):
         if self._corner_label_vbo is not None:
             self._corner_label_vbo.release()
 
         self._corner_label_vbo = None
 
+    @_check_types.do
     def _delete(self):
         self._unbind_callbacks()
         super()._delete()
 
     @staticmethod
+    @_check_types.do
     def _compute_cavity_extent(n: int) -> float:
         """Cavity-axis (local Z) extent for *n* cavities -- fixed slot
         size, stacked edge-to-edge with no gap (see
@@ -232,6 +243,7 @@ class Housing(_base2d.Base2D):
 
         return n * cavity_cfg.height
 
+    @_check_types.do
     def _layout_children(self, cavities, cavity_extent, text_extent,
                          position: _point.Point, angle: _angle.Angle):
         """Compute and persist each cavity's/seated terminal's own world
@@ -290,6 +302,7 @@ class Housing(_base2d.Base2D):
                 self._place_child(terminal, terminal_local_x, slot_bottom, position, angle)
 
     @staticmethod
+    @_check_types.do
     def _place_child(child_db_obj, local_x: float, local_z: float,
                      housing_position: _point.Point, housing_angle: _angle.Angle):
         """Write *child_db_obj*'s own ``position2d``/``angle2d`` from a
@@ -307,6 +320,7 @@ class Housing(_base2d.Base2D):
 
         child_db_obj.angle2d.y = housing_angle.y
 
+    @_check_types.do
     def _build_corner_label(self, db_obj, cavity_extent, text_extent):
         """(Re)build the corner label (name/part number/manufacturer),
         this housing's own -- not a cavity's/terminal's -- extra.
@@ -331,6 +345,7 @@ class Housing(_base2d.Base2D):
         # offset math needed to keep it from overflowing.
         self._corner_label_local = (corner_local_x, corner_local_z)
 
+    @_check_types.do
     def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
         """Render this housing's own corner label (name/part number/
         manufacturer) under the already-bound schematic2d *program* --
@@ -356,6 +371,7 @@ class Housing(_base2d.Base2D):
         GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
         self._corner_label_vbo.render()
 
+    @_check_types.do
     def _world_offset(self, local_x: float, local_z: float) -> tuple[float, float, float]:
         """Rotate a ``(local_x, 0, local_z)`` offset by this housing's
         current ``angle2d.y`` (about world Y -- the axis a Y=0-flat 2D
@@ -367,6 +383,7 @@ class Housing(_base2d.Base2D):
         x, y, z = _base2d._rotate_about_y(points, self._angle.y)[0]  # NOQA
         return float(x), float(y), float(z)
 
+    @_check_types.do
     def hit_test(self, world_pos: _point.Point) -> bool:
         """
         Test if point is inside the housing rectangle (accounting for
@@ -389,6 +406,7 @@ class Housing(_base2d.Base2D):
         return (abs(rotated_x) <= self._text_extent / 2 and
                 abs(rotated_z) <= self._cavity_extent / 2)
 
+    @_check_types.do
     def move_to(self, world_x: float, world_y: float):
         """
         Move housing to new position. Cavity/terminal positions cascade
@@ -409,6 +427,7 @@ class HousingMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`HousingMenu` instance.
 
@@ -464,6 +483,7 @@ class HousingMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_seal(self):
         """Handle the add seal event.
 
@@ -471,6 +491,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_terminal(self):
         """Handle the add terminal event.
 
@@ -478,6 +499,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_cpa_lock(self):
         """Handle the add CPA lock event.
 
@@ -485,6 +507,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_tpa_lock(self):
         """Handle the add TPA lock event.
 
@@ -492,6 +515,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_cover(self):
         """Handle the add cover event.
 
@@ -499,6 +523,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_boot(self):
         """Handle the add boot event.
 
@@ -506,6 +531,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_select(self):
         """Handle the select event.
 
@@ -513,6 +539,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_clone(self):
         """Handle the clone event.
 
@@ -520,6 +547,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 
@@ -527,6 +555,7 @@ class HousingMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_properties(self):
         """Handle the properties event.
 

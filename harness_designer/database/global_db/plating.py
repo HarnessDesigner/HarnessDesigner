@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import DescriptionMixin
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class PlatingsTable(TableBase):
     """
     __table_name__ = 'platings'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -47,6 +49,7 @@ class PlatingsTable(TableBase):
 
         return platings.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -61,6 +64,7 @@ class PlatingsTable(TableBase):
         data_path = self._con.db_data.open(splash)
         platings.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -70,6 +74,7 @@ class PlatingsTable(TableBase):
 
         platings.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Plating"]:
         """Iterate over the available items.
 
@@ -82,6 +87,7 @@ class PlatingsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Plating(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Plating":
         """Return the requested item.
 
@@ -105,6 +111,7 @@ class PlatingsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, symbol: str, description: str) -> "Plating":
         """Execute the insert operation.
 
@@ -121,6 +128,7 @@ class PlatingsTable(TableBase):
         return Plating(self, db_id)
 
     @property
+    @_check_types.do
     def choices(self) -> list[str]:
         """Return the choices.
 
@@ -139,6 +147,7 @@ class Plating(EntryBase, DescriptionMixin):
     """
     _table: PlatingsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -156,6 +165,7 @@ class Plating(EntryBase, DescriptionMixin):
     _stored_symbol: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def symbol(self) -> str:
         """Return the symbol.
 
@@ -170,6 +180,7 @@ class Plating(EntryBase, DescriptionMixin):
         return self._stored_symbol
 
     @symbol.setter
+    @_check_types.do
     def symbol(self, value: str):
         """Set the symbol.
 
@@ -184,6 +195,7 @@ class Plating(EntryBase, DescriptionMixin):
         self._populate('symbol')
 
     @property
+    @_check_types.do
     def color_name(self) -> str:
         """Return the ``colors_table`` lookup name that visually
         represents this plating (e.g. ``'Sn60/Pb40'`` -> ``'Tin'``).
@@ -201,6 +213,7 @@ class Plating(EntryBase, DescriptionMixin):
         return _DEFAULT_PLATING_COLOR_NAME
 
     @property
+    @_check_types.do
     def color(self) -> "_color.Color":
         """Return the actual :class:`~harness_designer.database.global_db.color.Color`
         that visually represents this plating (see :attr:`color_name`).

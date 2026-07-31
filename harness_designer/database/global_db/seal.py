@@ -25,6 +25,7 @@ from .mixins import (
     CompatHousingsMixin, CompatHousingsControl,
     CompatTerminalsMixin, CompatTerminalsControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class SealsTable(TableBase):
     _control: "SealControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "SealControl":
         """Return the control.
 
@@ -54,6 +56,7 @@ class SealsTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -67,6 +70,7 @@ class SealsTable(TableBase):
         data_path = self._con.db_data.open(splash)
         seals.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -79,6 +83,7 @@ class SealsTable(TableBase):
 
         return seals.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -94,6 +99,7 @@ class SealsTable(TableBase):
 
         seals.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -103,6 +109,7 @@ class SealsTable(TableBase):
 
         seals.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Seal"]:
         """Iterate over the available items.
 
@@ -114,6 +121,7 @@ class SealsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Seal(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Seal":
         """Return the requested item.
 
@@ -137,6 +145,7 @@ class SealsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_compat(self, terminal: str = None, housing: str = None):
         """Return the compat.
 
@@ -173,6 +182,7 @@ class SealsTable(TableBase):
 
         return res
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, series_id: int, type: str, hardness: int,  # NOQA
                color_id: int, lubricant: str, min_temp_id: int, max_temp_id: int, length: float, o_dia: float,
                i_dia: float, wire_dia_min: float, wire_dia_max: float, image_id: int, datasheet_id: int,
@@ -232,6 +242,7 @@ class SealsTable(TableBase):
         return Seal(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -337,6 +348,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     _table: SealsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -365,6 +377,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     _scale_id: str = None
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
 
@@ -390,6 +403,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def scale(self) -> _point.Point:
         """Return the scale.
 
@@ -446,6 +460,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_o_dia: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def o_dia(self) -> float:
         """Return the o dia.
 
@@ -460,6 +475,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_o_dia
 
     @o_dia.setter
+    @_check_types.do
     def o_dia(self, value: float):
         """Set the o dia.
 
@@ -475,6 +491,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_i_dia: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def i_dia(self) -> float:
         """Return the i dia.
 
@@ -489,6 +506,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_i_dia
 
     @i_dia.setter
+    @_check_types.do
     def i_dia(self, value: float):
         """Set the i dia.
 
@@ -504,6 +522,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def type(self) -> "_seal_type.SealType":
         """Return the type.
 
@@ -520,6 +539,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_type_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def type_id(self) -> int:
         """Return the type ID.
 
@@ -534,6 +554,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_type_id
 
     @type_id.setter
+    @_check_types.do
     def type_id(self, value: int):
         """Set the type ID.
 
@@ -551,6 +572,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_hardness: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def hardness(self) -> int:
         """Return the hardness.
 
@@ -565,6 +587,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_hardness
 
     @hardness.setter
+    @_check_types.do
     def hardness(self, value: int):
         """Set the hardness.
 
@@ -580,6 +603,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_lubricant: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def lubricant(self) -> str:
         """Return the lubricant.
 
@@ -594,6 +618,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_lubricant
 
     @lubricant.setter
+    @_check_types.do
     def lubricant(self, value: str):
         """Set the lubricant.
 
@@ -609,6 +634,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_wire_dia_min: DefaultStoredValueType | float | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_dia_min(self) -> float:
         """Return the wire dia min.
 
@@ -623,6 +649,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_wire_dia_min
 
     @wire_dia_min.setter
+    @_check_types.do
     def wire_dia_min(self, value: float):
         """Set the wire dia min.
 
@@ -638,6 +665,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_wire_dia_max: DefaultStoredValueType | float | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_dia_max(self) -> float:
         """Return the wire dia max.
 
@@ -652,6 +680,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_wire_dia_max
 
     @wire_dia_max.setter
+    @_check_types.do
     def wire_dia_max(self, value: float):
         """Set the wire dia max.
 
@@ -673,6 +702,7 @@ class SealControl(QTabWidget, LazyTabMixin):
 
     # TODO: Add seal type
 
+    @_check_types.do
     def set_obj(self, db_obj: Seal):
         """Set the obj.
 
@@ -683,6 +713,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -729,6 +760,7 @@ class SealControl(QTabWidget, LazyTabMixin):
             self.model3d_page.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_hardness(self, evt):
         """Handle the hardness event.
 
@@ -740,6 +772,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.hardness = value
 
+    @_check_types.do
     def _on_lubricant(self, evt):
         """Handle the lubricant event.
 
@@ -751,6 +784,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.lubricant = value
 
+    @_check_types.do
     def _on_o_dia(self, evt):
         """Handle the o dia event.
 
@@ -762,6 +796,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.o_dia = value
 
+    @_check_types.do
     def _on_i_dia(self, evt):
         """Handle the i dia event.
 
@@ -773,6 +808,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.i_dia = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`SealControl` instance.
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from OpenGL import GL
 import numpy as np
 import ctypes
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
 #  Geometry
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@_check_types.do
 def _build_floor_quad(floor_size, floor_height):
     """Return a single quad that covers the entire floor area.
 
@@ -60,6 +62,7 @@ class Floor:
     returns a single program object.
     """
 
+    @_check_types.do
     def __init__(self, canvas: '_canvas.Canvas', program):
         self.canvas = canvas
 
@@ -87,6 +90,7 @@ class Floor:
 
     # ─────────────────────────────────────────────────────────────────────────
 
+    @_check_types.do
     def _initialize_grid(self):
         verts, idx = _build_floor_quad(
             self.config.size, self.config.ground_height)
@@ -115,6 +119,7 @@ class Floor:
 
     # ─────────────────────────────────────────────────────────────────────────
 
+    @_check_types.do
     def set(self, flag):
         """Enable or disable the floor, rebuilding GPU resources as needed."""
 
@@ -141,6 +146,7 @@ class Floor:
 
     # ─────────────────────────────────────────────────────────────────────────
 
+    @_check_types.do
     def render(self, program):
         """Draw the procedural floor in a single pass."""
 

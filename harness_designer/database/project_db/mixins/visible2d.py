@@ -2,6 +2,7 @@
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 class Visible2DMixin(BaseMixin):
@@ -13,6 +14,7 @@ class Visible2DMixin(BaseMixin):
     _stored_is_visible2d: bool | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_visible2d(self) -> bool:
         """Return the is visible 2D.
 
@@ -27,6 +29,7 @@ class Visible2DMixin(BaseMixin):
         return self._stored_is_visible2d
         
     @is_visible2d.setter
+    @_check_types.do
     def is_visible2d(self, value: bool):
         """Set the is visible 2D.
 
@@ -48,6 +51,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Visible2DControl` instance.
 
@@ -62,6 +66,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
 
         self.propertyChanged.connect(self._on_visible2d)
 
+    @_check_types.do
     def _on_visible2d(self, evt):
         """Handle the visible 2D event.
 
@@ -73,6 +78,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
         value = evt.GetValue()
         self.db_obj.is_visible2d = value
 
+    @_check_types.do
     def set_obj(self, db_obj: Visible2DMixin):
         """Set the obj.
 

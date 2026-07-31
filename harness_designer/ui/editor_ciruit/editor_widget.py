@@ -21,6 +21,7 @@ from PySide6 import QtWidgets
 
 from . import design_rules as _design_rules
 from . import bitmaps as _bitmaps
+from ... import check_types as _check_types
 
 
 @dataclass
@@ -104,6 +105,7 @@ class _BuildWorker(QtCore.QObject):
     # 0-100
     progress: QtCore.SignalInstance = QtCore.Signal(int)
 
+    @_check_types.do
     def __init__(self, db):
         """Initialise the :class:`_BuildWorker` instance.
 
@@ -115,6 +117,7 @@ class _BuildWorker(QtCore.QObject):
         super().__init__()
         self._db = db
 
+    @_check_types.do
     def run(self):
         """Execute the run operation.
 
@@ -141,6 +144,7 @@ class _BuildWorker(QtCore.QObject):
         self.finished.emit(rows)
 
 
+@_check_types.do
 def _load_housing_pixmap(housing_obj) -> QtGui.QPixmap | None:
     """
     Try to load a QPixmap from a housing database object.
@@ -176,6 +180,7 @@ def _load_housing_pixmap(housing_obj) -> QtGui.QPixmap | None:
     return None
 
 
+@_check_types.do
 def _build_row(circuit, db) -> CircuitRow:
     """Build the row.
 
@@ -309,6 +314,7 @@ def _build_row(circuit, db) -> CircuitRow:
     return r
 
 
+@_check_types.do
 def _bundles_for_circuit(circuit, db) -> list[str]:
     """Execute the bundles for circuit operation.
 
@@ -358,6 +364,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
     """
     cell_edited: QtCore.SignalInstance = QtCore.Signal(int, int, object)
 
+    @_check_types.do
     def __init__(self, parent=None):
         """Initialise the :class:`CircuitTableModel` instance.
 
@@ -369,6 +376,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         super().__init__(parent)
         self._rows: list[CircuitRow] = []
 
+    @_check_types.do
     def load(self, rows: list[CircuitRow]):
         """Execute the load operation.
 
@@ -381,6 +389,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         self._rows = rows
         self.endResetModel()
 
+    @_check_types.do
     def clear(self):
         """Execute the clear operation.
 
@@ -390,6 +399,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         self._rows = []
         self.endResetModel()
 
+    @_check_types.do
     def row_at(self, index: QtCore.QModelIndex) -> CircuitRow | None:
         """Execute the row at operation.
 
@@ -405,6 +415,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         if 0 <= r < len(self._rows):
             return self._rows[r]
 
+    @_check_types.do
     def rowCount(self, p=QtCore.QModelIndex()):
         """Execute the row count operation.
 
@@ -417,6 +428,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         """
         return len(self._rows)
 
+    @_check_types.do
     def columnCount(self, p=QtCore.QModelIndex()):
         """Execute the column count operation.
 
@@ -429,6 +441,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         """
         return len(COLUMNS)
 
+    @_check_types.do
     def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
         """Execute the header data operation.
 
@@ -457,6 +470,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
             f.setBold(True)
             return f
 
+    @_check_types.do
     def data(self, index: QtCore.QModelIndex,
              role=QtCore.Qt.ItemDataRole.DisplayRole):
         """Execute the data operation.
@@ -536,6 +550,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 
         return None
 
+    @_check_types.do
     def setData(self, index, value, role=QtCore.Qt.ItemDataRole.EditRole):
         """Execute the set data operation.
 
@@ -570,6 +585,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 
         return True
 
+    @_check_types.do
     def flags(self, index):
         """Execute the flags operation.
 
@@ -592,6 +608,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 
     MIME = "application/x-harness-circuit-rows"
 
+    @_check_types.do
     def supportedDropActions(self):
         """Execute the supported drop actions operation.
 
@@ -602,6 +619,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         """
         return QtCore.Qt.DropAction.MoveAction
 
+    @_check_types.do
     def mimeTypes(self):
         """Execute the mime types operation.
 
@@ -612,6 +630,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         """
         return [self.MIME]
 
+    @_check_types.do
     def mimeData(self, indexes):
         """Execute the mime data operation.
 
@@ -634,6 +653,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 
         return m
 
+    @_check_types.do
     def dropMimeData(self, data, action, row, col, parent):
         """Execute the drop mime data operation.
 
@@ -683,6 +703,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    @_check_types.do
     def __init__(self, parent=None):
         """Initialise the :class:`CircuitFilterProxy` instance.
 
@@ -696,6 +717,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self._sev = None
         self.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
 
+    @_check_types.do
     def set_filter(self, text: str):
         """Set the filter.
 
@@ -707,6 +729,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self._text = text.lower()
         self.invalidateFilter()
 
+    @_check_types.do
     def set_severity(self, sev):
         """Set the severity.
 
@@ -718,6 +741,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self._sev = sev
         self.invalidateFilter()
 
+    @_check_types.do
     def filterAcceptsRow(self, src_row, src_parent):
         """Execute the filter accepts row operation.
 
@@ -774,6 +798,7 @@ class WireDelegate(QtWidgets.QStyledItemDelegate):
     """
     _MARGIN = 4   # px padding top/bottom around the wire
 
+    @_check_types.do
     def paint(self, painter: QtGui.QPainter, option, index: QtCore.QModelIndex):
         """Execute the paint operation.
 
@@ -826,6 +851,7 @@ class WireDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.restore()
 
+    @_check_types.do
     def sizeHint(self, option, index):
         """Execute the size hint operation.
 
@@ -850,6 +876,7 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
     _PADDING = 3
 
     @staticmethod
+    @_check_types.do
     def _pixmaps_and_name(
         index: QtCore.QModelIndex
     ) -> tuple[list[QtGui.QPixmap], str]:
@@ -881,6 +908,7 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
 
         return imgs, name
 
+    @_check_types.do
     def paint(self, painter: QtGui.QPainter, option, index: QtCore.QModelIndex):
         """Execute the paint operation.
 
@@ -932,6 +960,7 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
 
         painter.restore()
 
+    @_check_types.do
     def sizeHint(self, option, index):
         """Execute the size hint operation.
 
@@ -956,6 +985,7 @@ class NumericDelegate(QtWidgets.QStyledItemDelegate):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    @_check_types.do
     def displayText(self, value, locale):
         """Execute the display text operation.
 
@@ -990,6 +1020,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    @_check_types.do
     def __init__(self, parent=None):
         """Initialise the :class:`CircuitDetailPanel` instance.
 
@@ -1033,6 +1064,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
 
         layout.addWidget(tabs)
 
+        @_check_types.do
         def _te():
             """Execute the te operation.
 
@@ -1064,6 +1096,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
 
     # ── Housing image panel ───────────────────────────────────────────
     @staticmethod
+    @_check_types.do
     def _make_connector_strip(row: CircuitRow) -> QtGui.QPixmap | None:
         """Compose From + To housing thumbnails side by side."""
 
@@ -1093,6 +1126,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
 
         return comp
 
+    @_check_types.do
     def show_row(self, row: CircuitRow | None):
         """Show the row.
 
@@ -1243,6 +1277,7 @@ class CircuitTableView(QtWidgets.QTableView):
     """
     row_selected: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, mainframe, parent=None):
         """Initialise the :class:`CircuitTableView` instance.
 
@@ -1297,6 +1332,7 @@ class CircuitTableView(QtWidgets.QTableView):
         self.setColumnWidth(COL_TO_CONNS, 160)
         self.setColumnWidth(COL_WIRE_COLOR, 190)
 
+    @_check_types.do
     def selectionChanged(self, selected, deselected):
         """Execute the selection changed operation.
 
@@ -1338,6 +1374,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._circuit_dock.load_project(self.project_db)
     """
 
+    @_check_types.do
     def __init__(self, mainframe):
         """Initialise the :class:`EditorCircuitPanel` instance.
 
@@ -1416,6 +1453,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._proxy.rowsRemoved.connect(self._update_count)
 
     # ── Public ────────────────────────────────────────────────────────
+    @_check_types.do
     def load_project(self, project_db):
         """Load the project.
 
@@ -1427,6 +1465,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._project_db = project_db
         self.refresh()
 
+    @_check_types.do
     def refresh(self):
         """Execute the refresh operation.
 
@@ -1453,6 +1492,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._worker.finished.connect(self._thread.quit)
         self._thread.start()
 
+    @_check_types.do
     def highlight_circuit(self, circuit_db_id: int):
         """Execute the highlight circuit operation.
 
@@ -1475,6 +1515,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
                 break
 
     # ── Private ───────────────────────────────────────────────────────
+    @_check_types.do
     def _build_toolbar(self) -> QtWidgets.QToolBar:
         """Build the toolbar.
 
@@ -1529,6 +1570,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         tb.addWidget(self._count_label)
         return tb
 
+    @_check_types.do
     def _on_sev_changed(self, idx: int):
         """Handle the sev changed event.
 
@@ -1542,6 +1584,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
              2: _design_rules.Severity.WARNING,
              3: _design_rules.Severity.INFO}.get(idx))
 
+    @_check_types.do
     def _on_loaded(self, rows: list[CircuitRow]):
         """Handle the loaded event.
 
@@ -1565,6 +1608,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._progress.hide()
         self._update_count()
 
+    @_check_types.do
     def _on_row_selected(self, row: CircuitRow | None):
         """Handle the row selected event.
 
@@ -1590,6 +1634,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
             if wo:
                 wo.identify([0.2, 0.6, 1.0, 1.0])
 
+    @_check_types.do
     def _on_cell_edited(self, circuit_db_id: int, col: int, value: Any):
         """Handle the cell edited event.
 
@@ -1615,6 +1660,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         elif col == COL_NOTES:
             c.notes = str(value)
 
+    @_check_types.do
     def _update_count(self):
         """Update the count.
 
@@ -1639,6 +1685,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
 # ---------------------------------------------------------------------------
 # Cell text / tooltip helpers
 # ---------------------------------------------------------------------------
+@_check_types.do
 def _cell_text(row: CircuitRow, col: int) -> str:
     """Execute the cell text operation.
 
@@ -1672,6 +1719,7 @@ def _cell_text(row: CircuitRow, col: int) -> str:
     return "" if v is None else str(v)
 
 
+@_check_types.do
 def _gauge(row: CircuitRow) -> str:
     """Execute the gauge operation.
 
@@ -1692,6 +1740,7 @@ def _gauge(row: CircuitRow) -> str:
     return " / ".join(p)
 
 
+@_check_types.do
 def _cell_tooltip(row: CircuitRow, col: int) -> str:
     """Execute the cell tooltip operation.
 
@@ -1756,6 +1805,7 @@ def _cell_tooltip(row: CircuitRow, col: int) -> str:
     return ""
 
 
+@_check_types.do
 def _find_obj(project, collection: str, db_id: int):
     """Find the obj.
 

@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import basepeg as _basepeg
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ class Wire(_basepeg.BasePeg):
     """
     db_obj: "_pjt_wire.PJTWire"
 
+    @_check_types.do
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
 

@@ -5,8 +5,10 @@ from ... import logger as _logger
 
 import os
 import json
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.
@@ -48,6 +50,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
+@_check_types.do
 def add_file_type(con, name, extension, is_model: bool | int = 0,
                   is_image: bool | int = 0, is_datasheet: bool | int = 0,
                   is_cad: bool | int = 0, mimetype: str = '', commit: bool = True):
@@ -95,6 +98,7 @@ def add_file_type(con, name, extension, is_model: bool | int = 0,
         return con.lastrowid
 
 
+@_check_types.do
 def get_file_type(con, extension=None, mimetype=None):
     """
     Return the file type.

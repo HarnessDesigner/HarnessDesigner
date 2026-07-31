@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class GenderMixin(BaseMixin):
     _stored_gender: "DefaultStoredValueType | _gender.Gender" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def gender(self) -> "_gender.Gender":
         """Return the gender.
 
@@ -39,6 +41,7 @@ class GenderMixin(BaseMixin):
     _stored_gender_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def gender_id(self) -> int:
         """Return the gender ID.
 
@@ -53,6 +56,7 @@ class GenderMixin(BaseMixin):
         return self._stored_gender_id
 
     @gender_id.setter
+    @_check_types.do
     def gender_id(self, value: int):
         """Set the gender ID.
 
@@ -74,6 +78,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`GenderControl` instance.
 
@@ -89,6 +94,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
         super().__init__(parent, 'Gender')
         self.propertyChanged.connect(self._on_gender)
 
+    @_check_types.do
     def set_obj(self, db_obj: GenderMixin):
         """Set the obj.
 
@@ -113,6 +119,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
             self.SetValue(db_obj.gender.name)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_gender(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the gender event.
 

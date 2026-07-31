@@ -7,6 +7,7 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 
 from . import header as _header
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -18,6 +19,7 @@ class BaseDialog(QtWidgets.QDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", title: str, size=(-1, -1),
                  style=None, button_ids=None):
         """Initialise the :class:`BaseDialog` instance.
@@ -88,6 +90,7 @@ class BaseDialog(QtWidgets.QDialog):
         self.resize(w, h)
         self._center_on_parent()
 
+    @_check_types.do
     def _center_on_parent(self):
         """Center this dialog on its parent window.
 
@@ -113,6 +116,7 @@ class BaseDialog(QtWidgets.QDialog):
 
         self.move(geo.topLeft())
 
+    @_check_types.do
     def _in_drag_zone(self, pos: QtCore.QPoint) -> bool:  # NOQA
         """Execute the in drag zone operation.
 
@@ -125,6 +129,7 @@ class BaseDialog(QtWidgets.QDialog):
         """
         return pos.y() < 10
 
+    @_check_types.do
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse move event operation.
 
@@ -144,6 +149,7 @@ class BaseDialog(QtWidgets.QDialog):
 
         super().mouseMoveEvent(event)
 
+    @_check_types.do
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse press event operation.
 
@@ -159,6 +165,7 @@ class BaseDialog(QtWidgets.QDialog):
 
         super().mousePressEvent(event)
 
+    @_check_types.do
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse release event operation.
 
@@ -173,6 +180,7 @@ class BaseDialog(QtWidgets.QDialog):
 
         super().mouseReleaseEvent(event)
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 

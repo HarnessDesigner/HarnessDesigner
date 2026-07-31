@@ -6,6 +6,7 @@ from . import edges as _edges
 from . import floor as _floor
 from . import grid2d as _grid2d
 from . import schematic2d as _schematic2d
+from ... import check_types as _check_types
 
 _faces_program = None
 _edges_program = None
@@ -15,6 +16,7 @@ _grid2d_program = None
 _schematic2d_program = None
 
 
+@_check_types.do
 def compile_schematic2d_program():
     """Compile and link the schematic2d program."""
 
@@ -26,6 +28,7 @@ def compile_schematic2d_program():
     return _schematic2d_program
 
 
+@_check_types.do
 def compile_grid2d_program():
     """Compile and link the grid2d program."""
 
@@ -37,6 +40,7 @@ def compile_grid2d_program():
     return _grid2d_program
 
 
+@_check_types.do
 def compile_faces_program():
     """Compile and link the triangles shader program (faces with lighting and reflections)."""
 
@@ -48,6 +52,7 @@ def compile_faces_program():
     return _faces_program
 
 
+@_check_types.do
 def compile_edges_program():
     """Compile and link the lines shader program (edges and normals)."""
 
@@ -59,6 +64,7 @@ def compile_edges_program():
     return _edges_program
 
 
+@_check_types.do
 def compile_vertices_program():
     """Compile and link the points shader program (vertices)."""
 
@@ -70,6 +76,7 @@ def compile_vertices_program():
     return _vertices_program
 
 
+@_check_types.do
 def compile_floor_program():
     """Compile and link the floor shader program (per-vertex color, no lighting)."""
 

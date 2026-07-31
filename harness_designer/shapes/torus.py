@@ -11,11 +11,13 @@ import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
 
 
+@_check_types.do
 def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached torus VBO.
 
@@ -41,6 +43,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
     return _vbo
 
 
+@_check_types.do
 def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_resolution=20):
     """Create vertices and faces for a torus mesh.
 
@@ -60,6 +63,7 @@ def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_reso
     vertices = np.full((count, 3), [0.0, 0.0, 0.0], dtype=np.float32)
     faces = np.full((count * 2, 3), [0, 0, 0], dtype=np.int32)
 
+    @_check_types.do
     def vert_idx(uidx_, vidx_):
         """Return the flattened vertex index for torus grid coordinates.
 

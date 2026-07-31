@@ -17,6 +17,7 @@ from ..objects import splice as _splice
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
+@_check_types.do
 def _wire_fits(splice_part, wire) -> bool:
     """
     Return True when the wire's AWG falls within the splice's accepted range.
@@ -58,6 +60,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
     """
     obj: _splice.Splice = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", wire: _wire.Wire | None = None):
         part_id = mainframe.editor_db.editor.splices.GetSelection()
 
@@ -97,15 +100,18 @@ class AddSpliceHandler(_handler_base.HandlerBase):
     # Helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _highlight_compatible_wires(self):
         for w in self.mainframe.project.wires:
             if _wire_fits(self.part, w):
                 w.identify(self._compat_material)
 
+    @_check_types.do
     def _clear_wire_highlights(self):
         for w in self.mainframe.project.wires:
             w.identify(None)
 
+    @_check_types.do
     def _create_preview(self, wire: _wire.Wire):
         """
         Tear down any existing preview and build a new one locked to *wire*.
@@ -147,6 +153,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
     # Handler protocol
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         if self._finalized:
             return
@@ -184,6 +191,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
 
         self.obj.obj3d.is_visible = True
 
+    @_check_types.do
     def release_capture(self):
         if (
             self._finalized or
@@ -251,6 +259,7 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         self.mainframe.project.add_splice(self.obj)
         self.obj = None
 
+    @_check_types.do
     def cancel(self):
         self._clear_wire_highlights()
 

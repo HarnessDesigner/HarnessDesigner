@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import note as _note_2d
 from .objects3d import note as _note_3d
 from .objectspeg import note as _note_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Note(_ObjectBase):
     objpeg: _note_peg.Note = None
     db_obj: "_pjt_note.PJTNote" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_note.PJTNote", project_load=False):
         """Initialise the :class:`Note` instance.
@@ -44,6 +46,7 @@ class Note(_ObjectBase):
         self.objpeg = _note_peg.Note(self, db_obj)
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_note(self.db_obj.db_id)

@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 class DescriptionMixin(BaseMixin):
@@ -14,6 +15,7 @@ class DescriptionMixin(BaseMixin):
     _stored_description: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def description(self) -> str:
         """Return the description.
 
@@ -28,6 +30,7 @@ class DescriptionMixin(BaseMixin):
         return self._stored_description
 
     @description.setter
+    @_check_types.do
     def description(self, value: str):
         """Set the description.
 
@@ -47,6 +50,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`DescriptionControl` instance.
 
@@ -61,6 +65,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
 
         self.propertyChanged.connect(self._on_desc)
 
+    @_check_types.do
     def set_obj(self, db_obj: DescriptionMixin):
         """Set the obj.
 
@@ -78,6 +83,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
             self.SetValue(db_obj.description)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the desc event.
 

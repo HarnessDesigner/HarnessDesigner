@@ -16,6 +16,7 @@ from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import color as _color
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -30,6 +31,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
     """
     obj: _housing.Housing = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialize the object and capture the state required for later interaction.
@@ -62,6 +64,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
         else:
             self.set_part(part_id)
 
+    @_check_types.do
     def set_part(self, part_id):
         if self._finalized:
             return
@@ -78,6 +81,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
 
         self.obj = _housing.Housing(self.mainframe, db_obj)
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """
         Update preview or highlight state for the supplied mouse position.
@@ -98,6 +102,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
         delta = focal_position - position
         position += delta
 
+    @_check_types.do
     def release_capture(self) -> None:
         """
         Handle release of the captured position and complete any deferred placement work.

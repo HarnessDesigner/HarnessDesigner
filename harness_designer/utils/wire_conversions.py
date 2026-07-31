@@ -3,6 +3,7 @@
 import math
 
 from ..geometry.decimal import Decimal as _d
+from .. import check_types as _check_types
 
 
 # ---------------------------------------------------------------------------
@@ -71,6 +72,7 @@ _PACKING_FACTOR = {
 # These functions are a calculated best and not perfect.
 
 
+@_check_types.do
 def _get_strand_count(awg: int | _d, strands: int | _d) -> int:
     """
     Resolve the strand count used for diameter calculations.
@@ -93,6 +95,7 @@ def _get_strand_count(awg: int | _d, strands: int | _d) -> int:
     return strands
 
 
+@_check_types.do
 def _get_packing_factor(strand_count: int | _d) -> float:
     """
     Return or interpolate the bundle packing factor for a strand count.
@@ -120,6 +123,7 @@ def _get_packing_factor(strand_count: int | _d) -> float:
     return _PACKING_FACTOR[known[-1]]
 
 
+@_check_types.do
 def _solid_to_bundle(solid_d_mm: float | _d, strand_count: int | _d) -> float:
     """
     Convert a solid-conductor diameter to an approximate bundle diameter.
@@ -138,6 +142,7 @@ def _solid_to_bundle(solid_d_mm: float | _d, strand_count: int | _d) -> float:
     return solid_d_mm / math.sqrt(_get_packing_factor(strand_count))
 
 
+@_check_types.do
 def _bundle_to_solid(bundle_d_mm: float | _d, strand_count: int | _d) -> float:
     """
     Convert a bundle diameter back to an equivalent solid diameter.
@@ -160,6 +165,7 @@ def _bundle_to_solid(bundle_d_mm: float | _d, strand_count: int | _d) -> float:
 # Public conversion functions
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def mm2_to_awg(mm2: float | _d, strands: int | _d = 1) -> int:  # NOQA
     """
     Convert cross-sectional area in mm² to AWG.
@@ -183,6 +189,7 @@ def mm2_to_awg(mm2: float | _d, strands: int | _d = 1) -> int:  # NOQA
 
 
 
+@_check_types.do
 def awg_to_mm2(awg: int | _d, strands: int | _d = 1) -> float:  # NOQA
     """
     Convert AWG to electrical cross-sectional area in mm².
@@ -202,6 +209,7 @@ def awg_to_mm2(awg: int | _d, strands: int | _d = 1) -> float:  # NOQA
     return float(round(math.pi / 4 * d_mm ** 2, 4))
 
 
+@_check_types.do
 def awg_to_d_in(awg: int | _d, strands: int | _d = 1) -> float:
     """
     Convert AWG to approximate conductor diameter in inches.
@@ -221,6 +229,7 @@ def awg_to_d_in(awg: int | _d, strands: int | _d = 1) -> float:
     return float(round(d_mm / 25.4, 4))
 
 
+@_check_types.do
 def awg_to_d_mm(awg: int | _d, strands: int | _d = 1) -> float:
     """
     Convert AWG to approximate conductor diameter in millimetres.
@@ -239,6 +248,7 @@ def awg_to_d_mm(awg: int | _d, strands: int | _d = 1) -> float:
     return float(round(_solid_to_bundle(d_in * 25.4, strand_count), 4))
 
 
+@_check_types.do
 def d_in_to_d_mm(d_in: float | _d, strands: int | _d = 1) -> float:  # NOQA
     """
     Convert diameter in inches to millimetres.
@@ -254,6 +264,7 @@ def d_in_to_d_mm(d_in: float | _d, strands: int | _d = 1) -> float:  # NOQA
     return float(round(float(d_in) * 25.4, 4))
 
 
+@_check_types.do
 def d_mm_to_mm2(d_mm: float | _d, strands: int | _d = 1) -> float:  # NOQA
     """
     Convert diameter in millimetres to area in mm².
@@ -269,6 +280,7 @@ def d_mm_to_mm2(d_mm: float | _d, strands: int | _d = 1) -> float:  # NOQA
     return float(round(math.pi / 4 * float(d_mm) ** 2, 4))
 
 
+@_check_types.do
 def mm2_to_d_mm(mm2: float | _d, strands: int | _d = 1) -> float:
     """
     Convert area in mm² to approximate conductor diameter in millimetres.
@@ -287,6 +299,7 @@ def mm2_to_d_mm(mm2: float | _d, strands: int | _d = 1) -> float:
     return float(round(_solid_to_bundle(solid_d_mm, strand_count), 4))
 
 
+@_check_types.do
 def mm2_to_d_in(mm2: float | _d, strands: int | _d = 1) -> float:
     """
     Convert area in mm² to approximate conductor diameter in inches.
@@ -302,6 +315,7 @@ def mm2_to_d_in(mm2: float | _d, strands: int | _d = 1) -> float:
     return float(round(mm2_to_d_mm(mm2, strands) / 25.4, 4))
 
 
+@_check_types.do
 def d_mm_to_awg(d_mm: float | _d, strands: int | _d = 1) -> int:
     """
     Convert diameter in millimetres to AWG.
@@ -322,6 +336,7 @@ def d_mm_to_awg(d_mm: float | _d, strands: int | _d = 1) -> int:
     return mm2_to_awg(d_mm_to_mm2(solid_d_mm, strands), strands=1)
 
 
+@_check_types.do
 def mm2_to_in2(mm2: float | _d, strands: int | _d = 1) -> float:  # NOQA
     """
     Convert area in mm² to square inches.
@@ -337,6 +352,7 @@ def mm2_to_in2(mm2: float | _d, strands: int | _d = 1) -> float:  # NOQA
     return float(round(mm2 / MM2_PER_IN2, 4))
 
 
+@_check_types.do
 def in2_to_mm2(in2: float | _d, strands: int | _d = 1) -> float:  # NOQA
     """
     Convert area in square inches to mm².

@@ -21,6 +21,7 @@ from .mixins import (
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class CPALocksTable(TableBase):
     _control: "CPALockControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "CPALockControl":
         """Return the control.
 
@@ -50,6 +52,7 @@ class CPALocksTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -63,6 +66,7 @@ class CPALocksTable(TableBase):
         data_path = self._con.db_data.open(splash)
         cpa_locks.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -75,6 +79,7 @@ class CPALocksTable(TableBase):
 
         return cpa_locks.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -90,6 +95,7 @@ class CPALocksTable(TableBase):
 
         cpa_locks.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -99,6 +105,7 @@ class CPALocksTable(TableBase):
 
         cpa_locks.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["CPALock"]:
         """Iterate over the available items.
 
@@ -111,6 +118,7 @@ class CPALocksTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield CPALock(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "CPALock":
         """Return the requested item.
 
@@ -134,6 +142,7 @@ class CPALocksTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_compat(self, housing: str = None):
         """Return the compat.
 
@@ -165,6 +174,7 @@ class CPALocksTable(TableBase):
 
         return res
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, family_id: int,
                series_id: int, image_id: int, datasheet_id: int, cad_id: int, min_temp_id: int,
                max_temp_id: int, pins: str, color_id: int, length: float, width: float,
@@ -220,6 +230,7 @@ class CPALocksTable(TableBase):
         return CPALock(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -309,6 +320,7 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     _table: CPALocksTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -337,6 +349,7 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_type: "DefaultStoredValueType | _cpa_lock_type.CPALockType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def type(self) -> "_cpa_lock_type.CPALockType":
         """Return the type.
 
@@ -354,6 +367,7 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_type_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def type_id(self) -> int:
         """Return the type ID.
 
@@ -368,6 +382,7 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_type_id
 
     @type_id.setter
+    @_check_types.do
     def type_id(self, value: int):
         """Set the type ID.
 
@@ -389,6 +404,7 @@ class CPALockControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: CPALock):
         """Set the obj.
 
@@ -399,6 +415,7 @@ class CPALockControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -424,6 +441,7 @@ class CPALockControl(QTabWidget, LazyTabMixin):
             self.model3d_page.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`CPALockControl` instance.
 

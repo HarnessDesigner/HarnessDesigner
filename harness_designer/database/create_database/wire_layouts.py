@@ -5,11 +5,13 @@ from . import points3d as _points3d
 from . import points2d as _points2d
 
 from .. import db_connectors as _con
+from ... import check_types as _check_types
 
 
 pjt_id_field = _con.PrimaryKeyField('id')
 
 
+@_check_types.do
 def add_pjt_wire_layout(con, project_id, point2d_id=None, point3d_id=None, notes='',
                         is_visible2d=0, is_visible3d=0):
     """Add a PJT wire layout.

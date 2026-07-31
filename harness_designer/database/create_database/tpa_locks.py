@@ -19,8 +19,10 @@ from . import housings as _housings
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=None,
                  color=None, image=None, datasheet=None, cad=None, min_temp=None,
                  max_temp=None, model3d=None, lock_type='', length=0.0, width=0.0,
@@ -129,6 +131,7 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
         return con.lastrowid
 
 
+@_check_types.do
 def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
                      name='', notes='', quat3d=None, angle3d=None, is_visible3d=0):
     """Add a PJT TPA lock.
@@ -172,6 +175,7 @@ def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
     con.commit()
 
 
+@_check_types.do
 def add_tpa_locks(con, data: tuple[dict] | list[dict]):
     """Add a TPA locks.
 
@@ -187,6 +191,7 @@ def add_tpa_locks(con, data: tuple[dict] | list[dict]):
         add_tpa_lock(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 

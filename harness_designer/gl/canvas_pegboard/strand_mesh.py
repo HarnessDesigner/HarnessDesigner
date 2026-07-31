@@ -25,6 +25,7 @@ import math
 import numpy as np
 
 from ...geometry import angle as _angle
+from ... import check_types as _check_types
 
 
 # Packed VBO layout used throughout this codebase: 9 floats per vertex --
@@ -34,6 +35,7 @@ from ...geometry import angle as _angle
 _FLOATS_PER_VERTEX = 9
 
 
+@_check_types.do
 def build_strand_quad(
         p1_xz: tuple[float, float],
         p2_xz: tuple[float, float],
@@ -109,6 +111,7 @@ _PARALLEL_DOT_TOLERANCE = 1e-4
 _MIN_LENGTH_MM = 0.001
 
 
+@_check_types.do
 def cylinder_placement(p1_xz: tuple, p2_xz: tuple) -> tuple:
     """Return ``(length, quat)`` placing the shared unit-cylinder VBO
     (``shapes.cylinder.create_vbo`` -- local Z spans ``[0, 1]``, radius

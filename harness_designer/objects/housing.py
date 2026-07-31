@@ -9,6 +9,7 @@ from .objectspeg import housing as _housing_peg
 
 from . import cavity as _cavity
 from .. import debug as _debug
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class Housing(_ObjectBase):
     db_obj: "_pjt_housing.PJTHousing" = None
 
     @_debug.logfunc
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_housing.PJTHousing", project_load=False):
         """Initialise the :class:`Housing` instance.
@@ -63,6 +65,7 @@ class Housing(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @_check_types.do
     def cavities(self) -> list[_cavity.Cavity]:
         res = []
         for cavity in self.db_obj.cavities:
@@ -73,6 +76,7 @@ class Housing(_ObjectBase):
 
         return res
 
+    @_check_types.do
     def delete(self):
         """Cascade-delete every part attached to this housing.
 
@@ -90,6 +94,7 @@ class Housing(_ObjectBase):
         #       objects that are attached in this class itself. This would be a
         #       cleaner approach to performing a proper taredown.
 
+        @_check_types.do
         def _delete_child(db_row):
             if db_row is None:
                 return

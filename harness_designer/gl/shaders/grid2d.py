@@ -2,6 +2,7 @@
 
 from OpenGL import GL
 from . import compiler as _compiler
+from ... import check_types as _check_types
 
 
 VERTEX_SHADER = """
@@ -113,6 +114,7 @@ void main() {
 """
 
 
+@_check_types.do
 def compile_program() -> int:
     """Compile and link the procedural 2D dot-grid shader program."""
     vs = _compiler.compile(VERTEX_SHADER, GL.GL_VERTEX_SHADER)

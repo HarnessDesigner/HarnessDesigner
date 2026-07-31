@@ -5,8 +5,10 @@ import os
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def inspect_mfg_fam_series(mfg_name, family_name, series_name):
     """
     Execute the inspect mfg fam series operation.
@@ -59,6 +61,7 @@ def inspect_mfg_fam_series(mfg_name, family_name, series_name):
     return mfg_name, family_name, series_name
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.
@@ -103,6 +106,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
+@_check_types.do
 def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
                      ext='', email='', website='', id=None, commit=True):  # NOQA
     """
@@ -165,6 +169,7 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
         return con.lastrowid
 
 
+@_check_types.do
 def get_mfg_id(con, name):
     """
     Return the mfg ID.

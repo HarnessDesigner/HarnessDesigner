@@ -3,11 +3,13 @@
 import os
 
 from .. import db_connectors as _con
+from ... import check_types as _check_types
 
 
 BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 
+@_check_types.do
 def add_records(con, splash, _=None):
     """
     Add a records.

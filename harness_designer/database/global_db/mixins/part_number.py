@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 class PartNumberMixin(BaseMixin):
@@ -14,6 +15,7 @@ class PartNumberMixin(BaseMixin):
     _stored_part_number: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part_number(self) -> str:
         """Return the part number.
 
@@ -28,6 +30,7 @@ class PartNumberMixin(BaseMixin):
         return self._stored_part_number
 
     @part_number.setter
+    @_check_types.do
     def part_number(self, value: str):
         """Set the part number.
 
@@ -47,6 +50,7 @@ class PartNumberControl(_prop_ctrls.StringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PartNumberControl` instance.
 
@@ -61,6 +65,7 @@ class PartNumberControl(_prop_ctrls.StringProperty):
 
         self.propertyChanged.connect(self._on_part_number)
 
+    @_check_types.do
     def set_obj(self, db_obj: PartNumberMixin):
         """Set the obj.
 
@@ -78,6 +83,7 @@ class PartNumberControl(_prop_ctrls.StringProperty):
             self.SetValue(db_obj.part_number)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_part_number(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the part number event.
 

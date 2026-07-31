@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from ..gl import materials as _materials
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class ObjectBase:
     objpeg: "_basepeg.BasePeg" = None
     db_obj: "_project_db.PJTEntryBase" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase"):
         """Initialise the :class:`ObjectBase` instance.
 
@@ -40,6 +42,7 @@ class ObjectBase:
         self._treeitem = None
         self.db_obj = db_obj
 
+    @_check_types.do
     def identify(self, material: _materials.GLMaterial | None) -> None:
         """Execute the identify operation.
 
@@ -57,6 +60,7 @@ class ObjectBase:
         if self.objpeg is not None:
             self.objpeg.identify(material)
 
+    @_check_types.do
     def set_treeitem(self, treeitem) -> None:
         """Set the treeitem.
 
@@ -67,6 +71,7 @@ class ObjectBase:
         """
         self._treeitem = treeitem
 
+    @_check_types.do
     def get_treeitem(self):
         """Return the treeitem.
 
@@ -77,6 +82,7 @@ class ObjectBase:
         """
         return self._treeitem
 
+    @_check_types.do
     def delete(self) -> None:
         """Execute the delete operation.
 
@@ -98,6 +104,7 @@ class ObjectBase:
 
         self.mainframe.remove_object(self)
 
+    @_check_types.do
     def close(self) -> None:
         """Execute the close operation.
 
@@ -111,6 +118,7 @@ class ObjectBase:
         #       accidentally deleting something I shuldn't be.
         raise NotImplementedError
 
+    @_check_types.do
     def set_selected(self, flag: bool) -> None:
         """Set the selected.
 
@@ -136,6 +144,7 @@ class ObjectBase:
             self.mainframe._set_selected(None)  # NOQA
 
     @property
+    @_check_types.do
     def is_selected(self) -> bool:
         """Return the is selected.
 
@@ -147,6 +156,7 @@ class ObjectBase:
         return self._is_selected
 
     @is_selected.setter
+    @_check_types.do
     def is_selected(self, value: bool):
         """Set the is selected.
 
@@ -167,126 +177,148 @@ class ObjectBase:
             self.objpeg.set_selected(value)
 
     @property
+    @_check_types.do
     def is_in_3dview(self) -> bool:
         return self in self.mainframe.editor3d.camera.objects_in_view
 
     @property
+    @_check_types.do
     def is_in_2dview(self) -> bool:
         return self in self.mainframe.editor2d.editor.camera.objects_in_view
 
     @property
+    @_check_types.do
     def is_in_pegboardview(self) -> bool:
         return self in self.mainframe.editor_pegboard.editor.camera.objects_in_view
 
     @property
+    @_check_types.do
     def is_boot(self) -> bool:
         from . import boot as _boot
 
         return isinstance(self, _boot.Boot)
 
     @property
+    @_check_types.do
     def is_bundle(self) -> bool:
         from . import bundle as _bundle
 
         return isinstance(self, _bundle.Bundle)
 
     @property
+    @_check_types.do
     def is_bundle_layout(self) -> bool:
         from . import bundle_layout as _bundle_layout
 
         return isinstance(self, _bundle_layout.BundleLayout)
 
     @property
+    @_check_types.do
     def is_cavity(self) -> bool:
         from . import cavity as _cavity
 
         return isinstance(self, _cavity.Cavity)
 
     @property
+    @_check_types.do
     def is_circuit(self) -> bool:
         from . import circuit as _circuit
 
         return isinstance(self, _circuit.Circuit)
 
     @property
+    @_check_types.do
     def is_cover(self) -> bool:
         from . import cover as _cover
 
         return isinstance(self, _cover.Cover)
 
     @property
+    @_check_types.do
     def is_cpa_lock(self) -> bool:
         from . import cpa_lock as _cpa_lock
 
         return isinstance(self, _cpa_lock.CPALock)
 
     @property
+    @_check_types.do
     def is_housing(self) -> bool:
         from . import housing as _housing
 
         return isinstance(self, _housing.Housing)
 
     @property
+    @_check_types.do
     def is_note(self) -> bool:
         from . import note as _note
 
         return isinstance(self, _note.Note)
 
     @property
+    @_check_types.do
     def is_project(self) -> bool:
         from . import project as _project
 
         return isinstance(self, _project.Project)
 
     @property
+    @_check_types.do
     def is_seal(self) -> bool:
         from . import seal as _seal
 
         return isinstance(self, _seal.Seal)
 
     @property
+    @_check_types.do
     def is_splice(self) -> bool:
         from . import splice as _splice
 
         return isinstance(self, _splice.Splice)
 
     @property
+    @_check_types.do
     def is_terminal(self) -> bool:
         from . import terminal as _terminal
 
         return isinstance(self, _terminal.Terminal)
 
     @property
+    @_check_types.do
     def is_tpa_lock(self) -> bool:
         from . import tpa_lock as _tpa_lock
 
         return isinstance(self, _tpa_lock.TPALock)
 
     @property
+    @_check_types.do
     def is_transition(self) -> bool:
         from . import transition as _transition
 
         return isinstance(self, _transition.Transition)
 
     @property
+    @_check_types.do
     def is_wire(self) -> bool:
         from . import wire as _wire
 
         return isinstance(self, _wire.Wire)
 
     @property
+    @_check_types.do
     def is_wire_layout(self) -> bool:
         from . import wire_layout as _wire_layout
 
         return isinstance(self, _wire_layout.WireLayout)
 
     @property
+    @_check_types.do
     def is_wire_marker(self) -> bool:
         from . import wire_marker as _wire_marker
 
         return isinstance(self, _wire_marker.WireMarker)
 
     @property
+    @_check_types.do
     def is_wire_service_loop(self) -> bool:
         from . import wire_service_loop as _wire_service_loop
 

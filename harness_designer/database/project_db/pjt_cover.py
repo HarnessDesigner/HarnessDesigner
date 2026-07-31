@@ -20,6 +20,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class PJTCoversTable(PJTTableBase):
     _control: "PJTCoverControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTCoverControl":
         """Return the control.
 
@@ -51,6 +53,7 @@ class PJTCoversTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -62,6 +65,7 @@ class PJTCoversTable(PJTTableBase):
         cls._control = PJTCoverControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -74,6 +78,7 @@ class PJTCoversTable(PJTTableBase):
 
         return covers.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -83,6 +88,7 @@ class PJTCoversTable(PJTTableBase):
 
         covers.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -92,6 +98,7 @@ class PJTCoversTable(PJTTableBase):
 
         covers.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTCover"]:
         """Iterate over the available items.
 
@@ -103,6 +110,7 @@ class PJTCoversTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCover(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTCover":
         """Return the requested item.
 
@@ -122,6 +130,7 @@ class PJTCoversTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, position3d_id: int, housing_id: int | None) -> "PJTCover":
         """Execute the insert operation.
 
@@ -150,6 +159,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
 
     _table: PJTCoversTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -172,6 +182,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_cover_obj.Cover":
         """Return the object.
 
@@ -185,6 +196,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -195,6 +207,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_cover_obj.Cover"):
         """Set the object.
 
@@ -209,6 +222,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTCoversTable:
         """Return the table.
 
@@ -222,6 +236,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
     _stored_part: "_cover.Cover | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> "_cover.Cover":
         """Return the part.
 
@@ -251,6 +266,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTCover):
         """Set the obj.
 
@@ -261,6 +277,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -277,6 +294,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
             self.cover_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTCoverControl` instance.
 

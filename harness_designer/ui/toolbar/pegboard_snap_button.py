@@ -27,6 +27,7 @@ setting) is what's mirrored, not the exact popup widgetry.
 from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class PegboardSnapButton(QtWidgets.QToolButton):
@@ -53,6 +54,7 @@ class PegboardSnapButton(QtWidgets.QToolButton):
     snapEnabledChanged: QtCore.SignalInstance = QtCore.Signal(bool)
     manualSpacingChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str,
                  checked_icon: QtGui.QIcon, unchecked_icon: QtGui.QIcon):
         super().__init__(parent)
@@ -111,10 +113,12 @@ class PegboardSnapButton(QtWidgets.QToolButton):
 
     # ── public API ─────────────────────────────────────────────────────────
 
+    @_check_types.do
     def GetManualSpacing(self) -> float | None:
         """Return the current manual spacing override (``None`` = Auto)."""
         return self._manual_spacing
 
+    @_check_types.do
     def SetManualSpacing(self, value: float | None) -> None:
         """Set the manual spacing override programmatically (no signal
         emitted)."""
@@ -129,10 +133,12 @@ class PegboardSnapButton(QtWidgets.QToolButton):
 
         self._refresh_text()
 
+    @_check_types.do
     def IsSnapEnabled(self) -> bool:
         """Return whether grid snapping is enabled."""
         return self._enabled_state
 
+    @_check_types.do
     def SetSnapEnabled(self, enabled: bool) -> None:
         """Set the toggle state programmatically (no signal emitted)."""
         self._enabled_state = bool(enabled)
@@ -140,6 +146,7 @@ class PegboardSnapButton(QtWidgets.QToolButton):
 
     # ── internals ──────────────────────────────────────────────────────────
 
+    @_check_types.do
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.MouseButton.RightButton:
             self._menu.exec(self.mapToGlobal(self.rect().bottomLeft()))
@@ -148,21 +155,25 @@ class PegboardSnapButton(QtWidgets.QToolButton):
 
         super().mousePressEvent(event)
 
+    @_check_types.do
     def _on_clicked(self, _: bool = False) -> None:
         self._enabled_state = not self._enabled_state
         self._refresh_icon()
         self.snapEnabledChanged.emit(self._enabled_state)
 
+    @_check_types.do
     def _refresh_icon(self) -> None:
         self.setIcon(self._checked_icon if self._enabled_state
                      else self._unchecked_icon)
 
+    @_check_types.do
     def _refresh_text(self) -> None:
         if self._manual_spacing is None:
             self.setText('Auto')
         else:
             self.setText(f'{self._manual_spacing:g}')
 
+    @_check_types.do
     def _on_auto_toggled(self, checked: bool) -> None:
         self._spin.setEnabled(not checked)
 
@@ -175,6 +186,7 @@ class PegboardSnapButton(QtWidgets.QToolButton):
         if changed:
             self.manualSpacingChanged.emit(new_value)
 
+    @_check_types.do
     def _on_spin_changed(self, value: float) -> None:
         if self._auto_check.isChecked():
             return

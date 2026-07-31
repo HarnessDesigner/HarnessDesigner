@@ -15,11 +15,13 @@ wire-to-wire join and handlers.wire_topology.merge_wires.
 from typing import TYPE_CHECKING
 
 from ..objects import bundle as _bundle
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..objects.project import Project
 
 
+@_check_types.do
 def merge_bundles(
     project: "Project",
     bundle_before: _bundle.Bundle,

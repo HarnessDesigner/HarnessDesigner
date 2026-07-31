@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class ManufacturerMixin(BaseMixin):
     _stored_manufacturer: "DefaultStoredValueType | _manufacturer.Manufacturer" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def manufacturer(self) -> "_manufacturer.Manufacturer":
         """Return the manufacturer.
 
@@ -40,6 +42,7 @@ class ManufacturerMixin(BaseMixin):
     _stored_mfg_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def mfg_id(self) -> int:
         """Return the mfg ID.
 
@@ -54,6 +57,7 @@ class ManufacturerMixin(BaseMixin):
         return self._stored_mfg_id
 
     @mfg_id.setter
+    @_check_types.do
     def mfg_id(self, value: int):
         """Set the mfg ID.
 
@@ -75,6 +79,7 @@ class ManufacturerControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`ManufacturerControl` instance.
 
@@ -115,6 +120,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.desc_ctrl.propertyChanged.connect(self._on_desc_change)
         self.name_ctrl.propertyChanged.connect(self._on_name_change)
 
+    @_check_types.do
     def set_obj(self, db_obj: ManufacturerMixin):
         """Set the obj.
 
@@ -180,6 +186,7 @@ class ManufacturerControl(_prop_ctrls.Category):
             self.email_ctrl.setEnabled(True)
             self.website_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_name_change(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name change event.
 
@@ -219,6 +226,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.email_ctrl.SetValue(email)
         self.website_ctrl.SetValue(website)
 
+    @_check_types.do
     def _on_desc_change(self, evt):
         """Handle the desc change event.
 
@@ -229,6 +237,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         """
         self.db_obj.manufacturer.description = evt.GetValue()
 
+    @_check_types.do
     def _on_addr_change(self, evt):
         """Handle the addr change event.
 
@@ -239,6 +248,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         """
         self.db_obj.manufacturer.address = evt.GetValue()
 
+    @_check_types.do
     def _on_contact_change(self, evt):
         """Handle the contact change event.
 
@@ -249,6 +259,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         """
         self.db_obj.manufacturer.contact_person = evt.GetValue()
 
+    @_check_types.do
     def _on_phone_change(self, evt):
         """Handle the phone change event.
 
@@ -259,6 +270,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         """
         self.db_obj.manufacturer.phone = evt.GetValue()
 
+    @_check_types.do
     def _on_ext_change(self, evt):
         """Handle the ext change event.
 
@@ -269,6 +281,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         """
         self.db_obj.manufacturer.ext = evt.GetValue()
 
+    @_check_types.do
     def _on_email_change(self, evt):
         """Handle the email change event.
 
@@ -279,6 +292,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         """
         self.db_obj.manufacturer.email = evt.GetValue()
 
+    @_check_types.do
     def _on_website_change(self, evt):
         """Handle the website change event.
 

@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from .. import image as _image
+from .... import check_types as _check_types
 
 
 class ImageMixin(BaseMixin):
@@ -14,6 +15,7 @@ class ImageMixin(BaseMixin):
     _stored_image: DefaultStoredValueType | _image.Image = DefaultStoredValue
 
     @property
+    @_check_types.do
     def image(self) -> _image.Image:
         """Return the image.
 
@@ -31,6 +33,7 @@ class ImageMixin(BaseMixin):
     _stored_image_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def image_id(self) -> int:
         """Return the image ID.
 
@@ -45,6 +48,7 @@ class ImageMixin(BaseMixin):
         return self._stored_image_id
 
     @image_id.setter
+    @_check_types.do
     def image_id(self, value: int):
         """Set the image ID.
 

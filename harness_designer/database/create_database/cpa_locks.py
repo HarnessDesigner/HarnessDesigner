@@ -20,8 +20,10 @@ from . import housings as _housings
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=None,
                  color=None, image=None, datasheet=None, cad=None, min_temp=None,
                  max_temp=None, model3d=None, type=None, length=0.0, width=0.0,  # NOQA
@@ -152,6 +154,7 @@ def add_cpa_lock(con, part_number, description, mfg=None, family=None, series=No
         return con.lastrowid
 
 
+@_check_types.do
 def add_cpa_locks(con, data: tuple[dict] | list[dict]):
     """
     Add a CPA locks.
@@ -167,6 +170,7 @@ def add_cpa_locks(con, data: tuple[dict] | list[dict]):
         add_cpa_lock(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.

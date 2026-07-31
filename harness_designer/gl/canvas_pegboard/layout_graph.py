@@ -40,6 +40,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -139,6 +140,7 @@ _MAX_SANE_WIRE_WIDTH_MM = 50.0
 _FALLBACK_STRAND_COLOR_RGB = (128, 128, 128)
 
 
+@_check_types.do
 def _fallback_strand_color() -> _color.Color:
     """Mid-gray fallback used whenever a strand's real color can't be
     resolved (missing catalog part, missing color field, etc.)."""
@@ -146,6 +148,7 @@ def _fallback_strand_color() -> _color.Color:
     return _color.Color(r, g, b)
 
 
+@_check_types.do
 def _safe_bundle_width(bundle) -> float:
     """Return a safe strand width (mm) for *bundle*.
 
@@ -171,6 +174,7 @@ def _safe_bundle_width(bundle) -> float:
     return value
 
 
+@_check_types.do
 def _bundle_strand_color(bundle) -> _color.Color:
     """Return *bundle*'s cover color, falling back to mid-gray.
 
@@ -197,6 +201,7 @@ def _bundle_strand_color(bundle) -> _color.Color:
     return color
 
 
+@_check_types.do
 def _resolve_chain_endpoint(
     point3d_id: int,
     anchors_by_point3d_id: dict,
@@ -235,6 +240,7 @@ def _resolve_chain_endpoint(
                         anchor=None, waypoint_id=None)
 
 
+@_check_types.do
 def build_bundle_chain(
     bundle,
     anchors_by_point3d_id: dict,
@@ -276,6 +282,7 @@ def build_bundle_chain(
 _MIN_CHAIN_DISTANCE_MM = 1e-9
 
 
+@_check_types.do
 def _build_chain_edges(
     bundle,
     nodes: list[PegboardNode],
@@ -339,6 +346,7 @@ def _build_chain_edges(
     ]
 
 
+@_check_types.do
 def build_bundle_graph(
     project: "_project.Project",
     anchors_by_point3d_id: dict,
@@ -380,6 +388,7 @@ def build_bundle_graph(
     return all_nodes, all_edges
 
 
+@_check_types.do
 def build_bundle_strands(
     project: "_project.Project",
     anchors_by_point3d_id: dict,
@@ -426,6 +435,7 @@ def build_bundle_strands(
     return strands
 
 
+@_check_types.do
 def build_bundle_strands_for_edges(
     project: "_project.Project",
     edges: list[PegboardEdge],
@@ -481,6 +491,7 @@ def build_bundle_strands_for_edges(
     return strands
 
 
+@_check_types.do
 def _safe_bare_wire_width(wire) -> float:
     """Return a safe strand width (mm) for a bare-terminated *wire*.
 
@@ -514,6 +525,7 @@ def _safe_bare_wire_width(wire) -> float:
     return _DEFAULT_BARE_WIRE_WIDTH_MM
 
 
+@_check_types.do
 def _bare_wire_strand_color(wire) -> _color.Color:
     """Return *wire*'s own insulation color, falling back to mid-gray."""
     try:
@@ -535,6 +547,7 @@ def _bare_wire_strand_color(wire) -> _color.Color:
     return color
 
 
+@_check_types.do
 def build_bare_wire_strands(project: "_project.Project") -> list[BareWireStrand]:
     """Build one thin :class:`BareWireStrand` per bare-terminated wire end.
 

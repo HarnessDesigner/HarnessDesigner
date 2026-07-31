@@ -26,8 +26,10 @@ from . import points_peg as _points_peg
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_housing(con, part_number, description, mfg=None, family=None, series=None,
                 color=None, image=None, datasheet=None, cad=None, min_temp=None,
                 max_temp=None, model3d=None, direction=None, gender=None, cavity_lock=None,
@@ -297,6 +299,7 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
         return con.lastrowid
 
 
+@_check_types.do
 def add_housings(con, data: tuple[dict] | list[dict]):
     """
     Add a housings.
@@ -312,6 +315,7 @@ def add_housings(con, data: tuple[dict] | list[dict]):
         add_housing(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.

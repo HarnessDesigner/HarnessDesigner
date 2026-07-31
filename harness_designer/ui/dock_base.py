@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import mainframe as _mainframe
@@ -14,9 +15,11 @@ _DefaultFeatures = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable |
 
 class DockWidget(QtWidgets.QDockWidget):
 
+    @_check_types.do
     def Raise(self):
         self.raise_()
 
+    @_check_types.do
     def Show(self, flag=True):
         if flag:
             self.show()
@@ -30,6 +33,7 @@ class DockBase:
 
     _ui_obj = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame", title: str,
                  name: str, area: QtCore.Qt.DockWidgetArea = None,
                  features: QtWidgets.QDockWidget.DockWidgetFeature = _DefaultFeatures):
@@ -50,6 +54,7 @@ class DockBase:
         mainframe.addDockWidget(area, self._dock)
 
     @property
+    @_check_types.do
     def dock(self) -> DockWidget:
         """
         Returns the underlying QT dock object
@@ -57,6 +62,7 @@ class DockBase:
 
         return self._dock
 
+    @_check_types.do
     def IsShown(self) -> bool:
         """
         Execute the is shown operation.
@@ -66,6 +72,7 @@ class DockBase:
 
         return self._dock.isVisible()
 
+    @_check_types.do
     def Show(self, show=True) -> None:
         """
         Show or hide the 3D editor's dock (does not close it — see the
@@ -81,6 +88,7 @@ class DockBase:
         else:
             self._dock.hide()
 
+    @_check_types.do
     def Refresh(self, *_, **__) -> None:
         """
         Execute the refresh operation.
@@ -88,6 +96,7 @@ class DockBase:
 
         self._ui_obj.Refresh()
 
+    @_check_types.do
     def Destroy(self) -> None:
         """
         Execute the destroy operation.

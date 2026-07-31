@@ -5,6 +5,7 @@ from typing import cast
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
+from ... import check_types as _check_types
 
 
 class EditableTabBar(QtWidgets.QTabBar):
@@ -23,6 +24,7 @@ class EditableTabBar(QtWidgets.QTabBar):
     # new tab index (last + 1)
     tabAddRequested: QtCore.SignalInstance = QtCore.Signal(int)
 
+    @_check_types.do
     def __init__(self, parent: "EditableTabCtrl"):
         """Initialise the :class:`EditableTabBar` instance.
 
@@ -42,6 +44,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         if parent.tab_bar_tooltip:
             self.setToolTip(parent.tab_bar_tooltip)
 
+    @_check_types.do
     def contextMenuEvent(self, event):
         """Execute the context menu event operation.
 
@@ -91,6 +94,7 @@ class EditableTabBar(QtWidgets.QTabBar):
 
         menu.exec(event.globalPos())
 
+    @_check_types.do
     def mouseDoubleClickEvent(self, event):
         """Execute the mouse double click event operation.
 
@@ -103,6 +107,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         if index >= 0:
             self._start_editing(index)
 
+    @_check_types.do
     def _start_editing(self, index):
         """Start the editing.
 
@@ -119,6 +124,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         self._editor.show()
         self._editor.setFocus()
 
+    @_check_types.do
     def _finish_editing(self):
         """Execute the finish editing operation.
 
@@ -134,6 +140,7 @@ class EditableTabBar(QtWidgets.QTabBar):
             self._editing_index = -1
         self._editor.hide()
 
+    @_check_types.do
     def _request_delete(self, index):
         """Execute the request delete operation.
 
@@ -147,6 +154,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         widget = tab_widget.widget(index)
         self.tabDeleteRequested.emit(index, name, widget)
 
+    @_check_types.do
     def _request_add(self, _):
         """Execute the request add operation.
 
@@ -185,6 +193,7 @@ class EditableTabCtrl(QtWidgets.QTabWidget):
     # override this attribute to set a custom tooltip for the tab bar
     tab_bar_tooltip = None
 
+    @_check_types.do
     def __init__(self, parent=None):
         """Initialise the :class:`EditableTabCtrl` instance.
 

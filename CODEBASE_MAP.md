@@ -57,7 +57,7 @@ Contents/structure of the `harness_designer/` package.
   - `model_utils.py`: `compute_edges()`, `convert_model_to_mesh()`
 - `app_mixins/`: application-level mixins
   - `callback_mixin.py`
-- `debug.py`
+- `check_types.py`: `do()` runtime type-checking decorator (applied via `@_check_types.do` across most of the package; see MEMORY.md Architecture notes)
 - `monkey_patch.py`
 - `splash.py`
 - `critical_error_dialog.py`

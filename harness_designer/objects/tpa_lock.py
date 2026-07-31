@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import tpa_lock as _tpa_lock_2d
 from .objects3d import tpa_lock as _tpa_lock_3d
 from .objectspeg import tpa_lock as _tpa_lock_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class TPALock(_ObjectBase):
     objpeg: _tpa_lock_peg.TPALock = None
     db_obj: "_pjt_tpa_lock.PJTTPALock" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_tpa_lock.PJTTPALock", project_load=False):
         """Initialise the :class:`TPALock` instance.
@@ -46,6 +48,7 @@ class TPALock(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_tpa_lock(self.db_obj.db_id)

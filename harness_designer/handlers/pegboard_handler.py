@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -49,6 +50,7 @@ _SNAP_THRESHOLD_MM = 5.0
 _SNAP_THRESHOLD_SQ = _SNAP_THRESHOLD_MM ** 2
 
 
+@_check_types.do
 def _find_edge_at_point(edges: list, world_pos: _point.Point):
     """Return the closest :class:`PegboardEdge` to *world_pos*, within
     :data:`_SNAP_THRESHOLD_MM`, via point-to-segment nearest-distance --
@@ -94,6 +96,7 @@ def _find_edge_at_point(edges: list, world_pos: _point.Point):
     return best
 
 
+@_check_types.do
 def _insert_waypoint_on_edge(
     project,
     edge: "_layout_graph.PegboardEdge",
@@ -169,6 +172,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
     one mouse-down).
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", canvas: "_canvas.Canvas"):
         """Initialise the :class:`AddWaypointHandler` instance.
 
@@ -187,6 +191,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
 
         self._hit_edge_index: int = None
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """Hit-test *mouse_pos* (screen coordinates) against every live
         edge on the peg board (:func:`_find_edge_at_point`), recording the
@@ -205,6 +210,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
         index, _edge, _ratio, _cx, _cz = hit
         self._hit_edge_index = index
 
+    @_check_types.do
     def release_capture(self) -> None:
         """Finalize placement: insert the new waypoint row at the
         captured position and hand off into a continuous drag.
@@ -248,6 +254,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
         if new_node is not None:
             self.canvas.arm_waypoint_drag(new_node)
 
+    @_check_types.do
     def cancel(self):
         """Cancel placement.
 

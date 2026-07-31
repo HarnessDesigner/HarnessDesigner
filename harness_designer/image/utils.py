@@ -6,8 +6,10 @@ import io
 from PIL import Image
 
 from PySide6.QtGui import QPixmap, QImage, QCursor
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def bytes_data_2_pil_image(data: bytes) -> Image.Image:
     """Decode PNG bytes into a PIL image.
 
@@ -24,6 +26,7 @@ def bytes_data_2_pil_image(data: bytes) -> Image.Image:
     return img
 
 
+@_check_types.do
 def pil_image_2_png_bytes(img: Image.Image) -> bytes:
     """Encode a PIL image as PNG bytes.
 
@@ -40,6 +43,7 @@ def pil_image_2_png_bytes(img: Image.Image) -> bytes:
     return data
 
 
+@_check_types.do
 def bytes_data_2_qpixmap(data: bytes) -> QPixmap:
     """Decode PNG bytes into a Qt pixmap.
 
@@ -53,6 +57,7 @@ def bytes_data_2_qpixmap(data: bytes) -> QPixmap:
     return pm
 
 
+@_check_types.do
 def pil_image_2_qpixmap(img: Image.Image) -> QPixmap:
     """Convert a PIL image into a Qt pixmap.
 
@@ -68,6 +73,7 @@ def pil_image_2_qpixmap(img: Image.Image) -> QPixmap:
     return pm
 
 
+@_check_types.do
 def pil_image_2_qimage(img: Image.Image) -> QImage:
     """Convert a PIL image into a detached Qt image.
 
@@ -82,6 +88,7 @@ def pil_image_2_qimage(img: Image.Image) -> QImage:
     return qimg.copy()
 
 
+@_check_types.do
 def resize_pil_image(img: Image.Image, width: int, height: int = None) -> Image.Image:
     """Resize a PIL image, preserving aspect ratio when height is omitted.
 
@@ -99,6 +106,7 @@ def resize_pil_image(img: Image.Image, width: int, height: int = None) -> Image.
     return img.resize((width, height), resample=Image.Resampling.LANCZOS)
 
 
+@_check_types.do
 def rotate_pil_image(img: Image.Image, angle: float) -> Image.Image:
     """Rotate a PIL image with transparency preserved.
 
@@ -113,6 +121,7 @@ def rotate_pil_image(img: Image.Image, angle: float) -> Image.Image:
                       fillcolor=(0, 0, 0, 0))
 
 
+@_check_types.do
 def pil_image_2_qcursor(img: Image.Image,
                         hotspot_x: int | None = None,
                         hotspot_y: int | None = None) -> QCursor:

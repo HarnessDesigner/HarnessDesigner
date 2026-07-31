@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import math
 
@@ -39,6 +39,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -48,6 +49,7 @@ if TYPE_CHECKING:
     from ...objects import housing as _housing_obj
 
 
+@_check_types.do
 def _obb_face_direction(
         current_obb: np.ndarray,
         local_obb: np.ndarray,
@@ -69,6 +71,7 @@ def _obb_face_direction(
     return (fc / n) if n > 1e-8 else None
 
 
+@_check_types.do
 def _euler_from_matrix_continuous(
         rot_mat: np.ndarray,
         prev_euler_deg: tuple[float] | None) -> list[float, float, float]:
@@ -103,6 +106,7 @@ class PJTHousingsTable(PJTTableBase):
     _control: "PJTHousingControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTHousingControl":
         """Return the control.
 
@@ -118,6 +122,7 @@ class PJTHousingsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -129,6 +134,7 @@ class PJTHousingsTable(PJTTableBase):
         cls._control = PJTHousingControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -141,6 +147,7 @@ class PJTHousingsTable(PJTTableBase):
 
         return housings.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -150,6 +157,7 @@ class PJTHousingsTable(PJTTableBase):
 
         housings.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -159,6 +167,7 @@ class PJTHousingsTable(PJTTableBase):
 
         housings.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTHousing"]:
         """Iterate over the available items.
 
@@ -170,6 +179,7 @@ class PJTHousingsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTHousing(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTHousing":
         """Return the requested item.
 
@@ -189,6 +199,7 @@ class PJTHousingsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, position3d_id: int = None,
                position2d_id: int = None) -> "PJTHousing":
         """Execute the insert operation.
@@ -264,6 +275,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     _table: PJTHousingsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -288,6 +300,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return packet
 
+    @_check_types.do
     def update_cavities(self):
         for cavity in self.cavities:
             if cavity is not None:
@@ -307,6 +320,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._stored_cavities = None
 
+    @_check_types.do
     def get_object(self) -> "_housing_obj.Housing":
         """Return the object.
 
@@ -320,6 +334,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -330,6 +345,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_housing_obj.Housing"):
         """Set the object.
 
@@ -344,6 +360,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTHousingsTable:
         """Return the table.
 
@@ -357,6 +374,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cavities: list = None
 
     @property
+    @_check_types.do
     def cavities(self) -> list["_pjt_cavity.PJTCavity"]:
         """Return the cavities.
 
@@ -384,6 +402,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cover_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cover_position3d(self) -> _point.Point:
         """Return the cover position 3D.
 
@@ -412,6 +431,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cover_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
     
     @property
+    @_check_types.do
     def cover_position3d_id(self) -> int:
         """Return the cover position 3D ID.
 
@@ -434,6 +454,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_cover_position3d_id
 
     @cover_position3d_id.setter
+    @_check_types.do
     def cover_position3d_id(self, value: int):
         """Set the cover position 3D ID.
 
@@ -451,6 +472,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def seal_position3d(self) -> _point.Point:
         """Return the seal position 3D.
 
@@ -479,6 +501,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_seal_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
     
     @property
+    @_check_types.do
     def seal_position3d_id(self) -> int:
         """Return the seal position 3D ID.
 
@@ -501,6 +524,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_seal_position3d_id
 
     @seal_position3d_id.setter
+    @_check_types.do
     def seal_position3d_id(self, value: int):
         """Set the seal position 3D ID.
 
@@ -518,6 +542,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_boot_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def boot_position3d(self) -> _point.Point:
         """Return the boot position 3D.
 
@@ -546,6 +571,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_boot_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
     
     @property
+    @_check_types.do
     def boot_position3d_id(self) -> int:
         """Return the boot position 3D ID.
 
@@ -568,6 +594,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_boot_position3d_id
 
     @boot_position3d_id.setter
+    @_check_types.do
     def boot_position3d_id(self, value: int):
         """Set the boot position 3D ID.
 
@@ -585,6 +612,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def tpa_lock_1_position3d(self) -> _point.Point:
         """Return the tpa_lock_1 position 3D.
 
@@ -613,6 +641,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_tpa_lock_1_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
     
     @property
+    @_check_types.do
     def tpa_lock_1_position3d_id(self) -> int:
         """Return the tpa_lock_1 position 3D ID.
 
@@ -635,6 +664,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_tpa_lock_1_position3d_id
 
     @tpa_lock_1_position3d_id.setter
+    @_check_types.do
     def tpa_lock_1_position3d_id(self, value: int):
         """Set the tpa_lock_1 position 3D ID.
 
@@ -652,6 +682,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def tpa_lock_2_position3d(self) -> _point.Point:
         """Return the tpa_lock_2 position 3D.
 
@@ -680,6 +711,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_tpa_lock_2_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
     
     @property
+    @_check_types.do
     def tpa_lock_2_position3d_id(self) -> int:
         """Return the tpa_lock_2 position 3D ID.
 
@@ -702,6 +734,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_tpa_lock_2_position3d_id
 
     @tpa_lock_2_position3d_id.setter
+    @_check_types.do
     def tpa_lock_2_position3d_id(self, value: int):
         """Set the tpa_lock_2 position 3D ID.
 
@@ -719,6 +752,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cpa_lock_position3d(self) -> _point.Point:
         """Return the cpa_lock position 3D.
 
@@ -747,6 +781,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cpa_lock_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
     
     @property
+    @_check_types.do
     def cpa_lock_position3d_id(self) -> int:
         """Return the cpa_lock position 3D ID.
 
@@ -769,6 +804,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_cpa_lock_position3d_id
 
     @cpa_lock_position3d_id.setter
+    @_check_types.do
     def cpa_lock_position3d_id(self, value: int):
         """Set the cpa_lock position 3D ID.
 
@@ -783,6 +819,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, cpa_lock_point3d_id=value)
         self._populate('cpa_lock_position3d_id')
 
+    @_check_types.do
     def add_cavity(self, index, name):
         """Add a cavity.
 
@@ -811,7 +848,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return cavity
 
     @property
-    def seal(self) -> "_pjt_seal.PJTSeal":
+    @_check_types.do
+    def seal(self) -> Union["_pjt_seal.PJTSeal", None]:
         """Return the seal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -830,7 +868,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return seal
 
     @property
-    def cpa_lock(self) -> "_pjt_cpa_lock.PJTCPALock":
+    @_check_types.do
+    def cpa_lock(self) -> Union["_pjt_cpa_lock.PJTCPALock", None]:
         """Return the CPA lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -849,7 +888,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return cpa_lock
 
     @property
-    def tpa_lock1(self) -> "_pjt_tpa_lock.PJTTPALock":
+    @_check_types.do
+    def tpa_lock1(self) -> Union["_pjt_tpa_lock.PJTTPALock", None]:
         """Return the TPA lock 1.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -864,7 +904,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return self._table.db.pjt_tpa_locks_table[db_id]
 
     @property
-    def tpa_lock2(self) -> "_pjt_tpa_lock.PJTTPALock":
+    @_check_types.do
+    def tpa_lock2(self) -> Union["_pjt_tpa_lock.PJTTPALock", None]:
         """Return the TPA lock 2.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -879,6 +920,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return self._table.db.pjt_tpa_locks_table[db_id]
 
     @property
+    @_check_types.do
     def tpa_locks(self) -> list["_pjt_tpa_lock.PJTTPALock"]:
         """Return the TPA locks.
 
@@ -900,7 +942,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return res
 
     @property
-    def cover(self) -> "_pjt_cover.PJTCover":
+    @_check_types.do
+    def cover(self) -> Union["_pjt_cover.PJTCover", None]:
         """Return the cover.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -919,7 +962,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return cover
 
     @property
-    def boot(self) -> "_pjt_boot.PJTBoot":
+    @_check_types.do
+    def boot(self) -> Union["_pjt_boot.PJTBoot", None]:
         """Return the boot.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -955,6 +999,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_part: "_housing.Housing | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> "_housing.Housing":
         """Return the part.
 
@@ -977,6 +1022,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return self._stored_part
 
+    @_check_types.do
     def _update_position3d(self, point: _point.Point):
         """Update the position 3D.
 
@@ -1119,6 +1165,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _o_position3d: _point.Point = None
 
     @property
+    @_check_types.do
     def position3d(self) -> _point.Point:
         """Return the position 3D.
 
@@ -1149,6 +1196,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return point
 
+    @_check_types.do
     def _update_position2d(self, point: _point.Point):
         """Update the position 2D.
 
@@ -1170,6 +1218,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _o_position2d: _point.Point = None
 
     @property
+    @_check_types.do
     def position2d(self) -> _point.Point:
         """Return the position 2D.
 
@@ -1204,6 +1253,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _o_quat3d: list = None
     _o_euler3d: list = None
 
+    @_check_types.do
     def _update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
 
@@ -1514,6 +1564,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._populate('angle3d')
 
+    @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
 
@@ -1539,6 +1590,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTHousing):
         """Set the obj.
 
@@ -1549,6 +1601,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -1611,6 +1664,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
             self.part_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_cavity_tab_changed(self, index: int):
         if index in self.cavity_pages_loaded or index not in self.cavity_pages:
             return
@@ -1625,6 +1679,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         self.cavities_notebook.insertTab(index, widget, name)
         self.cavities_notebook.setCurrentIndex(index)
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTHousingControl` instance.
 

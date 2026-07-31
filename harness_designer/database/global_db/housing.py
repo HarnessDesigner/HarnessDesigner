@@ -39,6 +39,7 @@ from .mixins import (
     CompatSealsMixin, CompatSealsControl,
     CompatTerminalsMixin, CompatTerminalsControl
 )
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import cavity as _cavity
@@ -54,6 +55,7 @@ class HousingsTable(TableBase):
     _control: "HousingControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "HousingControl":
         """Return the control.
 
@@ -67,6 +69,7 @@ class HousingsTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -80,6 +83,7 @@ class HousingsTable(TableBase):
         data_path = self._con.db_data.open(splash)
         housings.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -92,6 +96,7 @@ class HousingsTable(TableBase):
 
         return housings.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -106,6 +111,7 @@ class HousingsTable(TableBase):
         data_path = self._con.db_data.open(splash)
         housings.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -115,6 +121,7 @@ class HousingsTable(TableBase):
 
         housings.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Housing"]:
         """Iterate over the available items.
 
@@ -127,6 +134,7 @@ class HousingsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Housing(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Housing":
         """Return the requested item.
 
@@ -150,6 +158,7 @@ class HousingsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_compat(self, seal: str = None, terminal: str = None,
                    cpa_lock: str = None, tpa_lock: str = None,
                    cover: str = None):
@@ -207,6 +216,7 @@ class HousingsTable(TableBase):
 
         return res
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, family_id: int, series_id: int,
                gender_id: int, ip_rating_id: int, image_id: int, datasheet_id: int, cad_id: int,
                min_temp_id: int, max_temp_id: int, cavity_lock_id: int, direction_id: int, sealed: bool,
@@ -296,6 +306,7 @@ class HousingsTable(TableBase):
         return Housing(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -421,6 +432,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     _table: HousingsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -454,6 +466,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_covers: DefaultStoredValueType | list[_cover.Cover] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_covers(self) -> list[_cover.Cover]:
         """Return the compat covers.
 
@@ -486,6 +499,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_covers_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_covers_array(self) -> list[str]:
         """Return the compat covers array.
 
@@ -505,6 +519,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return list(self._stored_compat_covers_array)
 
     @compat_covers_array.setter
+    @_check_types.do
     def compat_covers_array(self, value: list[str]):
         """Set the compat covers array.
 
@@ -522,6 +537,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_boots: DefaultStoredValueType | list[_boot.Boot] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_boots(self) -> list[_boot.Boot]:
         """Return the compat boots.
 
@@ -554,6 +570,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_boots_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_boots_array(self) -> list[str]:
         """Return the compat boots array.
 
@@ -573,6 +590,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return list(self._stored_compat_boots_array)
 
     @compat_boots_array.setter
+    @_check_types.do
     def compat_boots_array(self, value: list[str]):
         """Set the compat boots array.
 
@@ -590,6 +608,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_cpas: DefaultStoredValueType | list[_cpa_lock.CPALock] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_cpas(self) -> list[_cpa_lock.CPALock]:
         """Return the compat cpas.
 
@@ -622,6 +641,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_cpas_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_cpas_array(self) -> list[str]:
         """Return the compat cpas array.
 
@@ -641,6 +661,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return list(self._stored_compat_cpas_array)
 
     @compat_cpas_array.setter
+    @_check_types.do
     def compat_cpas_array(self, value: list[str]):
         """Set the compat cpas array.
 
@@ -660,6 +681,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_tpas: DefaultStoredValueType | list[_tpa_lock.TPALock] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_tpas(self) -> list[_tpa_lock.TPALock]:
         """Return the compat tpas.
 
@@ -692,6 +714,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_compat_tpas_array: DefaultStoredValueType | list[str] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def compat_tpas_array(self) -> list[str]:
         """Return the compat tpas array.
 
@@ -707,6 +730,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return list(self._stored_compat_tpas_array)
 
     @compat_tpas_array.setter
+    @_check_types.do
     def compat_tpas_array(self, value: list[str]):
         """Set the compat tpas array.
 
@@ -725,6 +749,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_ip_rating: "DefaultStoredValueType | _ip.IPRating" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_rating(self) -> _ip.IPRating:
         """Return the ip rating.
 
@@ -741,6 +766,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_ip_rating_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_rating_id(self):
         """Return the ip rating ID.
 
@@ -755,6 +781,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_ip_rating_id
 
     @ip_rating_id.setter
+    @_check_types.do
     def ip_rating_id(self, value):
         """Set the ip rating ID.
 
@@ -772,6 +799,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cavity_lock: "DefaultStoredValueType | _cavity_lock.CavityLock" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cavity_lock(self) -> _cavity_lock.CavityLock:
         """Return the cavity lock.
 
@@ -788,6 +816,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cavity_lock_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cavity_lock_id(self):
         """Return the cavity lock ID.
 
@@ -802,6 +831,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_cavity_lock_id
 
     @cavity_lock_id.setter
+    @_check_types.do
     def cavity_lock_id(self, value):
         """Set the cavity lock ID.
 
@@ -819,6 +849,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_seal_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def seal_type(self) -> _seal_type.SealType:
         """Return the seal type.
 
@@ -835,6 +866,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_seal_type_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def seal_type_id(self):
         """Return the seal type ID.
 
@@ -849,6 +881,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_seal_type_id
 
     @seal_type_id.setter
+    @_check_types.do
     def seal_type_id(self, value):
         """Set the seal type ID.
 
@@ -866,6 +899,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cpa_lock_type: "DefaultStoredValueType | _cpa_lock_type.CPALockType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cpa_lock_type(self) -> _cpa_lock_type.CPALockType:
         """Return the CPA lock type.
 
@@ -882,6 +916,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cpa_lock_type_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cpa_lock_type_id(self):
         """Return the CPA lock type ID.
 
@@ -896,6 +931,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_cpa_lock_type_id
 
     @cpa_lock_type_id.setter
+    @_check_types.do
     def cpa_lock_type_id(self, value):
         """Set the CPA lock type ID.
 
@@ -913,6 +949,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_terminal_sizes: DefaultStoredValueType | list[float] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal_sizes(self) -> list[float]:
         """Return the terminal sizes.
 
@@ -932,6 +969,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return list(self._stored_terminal_sizes)
 
     @terminal_sizes.setter
+    @_check_types.do
     def terminal_sizes(self, value: list[float]):
         """Set the terminal sizes.
 
@@ -947,6 +985,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_terminal_size_counts: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal_size_counts(self) -> list[int]:
         """Return the terminal size counts.
 
@@ -966,6 +1005,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return list(self._stored_terminal_size_counts)
 
     @terminal_size_counts.setter
+    @_check_types.do
     def terminal_size_counts(self, value: list[int]):
         """Set the terminal size counts.
 
@@ -981,6 +1021,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_sealing: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def sealing(self) -> bool:
         """Return the sealing.
 
@@ -995,6 +1036,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_sealing
 
     @sealing.setter
+    @_check_types.do
     def sealing(self, value: bool):
         """Set the sealing.
 
@@ -1010,6 +1052,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_centerline: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def centerline(self) -> float:
         """Return the centerline.
 
@@ -1024,6 +1067,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_centerline
 
     @centerline.setter
+    @_check_types.do
     def centerline(self, value: float):
         """Set the centerline.
 
@@ -1039,6 +1083,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_rows: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def rows(self) -> int:
         """Return the rows.
 
@@ -1053,6 +1098,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_rows
 
     @rows.setter
+    @_check_types.do
     def rows(self, value: int):
         """Set the rows.
 
@@ -1068,6 +1114,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_num_pins: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def num_pins(self) -> int:
         """Return the num pins.
 
@@ -1082,6 +1129,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_num_pins
 
     @num_pins.setter
+    @_check_types.do
     def num_pins(self, value: int):
         """Set the num pins.
 
@@ -1097,6 +1145,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cavities: DefaultStoredValueType | list["_cavity.Cavity"] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cavities(self) -> list["_cavity.Cavity"]:
         """Return the cavities.
 
@@ -1117,6 +1166,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return list(self._stored_cavities)
 
+    @_check_types.do
     def invalidate_cavities(self) -> None:
         """Force the next ``cavities`` access to re-query the database.
 
@@ -1132,6 +1182,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_mesh_surfaces: DefaultStoredValueType | list = DefaultStoredValue
 
     @property
+    @_check_types.do
     def mesh_surfaces(self) -> list | None:
         """Cached ``mesh_surface_picker.Surface`` list for this part's 3D
         model, or ``None`` if not yet computed this session.
@@ -1152,12 +1203,14 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_mesh_surfaces
 
     @mesh_surfaces.setter
+    @_check_types.do
     def mesh_surfaces(self, value: list) -> None:
         self._stored_mesh_surfaces = value
 
     _cover_position3d: str = None
     _stored_cover_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
+    @_check_types.do
     def __update_cover_position3d(self, point: _point.Point):
         """Update the cover position 3D.
 
@@ -1170,6 +1223,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('cover_position3d')
 
     @property
+    @_check_types.do
     def cover_position3d(self) -> _point.Point:
         """Return the cover position 3D.
 
@@ -1193,6 +1247,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _seal_position3d: str = None
     _stored_seal_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
+    @_check_types.do
     def __update_seal_position3d(self, point: _point.Point):
         """Update the seal position 3D.
 
@@ -1205,6 +1260,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('seal_position3d')
 
     @property
+    @_check_types.do
     def seal_position3d(self) -> _point.Point:
         """Return the seal position 3D.
 
@@ -1228,6 +1284,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _boot_position3d: str = None
     _stored_boot_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
+    @_check_types.do
     def __update_boot_position3d(self, point: _point.Point):
         """Update the boot position 3D.
 
@@ -1240,6 +1297,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('boot_position3d')
 
     @property
+    @_check_types.do
     def boot_position3d(self) -> _point.Point:
         """Return the boot position 3D.
 
@@ -1263,6 +1321,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _tpa_lock_1_position3d: str = None
     _stored_tpa_lock_1_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
+    @_check_types.do
     def __update_tpa_lock_1_position3d(self, point: _point.Point):
         """Update the TPA lock 1 position 3D.
 
@@ -1275,6 +1334,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('tpa_lock_1_position3d')
 
     @property
+    @_check_types.do
     def tpa_lock_1_position3d(self) -> _point.Point:
         """Return the TPA lock 1 position 3D.
 
@@ -1298,6 +1358,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _tpa_lock_2_position3d: str = None
     _stored_tpa_lock_2_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
+    @_check_types.do
     def __update_tpa_lock_2_position3d(self, point: _point.Point):
         """Update the TPA lock 2 position 3D.
 
@@ -1310,6 +1371,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('tpa_lock_2_position3d')
 
     @property
+    @_check_types.do
     def tpa_lock_2_position3d(self) -> _point.Point:
         """Return the TPA lock 2 position 3D.
 
@@ -1333,6 +1395,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _cpa_lock_position3d: str = None
     _stored_cpa_lock_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
+    @_check_types.do
     def __update_cpa_lock_position3d(self, point: _point.Point):
         """Update the CPA lock position 3D.
 
@@ -1345,6 +1408,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('cpa_lock_position3d')
 
     @property
+    @_check_types.do
     def cpa_lock_position3d(self) -> _point.Point:
         """Return the CPA lock position 3D.
 
@@ -1368,6 +1432,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _angle3d_db_id: str = None
     _stored_angle3d: DefaultStoredValueType | _angle.Angle = DefaultStoredValue
 
+    @_check_types.do
     def __update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
 
@@ -1387,6 +1452,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('angle3d')
 
     @property
+    @_check_types.do
     def angle3d(self) -> _angle.Angle:
         """Return the angle 3D.
 
@@ -1416,6 +1482,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: Housing):
         """Set the obj.
 
@@ -1426,6 +1493,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -1508,6 +1576,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
                     self.cavity_pages.append(ctrl)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_seal_type(self, evt):
         """Handle the seal type event.
 
@@ -1534,6 +1603,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
 
         self.db_obj.seal_type_id = db_id
 
+    @_check_types.do
     def _on_sealing(self, evt):
         """Handle the sealing event.
 
@@ -1545,6 +1615,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.sealing = value
 
+    @_check_types.do
     def _on_compat_tpas(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat tpas event.
 
@@ -1556,6 +1627,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         compat_tpas = evt.GetValue()
         self.db_obj.compat_tpas_array = compat_tpas
 
+    @_check_types.do
     def _on_compat_cpas(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat cpas event.
 
@@ -1567,6 +1639,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         compat_cpas = evt.GetValue()
         self.db_obj.compat_cpas_array = compat_cpas
 
+    @_check_types.do
     def _on_compat_boots(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat boots event.
 
@@ -1578,6 +1651,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         compat_boots = evt.GetValue()
         self.db_obj.compat_boots_array = compat_boots
 
+    @_check_types.do
     def _on_compat_covers(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the compat covers event.
 
@@ -1589,6 +1663,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         compat_covers = evt.GetValue()
         self.db_obj.compat_covers_array = compat_covers
 
+    @_check_types.do
     def _on_terminal_sizes(self, evt):
         """Handle the terminal sizes event.
 
@@ -1599,6 +1674,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj.terminal_sizes = evt.GetValue()
 
+    @_check_types.do
     def _on_terminal_size_count(self, evt):
         """Handle the terminal size count event.
 
@@ -1609,6 +1685,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj.terminal_size_counts = evt.GetValue()
 
+    @_check_types.do
     def _on_pitch(self, evt):
         """Handle the pitch event.
 
@@ -1619,6 +1696,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj.centerline = evt.GetValue()
 
+    @_check_types.do
     def _on_rows(self, evt):
         """Handle the rows event.
 
@@ -1629,6 +1707,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj.rows = evt.GetValue()
 
+    @_check_types.do
     def _on_pin_count(self, evt):
         """Handle the pin count event.
 
@@ -1639,6 +1718,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj.num_pins = evt.GetValue()
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`HousingControl` instance.
 

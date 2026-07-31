@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QOpenGLContext
 from PySide6 import QtOpenGLWidgets
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from PySide6.QtOpenGLWidgets import QOpenGLWidget
@@ -39,6 +40,7 @@ class GLContext:
     2026-07-29 as the actual root cause of exactly that crash.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "QOpenGLWidget"):
         """Initialise the :class:`GLContext` instance.
 
@@ -53,6 +55,7 @@ class GLContext:
         self._made_current = False  # Track if WE made the context current
 
     @property
+    @_check_types.do
     def is_locked(self) -> bool:
         """Return the is locked.
 
@@ -63,6 +66,7 @@ class GLContext:
         """
         return self.ref != 0
 
+    @_check_types.do
     def _acquire(self):
         """Internal: called only by __enter__. Not public -- see the
         class docstring for why acquire()/release() were removed."""
@@ -95,6 +99,7 @@ class GLContext:
 
         self.ref += 1
 
+    @_check_types.do
     def _release(self):
         """Internal: called only by __exit__. Not public -- see the
         class docstring for why acquire()/release() were removed."""
@@ -107,11 +112,13 @@ class GLContext:
 
         self._lock.release()
 
+    @_check_types.do
     def __enter__(self) -> "GLContext":
         """Enter the managed context -- use as ``with ctx: ...``."""
         self._acquire()
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         """Exit the managed context.
 

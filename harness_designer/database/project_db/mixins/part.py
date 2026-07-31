@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 class PartMixin(BaseMixin):
@@ -13,6 +14,7 @@ class PartMixin(BaseMixin):
     _stored_part: DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part_id(self) -> int:
         """Return the part ID.
 
@@ -27,6 +29,7 @@ class PartMixin(BaseMixin):
         return self._stored_part_id
 
     @part_id.setter
+    @_check_types.do
     def part_id(self, value: int):
         """Set the part ID.
 

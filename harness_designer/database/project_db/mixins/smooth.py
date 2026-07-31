@@ -2,6 +2,7 @@
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 class SmoothMixin(BaseMixin):
@@ -13,6 +14,7 @@ class SmoothMixin(BaseMixin):
     _stored_smooth: bool | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def smooth(self) -> bool | None:
         """
         Return whether to use smooth shading.
@@ -31,6 +33,7 @@ class SmoothMixin(BaseMixin):
         return self._stored_smooth
 
     @smooth.setter
+    @_check_types.do
     def smooth(self, value: bool | None):
         """
         Set whether to use smooth shading for this opject.
@@ -55,6 +58,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
     Represent a smooth control in :mod:`harness_designer.database.project_db.mixins.smooth`.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`SmoothControl` instance.
 
@@ -67,6 +71,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
 
         self.propertyChanged.connect(self._on_smooth)
 
+    @_check_types.do
     def _on_smooth(self, evt):
         """
         Handle the smooth event.
@@ -79,6 +84,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
         value = evt.GetValue()
         self.db_obj.smooth = value
 
+    @_check_types.do
     def set_obj(self, db_obj: SmoothMixin):
         """Set the obj.
 

@@ -9,6 +9,7 @@ from ..widgets import choice_ctrl as _choice_ctrl
 from ..widgets import int_ctrl as _int_ctrl
 from ..widgets import color_ctrl as _color_ctrl
 from . import dialog_base as _dialog_base
+from ... import check_types as _check_types
 
 
 TEXT_ALIGN = ['Left', 'Center', 'Right']
@@ -31,6 +32,7 @@ class AddNoteDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """
         Initialise the :class:`AddNoteDialog` instance.
@@ -79,6 +81,7 @@ class AddNoteDialog(_dialog_base.BaseDialog):
         vsizer.addLayout(hsizer)
         vsizer.addWidget(self.color_ctrl)
 
+    @_check_types.do
     def GetValue(self):
         """
         Get the set values.

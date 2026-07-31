@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from PySide6 import QtGui
 
 from ... import image as _image
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -79,6 +80,7 @@ class WireTableRow:
     image_pixmap: QtGui.QPixmap | None = None
 
 
+@_check_types.do
 def wire_image_pixmap(wire: "_pjt_wire.PJTWire") -> QtGui.QPixmap:
     """Build (or fetch, via ``image.images.build_wire``'s own internal
     color-triple cache) the 400x100 rendered wire swatch for *wire*.
@@ -111,6 +113,7 @@ def wire_image_pixmap(wire: "_pjt_wire.PJTWire") -> QtGui.QPixmap:
     return image.pixmap
 
 
+@_check_types.do
 def _expand_multi_conductor(wire: "_pjt_wire.PJTWire", palette_index: list) -> list[WireTableRow]:
     """Expand *wire* into 1..N :class:`WireTableRow`\\ s.
 
@@ -153,6 +156,7 @@ def _expand_multi_conductor(wire: "_pjt_wire.PJTWire", palette_index: list) -> l
     ]
 
 
+@_check_types.do
 def wire_for_point3d(project: "_project.Project", point3d_id: int | None) -> "_pjt_wire.PJTWire":
     """Reverse-resolve the :class:`PJTWire` attached at *point3d_id*.
 
@@ -181,6 +185,7 @@ def wire_for_point3d(project: "_project.Project", point3d_id: int | None) -> "_p
     return wires_table[ids[0][0]]
 
 
+@_check_types.do
 def build_rows_for_housing(
     housing: "_pjt_housing.PJTHousing", project: "_project.Project",
 ) -> list[WireTableRow]:
@@ -215,6 +220,7 @@ def build_rows_for_housing(
     return rows
 
 
+@_check_types.do
 def build_rows_for_splice(splice: "_pjt_splice.PJTSplice") -> list[WireTableRow]:
     """Build a splice table's rows: start-side wires, then stop-side, then
     branch-side (``PJTSplice.wires``'s own group order).
@@ -235,6 +241,7 @@ def build_rows_for_splice(splice: "_pjt_splice.PJTSplice") -> list[WireTableRow]
     return rows
 
 
+@_check_types.do
 def build_rows_for_transition_branch(
     branch: "_pjt_transition_branch.PJTTransitionBranch",
 ) -> list[WireTableRow]:
@@ -258,6 +265,7 @@ def build_rows_for_transition_branch(
     return rows
 
 
+@_check_types.do
 def build_rows_for_terminal(
     terminal: "_pjt_terminal.PJTTerminal", project: "_project.Project",
 ) -> list[WireTableRow]:

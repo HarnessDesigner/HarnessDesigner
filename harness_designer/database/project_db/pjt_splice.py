@@ -29,6 +29,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -47,6 +48,7 @@ class PJTSplicesTable(PJTTableBase):
     _control: "PJTSpliceControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTSpliceControl":
         """Return the control.
 
@@ -62,6 +64,7 @@ class PJTSplicesTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -73,6 +76,7 @@ class PJTSplicesTable(PJTTableBase):
         cls._control = PJTSpliceControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -85,6 +89,7 @@ class PJTSplicesTable(PJTTableBase):
 
         return splices.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -94,6 +99,7 @@ class PJTSplicesTable(PJTTableBase):
 
         splices.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -103,6 +109,7 @@ class PJTSplicesTable(PJTTableBase):
 
         splices.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTSplice"]:
         """Iterate over the available items.
 
@@ -114,6 +121,7 @@ class PJTSplicesTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTSplice(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTSplice":
         """Return the requested item.
 
@@ -133,6 +141,7 @@ class PJTSplicesTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, start_point3d_id: int, stop_point3d_id: int,
                branch_point3d_id: int, point2d_id: int, circuit_id: int) -> "PJTSplice":
         """Execute the insert operation.
@@ -172,6 +181,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     _table: PJTSplicesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -193,6 +203,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_splice_obj.Splice":
         """Return the object.
 
@@ -206,6 +217,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -216,6 +228,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_splice_obj.Splice"):
         """Set the object.
 
@@ -230,6 +243,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTSplicesTable:
         """Return the table.
 
@@ -241,6 +255,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._table
 
     @property
+    @_check_types.do
     def wires(self) -> list[list["_pjt_wire.PJTWire"], list["_pjt_wire.PJTWire"], list["_pjt_wire.PJTWire"]]:
         """Return the wires.
 
@@ -258,6 +273,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         branch_db_ids1 = self._table.db.pjt_wires_table.select('id', stop_point3d_id=self.branch_position3d_id)
         branch_db_ids2 = self._table.db.pjt_wires_table.select('id', start_point3d_id=self.branch_position3d_id)
 
+        @_check_types.do
         def _get_wires(rows):
             """Return the wires.
 
@@ -288,6 +304,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_branch_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch_position3d(self) -> _point.Point:
         """Return the branch position 3D.
 
@@ -308,6 +325,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_branch_position3d_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch_position3d_id(self) -> int:
         """Return the branch position 3D ID.
 
@@ -332,6 +350,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._stored_branch_position3d_id
 
     @branch_position3d_id.setter
+    @_check_types.do
     def branch_position3d_id(self, value: int):
         """Set the branch position 3D ID.
 
@@ -349,6 +368,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_circuit: "_pjt_circuit.PJTCircuit | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
         """Return the circuit.
 
@@ -366,6 +386,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_circuit_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def circuit_id(self) -> int:
         """Return the circuit ID.
 
@@ -380,6 +401,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._stored_circuit_id
 
     @circuit_id.setter
+    @_check_types.do
     def circuit_id(self, value: int):
         """Set the circuit ID.
 
@@ -395,6 +417,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         self._populate('circuit_id')
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -408,6 +431,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_part: "_splice.Splice | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> _splice.Splice:
         """Return the part.
 
@@ -433,6 +457,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTSplice):
         """Set the obj.
 
@@ -443,6 +468,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -465,6 +491,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
             self.splice_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTSpliceControl` instance.
 

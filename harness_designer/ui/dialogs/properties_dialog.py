@@ -2,10 +2,12 @@
 from PySide6 import QtWidgets
 
 from . import dialog_base as _dialog_base
+from ... import check_types as _check_types
 
 
 class PropertiesDialog(_dialog_base.BaseDialog):
 
+    @_check_types.do
     def __init__(self, parent, title, tab_widget, db_obj):
         super().__init__(parent, title, (500, 500),
                          button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)

@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable
 
 from ..bases import EntryBase, TableBase
 from ..mixins import (NameMixin, DescriptionMixin)
+from .... import check_types as _check_types
 
 
 class IPSuppsTable(TableBase):
@@ -13,6 +14,7 @@ class IPSuppsTable(TableBase):
     """
     __table_name__ = 'ip_supps'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -25,6 +27,7 @@ class IPSuppsTable(TableBase):
 
         return ip_supps.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -38,6 +41,7 @@ class IPSuppsTable(TableBase):
         ip_supps.table.add_to_db(self)
         ip_supps.add_records(self._con, splash)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -47,6 +51,7 @@ class IPSuppsTable(TableBase):
 
         ip_supps.table.update_fields(self)
 
+    @_check_types.do
     def __getitem__(self, item) -> "IPSupp":
         """Return the requested item.
 
@@ -70,6 +75,7 @@ class IPSuppsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["IPSupp"]:
         """Iterate over the available items.
 
@@ -81,6 +87,7 @@ class IPSuppsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield IPSupp(self, db_id)
 
+    @_check_types.do
     def insert(self, name: str, short_desc: str, description: str, icon_data: bytes | None) -> "IPSupp":
         """Execute the insert operation.
 

@@ -4,6 +4,7 @@
 
 import os
 import sqlite3
+from .. import check_types as _check_types
 
 
 class ConfigTable:
@@ -14,6 +15,7 @@ class ConfigTable:
     entries are able to be accessed by using the attaribute name as a key.
     """
 
+    @_check_types.do
     def __init__(self, con, name):
         """Initialize the configuration table wrapper.
 
@@ -25,6 +27,7 @@ class ConfigTable:
         self._con = con
         self.name = name
 
+    @_check_types.do
     def __contains__(self, item):
         """Return whether a configuration key exists in the table.
 
@@ -45,6 +48,7 @@ class ConfigTable:
 
         return False
 
+    @_check_types.do
     def __getitem__(self, item):
         """Return the stored value for a configuration key.
 
@@ -65,6 +69,7 @@ class ConfigTable:
         except:  # NOQA
             return value
 
+    @_check_types.do
     def __setitem__(self, key, value):
         """Store or update a configuration value in the table.
 
@@ -92,6 +97,7 @@ class ConfigTable:
                 self._con.commit()
                 cur.close()
 
+    @_check_types.do
     def __delitem__(self, key):
         """Delete a configuration value from the table.
 
@@ -118,6 +124,7 @@ class ConfigDB:
     gets modified and also when the application exits.
     """
 
+    @_check_types.do
     def __init__(self, app_data):
 
         """Open the SQLite configuration database connection.
@@ -133,6 +140,7 @@ class ConfigDB:
 
         self._con = sqlite3.connect(config_db_file, check_same_thread=False)
 
+    @_check_types.do
     def __contains__(self, item):
         """Return whether a table exists in the configuration database.
 
@@ -150,6 +158,7 @@ class ConfigDB:
 
         return item in tables
 
+    @_check_types.do
     def __getitem__(self, item):
         """Return a :class:`ConfigTable` for the requested table name.
 
@@ -172,6 +181,7 @@ class ConfigDB:
 
         return ConfigTable(self._con, item)
 
+    @_check_types.do
     def close(self):
         """Close the configuration database connection.
 

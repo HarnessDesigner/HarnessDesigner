@@ -20,6 +20,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class PJTTPALocksTable(PJTTableBase):
     _control: "PJTTPALockControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTTPALockControl":
         """Return the control.
 
@@ -51,6 +53,7 @@ class PJTTPALocksTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -62,6 +65,7 @@ class PJTTPALocksTable(PJTTableBase):
         cls._control = PJTTPALockControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -74,6 +78,7 @@ class PJTTPALocksTable(PJTTableBase):
 
         return tpa_locks.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -83,6 +88,7 @@ class PJTTPALocksTable(PJTTableBase):
 
         tpa_locks.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -92,6 +98,7 @@ class PJTTPALocksTable(PJTTableBase):
 
         tpa_locks.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTTPALock"]:
         """Iterate over the available items.
 
@@ -103,6 +110,7 @@ class PJTTPALocksTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTPALock(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTTPALock":
         """Return the requested item.
 
@@ -122,6 +130,7 @@ class PJTTPALocksTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, position3d_id: int, idx: int, housing_id: int = None) -> "PJTTPALock":
         """Execute the insert operation.
 
@@ -151,6 +160,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
 
     _table: PJTTPALocksTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -169,6 +179,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_tpa_lock_obj.TPALock":
         """Return the object.
 
@@ -182,6 +193,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -192,6 +204,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_tpa_lock_obj.TPALock"):
         """Set the object.
 
@@ -208,6 +221,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
     _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int:
         """Return the idx.
 
@@ -222,6 +236,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int):
         """Set the idx.
 
@@ -235,6 +250,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         self._populate('idx')
 
     @property
+    @_check_types.do
     def table(self) -> PJTTPALocksTable:
         """Return the table.
 
@@ -248,6 +264,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
     _stored_part: "_tpa_lock.TPALock | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> _tpa_lock.TPALock:
         """Return the part.
 
@@ -277,6 +294,7 @@ class PJTTPALockControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTTPALock):
         """Set the obj.
 
@@ -287,6 +305,7 @@ class PJTTPALockControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -303,6 +322,7 @@ class PJTTPALockControl(QTabWidget, LazyTabMixin):
             self.tpa_lock_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTTPALockControl` instance.
 

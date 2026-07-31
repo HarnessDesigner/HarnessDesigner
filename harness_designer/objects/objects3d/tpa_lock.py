@@ -15,6 +15,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -33,6 +34,7 @@ class TPALock(_base3d.Base3D):
     parent: "_tpa_lock.TPALock" = None
     db_obj: "_pjt_tpa_lock.PJTTPALock" = None
 
+    @_check_types.do
     def __init__(self, parent: "_tpa_lock.TPALock", db_obj: "_pjt_tpa_lock.PJTTPALock"):
         """Initialise the :class:`TPALock` instance.
 
@@ -63,6 +65,7 @@ class TPALock(_base3d.Base3D):
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -80,6 +83,7 @@ class TPALockMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`TPALockMenu` instance.
 
@@ -115,18 +119,22 @@ class TPALockMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_select(self):
         """Make this TPA lock the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this TPA lock as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this TPA lock from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this TPA lock's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

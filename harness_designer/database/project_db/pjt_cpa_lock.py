@@ -20,6 +20,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class PJTCPALocksTable(PJTTableBase):
     _control: "PJTCPALockControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTCPALockControl":
         """Return the control.
 
@@ -51,6 +53,7 @@ class PJTCPALocksTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -62,6 +65,7 @@ class PJTCPALocksTable(PJTTableBase):
         cls._control = PJTCPALockControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -74,6 +78,7 @@ class PJTCPALocksTable(PJTTableBase):
 
         return cpa_locks.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -83,6 +88,7 @@ class PJTCPALocksTable(PJTTableBase):
 
         cpa_locks.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -92,6 +98,7 @@ class PJTCPALocksTable(PJTTableBase):
 
         cpa_locks.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTCPALock"]:
         """Iterate over the available items.
 
@@ -103,6 +110,7 @@ class PJTCPALocksTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCPALock(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTCPALock":
         """Return the requested item.
 
@@ -122,6 +130,7 @@ class PJTCPALocksTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, position3d_id: int, housing_id: int | None) -> "PJTCPALock":
         """Execute the insert operation.
 
@@ -151,6 +160,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
 
     _table: PJTCPALocksTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -169,6 +179,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_cpa_lock_obj.CPALock":
         """Return the object.
 
@@ -182,6 +193,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -192,6 +204,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_cpa_lock_obj.CPALock"):
         """Set the object.
 
@@ -206,6 +219,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTCPALocksTable:
         """Return the table.
 
@@ -219,6 +233,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
     _stored_part: "_cpa_lock.CPALock | None | DefaultStoredValue" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> "_cpa_lock.CPALock":
         """Return the part.
 
@@ -249,6 +264,7 @@ class PJTCPALockControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTCPALock):
         """Set the obj.
 
@@ -259,6 +275,7 @@ class PJTCPALockControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -275,6 +292,7 @@ class PJTCPALockControl(QTabWidget, LazyTabMixin):
             self.cpa_lock_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTCPALockControl` instance.
 

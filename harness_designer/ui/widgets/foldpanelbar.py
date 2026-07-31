@@ -19,6 +19,7 @@ import base64
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
+from ... import check_types as _check_types
 
 # ---------------------------------------------------------------------------
 # Embedded icons (same PNG data as the original, decoded once at import)
@@ -35,6 +36,7 @@ _COLLAPSED_PNG_B64 = (
 )
 
 
+@_check_types.do
 def _load_icon_pixmap(b64: str) -> QtGui.QPixmap:
     """Load the icon pixmap.
 
@@ -54,6 +56,7 @@ _EXPANDED_PIXMAP: QtGui.QPixmap | None = None
 _COLLAPSED_PIXMAP: QtGui.QPixmap | None = None
 
 
+@_check_types.do
 def _get_icons() -> tuple[QtGui.QPixmap, QtGui.QPixmap]:
     """Return the icons.
 
@@ -111,6 +114,7 @@ class CaptionBarStyle:
     API identical to original.
     """
 
+    @_check_types.do
     def __init__(self):
         """Initialise the :class:`CaptionBarStyle` instance.
 
@@ -128,6 +132,7 @@ class CaptionBarStyle:
         self._captionStyleUsed = False
         self._captionStyle = CAPTIONBAR_GRADIENT_V
 
+    @_check_types.do
     def ResetDefaults(self):
         """Execute the reset defaults operation.
 
@@ -141,6 +146,7 @@ class CaptionBarStyle:
         self._captionStyle = CAPTIONBAR_GRADIENT_V
 
     # Font
+    @_check_types.do
     def SetCaptionFont(self, font: QtGui.QFont):
         """Execute the set caption font operation.
 
@@ -152,6 +158,7 @@ class CaptionBarStyle:
         self._captionFont = font
         self._captionFontUsed = True
 
+    @_check_types.do
     def CaptionFontUsed(self) -> bool:
         """Execute the caption font used operation.
 
@@ -162,6 +169,7 @@ class CaptionBarStyle:
         """
         return self._captionFontUsed
 
+    @_check_types.do
     def GetCaptionFont(self) -> QtGui.QFont:
         """Execute the get caption font operation.
 
@@ -173,6 +181,7 @@ class CaptionBarStyle:
         return self._captionFont
 
     # First colour
+    @_check_types.do
     def SetFirstColour(self, colour: QtGui.QColor):
         """Execute the set first colour operation.
 
@@ -184,6 +193,7 @@ class CaptionBarStyle:
         self._firstColour = colour
         self._firstColourUsed = True
 
+    @_check_types.do
     def FirstColourUsed(self) -> bool:
         """Execute the first colour used operation.
 
@@ -194,6 +204,7 @@ class CaptionBarStyle:
         """
         return self._firstColourUsed
 
+    @_check_types.do
     def GetFirstColour(self) -> QtGui.QColor:
         """Execute the get first colour operation.
 
@@ -205,6 +216,7 @@ class CaptionBarStyle:
         return self._firstColour
 
     # Second colour
+    @_check_types.do
     def SetSecondColour(self, colour: QtGui.QColor):
         """Execute the set second colour operation.
 
@@ -216,6 +228,7 @@ class CaptionBarStyle:
         self._secondColour = colour
         self._secondColourUsed = True
 
+    @_check_types.do
     def SecondColourUsed(self) -> bool:
         """Execute the second colour used operation.
 
@@ -226,6 +239,7 @@ class CaptionBarStyle:
         """
         return self._secondColourUsed
 
+    @_check_types.do
     def GetSecondColour(self) -> QtGui.QColor:
         """Execute the get second colour operation.
 
@@ -237,6 +251,7 @@ class CaptionBarStyle:
         return self._secondColour
 
     # Caption (text) colour
+    @_check_types.do
     def SetCaptionColour(self, colour: QtGui.QColor):
         """Execute the set caption colour operation.
 
@@ -248,6 +263,7 @@ class CaptionBarStyle:
         self._textColour = colour
         self._textColourUsed = True
 
+    @_check_types.do
     def CaptionColourUsed(self) -> bool:
         """Execute the caption colour used operation.
 
@@ -258,6 +274,7 @@ class CaptionBarStyle:
         """
         return self._textColourUsed
 
+    @_check_types.do
     def GetCaptionColour(self) -> QtGui.QColor:
         """Execute the get caption colour operation.
 
@@ -269,6 +286,7 @@ class CaptionBarStyle:
         return self._textColour
 
     # Caption style
+    @_check_types.do
     def SetCaptionStyle(self, style: int):
         """Execute the set caption style operation.
 
@@ -280,6 +298,7 @@ class CaptionBarStyle:
         self._captionStyle = style
         self._captionStyleUsed = True
 
+    @_check_types.do
     def CaptionStyleUsed(self) -> bool:
         """Execute the caption style used operation.
 
@@ -290,6 +309,7 @@ class CaptionBarStyle:
         """
         return self._captionStyleUsed
 
+    @_check_types.do
     def GetCaptionStyle(self) -> int:
         """Execute the get caption style operation.
 
@@ -316,6 +336,7 @@ class CaptionBar(QtWidgets.QWidget):
     _ICON_W = 16
     _ICON_H = 16
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  rightIndent: int = FPB_BMP_RIGHTSPACE,
@@ -352,6 +373,7 @@ class CaptionBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Style
     # ------------------------------------------------------------------
+    @_check_types.do
     def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
                           applyDefault: bool = True):
         """Execute the apply caption style operation.
@@ -394,6 +416,7 @@ class CaptionBar(QtWidgets.QWidget):
         self._style = cbstyle
         self.update()
 
+    @_check_types.do
     def SetCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
                         applyDefault: bool = True):
         """Execute the set caption style operation.
@@ -408,6 +431,7 @@ class CaptionBar(QtWidgets.QWidget):
 
         self.ApplyCaptionStyle(cbstyle, applyDefault)
 
+    @_check_types.do
     def GetCaptionStyle(self) -> CaptionBarStyle:
         """Execute the get caption style operation.
 
@@ -421,6 +445,7 @@ class CaptionBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # State
     # ------------------------------------------------------------------
+    @_check_types.do
     def IsCollapsed(self) -> bool:
         """Execute the is collapsed operation.
 
@@ -431,6 +456,7 @@ class CaptionBar(QtWidgets.QWidget):
         """
         return self._collapsed
 
+    @_check_types.do
     def Collapse(self):
         """Execute the collapse operation.
 
@@ -439,6 +465,7 @@ class CaptionBar(QtWidgets.QWidget):
         self._collapsed = True
         self.update()
 
+    @_check_types.do
     def Expand(self):
         """Execute the expand operation.
 
@@ -447,6 +474,7 @@ class CaptionBar(QtWidgets.QWidget):
         self._collapsed = False
         self.update()
 
+    @_check_types.do
     def SetRightIndent(self, pixels: int):
         """Execute the set right indent operation.
 
@@ -459,6 +487,7 @@ class CaptionBar(QtWidgets.QWidget):
         self._rightIndent = pixels
         self.update()
 
+    @_check_types.do
     def SetBoldFont(self):
         """Execute the set bold font operation.
 
@@ -468,6 +497,7 @@ class CaptionBar(QtWidgets.QWidget):
         f.setBold(True)
         self.setFont(f)
 
+    @_check_types.do
     def SetNormalFont(self):
         """Execute the set normal font operation.
 
@@ -477,6 +507,7 @@ class CaptionBar(QtWidgets.QWidget):
         f.setBold(False)
         self.setFont(f)
 
+    @_check_types.do
     def IsVertical(self) -> bool:
         """Execute the is vertical operation.
 
@@ -491,6 +522,7 @@ class CaptionBar(QtWidgets.QWidget):
 
         return True
 
+    @_check_types.do
     def _fold_panel_bar(self) -> "FoldPanelBar":
         """Execute the fold panel bar operation.
 
@@ -510,6 +542,7 @@ class CaptionBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Painting
     # ------------------------------------------------------------------
+    @_check_types.do
     def sizeHint(self) -> QtCore.QSize:
         """Execute the size hint operation.
 
@@ -529,6 +562,7 @@ class CaptionBar(QtWidgets.QWidget):
         h = max(th, self._ICON_H) + FPB_EXTRA_Y
         return QtCore.QSize(w, h)
 
+    @_check_types.do
     def paintEvent(self, event: QtGui.QPaintEvent):
         """Execute the paint event operation.
 
@@ -579,6 +613,7 @@ class CaptionBar(QtWidgets.QWidget):
 
         painter.end()
 
+    @_check_types.do
     def _fill_background(self, painter: QtGui.QPainter, rect: QtCore.QRect):
         """Execute the fill background operation.
 
@@ -631,6 +666,7 @@ class CaptionBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Mouse events
     # ------------------------------------------------------------------
+    @_check_types.do
     def _icon_hit(self, pos: QtCore.QPoint) -> bool:
         """Execute the icon hit operation.
 
@@ -650,6 +686,7 @@ class CaptionBar(QtWidgets.QWidget):
 
         return pos.y() < (self._ICON_H + self._rightIndent)
 
+    @_check_types.do
     def mousePressEvent(self, event: QtGui.QMouseEvent):
         """Execute the mouse press event operation.
 
@@ -666,6 +703,7 @@ class CaptionBar(QtWidgets.QWidget):
 
         super().mousePressEvent(event)
 
+    @_check_types.do
     def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent):
         """Execute the mouse double click event operation.
 
@@ -679,6 +717,7 @@ class CaptionBar(QtWidgets.QWidget):
             self.caption_toggled.emit(self)
         super().mouseDoubleClickEvent(event)
 
+    @_check_types.do
     def mouseMoveEvent(self, event: QtGui.QMouseEvent):
         """Execute the mouse move event operation.
 
@@ -693,6 +732,7 @@ class CaptionBar(QtWidgets.QWidget):
             self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.ArrowCursor))
         super().mouseMoveEvent(event)
 
+    @_check_types.do
     def leaveEvent(self, event):
         """Execute the leave event operation.
 
@@ -711,6 +751,7 @@ class CaptionBar(QtWidgets.QWidget):
 class FoldWindowItem:
     """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
+    @_check_types.do
     def __init__(self, parent: 'FoldPanelItem', window: QtWidgets.QWidget | None, **kw):
         """Initialise the :class:`FoldWindowItem` instance.
 
@@ -741,6 +782,7 @@ class FoldWindowItem:
         self._sepLineColour = kw.get('colour',  QtGui.QColor(QtCore.Qt.GlobalColor.black))
         self._lineLength = 0
 
+    @_check_types.do
     def GetType(self) -> str:
         """Execute the get type operation.
 
@@ -751,6 +793,7 @@ class FoldWindowItem:
         """
         return self._type
 
+    @_check_types.do
     def GetLineY(self) -> int:
         """Execute the get line y operation.
 
@@ -761,6 +804,7 @@ class FoldWindowItem:
         """
         return self._lineY
 
+    @_check_types.do
     def GetLineLength(self) -> int:
         """Execute the get line length operation.
 
@@ -771,6 +815,7 @@ class FoldWindowItem:
         """
         return self._lineLength
 
+    @_check_types.do
     def GetLineColour(self) -> QtGui.QColor:
         """Execute the get line colour operation.
 
@@ -781,6 +826,7 @@ class FoldWindowItem:
         """
         return self._sepLineColour
 
+    @_check_types.do
     def GetLeftSpacing(self) -> int:
         """Execute the get left spacing operation.
 
@@ -791,6 +837,7 @@ class FoldWindowItem:
         """
         return self._leftSpacing
 
+    @_check_types.do
     def GetRightSpacing(self) -> int:
         """Execute the get right spacing operation.
 
@@ -801,6 +848,7 @@ class FoldWindowItem:
         """
         return self._rightSpacing
 
+    @_check_types.do
     def GetSpacing(self) -> int:
         """Execute the get spacing operation.
 
@@ -811,6 +859,7 @@ class FoldWindowItem:
         """
         return self._spacing
 
+    @_check_types.do
     def GetWindowLength(self, vertical: bool = True) -> int:
         """Execute the get window length operation.
 
@@ -834,6 +883,7 @@ class FoldWindowItem:
 
         return 0
 
+    @_check_types.do
     def ResizeItem(self, size: int, vertical: bool = True):
         """Execute the resize item operation.
 
@@ -862,6 +912,7 @@ class FoldWindowItem:
 class FoldPanelItem(QtWidgets.QWidget):
     """One collapsible section (caption bar + content area)."""
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  collapsed: bool = False):
@@ -904,6 +955,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+    @_check_types.do
     def _on_caption_toggle(self, bar: CaptionBar):
         """Handle the caption toggle event.
 
@@ -922,6 +974,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         else:
             fpb.Collapse(self)
 
+    @_check_types.do
     def _fold_panel_bar(self) -> "FoldPanelBar":
         """Execute the fold panel bar operation.
 
@@ -940,6 +993,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Geometry
     # ------------------------------------------------------------------
+    @_check_types.do
     def IsVertical(self) -> bool:
         """Execute the is vertical operation.
 
@@ -954,6 +1008,7 @@ class FoldPanelItem(QtWidgets.QWidget):
 
         return True
 
+    @_check_types.do
     def IsExpanded(self) -> bool:
         """Execute the is expanded operation.
 
@@ -964,6 +1019,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         """
         return not self._captionBar.IsCollapsed()
 
+    @_check_types.do
     def GetItemPos(self) -> int:
         """Execute the get item pos operation.
 
@@ -974,6 +1030,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         """
         return self._itemPos
 
+    @_check_types.do
     def GetPanelLength(self) -> int:
         """Execute the get panel length operation.
 
@@ -990,6 +1047,7 @@ class FoldPanelItem(QtWidgets.QWidget):
 
         return self._PanelSize
 
+    @_check_types.do
     def GetCaptionLength(self) -> int:
         """Execute the get caption length operation.
 
@@ -1005,6 +1063,7 @@ class FoldPanelItem(QtWidgets.QWidget):
 
         return sz.width()
 
+    @_check_types.do
     def Reposition(self, pos: int) -> int:
         """Execute the reposition operation.
 
@@ -1025,6 +1084,7 @@ class FoldPanelItem(QtWidgets.QWidget):
 
         return self.GetPanelLength()
 
+    @_check_types.do
     def ResizePanel(self):
         """Execute the resize panel operation.
 
@@ -1079,6 +1139,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Adding content
     # ------------------------------------------------------------------
+    @_check_types.do
     def AddWindow(self, window: QtWidgets.QWidget, flags: int = FPB_ALIGN_WIDTH,
                   spacing: int = FPB_DEFAULT_SPACING,
                   leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
@@ -1121,6 +1182,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         self._LastInsertPos += wi.GetWindowLength(vertical)
         self.ResizePanel()
 
+    @_check_types.do
     def AddSeparator(self, colour: QtGui.QColor = None, spacing: int = FPB_DEFAULT_SPACING,
                      leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
                      rightSpacing: int = FPB_DEFAULT_RIGHTSPACING):
@@ -1153,6 +1215,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Style delegation
     # ------------------------------------------------------------------
+    @_check_types.do
     def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle):
         """Execute the apply caption style operation.
 
@@ -1163,6 +1226,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         """
         self._captionBar.SetCaptionStyle(cbstyle)
 
+    @_check_types.do
     def GetCaptionStyle(self) -> CaptionBarStyle:
         """Execute the get caption style operation.
 
@@ -1176,6 +1240,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Collapse / Expand (called by FoldPanelBar)
     # ------------------------------------------------------------------
+    @_check_types.do
     def Collapse(self):
         """Execute the collapse operation.
 
@@ -1184,6 +1249,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         self._captionBar.Collapse()
         self.ResizePanel()
 
+    @_check_types.do
     def Expand(self):
         """Execute the expand operation.
 
@@ -1195,6 +1261,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Paint separators
     # ------------------------------------------------------------------
+    @_check_types.do
     def paintEvent(self, event: QtGui.QPaintEvent):
         """Execute the paint event operation.
 
@@ -1233,6 +1300,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     Replacement for wx.lib.agw.foldpanelbar.FoldPanelBar.
     """
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget | None = None, agwStyle: int = 0):
         """Initialise the :class:`FoldPanelBar` instance.
 
@@ -1259,6 +1327,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+    @_check_types.do
     def IsVertical(self) -> bool:
         """Execute the is vertical operation.
 
@@ -1269,6 +1338,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         """
         return self._isVertical
 
+    @_check_types.do
     def AddFoldPanel(self, caption: str = '', collapsed: bool = False,
                      foldIcons=None,   # NOQA IGNORED
                      cbstyle: CaptionBarStyle | None = None) -> FoldPanelItem:
@@ -1307,6 +1377,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         return item
 
+    @_check_types.do
     def AddFoldPanelWindow(self, panel: FoldPanelItem, window: QtWidgets.QWidget,
                            flags: int = FPB_ALIGN_WIDTH,
                            spacing: int = FPB_DEFAULT_SPACING,
@@ -1341,6 +1412,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         return 0
 
+    @_check_types.do
     def AddFoldPanelSeparator(self, panel: FoldPanelItem, colour: QtGui.QColor | None = None,
                               spacing: int = FPB_DEFAULT_SPACING,
                               leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
@@ -1372,6 +1444,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         return 0
 
+    @_check_types.do
     def Collapse(self, foldpanel: FoldPanelItem):
         """Execute the collapse operation.
 
@@ -1388,6 +1461,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         foldpanel.Collapse()
         self.RefreshPanelsFrom(foldpanel)
 
+    @_check_types.do
     def Expand(self, foldpanel: FoldPanelItem):
         """Execute the expand operation.
 
@@ -1414,6 +1488,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         else:
             self.RefreshPanelsFrom(foldpanel)
 
+    @_check_types.do
     def ApplyCaptionStyle(self, foldpanel: FoldPanelItem,  # NOQA
                           cbstyle: CaptionBarStyle):
         """Execute the apply caption style operation.
@@ -1428,6 +1503,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         foldpanel.ApplyCaptionStyle(cbstyle)
 
+    @_check_types.do
     def ApplyCaptionStyleAll(self, cbstyle: CaptionBarStyle):
         """Execute the apply caption style all operation.
 
@@ -1441,6 +1517,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         self._cbstyle = cbstyle
 
+    @_check_types.do
     def GetCaptionStyle(self, foldpanel: FoldPanelItem) -> CaptionBarStyle:  # NOQA
         """Execute the get caption style operation.
 
@@ -1453,6 +1530,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         """
         return foldpanel.GetCaptionStyle()
 
+    @_check_types.do
     def GetFoldPanel(self, item: int) -> FoldPanelItem:
         """Execute the get fold panel operation.
 
@@ -1470,6 +1548,7 @@ class FoldPanelBar(QtWidgets.QWidget):
             raise ValueError(
                 f'Index {item} out of range (0..{len(self._panels)-1})')
 
+    @_check_types.do
     def GetCount(self) -> int:
         """Execute the get count operation.
 
@@ -1483,6 +1562,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Layout
     # ------------------------------------------------------------------
+    @_check_types.do
     def RefreshPanelsFrom(self, item: FoldPanelItem):
         """Execute the refresh panels from operation.
 
@@ -1512,6 +1592,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         self.update()
 
+    @_check_types.do
     def RepositionCollapsedToBottom(self):
         """Execute the reposition collapsed to bottom operation.
 
@@ -1532,6 +1613,7 @@ class FoldPanelBar(QtWidgets.QWidget):
             if not p.IsExpanded():
                 offset += p.Reposition(offset)
 
+    @_check_types.do
     def GetPanelsLength(self, collapsed: int, expanded: int):
         """Execute the get panels length operation.
 
@@ -1556,6 +1638,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
         return collapsed, expanded, value
 
+    @_check_types.do
     def RedisplayFoldPanelItems(self):
         """Execute the redisplay fold panel items operation.
 
@@ -1568,6 +1651,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Qt events
     # ------------------------------------------------------------------
+    @_check_types.do
     def resizeEvent(self, event: QtGui.QResizeEvent):
         """Execute the resize event operation.
 

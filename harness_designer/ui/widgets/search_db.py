@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Union
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
+from ... import check_types as _check_types
 
 # from ... import config as _config
 # from ...gl import canvas3d
@@ -31,6 +32,7 @@ if TYPE_CHECKING:
 class _ItemRow(QtWidgets.QWidget):
     """A label + checkbox row inside _ItemsPanel."""
 
+    @_check_types.do
     def __init__(self, parent, label: str):
         """Initialise the :class:`_ItemRow` instance.
 
@@ -49,6 +51,7 @@ class _ItemRow(QtWidgets.QWidget):
         layout.addWidget(self.st, 0)
         layout.addWidget(self.ctrl, 0)
 
+    @_check_types.do
     def GetValue(self) -> bool:
         """Execute the get value operation.
 
@@ -59,6 +62,7 @@ class _ItemRow(QtWidgets.QWidget):
         """
         return self.ctrl.isChecked()
 
+    @_check_types.do
     def GetName(self) -> str:
         """Execute the get name operation.
 
@@ -73,6 +77,7 @@ class _ItemRow(QtWidgets.QWidget):
 class _ItemsPanel(QtWidgets.QScrollArea):
     """Scrollable list of label + checkbox rows."""
 
+    @_check_types.do
     def __init__(self, parent, choices: list[str]):
         """Initialise the :class:`_ItemsPanel` instance.
 
@@ -102,6 +107,7 @@ class _ItemsPanel(QtWidgets.QScrollArea):
 
         self._layout.addStretch()
 
+    @_check_types.do
     def Reset(self):
         """Execute the reset operation.
 
@@ -110,6 +116,7 @@ class _ItemsPanel(QtWidgets.QScrollArea):
         for item in self.items:
             item.ctrl.setChecked(False)
 
+    @_check_types.do
     def GetValues(self) -> list[_ItemRow]:
         """Execute the get values operation.
 
@@ -126,6 +133,7 @@ class _SearchPanelField(QtWidgets.QFrame):
 
     changed: QtCore.SignalInstance = QtCore.Signal()
 
+    @_check_types.do
     def __init__(self, parent, label: str, params, types):
         """Initialise the :class:`_SearchPanelField` instance.
 
@@ -170,6 +178,7 @@ class _SearchPanelField(QtWidgets.QFrame):
         for row in self.items_panel.items:
             row.ctrl.stateChanged.connect(lambda _: self.changed.emit())
 
+    @_check_types.do
     def _on_reset(self):
         """Handle the reset event.
 
@@ -178,6 +187,7 @@ class _SearchPanelField(QtWidgets.QFrame):
         self.items_panel.Reset()
         self.changed.emit()
 
+    @_check_types.do
     def GetValues(self) -> dict:
         """Execute the get values operation.
 
@@ -208,6 +218,7 @@ class _SearchPanelField(QtWidgets.QFrame):
 class _SearchPanel(QtWidgets.QScrollArea):
     """Horizontal row of _SearchPanelField columns."""
 
+    @_check_types.do
     def __init__(self, parent,
                  db_table: Union['_global_db.TableBase', '_project_db.PJTTableBase']):
         """Initialise the :class:`_SearchPanel` instance.
@@ -252,6 +263,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
                 layout.addWidget(field, 1)
                 field.changed.connect(self.on_update)
 
+    @_check_types.do
     def SetSearchAllParts(self, flag: bool):
         """Execute the set search all parts operation.
 
@@ -262,6 +274,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
         """
         self._search_all_parts = flag
 
+    @_check_types.do
     def SetCompatParts(self, *compat_parts):
         """Execute the set compat parts operation.
 
@@ -272,6 +285,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
         """
         self._compat_parts = compat_parts
 
+    @_check_types.do
     def load(self):
         """Execute the load operation.
 
@@ -279,6 +293,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
         """
         self.on_update()
 
+    @_check_types.do
     def on_update(self):
         """Handle the update event.
 
@@ -300,6 +315,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
 class _ResultCtrl(QtWidgets.QTreeWidget):
     """Virtual list control for lazily-fetched search results."""
 
+    @_check_types.do
     def __init__(self, parent, columns: list[str]):
         """Initialise the :class:`_ResultCtrl` instance.
 
@@ -330,6 +346,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         self.itemSelectionChanged.connect(self._on_selection_changed)
         self.itemActivated.connect(self._on_activated)
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -340,6 +357,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         """
         return self._selected_db_id
 
+    @_check_types.do
     def _on_selection_changed(self):
         """Handle the selection changed event.
 
@@ -357,6 +375,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         obj = self.parent_panel.table[db_id]
         self.parent_panel.set_image(obj.image)
 
+    @_check_types.do
     def _on_activated(self, item, _column):
         """Handle the activated event.
 
@@ -377,6 +396,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         if hasattr(top, 'accept'):
             top.accept()
 
+    @_check_types.do
     def SetValues(self, con, results):
         """Execute the set values operation.
 
@@ -401,6 +421,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         # correctness — the DB cursor is held open and consumed on demand)
         self._load_remaining(count)
 
+    @_check_types.do
     def _append_row(self, row):
         """Execute the append row operation.
 
@@ -414,6 +435,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         self.addTopLevelItem(item)
         self._loaded_results.append(row)
 
+    @_check_types.do
     def _load_remaining(self, count: int):
         """Load the remaining.
 
@@ -439,6 +461,7 @@ class SearchPanel(QtWidgets.QWidget):
 
     search_changed: QtCore.SignalInstance = QtCore.Signal()
 
+    @_check_types.do
     def __init__(self, parent=None, table=None, *compat_parts):
         """Initialise the :class:`SearchPanel` instance.
 
@@ -488,6 +511,7 @@ class SearchPanel(QtWidgets.QWidget):
 
         self.search_panel.load()
 
+    @_check_types.do
     def _on_search_all_parts(self, state: int):
         """Handle the search all parts event.
 
@@ -499,6 +523,7 @@ class SearchPanel(QtWidgets.QWidget):
         self.search_panel.SetSearchAllParts(bool(state))
         self.search_panel.load()
 
+    @_check_types.do
     def set_image(self, image):
         """Set the image.
 
@@ -516,6 +541,7 @@ class SearchPanel(QtWidgets.QWidget):
                           QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                           QtCore.Qt.TransformationMode.SmoothTransformation))
 
+    @_check_types.do
     def SetResults(self, con, results):
         """Execute the set results operation.
 
@@ -528,6 +554,7 @@ class SearchPanel(QtWidgets.QWidget):
         """
         self.result_ctrl.SetValues(con, results)
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 

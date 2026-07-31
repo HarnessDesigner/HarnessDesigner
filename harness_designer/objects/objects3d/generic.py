@@ -8,6 +8,7 @@ from ...geometry import angle as _angle
 from . import base3d as _base3d
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class Generic(_base3d.Base3D):
     """
     parent: "_generic.Generic" = None
 
+    @_check_types.do
     def __init__(self, parent: "_generic.Generic", vbo: _vbo.PooledVBOHandler | None,
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial):

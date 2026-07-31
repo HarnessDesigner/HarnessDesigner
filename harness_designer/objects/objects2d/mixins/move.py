@@ -4,6 +4,7 @@
 from ....geometry import point as _point
 from ....geometry import line as _line
 from ....wrappers.decimal import Decimal as _decimal
+from .... import check_types as _check_types
 
 
 class MoveMixin:
@@ -17,6 +18,7 @@ class MoveMixin:
     _position: _point.Point = None
 
     @property
+    @_check_types.do
     def position(self) -> _point.Point:
         """Return the position.
 

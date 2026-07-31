@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects3d import wire_layout as _wire3d_layout
 from .objects2d import wire_layout as _wire2d_layout
 from .objectspeg import wire_layout as _wirepeg_layout
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class WireLayout(_ObjectBase):
     objpeg: _wirepeg_layout.WireLayout = None
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire_layout.PJTWireLayout", project_load=False):
         """Initialise the :class:`WireLayout` instance.
@@ -46,6 +48,7 @@ class WireLayout(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def delete(self):
         # TODO: If a layout has 2 wires attached the wire should be reconnected.
         super().delete()

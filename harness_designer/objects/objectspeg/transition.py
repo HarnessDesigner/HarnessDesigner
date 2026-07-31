@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import basepeg as _basepeg
 from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -28,6 +29,7 @@ class Transition(_basepeg.BasePeg):
     """
     db_obj: "_pjt_transition.PJTTransition"
 
+    @_check_types.do
     def __init__(self, parent: "_transition.Transition",
                  db_obj: "_pjt_transition.PJTTransition"):
         """Initialise the :class:`Transition` instance.
@@ -62,6 +64,7 @@ class Transition(_basepeg.BasePeg):
         self._apply_flatten_if_untouched(flatten_quat.as_euler)
 
     @property
+    @_check_types.do
     def table_anchor_points(self) -> list:
         """One table-anchor point per populated branch (1-6) -- a
         transition gets **one data table per branch**, not one combined
@@ -89,6 +92,7 @@ class Transition(_basepeg.BasePeg):
 
         return points
 
+    @_check_types.do
     def table_anchor_live_position(self, point3d_id: int) -> "_point.Point":
         """One branch's live ``position3d`` -- *point3d_id* must be one of
         this transition's own branches' ``position3d_id`` (see
@@ -104,6 +108,7 @@ class Transition(_basepeg.BasePeg):
 
         return self.position
 
+    @_check_types.do
     def build_table_rows(self, project, point3d_id: int) -> list:
         """One branch's non-filler wires -- see
         ``table_rows.build_rows_for_transition_branch``. *point3d_id* must

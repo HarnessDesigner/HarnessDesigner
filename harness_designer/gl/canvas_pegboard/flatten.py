@@ -24,8 +24,10 @@ import math
 import numpy as np
 
 from ...geometry.angle import quaternion as _quaternion
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def compute_local_up_direction(local_obb: np.ndarray, up_face_idx: int) -> np.ndarray | None:
     """Return the model's own local-space "up" direction, from its stored OBB.
 
@@ -50,6 +52,7 @@ def compute_local_up_direction(local_obb: np.ndarray, up_face_idx: int) -> np.nd
     return HandlerBase.obb_face_direction(local_obb, local_obb, up_face_idx)
 
 
+@_check_types.do
 def compute_flatten_quaternion(local_up_dir: np.ndarray) -> _quaternion.Quaternion:
     """Return the quaternion that rotates *local_up_dir* onto world ``+Y``.
 
@@ -89,6 +92,7 @@ def compute_flatten_quaternion(local_up_dir: np.ndarray) -> _quaternion.Quaterni
     return _quaternion.Quaternion.from_axis_angle(axis, angle)
 
 
+@_check_types.do
 def flatten_quaternion_for_model3d(
         local_obb: np.ndarray,
         forward_up: list[int, int] | tuple[int, int]) -> _quaternion.Quaternion:
@@ -124,6 +128,7 @@ def flatten_quaternion_for_model3d(
     return compute_flatten_quaternion(local_up)
 
 
+@_check_types.do
 def flatten_quaternion_for_transition(local_obb: np.ndarray) -> _quaternion.Quaternion:
     """Return the flatten quaternion for a transition.
 

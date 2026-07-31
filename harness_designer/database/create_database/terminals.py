@@ -25,8 +25,10 @@ from . import cavities as _cavities
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_terminal(con, part_number, description, mfg=None, family=None, series=None,
                  color=None, image=None, datasheet=None, cad=None, min_temp=None,
                  max_temp=None, model3d=None, plating=None, gender=None, cavity_lock=None,
@@ -195,6 +197,7 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
         return con.lastrowid
 
 
+@_check_types.do
 def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
                      wire_point3d_id=None, point3d_id=None, point2d_id=None,
                      wire_point2d_id=None, name='', notes='', quat3d=None,
@@ -273,6 +276,7 @@ def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
     con.commit()
 
 
+@_check_types.do
 def add_terminals(con, data: tuple[dict] | list[dict]):
     """Add a terminals.
 
@@ -288,6 +292,7 @@ def add_terminals(con, data: tuple[dict] | list[dict]):
         add_terminal(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 

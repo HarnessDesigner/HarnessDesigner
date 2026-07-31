@@ -2,8 +2,10 @@
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, _):
     """
     Add a records.
@@ -45,6 +47,7 @@ def add_records(con, splash, _):
     con.commit()
 
 
+@_check_types.do
 def get_adhesive_id(con, code):
     """
     Return the adhesive ID.

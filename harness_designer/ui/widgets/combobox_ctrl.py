@@ -4,6 +4,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from .autocomplete_combobox import AutoCompleteComboBox
+from ... import check_types as _check_types
 
 
 class ComboBoxCtrl(QtWidgets.QWidget):
@@ -16,6 +17,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     binding EVT_COMBOBOX.
     """
 
+    @_check_types.do
     def __init__(self, parent=None, label: str = '', choices=None,
                  process_enter: bool = False):
         """Initialise the :class:`ComboBoxCtrl` instance.
@@ -50,6 +52,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+    @_check_types.do
     def _on_enter(self):
         """Handle the enter event.
 
@@ -70,6 +73,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # wx-compatible API
     # ------------------------------------------------------------------
+    @_check_types.do
     def Enable(self, flag: bool = True):
         """Execute the enable operation.
 
@@ -81,6 +85,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
 
+    @_check_types.do
     def SetToolTip(self, text: str):
         """Execute the set tool tip operation.
 
@@ -94,6 +99,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -104,6 +110,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.SetValue(value)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -114,6 +121,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         return self.ctrl.GetValue()
 
+    @_check_types.do
     def Clear(self):
         """Execute the clear operation.
 
@@ -121,6 +129,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.Clear()
 
+    @_check_types.do
     def Delete(self, n: int):
         """Execute the delete operation.
 
@@ -131,6 +140,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.Delete(n)
 
+    @_check_types.do
     def Insert(self, item: str, pos: int, clientData=None):
         """Execute the insert operation.
 
@@ -145,6 +155,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.Insert(item, pos, clientData)
 
+    @_check_types.do
     def Set(self, items):
         """Execute the set operation.
 
@@ -155,6 +166,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.Set(items)
 
+    @_check_types.do
     def GetItems(self) -> list[str]:
         """Execute the get items operation.
 
@@ -165,6 +177,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         return self.ctrl.GetItems()
 
+    @_check_types.do
     def SetItems(self, items: list[str]):
         """Execute the set items operation.
 
@@ -175,6 +188,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.SetItems(items)
 
+    @_check_types.do
     def AppendItems(self, items):
         """Execute the append items operation.
 
@@ -185,6 +199,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         """
         self.ctrl.AppendItems(items)
 
+    @_check_types.do
     def Append(self, item):
         """Execute the append operation.
 
@@ -200,6 +215,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     # Convenience: expose the inner combobox signal so callers can do
     # combobox_ctrl.currentTextChanged.connect(handler)
     @property
+    @_check_types.do
     def currentTextChanged(self):
         """Return the current text changed.
 

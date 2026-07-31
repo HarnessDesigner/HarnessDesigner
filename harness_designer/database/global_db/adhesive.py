@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable, Union as _Union
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import DescriptionMixin
+from ... import check_types as _check_types
 
 
 class AdhesivesTable(TableBase):
@@ -13,6 +14,7 @@ class AdhesivesTable(TableBase):
     """
     __table_name__ = 'adhesives'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -25,6 +27,7 @@ class AdhesivesTable(TableBase):
 
         return adhesives.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -40,6 +43,7 @@ class AdhesivesTable(TableBase):
 
         adhesives.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -49,6 +53,7 @@ class AdhesivesTable(TableBase):
 
         adhesives.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Adhesive"]:
         """Iterate over the available items.
 
@@ -60,6 +65,7 @@ class AdhesivesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Adhesive(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Adhesive":
         """Return the requested item.
 
@@ -83,6 +89,7 @@ class AdhesivesTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, code: str, description: str) -> "Adhesive":
         """Execute the insert operation.
 
@@ -106,6 +113,7 @@ class Adhesive(EntryBase, DescriptionMixin):
     """
     _table: AdhesivesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -123,6 +131,7 @@ class Adhesive(EntryBase, DescriptionMixin):
     _stored_code: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def code(self) -> str:
         """Return the code.
 
@@ -137,6 +146,7 @@ class Adhesive(EntryBase, DescriptionMixin):
         return self._stored_code
 
     @code.setter
+    @_check_types.do
     def code(self, value: str):
         """Set the code.
 
@@ -152,6 +162,7 @@ class Adhesive(EntryBase, DescriptionMixin):
     _stored_accessory_part_nums: DefaultStoredValueType | list[str] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def accessory_part_nums(self) -> list[str]:
         """Return the accessory part nums.
 
@@ -167,6 +178,7 @@ class Adhesive(EntryBase, DescriptionMixin):
         return list(self._stored_accessory_part_nums)
 
     @accessory_part_nums.setter
+    @_check_types.do
     def accessory_part_nums(self, value: list[str]):
         """Set the accessory part nums.
 
@@ -185,6 +197,7 @@ class Adhesive(EntryBase, DescriptionMixin):
     _stored_accessories: _Union["DefaultStoredValueType", list["_accessory.Accessory"]] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def accessories(self) -> list["_accessory.Accessory"]:
         """Return the accessories.
 

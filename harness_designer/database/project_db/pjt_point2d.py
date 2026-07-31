@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 class PJTPoints2DTable(PJTTableBase):
@@ -13,6 +14,7 @@ class PJTPoints2DTable(PJTTableBase):
     """
     __table_name__ = 'pjt_points2d'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -25,6 +27,7 @@ class PJTPoints2DTable(PJTTableBase):
 
         return points2d.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -34,6 +37,7 @@ class PJTPoints2DTable(PJTTableBase):
 
         points2d.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -43,6 +47,7 @@ class PJTPoints2DTable(PJTTableBase):
 
         points2d.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTPoint2D"]:
         """Iterate over the available items.
 
@@ -56,6 +61,7 @@ class PJTPoints2DTable(PJTTableBase):
             point = PJTPoint2D(self, db_id, self.project_id)
             yield point
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTPoint2D":
         """Return the requested item.
 
@@ -75,6 +81,7 @@ class PJTPoints2DTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, x: float, y: float, wire_id: int = None, idx: int = None) -> "PJTPoint2D":
         """Execute the insert operation.
 
@@ -96,6 +103,7 @@ class PJTPoints2DTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, x=x, y=y, wire_id=wire_id, idx=idx)
         return PJTPoint2D(self, db_id, self.project_id)
 
+    @_check_types.do
     def for_wire(self, wire_id: int) -> list["PJTPoint2D"]:
         """Return every interior waypoint on a wire, ordered by ``idx`` ascending.
 
@@ -117,6 +125,7 @@ class PJTPoint2D(PJTEntryBase):
     """
     _table: PJTPoints2DTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -132,6 +141,7 @@ class PJTPoint2D(PJTEntryBase):
         return packet
 
     @property
+    @_check_types.do
     def table(self) -> PJTPoints2DTable:
         """Return the table.
 
@@ -145,6 +155,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def x(self) -> float:
         """Return the x.
 
@@ -159,6 +170,7 @@ class PJTPoint2D(PJTEntryBase):
         return self._stored_x
 
     @x.setter
+    @_check_types.do
     def x(self, value: float):
         """Set the x.
 
@@ -173,6 +185,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_y: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def y(self) -> float:
         """Return the y.
 
@@ -187,6 +200,7 @@ class PJTPoint2D(PJTEntryBase):
         return self._stored_y
 
     @y.setter
+    @_check_types.do
     def y(self, value: float):
         """Set the y.
 
@@ -201,6 +215,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_wire_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_id(self) -> int | None:
         """Return the id of the wire this waypoint belongs to, or
         ``None`` for an anchor's own position row.
@@ -214,6 +229,7 @@ class PJTPoint2D(PJTEntryBase):
         return self._stored_wire_id
 
     @wire_id.setter
+    @_check_types.do
     def wire_id(self, value: int | None):
         self._stored_wire_id = value
         self._table.update(self._db_id, wire_id=value)
@@ -221,6 +237,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_idx: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int | None:
         """Return this waypoint's 0-based order along the wire's chain,
         or ``None`` for an anchor's own position row.
@@ -234,6 +251,7 @@ class PJTPoint2D(PJTEntryBase):
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int | None):
         self._stored_idx = value
         self._table.update(self._db_id, idx=value)
@@ -241,6 +259,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_point2d: _point.Point = None
 
     @property
+    @_check_types.do
     def point(self) -> _point.Point:
         """Return the point.
 
@@ -257,6 +276,7 @@ class PJTPoint2D(PJTEntryBase):
 
         return self._stored_point2d
 
+    @_check_types.do
     def _update_point(self, point: _point.Point):
         """Update the point.
 

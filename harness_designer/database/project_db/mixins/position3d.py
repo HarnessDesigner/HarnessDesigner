@@ -4,6 +4,7 @@ from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
+from .... import check_types as _check_types
 
 
 class Position3DMixin(BaseMixin):
@@ -15,6 +16,7 @@ class Position3DMixin(BaseMixin):
     _stored_position3d: _pjt_point3d.PJTPoint3D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def position3d(self) -> _point.Point:
         """Return the position 3D.
 
@@ -44,6 +46,7 @@ class Position3DMixin(BaseMixin):
     _stored_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def position3d_id(self) -> int:
         """Return the position 3D ID.
 
@@ -68,6 +71,7 @@ class Position3DMixin(BaseMixin):
         return self._stored_position3d_id
 
     @position3d_id.setter
+    @_check_types.do
     def position3d_id(self, value: int):
         """Set the position 3D ID.
 
@@ -89,6 +93,7 @@ class Position3DControl(_prop_ctrls.Position3DProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Position3DControl` instance.
 
@@ -101,6 +106,7 @@ class Position3DControl(_prop_ctrls.Position3DProperty):
 
         super().__init__(parent, '3D Position')
 
+    @_check_types.do
     def set_obj(self, db_obj: Position3DMixin):
         """Set the obj.
 

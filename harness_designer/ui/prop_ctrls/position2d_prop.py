@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from . import float_prop as _float_prop
+from ... import check_types as _check_types
 
 
 class Position2DProperty(QtWidgets.QGroupBox):
@@ -10,6 +11,7 @@ class Position2DProperty(QtWidgets.QGroupBox):
     :mod:`harness_designer.ui.prop_ctrls.position2d_prop`.
     """
 
+    @_check_types.do
     def __init__(self, parent, label: str):
         """Initialise the :class:`Position2DProperty` instance.
 
@@ -39,6 +41,7 @@ class Position2DProperty(QtWidgets.QGroupBox):
         self.x_ctrl.propertyChanged.connect(self._on_x)
         self.y_ctrl.propertyChanged.connect(self._on_y)
 
+    @_check_types.do
     def SetValue(self, position):
         """
         Execute the set value operation.
@@ -56,6 +59,7 @@ class Position2DProperty(QtWidgets.QGroupBox):
         self.x_ctrl.setEnabled(enabled)
         self.y_ctrl.setEnabled(enabled)
 
+    @_check_types.do
     def _on_x(self, evt):
         """
         Handle the x event.
@@ -66,6 +70,7 @@ class Position2DProperty(QtWidgets.QGroupBox):
 
         self._position.x = evt.GetValue()
 
+    @_check_types.do
     def _on_y(self, evt):
         """
         Handle the y event.
@@ -76,9 +81,11 @@ class Position2DProperty(QtWidgets.QGroupBox):
 
         self._position.y = evt.GetValue()
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self.setTitle(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

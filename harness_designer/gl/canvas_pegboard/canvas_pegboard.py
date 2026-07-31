@@ -7,6 +7,7 @@ from PySide6 import QtCore
 
 from . import canvas as _canvas
 from ... import config as _config
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class CanvasPegBoard(QtWidgets.QWidget):
     that dock layer existing yet.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame",
                  config: _config.Config.editor_pegboard = None, size=None):
         """Initialise the :class:`CanvasPegBoard` instance.
@@ -67,6 +69,7 @@ class CanvasPegBoard(QtWidgets.QWidget):
 
         self.config = config
 
+    @_check_types.do
     def event(self, event):
         """Execute the event operation.
 
@@ -78,6 +81,7 @@ class CanvasPegBoard(QtWidgets.QWidget):
         return QtWidgets.QWidget.event(self, event)
 
     @property
+    @_check_types.do
     def context(self):
         """Return the GL context manager owned by the inner canvas.
 
@@ -87,6 +91,7 @@ class CanvasPegBoard(QtWidgets.QWidget):
         return self._canvas.context
 
     @property
+    @_check_types.do
     def camera(self):
         """Return the camera owned by the inner canvas.
 
@@ -95,6 +100,7 @@ class CanvasPegBoard(QtWidgets.QWidget):
         """
         return self._canvas.camera
 
+    @_check_types.do
     def center_on_object(self, obj) -> None:
         """Forward to the inner canvas's pan-to-object.
 
@@ -103,11 +109,13 @@ class CanvasPegBoard(QtWidgets.QWidget):
         """
         self._canvas.center_on_object(obj)
 
+    @_check_types.do
     def __enter__(self):
         """Enter the managed context."""
         self._ref_count += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the managed context.
 
@@ -120,10 +128,12 @@ class CanvasPegBoard(QtWidgets.QWidget):
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def bind(self, signal_name: str, handler) -> None:
         """Forward signal connections to the inner QOpenGLWidget canvas."""
         getattr(self._canvas, signal_name).connect(handler)
 
+    @_check_types.do
     def Refresh(self, *_, **__):
         """Execute the refresh operation.
 

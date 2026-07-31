@@ -1,8 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from OpenGL import GL
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def compile(source, shader_type):  # NOQA
     """Compile a shader"""
     shader = GL.glCreateShader(shader_type)

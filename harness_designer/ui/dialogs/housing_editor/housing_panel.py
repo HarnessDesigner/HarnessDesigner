@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QTabWidget
 
 from . import housing_obj as _housing_obj
 from ...widgets import triple_float_ctrl as _triple_float_ctrl
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class HousingPanel(QTabWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, dialog, panel: "_housing_editor.HousingEditorDialog",
                  housing: _housing_obj.Housing3D):
         """Initialise the :class:`HousingPanel` instance.
@@ -59,6 +61,7 @@ class HousingPanel(QTabWidget):
 
         self.enable_housing_ctrls(True)
 
+    @_check_types.do
     def enable_housing_ctrls(self, flag: bool):
         """Execute the enable housing ctrls operation.
 

@@ -14,6 +14,7 @@ from .mixins import (
     NameMixin,
     NotesMixin, NotesControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class PJTCircuitsTable(PJTTableBase):
     """
     __table_name__ = 'pjt_circuits'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -39,6 +41,7 @@ class PJTCircuitsTable(PJTTableBase):
 
         return circuits.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -48,6 +51,7 @@ class PJTCircuitsTable(PJTTableBase):
 
         circuits.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -57,6 +61,7 @@ class PJTCircuitsTable(PJTTableBase):
 
         circuits.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTCircuit"]:
         """Iterate over the available items.
 
@@ -69,6 +74,7 @@ class PJTCircuitsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCircuit(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTCircuit":
         """Return the requested item.
 
@@ -88,6 +94,7 @@ class PJTCircuitsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, circuit_num: int) -> "PJTCircuit":
         """Execute the insert operation.
 
@@ -109,6 +116,7 @@ class _Set:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, args: list):
         """Initialise the :class:`_Set` instance.
 
@@ -126,6 +134,7 @@ class _Set:
 
         self.items = args
 
+    @_check_types.do
     def intersection(self, args: list):
         """Execute the intersection operation.
 
@@ -144,6 +153,7 @@ class _Set:
 
         return _Set(new_args)
 
+    @_check_types.do
     def __iter__(self):
         """Iterate over the available items.
 
@@ -154,6 +164,7 @@ class _Set:
         """
         return iter(self.items)
 
+    @_check_types.do
     def __str__(self):
         """Return the string representation.
 
@@ -162,6 +173,7 @@ class _Set:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        @_check_types.do
         def _iter(ls, indent=''):
             """Execute the iter operation.
 
@@ -194,6 +206,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     """
     _table: PJTCircuitsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -209,6 +222,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_circuit_obj.Circuit":
         """Return the object.
 
@@ -222,6 +236,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -232,6 +247,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_circuit_obj.Circuit"):
         """Set the object.
 
@@ -246,6 +262,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             self._obj = obj
 
     @property
+    @_check_types.do
     def volts(self) -> float:
         """Return the volts.
 
@@ -261,6 +278,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return terminal.volts
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -286,6 +304,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return float(resistance)
 
     @property
+    @_check_types.do
     def start_terminal(self) -> "_pjt_terminal.PJTTerminal":
         """Return the start terminal.
 
@@ -299,6 +318,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             return self._table.db.pjt_terminals_table[db_ids[0][0]]
 
     @property
+    @_check_types.do
     def voltage_drop(self) -> float:
         """Return the voltage drop.
 
@@ -315,6 +335,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return drop
 
     @property
+    @_check_types.do
     def load_terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         """Return the load terminals.
 
@@ -331,6 +352,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
+    @_check_types.do
     def circuit_map(self):
         """Return the circuit map.
 
@@ -341,6 +363,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
 
+        @_check_types.do
         def iter_objs(obj, point: _point.Point):
             """Iterate over the objs.
 
@@ -505,6 +528,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         t = self.start_terminal
         return iter_objs(t, t.position3d)
 
+    @_check_types.do
     def get_circuit_end_terminals(
         self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
                              "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list["_pjt_terminal.PJTTerminal"]:
@@ -521,6 +545,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         circuit_map = self.circuit_map
 
+        @_check_types.do
         def _iter_list(f_list):
             """Iterate over the list.
 
@@ -541,6 +566,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
             return terms
 
+        @_check_types.do
         def _iter_map(objs, obj_found=False):
             """Iterate over the map.
 
@@ -578,6 +604,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         terminals = _iter_list(f_objs)
         return terminals
 
+    @_check_types.do
     def get_circuit(self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
                                          "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list:
         """Return the circuit.
@@ -593,6 +620,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
         circuit_map = self.circuit_map
 
+        @_check_types.do
         def _iter_map(objs):
             """Iterate over the map.
 
@@ -624,6 +652,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return ret
 
     @property
+    @_check_types.do
     def table(self) -> PJTCircuitsTable:
         """Return the table.
 
@@ -637,6 +666,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     _stored_circuit_num: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def circuit_num(self) -> int:
         """Return the circuit num.
 
@@ -651,6 +681,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self._stored_circuit_num
 
     @circuit_num.setter
+    @_check_types.do
     def circuit_num(self, value: int):
         """Set the circuit num.
 
@@ -668,6 +699,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     _stored_description: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def description(self) -> str:
         """Return the description.
 
@@ -682,6 +714,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self._stored_description
 
     @description.setter
+    @_check_types.do
     def description(self, value: str):
         """Set the description.
 
@@ -696,6 +729,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         self._populate('description')
 
     @property
+    @_check_types.do
     def total_circuit_load(self) -> float:
         """Return the total circuit load.
 
@@ -715,6 +749,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return (volts / resistance) + load
 
     @property
+    @_check_types.do
     def total_circuit_weight_g(self) -> float:
         """Return the total circuit weight g.
 
@@ -726,6 +761,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self.terminal_weight_g + self.wire_weight_g + self.splice_weight_g
 
     @property
+    @_check_types.do
     def total_circuit_weight_lb(self) -> float:
         """Return the total circuit weight lb.
 
@@ -737,6 +773,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self.terminal_weight_lb + self.wire_weight_lb + self.splice_weight_lb
 
     @property
+    @_check_types.do
     def wire_length_mm(self) -> float:
         """Return the wire length mm.
 
@@ -750,6 +787,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return wire_length
 
     @property
+    @_check_types.do
     def wire_length_m(self) -> float:
         """Return the wire length m.
 
@@ -761,6 +799,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self.wire_length_mm / 1000.0
 
     @property
+    @_check_types.do
     def wire_length_ft(self) -> float:
         """Return the wire length ft.
 
@@ -772,6 +811,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self.wire_length_m * 3.28084
 
     @property
+    @_check_types.do
     def wire_weight_g(self) -> float:
         """Return the wire weight g.
 
@@ -785,6 +825,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return wire_weight
 
     @property
+    @_check_types.do
     def wire_weight_lb(self) -> float:
         """Return the wire weight lb.
 
@@ -796,6 +837,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return sum([wire.weight_lb for wire in self.wires])
 
     @property
+    @_check_types.do
     def terminal_weight_g(self) -> float:
         """Return the terminal weight g.
 
@@ -807,6 +849,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return sum([terminal.part.weight for terminal in self.terminals])
 
     @property
+    @_check_types.do
     def terminal_weight_lb(self) -> float:
         """Return the terminal weight lb.
 
@@ -819,6 +862,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return weight_g * 0.00220462
 
     @property
+    @_check_types.do
     def splice_weight_g(self) -> float:
         """Return the splice weight g.
 
@@ -830,6 +874,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return sum([splice.part.weight for splice in self.splices])
 
     @property
+    @_check_types.do
     def splice_weight_lb(self) -> float:
         """Return the splice weight lb.
 
@@ -842,6 +887,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return weight_g * 0.00220462
 
     @property
+    @_check_types.do
     def wires(self) -> list["_pjt_wire.PJTWire"]:
         """Return the wires.
 
@@ -857,6 +903,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
+    @_check_types.do
     def wire_service_loops(self) -> list["_pjt_wire_service_loop.PJTWireServiceLoop"]:
         """Return the wire service loops.
 
@@ -872,6 +919,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
+    @_check_types.do
     def splices(self) -> list["_pjt_splice.PJTSplice"]:
         """Return the splices.
 
@@ -887,6 +935,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
+    @_check_types.do
     def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         """Return the terminals.
 
@@ -902,6 +951,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
     @property
+    @_check_types.do
     def housings(self) -> list["_pjt_housing.PJTHousing"]:
         """Return the housings.
 
@@ -923,6 +973,7 @@ class PJTCircuitControl(QTabWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def _on_circuit_num(self, evt):
         """Handle the circuit num event.
 
@@ -971,6 +1022,7 @@ class PJTCircuitControl(QTabWidget):
 
         self._parent.set_circuit(db_id)
 
+    @_check_types.do
     def _on_description(self, evt):
         """Handle the description event.
 
@@ -982,6 +1034,7 @@ class PJTCircuitControl(QTabWidget):
         value = evt.GetValue()
         self.db_obj.description = value
 
+    @_check_types.do
     def _on_name(self, evt):
         """Handle the name event.
 
@@ -1027,6 +1080,7 @@ class PJTCircuitControl(QTabWidget):
 
         self._parent.set_circuit(db_id)
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTCircuit):
         """Set the obj.
 
@@ -1085,6 +1139,7 @@ class PJTCircuitControl(QTabWidget):
             self.splice_weight_g_ctrl.SetValue(str(db_obj.splice_weight_g))
             self.splice_weight_lb_ctrl.SetValue(str(db_obj.splice_weight_lb))
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTCircuitControl` instance.
 

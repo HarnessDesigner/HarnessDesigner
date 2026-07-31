@@ -25,6 +25,7 @@ machinery needed.
 from PySide6 import QtCore, QtWidgets
 
 from . import table_rows as _table_rows
+from ... import check_types as _check_types
 
 
 COL_IMAGE = 0
@@ -70,6 +71,7 @@ class PegboardTableModel(QtCore.QAbstractTableModel):
 
     ROW_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
 
+    @_check_types.do
     def __init__(self, rows: list, include_cavity_columns: bool, parent=None):
         super().__init__(parent)
 
@@ -78,12 +80,15 @@ class PegboardTableModel(QtCore.QAbstractTableModel):
         if include_cavity_columns:
             self._columns.extend(_CAVITY_COLUMNS)
 
+    @_check_types.do
     def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
 
+    @_check_types.do
     def columnCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._columns)
 
+    @_check_types.do
     def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
                    role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         if role != QtCore.Qt.ItemDataRole.DisplayRole:
@@ -94,6 +99,7 @@ class PegboardTableModel(QtCore.QAbstractTableModel):
 
         return str(section + 1)
 
+    @_check_types.do
     def data(self, index: QtCore.QModelIndex, role: int = QtCore.Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
@@ -130,6 +136,7 @@ class WireImageDelegate(QtWidgets.QStyledItemDelegate):
 
     _MARGIN = 2
 
+    @_check_types.do
     def paint(self, painter, option, index: QtCore.QModelIndex) -> None:
         row = index.data(PegboardTableModel.ROW_ROLE)
         if row is None:

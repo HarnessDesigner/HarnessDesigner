@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objectspeg import circuit as _circuit_peg
+from .. import check_types as _check_types
 # from ..geometry.decimal import Decimal as _d
 # from .. import color as _color
 # from ..geometry import line as _line
@@ -639,6 +640,7 @@ class Circuit(_ObjectBase):
     objpeg: _circuit_peg.Circuit = None
     db_obj: "_pjt_circuit.PJTCircuit" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_circuit.PJTCircuit", project_load=False):
         """Initialise the :class:`Circuit` instance.

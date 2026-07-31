@@ -19,8 +19,10 @@ from . import wires as _wires
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_wire_markers(con, data: tuple[dict] | list[dict]):
     """Add a wire markers.
 
@@ -36,6 +38,7 @@ def add_wire_markers(con, data: tuple[dict] | list[dict]):
         add_wire_marker(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 
@@ -95,6 +98,7 @@ def add_records(con, splash, data_path):
     os.chdir(cwd)
 
 
+@_check_types.do
 def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
                     color=None, image=None, datasheet=None, cad=None, min_temp=None,
                     max_temp=None, min_diameter=0.0, max_diameter=0.0, wire_size_awg_min=None,
@@ -188,6 +192,7 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
         return con.lastrowid
 
 
+@_check_types.do
 def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=None,
                         wire_id=None, name='', notes='', label='', is_visible2d=1,
                         is_visible3d=1):

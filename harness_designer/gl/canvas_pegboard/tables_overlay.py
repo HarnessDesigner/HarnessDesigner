@@ -27,6 +27,7 @@ from PySide6 import QtCore, QtGui, QtWidgets
 
 from ...geometry import point as _point
 from . import table_model as _table_model
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -67,6 +68,7 @@ class _TitleStrip(QtWidgets.QWidget):
     (no native window frame, matching this app's existing "no native
     chrome" convention for floating/dialog-like widgets elsewhere)."""
 
+    @_check_types.do
     def __init__(self, owner: "PegboardTableWidget", label: str):
         super().__init__(owner)
 
@@ -83,9 +85,11 @@ class _TitleStrip(QtWidgets.QWidget):
         layout.setContentsMargins(4, 0, 4, 0)
         layout.addWidget(self._label_widget)
 
+    @_check_types.do
     def set_label(self, label: str) -> None:
         self._label_widget.setText(label)
 
+    @_check_types.do
     def apply_zoom_scale(self, font_h: int) -> None:
         """Rescale this strip's own label font/height for the current
         camera zoom -- called by :meth:`PegboardTableWidget.
@@ -112,6 +116,7 @@ class _TitleStrip(QtWidgets.QWidget):
         metrics = QtGui.QFontMetrics(font)
         self.setFixedHeight(metrics.height() + _TITLE_STRIP_VERTICAL_PADDING_PX)
 
+    @_check_types.do
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return
@@ -121,6 +126,7 @@ class _TitleStrip(QtWidgets.QWidget):
         self._owner.interacting = True
         self._owner.canvas.begin_table_drag(self._owner.anchor_live_position)
 
+    @_check_types.do
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         if self._drag_start_global is None:
             return
@@ -132,6 +138,7 @@ class _TitleStrip(QtWidgets.QWidget):
         self._owner.move(new_x, new_y)
         self._owner.canvas.update_table_drag(self._owner.center_world_pos())
 
+    @_check_types.do
     def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() != QtCore.Qt.MouseButton.LeftButton:
             return
@@ -157,6 +164,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
     :type label: str
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", point3d_id: int, label: str):
         super().__init__(canvas)
 
@@ -227,14 +235,17 @@ class PegboardTableWidget(QtWidgets.QWidget):
         self._resize_commit_timer.setSingleShot(True)
         self._resize_commit_timer.timeout.connect(self.commit_geometry)
 
+    @_check_types.do
     def set_rows(self, rows: list, include_cavity_columns: bool) -> None:
         """(Re)build this table's model from a fresh row list."""
         self._model = _table_model.PegboardTableModel(rows, include_cavity_columns, self)
         self._view.setModel(self._model)
 
+    @_check_types.do
     def set_label(self, label: str) -> None:
         self._title_strip.set_label(label)
 
+    @_check_types.do
     def set_anchor_live_position(self, point: _point.Point) -> None:
         """Store a *reference* to the owning anchor's own live, bound
         position Point -- see :attr:`anchor_live_position`'s docstring for
@@ -242,6 +253,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
         """
         self.anchor_live_position = point
 
+    @_check_types.do
     def apply_zoom_scale(self, pixels_per_world: float) -> None:
         """Rescale row/header/title-strip height, font, and image-column
         width for the current camera zoom -- called by
@@ -284,6 +296,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
 
         self._title_strip.apply_zoom_scale(font_h)
 
+    @_check_types.do
     def center_world_pos(self) -> _point.Point:
         """This table's own current screen-center, converted to world
         coordinates -- used to draw the in-progress drag leader line.
@@ -298,6 +311,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
             _point.Point(float(center.x()), float(center.y())))
         return _point.Point(result.x, 0.0, result.y)
 
+    @_check_types.do
     def commit_geometry(self) -> None:
         """Persist this table's current screen geometry back to world
         units in ``pjt_pegboard_tables`` -- called once, on drag release
@@ -330,6 +344,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
         table_row.width = float(bottom_right.x - top_left.x)
         table_row.height = float(bottom_right.y - top_left.y)
 
+    @_check_types.do
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         if not self._suppress_commit:
@@ -345,10 +360,12 @@ class TablesOverlay:
     :type canvas: :class:`~harness_designer.gl.canvas_pegboard.canvas.Canvas`
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         self.canvas = canvas
         self._widgets: dict[int, PegboardTableWidget] = {}
 
+    @_check_types.do
     def ensure_table(
         self, point3d_id: int, world_x: float, world_z: float, label: str,
         rows: list, include_cavity_columns: bool, anchor_live_position: _point.Point,
@@ -406,12 +423,14 @@ class TablesOverlay:
         widget.setVisible(not table_row.is_collapsed)
         widget.show()
 
+    @_check_types.do
     def remove_table(self, point3d_id: int) -> None:
         """Tear down the table overlay for *point3d_id*, if one exists."""
         widget = self._widgets.pop(point3d_id, None)
         if widget is not None:
             widget.deleteLater()
 
+    @_check_types.do
     def remove_tables_for_points(self, point3d_ids) -> None:
         """Tear down every table overlay in *point3d_ids* -- called on
         anchor removal, once per that anchor's own :attr:`~objectspeg.
@@ -419,6 +438,7 @@ class TablesOverlay:
         for point3d_id in point3d_ids:
             self.remove_table(point3d_id)
 
+    @_check_types.do
     def toggle_visibility(self, point3d_id: int) -> None:
         """Flip the shown/hidden state for *point3d_id*'s table, if one
         exists -- called from the peg board's right-click context menu."""
@@ -436,6 +456,7 @@ class TablesOverlay:
         if widget is not None:
             widget.setVisible(not table_row.is_collapsed)
 
+    @_check_types.do
     def is_visible(self, point3d_id: int) -> bool:
         """Whether *point3d_id*'s table is currently shown (for the
         right-click menu's Show/Hide label)."""
@@ -446,6 +467,7 @@ class TablesOverlay:
         table_row = project.ptables.pjt_pegboard_tables_table.get_from_point3d_id(point3d_id)
         return table_row is not None and not table_row.is_collapsed
 
+    @_check_types.do
     def clear(self) -> None:
         """Tear down every table overlay -- called by a full
         ``load_project()`` rebuild before repopulating."""
@@ -454,6 +476,7 @@ class TablesOverlay:
 
         self._widgets.clear()
 
+    @_check_types.do
     def reposition_all(self) -> None:
         """Recompute every visible table's on-screen geometry and
         zoom-driven scaling from its own persisted world position/size --

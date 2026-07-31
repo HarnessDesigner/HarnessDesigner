@@ -35,6 +35,7 @@ from ...gl import vbo as _vbo
 from ... import utils as _utils
 from ... import color as _color
 from ... import config as _config
+from ... import check_types as _check_types
 
 
 Config = _config.Config.editor3d
@@ -68,6 +69,7 @@ HANDLE_LOCAL_DIRS = {
 }
 
 
+@_check_types.do
 def _build_ring_mesh(tube_diameter_scale: float) -> tuple[np.ndarray, int]:
     """Build the radius-1.0 ring mesh with the configured tube thickness.
 
@@ -82,17 +84,20 @@ def _build_ring_mesh(tube_diameter_scale: float) -> tuple[np.ndarray, int]:
     return _utils.compute_normals(vertices, faces)
 
 
+@_check_types.do
 def _build_handle_mesh() -> tuple[np.ndarray, int]:
     """Build the unit-diameter handle sphere mesh."""
     vertices, faces = _sphere.create(0.5, resolution=HANDLE_RESOLUTION)
     return _utils.compute_normals(vertices, faces)
 
 
+@_check_types.do
 def wrap_angle(value: float) -> float:
     """Wrap an angle in degrees to the ``-180..180`` UI range."""
     return ((value + 180.0) % 360.0) - 180.0
 
 
+@_check_types.do
 def validate_snap_angle(value) -> float:
     """Return a usable snap angle, or ``0.0`` (disabled) when invalid.
 
@@ -127,6 +132,7 @@ def validate_snap_angle(value) -> float:
     return hundredths / 100.0
 
 
+@_check_types.do
 def slot_ring_angle(axis: str, euler: list | tuple) -> _angle.Angle:
     """Return the orientation that maps the ring (XY plane) onto ``axis``.
 
@@ -148,6 +154,7 @@ def slot_ring_angle(axis: str, euler: list | tuple) -> _angle.Angle:
     return _angle.Angle.from_euler(ex, ey, ez)
 
 
+@_check_types.do
 def slot_normal(axis: str, euler: list | tuple) -> np.ndarray:
     """Return the world-space rotation axis for an Euler slot.
 
@@ -173,6 +180,7 @@ def slot_normal(axis: str, euler: list | tuple) -> np.ndarray:
 class RotationRings(_object_base.ObjectBase):
     """Rotation gizmo shown around a selected object in angle mode."""
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         """Initialise the :class:`RotationRings` instance.
 
@@ -194,6 +202,7 @@ class RotationRings(_object_base.ObjectBase):
         self._treeitem = None
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def set_treeitem(self, treeitem):
         """Set the treeitem.
 
@@ -202,6 +211,7 @@ class RotationRings(_object_base.ObjectBase):
         """
         self._treeitem = treeitem
 
+    @_check_types.do
     def get_treeitem(self):
         """Return the treeitem.
 
@@ -210,6 +220,7 @@ class RotationRings(_object_base.ObjectBase):
         """
         return self._treeitem
 
+    @_check_types.do
     def pick_handle(self, mouse_pos: _point.Point, camera) -> str | None:
         """Return the axis of the grab handle under the mouse, if any.
 
@@ -236,6 +247,7 @@ class RotationRings(_object_base.ObjectBase):
 
         return best_axis
 
+    @_check_types.do
     def __del__(self):
         """Execute the del operation."""
 
@@ -248,11 +260,13 @@ class RotationRings(_object_base.ObjectBase):
         except RuntimeError:
             pass
 
+    @_check_types.do
     def delete(self):
         """Remove the gizmo from both editors and unbind from the object."""
         self.obj3d.detach()
         self.mainframe.remove_object(self)
 
+    @_check_types.do
     def close(self):
         """Execute the close operation.
 
@@ -260,6 +274,7 @@ class RotationRings(_object_base.ObjectBase):
         """
         raise NotImplementedError
 
+    @_check_types.do
     def set_selected(self, flag):
         """Set the selected.
 
@@ -269,6 +284,7 @@ class RotationRings(_object_base.ObjectBase):
         pass
 
     @property
+    @_check_types.do
     def is_selected(self) -> bool:
         """Return the is selected.
 
@@ -278,6 +294,7 @@ class RotationRings(_object_base.ObjectBase):
         return False
 
     @is_selected.setter
+    @_check_types.do
     def is_selected(self, value: bool):
         """Set the is selected.
 
@@ -290,6 +307,7 @@ class RotationRings(_object_base.ObjectBase):
 class Rings2D(_base2d.Base2D):
     """2D placeholder for the rotation ring gizmo (3D editor only)."""
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Rings2D` instance.
 
@@ -303,6 +321,7 @@ class Rings2D(_base2d.Base2D):
         # for the same pattern/reasoning.
         _base2d.Base2D.__init__(self, parent, None, None, angle, position, None, None)
 
+    @_check_types.do
     def set_selected(self, flag: bool):
         """Set the selected.
 
@@ -312,6 +331,7 @@ class Rings2D(_base2d.Base2D):
         pass
 
     @property
+    @_check_types.do
     def is_selected(self) -> bool:
         """Return the is selected.
 
@@ -324,6 +344,7 @@ class Rings2D(_base2d.Base2D):
 class Rings3D(_base3d.Base3D):
     """Render three Euler-axis rings with grab handles around an object."""
 
+    @_check_types.do
     def __init__(self, parent, selected: "_objects.ObjectBase",
                  mainframe: "_ui.MainFrame", locked: bool = False):
         """Initialise the :class:`Rings3D` instance.
@@ -405,6 +426,7 @@ class Rings3D(_base3d.Base3D):
 
         self._update_rings()
 
+    @_check_types.do
     def _build_materials(self):
         """(Re)build the per-axis materials from the config colors."""
         ring_config = Config.rotation_rings
@@ -415,6 +437,7 @@ class Rings3D(_base3d.Base3D):
         }
 
     @staticmethod
+    @_check_types.do
     def _current_config_sig() -> tuple:
         """Return a comparable snapshot of the gizmo-affecting config."""
         ring_config = Config.rotation_rings
@@ -427,6 +450,7 @@ class Rings3D(_base3d.Base3D):
             tuple(ring_config.z_color),
         )
 
+    @_check_types.do
     def _refresh_from_config(self):
         """Re-apply config-driven properties after a config change."""
         old_sig = self._config_sig
@@ -443,6 +467,7 @@ class Rings3D(_base3d.Base3D):
         self._compute_size()
         self._update_rings()
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Track gizmo position changes WITHOUT Base3D's world-space logic.
 
@@ -458,6 +483,7 @@ class Rings3D(_base3d.Base3D):
         self._compute_obb()
         self._compute_aabb()
 
+    @_check_types.do
     def _compute_aabb(self):
         """Mirror the tracked object's AABB.
 
@@ -479,10 +505,12 @@ class Rings3D(_base3d.Base3D):
             if self._aabb[0][1] < ground:
                 self._aabb[0][1] = ground
 
+    @_check_types.do
     def _compute_obb(self):
         """Mirror the tracked object's OBB (culling linked to the object)."""
         self._obb = np.array(self._obj3d.obb, dtype=np.float32, copy=True)
 
+    @_check_types.do
     def detach(self):
         """Unbind from the tracked object and free the GL buffers."""
         # the position is the object's own Point instance — Base3D bound our
@@ -500,6 +528,7 @@ class Rings3D(_base3d.Base3D):
             # with the context in that case
             pass
 
+    @_check_types.do
     def _compute_size(self):
         """Derive ring/handle sizing from the object's AABB space diagonal.
 
@@ -561,6 +590,7 @@ class Rings3D(_base3d.Base3D):
         # world diameter of the handle
         self._handle_scale = diameter * float(ring_config.handle_diameter_scale)
 
+    @_check_types.do
     def apply_drag_angle(self, axis: str, value: float):
         """Write a drag-driven Euler value without re-triggering ourselves.
 
@@ -579,6 +609,7 @@ class Rings3D(_base3d.Base3D):
 
         self._update_rings()
 
+    @_check_types.do
     def handle_position(self, axis: str) -> _point.Point:
         """Return the world position of the grab handle for ``axis``.
 
@@ -593,6 +624,7 @@ class Rings3D(_base3d.Base3D):
             float(self._position.z) + float(offset[2]),
         )
 
+    @_check_types.do
     def _update_rings(self):
         """Recompute ring orientations and handle offsets from the Euler angles."""
         euler = self._obj_angle.as_euler_float
@@ -605,10 +637,12 @@ class Rings3D(_base3d.Base3D):
             world_dir = ring_angle @ local_dir
             self._handle_positions[axis] = np.asarray(world_dir, dtype=np.float32) * self._radius
 
+    @_check_types.do
     def _on_obj_angle(self, _):
         """Update ring orientations when the tracked object rotates."""
         self._update_rings()
 
+    @_check_types.do
     def _on_obj_scale(self, _):
         """Resize the gizmo when the tracked object's scale changes.
 
@@ -618,6 +652,7 @@ class Rings3D(_base3d.Base3D):
         self._compute_size()
         self._update_rings()
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         """Render the three rings and their grab handles."""
         # Live config tracking: rebuild sizing/mesh/materials when any of
@@ -688,6 +723,7 @@ class DragRotate:
     quaternion is rebuilt from it by :class:`_angle.Angle`.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas",
                  selected: "_objects.ObjectBase", axis: str,
                  rings: RotationRings):
@@ -734,6 +770,7 @@ class DragRotate:
         if hasattr(obj3d, 'begin_move_session'):
             obj3d.begin_move_session()
 
+    @_check_types.do
     def delete(self) -> None:
         """End the rotate drag -- pairs with the begin_move_session call
         in __init__. Called from mouse_handler.py wherever the active
@@ -743,12 +780,14 @@ class DragRotate:
         if hasattr(obj3d, 'end_move_session'):
             obj3d.end_move_session()
 
+    @_check_types.do
     def _screen_phi(self, mouse_pos: _point.Point) -> float:
         """Return the math-orientation angle of the cursor around the center."""
         # Screen y grows downward; negate for counter-clockwise-positive math
         return math.atan2(-(float(mouse_pos.y) - self._cy),
                           float(mouse_pos.x) - self._cx)
 
+    @_check_types.do
     def __call__(self, mouse_pos: _point.Point):
         """Update the locked Euler angle from the current mouse position.
 

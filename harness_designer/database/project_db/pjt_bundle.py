@@ -20,6 +20,7 @@ from .mixins import (
     TablePositionPegMixin,
     TableHiddenMixin
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class PJTBundlesTable(PJTTableBase):
     _control: "PJTBundleControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTBundleControl":
         """Return the control.
 
@@ -56,6 +58,7 @@ class PJTBundlesTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -67,6 +70,7 @@ class PJTBundlesTable(PJTTableBase):
         cls._control = PJTBundleControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -79,6 +83,7 @@ class PJTBundlesTable(PJTTableBase):
 
         return bundle_covers.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -88,6 +93,7 @@ class PJTBundlesTable(PJTTableBase):
 
         bundle_covers.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -97,6 +103,7 @@ class PJTBundlesTable(PJTTableBase):
 
         bundle_covers.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTBundle"]:
         """Iterate over the available items.
 
@@ -108,6 +115,7 @@ class PJTBundlesTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTBundle(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTBundle":
         """Return the requested item.
 
@@ -127,6 +135,7 @@ class PJTBundlesTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str) -> "PJTBundle":
         """Execute the insert operation.
 
@@ -155,6 +164,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     """
     _table: PJTBundlesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -177,6 +187,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     _stored_diameter: float | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         if self._stored_diameter is DefaultStoredValue:
             self._stored_diameter = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
@@ -184,10 +195,12 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._stored_diameter
 
     @diameter.setter
+    @_check_types.do
     def diameter(self, value: float):
         # TODO: figure out the code that is needed here.
         concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
 
+    @_check_types.do
     def get_object(self) -> "_bundle_obj.Bundle":
         """Return the object.
 
@@ -201,6 +214,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -211,6 +225,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_bundle_obj.Bundle"):
         """Set the object.
 
@@ -224,6 +239,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         else:
             self._obj = obj
 
+    @_check_types.do
     def delete(self) -> None:
         """Delete this bundle row, every interior waypoint row it owns,
         and any BundleLayout marking one of those waypoints.
@@ -252,6 +268,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         super().delete()
 
     @property
+    @_check_types.do
     def waypoints3d(self) -> list["_pjt_point3d.PJTPoint3D"]:
         """Every interior 3D waypoint on this bundle, in chain order
         (start and stop themselves are not included -- see
@@ -259,6 +276,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._table.db.pjt_points3d_table.for_bundle(self.db_id)
 
     @property
+    @_check_types.do
     def table(self) -> PJTBundlesTable:
         """Return the table.
 
@@ -270,6 +288,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._table
 
     @property
+    @_check_types.do
     def length_mm(self) -> float:
         """Total physical length: the sum of every sub-segment from
         start, through each interior waypoint in order, to stop -- not
@@ -285,11 +304,13 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return total
 
     @property
+    @_check_types.do
     def length_m(self) -> float:
         """Straight-line length between this segment's start and stop points, in meters."""
         return self.length_mm / 1000.0
 
     @property
+    @_check_types.do
     def wires(self) -> list["_pjt_wire.PJTWire"]:
         """Return the wires.
 
@@ -307,6 +328,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
     
     @property
+    @_check_types.do
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
 
@@ -324,6 +346,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._stored_concentric
         
     @property
+    @_check_types.do
     def start_layout(self) -> Union["_pjt_bundle_layout.PJTBundleLayout", None]:
         """Return the start layout.
 
@@ -339,6 +362,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._table.db.pjt_bundle_layouts_table[db_ids[0][0]]
 
     @property
+    @_check_types.do
     def stop_layout(self) -> Union["_pjt_bundle_layout.PJTBundleLayout", None]:
         """Return the stop layout.
 
@@ -356,6 +380,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     _stored_part: "_bundle_cover.BundleCover | DefaultStoredValueType | None" = DefaultStoredValue
     
     @property
+    @_check_types.do
     def part(self) -> _bundle_cover.BundleCover:
         """Return the part.
 
@@ -380,6 +405,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTBundle):
         """Set the obj.
 
@@ -390,6 +416,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -404,6 +431,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
             self.part_ctrl.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTBundleControl` instance.
 

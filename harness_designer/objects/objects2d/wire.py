@@ -16,6 +16,7 @@ from ...gl import materials as _materials
 from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -63,6 +64,7 @@ class Wire(_base2d.Base2D):
     _parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire"
 
+    @_check_types.do
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
 
@@ -107,6 +109,7 @@ class Wire(_base2d.Base2D):
 
             self._recalculate_geometry()
 
+    @_check_types.do
     def _segments(self) -> list[tuple]:
         """Every (p1, p2) sub-segment from start, through each interior
         2D waypoint in idx order, to stop -- as numpy arrays. A wire with
@@ -121,6 +124,7 @@ class Wire(_base2d.Base2D):
 
         return list(zip(points, points[1:]))
 
+    @_check_types.do
     def _calc_length(self) -> float:
         """Straight-line seed length used only to size this wire's
         initial scale before Base2D.__init__ runs (self.db_obj isn't set
@@ -133,6 +137,7 @@ class Wire(_base2d.Base2D):
         dz = b[2] - a[2]
         return math.sqrt(dx * dx + dz * dz)
 
+    @_check_types.do
     def _segment_transforms(self):
         """Yield (position, angle, scale, length) for every sub-segment
         of this wire's current 2D path."""
@@ -152,6 +157,7 @@ class Wire(_base2d.Base2D):
 
             yield seg_position, seg_angle, seg_scale, seg_len
 
+    @_check_types.do
     def _recalculate_geometry(self):
         """Recompute this wire's total length and OBB/AABB from its
         current path -- called (via :meth:`_update_position`) whenever
@@ -191,6 +197,7 @@ class Wire(_base2d.Base2D):
         self._compute_obb()
         self._compute_aabb()
 
+    @_check_types.do
     def _segment_world_corners(self):
         """World-space AABB corners (8 per segment) for every sub-segment,
         stacked into one array -- mirrors objects3d/wire.py's Wire of
@@ -223,6 +230,7 @@ class Wire(_base2d.Base2D):
 
         return np.concatenate(all_corners, axis=0)
 
+    @_check_types.do
     def _compute_obb(self):
         """Union AABB across every sub-segment -- see objects3d/wire.py's
         Wire._compute_obb for why this degenerates to the same envelope
@@ -244,6 +252,7 @@ class Wire(_base2d.Base2D):
             [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
 
+    @_check_types.do
     def _compute_aabb(self):
         """See _compute_obb -- same union-of-segments envelope."""
         if self._vbo is None:
@@ -259,6 +268,7 @@ class Wire(_base2d.Base2D):
             for j in range(3):
                 self._aabb[i][j] = aabb[i][j]
 
+    @_check_types.do
     def _update_position(self, _position: _point.Point):
         """Recompute geometry immediately whenever any endpoint or
         interior waypoint moves -- mirrors
@@ -270,6 +280,7 @@ class Wire(_base2d.Base2D):
         """
         self._recalculate_geometry()
 
+    @_check_types.do
     def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
         """Render every sub-segment of the wire's current 2D path,
         mirroring ``objects3d/wire.py``'s ``Wire.render`` -- temporarily
@@ -285,6 +296,7 @@ class Wire(_base2d.Base2D):
 
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
 
+    @_check_types.do
     def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
         """Render this wire's stripe (if its part has a stripe color) as
         a clipped window into the shared helix mesh, once per sub-segment
@@ -327,6 +339,7 @@ class WireMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`WireMenu` instance.
 
@@ -375,6 +388,7 @@ class WireMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_handle(self):
         """Handle the add handle event.
 
@@ -382,6 +396,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_marker(self):
         """Handle the add marker event.
 
@@ -389,6 +404,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_splice(self):
         """Handle the add splice event.
 
@@ -396,6 +412,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_wire(self):
         """Handle the add wire event.
 
@@ -403,6 +420,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_wire_service_loop(self):
         """Handle the add wire service loop event.
 
@@ -410,6 +428,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_to_bundle(self):
         """Handle the add to bundle event.
 
@@ -417,6 +436,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Handle the trace circuit event.
 
@@ -424,6 +444,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_select(self):
         """Handle the select event.
 
@@ -431,6 +452,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 
@@ -438,6 +460,7 @@ class WireMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_properties(self):
         """Handle the properties event.
 

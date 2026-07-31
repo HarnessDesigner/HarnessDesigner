@@ -8,8 +8,10 @@ from . import points_peg as _points_peg
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length=None,
                           min_dia=0.0, max_dia=0.0, length=0.0, offset=None, angle=None,
                           flange_height=None, flange_width=None, commit=True):
@@ -66,6 +68,7 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
         return con.lastrowid
 
 
+@_check_types.do
 def add_pjt_transition_branch(con, project_id, part_id, transition_id,
                               point3d_id=None, diameter=0.0, branch_id=0):
     """Add a PJT transition branch.

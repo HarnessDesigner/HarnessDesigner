@@ -33,12 +33,15 @@ import numpy as np
 import ctypes
 
 from .. import shaders as _shaders
+from ... import check_types as _check_types
+from ...geometry.decimal import Decimal as _d
 
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
 
 
+@_check_types.do
 def nice_value(n: float) -> float:
     """Return the n'th value in the ``..., 1, 5, 10, 50, 100, 500, ...``
     sequence -- every group of 2 consecutive integers covers one decade
@@ -68,6 +71,7 @@ def nice_value(n: float) -> float:
     return mult * (10.0 ** decade)
 
 
+@_check_types.do
 def nice_index_for(raw: float) -> float:
     """Return the sequence index (see :func:`nice_value`) of whichever nice
     value is closest to *raw* (by ratio -- i.e. nearest in log space, using
@@ -95,17 +99,21 @@ def nice_index_for(raw: float) -> float:
     return float(dd * 2 + idx)
 
 
-def _build_quad(left: float, right: float, bottom: float, top: float) -> np.ndarray:
+@_check_types.do
+def _build_quad(left: float | _d, right: float | _d, bottom: float, top: float | _d) -> np.ndarray:
     """Two triangles covering the given world-space rectangle, flat vec2 array."""
     return np.array([
-        left, bottom,   right, bottom,   right, top,
-        left, bottom,   right, top,      left, top,
+        float(left), float(bottom), float(right),
+        float(bottom), float(right), float(top),
+        float(left), float(bottom), float(right),
+        float(top), float(left), float(top),
     ], dtype=np.float32)
 
 
 class Grid:
     """Procedural top-down dot grid."""
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas2D"):
         self.canvas = canvas
         self.config = canvas.config
@@ -123,6 +131,7 @@ class Grid:
         self._loc_major_color = None
         self._loc_minor_color = None
 
+    @_check_types.do
     def _ensure_program(self):
         if self._program is not None:
             return
@@ -136,6 +145,7 @@ class Grid:
         self._loc_major_color = GL.glGetUniformLocation(self._program, "uMajorColor")
         self._loc_minor_color = GL.glGetUniformLocation(self._program, "uMinorColor")
 
+    @_check_types.do
     def _build_gl_resources(self):
         verts = _build_quad(-1.0, 1.0, -1.0, 1.0)  # placeholder bounds, updated every render()
 
@@ -154,9 +164,11 @@ class Grid:
 
         return vao, vbo
 
+    @_check_types.do
     def set(self, flag):
         """Enable or disable the grid, (re)building GPU resources as needed."""
 
+        @_check_types.do
         def _do(f):
             with self.canvas.context:
                 if self._vao is not None:
@@ -181,6 +193,7 @@ class Grid:
 
         _app.CallAfter(_do, flag)
 
+    @_check_types.do
     def _current_major_spacing(self, distance: float) -> float:
         """Return the currently-displayed bold tier's spacing.
 
@@ -195,6 +208,7 @@ class Grid:
 
         return nice_value(nice_index_for(raw))
 
+    @_check_types.do
     def render(self, zoom):
         """Draw the procedural grid, sized to exactly cover the current viewport."""
 

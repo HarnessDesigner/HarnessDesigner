@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from PySide6 import QtWidgets
 
 from ..dialogs import debug_settings as _debug_settings
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ class SettingsMenu(QtWidgets.QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """Initialise the :class:`SettingsMenu` instance.
 
@@ -30,6 +32,7 @@ class SettingsMenu(QtWidgets.QMenu):
 
         self.addAction('Debug Settings').triggered.connect(self.on_debug_settings)
 
+    @_check_types.do
     def on_debug_settings(self):
         """Handle the debug settings event.
 

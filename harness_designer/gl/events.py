@@ -23,6 +23,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from ..geometry import point as _point
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -105,6 +106,7 @@ BTN_AUX2 = 0x10
 class _GLEventBase:
     """Common base for all GL event data objects."""
 
+    @_check_types.do
     def __init__(self, type_):
         """Initialise the :class:`_GLEventBase` instance.
 
@@ -119,6 +121,7 @@ class _GLEventBase:
         self._obj = None
         self._stop_prop = False
 
+    @_check_types.do
     def GetType(self):
         """
         Execute the get type operation.
@@ -130,6 +133,7 @@ class _GLEventBase:
         """
         return self._type
 
+    @_check_types.do
     def Skip(self):
         """
         Execute the skip operation.
@@ -138,6 +142,7 @@ class _GLEventBase:
         """
         self._skipped = True
 
+    @_check_types.do
     def StopPropagation(self):
         """
         Execute the stop propagation operation.
@@ -146,6 +151,7 @@ class _GLEventBase:
         """
         self._stop_prop = True
 
+    @_check_types.do
     def ShouldPropagate(self):
         """
         Execute the should propagate operation.
@@ -157,6 +163,7 @@ class _GLEventBase:
         """
         return not self._stop_prop
 
+    @_check_types.do
     def SetId(self, id_):
         """
         Execute the set ID operation.
@@ -168,6 +175,7 @@ class _GLEventBase:
         """
         self._id = id_
 
+    @_check_types.do
     def GetId(self):
         """
         Execute the get ID operation.
@@ -179,6 +187,7 @@ class _GLEventBase:
         """
         return self._id
 
+    @_check_types.do
     def SetEventObject(self, obj):
         """
         Execute the set event object operation.
@@ -190,6 +199,7 @@ class _GLEventBase:
         """
         self._obj = obj
 
+    @_check_types.do
     def GetEventObject(self):
         """
         Execute the get event object operation.
@@ -202,6 +212,7 @@ class _GLEventBase:
         return self._obj
 
     @property
+    @_check_types.do
     def GetSkipped(self) -> bool:
         """
         Return the get skipped.
@@ -223,6 +234,7 @@ class GLCameraEvent(_GLEventBase):
     """Emitted when the camera moves."""
 
     @classmethod
+    @_check_types.do
     def from_canvas(cls, type_, canvas):
         global_pos = QtGui.QCursor.pos()
         local_pos = canvas.mapFromGlobal(global_pos)
@@ -261,18 +273,22 @@ class GLCameraEvent(_GLEventBase):
 
         return instance
 
+    @_check_types.do
     def __init__(self, type_):
         super().__init__(type_)
         self._mouse_pos = None
         self._mouse_buttons: int = BTN_NONE
         self._camera = None
 
+    @_check_types.do
     def GetCamera(self) -> Union["_camera2d.Camera", "_camera3d.Camera"]:
         return self._camera
 
+    @_check_types.do
     def SetCamera(self, value: Union["_camera2d.Camera", "_camera3d.Camera"]):
         self._camera = value
 
+    @_check_types.do
     def RightIsDown(self) -> bool:
         """Execute the right is down operation.
 
@@ -283,6 +299,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_RIGHT)
 
+    @_check_types.do
     def LeftIsDown(self) -> bool:
         """Execute the left is down operation.
 
@@ -293,6 +310,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_LEFT)
 
+    @_check_types.do
     def MiddleIsDown(self) -> bool:
         """Execute the middle is down operation.
 
@@ -303,6 +321,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_MIDDLE)
 
+    @_check_types.do
     def Aux1IsDown(self) -> bool:
         """Execute the aux 1isdown operation.
 
@@ -313,6 +332,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_AUX1)
 
+    @_check_types.do
     def Aux2IsDown(self) -> bool:
         """Execute the aux 2isdown operation.
 
@@ -323,6 +343,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_AUX2)
 
+    @_check_types.do
     def SetMouseButtons(self, buttons: int) -> None:
         """Execute the set mouse buttons operation.
 
@@ -333,6 +354,7 @@ class GLCameraEvent(_GLEventBase):
         """
         self._mouse_buttons = buttons
 
+    @_check_types.do
     def GetMouseButtons(self) -> int:
         """Execute the get mouse buttons operation.
 
@@ -343,6 +365,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return self._mouse_buttons
 
+    @_check_types.do
     def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
@@ -353,6 +376,7 @@ class GLCameraEvent(_GLEventBase):
         """
         return self._mouse_pos
 
+    @_check_types.do
     def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
@@ -367,6 +391,7 @@ class GLCameraEvent(_GLEventBase):
 class GLEvent(_GLEventBase):
     """Mouse-position event on a GL canvas."""
 
+    @_check_types.do
     def __init__(self, type_):
         """Initialise the :class:`GLEvent` instance.
 
@@ -380,6 +405,7 @@ class GLEvent(_GLEventBase):
         self._world_pos = None
         self._mouse_buttons: int = BTN_NONE
 
+    @_check_types.do
     def RightIsDown(self) -> bool:
         """Execute the right is down operation.
 
@@ -390,6 +416,7 @@ class GLEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_RIGHT)
 
+    @_check_types.do
     def LeftIsDown(self) -> bool:
         """Execute the left is down operation.
 
@@ -400,6 +427,7 @@ class GLEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_LEFT)
 
+    @_check_types.do
     def MiddleIsDown(self) -> bool:
         """Execute the middle is down operation.
 
@@ -410,6 +438,7 @@ class GLEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_MIDDLE)
 
+    @_check_types.do
     def Aux1IsDown(self) -> bool:
         """Execute the aux 1isdown operation.
 
@@ -420,6 +449,7 @@ class GLEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_AUX1)
 
+    @_check_types.do
     def Aux2IsDown(self) -> bool:
         """Execute the aux 2isdown operation.
 
@@ -430,6 +460,7 @@ class GLEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_AUX2)
 
+    @_check_types.do
     def SetMouseButtons(self, buttons: int) -> None:
         """Execute the set mouse buttons operation.
 
@@ -440,6 +471,7 @@ class GLEvent(_GLEventBase):
         """
         self._mouse_buttons = buttons
 
+    @_check_types.do
     def GetMouseButtons(self) -> int:
         """Execute the get mouse buttons operation.
 
@@ -450,6 +482,7 @@ class GLEvent(_GLEventBase):
         """
         return self._mouse_buttons
 
+    @_check_types.do
     def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
@@ -460,6 +493,7 @@ class GLEvent(_GLEventBase):
         """
         return self._mouse_pos
 
+    @_check_types.do
     def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
@@ -470,6 +504,7 @@ class GLEvent(_GLEventBase):
         """
         self._mouse_pos = pos
 
+    @_check_types.do
     def GetWorldPosition(self) -> _point.Point:
         """Execute the get world position operation.
 
@@ -480,6 +515,7 @@ class GLEvent(_GLEventBase):
         """
         return self._world_pos
 
+    @_check_types.do
     def SetWorldPosition(self, pos: _point.Point) -> None:
         """Execute the set world position operation.
 
@@ -494,6 +530,7 @@ class GLEvent(_GLEventBase):
 class GLObjectEvent(_GLEventBase):
     """Mouse interaction with a specific GL object."""
 
+    @_check_types.do
     def __init__(self, type_):
         """Initialise the :class:`GLObjectEvent` instance.
 
@@ -508,6 +545,7 @@ class GLObjectEvent(_GLEventBase):
         self._world_pos = None
         self._mouse_buttons: int = BTN_NONE
 
+    @_check_types.do
     def RightIsDown(self) -> bool:
         """Execute the right is down operation.
 
@@ -518,6 +556,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_RIGHT)
 
+    @_check_types.do
     def LeftIsDown(self) -> bool:
         """Execute the left is down operation.
 
@@ -528,6 +567,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_LEFT)
 
+    @_check_types.do
     def MiddleIsDown(self) -> bool:
         """Execute the middle is down operation.
 
@@ -538,6 +578,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_MIDDLE)
 
+    @_check_types.do
     def Aux1IsDown(self) -> bool:
         """Execute the aux 1isdown operation.
 
@@ -548,6 +589,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_AUX1)
 
+    @_check_types.do
     def Aux2IsDown(self) -> bool:
         """Execute the aux 2isdown operation.
 
@@ -558,6 +600,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return bool(self._mouse_buttons & BTN_AUX2)
 
+    @_check_types.do
     def SetMouseButtons(self, buttons: int) -> None:
         """Execute the set mouse buttons operation.
 
@@ -568,6 +611,7 @@ class GLObjectEvent(_GLEventBase):
         """
         self._mouse_buttons = buttons
 
+    @_check_types.do
     def GetMouseButtons(self) -> int:
         """Execute the get mouse buttons operation.
 
@@ -578,6 +622,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._mouse_buttons
 
+    @_check_types.do
     def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
@@ -588,6 +633,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._mouse_pos
 
+    @_check_types.do
     def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
@@ -598,6 +644,7 @@ class GLObjectEvent(_GLEventBase):
         """
         self._mouse_pos = pos
 
+    @_check_types.do
     def GetWorldPosition(self) -> _point.Point:
         """Execute the get world position operation.
 
@@ -608,6 +655,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._world_pos
 
+    @_check_types.do
     def SetWorldPosition(self, pos: _point.Point) -> None:
         """Execute the set world position operation.
 
@@ -618,6 +666,7 @@ class GLObjectEvent(_GLEventBase):
         """
         self._world_pos = pos
 
+    @_check_types.do
     def GetGLObject(self) -> "_objects.ObjectBase":
         """Execute the get GL object operation.
 
@@ -628,6 +677,7 @@ class GLObjectEvent(_GLEventBase):
         """
         return self._gl_object
 
+    @_check_types.do
     def SetGLObject(self, obj: "_objects.ObjectBase") -> None:
         """Execute the set GL object operation.
 
@@ -642,6 +692,7 @@ class GLObjectEvent(_GLEventBase):
 class GLKeyEvent(_GLEventBase):
     """Keyboard event on a GL canvas."""
 
+    @_check_types.do
     def __init__(self, type_):
         """Initialise the :class:`GLKeyEvent` instance.
 
@@ -666,6 +717,7 @@ class GLKeyEvent(_GLEventBase):
         self._raw_key_flags: int = 0
         self._unicode_key: int = 0
 
+    @_check_types.do
     def GetMouseEvent(self) -> GLObjectEvent | GLEvent | None:
         """Execute the get mouse event operation.
 
@@ -676,6 +728,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._mouse_event
 
+    @_check_types.do
     def SetMouseEvent(self, evt: GLObjectEvent | GLEvent | None) -> None:
         """Execute the set mouse event operation.
 
@@ -686,6 +739,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._mouse_event = evt
 
+    @_check_types.do
     def AltDown(self) -> bool:
         """Execute the alt down operation.
 
@@ -696,6 +750,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._alt_down
 
+    @_check_types.do
     def SetAltDown(self, value: bool) -> None:
         """Execute the set alt down operation.
 
@@ -706,6 +761,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._alt_down = value
 
+    @_check_types.do
     def CmdDown(self) -> bool:
         """Execute the cmd down operation.
 
@@ -716,6 +772,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._cmd_down
 
+    @_check_types.do
     def SetCmdDown(self, value: bool) -> None:
         """Execute the set cmd down operation.
 
@@ -726,6 +783,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._cmd_down = value
 
+    @_check_types.do
     def ControlDown(self) -> bool:
         """Execute the control down operation.
 
@@ -736,6 +794,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._ctrl_down
 
+    @_check_types.do
     def SetControlDown(self, value: bool) -> None:
         """Execute the set control down operation.
 
@@ -746,6 +805,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._ctrl_down = value
 
+    @_check_types.do
     def GetModifiers(self) -> int:
         """Execute the get modifiers operation.
 
@@ -756,6 +816,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._modifiers
 
+    @_check_types.do
     def SetModifiers(self, modifiers: int) -> None:
         """Execute the set modifiers operation.
 
@@ -766,6 +827,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._modifiers = modifiers
 
+    @_check_types.do
     def MetaDown(self) -> bool:
         """Execute the meta down operation.
 
@@ -776,6 +838,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._meta_down
 
+    @_check_types.do
     def SetMetaDown(self, value: bool) -> None:
         """Execute the set meta down operation.
 
@@ -786,6 +849,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._meta_down = value
 
+    @_check_types.do
     def RawControlDown(self) -> bool:
         """Execute the raw control down operation.
 
@@ -796,6 +860,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._raw_ctrl_down
 
+    @_check_types.do
     def SetRawControlDown(self, value: bool) -> None:
         """Execute the set raw control down operation.
 
@@ -806,6 +871,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._raw_ctrl_down = value
 
+    @_check_types.do
     def ShiftDown(self) -> bool:
         """Execute the shift down operation.
 
@@ -816,6 +882,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._shift_down
 
+    @_check_types.do
     def SetShiftDown(self, value: bool) -> None:
         """Execute the set shift down operation.
 
@@ -826,6 +893,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._shift_down = value
 
+    @_check_types.do
     def GetKeyCode(self) -> int:
         """Execute the get key code operation.
 
@@ -836,6 +904,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._key_code
 
+    @_check_types.do
     def SetKeyCode(self, code: int) -> None:
         """Execute the set key code operation.
 
@@ -846,6 +915,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._key_code = code
 
+    @_check_types.do
     def GetRawKeyCode(self) -> int:
         """Execute the get raw key code operation.
 
@@ -856,6 +926,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._raw_key_code
 
+    @_check_types.do
     def SetRawKeyCode(self, code: int) -> None:
         """Execute the set raw key code operation.
 
@@ -866,6 +937,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._raw_key_code = code
 
+    @_check_types.do
     def GetRawKeyFlags(self) -> int:
         """Execute the get raw key flags operation.
 
@@ -876,6 +948,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._raw_key_flags
 
+    @_check_types.do
     def SetRawKeyFlags(self, flags: int) -> None:
         """Execute the set raw key flags operation.
 
@@ -886,6 +959,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._raw_key_flags = flags
 
+    @_check_types.do
     def GetUnicodeKey(self) -> int:
         """Execute the get unicode key operation.
 
@@ -896,6 +970,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._unicode_key
 
+    @_check_types.do
     def SetUnicodeKey(self, key: int) -> None:
         """Execute the set unicode key operation.
 
@@ -906,6 +981,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._unicode_key = key
 
+    @_check_types.do
     def GetPosition(self) -> _point.Point:
         """Execute the get position operation.
 
@@ -916,6 +992,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._pos
 
+    @_check_types.do
     def SetPosition(self, pos: _point.Point) -> None:
         """Execute the set position operation.
 
@@ -926,6 +1003,7 @@ class GLKeyEvent(_GLEventBase):
         """
         self._pos = pos
 
+    @_check_types.do
     def GetWorldPosition(self) -> _point.Point:
         """Execute the get world position operation.
 
@@ -936,6 +1014,7 @@ class GLKeyEvent(_GLEventBase):
         """
         return self._world_pos
 
+    @_check_types.do
     def SetWorldPosition(self, pos: _point.Point) -> None:
         """Execute the set world position operation.
 

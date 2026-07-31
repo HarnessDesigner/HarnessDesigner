@@ -12,6 +12,7 @@ import threading
 
 from .. import config as _config
 from .. import gpu_mem as _gpu_mem
+from .. import check_types as _check_types
 
 
 # Suppress OpenCL compiler warnings
@@ -24,6 +25,7 @@ class Renderer:
 
     """Compile the OpenCL kernel and execute chunked ray-tracing work for a prepared :class:`Scene`.
     """
+    @_check_types.do
     def __init__(self, scene, callback):
         """Initialize the object and capture the state required for later interaction.
 
@@ -37,6 +39,7 @@ class Renderer:
         self.ctx, self.queue, self.chunk_size = self.init_cl()
         self.program, self.kernel = self.compile_kernel()
 
+    @_check_types.do
     def init_cl(self):  # NOQA
         # Initialize OpenCL
         """Initialize the OpenCL platform, command queue, and chunk sizing used by the renderer.
@@ -77,6 +80,7 @@ class Renderer:
 
         return ctx, queue, chunk_size
 
+    @_check_types.do
     def compile_kernel(self):
         """Load and compile the OpenCL kernel used for ray tracing.
 
@@ -92,6 +96,7 @@ class Renderer:
         kernel = cl.Kernel(program, 'ray_trace_kernel')
         return program, kernel
 
+    @_check_types.do
     def start(self):
         """Start the handler operation for the supplied mouse position.
         """
@@ -99,6 +104,7 @@ class Renderer:
         thread.daemon = True
         thread.start()
 
+    @_check_types.do
     def _start(self):
         """Execute the ray-tracing job on the worker thread and stream chunk results through the callback.
 

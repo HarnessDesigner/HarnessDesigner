@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QPoint, QTimer
 from PySide6.QtGui import QPixmap, QPainter, QTransform, QCursor
 
 from ... import image as _image
+from ... import check_types as _check_types
 
 
 class ImageViewer(QWidget):
@@ -15,6 +16,7 @@ class ImageViewer(QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, img):
         """Initialise the :class:`ImageViewer` instance.
 
@@ -44,6 +46,7 @@ class ImageViewer(QWidget):
         self.setMouseTracking(True)
         self._dragging = False
 
+    @_check_types.do
     def mousePressEvent(self, evt):
         """Execute the mouse press event operation.
 
@@ -58,6 +61,7 @@ class ImageViewer(QWidget):
             self.setCursor(self.grab_cursor)
             self.coords = evt.position().toPoint()
 
+    @_check_types.do
     def mouseReleaseEvent(self, evt):
         """Execute the mouse release event operation.
 
@@ -72,6 +76,7 @@ class ImageViewer(QWidget):
             self.setCursor(self.hand_cursor)
             self.coords = QPoint(0, 0)
 
+    @_check_types.do
     def mouseMoveEvent(self, evt):
         """Execute the mouse move event operation.
 
@@ -109,6 +114,7 @@ class ImageViewer(QWidget):
 
             QTimer.singleShot(0, self.update)
 
+    @_check_types.do
     def wheelEvent(self, evt):
         """Execute the wheel event operation.
 
@@ -120,6 +126,7 @@ class ImageViewer(QWidget):
         self.scale += evt.angleDelta().y() / 8000.0
         QTimer.singleShot(0, self.update)
 
+    @_check_types.do
     def paintEvent(self, evt):
         """Execute the paint event operation.
 
@@ -143,6 +150,7 @@ class ImageViewer(QWidget):
         painter.drawPixmap(x + self.offset_x, y + self.offset_y, self.pixmap)
         painter.end()
 
+    @_check_types.do
     def closeEvent(self, evt):
         """Execute the close event operation.
 
@@ -162,6 +170,7 @@ class PDFViewer(QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, pdf_file):
         """Initialise the :class:`PDFViewer` instance.
 
@@ -221,6 +230,7 @@ class PDFViewer(QWidget):
             lbl.setWordWrap(True)
             layout.addWidget(lbl, 1)
 
+    @_check_types.do
     def _go_to_page(self, page_number):
         """Execute the go to page operation.
 
@@ -235,6 +245,7 @@ class PDFViewer(QWidget):
         except Exception:  # NOQA
             pass
 
+    @_check_types.do
     def _zoom(self, factor):
         """Execute the zoom operation.
 
@@ -255,6 +266,7 @@ class DatasheetViewer(QWidget):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    @_check_types.do
     def __init__(self, parent, datasheet):
         """Initialise the :class:`DatasheetViewer` instance.
 

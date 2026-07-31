@@ -3,16 +3,19 @@
 """Callback registration helpers for database-backed model objects."""
 
 import weakref
+from ... import check_types as _check_types
 
 
 class CallbackMixin:
     """Provide callback registration and dispatch support.
     """
+    @_check_types.do
     def __init__(self):
         """Initialize callback storage for the mixin instance.
         """
         self._callbacks = []
 
+    @_check_types.do
     def bind(self, callback, tag: str) -> "Callback":
         """Register a callback for a specific update tag.
 
@@ -29,6 +32,7 @@ class CallbackMixin:
 
         return cb_class
 
+    @_check_types.do
     def unbind(self, cb_class: "Callback"):
         """Remove a previously registered callback wrapper.
 
@@ -43,6 +47,7 @@ class CallbackMixin:
         except ValueError:
             pass
 
+    @_check_types.do
     def _populate(self, tag):
         """Notify registered callbacks that match the supplied tag.
 
@@ -60,6 +65,7 @@ class Callback:
 
     """Represent a weakly referenced callback binding.
     """
+    @_check_types.do
     def __init__(self, parent: CallbackMixin, callback, tag):
         """Initialize the callback wrapper.
 
@@ -75,6 +81,7 @@ class Callback:
         self._ref = weakref.WeakMethod(callback, self._remove_ref)
         self._ref_count = 0
 
+    @_check_types.do
     def unbind(self):
         """Unregister this callback wrapper from its parent.
 
@@ -83,6 +90,7 @@ class Callback:
         """
         self._parent.unbind(self)
 
+    @_check_types.do
     def _remove_ref(self, ref):
         """Remove this wrapper when the weak callback reference expires.
 
@@ -94,6 +102,7 @@ class Callback:
         """
         self._parent.unbind(self)
 
+    @_check_types.do
     def __enter__(self):
         """Mark the callback as actively executing within a context manager.
 
@@ -102,6 +111,7 @@ class Callback:
         """
         self._ref_count += 1
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Clear the active execution marker for the callback.
 
@@ -117,6 +127,7 @@ class Callback:
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def __call__(self, tag, entry):
         """Invoke the wrapped callback when the supplied tag matches.
 

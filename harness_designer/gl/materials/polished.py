@@ -3,6 +3,7 @@
 from ... import utils as _utils
 from ... import color as _color
 from . import material as _material
+from ... import check_types as _check_types
 
 
 class PolishedMaterial(_material.GLMaterial):
@@ -22,6 +23,7 @@ class PolishedMaterial(_material.GLMaterial):
     _cl_metallic = 0.0
     _cl_roughness = 0.0
 
+    @_check_types.do
     def __init__(self, color: _color.Color):
         """Initialise the :class:`PolishedMaterial` instance.
 

@@ -9,6 +9,7 @@ from PySide6 import QtCore
 from ... import config as _config
 from ...gl import canvas3d as _canvas3d
 from .. import dock_base as _dock_base
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -23,6 +24,7 @@ class Editor3D(_dock_base.DockBase):
     Represent an editor 3D in :mod:`harness_designer.ui.editor_3d.editor3d`.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`Editor3D` instance.
@@ -39,6 +41,7 @@ class Editor3D(_dock_base.DockBase):
                                    QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable))
 
     @property
+    @_check_types.do
     def context(self):
         """
         Return the context.
@@ -50,6 +53,7 @@ class Editor3D(_dock_base.DockBase):
         return self._ui_obj.context
 
     @property
+    @_check_types.do
     def camera(self) -> "_camera.Camera":
         """
         Return the camera.
@@ -61,6 +65,7 @@ class Editor3D(_dock_base.DockBase):
         return self._ui_obj.camera
 
     @property
+    @_check_types.do
     def config(self) -> _config.Config.editor3d:
         """
         Return the config.
@@ -71,6 +76,7 @@ class Editor3D(_dock_base.DockBase):
 
         return self._ui_obj.config
 
+    @_check_types.do
     def set_selected(self, obj):
         """
         Set the selected.
@@ -81,6 +87,7 @@ class Editor3D(_dock_base.DockBase):
 
         self._ui_obj.set_selected(obj)
 
+    @_check_types.do
     def add_object(self, obj):
         """
         Add an object.
@@ -91,6 +98,7 @@ class Editor3D(_dock_base.DockBase):
 
         self._ui_obj.add_object(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         """
         Remove the object.
@@ -101,6 +109,7 @@ class Editor3D(_dock_base.DockBase):
 
         self._ui_obj.remove_object(obj)
 
+    @_check_types.do
     def clear(self) -> None:
         """
         Drop every scene object in bulk, without touching the database.
@@ -110,6 +119,7 @@ class Editor3D(_dock_base.DockBase):
 
         self._ui_obj.clear()
 
+    @_check_types.do
     def bind(self, signal_name, handler):
         """
         Execute the bind operation.
@@ -123,6 +133,7 @@ class Editor3D(_dock_base.DockBase):
 
         self._ui_obj.bind(signal_name, handler)
 
+    @_check_types.do
     def set_clone_obj(self, obj):
         """
         Set the clone obj.
@@ -134,6 +145,7 @@ class Editor3D(_dock_base.DockBase):
         self._ui_obj.set_clone_obj(obj)
 
     @property
+    @_check_types.do
     def editor(self) -> "Editor3DPanel":
         return self._ui_obj
 
@@ -144,6 +156,7 @@ class Editor3DPanel(_canvas3d.Canvas3D):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_mainframe.MainFrame"):
         """Initialise the :class:`Editor3DPanel` instance.
 

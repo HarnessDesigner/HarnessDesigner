@@ -17,6 +17,7 @@ from OCP.BRep import BRep_Builder
 from OCP.TopoDS import TopoDS_Face
 import numpy as np
 import pyassimp.core as _assimp
+from .. import check_types as _check_types
 
 
 # Packed array layout produced by compute_normals() in utils.py:
@@ -26,6 +27,7 @@ import pyassimp.core as _assimp
 # where n = vertex_count = F*3  (F triangles × 3 verts)
 
 
+@_check_types.do
 def _unpack(packed: np.ndarray, vertex_count: int):
     n = vertex_count
     verts = packed[:n * 3].reshape(-1, 3)
@@ -39,6 +41,7 @@ def _unpack(packed: np.ndarray, vertex_count: int):
 # OCP path — BREP / IGES / VRML
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def _safe_dir(nx, ny, nz):
     """Return a gp_Dir; falls back to (0,0,1) for zero-length normals."""
 
@@ -48,6 +51,7 @@ def _safe_dir(nx, ny, nz):
     return gp_Dir(float(nx), float(ny), float(nz))
 
 
+@_check_types.do
 def _build_ocp_face(verts: np.ndarray, normals: np.ndarray):
     n_verts = len(verts)
     n_tris = n_verts // 3
@@ -69,6 +73,7 @@ def _build_ocp_face(verts: np.ndarray, normals: np.ndarray):
     return face
 
 
+@_check_types.do
 def _export_ocp(
     packed: np.ndarray,
     vertex_count: int,
@@ -118,6 +123,7 @@ def _export_ocp(
 # pyassimp path — OBJ, PLY, STL, COLLADA, FBX, GLTF, etc.
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def _build_assimp_scene(verts: np.ndarray, normals: np.ndarray):
     """
     Construct a minimal aiScene ctypes structure pointing at the mesh data.
@@ -211,6 +217,7 @@ def _build_assimp_scene(verts: np.ndarray, normals: np.ndarray):
     return scene, refs
 
 
+@_check_types.do
 def _export_assimp(
     packed: np.ndarray,
     vertex_count: int,
@@ -241,6 +248,7 @@ def _export_assimp(
         del refs
 
 
+@_check_types.do
 def _build_ocp_face_with_progress(verts: np.ndarray, normals: np.ndarray, progress_cb=None):
     n_verts = len(verts)
     n_tris = n_verts // 3
@@ -268,6 +276,7 @@ def _build_ocp_face_with_progress(verts: np.ndarray, normals: np.ndarray, progre
     return face
 
 
+@_check_types.do
 def _build_assimp_scene_with_progress(verts: np.ndarray, normals: np.ndarray, progress_cb=None):
     n_verts = len(verts)
     n_tris = n_verts // 3
@@ -354,6 +363,7 @@ def _build_assimp_scene_with_progress(verts: np.ndarray, normals: np.ndarray, pr
     return scene, refs
 
 
+@_check_types.do
 def export_ocp(verts: np.ndarray, normals: np.ndarray, path: str, fmt: str,
                progress_cb=None):
     """
@@ -393,6 +403,7 @@ def export_ocp(verts: np.ndarray, normals: np.ndarray, path: str, fmt: str,
         raise ValueError(f'Unknown OCP export format: {fmt!r}')
 
 
+@_check_types.do
 def export_assimp(verts: np.ndarray, normals: np.ndarray, path: str, file_type: str,
                   progress_cb=None):
     """

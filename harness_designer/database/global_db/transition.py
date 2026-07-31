@@ -21,6 +21,7 @@ from .mixins import (
     TemperatureMixin, TemperatureControl,
     WeightMixin, WeightControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class TransitionsTable(TableBase):
     _control: "TransitionControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "TransitionControl":
         """Return the control.
 
@@ -51,6 +53,7 @@ class TransitionsTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -63,6 +66,7 @@ class TransitionsTable(TableBase):
 
         return transitions.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -78,6 +82,7 @@ class TransitionsTable(TableBase):
 
         transitions.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -87,6 +92,7 @@ class TransitionsTable(TableBase):
 
         transitions.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Transition"]:
         """Iterate over the available items.
 
@@ -98,6 +104,7 @@ class TransitionsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Transition(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Transition":
         """Return the requested item.
 
@@ -121,6 +128,7 @@ class TransitionsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, family_id: int,
                series_id: int, color_id: int, material_id: int, branch_count: int,
                shape_id: int, protection_ids: list[int], adhesive_ids: list[int],
@@ -178,6 +186,7 @@ class TransitionsTable(TableBase):
         return Transition(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -262,6 +271,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     
     _table: TransitionsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -293,6 +303,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     _stored_branch_count: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch_count(self) -> int:
         """Return the branch count.
 
@@ -307,6 +318,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         return self._stored_branch_count
 
     @branch_count.setter
+    @_check_types.do
     def branch_count(self, value: int):
         """Set the branch count.
 
@@ -323,6 +335,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     _stored_branches: DefaultStoredValueType | list = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branches(self) -> list["_transition_branch.TransitionBranch"]:
         """Return the branches.
 
@@ -345,6 +358,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
         return list(self._stored_branches)
 
+    @_check_types.do
     def invalidate_branches(self) -> None:
         """Force the next ``branches`` access to re-query the database.
 
@@ -361,6 +375,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     _stored_shape: "DefaultStoredValueType | _shape.Shape" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def shape(self) -> "_shape.Shape":
         """Return the shape.
 
@@ -380,6 +395,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     _stored_shape_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def shape_id(self) -> int:
         """Return the shape ID.
 
@@ -394,6 +410,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         return self._stored_shape_id
 
     @shape_id.setter
+    @_check_types.do
     def shape_id(self, value: int):
         """Set the shape ID.
 
@@ -415,6 +432,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: Transition):
         """Set the obj.
 
@@ -432,6 +450,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
             self.branches = []
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -468,6 +487,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
                     self.branches.append(branch_ctrl)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_branch_count(self, evt):
         """Handle the branch count event.
 
@@ -505,6 +525,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
 
         self.db_obj.branch_count = new_value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`TransitionControl` instance.
 

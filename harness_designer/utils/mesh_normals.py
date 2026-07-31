@@ -1,8 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import numpy as np
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def _process_verts_for_normals(
     vertices: np.ndarray,
     faces: np.ndarray
@@ -42,6 +44,7 @@ def _process_verts_for_normals(
     return triangles, face_normals
 
 
+@_check_types.do
 def compute_smooth_normals(
     vertices: np.ndarray,
     faces: np.ndarray
@@ -91,6 +94,7 @@ def compute_smooth_normals(
     return [vertices_array, normals_array, len(vertices_array) // 3]
 
 
+@_check_types.do
 def compute_face_normals(
     vertices: np.ndarray, faces: np.ndarray
 ) -> list[np.ndarray, np.ndarray, int]:
@@ -125,6 +129,7 @@ def compute_face_normals(
     return [vertices_array, normals_array, len(vertices_array) // 3]
 
 
+@_check_types.do
 def compute_normals(
     vertices: np.ndarray,
     faces: np.ndarray
@@ -189,6 +194,7 @@ def compute_normals(
     return packed, len(vertices_array) // 3
 
 
+@_check_types.do
 def compute_face_indexes(vertices):
     indices_array = np.arange(len(vertices), dtype=np.uint32)
 

@@ -5,8 +5,10 @@ import os
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 
@@ -49,6 +51,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
+@_check_types.do
 def add_plating(con, symbol, description='', id=None, commit=True):  # NOQA
     """Add a plating.
 
@@ -82,6 +85,7 @@ def add_plating(con, symbol, description='', id=None, commit=True):  # NOQA
         return con.lastrowid
 
 
+@_check_types.do
 def get_plating_id(con, symbol):
     """Return the plating ID.
 

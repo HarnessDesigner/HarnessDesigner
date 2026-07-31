@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (QTableView, QAbstractItemView, QHeaderView,
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
 from ... import image as _image
+from ... import check_types as _check_types
 
 
 class _HeaderSearchPopup(QWidget):
@@ -24,6 +25,7 @@ class _HeaderSearchPopup(QWidget):
     cancels" needs no extra event handling because of it.
     """
 
+    @_check_types.do
     def __init__(self, parent, initial_text: str, on_ok):
         """Initialise the :class:`_HeaderSearchPopup` instance.
 
@@ -55,6 +57,7 @@ class _HeaderSearchPopup(QWidget):
 
         self._edit.selectAll()
 
+    @_check_types.do
     def showEvent(self, event):
         """Grab focus into the text field once the popup is actually shown.
 
@@ -64,6 +67,7 @@ class _HeaderSearchPopup(QWidget):
         super().showEvent(event)
         self._edit.setFocus()
 
+    @_check_types.do
     def _accept(self):
         """Report the entered text and close the popup."""
         self._on_ok(self._edit.text())
@@ -89,6 +93,7 @@ class ScrollTracker:
     min_buffer = 10
     max_buffer = 500
 
+    @_check_types.do
     def __init__(self):
         """Initialise the :class:`ScrollTracker` instance.
 
@@ -99,6 +104,7 @@ class ScrollTracker:
         self._start_query = time.monotonic_ns()
         self._query_elapsed = 0
 
+    @_check_types.do
     def start_query(self):
         """Start the query.
 
@@ -106,6 +112,7 @@ class ScrollTracker:
         """
         self._start_query = time.monotonic_ns()
 
+    @_check_types.do
     def stop_query(self):
         """Stop the query.
 
@@ -114,6 +121,7 @@ class ScrollTracker:
         now = time.monotonic_ns()
         self._query_elapsed += (now - self._start_query) * 1e-9
 
+    @_check_types.do
     def get_buffer_size(self, current_row):
         """Return the buffer size.
 
@@ -152,6 +160,7 @@ class _EditorModel(QAbstractTableModel):
     virtual implementation.
     """
 
+    @_check_types.do
     def __init__(self, editor_list):
         """Initialise the :class:`_EditorModel` instance.
 
@@ -163,6 +172,7 @@ class _EditorModel(QAbstractTableModel):
         super().__init__()
         self._list = editor_list
 
+    @_check_types.do
     def rowCount(self, parent=QModelIndex()):
         """Execute the row count operation.
 
@@ -178,6 +188,7 @@ class _EditorModel(QAbstractTableModel):
 
         return self._list._row_count  # NOQA
 
+    @_check_types.do
     def columnCount(self, parent=QModelIndex()):
         """Execute the column count operation.
 
@@ -194,6 +205,7 @@ class _EditorModel(QAbstractTableModel):
         # +1 for icon column
         return len(self._list.column_mapping) + 1
 
+    @_check_types.do
     def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
         """Execute the header data operation.
 
@@ -243,6 +255,7 @@ class _EditorModel(QAbstractTableModel):
 
         return label
 
+    @_check_types.do
     def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         """Execute the data operation.
 
@@ -285,6 +298,7 @@ class _EditorModel(QAbstractTableModel):
             traceback.print_exc()
             raise
 
+    @_check_types.do
     def invalidate_row(self, row_id):
         """Execute the invalidate row operation.
 
@@ -296,10 +310,12 @@ class _EditorModel(QAbstractTableModel):
         self.dataChanged.emit(self.index(row_id, 0),
                               self.index(row_id, self.columnCount() - 1))
 
+    @_check_types.do
     def invalidate_icon(self, row_id):
         idx = self.index(row_id, 0)
         self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
 
+    @_check_types.do
     def reset_all(self):
         """Execute the reset all operation.
 
@@ -353,6 +369,7 @@ class EditorList(QTableView):
     # Public interface expected by the rest of the codebase
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def GetLabel(self):
         """Execute the get label operation.
 
@@ -363,6 +380,7 @@ class EditorList(QTableView):
         """
         return self._label
 
+    @_check_types.do
     def GetSelection(self):
         """Execute the get selection operation.
 
@@ -378,6 +396,7 @@ class EditorList(QTableView):
         row = self.get_row(indexes[0].row())
         return row[1]
 
+    @_check_types.do
     def set_filter(self, where_clause: str = '', where_params=None):
         """Replace the active WHERE clause and refresh the list."""
 
@@ -389,6 +408,7 @@ class EditorList(QTableView):
         self._row_count = self.record_count
         self._model.reset_all()
 
+    @_check_types.do
     def _header_search_predicate(self, col: str, text: str) -> tuple[str, str]:
         """Build a self-contained ``LIKE`` predicate for one header-search
         column.
@@ -423,6 +443,7 @@ class EditorList(QTableView):
 
         return f't.{col} LIKE ?', f'%{text}%'
 
+    @_check_types.do
     def _combined_where(self) -> tuple[str, list]:
         """Combine the externally-set filter (e.g. the search dialog's
         keyword box and filter panels) with any active per-column header
@@ -446,6 +467,7 @@ class EditorList(QTableView):
 
         return " AND ".join(clauses), params
 
+    @_check_types.do
     def _on_header_context_menu(self, pos: QPoint) -> None:
         """Show the per-column search popup for the header section that
         was right-clicked.
@@ -471,6 +493,7 @@ class EditorList(QTableView):
         popup.move(anchor)
         popup.show()
 
+    @_check_types.do
     def _apply_header_search(self, col: str, text: str) -> None:
         """Set (or clear, if ``text`` is blank) one column's header search
         and refresh the list.
@@ -498,6 +521,7 @@ class EditorList(QTableView):
     # DB helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _build_query(self) -> str:
         """Build the paginated SELECT template from ``column_mapping``.
 
@@ -536,6 +560,7 @@ class EditorList(QTableView):
         return query
 
     @property
+    @_check_types.do
     def record_count(self):
         """Return the record count.
 
@@ -559,6 +584,7 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @property
+    @_check_types.do
     def sort_clause(self) -> str:
         """
         Build the ORDER BY expression from the current sort stack.
@@ -574,6 +600,7 @@ class EditorList(QTableView):
         return ', '.join(
             f'{col} {direction}' for col, direction in self.sort_columns)
 
+    @_check_types.do
     def _column_is_unique(self, column_name: str) -> bool:
         """
         Return True when *column_name* is marked unique in
@@ -591,6 +618,7 @@ class EditorList(QTableView):
 
         return False
 
+    @_check_types.do
     def _sorted_column_index(self, column_name: str) -> int:
         """
         Return the 0-based position of *column_name* in
@@ -603,6 +631,7 @@ class EditorList(QTableView):
 
         return -1
 
+    @_check_types.do
     def _active_unique_column(self) -> str | None:
         """
         Return the column name if a unique column is currently the
@@ -619,6 +648,7 @@ class EditorList(QTableView):
 
         return None
 
+    @_check_types.do
     def _rebuild_sort_indicators(self):
         """
         Trigger a header repaint so every section re-fetches its label
@@ -637,6 +667,7 @@ class EditorList(QTableView):
     # DB helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def get_obj_id(self, row):
         """Return the obj ID.
 
@@ -665,6 +696,7 @@ class EditorList(QTableView):
             # rows[0][0] is RowNum; actual id is at index 1
             return rows[0][1]
 
+    @_check_types.do
     def get_row(self, row):
         """Return the row.
 
@@ -685,6 +717,7 @@ class EditorList(QTableView):
 
         return self.rows.get(row, None)
 
+    @_check_types.do
     def get_rows(self, start, stop):
         """Return the rows.
 
@@ -716,6 +749,7 @@ class EditorList(QTableView):
 
         self.scroll_tracker.stop_query()
 
+    @_check_types.do
     def prune_cache(self, current_row, buffer_size):
         """Execute the prune cache operation.
 
@@ -737,6 +771,7 @@ class EditorList(QTableView):
     # Model data helpers (called from _EditorModel)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _get_cell_text(self, row_id, col_id):
         """Return the cell text.
 
@@ -767,6 +802,7 @@ class EditorList(QTableView):
         # the icon column, so net index is col_id.
         return str(row[col_id])
 
+    @_check_types.do
     def _update_progress(self, image, step):
         db_id = image.db_id
         if db_id not in self.downloading_images:
@@ -781,6 +817,7 @@ class EditorList(QTableView):
 
         QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
 
+    @_check_types.do
     def _load_icon(self, image, pixmap: QPixmap):
         db_id = image.db_id
         pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio,
@@ -795,6 +832,7 @@ class EditorList(QTableView):
         # from ... import app
         # app.CallAfter(self._model.invalidate_row, row_id)
 
+    @_check_types.do
     def _get_icon(self, row_id):
         """Return the icon.
 
@@ -846,6 +884,7 @@ class EditorList(QTableView):
     # Qt event overrides
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def resizeEvent(self, event):
         """Execute the resize event operation.
 
@@ -856,6 +895,7 @@ class EditorList(QTableView):
         """
         super().resizeEvent(event)
 
+        @_check_types.do
         def _do():
             """Execute the do operation.
 
@@ -868,6 +908,7 @@ class EditorList(QTableView):
 
         QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def rowsPerPage(self):
         """Execute the rows per page operation.
 
@@ -883,6 +924,7 @@ class EditorList(QTableView):
 
         return max(1, self.viewport().height() // row_h)
 
+    @_check_types.do
     def contextMenuEvent(self, event):
         """Execute the context menu event operation.
 
@@ -894,6 +936,7 @@ class EditorList(QTableView):
         # stub; subclasses may override
         pass
 
+    @_check_types.do
     def mousePressEvent(self, event):
         """Handle mouse presses, adding deselect behaviour.
 
@@ -929,6 +972,7 @@ class EditorList(QTableView):
 
         super().mousePressEvent(event)
 
+    @_check_types.do
     def mouseDoubleClickEvent(self, event):
         """Handle double clicks, cancelling any pending deselect.
 
@@ -953,6 +997,7 @@ class EditorList(QTableView):
         super().mouseDoubleClickEvent(event)
 
     @classmethod
+    @_check_types.do
     def _record_double_click_gap(cls, gap_ms):
         """Fold a measured double-click gap into the learned average.
 
@@ -977,6 +1022,7 @@ class EditorList(QTableView):
         EditorDBConfig.double_click_average = int(
             round(sum(samples) / len(samples)))
 
+    @_check_types.do
     def _deselect_wait_ms(self) -> int:
         """Return how long a click on the selected row should wait for a
         possible second click before deselecting.
@@ -998,6 +1044,7 @@ class EditorList(QTableView):
                        max(self._DESELECT_MIN_MS,
                            avg * self._DESELECT_MARGIN)))
 
+    @_check_types.do
     def _on_deselect_timeout(self):
         """Carry out a deselect scheduled by :meth:`mousePressEvent` once
         the double-click interval has passed with no second click.
@@ -1008,6 +1055,7 @@ class EditorList(QTableView):
         if row is not None and self.selected == row:
             self.clearSelection()
 
+    @_check_types.do
     def keyPressEvent(self, event):
         """Handle key presses, clearing the selection on Escape.
 
@@ -1028,6 +1076,7 @@ class EditorList(QTableView):
     # Slot handlers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_selection_changed(self, selected, deselected):
         """Handle the selection changed event.
 
@@ -1050,6 +1099,7 @@ class EditorList(QTableView):
             if previous is not None:
                 self.itemUnselected.emit()
 
+    @_check_types.do
     def _clear_selection_state(self):
         """Clear :attr:`selected`, emitting ``itemUnselected`` when a row
         was selected beforehand. Used by programmatic resets that bypass
@@ -1059,6 +1109,7 @@ class EditorList(QTableView):
             self.selected = None
             self.itemUnselected.emit()
 
+    @_check_types.do
     def _on_activated(self, index):
         """Handle the activated event.
 
@@ -1082,6 +1133,7 @@ class EditorList(QTableView):
 
         self._model.invalidate_row(row_id)
 
+    @_check_types.do
     def _on_header_clicked(self, logical_index):
         """Handle the header clicked event.
 
@@ -1124,6 +1176,7 @@ class EditorList(QTableView):
         self._clear_selection_state()
         self._model.reset_all()
 
+    @_check_types.do
     def _on_idle(self):
         """Handle the idle event.
 
@@ -1137,6 +1190,7 @@ class EditorList(QTableView):
     # Construction
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def __init__(self, parent, mainframe, label, table):
         """Initialise the :class:`EditorList` instance.
 
@@ -1272,6 +1326,7 @@ class EditorList(QTableView):
     # Compatibility shims
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def Refresh(self, *_, **__):
         """Execute the refresh operation.
 
@@ -1285,6 +1340,7 @@ class EditorList(QTableView):
         self._model.reset_all()
         self.viewport().update()
 
+    @_check_types.do
     def Destroy(self):
         """Execute the destroy operation.
 

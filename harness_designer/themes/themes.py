@@ -1,16 +1,19 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import os
+from .. import check_types as _check_types
 
 
 BASE_PATH = os.path.dirname(__file__)
 
 
+@_check_types.do
 def get_themes():
     return [file for file in os.listdir(BASE_PATH)
             if os.path.isdir(os.path.join(BASE_PATH, file))]
 
 
+@_check_types.do
 def load_theme(theme_name):
     file_name = os.path.join(BASE_PATH, theme_name, theme_name + '.qss')
     if not os.path.exists(file_name):

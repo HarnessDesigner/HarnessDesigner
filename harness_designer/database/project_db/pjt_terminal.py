@@ -30,6 +30,7 @@ from .mixins import (
     HousingMixin,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -47,6 +48,7 @@ class PJTTerminalsTable(PJTTableBase):
     _control: "PJTTerminalControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTTerminalControl":
         """Return the control.
 
@@ -62,6 +64,7 @@ class PJTTerminalsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -73,6 +76,7 @@ class PJTTerminalsTable(PJTTableBase):
         cls._control = PJTTerminalControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -85,6 +89,7 @@ class PJTTerminalsTable(PJTTableBase):
 
         return terminals.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -94,6 +99,7 @@ class PJTTerminalsTable(PJTTableBase):
 
         terminals.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -103,6 +109,7 @@ class PJTTerminalsTable(PJTTableBase):
 
         terminals.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTTerminal"]:
         """Iterate over the available items.
 
@@ -114,6 +121,7 @@ class PJTTerminalsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTerminal(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTTerminal":
         """Return the requested item.
 
@@ -133,6 +141,7 @@ class PJTTerminalsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, position2d_id: int | None,
                position3d_id: int | None, cavity_id: int | None) -> "PJTTerminal":
         """Execute the insert operation.
@@ -192,6 +201,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     _table: PJTTerminalsTable = None
 
+    @_check_types.do
     def delete(self) -> None:
         """Delete this terminal, clearing its cavity's cached back-reference
         first (see the cavity_id setter/PJTTerminalsTable.insert) so
@@ -206,6 +216,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             cavity._stored_terminal = None  # NOQA
             cavity._populate('terminal_id')  # see PJTTerminalsTable.insert
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -234,6 +245,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_terminal_obj.Terminal":
         """Return the object.
 
@@ -247,6 +259,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -257,6 +270,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_terminal_obj.Terminal"):
         """Set the object.
 
@@ -271,6 +285,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             self._obj = obj
 
     @property
+    @_check_types.do
     def is_start(self) -> bool:
         """Return the is start.
 
@@ -293,6 +308,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return value
 
     @is_start.setter
+    @_check_types.do
     def is_start(self, value: bool):
         """Set the is start.
 
@@ -312,6 +328,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._table.update(self._db_id, is_start=int(value))
         self._populate('is_start')
 
+    @_check_types.do
     def __check_for_other_starts(self):
         """Execute the check for other starts operation.
 
@@ -326,6 +343,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
                 self._table.update(db_id[0], is_start=0)
 
     @property
+    @_check_types.do
     def voltage_drop(self) -> float:
         """Return the voltage drop.
 
@@ -340,6 +358,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('voltage_drop', id=self._db_id)[0][0]
 
     @voltage_drop.setter
+    @_check_types.do
     def voltage_drop(self, value: float):
         """Set the voltage drop.
 
@@ -357,6 +376,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._populate('voltage_drop')
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -368,6 +388,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self.part.resistance
 
     @property
+    @_check_types.do
     def volts(self) -> float:
         """Return the volts.
 
@@ -382,6 +403,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('volts', id=self._db_id)[0][0]
 
     @volts.setter
+    @_check_types.do
     def volts(self, value: float):
         """Set the volts.
 
@@ -399,6 +421,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._populate('volts')
 
     @property
+    @_check_types.do
     def load(self) -> float:
         """Return the load.
 
@@ -413,6 +436,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('load', id=self._db_id)[0][0]
 
     @load.setter
+    @_check_types.do
     def load(self, value: float):
         """Set the load.
 
@@ -430,6 +454,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._populate('load')
 
     @property
+    @_check_types.do
     def table(self) -> PJTTerminalsTable:
         """Return the table.
 
@@ -443,6 +468,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_cavity: "_pjt_cavity.PJTCavity" = None
 
     @property
+    @_check_types.do
     def cavity(self) -> "_pjt_cavity.PJTCavity":
         """Return the cavity.
 
@@ -463,6 +489,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._stored_cavity
 
     @property
+    @_check_types.do
     def cavity_id(self) -> int:
         """Return the cavity ID.
 
@@ -474,6 +501,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('cavity_id', id=self._db_id)[0][0]
 
     @cavity_id.setter
+    @_check_types.do
     def cavity_id(self, value: int):
         """Set the cavity ID.
 
@@ -505,6 +533,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_circuit: "_pjt_circuit.PJTCircuit" = None
 
     @property
+    @_check_types.do
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
         """Return the circuit.
 
@@ -525,6 +554,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._stored_circuit
 
     @property
+    @_check_types.do
     def circuit_id(self) -> int:
         """Return the circuit ID.
 
@@ -536,6 +566,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
+    @_check_types.do
     def circuit_id(self, value: int):
         """Set the circuit ID.
 
@@ -550,6 +581,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         self._populate('circuit_id')
 
     @property
+    @_check_types.do
     def seal(self) -> "_pjt_seal.PJTSeal":
         """Return the seal.
 
@@ -569,6 +601,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             return seal
 
     @property
+    @_check_types.do
     def wire_point3d_id(self) -> int | None:
         """Return the ``pjt_points3d`` row id for the wire layout point
         (see :attr:`wire_position3d`), lazily creating and persisting it on
@@ -588,6 +621,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_wire_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
+    @_check_types.do
     def wire_position3d(self) -> _point.Point:
         """Return the wire layout point (center of the terminal's back OBB face).
 
@@ -609,6 +643,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._stored_wire_position3d.point
 
     @property
+    @_check_types.do
     def wire_point3d_id_raw(self) -> int | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if this
         terminal's layout point has never been computed.
@@ -624,6 +659,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
     @property
+    @_check_types.do
     def attach_point3d_id(self) -> int | None:
         """Return the ``pjt_points3d`` row id for the wire attachment/crimp
         point (see :attr:`attach_position3d`), lazily creating and
@@ -642,6 +678,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return attach_point3d_id
 
     @property
+    @_check_types.do
     def attach_point3d_id_raw(self) -> int | None:
         """The raw ``attach_point3d_id`` column value, ``None`` if this
         terminal's crimp point has never been computed.
@@ -657,6 +694,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_attach_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
+    @_check_types.do
     def attach_position3d(self) -> _point.Point:
         """Return the wire attachment/crimp point, 1/3 up from the back of
         the terminal toward the front.
@@ -674,6 +712,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return self._stored_attach_position3d.point
 
+    @_check_types.do
     def _wire_side_extent(self) -> tuple[float, float] | None:
         """Return (front_z, back_z): this terminal's own local Z distance
         from its origin (position3d) to its front (mating-side, +Z) and
@@ -723,6 +762,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return length / 2.0, -length / 2.0
 
+    @_check_types.do
     def _compute_wire_position3d(self) -> int | None:
         """Compute and persist the wire layout point.
 
@@ -755,6 +795,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return wire_point3d_id
 
+    @_check_types.do
     def _compute_attach_position3d(self) -> int | None:
         """Compute and persist the wire attachment/crimp point.
 
@@ -791,6 +832,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
+    @_check_types.do
     def seal_position3d(self) -> _point.Point:
         """Return the per-terminal seal position.
 
@@ -807,11 +849,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return self._stored_seal_position3d.point
 
     @property
+    @_check_types.do
     def seal_point3d_id(self) -> int | None:
         """Return the DB row id of the seal position point, or ``None``."""
         return self._table.select('seal_point3d_id', id=self._db_id)[0][0]
 
     @seal_point3d_id.setter
+    @_check_types.do
     def seal_point3d_id(self, value: int):
         """Persist *value* as the seal position point id and invalidate the cache."""
         self._stored_seal_position3d = None
@@ -820,6 +864,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
     _stored_part: _terminal.Terminal = None
 
     @property
+    @_check_types.do
     def part(self) -> _terminal.Terminal:
         """Return the part.
 
@@ -846,6 +891,7 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTTerminal):
         """Set the obj.
 
@@ -856,6 +902,7 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -905,6 +952,7 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
             self.terminal_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTTerminalControl` instance.
 

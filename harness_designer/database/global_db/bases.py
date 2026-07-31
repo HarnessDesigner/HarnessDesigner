@@ -7,6 +7,7 @@ import json
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class _EntrySingleton(type):
     """
     _instances = {}
 
+    @_check_types.do
     def __init__(cls, name, bases, dct):
         """Initialise the :class:`_EntrySingleton` instance.
 
@@ -54,6 +56,7 @@ class _EntrySingleton(type):
         cls._instances = {}
 
     @classmethod
+    @_check_types.do
     def __remove_ref(cls, ref):
         """Remove the ref.
 
@@ -70,6 +73,7 @@ class _EntrySingleton(type):
 
         del cls._instances[key]
 
+    @_check_types.do
     def __call__(cls, table, db_id: int):
         """Call the instance.
 
@@ -101,6 +105,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, table: "TableBase", db_id: int):
         """Initialise the :class:`EntryBase` instance.
 
@@ -116,6 +121,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         self._objects = []
         _callback.CallbackMixin.__init__(self)
 
+    @_check_types.do
     def update_objects(self):
         """Update the objects.
 
@@ -128,6 +134,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
 
             obj.reload_from_db()
 
+    @_check_types.do
     def __remove_ref(self, ref):
         """Remove the ref.
 
@@ -141,6 +148,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         except ValueError:
             pass
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -152,6 +160,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         self._objects.append(weakref.ref(obj, self.__remove_ref))
 
     @property
+    @_check_types.do
     def db_id(self):
         """Return the database ID.
 
@@ -162,6 +171,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         """
         return self._db_id
 
+    @_check_types.do
     def delete(self) -> None:
         """Execute the delete operation.
 
@@ -170,6 +180,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         self._table.delete(self.db_id)
 
     @staticmethod
+    @_check_types.do
     def merge_packet_data(src: dict, dst: dict):
         """Execute the merge packet data operation.
 
@@ -195,6 +206,7 @@ class TableBase:
     """
     __table_name__: str = None
 
+    @_check_types.do
     def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool):
         """Initialise the :class:`TableBase` instance.
 
@@ -229,6 +241,7 @@ class TableBase:
         splash.flush()
 
     @property
+    @_check_types.do
     def field_names(self):
         """Return the field names.
 
@@ -249,6 +262,7 @@ class TableBase:
 
         return self.__field_names__
 
+    @_check_types.do
     def get_record(self, db_id):
         """Return the record.
 
@@ -270,6 +284,7 @@ class TableBase:
         rows.insert(0, tuple(self.field_names))
         return rows
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -280,6 +295,7 @@ class TableBase:
         """
         pass
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -291,6 +307,7 @@ class TableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def _add_table_to_db(self, splash) -> None:
         """Add a table to database.
 
@@ -302,6 +319,7 @@ class TableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def _update_table_in_db(self) -> None:
         """Update the table in database.
 
@@ -311,6 +329,7 @@ class TableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def __getitem__(self, item):
         """Return the requested item.
 
@@ -326,6 +345,7 @@ class TableBase:
         for line in self._con.fetchall():
             return line
 
+    @_check_types.do
     def __iter__(self) -> _Iterable[int]:
         """Iterate over the available items.
 
@@ -340,6 +360,7 @@ class TableBase:
             yield line[0]
 
     @property
+    @_check_types.do
     def table_name(self) -> str:
         """Return the table name.
 
@@ -350,6 +371,7 @@ class TableBase:
         """
         return self.__table_name__
 
+    @_check_types.do
     def __contains__(self, db_id: int) -> bool:
         """Return whether the requested item is present.
 
@@ -367,6 +389,7 @@ class TableBase:
 
         return False
 
+    @_check_types.do
     def insert(self, **kwargs) -> int:
         """Execute the insert operation.
 
@@ -392,6 +415,7 @@ class TableBase:
         self._con.commit()
         return self._con.lastrowid
 
+    @_check_types.do
     def export_as_json(self, file: str | IO[bytes]) -> int:
         """
         This function dumps to a file or a file like object.
@@ -446,6 +470,7 @@ class TableBase:
 
         return count
 
+    @_check_types.do
     def load_from_json(self, data: list[dict[str, float | int | str]] | str) -> int:
         """Load the from json.
 
@@ -489,6 +514,7 @@ class TableBase:
         self._con.commit()
         return count
 
+    @_check_types.do
     def select(self, *args, **kwargs):
         """Execute the select operation.
 
@@ -523,6 +549,7 @@ class TableBase:
         res = self._con.fetchall()
         return res
 
+    @_check_types.do
     def delete(self, db_id: int) -> None:
         """Execute the delete operation.
 
@@ -534,6 +561,7 @@ class TableBase:
         self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = {db_id};')
         self._con.commit()
 
+    @_check_types.do
     def update(self, db_id: int, **kwargs):
         """Execute the update operation.
 
@@ -555,6 +583,7 @@ class TableBase:
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = {db_id};', values)
         self._con.commit()
 
+    @_check_types.do
     def execute(self, cmd, params=None):
         """Execute the execute operation.
 
@@ -572,6 +601,7 @@ class TableBase:
         else:
             return self._con.execute(cmd, params)
 
+    @_check_types.do
     def commit(self):
         """Execute the commit operation.
 
@@ -580,6 +610,7 @@ class TableBase:
         self._con.commit()
 
     @property
+    @_check_types.do
     def lastrowid(self):
         """Return the lastrowid.
 
@@ -590,6 +621,7 @@ class TableBase:
         """
         return self._con.lastrowid
 
+    @_check_types.do
     def fetchall(self):
         """Execute the fetchall operation.
 
@@ -600,6 +632,7 @@ class TableBase:
         """
         return self._con.fetchall()
 
+    @_check_types.do
     def fetchone(self):
         """Execute the fetchone operation.
 
@@ -611,6 +644,7 @@ class TableBase:
         return self._con.fetchone()
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -622,6 +656,7 @@ class TableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def get_unique(self, field_name, table_name=None, get_field_name='name'):
         """Return the unique.
 
@@ -652,6 +687,7 @@ class TableBase:
 
         return res
 
+    @_check_types.do
     def search(self, search_items: dict, *compat_parts, **kwargs):
         """
         Search table.
@@ -806,6 +842,7 @@ class GLBTables:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, splash, mainframe: "_ui.MainFrame"):
         """Initialise the :class:`GLBTables` instance.
 
@@ -870,6 +907,7 @@ class GLBTables:
         self.connector.db_data = None
 
     @property
+    @_check_types.do
     def cpa_lock_types_table(self) -> CPALockTypesTable:
         """Return the CPA lock types table.
 
@@ -881,6 +919,7 @@ class GLBTables:
         return self._cpa_lock_types_table
 
     @property
+    @_check_types.do
     def resource_state_table(self) -> ResourceStateTable:
         """Return the resource state coordination table.
 
@@ -890,6 +929,7 @@ class GLBTables:
         return self._resource_state_table
 
     @property
+    @_check_types.do
     def images_table(self) -> ImagesTable:
         """Return the images table.
 
@@ -901,6 +941,7 @@ class GLBTables:
         return self._images_table
 
     @property
+    @_check_types.do
     def datasheets_table(self) -> DatasheetsTable:
         """Return the datasheets table.
 
@@ -912,6 +953,7 @@ class GLBTables:
         return self._datasheets_table
 
     @property
+    @_check_types.do
     def cads_table(self) -> CADsTable:
         """Return the cads table.
 
@@ -923,6 +965,7 @@ class GLBTables:
         return self._cads_table
 
     @property
+    @_check_types.do
     def file_types_table(self) -> FileTypesTable:
         """Return the file types table.
 
@@ -934,6 +977,7 @@ class GLBTables:
         return self._file_types_table
 
     @property
+    @_check_types.do
     def accessories_table(self) -> AccessoriesTable:
         """Return the accessories table.
 
@@ -945,6 +989,7 @@ class GLBTables:
         return self._accessories_table
 
     @property
+    @_check_types.do
     def boots_table(self) -> BootsTable:
         """Return the boots table.
 
@@ -956,6 +1001,7 @@ class GLBTables:
         return self._boots_table
 
     @property
+    @_check_types.do
     def manufacturers_table(self) -> ManufacturersTable:
         """Return the manufacturers table.
 
@@ -967,6 +1013,7 @@ class GLBTables:
         return self._manufacturers_table
 
     @property
+    @_check_types.do
     def tpa_locks_table(self) -> TPALocksTable:
         """Return the TPA locks table.
 
@@ -978,6 +1025,7 @@ class GLBTables:
         return self._tpa_locks_table
 
     @property
+    @_check_types.do
     def cpa_locks_table(self) -> CPALocksTable:
         """Return the CPA locks table.
 
@@ -989,6 +1037,7 @@ class GLBTables:
         return self._cpa_locks_table
 
     @property
+    @_check_types.do
     def platings_table(self) -> PlatingsTable:
         """Return the platings table.
 
@@ -1000,6 +1049,7 @@ class GLBTables:
         return self._platings_table
 
     @property
+    @_check_types.do
     def materials_table(self) -> MaterialsTable:
         """Return the materials table.
 
@@ -1011,6 +1061,7 @@ class GLBTables:
         return self._materials_table
 
     @property
+    @_check_types.do
     def covers_table(self) -> CoversTable:
         """Return the covers table.
 
@@ -1022,6 +1073,7 @@ class GLBTables:
         return self._covers_table
 
     @property
+    @_check_types.do
     def housings_table(self) -> HousingsTable:
         """Return the housings table.
 
@@ -1033,6 +1085,7 @@ class GLBTables:
         return self._housings_table
 
     @property
+    @_check_types.do
     def seal_types_table(self) -> SealTypesTable:
         """Return the seal types table.
 
@@ -1044,6 +1097,7 @@ class GLBTables:
         return self._seal_types_table
 
     @property
+    @_check_types.do
     def seals_table(self) -> SealsTable:
         """Return the seals table.
 
@@ -1055,6 +1109,7 @@ class GLBTables:
         return self._seals_table
 
     @property
+    @_check_types.do
     def series_table(self) -> SeriesTable:
         """Return the series table.
 
@@ -1066,6 +1121,7 @@ class GLBTables:
         return self._series_table
 
     @property
+    @_check_types.do
     def terminals_table(self) -> TerminalsTable:
         """Return the terminals table.
 
@@ -1077,6 +1133,7 @@ class GLBTables:
         return self._terminals_table
 
     @property
+    @_check_types.do
     def wires_table(self) -> WiresTable:
         """Return the wires table.
 
@@ -1088,6 +1145,7 @@ class GLBTables:
         return self._wires_table
 
     @property
+    @_check_types.do
     def cavity_locks_table(self) -> CavityLocksTable:
         """Return the cavity locks table.
 
@@ -1099,6 +1157,7 @@ class GLBTables:
         return self._cavity_locks_table
 
     @property
+    @_check_types.do
     def colors_table(self) -> ColorsTable:
         """Return the colors table.
 
@@ -1110,6 +1169,7 @@ class GLBTables:
         return self._colors_table
 
     @property
+    @_check_types.do
     def directions_table(self) -> DirectionsTable:
         """Return the directions table.
 
@@ -1121,6 +1181,7 @@ class GLBTables:
         return self._directions_table
 
     @property
+    @_check_types.do
     def families_table(self) -> FamiliesTable:
         """Return the families table.
 
@@ -1132,6 +1193,7 @@ class GLBTables:
         return self._families_table
 
     @property
+    @_check_types.do
     def genders_table(self) -> GendersTable:
         """Return the genders table.
 
@@ -1143,6 +1205,7 @@ class GLBTables:
         return self._genders_table
 
     @property
+    @_check_types.do
     def temperatures_table(self) -> TemperaturesTable:
         """Return the temperatures table.
 
@@ -1154,6 +1217,7 @@ class GLBTables:
         return self._temperatures_table
 
     @property
+    @_check_types.do
     def ip_solids_table(self) -> IPSolidsTable:
         """Return the ip solids table.
 
@@ -1165,6 +1229,7 @@ class GLBTables:
         return self._ip_solids_table
 
     @property
+    @_check_types.do
     def ip_fluids_table(self) -> IPFluidsTable:
         """Return the ip fluids table.
 
@@ -1176,6 +1241,7 @@ class GLBTables:
         return self._ip_fluids_table
 
     @property
+    @_check_types.do
     def ip_supps_table(self) -> IPSuppsTable:
         """Return the ip supps table.
 
@@ -1187,6 +1253,7 @@ class GLBTables:
         return self._ip_supps_table
 
     @property
+    @_check_types.do
     def ip_ratings_table(self) -> IPRatingsTable:
         """Return the ip ratings table.
 
@@ -1198,6 +1265,7 @@ class GLBTables:
         return self._ip_ratings_table
 
     @property
+    @_check_types.do
     def cavities_table(self) -> CavitiesTable:
         """Return the cavities table.
 
@@ -1209,6 +1277,7 @@ class GLBTables:
         return self._cavities_table
 
     @property
+    @_check_types.do
     def bundle_covers_table(self) -> BundleCoversTable:
         """Return the bundle covers table.
 
@@ -1220,6 +1289,7 @@ class GLBTables:
         return self._bundle_covers_table
 
     @property
+    @_check_types.do
     def transition_branches_table(self) -> TransitionBranchesTable:
         """Return the transition branches table.
 
@@ -1231,6 +1301,7 @@ class GLBTables:
         return self._transition_branches_table
 
     @property
+    @_check_types.do
     def adhesives_table(self) -> AdhesivesTable:
         """Return the adhesives table.
 
@@ -1242,6 +1313,7 @@ class GLBTables:
         return self._adhesives_table
 
     @property
+    @_check_types.do
     def protections_table(self) -> ProtectionsTable:
         """Return the protections table.
 
@@ -1253,6 +1325,7 @@ class GLBTables:
         return self._protections_table
 
     @property
+    @_check_types.do
     def shapes_table(self) -> ShapesTable:
         """Return the shapes table.
 
@@ -1264,6 +1337,7 @@ class GLBTables:
         return self._shapes_table
 
     @property
+    @_check_types.do
     def transitions_table(self) -> TransitionsTable:
         """Return the transitions table.
 
@@ -1275,6 +1349,7 @@ class GLBTables:
         return self._transitions_table
 
     @property
+    @_check_types.do
     def splices_table(self) -> SplicesTable:
         """Return the splices table.
 
@@ -1286,6 +1361,7 @@ class GLBTables:
         return self._splices_table
 
     @property
+    @_check_types.do
     def models3d_table(self) -> Models3DTable:
         """Return the models 3D table.
 
@@ -1297,6 +1373,7 @@ class GLBTables:
         return self._models3d_table
 
     @property
+    @_check_types.do
     def wire_markers_table(self) -> WireMarkersTable:
         """Return the wire markers table.
 
@@ -1308,6 +1385,7 @@ class GLBTables:
         return self._wire_markers_table
 
     @property
+    @_check_types.do
     def splice_types_table(self) -> SpliceTypesTable:
         """Return the splice types table.
 
@@ -1319,6 +1397,7 @@ class GLBTables:
         return self._splice_types_table
 
     @property
+    @_check_types.do
     def settings_table(self) -> SettingsTable:
         """Return the settings table.
 
@@ -1330,6 +1409,7 @@ class GLBTables:
         return self._settings_table
 
     @property
+    @_check_types.do
     def used_parts_table(self) -> UsedPartsTable:
         """Return the used parts table.
 

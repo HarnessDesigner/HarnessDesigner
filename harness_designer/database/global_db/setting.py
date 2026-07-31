@@ -2,6 +2,7 @@
 
 from .bases import TableBase
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 class SettingsTable(TableBase):
@@ -11,6 +12,7 @@ class SettingsTable(TableBase):
     """
     __table_name__ = 'settings'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -23,6 +25,7 @@ class SettingsTable(TableBase):
 
         return settings.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -36,6 +39,7 @@ class SettingsTable(TableBase):
         settings.table.add_to_db(self)
         settings.add_records(self._con, splash, _utils.get_appdata())
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -45,6 +49,7 @@ class SettingsTable(TableBase):
 
         settings.table.update_fields(self)
 
+    @_check_types.do
     def __getitem__(self, item):
         """Return the requested item.
 

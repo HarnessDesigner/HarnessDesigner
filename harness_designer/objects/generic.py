@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects3d import generic as _generic3d
 from .objects2d import generic as _generic2d
 from .objectspeg import generic as _genericpeg
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -20,6 +21,7 @@ class Generic(_ObjectBase):
     obj3d: _generic3d.Generic
     objpeg: _genericpeg.Generic
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """Initialise the :class:`Generic` instance.
 

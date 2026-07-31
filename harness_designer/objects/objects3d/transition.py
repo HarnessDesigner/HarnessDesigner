@@ -20,6 +20,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ Config = _config.Config.editor3d
 #       setting branch diameter
 
 
+@_check_types.do
 def _build_model(b_data: "_g_transition.Transition", branches: list["Branch"], update_points=False):
     """Build the model.
 
@@ -142,6 +144,7 @@ class Transition(_base3d.Base3D):
     parent: "_transition.Transition" = None
     db_obj: "_pjt_transition.PJTTransition" = None
 
+    @_check_types.do
     def __init__(self, parent: "_transition.Transition",
                  db_obj: "_pjt_transition.PJTTransition"):
         """Initialise the :class:`Transition` instance.
@@ -255,6 +258,7 @@ class Transition(_base3d.Base3D):
             _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
                                     scale, material)
 
+    @_check_types.do
     def build(self):
         """Execute the build operation.
 
@@ -282,6 +286,7 @@ class Transition(_base3d.Base3D):
             self._vbo.update(packed, count)
         self.editor3d.update()
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -300,6 +305,7 @@ class Transition(_base3d.Base3D):
 
         super()._update_angle(angle)
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Update the position.
 
@@ -315,6 +321,7 @@ class Transition(_base3d.Base3D):
 
         super()._update_position(position)
 
+    @_check_types.do
     def get_branch(self, point: _point.Point) -> int:
         """Return the branch.
 
@@ -329,6 +336,7 @@ class Transition(_base3d.Base3D):
             if branch.position.db_id == point.db_id:
                 return branch
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -348,6 +356,7 @@ class Branch(_base3d.Base3D):
     _parent: "_transition.Transition" = None
     db_obj: "_pjt_transition_branch.PJTTransitionBranch"
 
+    @_check_types.do
     def __init__(self, parent: "_transition.Transition", db_obj: "_pjt_transition_branch.PJTTransitionBranch",
                  diameter: float, position: _point.Point):
         """Initialise the :class:`Branch` instance.
@@ -381,6 +390,7 @@ class Branch(_base3d.Base3D):
         self._selected_material = _materials.Rubber(color)
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         """Return the diameter.
 
@@ -392,6 +402,7 @@ class Branch(_base3d.Base3D):
         return self._diameter
 
     @diameter.setter
+    @_check_types.do
     def diameter(self, value: float):
         """Set the diameter.
 
@@ -405,6 +416,7 @@ class Branch(_base3d.Base3D):
         self._parent.obj3d.build()
 
     @property
+    @_check_types.do
     def min_diameter(self) -> float:
         """Return the min diameter.
 
@@ -417,6 +429,7 @@ class Branch(_base3d.Base3D):
         return branch.min_dia
 
     @property
+    @_check_types.do
     def max_diameter(self) -> float:
         """Return the max diameter.
 
@@ -435,6 +448,7 @@ class TransitionMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`TransitionMenu` instance.
 
@@ -473,18 +487,22 @@ class TransitionMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_select(self):
         """Make this transition the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this transition as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this transition from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_route_wires(self):
         """Open the wire routing dialog to reassign wires between output branches."""
         from ...ui.dialogs import transition_routing as _routing_dlg
@@ -494,6 +512,7 @@ class TransitionMenu(QMenu):
         dlg.exec()
         dlg.deleteLater()
 
+    @_check_types.do
     def on_properties(self):
         """Show this transition's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

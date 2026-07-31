@@ -17,6 +17,7 @@ from ...gl import materials as _materials
 from ...geometry import point as _point
 from ...shapes import text as _text
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ _ALIGN_BOTTOM_LEFT = [build123d.TextAlign.LEFT, build123d.TextAlign.BOTTOM]
 _ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
 
 
+@_check_types.do
 def _bracket_vbo():
     """Return (building it first if not already cached) the shared "("
     bracket VBO every terminal shares -- always the same single character
@@ -64,6 +66,7 @@ class Terminal(_base2d.Base2D):
     _parent: "_terminal.Terminal" = None
     db_obj: "_pjt_terminal.PJTTerminal"
 
+    @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
         """Initialise the :class:`Terminal` instance.
@@ -98,10 +101,12 @@ class Terminal(_base2d.Base2D):
 
         self._name_cb = self.db_obj.bind(self._rebuild, 'name')
 
+    @_check_types.do
     def _mesh_args(self) -> dict:
         return dict(text=self.db_obj.name, font_size=Config.label.terminal_name_font_size,
                     text_align=_ALIGN_BOTTOM_LEFT)
 
+    @_check_types.do
     def _build(self):
         """Build this terminal's name VBO (construction time only -- see
         :meth:`_rebuild` for in-place content updates).
@@ -110,6 +115,7 @@ class Terminal(_base2d.Base2D):
         """
         return _text.create_vbo(self._text_uuid, **self._mesh_args())
 
+    @_check_types.do
     def _rebuild(self, _entry=None):
         """Rebuild this terminal's name mesh in place from its current
         name and re-derive its OBB/AABB (``self._vbo.update`` recomputes
@@ -127,6 +133,7 @@ class Terminal(_base2d.Base2D):
 
         self.editor2d.Refresh()
 
+    @_check_types.do
     def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
         """Render the "(" bracket under the already-bound schematic2d
         *program*, at a fixed local offset just outside the pin edge
@@ -153,6 +160,7 @@ class Terminal(_base2d.Base2D):
         GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
         self._bracket_vbo.render()
 
+    @_check_types.do
     def _world_offset(self, local_x: float, local_z: float) -> tuple[float, float, float]:
         """Rotate a ``(local_x, 0, local_z)`` offset by this terminal's
         current ``angle2d.y`` -- see ``objects2d/housing.py``'s own
@@ -162,11 +170,13 @@ class Terminal(_base2d.Base2D):
         x, y, z = _base2d._rotate_about_y(points, self._angle.y)[0]  # NOQA
         return float(x), float(y), float(z)
 
+    @_check_types.do
     def _delete(self):
         self._name_cb.unbind()
         self._detach_extra_wires_at_position2d()
         super()._delete()
 
+    @_check_types.do
     def _detach_extra_wires_at_position2d(self):
         """Give every wire but the first one attached at this terminal's
         own 2D point its own new point at the same coordinates.
@@ -208,6 +218,7 @@ class TerminalMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`TerminalMenu` instance.
 
@@ -257,6 +268,7 @@ class TerminalMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_wire(self):
         """Handle the add wire event.
 
@@ -264,6 +276,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_wire_service_loop(self):
         """Handle the add wire service loop event.
 
@@ -271,6 +284,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_add_seal(self):
         """Handle the add seal event.
 
@@ -278,6 +292,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Handle the trace circuit event.
 
@@ -285,6 +300,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_select(self):
         """Handle the select event.
 
@@ -292,6 +308,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_clone(self):
         """Handle the clone event.
 
@@ -299,6 +316,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 
@@ -306,6 +324,7 @@ class TerminalMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_properties(self):
         """Handle the properties event.
 

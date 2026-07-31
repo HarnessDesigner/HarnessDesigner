@@ -6,6 +6,7 @@ from . import basepeg as _basepeg
 from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import box as _box
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class Housing(_basepeg.BasePeg):
     """
     db_obj: "_pjt_housing.PJTHousing"
 
+    @_check_types.do
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
         """Initialise the :class:`Housing` instance.
@@ -74,6 +76,7 @@ class Housing(_basepeg.BasePeg):
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
 
+    @_check_types.do
     def _flatten_hook(self) -> tuple:
         """Return the current OBB-derived "lay it flat" Euler orientation
         (see :meth:`BasePeg._set_model`/``_apply_flatten_if_untouched``).
@@ -82,6 +85,7 @@ class Housing(_basepeg.BasePeg):
             self._vbo.local_obb, self._model.forward_up)  # NOQA
         return flatten_quat.as_euler
 
+    @_check_types.do
     def build_table_rows(self, project, point3d_id: int) -> list:
         """Every seated cavity's wire, cavity-index order -- see
         ``table_rows.build_rows_for_housing``.
@@ -89,5 +93,6 @@ class Housing(_basepeg.BasePeg):
         return _table_rows.build_rows_for_housing(self.db_obj, project)
 
     @property
+    @_check_types.do
     def table_include_cavity_columns(self) -> bool:
         return True

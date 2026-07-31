@@ -16,6 +16,7 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QCursor
 
 from .... import config as _config
+from .... import check_types as _check_types
 
 DBConfig = _config.Config.database
 Config = _config.Config.database.mysql
@@ -65,6 +66,7 @@ MODE_TOOLTIPS = {
 }
 
 
+@_check_types.do
 def _file_browse_button(parent, label, initial_value=''):
     """Return (row_widget, line_edit) for a file-browse row."""
     widget = QWidget(parent)
@@ -78,6 +80,7 @@ def _file_browse_button(parent, label, initial_value=''):
     btn = QPushButton('...', widget)
     btn.setFixedWidth(28)
 
+    @_check_types.do
     def _browse():
         """Perform the ``_browse`` operation. UNKNOWN.
         """
@@ -94,6 +97,7 @@ class SQLOptionsDialog(QDialog):
 
     """Collect editable MySQL connector settings from the user.
     """
+    @_check_types.do
     def __init__(self, parent):
         """Build the MySQL options dialog.
 
@@ -165,6 +169,7 @@ class SQLOptionsDialog(QDialog):
         buf_row.addWidget(self.buffer_ctrl)
         misc_lay.addLayout(buf_row)
 
+        @_check_types.do
         def _timeout_spin(parent, label, value):
             """Create a labeled timeout spin box row.
 
@@ -405,6 +410,7 @@ class SQLOptionsDialog(QDialog):
         btn_box.rejected.connect(self.reject)
         outer.addWidget(btn_box)
 
+    @_check_types.do
     def GetValue(self):
         """Return the values selected in the MySQL options dialog.
 
@@ -417,6 +423,7 @@ class SQLOptionsDialog(QDialog):
         if self.tls_13_ctrl.isChecked():
             tls_versions.append('TLSv1.3')
 
+        @_check_types.do
         def _timeout(ctrl):
             """Normalize a timeout control value to ``None`` when disabled.
 
@@ -467,6 +474,7 @@ class SQLOptionsDialog(QDialog):
 
         return res
 
+    @_check_types.do
     def _on_oci_file(self, value):
         """Enable or disable OCI profile controls based on the selected file.
 
@@ -481,6 +489,7 @@ class SQLOptionsDialog(QDialog):
         self.oci_config_profile_ctrl.setEnabled(has_file)
         self.oci_config_profile_label.setEnabled(has_file)
 
+    @_check_types.do
     def _on_size(self, evt):
         """Persist the dialog size when the window is resized.
 
@@ -495,6 +504,7 @@ class SQLOptionsDialog(QDialog):
             Config.settings_dialog.size = (s.width(), s.height())
         super().resizeEvent(evt)
 
+    @_check_types.do
     def _on_move(self, evt):
         """Persist the dialog position when the window is moved.
 
@@ -509,6 +519,7 @@ class SQLOptionsDialog(QDialog):
             Config.settings_dialog.pos = (p.x(), p.y())
         super().moveEvent(evt)
 
+    @_check_types.do
     def _on_ssl_enabled(self, state):
         """Enable or disable SSL-related controls.
 
@@ -527,12 +538,14 @@ class SQLOptionsDialog(QDialog):
                   self.tls_12_label, self.tls_13_label):
             w.setEnabled(value)
 
+    @_check_types.do
     def _on_auth_plugin(self):
         """Refresh auth-plugin dependent controls after the plugin changes.
 
         :returns: ``None``.
         :rtype: None
         """
+        @_check_types.do
         def _do():
             """Apply delayed auth-plugin UI updates.
             """

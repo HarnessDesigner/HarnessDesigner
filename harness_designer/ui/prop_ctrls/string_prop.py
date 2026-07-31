@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QLineEdit, QLabel, QHBoxLayout, QVBoxLayout
 from PySide6 import QtCore
 from PySide6 import QtWidgets
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class StringProperty(QtWidgets.QWidget):
@@ -15,6 +16,7 @@ class StringProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label: str, style: int = 0,
                  units: str | None = None, read_only: bool = False):
         """
@@ -65,6 +67,7 @@ class StringProperty(QtWidgets.QWidget):
         self.setLayout(sizer)
         self._ctrl.returnPressed.connect(self._on_enter)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """
         Execute the get value operation.
@@ -75,6 +78,7 @@ class StringProperty(QtWidgets.QWidget):
 
         return self._value
 
+    @_check_types.do
     def SetValue(self, value: str) -> None:
         """
         Execute the set value operation.
@@ -90,6 +94,7 @@ class StringProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def _on_enter(self) -> None:
         """
         Handle the enter event.
@@ -106,9 +111,11 @@ class StringProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

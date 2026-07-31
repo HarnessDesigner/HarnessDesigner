@@ -11,6 +11,7 @@ from . import quaternion as _quaternion
 from .. import point as _point
 from ..decimal import Decimal as _d
 from ... import app_mixins as _app_mixins
+from ... import check_types as _check_types
 
 
 ONE = 1.0
@@ -23,6 +24,7 @@ class AngleMeta(type):
     _instances = {}
 
     @classmethod
+    @_check_types.do
     def _remove_instance(cls, ref):
         """
         Remove a collected cached angle reference.
@@ -41,6 +43,7 @@ class AngleMeta(type):
 
         del cls._instances[key]
 
+    @_check_types.do
     def __call__(cls, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
                  db_id: int | str | None = None):
@@ -75,6 +78,7 @@ class AngleMeta(type):
 class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
+    @_check_types.do
     def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
         """
         Handle selected NumPy ufuncs involving an angle.
@@ -202,6 +206,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         raise RuntimeError
 
+    @_check_types.do
     def __init__(self, q: _quaternion.Quaternion | None = None, 
                  euler_angles: list[float, float, float] | None = None,
                  db_id: int | str | None = None):
@@ -235,6 +240,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self._matrix = self._q.as_matrix
 
     @property
+    @_check_types.do
     def inverse(self) -> "Angle":
         """
         Return the inverse rotation.
@@ -246,6 +252,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         q = -self._q
         return Angle(q)
     
+    @_check_types.do
     def __neg__(self) -> "Angle":
         """
         Return the inverse rotation.
@@ -258,6 +265,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return Angle(q)
 
     @property
+    @_check_types.do
     def x(self) -> float:
         """
         Return the cached X Euler angle or ``nan`` when UNKNOWN.
@@ -273,6 +281,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return float(str(self.__euler_angles[0]))
 
     @x.setter
+    @_check_types.do
     def x(self, value: float):
         """
         Set the cached X Euler angle and update the quaternion.
@@ -294,6 +303,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         self._process_callbacks()
 
+    @_check_types.do
     def __update_quat(self, q):
         """
         Copy quaternion component values into the cached quaternion.
@@ -311,6 +321,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self.__update_matrix()
 
     @property
+    @_check_types.do
     def y(self) -> float:
         """
         Return the cached Y Euler angle or ``nan`` when UNKNOWN.
@@ -326,6 +337,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return float(str(self.__euler_angles[1]))
 
     @y.setter
+    @_check_types.do
     def y(self, value: float):
         """
         Set the cached Y Euler angle and update the quaternion.
@@ -347,6 +359,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self._process_callbacks()
 
     @property
+    @_check_types.do
     def z(self) -> float:
         """
         Return the cached Z Euler angle or ``nan`` when UNKNOWN.
@@ -362,6 +375,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return float(str(self.__euler_angles[2]))
 
     @z.setter
+    @_check_types.do
     def z(self, value: float):
         """
         Set the cached Z Euler angle and update the quaternion.
@@ -383,6 +397,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self.__update_quat(q)
         self._process_callbacks()
 
+    @_check_types.do
     def copy(self) -> "Angle":
         """
         Return a copy of this angle.
@@ -397,6 +412,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
             return Angle.from_quat([float(str(v)) for v in self._q.as_numpy.tolist()])
 
     @staticmethod
+    @_check_types.do
     def __get_quat_from_other(other: Union["Angle", np.ndarray | _quaternion.Quaternion]) -> _quaternion.Quaternion:
         """
         Convert supported operands into a quaternion.
@@ -429,6 +445,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         return quat
 
+    @_check_types.do
     def __update_matrix(self):
         """
         Refresh the cached rotation matrix from the quaternion.
@@ -443,6 +460,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
             for j in range(3):
                 self._matrix[i][j] = matrix[i][j]
 
+    @_check_types.do
     def __iadd__(self, other: Union["Angle", np.ndarray]) -> Self:
         """
         Compose this angle with ``other`` in place.
@@ -478,6 +496,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self._process_callbacks()
         return self
 
+    @_check_types.do
     def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
         """
         Return the composition of this angle with ``other``.
@@ -504,6 +523,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         return self.from_quat(q)
 
+    @_check_types.do
     def __isub__(self, other: Union["Angle", np.ndarray]) -> Self:
         """
         Subtract ``other`` from this angle in place.
@@ -539,6 +559,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self._process_callbacks()
         return self
 
+    @_check_types.do
     def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
         """
         Return this angle minus ``other``.
@@ -564,6 +585,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         q = self._q - self.__get_quat_from_other(other)
         return self.from_quat(q)
 
+    @_check_types.do
     def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
         """
         Apply this angle to ``other`` in place when supported.
@@ -600,6 +622,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         #
         # return other
 
+    @_check_types.do
     def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
         """
         Return ``other`` rotated by this angle.
@@ -630,6 +653,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         #
         # return other
 
+    @_check_types.do
     def __bool__(self):
         """
         Return whether this angle is not the identity rotation.
@@ -641,6 +665,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         arr = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float32)
         return not all(np.isclose(self.as_quat_numpy, arr))
 
+    @_check_types.do
     def __eq__(self, other: "Angle") -> bool:
         """
         Return whether this angle matches ``other``.
@@ -654,6 +679,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         other = other.as_quat_numpy
         return all(np.isclose(other, self.as_quat_numpy))
 
+    @_check_types.do
     def __ne__(self, other: "Angle") -> bool:
         """
         Return whether this angle differs from ``other``.
@@ -667,6 +693,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return not self.__eq__(other)
 
     @property
+    @_check_types.do
     def as_euler_numpy(self) -> np.ndarray:
         """
         Return cached Euler angles as a NumPy array.
@@ -678,6 +705,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self.__euler_angles
 
     @property
+    @_check_types.do
     def as_euler_float(self) -> tuple[float, float, float]:
         """
         Return cached Euler angles as floats.
@@ -691,6 +719,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return tuple(float(str(item)) for item in self.__euler_angles.tolist())
 
     @property
+    @_check_types.do
     def as_quat_numpy(self) -> np.ndarray:
         """
         Return quaternion components as a NumPy array.
@@ -702,7 +731,8 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self._q.as_numpy
 
     @property
-    def as_quat_float(self) -> tuple[float, float, float]:
+    @_check_types.do
+    def as_quat_float(self) -> tuple[float, float, float, float]:
         """
         Return quaternion components as floats.
 
@@ -713,6 +743,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return tuple(float(str(item)) for item in self._q.as_numpy.tolist())
 
     @property
+    @_check_types.do
     def as_euler_int(self) -> list[int, int, int]:
         """
         Return cached Euler angles truncated to integers.
@@ -724,6 +755,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return tuple(int(item) for item in self.as_euler_float)
 
     @property
+    @_check_types.do
     def as_matrix_float(
         self
     ) -> tuple[list[float, float, float], list[float, float, float], list[float, float, float]]:
@@ -737,6 +769,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return tuple([float(str(item)) for item in row] for row in self._matrix.tolist())
 
     @property
+    @_check_types.do
     def as_matrix_numpy(self) -> np.ndarray:
         """
         Return the cached rotation matrix.
@@ -747,6 +780,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         return self._matrix
 
+    @_check_types.do
     def __iter__(self) -> Iterable[float]:
         """
         Iterate over Euler-angle components.
@@ -759,6 +793,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         return iter([x, y, z])
 
+    @_check_types.do
     def __str__(self) -> str:
         """
         Return a readable Euler-angle string.
@@ -772,6 +807,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return f'X: {x}, Y: {y}, Z: {z}'
 
     @classmethod
+    @_check_types.do
     def from_direction(cls, direction: np.ndarray) -> "Angle":
         """Create quaternion to rotate +Z axis to align with direction"""
 
@@ -796,6 +832,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return cls.from_axis_angle(axis, angle)
 
     @classmethod
+    @_check_types.do
     def from_euler(cls, x: float, y: float, z: float, db_id: str | None = None) -> "Angle":
         """
         Create an angle from Euler angles in degrees.
@@ -817,6 +854,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return ret
 
     @classmethod
+    @_check_types.do
     def from_quat(cls, q: list[float, float, float, float] | np.ndarray | _quaternion.Quaternion,
                   euler_angles: list[float, float, float] | None = None, db_id: str | None = None) -> "Angle":
         """
@@ -838,6 +876,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return cls(q, euler_angles, db_id)
 
     @classmethod
+    @_check_types.do
     def from_matrix(cls, matrix: np.ndarray, db_id: str | None = None) -> "Angle":
         """Convert a 3x3 rotation matrix to a unit quaternion (w, x, y, z)."""
 
@@ -889,6 +928,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return cls(q, db_id=db_id)
 
     @classmethod
+    @_check_types.do
     def from_points(cls, p1: _point.Point, p2: _point.Point,
                     db_id: str | None = None) -> "Angle":  # NOQA
         """
@@ -951,6 +991,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return cls.from_matrix(rot, db_id)
 
     @classmethod
+    @_check_types.do
     def from_frame(cls, pos: "_point.Point", fwd_ref: "_point.Point",
                    up_ref: "_point.Point",
                    db_id: str | None = None) -> "Angle":
@@ -992,6 +1033,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return cls.from_matrix(rot, db_id)
 
     @classmethod
+    @_check_types.do
     def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: str | None = None):
         """
         Create an angle from an axis-angle rotation.

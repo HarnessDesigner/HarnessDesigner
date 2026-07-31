@@ -10,6 +10,7 @@ import numpy as np
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
+from .... import check_types as _check_types
 
 
 @dataclass
@@ -21,6 +22,7 @@ class Surface:
 
 # ── 1.  Surface grouping ──────────────────────────────────────────────────────
 
+@_check_types.do
 def compute_surfaces(
     vertices: np.ndarray,   # (3N, 3) float32 — triangle-soup positions
     face_normals: np.ndarray,   # (3N, 3) float32 — face normal repeated per vertex
@@ -60,6 +62,7 @@ def compute_surfaces(
     ]
 
 
+@_check_types.do
 def split_into_components(surface: Surface, vertices: np.ndarray) -> List[Surface]:
     """
     Split a surface group into topologically connected triangle islands.
@@ -117,10 +120,12 @@ def split_into_components(surface: Surface, vertices: np.ndarray) -> List[Surfac
 
 # ── 2.  Boundary loop extraction ──────────────────────────────────────────────
 
+@_check_types.do
 def _pos_key(v: np.ndarray) -> tuple:
     return tuple(np.round(v.astype(np.float64), 4))
 
 
+@_check_types.do
 def extract_boundary_loops(
     tri_indices: List[int],
     vertices: np.ndarray,   # (3N, 3) float32
@@ -177,6 +182,7 @@ def extract_boundary_loops(
 
 # ── 3.  Hole classification ───────────────────────────────────────────────────
 
+@_check_types.do
 def plane_frame(n: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     n = np.asarray(n, np.float64)
     n /= np.linalg.norm(n) + 1e-12
@@ -192,6 +198,7 @@ def plane_frame(n: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return u, np.cross(n, u)
 
 
+@_check_types.do
 def classify_loop(
     pts: np.ndarray,   # (M, 3)
     normal: np.ndarray,
@@ -273,6 +280,7 @@ def classify_loop(
 
 # ── 4.  Hole alignment ────────────────────────────────────────────────────────
 
+@_check_types.do
 def align_holes(
     pin_holes: List[dict],
     wire_holes: List[dict],
@@ -286,6 +294,7 @@ def align_holes(
 
     u, v = plane_frame(np.asarray(normal, np.float64))
 
+    @_check_types.do
     def proj(c):
         c = np.asarray(c, np.float64)
         return np.array([float(c @ u), float(c @ v)])
@@ -315,11 +324,13 @@ def align_holes(
 
 # ── 5.  Geometry generation ───────────────────────────────────────────────────
 
+@_check_types.do
 def _project_to_plane(c: np.ndarray, n: np.ndarray, d: float) -> np.ndarray:
     """Project point c onto plane (n, d)."""
     return c - (float(c @ n) - d) * n
 
 
+@_check_types.do
 def _cylinder_mesh(c: np.ndarray, r: float, u: np.ndarray,
                    v: np.ndarray, n: np.ndarray, d0: float,
                    d1: float, seg: int = 32) -> Tuple[np.ndarray, np.ndarray]:
@@ -349,6 +360,7 @@ def _cylinder_mesh(c: np.ndarray, r: float, u: np.ndarray,
     return np.array(verts, np.float32), np.array(norms, np.float32)
 
 
+@_check_types.do
 def _box_mesh(c: np.ndarray, hw: float, hh: float, u: np.ndarray, v: np.ndarray,
               n: np.ndarray, d0: float, d1: float) -> Tuple[np.ndarray, np.ndarray]:
 
@@ -375,6 +387,7 @@ def _box_mesh(c: np.ndarray, hw: float, hh: float, u: np.ndarray, v: np.ndarray,
     return np.array(verts, np.float32), np.array(norms, np.float32)
 
 
+@_check_types.do
 def generate_hole_geometry(
     kind: str,
     params: dict,
@@ -402,6 +415,7 @@ def generate_hole_geometry(
 
 # ── 6.  Inner-hole filtering ─────────────────────────────────────────────────
 
+@_check_types.do
 def _loop_area_2d(loop: np.ndarray, u: np.ndarray, v: np.ndarray) -> float:
     """Absolute 2-D area of a loop via the shoelace formula."""
     pts = loop.astype(np.float64)
@@ -411,6 +425,7 @@ def _loop_area_2d(loop: np.ndarray, u: np.ndarray, v: np.ndarray) -> float:
     return abs(0.5 * float(np.sum(x * np.roll(y, -1) - np.roll(x, -1) * y)))
 
 
+@_check_types.do
 def inner_loops_only(
     loops: List[np.ndarray],
     normal: np.ndarray
@@ -438,6 +453,7 @@ def inner_loops_only(
 
 # ── 7.  Size-consensus filtering ─────────────────────────────────────────────
 
+@_check_types.do
 def filter_by_size_consensus(
     holes: List[dict],
     size_tol: float = 0.5,
@@ -454,6 +470,7 @@ def filter_by_size_consensus(
     if len(holes) < 2:
         return []
 
+    @_check_types.do
     def _matches(a: dict, b: dict) -> bool:
         if a['type'] != b['type']:
             return False
@@ -481,6 +498,7 @@ def filter_by_size_consensus(
                    for j in range(len(holes)) if j != i)]
 
 
+@_check_types.do
 def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
     return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
             abs(s.plane_dist - ref.plane_dist) < dist_tol)
@@ -488,6 +506,7 @@ def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> b
 
 # ── 8.  Coplanar-surface lookup ──────────────────────────────────────────────
 
+@_check_types.do
 def find_coplanar_surfaces(
     reference: Surface,
     all_surfaces: List[Surface],
@@ -505,6 +524,7 @@ def find_coplanar_surfaces(
 
 # ── 9.  Direct terminal-plane approach ───────────────────────────────────────
 
+@_check_types.do
 def get_surface_shape(
     surface: Surface,
     vertices: np.ndarray,   # (3N, 3) float32
@@ -522,6 +542,7 @@ def get_surface_shape(
     return classify_loop(pts, surface.normal)
 
 
+@_check_types.do
 def surface_centroid(surface: Surface, vertices: np.ndarray) -> np.ndarray:
     verts = vertices.reshape(-1, 3)
     idxs = [3 * ti + j for ti in surface.tri_indices for j in range(3)]
@@ -529,6 +550,7 @@ def surface_centroid(surface: Surface, vertices: np.ndarray) -> np.ndarray:
     return verts[idxs].astype(np.float64).mean(axis=0)
 
 
+@_check_types.do
 def surface_area(surface: Surface, vertices: np.ndarray) -> float:
     """Total triangle area of a surface, in mesh units squared."""
     verts = vertices.reshape(-1, 3)
@@ -540,6 +562,7 @@ def surface_area(surface: Surface, vertices: np.ndarray) -> float:
     return float(0.5 * np.linalg.norm(np.cross(b - a, c - a), axis=1).sum())
 
 
+@_check_types.do
 def surface_contains_points(
     surface: Surface, points: np.ndarray, vertices: np.ndarray,
 ) -> bool:
@@ -565,6 +588,7 @@ def surface_contains_points(
     return True
 
 
+@_check_types.do
 def generate_terminal_geometry(
     terminal: Surface,
     wire: Surface,
@@ -604,6 +628,7 @@ def generate_terminal_geometry(
 
 # ── 9.  Full pipeline ─────────────────────────────────────────────────────────
 
+@_check_types.do
 def run_analysis(
     vertices: np.ndarray,
     face_normals: np.ndarray,  # NOQA

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6 import QtWidgets
 import time
@@ -28,6 +28,7 @@ from . import wire_service_loop as _wire_service_loop
 from .. import config as _config
 from .. import logger as _logger
 from ..shapes import helix as _helix
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
 Config = _config.Config.project
 
 
+@_check_types.do
 def _reconcile_wire_sibling_graph(project: "Project") -> None:
     """Rebuild the in-memory sibling graph (Wire <-> Terminal/Splice/
     WireServiceLoop) from persisted point-id matches.
@@ -111,6 +113,7 @@ def _reconcile_wire_sibling_graph(project: "Project") -> None:
                 loop._stop_sibling_ref = _weakref.ref(wire)  # NOQA
 
 
+@_check_types.do
 def _reconcile_bundle_sibling_graph(project: "Project") -> None:
     """Rebuild the in-memory sibling graph (Bundle <-> Transition) from
     persisted point-id matches, mirroring _reconcile_wire_sibling_graph
@@ -150,6 +153,7 @@ class Project:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def _set_model(self, model3d: "_model3d.Model3D"):
         from ..gl import vbo as _vbo_handler
         import numpy as np
@@ -177,6 +181,7 @@ class Project:
 
         self._model = _project_model.ProjectModel(self.mainframe, project_obj, vbo)
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project.Project", project_name: str, project_id: int):
         """Initialise the :class:`Project` instance.
 
@@ -276,6 +281,7 @@ class Project:
             # a warning for it.
             _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
+        @_check_types.do
         def _load_objects(table_, label, obj_cls, ids_, container,
                           cur_count, max_count):
             # helper function for loading a project
@@ -437,6 +443,7 @@ class Project:
             kwargs = {'type': f'add_{table_name}', 'data': ids}
             self.mainframe.process_manager.send(**kwargs)
 
+    @_check_types.do
     def close(self):
         """Drop every reference this project holds to its own registered
         objects, without touching the database or calling any object's
@@ -472,6 +479,7 @@ class Project:
         self._cavities.clear()
         self._model = None
 
+    @_check_types.do
     def delete(self):
         """Delete every object in the project, then the project's own row.
 
@@ -524,13 +532,16 @@ class Project:
         self.db_obj.delete()
 
     @property
+    @_check_types.do
     def wire_stripe_max_length(self) -> float:
         return self.db_obj.wire_stripe_max_length
 
     @wire_stripe_max_length.setter
+    @_check_types.do
     def wire_stripe_max_length(self, value: float):
         self.db_obj.wire_stripe_max_length = value
 
+    @_check_types.do
     def update_objects(self, table_name, db_id):
         """Update the objects.
 
@@ -545,6 +556,7 @@ class Project:
         pass
 
     @property
+    @_check_types.do
     def obj_count(self) -> int:
         """Return the obj count.
 
@@ -556,6 +568,7 @@ class Project:
         return self._obj_count
 
     @obj_count.setter
+    @_check_types.do
     def obj_count(self, value: int):
         """Set the obj count.
 
@@ -568,6 +581,7 @@ class Project:
         self.ptables.projects_table.set_object_count(self.project_id, value)
 
     @classmethod
+    @_check_types.do
     def resolve_project_id(cls, mainframe: "_ui.MainFrame") -> tuple[str, int] | None:
         """Show the open-project dialog and resolve the chosen name to a
         project id, creating a new project row via ``AddProjectDialog`` if
@@ -636,7 +650,8 @@ class Project:
         return project_name, project_id
 
     @classmethod
-    def select_project(cls, mainframe: "_ui.MainFrame") -> "Project":
+    @_check_types.do
+    def select_project(cls, mainframe: "_ui.MainFrame") -> Union["Project", None]:
         """Execute the select project operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -658,6 +673,7 @@ class Project:
 
         return cls(mainframe, db_obj, project_name, project_id)
 
+    @_check_types.do
     def delete_note(self, db_id):
         """Delete the note.
 
@@ -669,6 +685,7 @@ class Project:
         if self._notes.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_note(self, obj: _note.Note) -> None:
         """Add a note.
 
@@ -680,6 +697,7 @@ class Project:
         self._notes[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_note(self, db_id) -> _note.Note:
         """Return the note.
 
@@ -694,6 +712,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def notes(self) -> list[_note.Note]:
         """Return the notes.
 
@@ -704,6 +723,7 @@ class Project:
         """
         return list(self._notes.values())
 
+    @_check_types.do
     def delete_seal(self, db_id):
         """Delete the seal.
 
@@ -715,6 +735,7 @@ class Project:
         if self._seals.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_seal(self, obj: _seal.Seal) -> None:
         """Add a seal.
 
@@ -726,6 +747,7 @@ class Project:
         self._seals[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_seal(self, db_id) -> _seal.Seal:
         """Return the seal.
 
@@ -740,6 +762,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def seals(self) -> list[_seal.Seal]:
         """Return the seals.
 
@@ -750,6 +773,7 @@ class Project:
         """
         return list(self._seals.values())
 
+    @_check_types.do
     def delete_terminal(self, db_id):
         """Delete the terminal.
 
@@ -761,6 +785,7 @@ class Project:
         if self._terminals.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_terminal(self, obj: _terminal.Terminal) -> None:
         """Add a terminal.
 
@@ -772,6 +797,7 @@ class Project:
         self._terminals[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_terminal(self, db_id) -> _terminal.Terminal:
         """Return the terminal.
 
@@ -786,6 +812,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def terminals(self) -> list[_terminal.Terminal]:
         """Return the terminals.
 
@@ -796,6 +823,7 @@ class Project:
         """
         return list(self._terminals.values())
 
+    @_check_types.do
     def delete_cavity(self, db_id):
         """Delete the cavity.
 
@@ -807,6 +835,7 @@ class Project:
         if self._cavities.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_cavity(self, obj: _cavity.Cavity) -> None:
         """Add a cavity.
 
@@ -818,6 +847,7 @@ class Project:
         self._cavities[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_cavity(self, db_id) -> _cavity.Cavity:
         """Return the cavity.
 
@@ -832,6 +862,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def cavities(self) -> list[_cavity.Cavity]:
         """Return the cavities.
 
@@ -842,6 +873,7 @@ class Project:
         """
         return list(self._cavities.values())
 
+    @_check_types.do
     def delete_tpa_lock(self, db_id):
         """Delete the TPA lock.
 
@@ -853,6 +885,7 @@ class Project:
         if self._tpa_locks.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_tpa_lock(self, obj: _tpa_lock.TPALock) -> None:
         """Add a TPA lock.
 
@@ -865,6 +898,7 @@ class Project:
         self.obj_count += 1
         return obj
 
+    @_check_types.do
     def get_tpa_lock(self, db_id) -> _tpa_lock.TPALock:
         """Return the TPA lock.
 
@@ -879,6 +913,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def tpa_locks(self) -> list[_tpa_lock.TPALock]:
         """Return the TPA locks.
 
@@ -889,6 +924,7 @@ class Project:
         """
         return list(self._tpa_locks.values())
 
+    @_check_types.do
     def delete_wire_marker(self, db_id):
         """Delete the wire marker.
 
@@ -900,6 +936,7 @@ class Project:
         if self._wire_markers.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_wire_marker(self, obj: _wire_marker.WireMarker) -> None:
         """Add a wire marker.
 
@@ -911,6 +948,7 @@ class Project:
         self._wire_markers[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_wire_marker(self, db_id) -> _wire_marker.WireMarker:
         """Return the wire marker.
 
@@ -925,6 +963,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def wire_markers(self) -> list[_wire_marker.WireMarker]:
         """Return the wire markers.
 
@@ -935,6 +974,7 @@ class Project:
         """
         return list(self._wire_markers.values())
 
+    @_check_types.do
     def delete_wire_service_loop(self, db_id):
         """Delete the wire service loop.
 
@@ -946,6 +986,7 @@ class Project:
         if self._wire_service_loops.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop) -> None:
         """Add a wire service loop.
 
@@ -957,6 +998,7 @@ class Project:
         self._wire_service_loops[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_wire_service_loop(self, db_id) -> _wire_service_loop.WireServiceLoop:
         """Return the wire service loop.
 
@@ -971,6 +1013,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def wire_service_loops(self) -> list[_wire_service_loop.WireServiceLoop]:
         """Return the wire service loops.
 
@@ -982,6 +1025,7 @@ class Project:
         return list(self._wire_service_loops.values())
 
     @property
+    @_check_types.do
     def circuits(self) -> list[_circuit.Circuit]:
         """Return the circuits.
 
@@ -992,6 +1036,7 @@ class Project:
         """
         return list(self._circuits.values())
 
+    @_check_types.do
     def delete_cpa_lock(self, db_id):
         """Delete the CPA lock.
 
@@ -1003,6 +1048,7 @@ class Project:
         if self._cpa_locks.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_cpa_lock(self, obj: _cpa_lock.CPALock) -> None:
         """Add a CPA lock.
 
@@ -1014,6 +1060,7 @@ class Project:
         self._cpa_locks[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_cpa_lock(self, db_id) -> _cpa_lock.CPALock:
         """Return the CPA lock.
 
@@ -1028,6 +1075,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def cpa_locks(self) -> list[_cpa_lock.CPALock]:
         """Return the CPA locks.
 
@@ -1038,6 +1086,7 @@ class Project:
         """
         return list(self._cpa_locks.values())
 
+    @_check_types.do
     def delete_cover(self, db_id):
         """Delete the cover.
 
@@ -1049,6 +1098,7 @@ class Project:
         if self._covers.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_cover(self, obj: _cover.Cover) -> None:
         """Add a cover.
 
@@ -1060,6 +1110,7 @@ class Project:
         self._covers[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_cover(self, db_id) -> _cover.Cover:
         """Return the cover.
 
@@ -1074,6 +1125,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def covers(self) -> list[_cover.Cover]:
         """Return the covers.
 
@@ -1084,6 +1136,7 @@ class Project:
         """
         return list(self._covers.values())
 
+    @_check_types.do
     def delete_boot(self, db_id):
         """Delete the boot.
 
@@ -1095,6 +1148,7 @@ class Project:
         if self._boots.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_boot(self, obj: _boot.Boot) -> None:
         """Add a boot.
 
@@ -1106,6 +1160,7 @@ class Project:
         self._boots[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_boot(self, db_id) -> _boot.Boot:
         """Return the boot.
 
@@ -1120,6 +1175,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def boots(self) -> list[_boot.Boot]:
         """Return the boots.
 
@@ -1130,6 +1186,7 @@ class Project:
         """
         return list(self._boots.values())
 
+    @_check_types.do
     def delete_transition(self, db_id):
         """Delete the transition.
 
@@ -1141,6 +1198,7 @@ class Project:
         if self._transitions.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_transition(self, obj: _transition.Transition) -> None:
         """Add a transition.
 
@@ -1152,6 +1210,7 @@ class Project:
         self._transitions[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_transition(self, db_id) -> _transition.Transition:
         """Return the transition.
 
@@ -1166,6 +1225,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def transitions(self) -> list[_transition.Transition]:
         """Return the transitions.
 
@@ -1176,6 +1236,7 @@ class Project:
         """
         return list(self._transitions.values())
 
+    @_check_types.do
     def delete_housing(self, db_id):
         """Delete the housing.
 
@@ -1187,6 +1248,7 @@ class Project:
         if self._housings.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_housing(self, obj: _housing.Housing) -> None:
         """Add a housing.
 
@@ -1198,6 +1260,7 @@ class Project:
         self._housings[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_housing(self, db_id) -> _housing.Housing:
         """Return the housing.
 
@@ -1212,6 +1275,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def housings(self) -> list[_housing.Housing]:
         """Return the housings.
 
@@ -1222,6 +1286,7 @@ class Project:
         """
         return list(self._housings.values())
 
+    @_check_types.do
     def delete_splice(self, db_id):
         """Delete the splice.
 
@@ -1233,6 +1298,7 @@ class Project:
         if self._splices.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_splice(self, obj: _splice.Splice) -> None:
         """Add a splice.
 
@@ -1244,6 +1310,7 @@ class Project:
         self._splices[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_splice(self, db_id) -> _splice.Splice:
         """Return the splice.
 
@@ -1258,6 +1325,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def splices(self) -> list[_splice.Splice]:
         """Return the splices.
 
@@ -1268,6 +1336,7 @@ class Project:
         """
         return list(self._splices.values())
 
+    @_check_types.do
     def delete_wire(self, db_id):
         """Delete the wire.
 
@@ -1279,6 +1348,7 @@ class Project:
         if self._wires.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_wire(self, obj: _wire.Wire) -> None:
         """Add a wire.
 
@@ -1290,6 +1360,7 @@ class Project:
         self._wires[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_wire(self, db_id) -> _wire.Wire:
         """Return the wire.
 
@@ -1304,6 +1375,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def wires(self) -> list[_wire.Wire]:
         """Return the wires.
 
@@ -1314,6 +1386,7 @@ class Project:
         """
         return list(self._wires.values())
 
+    @_check_types.do
     def delete_wire_layout(self, db_id):
         """Delete the wire layout.
 
@@ -1325,6 +1398,7 @@ class Project:
         if self._wire_layouts.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_wire_layout(self, obj: _wire_layout.WireLayout) -> None:
         """Add a wire layout.
 
@@ -1337,6 +1411,7 @@ class Project:
         self.obj_count += 1
 
     @property
+    @_check_types.do
     def wire_layouts(self) -> list[_wire_layout.WireLayout]:
         """Return the wire layouts.
 
@@ -1347,6 +1422,7 @@ class Project:
         """
         return list(self._wire_layouts.values())
 
+    @_check_types.do
     def delete_bundle(self, db_id):
         """Delete the bundle.
 
@@ -1358,6 +1434,7 @@ class Project:
         if self._bundles.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_bundle(self, obj: _bundle.Bundle) -> None:
         """Add a bundle.
 
@@ -1369,6 +1446,7 @@ class Project:
         self._bundles[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_bundle(self, db_id) -> _bundle.Bundle:
         """Return the bundle.
 
@@ -1383,6 +1461,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def bundles(self) -> list[_bundle.Bundle]:
         """Return the bundles.
 
@@ -1393,6 +1472,7 @@ class Project:
         """
         return list(self._bundles.values())
 
+    @_check_types.do
     def delete_bundle_layout(self, db_id):
         """Delete the bundle layout.
 
@@ -1404,6 +1484,7 @@ class Project:
         if self._bundle_layouts.pop(db_id, None) is not None:
             self.obj_count -= 1
 
+    @_check_types.do
     def add_bundle_layout(self, obj: _bundle_layout.BundleLayout) -> None:
         """Add a bundle layout.
 
@@ -1415,6 +1496,7 @@ class Project:
         self._bundle_layouts[obj.db_obj.db_id] = obj
         self.obj_count += 1
 
+    @_check_types.do
     def get_bundle_layout(self, db_id) -> _bundle_layout.BundleLayout:
         """Return the bundle layout.
 
@@ -1429,6 +1511,7 @@ class Project:
         return db_obj.get_object()
 
     @property
+    @_check_types.do
     def bundle_layouts(self) -> list[_bundle_layout.BundleLayout]:
         """Return the bundle layouts.
 

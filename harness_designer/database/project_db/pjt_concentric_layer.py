@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NotesMixin
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class PJTConcentricLayersTable(PJTTableBase):
     """
     __table_name__ = 'pjt_concentric_layers'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -31,6 +33,7 @@ class PJTConcentricLayersTable(PJTTableBase):
 
         return concentric_layers.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -40,6 +43,7 @@ class PJTConcentricLayersTable(PJTTableBase):
 
         concentric_layers.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -49,6 +53,7 @@ class PJTConcentricLayersTable(PJTTableBase):
 
         concentric_layers.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTConcentricLayer"]:
         """Iterate over the available items.
 
@@ -60,6 +65,7 @@ class PJTConcentricLayersTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTConcentricLayer(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTConcentricLayer":
         """Return the requested item.
 
@@ -79,6 +85,7 @@ class PJTConcentricLayersTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, idx: int, num_wires: int, num_fillers: int,
                concentric_id: int, diameter: float) -> "PJTConcentricLayer":
         """Execute the insert operation.
@@ -112,6 +119,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     """
     _table: PJTConcentricLayersTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -148,6 +156,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     #
 
     @property
+    @_check_types.do
     def table(self) -> PJTConcentricLayersTable:
         """Return the table.
 
@@ -159,6 +168,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._table
 
     @property
+    @_check_types.do
     def wires(self) -> list["_pjt_concentric_wire.PJTConcentricWire"]:
         """Return the wires.
 
@@ -177,6 +187,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
 
@@ -194,6 +205,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _stored_concentric_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def concentric_id(self) -> int:
         """Return the concentric ID.
 
@@ -208,6 +220,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._stored_concentric_id
 
     @concentric_id.setter
+    @_check_types.do
     def concentric_id(self, value: int):
         """Set the concentric ID.
 
@@ -225,6 +238,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int:
         """Return the idx.
 
@@ -239,6 +253,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int):
         """Set the idx.
 
@@ -254,6 +269,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _stored_num_wires: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def num_wires(self) -> int:
         """Return the num wires.
 
@@ -268,6 +284,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._stored_num_wires
 
     @num_wires.setter
+    @_check_types.do
     def num_wires(self, value: int):
         """Set the num wires.
 
@@ -283,6 +300,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _stored_num_fillers: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def num_fillers(self) -> int:
         """Return the num fillers.
 
@@ -297,6 +315,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._stored_num_fillers
 
     @num_fillers.setter
+    @_check_types.do
     def num_fillers(self, value: int):
         """Set the num fillers.
 
@@ -312,6 +331,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         """Return the diameter.
 
@@ -326,6 +346,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._stored_diameter
 
     @diameter.setter
+    @_check_types.do
     def diameter(self, value: float):
         """Set the diameter.
 
@@ -339,6 +360,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._populate('diameter')
 
     @property
+    @_check_types.do
     def propgrid(self) -> _prop_ctrls.Property:
         """Return the propgrid.
 

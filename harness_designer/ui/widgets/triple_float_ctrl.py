@@ -6,6 +6,7 @@ from . import float_ctrl as _float_ctrl
 from ... import color as _color
 from ...geometry import angle as _angle
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 class TripleFloatCtrl(QtWidgets.QWidget):
@@ -14,6 +15,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, position_or_angle: _point.Point | _angle.Angle | None,
                  color: _color.Color | None = None, register_events: bool = True, label=None):
         """Initialise the :class:`TripleFloatCtrl` instance.
@@ -102,6 +104,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
             self.y.value_changed.connect(self.on_y)
             self.z.value_changed.connect(self.on_z)
 
+    @_check_types.do
     def set_obj(self, position_or_angle):
 
         if self.position_or_angle is not None:
@@ -143,6 +146,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
             self.z.SetValue(position_or_angle.z)
             self.z.blockSignals(False)
 
+    @_check_types.do
     def on_position_or_angle(self, p):
         """Handle the position or angle event.
 
@@ -159,6 +163,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.y.update()
         self.z.update()
 
+    @_check_types.do
     def on_x(self, value):
         """Handle the x event.
 
@@ -171,6 +176,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.position_or_angle.x = value
         self.position_or_angle.bind(self.on_position_or_angle)
 
+    @_check_types.do
     def on_y(self, value):
         """Handle the y event.
 
@@ -183,6 +189,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.position_or_angle.y = value
         self.position_or_angle.bind(self.on_position_or_angle)
 
+    @_check_types.do
     def on_z(self, value):
         """Handle the z event.
 
@@ -195,6 +202,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.position_or_angle.z = value
         self.position_or_angle.bind(self.on_position_or_angle)
 
+    @_check_types.do
     def setEnabled(self, flag):
         """Execute the set enabled operation.
 
@@ -207,6 +215,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.y.Enable(flag)
         self.z.Enable(flag)
 
+    @_check_types.do
     def setToolTip(self, tip):
         """Execute the set tool tip operation.
 

@@ -4,6 +4,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class EnumProperty(QtWidgets.QWidget):
@@ -14,6 +15,7 @@ class EnumProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label):
         """
         Initialise the :class:`EnumProperty` instance.
@@ -41,6 +43,7 @@ class EnumProperty(QtWidgets.QWidget):
         self._outer_sizer.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self._outer_sizer)
 
+    @_check_types.do
     def _on_change(self, button_id: int) -> None:
         """
         Handle the change event.
@@ -63,6 +66,7 @@ class EnumProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetValue(self, value: int) -> None:
         """
         Execute the set value operation.
@@ -88,6 +92,7 @@ class EnumProperty(QtWidgets.QWidget):
 
                 btn.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> int:
         """
         Execute the get value operation.
@@ -100,6 +105,7 @@ class EnumProperty(QtWidgets.QWidget):
 
         return self._value
 
+    @_check_types.do
     def Enable(self, flag: bool = True) -> None:
         """
         Execute the enable operation.
@@ -113,6 +119,7 @@ class EnumProperty(QtWidgets.QWidget):
         if self._radio_box is not None:
             self._radio_box.setEnabled(flag)
 
+    @_check_types.do
     def SetLabels(self, labels: list[str]) -> None:
         """
         Execute the set labels operation.
@@ -164,6 +171,7 @@ class EnumProperty(QtWidgets.QWidget):
             if btn is not None:
                 btn.setChecked(True)
 
+    @_check_types.do
     def GetLabels(self) -> list[str]:
         """
         Execute the get labels operation.
@@ -176,6 +184,7 @@ class EnumProperty(QtWidgets.QWidget):
 
         return self._labels
 
+    @_check_types.do
     def GetItems(self) -> list[int]:
         """
         Execute the get items operation.
@@ -188,6 +197,7 @@ class EnumProperty(QtWidgets.QWidget):
 
         return self._choices
 
+    @_check_types.do
     def SetItems(self, items: list[int]):
         """
         Execute the set items operation.
@@ -200,10 +210,12 @@ class EnumProperty(QtWidgets.QWidget):
 
         self._choices = items
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         if self._radio_box is not None:
             self._radio_box.setTitle(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

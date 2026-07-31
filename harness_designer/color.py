@@ -7,6 +7,7 @@ import colorsys
 from PySide6.QtGui import QColor as _QColor
 
 from . import app_mixins as _app_mixins
+from . import check_types as _check_types
 
 
 class ColorMeta(type):
@@ -14,6 +15,7 @@ class ColorMeta(type):
     _instances = {}
 
     @classmethod
+    @_check_types.do
     def _remove_ref(cls, ref):
         """Remove a dead weak reference from the instance cache.
 
@@ -25,6 +27,7 @@ class ColorMeta(type):
                 del cls._instances[key]
                 return
 
+    @_check_types.do
     def __call__(cls, r: float | int, g: float | int, b: float | int,
                  a: float | int = 255, db_id: str | None = None) -> "Color":
         """Create or reuse a :class:`Color` for the supplied RGBA values.
@@ -86,6 +89,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         to_qcolor()          — new helper, returns a QColor for Qt widgets
     """
 
+    @_check_types.do
     def __init__(self, r: int | float, g: int | float,
                  b: int | float, a: int | float = 255,
                  db_id: str | None = None):
@@ -114,6 +118,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         self.__unbound_callbacks__ = []
         self.__ref_count__ = 0
 
+    @_check_types.do
     def GetRed(self) -> int:
         """Return the red channel.
 
@@ -122,6 +127,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         """
         return self._r
 
+    @_check_types.do
     def GetGreen(self) -> int:
         """Return the green channel.
 
@@ -130,6 +136,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         """
         return self._g
 
+    @_check_types.do
     def GetBlue(self) -> int:
         """Return the blue channel.
 
@@ -138,6 +145,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         """
         return self._b
 
+    @_check_types.do
     def GetAlpha(self) -> int:
         """Return the alpha channel.
 
@@ -146,10 +154,12 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         """
         return self._a
 
+    @_check_types.do
     def GetRGBA(self) -> int:
         """Returns a single packed 32-bit RGBA integer (r<<24|g<<16|b<<8|a)."""
         return (self._r << 24) | (self._g << 16) | (self._b << 8) | self._a
 
+    @_check_types.do
     def IsOk(self) -> bool:  # NOQA
         """Report whether this colour instance is valid.
 
@@ -162,6 +172,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # wx.Colour-compatible setters
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def Set(self, *RGBA):
         """Set channel values from a packed integer or RGB/RGBA tuple.
 
@@ -194,6 +205,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         else:
             raise ValueError(f'Set() expects 1, 3 or 4 arguments, got {len(RGBA)}')
 
+    @_check_types.do
     def SetRGBA(self, *RGBA):
         """Set RGBA channels from a packed integer or four values.
 
@@ -219,6 +231,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         else:
             raise ValueError(f'SetRGBA() expects 1 or 4 arguments, got {len(RGBA)}')
 
+    @_check_types.do
     def SetRGB(self, *RGB):
         """Set RGB channels from a packed integer or three values.
 
@@ -248,6 +261,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # ------------------------------------------------------------------
 
     @property
+    @_check_types.do
     def rgb_scalar(self) -> tuple[float, float, float]:
         """Return RGB channels normalised to the range 0.0-1.0.
 
@@ -257,6 +271,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return self._r / 255.0, self._g / 255.0, self._b / 255.0
 
     @property
+    @_check_types.do
     def rgba_scalar(self) -> tuple[float, float, float, float]:
         """Return RGBA channels normalised to the range 0.0-1.0.
 
@@ -266,6 +281,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return self._r / 255.0, self._g / 255.0, self._b / 255.0, self._a / 255.0
 
     @property
+    @_check_types.do
     def rgba(self) -> tuple[int, int, int, int]:
         """Return the integer RGBA channels.
 
@@ -275,6 +291,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return self._r, self._g, self._b, self._a
 
     @rgba.setter
+    @_check_types.do
     def rgba(self, value: tuple[int, int, int, int]):
         """Update the integer RGBA channels.
 
@@ -285,6 +302,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         self.SetRGBA(r, g, b, a)
 
     @property
+    @_check_types.do
     def rgb(self) -> tuple[int, int, int]:
         """Return the integer RGB channels.
 
@@ -294,6 +312,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return self._r, self._g, self._b
 
     @rgb.setter
+    @_check_types.do
     def rgb(self, value: tuple[int, int, int]):
         """Update the integer RGB channels while preserving alpha.
 
@@ -307,6 +326,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # Dunder helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def __int__(self):
         """Pack this colour into an integer.
 
@@ -315,6 +335,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         """
         return self.GetRGBA()
 
+    @_check_types.do
     def __repr__(self):
         """Return a developer-friendly representation.
 
@@ -324,6 +345,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return (f'Color(r={self._r}, g={self._g}, b={self._b}, a={self._a}'
                 + (f', db_id={self.db_id!r}' if self.db_id else '') + ')')
 
+    @_check_types.do
     def __eq__(self, other):
         """Compare colours by channel values.
 
@@ -336,6 +358,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
             return (self._r, self._g, self._b, self._a) == (other._r, other._g, other._b, other._a)
         return NotImplemented
 
+    @_check_types.do
     def __hash__(self):
         """Return a hash based on RGBA channel values.
 
@@ -349,6 +372,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # ------------------------------------------------------------------
 
     @staticmethod
+    @_check_types.do
     def from_int(rgba: int) -> "Color":
         """Construct a colour from a packed RGBA integer.
 
@@ -367,6 +391,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # Colour manipulation
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def GetLighterColor(self, percentage=25) -> "Color":
         """Return a lighter copy of this colour.
 
@@ -386,6 +411,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
             a
         )
 
+    @_check_types.do
     def GetDarkerColor(self, percentage=25) -> "Color":
         """Return a darker copy of this colour.
 
@@ -409,11 +435,13 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # Qt interop helper
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def to_qcolor(self) -> _QColor:
         """Return a PySide6 QColor equivalent of this Color."""
         return _QColor(self._r, self._g, self._b, self._a)
 
     @staticmethod
+    @_check_types.do
     def from_qcolor(qc: _QColor, db_id: str | None = None) -> "Color":
         """Construct a Color from a PySide6 QColor."""
         return Color(qc.red(), qc.green(), qc.blue(), qc.alpha(), db_id)

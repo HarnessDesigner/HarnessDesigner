@@ -12,6 +12,7 @@ from .mixins import NameMixin, DimensionMixin, DimensionControl
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ..common_db.lazy_tab_mixin import LazyTabMixin
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class CavitiesTable(TableBase):
     _control: "CavityControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "CavityControl":
         """Return the control.
 
@@ -44,6 +46,7 @@ class CavitiesTable(TableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -63,6 +66,7 @@ class CavitiesTable(TableBase):
 
     _controls: list["CavityControl"] = []
 
+    @_check_types.do
     def get_control(self, index):
         """Return the control.
 
@@ -84,6 +88,7 @@ class CavitiesTable(TableBase):
 
         return self._controls[index]
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -96,6 +101,7 @@ class CavitiesTable(TableBase):
 
         return cavities.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, _):
         """Add a table to database.
 
@@ -108,6 +114,7 @@ class CavitiesTable(TableBase):
 
         cavities.table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -117,6 +124,7 @@ class CavitiesTable(TableBase):
 
         cavities.table.update_fields(self)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Cavity":
         """Return the requested item.
 
@@ -136,6 +144,7 @@ class CavitiesTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Cavity"]:
         """Iterate over the available items.
 
@@ -147,6 +156,7 @@ class CavitiesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Cavity(self, db_id)
 
+    @_check_types.do
     def insert(self, housing_id: int, idx: int) -> "Cavity":
         """Execute the insert operation.
 
@@ -171,6 +181,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     """
     _table: CavitiesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -190,6 +201,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_housing: "DefaultStoredValueType | _housing.Housing" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def housing(self) -> "_housing.Housing":
         """Return the housing.
 
@@ -208,6 +220,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_housing_id: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def housing_id(self) -> int:
         """Return the housing ID.
 
@@ -224,6 +237,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_idx: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int:
         """Return the idx.
 
@@ -238,6 +252,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int):
         """Set the idx.
 
@@ -253,6 +268,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_terminal_sizes: DefaultStoredValueType | list[float] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal_sizes(self) -> list[float]:
         """Return the terminal sizes.
 
@@ -271,6 +287,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return list(self._stored_terminal_sizes)
 
     @terminal_sizes.setter
+    @_check_types.do
     def terminal_sizes(self, value: list[float]):
         """Set the terminal sizes.
 
@@ -289,6 +306,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _position3d_id: str = None
     _stored_position3d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
+    @_check_types.do
     def __update_position3d(self, point: _point.Point):
         """Update the position 3D.
 
@@ -300,6 +318,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, point3d=str(list(point.as_float)))
 
     @property
+    @_check_types.do
     def position3d(self) -> _point.Point:
         """
         This is relitive to the housing location
@@ -319,6 +338,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _position2d_id: str = None
     _stored_position2d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
+    @_check_types.do
     def __update_position2d(self, point: _point.Point):
         """Update the position 2D.
 
@@ -330,6 +350,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, point2d=str(list(point.as_float[:-1])))
 
     @property
+    @_check_types.do
     def position2d(self) -> _point.Point:
         """
         This is relitive to the housing location
@@ -350,6 +371,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _angle3d_id: str = None
     _stored_angle3d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
+    @_check_types.do
     def _update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
 
@@ -367,6 +389,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
     @property
+    @_check_types.do
     def angle3d(self) -> _angle.Angle:
         """
         This is relitive to the housing angle
@@ -388,6 +411,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _angle2d_id: str = None
     _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
+    @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
 
@@ -405,6 +429,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, angle2d=str(euler), quat2d=str(quat))
 
     @property
+    @_check_types.do
     def angle2d(self):
         """
         This is relitive to the housing angle
@@ -426,6 +451,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_aabb: DefaultStoredValueType | np.ndarray | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def aabb(self) -> np.ndarray | None:
         if self._stored_aabb is DefaultStoredValue:
             value = self._table.select('aabb', id=self._db_id)[0][0]
@@ -447,6 +473,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return np.array(self._stored_aabb, dtype=np.float32)
 
     @aabb.setter
+    @_check_types.do
     def aabb(self, value: np.ndarray):
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
@@ -457,6 +484,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_obb: DefaultStoredValueType | np.ndarray | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def obb(self) -> np.ndarray | None:
         if self._stored_obb is DefaultStoredValue:
             value = self._table.select('obb', id=self._db_id)[0][0]
@@ -480,6 +508,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return np.array(self._stored_obb, dtype=np.float32)
 
     @obb.setter
+    @_check_types.do
     def obb(self, value: np.ndarray):
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
@@ -490,6 +519,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_round_terminal: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def round_terminal(self) -> bool:
         """Return the round terminal.
 
@@ -504,6 +534,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_round_terminal
 
     @round_terminal.setter
+    @_check_types.do
     def round_terminal(self, value: bool):
         """Set the round terminal.
 
@@ -519,6 +550,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_render_terminal_marker: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def render_terminal_marker(self) -> bool:
         """Return whether a synthetic terminal-plane marker should be rendered.
 
@@ -536,6 +568,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_render_terminal_marker
 
     @render_terminal_marker.setter
+    @_check_types.do
     def render_terminal_marker(self, value: bool):
         """Set whether a synthetic terminal-plane marker should be rendered."""
         self._stored_render_terminal_marker = bool(value)
@@ -545,6 +578,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_render_wire_marker: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def render_wire_marker(self) -> bool:
         """Return whether a synthetic wire-plane marker should be rendered.
 
@@ -564,6 +598,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_render_wire_marker
 
     @render_wire_marker.setter
+    @_check_types.do
     def render_wire_marker(self, value: bool):
         """Set whether a synthetic wire-plane marker should be rendered."""
         self._stored_render_wire_marker = bool(value)
@@ -573,6 +608,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_terminal_surf_indices: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal_surf_indices(self) -> list[int]:
         """Return the mesh-surface indices selected as this cavity's terminal
         face in the housing editor, or ``[]`` if never assigned.
@@ -592,6 +628,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return list(self._stored_terminal_surf_indices)
 
     @terminal_surf_indices.setter
+    @_check_types.do
     def terminal_surf_indices(self, value: list[int]):
         """Set the terminal-face mesh-surface indices."""
         self._stored_terminal_surf_indices = list(value)
@@ -601,6 +638,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_wire_surf_indices: DefaultStoredValueType | list[int] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_surf_indices(self) -> list[int]:
         """Return the mesh-surface indices selected as this cavity's wire
         face in the housing editor, or ``[]`` if never assigned.
@@ -618,6 +656,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return list(self._stored_wire_surf_indices)
 
     @wire_surf_indices.setter
+    @_check_types.do
     def wire_surf_indices(self, value: list[int]):
         """Set the wire-face mesh-surface indices."""
         self._stored_wire_surf_indices = list(value)
@@ -627,6 +666,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_length: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def length(self) -> float:
         """Return the length.
 
@@ -641,6 +681,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_length
 
     @length.setter
+    @_check_types.do
     def length(self, value: float):
         """Set the length.
 
@@ -656,6 +697,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_width: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def width(self) -> float:
         """Return the width.
 
@@ -679,6 +721,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_width
 
     @width.setter
+    @_check_types.do
     def width(self, value: float):
         """Set the width.
 
@@ -700,6 +743,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_height: DefaultStoredValueType | float = DefaultStoredValue
 
     @property
+    @_check_types.do
     def height(self) -> float:
         """Return the height.
 
@@ -723,6 +767,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_height
 
     @height.setter
+    @_check_types.do
     def height(self, value: float):
         """Set the height.
 
@@ -744,6 +789,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _scale_id: str = None
     _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
 
@@ -764,6 +810,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
+    @_check_types.do
     def scale(self) -> _point.Point:
         """Return the scale.
 
@@ -824,6 +871,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return self._stored_scale
 
     @property
+    @_check_types.do
     def compat_terminals(self) -> list["_terminal.Terminal"]:
         """Return the compat terminals.
 
@@ -860,14 +908,17 @@ class CavityControl(QTabWidget, LazyTabMixin):
 
     _label = 'Cavity'
 
+    @_check_types.do
     def GetLabel(self) -> str:
         """Return the tab label a parent notebook should use for this control."""
         return self._label
 
+    @_check_types.do
     def SetLabel(self, value: str) -> None:
         """Set the tab label a parent notebook should use for this control."""
         self._label = value
 
+    @_check_types.do
     def SetIndex(self, index):
         """Execute the set index operation.
 
@@ -878,6 +929,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         """
         self.SetLabel(f'Cavity {index}')
 
+    @_check_types.do
     def set_obj(self, db_obj: Cavity):
         """Set the obj.
 
@@ -888,6 +940,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         db_obj = self.db_obj
@@ -919,6 +972,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
 
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_round_terminal(self, evt):
         """Handle the round terminal event.
 
@@ -930,6 +984,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.round_terminal = value
 
+    @_check_types.do
     def _on_terminal_sizes(self, evt):
         """Handle the terminal sizes event.
 
@@ -941,6 +996,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.terminal_sizes = value
 
+    @_check_types.do
     def _on_index(self, evt):
         """Handle the index event.
 
@@ -952,6 +1008,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.idx = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`CavityControl` instance.
 

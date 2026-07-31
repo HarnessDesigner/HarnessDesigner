@@ -14,6 +14,7 @@ import numpy as np
 from OpenGL import GL
 
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -41,6 +42,7 @@ class Camera:
     - Zoom: changes distance (closer = more zoomed in, farther = more zoomed out)
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`Camera2D` instance.
 
@@ -76,11 +78,13 @@ class Camera:
         # Bind callbacks for automatic refresh
         self._focal_position.bind(self._on_focal_position_changed)
 
+    @_check_types.do
     def _on_focal_position_changed(self, _: _point.Point):
         """Called when focal position changes"""
         self._is_dirty = True
         self.canvas.Refresh(False)
 
+    @_check_types.do
     def _update_views(self):
         """(Re)read ``.projection``/``.modelview``/``.viewport`` from live
         GL state -- mirrors ``gl.canvas3d.camera.Camera._update_views()``
@@ -108,31 +112,38 @@ class Camera:
                 GL.glGetDoublev(GL.GL_MODELVIEW_MATRIX)).reshape((4, 4), order="F").T)
 
     @property
+    @_check_types.do
     def projection(self) -> np.ndarray | None:
         return self._projection
 
     @property
+    @_check_types.do
     def modelview(self) -> np.ndarray | None:
         return self._modelview
 
     @property
+    @_check_types.do
     def viewport(self) -> np.ndarray | None:
         return self._viewport
 
     @property
+    @_check_types.do
     def forward(self) -> np.ndarray:
         """Unit vector the camera looks along -- always straight down."""
         return _FORWARD
 
     @property
+    @_check_types.do
     def up(self) -> np.ndarray:
         return _UP
 
     @property
+    @_check_types.do
     def right(self) -> np.ndarray:
         return _RIGHT
 
     @property
+    @_check_types.do
     def position(self) -> _point.Point:
         """Camera "eye" position -- straight above :attr:`focal_position`
         by :attr:`distance`, matching the world-per-pixel convention every
@@ -147,46 +158,54 @@ class Camera:
             self._focal_position.z)
 
     @property
+    @_check_types.do
     def x(self) -> float:
         """Get focal position X in world coordinates"""
-        return self._focal_position.x
+        return float(str(self._focal_position.x))
 
     @x.setter
+    @_check_types.do
     def x(self, value: float):
         """Set focal position X"""
         with self._focal_position:
             self._focal_position.x = float(value)
 
     @property
+    @_check_types.do
     def y(self) -> float:
         """Get focal position Y (schematic-plane vertical, i.e. world Z --
         see the module-level ``world Z -> screen Y`` note) in world
         coordinates."""
-        return self._focal_position.z
+        return float(str(self._focal_position.z))
 
     @y.setter
+    @_check_types.do
     def y(self, value: float):
         """Set focal position Y (world Z -- see :meth:`y` getter)."""
         with self._focal_position:
             self._focal_position.z = float(value)
 
     @property
+    @_check_types.do
     def focal_position(self) -> _point.Point:
         """Get the focal position (what the camera is looking at)"""
         return self._focal_position
 
     @property
+    @_check_types.do
     def distance(self) -> float:
         """Get camera distance from focal plane"""
         return self._distance
 
     @distance.setter
+    @_check_types.do
     def distance(self, value: float):
         """Set camera distance (clamped to min/max)"""
         self._distance = max(self._min_distance, min(self._max_distance, float(value)))
         self._is_dirty = True
         self.canvas.Refresh()
 
+    @_check_types.do
     def Zoom(self, delta: float):
         """
         Zoom in/out by changing the distance between camera and focal plane.
@@ -208,6 +227,7 @@ class Camera:
         self._is_dirty = True
         self.canvas.Refresh(False)
 
+    @_check_types.do
     def Pan(self, dx: float, dy: float):
         """
         Pan the camera by delta in screen pixels
@@ -222,6 +242,7 @@ class Camera:
 
         self._focal_position += world_delta
 
+    @_check_types.do
     def zoom_at_point(self, screen_pos: _point.Point, delta: float):
         """
         Zoom in/out centered on a specific screen point.
@@ -253,6 +274,7 @@ class Camera:
         focal_delta = world_pos_before - world_pos_after
         self._focal_position += focal_delta
 
+    @_check_types.do
     def screen_to_world(self, screen_pos: _point.Point) -> _point.Point:
         """
         Convert screen coordinates to world coordinates
@@ -282,6 +304,7 @@ class Camera:
 
         return _point.Point(world_x, 0.0, world_y)
 
+    @_check_types.do
     def world_to_screen(self, world_pos: _point.Point) -> _point.Point:
         """
         Convert world coordinates to screen coordinates
@@ -305,6 +328,7 @@ class Camera:
         return _point.Point(int(screen_x), int(screen_y))
 
     @property
+    @_check_types.do
     def objects_in_view(self) -> list:
         """Objects (``ObjectBase`` wrappers) currently visible in the
         viewport rectangle.
@@ -373,6 +397,7 @@ class Camera:
 
         return result
 
+    @_check_types.do
     def Reset(self, *_, **__):
         """Reset camera to origin with default distance"""
         with self._focal_position:
@@ -383,6 +408,7 @@ class Camera:
         self._is_dirty = True
         self.canvas.Refresh()
 
+    @_check_types.do
     def zoom_to_fit(self, objects):
         """
         Zoom camera to fit all objects in view

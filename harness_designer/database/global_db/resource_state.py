@@ -21,8 +21,10 @@ import datetime
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import resources as _resources
 from ..create_database import resource_state as _resource_state
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def _hostname() -> str:
     """Return the short local hostname for this seat."""
     try:
@@ -31,6 +33,7 @@ def _hostname() -> str:
         return 'unknown'
 
 
+@_check_types.do
 def _now_iso() -> str:
     """Return the current UTC timestamp as an ISO-8601 string."""
     return datetime.datetime.now(
@@ -54,6 +57,7 @@ class ResourceStateTable(TableBase):
 
     __table_name__ = 'resource_state'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -64,6 +68,7 @@ class ResourceStateTable(TableBase):
         """
         return _resource_state.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, _):
         """Add a table to database.
 
@@ -74,6 +79,7 @@ class ResourceStateTable(TableBase):
         """
         _resource_state.table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -81,6 +87,7 @@ class ResourceStateTable(TableBase):
         """
         _resource_state.table.update_fields(self)
 
+    @_check_types.do
     def __contains__(self, item: tuple[int, int]) -> bool:
         resource_type, resource_id = item
         field_name = _TYPE_TO_FIELD[resource_type]
@@ -92,6 +99,7 @@ class ResourceStateTable(TableBase):
 
         return False
 
+    @_check_types.do
     def __getitem__(self, item: tuple[int, int]) -> "ResourceState":
         resource_type, resource_id = item
         field_name = _TYPE_TO_FIELD[resource_type]
@@ -106,6 +114,7 @@ class ResourceStateTable(TableBase):
 
         raise KeyError('invalid resource id')
 
+    @_check_types.do
     def insert(self, resource_type, resource_id) -> "ResourceState":
         field_name = _TYPE_TO_FIELD[resource_type]
 
@@ -123,6 +132,7 @@ class ResourceState(EntryBase):
     _stored_image_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def image_id(self) -> int | None:
         if self._stored_image_id is DefaultStoredValue:
             self._stored_image_id = self._table.select('image_id', id=self._db_id)[0][0]
@@ -132,6 +142,7 @@ class ResourceState(EntryBase):
     _stored_datasheet_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def datasheet_id(self) -> int | None:
         if self._stored_datasheet_id is DefaultStoredValue:
             self._stored_datasheet_id = self._table.select('datasheet_id', id=self._db_id)[0][0]
@@ -141,6 +152,7 @@ class ResourceState(EntryBase):
     _stored_cad_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cad_id(self) -> int | None:
         if self._stored_cad_id is DefaultStoredValue:
             self._stored_cad_id = self._table.select('cad_id', id=self._db_id)[0][0]
@@ -150,6 +162,7 @@ class ResourceState(EntryBase):
     _stored_model3d_id: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def model3d_id(self) -> int | None:
         if self._stored_model3d_id is DefaultStoredValue:
             self._stored_model3d_id = self._table.select('model3d_id', id=self._db_id)[0][0]
@@ -159,6 +172,7 @@ class ResourceState(EntryBase):
     _stored_progress: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def progress(self) -> int:
         if self._stored_progress is DefaultStoredValue:
             self._stored_progress = self._table.select('progress', id=self._db_id)[0][0]
@@ -166,6 +180,7 @@ class ResourceState(EntryBase):
         return self._stored_progress
 
     @progress.setter
+    @_check_types.do
     def progress(self, value: int):
         if value == 0 and self.claimed_by_host is None:
             self.claimed_by_host = _hostname()
@@ -177,6 +192,7 @@ class ResourceState(EntryBase):
     _stored_claimed_by_host: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def claimed_by_host(self) -> str | None:
         if self._stored_claimed_by_host is DefaultStoredValue:
             self._stored_claimed_by_host = self._table.select('claimed_by_host', id=self._db_id)[0][0]
@@ -184,6 +200,7 @@ class ResourceState(EntryBase):
         return self._stored_claimed_by_host
 
     @claimed_by_host.setter
+    @_check_types.do
     def claimed_by_host(self, value: str):
         self._stored_claimed_by_host = value
         self._table.update(self._db_id, claimed_by_host=value)
@@ -191,6 +208,7 @@ class ResourceState(EntryBase):
     _stored_claimed_at: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def claimed_at(self) -> str | None:
         if self._stored_claimed_at is DefaultStoredValue:
             self._stored_claimed_at = self._table.select('claimed_at', id=self._db_id)[0][0]
@@ -198,6 +216,7 @@ class ResourceState(EntryBase):
         return self._stored_claimed_at
 
     @claimed_at.setter
+    @_check_types.do
     def claimed_at(self, value: str):
         self._stored_claimed_at = value
         self._table.update(self._db_id, claimed_at=value)
@@ -205,6 +224,7 @@ class ResourceState(EntryBase):
     _stored_updated_at: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def updated_at(self) -> str | None:
         if self._stored_updated_at is DefaultStoredValue:
             self._stored_updated_at = self._table.select('updated_at', id=self._db_id)[0][0]
@@ -212,10 +232,12 @@ class ResourceState(EntryBase):
         return self._stored_updated_at
 
     @updated_at.setter
+    @_check_types.do
     def updated_at(self, value: str):
         self._stored_updated_at = value
         self._table.update(self._db_id, updated_at=value)
 
+    @_check_types.do
     def update_progress(self, step):
         self.progress = step
         self.updated_at = _now_iso()
@@ -223,6 +245,7 @@ class ResourceState(EntryBase):
     _stored_retry_count: DefaultStoredValueType | int = DefaultStoredValue
 
     @property
+    @_check_types.do
     def retry_count(self) -> int:
         if self._stored_retry_count is DefaultStoredValue:
             self._stored_retry_count = self._table.select('retry_count', id=self._db_id)[0][0]
@@ -230,6 +253,7 @@ class ResourceState(EntryBase):
         return self._stored_retry_count
 
     @retry_count.setter
+    @_check_types.do
     def retry_count(self, value: int):
         self._stored_retry_count = value
         self._table.update(self._db_id, retry_count=value)
@@ -237,6 +261,7 @@ class ResourceState(EntryBase):
     _stored_error_step: DefaultStoredValueType | int | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def error_step(self) -> int | None:
         if self._stored_error_step is DefaultStoredValue:
             self._stored_error_step = self._table.select('error_step', id=self._db_id)[0][0]
@@ -244,6 +269,7 @@ class ResourceState(EntryBase):
         return self._stored_error_step
 
     @error_step.setter
+    @_check_types.do
     def error_step(self, value: int | None):
         self._stored_error_step = value
         self._table.update(self._db_id, error_step=value)
@@ -251,12 +277,14 @@ class ResourceState(EntryBase):
     _stored_error_blob: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def error_blob(self) -> str | None:
         if self._stored_error_blob is DefaultStoredValue:
             self._stored_error_blob = self._table.select('error_blob', id=self._db_id)[0][0]
 
         return self._stored_error_blob
 
+    @_check_types.do
     def set_error(self, step, allow_retry, **error_blob):
         self.error_host = _hostname()
         self.error_at = _now_iso()
@@ -280,6 +308,7 @@ class ResourceState(EntryBase):
             self.retry_count += 1
 
     @error_blob.setter
+    @_check_types.do
     def error_blob(self, value: str | None):
         self._stored_error_blob = value
         self._table.update(self._db_id, error_blob=value)
@@ -287,6 +316,7 @@ class ResourceState(EntryBase):
     _stored_error_at: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def error_at(self) -> str | None:
         if self._stored_error_at is DefaultStoredValue:
             self._stored_error_at = self._table.select('error_at', id=self._db_id)[0][0]
@@ -294,6 +324,7 @@ class ResourceState(EntryBase):
         return self._stored_error_at
 
     @error_at.setter
+    @_check_types.do
     def error_at(self, value: str):
         self._stored_error_at = value
         self._table.update(self._db_id, error_at=value)
@@ -301,6 +332,7 @@ class ResourceState(EntryBase):
     _stored_error_host: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def error_host(self) -> str | None:
         if self._stored_error_host is DefaultStoredValue:
             self._stored_error_host = self._table.select('error_host', id=self._db_id)[0][0]
@@ -308,6 +340,7 @@ class ResourceState(EntryBase):
         return self._stored_error_host
 
     @error_host.setter
+    @_check_types.do
     def error_host(self, value: str):
         self._stored_error_host = value
         self._table.update(self._db_id, error_host=value)
@@ -315,6 +348,7 @@ class ResourceState(EntryBase):
     _stored_allow_retry: DefaultStoredValueType | bool = DefaultStoredValue
 
     @property
+    @_check_types.do
     def allow_retry(self) -> bool:
         if self._stored_allow_retry is DefaultStoredValue:
             self._stored_allow_retry = bool(self._table.select('allow_retry', id=self._db_id)[0][0])
@@ -322,6 +356,7 @@ class ResourceState(EntryBase):
         return self._stored_allow_retry
 
     @allow_retry.setter
+    @_check_types.do
     def allow_retry(self, value: bool):
         self._stored_allow_retry = value
         self._table.update(self._db_id, allow_retry=int(value))

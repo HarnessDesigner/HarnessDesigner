@@ -22,6 +22,7 @@ from .mixins import (
     CompatHousingsMixin, CompatHousingsControl,
     DirectionMixin, DirectionControl
 )
+from ... import check_types as _check_types
 
 
 class CoversTable(TableBase):
@@ -34,6 +35,7 @@ class CoversTable(TableBase):
     _control: "CoverControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "CoverControl":
         """Return the control.
 
@@ -47,6 +49,7 @@ class CoversTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -60,6 +63,7 @@ class CoversTable(TableBase):
 
         covers.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -72,6 +76,7 @@ class CoversTable(TableBase):
 
         return covers.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -87,6 +92,7 @@ class CoversTable(TableBase):
 
         covers.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -96,6 +102,7 @@ class CoversTable(TableBase):
 
         covers.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Cover"]:
         """Iterate over the available items.
 
@@ -107,6 +114,7 @@ class CoversTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Cover(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Cover":
         """Return the requested item.
 
@@ -130,6 +138,7 @@ class CoversTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_compat(self, housing: str = None):
         """Return the compat.
 
@@ -161,6 +170,7 @@ class CoversTable(TableBase):
 
         return res
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, family_id: int,
                series_id: int, image_id: int, datasheet_id: int, cad_id: int,
                direction_id: int, min_temp_id: int, max_temp_id: int, color_id: int,
@@ -217,6 +227,7 @@ class CoversTable(TableBase):
         return Cover(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -306,6 +317,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
 
     _table: CoversTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -336,6 +348,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
     _stored_pins: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def pins(self) -> str:
         """Return the pins.
 
@@ -350,6 +363,7 @@ class Cover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, Dir
         return self._stored_pins
 
     @pins.setter
+    @_check_types.do
     def pins(self, value: str):
         """Set the pins.
 
@@ -369,6 +383,7 @@ class CoverControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: Cover):
         """Set the obj.
 
@@ -379,6 +394,7 @@ class CoverControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -405,6 +421,7 @@ class CoverControl(QTabWidget, LazyTabMixin):
             self.model3d_page.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`CoverControl` instance.
 

@@ -20,6 +20,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class PJTBootsTable(PJTTableBase):
     _control: "PJTBootControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTBootControl":
         """Return the control.
 
@@ -51,6 +53,7 @@ class PJTBootsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -62,6 +65,7 @@ class PJTBootsTable(PJTTableBase):
         cls._control = PJTBootControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def get_from_position3d_id(self, position3d_id) -> "PJTBoot":
         """Return the from position 3D ID.
 
@@ -76,6 +80,7 @@ class PJTBootsTable(PJTTableBase):
         if rows:
             return self[rows[0][0]]
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -88,6 +93,7 @@ class PJTBootsTable(PJTTableBase):
 
         return boots.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -97,6 +103,7 @@ class PJTBootsTable(PJTTableBase):
 
         boots.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -106,6 +113,7 @@ class PJTBootsTable(PJTTableBase):
 
         boots.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTBoot"]:
         """Iterate over the available items.
 
@@ -117,6 +125,7 @@ class PJTBootsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTBoot(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTBoot":
         """Return the requested item.
 
@@ -136,6 +145,7 @@ class PJTBootsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, position3d_id: int, housing_id: int | None) -> "PJTBoot":
         """Execute the insert operation.
 
@@ -165,6 +175,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
 
     _table: PJTBootsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -183,6 +194,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_boot_obj.Boot":
         """Return the object.
 
@@ -196,6 +208,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -206,6 +219,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_boot_obj.Boot"):
         """Set the object.
 
@@ -220,6 +234,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTBootsTable:
         """Return the table.
 
@@ -233,6 +248,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
     _stored_part: "_boot.Boot | DefaultStoredValueType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> "_boot.Boot":
         """Return the part.
 
@@ -262,6 +278,7 @@ class PJTBootControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTBoot):
         """Set the obj.
 
@@ -272,6 +289,7 @@ class PJTBootControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -288,6 +306,7 @@ class PJTBootControl(QTabWidget, LazyTabMixin):
             self.boot_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTBootControl` instance.
 

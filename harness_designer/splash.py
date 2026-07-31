@@ -10,6 +10,7 @@ from PIL import Image
 from PySide6 import QtWidgets
 from PySide6 import QtGui
 from PySide6 import QtCore
+from . import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class Splash:
         Destroy()
     """
 
+    @_check_types.do
     def __init__(self, args, logger: "_logger.Log"):
         """
         Create and display the splash screen.
@@ -115,6 +117,7 @@ class Splash:
     # Public API
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def wait(self):
         """
         Block until the splash window is visible.
@@ -122,6 +125,7 @@ class Splash:
 
         self._init_event.wait()
 
+    @_check_types.do
     def Show(self, show=True):
         """
         Show or hide the splash window.
@@ -135,6 +139,7 @@ class Splash:
         else:
             self._window.hide()
 
+    @_check_types.do
     def Destroy(self):
         """
         Close and delete the splash window.
@@ -142,6 +147,7 @@ class Splash:
 
         QtWidgets.QApplication.restoreOverrideCursor()
 
+        @_check_types.do
         def _do():
             with self._draw_lock:
                 self._window.close()
@@ -153,6 +159,7 @@ class Splash:
             self._signals.refreshRequested.connect(lambda: _do())
             self._signals.refreshRequested.emit()
 
+    @_check_types.do
     def SetText(self, text: str, log=True) -> None:
         """
         Update the status text shown on the splash screen.
@@ -171,6 +178,7 @@ class Splash:
         if threading.main_thread() != threading.current_thread():
             event = threading.Event()
 
+            @_check_types.do
             def _on_refresh():
                 self._signals.refreshRequested.disconnect(_on_refresh)
                 event.set()
@@ -181,6 +189,7 @@ class Splash:
         else:
             self._do_refresh()
 
+    @_check_types.do
     def flush(self):  # NOQA
         """
         Process pending Qt events for the splash screen.
@@ -192,6 +201,7 @@ class Splash:
     # Internal drawing
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def draw(self, text: str):
         """
         Render the splash image and current status text into a pixmap.
@@ -236,6 +246,7 @@ class Splash:
 
             self._render_pixmap = pixmap
 
+    @_check_types.do
     def _do_refresh(self):
         """
         Must be called on the main thread.

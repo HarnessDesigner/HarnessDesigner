@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class CheckboxCtrl(QtWidgets.QWidget):
@@ -13,6 +14,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     original are preserved.
     """
 
+    @_check_types.do
     def __init__(self, parent=None, label: str = ''):
         """Initialise the :class:`CheckboxCtrl` instance.
 
@@ -36,6 +38,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # wx-compatible API
     # ------------------------------------------------------------------
+    @_check_types.do
     def Enable(self, flag: bool = True):
         """Execute the enable operation.
 
@@ -47,6 +50,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
         self.ctrl.setEnabled(flag)
         self.st.setEnabled(flag)
 
+    @_check_types.do
     def SetToolTip(self, text: str):
         """Execute the set tool tip operation.
 
@@ -61,6 +65,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     # kept for call-site compatibility
     SetToolTipString = SetToolTip
 
+    @_check_types.do
     def SetValue(self, value: bool):
         """Execute the set value operation.
 
@@ -73,6 +78,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
         self.ctrl.setChecked(value)
         self.ctrl.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> bool:
         """Execute the get value operation.
 
@@ -87,6 +93,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     # ctrl.ctrl.checkStateChanged.connect(handler) or use the
     # convenience property below.
     @property
+    @_check_types.do
     def checkStateChanged(self):
         """Return the check state changed.
 

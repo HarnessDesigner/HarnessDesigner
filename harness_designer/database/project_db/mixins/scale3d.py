@@ -4,6 +4,7 @@ from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
+from .... import check_types as _check_types
 
 
 class Scale3DMixin(BaseMixin):
@@ -16,6 +17,7 @@ class Scale3DMixin(BaseMixin):
     _stored_scale3d: _pjt_point3d.PJTPoint3D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def scale3d(self) -> _point.Point:
         """
         Return the scale 3D.
@@ -46,6 +48,7 @@ class Scale3DMixin(BaseMixin):
     _stored_scale3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def scale3d_id(self) -> int:
         """
         Return the scale 3D ID.
@@ -70,6 +73,7 @@ class Scale3DMixin(BaseMixin):
         return self._stored_scale3d_id
 
     @scale3d_id.setter
+    @_check_types.do
     def scale3d_id(self, value: int):
         """Set the position 3D ID.
 
@@ -92,6 +96,7 @@ class Scale3DControl(_prop_ctrls.Scale3DProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """
         Initialise the :class:`Scale3DControl` instance.
@@ -105,6 +110,7 @@ class Scale3DControl(_prop_ctrls.Scale3DProperty):
 
         super().__init__(parent, '3D Scale')
 
+    @_check_types.do
     def set_obj(self, db_obj: Scale3DMixin):
         """
         Set the obj.

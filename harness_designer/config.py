@@ -9,6 +9,7 @@ import threading
 import os
 
 from . import utils as _utils
+from . import check_types as _check_types
 
 
 CONNECTOR_SQLITE = 0
@@ -18,6 +19,7 @@ _lock = threading.RLock()
 DEBUG_CONFIG = False
 
 
+@_check_types.do
 def DEBUG(*args):
     """Print config debug output when :data:`DEBUG_CONFIG` is enabled.
 
@@ -37,6 +39,7 @@ class _ConfigTable:
     entries are able to be accessed by using the attribute name as a key.
     """
 
+    @_check_types.do
     def __init__(self, con, name):
         """Initialise a table wrapper.
 
@@ -48,6 +51,7 @@ class _ConfigTable:
         self._con = con
         self.name = name
 
+    @_check_types.do
     def __contains__(self, item):
         """Return whether a key exists in the table.
 
@@ -69,6 +73,7 @@ class _ConfigTable:
 
             return False
 
+    @_check_types.do
     def __getitem__(self, item):
         """Fetch and deserialize a stored value.
 
@@ -96,6 +101,7 @@ class _ConfigTable:
             except:  # NOQA
                 return value
 
+    @_check_types.do
     def __setitem__(self, key, value):
         """Insert or update a stored value.
 
@@ -137,6 +143,7 @@ class _ConfigTable:
                     self._con.commit()
                     cur.close()
 
+    @_check_types.do
     def __delitem__(self, key):
         """Delete a stored key from the table.
 
@@ -163,12 +170,14 @@ class _ConfigDB:
     gets modified and also when the application exits.
     """
 
+    @_check_types.do
     def __init__(self):
         """Initialise the backing database wrapper.
 
         """
         self._con = None
 
+    @_check_types.do
     def open(self):
         """Open the configuration database file.
 
@@ -183,6 +192,7 @@ class _ConfigDB:
         self._con = sqlite3.connect(path, check_same_thread=False)
         return save_all
 
+    @_check_types.do
     def __contains__(self, item):
         """Return whether a table exists in the database.
 
@@ -203,6 +213,7 @@ class _ConfigDB:
 
             return ret
 
+    @_check_types.do
     def __setitem__(self, key, value):
         with _lock:
             if key not in self:
@@ -219,6 +230,7 @@ class _ConfigDB:
                     self._con.commit()
                     cur.close()
 
+    @_check_types.do
     def __getitem__(self, item):
         """Return a table wrapper, creating the table on demand.
 
@@ -244,6 +256,7 @@ class _ConfigDB:
 
             return _ConfigTable(self._con, item)
 
+    @_check_types.do
     def close(self):
         """Close the configuration database connection.
 
@@ -258,6 +271,7 @@ class ConfigDB(type):
     __classes__ = []
     __callbacks__ = {}
 
+    @_check_types.do
     def __init__(cls, name, bases, dct):
         """Register a configuration class with the metaclass registry.
 
@@ -272,6 +286,7 @@ class ConfigDB(type):
         ConfigDB.__classes__.append(cls)
         ConfigDB.__callbacks__[cls] = {}
 
+    @_check_types.do
     def bind(cls, callback, setting_name):
         """Bind a callback to a persisted setting name.
 
@@ -293,6 +308,7 @@ class ConfigDB(type):
             ref = weakref.WeakMethod(weakref, cls._remove_ref)
             ConfigDB.__callbacks__[cls][setting_name].append(ref)
 
+    @_check_types.do
     def _remove_ref(cls, ref):
         """Remove a dead callback weak reference.
 
@@ -304,6 +320,7 @@ class ConfigDB(type):
                 refs.remove(ref)
                 return
 
+    @_check_types.do
     def _load(cls, save_all):
         """Load persisted values back onto the configuration class.
 
@@ -324,6 +341,7 @@ class ConfigDB(type):
                     if type(value) is not ConfigDB and not inspect.isclass(value):
                         cls.__table__[key] = value
 
+    @_check_types.do
     def _save(cls):
         """Persist current class attributes to the database.
 
@@ -340,6 +358,7 @@ class ConfigDB(type):
             cls.__table__[key] = value
             DEBUG('_save:', cls.__name__, cls.__table_name__, key, repr(value), '\n\n')
 
+    @_check_types.do
     def _process_change(cls, setting_name):
         """Notify callbacks that a setting changed.
 
@@ -355,6 +374,7 @@ class ConfigDB(type):
                     cb(cls, setting_name)
 
     @property
+    @_check_types.do
     def __table_name__(cls):
         """Return the SQLite table name for this configuration class.
 
@@ -366,6 +386,7 @@ class ConfigDB(type):
         return name
 
     @property
+    @_check_types.do
     def __table__(cls):
         """Return the table wrapper for this configuration class.
 
@@ -374,6 +395,7 @@ class ConfigDB(type):
         """
         return ConfigDB.__db__[cls.__table_name__]
 
+    @_check_types.do
     def __getitem__(cls, item):
         """Return a configuration attribute by key.
 
@@ -387,6 +409,7 @@ class ConfigDB(type):
 
         return value
 
+    @_check_types.do
     def __getattribute__(cls, item):
         """Fetch an attribute, falling back to persisted table values.
 
@@ -414,6 +437,7 @@ class ConfigDB(type):
 
         raise AttributeError(item)
 
+    @_check_types.do
     def __setitem__(cls, key, value):
         """Assign a configuration attribute by key.
 
@@ -426,6 +450,7 @@ class ConfigDB(type):
 
         setattr(cls, key, value)
 
+    @_check_types.do
     def __setattr__(cls, key, value):
         """Assign and persist a configuration attribute.
 
@@ -444,6 +469,7 @@ class ConfigDB(type):
             cls.__table__[key] = value
             cls._process_change(key)
 
+    @_check_types.do
     def __delitem__(cls, key):
         """Delete a configuration attribute by key.
 
@@ -452,6 +478,7 @@ class ConfigDB(type):
         """
         delattr(cls, key)
 
+    @_check_types.do
     def __delattr__(cls, item):
         """Delete a configuration attribute and its persisted value.
 
@@ -464,6 +491,7 @@ class ConfigDB(type):
         type.__delattr__(cls, item)
 
     @staticmethod
+    @_check_types.do
     def open():
         """Open the config database and load all registered classes.
 
@@ -474,6 +502,7 @@ class ConfigDB(type):
             cls._load(save_all)
 
     @staticmethod
+    @_check_types.do
     def close():
         """Save all registered configuration classes and close the database.
 

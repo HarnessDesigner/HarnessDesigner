@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import boot as _boot_2d
 from .objects3d import boot as _boot_3d
 from .objectspeg import boot as _boot_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Boot(_ObjectBase):
     objpeg: _boot_peg.Boot = None
     db_obj: "_pjt_boot.PJTBoot" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_boot.PJTBoot", project_load=False):
         """Initialise the :class:`Boot` instance.
@@ -46,6 +48,7 @@ class Boot(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_boot(self.db_obj.db_id)

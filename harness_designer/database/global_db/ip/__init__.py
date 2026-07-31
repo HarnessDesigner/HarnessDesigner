@@ -8,6 +8,7 @@ from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValue
 from . import solid as _solid
 from . import fluid as _fluid
 from . import supp as _supp
+from .... import check_types as _check_types
 
 
 class IPRatingsTable(TableBase):
@@ -17,6 +18,7 @@ class IPRatingsTable(TableBase):
     """
     __table_name__ = 'ip_ratings'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -29,6 +31,7 @@ class IPRatingsTable(TableBase):
 
         return ip_ratings.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -42,6 +45,7 @@ class IPRatingsTable(TableBase):
         ip_ratings.table.add_to_db(self)
         ip_ratings.add_records(self._con, splash)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -51,6 +55,7 @@ class IPRatingsTable(TableBase):
 
         ip_ratings.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["IPRating"]:
         """Iterate over the available items.
 
@@ -62,6 +67,7 @@ class IPRatingsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield IPRating(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "IPRating":
         """Return the requested item.
 
@@ -85,6 +91,7 @@ class IPRatingsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, name: str, solid_id: int, fluid_id: int, supp_id: int) -> "IPRating":
         """Execute the insert operation.
 
@@ -112,6 +119,7 @@ class IPRating(EntryBase):
     """
     _table: IPRatingsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -132,6 +140,7 @@ class IPRating(EntryBase):
     _stored_name: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def name(self):
         """Return the name.
 
@@ -148,6 +157,7 @@ class IPRating(EntryBase):
     _stored_ip_solid: "DefaultStoredValueType | _solid.IPSolid" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_solid(self) -> _solid.IPSolid:
         """Return the ip solid.
 
@@ -163,6 +173,7 @@ class IPRating(EntryBase):
         return self._stored_ip_solid
 
     @ip_solid.setter
+    @_check_types.do
     def ip_solid(self, value: _solid.IPSolid):
         """Set the ip solid.
 
@@ -180,6 +191,7 @@ class IPRating(EntryBase):
     _stored_ip_solid_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_solid_id(self) -> int:
         """Return the ip solid ID.
 
@@ -194,6 +206,7 @@ class IPRating(EntryBase):
         return self._stored_ip_solid_id
 
     @ip_solid_id.setter
+    @_check_types.do
     def ip_solid_id(self, value: int):
         """Set the ip solid ID.
 
@@ -211,6 +224,7 @@ class IPRating(EntryBase):
     _stored_ip_fluid: "DefaultStoredValueType | _fluid.IPFluid" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_fluid(self) -> _fluid.IPFluid:
         """Return the ip fluid.
 
@@ -226,6 +240,7 @@ class IPRating(EntryBase):
         return self._stored_ip_fluid
 
     @ip_fluid.setter
+    @_check_types.do
     def ip_fluid(self, value: _fluid.IPFluid):
         """Set the ip fluid.
 
@@ -243,6 +258,7 @@ class IPRating(EntryBase):
     _stored_ip_fluid_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_fluid_id(self) -> int:
         """Return the ip fluid ID.
 
@@ -257,6 +273,7 @@ class IPRating(EntryBase):
         return self._stored_ip_fluid_id
 
     @ip_fluid_id.setter
+    @_check_types.do
     def ip_fluid_id(self, value: int):
         """Set the ip fluid ID.
 
@@ -274,6 +291,7 @@ class IPRating(EntryBase):
     _stored_ip_supp: "DefaultStoredValueType | _supp.IPSupp | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_supp(self) -> _supp.IPSupp | None:
         """Return the ip supp.
 
@@ -292,6 +310,7 @@ class IPRating(EntryBase):
         return self._stored_ip_supp
 
     @ip_supp.setter
+    @_check_types.do
     def ip_supp(self, value: _supp.IPSupp | None):
         """Set the ip supp.
 
@@ -312,6 +331,7 @@ class IPRating(EntryBase):
     _stored_ip_supp_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ip_supp_id(self) -> int | None:
         """Return the ip supp ID.
 
@@ -326,6 +346,7 @@ class IPRating(EntryBase):
         return self._stored_ip_supp_id
 
     @ip_supp_id.setter
+    @_check_types.do
     def ip_supp_id(self, value: int | None):
         """Set the ip supp ID.
 
@@ -340,6 +361,7 @@ class IPRating(EntryBase):
         self._table.update(self._db_id, supp_id=value)
 
     @property
+    @_check_types.do
     def short_desc(self) -> str:
         """Return the short desc.
 
@@ -355,6 +377,7 @@ class IPRating(EntryBase):
         return f'{self.ip_solid.short_desc}\n{self.ip_fluid.short_desc}\n{supp.description}'
 
     @property
+    @_check_types.do
     def description(self) -> str:
         """Return the description.
 
@@ -372,6 +395,7 @@ class IPRating(EntryBase):
     _stored_pixmap: DefaultStoredValueType | QPixmap = DefaultStoredValue
 
     @property
+    @_check_types.do
     def pixmap(self) -> QPixmap:
         """Return the pixmap.
 

@@ -6,6 +6,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtGui
 
 from ... import image as _image
+from ... import check_types as _check_types
 
 
 class Header(QtWidgets.QWidget):
@@ -14,6 +15,7 @@ class Header(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, label, size):
         """Initialise the :class:`Header` instance.
 
@@ -70,6 +72,7 @@ class Header(QtWidgets.QWidget):
         sizer = QtWidgets.QVBoxLayout(self)
         sizer.addLayout(header_sizer)
 
+    @_check_types.do
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Execute the resize event operation.
 
@@ -90,6 +93,7 @@ class Header(QtWidgets.QWidget):
         self.bitmap.setPixmap(pixmap)
         self.update()
 
+    @_check_types.do
     def _render_bitmap(self, base_pixmap):
         """Render the bitmap.
 

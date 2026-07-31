@@ -28,6 +28,7 @@ from ....ui.widgets import auto_complete
 from .... import logger as _logger
 from .... process import manager as _manager
 from .... import config as _config
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -55,6 +56,7 @@ _RowType = tuple[_ToPythonOutputTypes, ...]
 class LoginDialog(QDialog):
     """Collect MySQL login credentials from the user.
     """
+    @_check_types.do
     def __init__(self, parent):
         """Build the MySQL login dialog widgets.
 
@@ -103,6 +105,7 @@ class LoginDialog(QDialog):
 
         self._settings_button.clicked.connect(self._on_settings_button)
 
+    @_check_types.do
     def _on_settings_button(self):
         """Open the MySQL settings dialog and persist accepted changes.
 
@@ -120,6 +123,7 @@ class LoginDialog(QDialog):
             for key, value in values.items():
                 setattr(Config, key, value)
 
+    @_check_types.do
     def GetValue(self):
         """Return the username and password entered in the dialog.
 
@@ -137,6 +141,7 @@ class SQLConnector(_base.ConnectorBase):
     """
     Implement database access through :mod:`mysql.connector`.
     """
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialize the MySQL connector state.
@@ -150,6 +155,7 @@ class SQLConnector(_base.ConnectorBase):
         self._cursor: _MySQLCursor = None
         self.cred_manager: _manager.CredManager = None
 
+    @_check_types.do
     def connect(self):
         """
         Prompt for credentials and connect to the configured MySQL database.
@@ -227,6 +233,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return True
 
+    @_check_types.do
     def get_tables(self) -> list[str]:
         """
         Return the tables present in the configured MySQL schema.
@@ -240,6 +247,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return [item[0] for item in res]
 
+    @_check_types.do
     def execute(self, operation: _StrOrBytes,
                 params: _Optional[_ParamsSequenceOrDictType] = None,
                 multi: bool = False) -> _Optional[_Generator[_MySQLCursor, None, None]]:
@@ -260,6 +268,7 @@ class SQLConnector(_base.ConnectorBase):
 
         self._cursor.execute(operation, params, multi)
 
+    @_check_types.do
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
     ) -> _Optional[_Generator[_MySQLCursor, None, None]]:
@@ -279,6 +288,7 @@ class SQLConnector(_base.ConnectorBase):
         self._cursor.executemany(operation, seq_params)
 
     @property
+    @_check_types.do
     def lastrowid(self) -> _Optional[int]:
 
         """
@@ -290,6 +300,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.lastrowid
 
+    @_check_types.do
     def fetchone(self) -> _Optional[_RowType]:
         """
         Fetch a single row from the MySQL cursor.
@@ -300,6 +311,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.fetchone()
 
+    @_check_types.do
     def fetchmany(self, size: _Optional[int] = None) -> list[_RowType]:
         """
         Fetch multiple rows from the MySQL cursor.
@@ -313,6 +325,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.fetchmany(size)
 
+    @_check_types.do
     def fetchall(self) -> list[_RowType]:
         """
         Fetch all remaining rows from the MySQL cursor.
@@ -323,6 +336,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.fetchall()
 
+    @_check_types.do
     def commit(self):
         """
         Commit the active MySQL transaction.
@@ -333,6 +347,7 @@ class SQLConnector(_base.ConnectorBase):
 
         self._connection.commit()
 
+    @_check_types.do
     def close(self):
         """
         Close the MySQL connector and stop related monitors.

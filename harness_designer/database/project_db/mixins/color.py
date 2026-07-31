@@ -7,6 +7,7 @@ from PySide6.QtGui import QColor
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ class ColorMixin(BaseMixin):
     _stored_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def color(self) -> "_color.Color":
         """Return the color.
 
@@ -40,6 +42,7 @@ class ColorMixin(BaseMixin):
     _stored_color_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def color_id(self) -> int:
         """Return the color ID.
 
@@ -54,6 +57,7 @@ class ColorMixin(BaseMixin):
         return self._stored_color_id
 
     @color_id.setter
+    @_check_types.do
     def color_id(self, value: int):
         """Set the color ID.
 
@@ -75,6 +79,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`ColorControl` instance.
 
@@ -91,6 +96,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
 
         self.propertyChanged.connect(self._on_color)
 
+    @_check_types.do
     def SetAttributeName(self, name):
         """Execute the set attribute name operation.
 
@@ -101,6 +107,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
         """
         self.attribute_name = name
 
+    @_check_types.do
     def set_obj(self, db_obj: ColorMixin):
         """Set the obj.
 
@@ -128,6 +135,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
             self.SetValue([color.name, color.ui])
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_color(self, evt):
         """Handle the color event.
 

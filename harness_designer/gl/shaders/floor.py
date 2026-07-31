@@ -3,6 +3,7 @@
 from OpenGL import GL
 
 from . import compiler as _compiler
+from ... import check_types as _check_types
 
 
 VERTEX_SHADER = """\
@@ -145,6 +146,7 @@ void main() {
 """
 
 
+@_check_types.do
 def compile_program():
     """Compile and link the procedural floor shader.
 

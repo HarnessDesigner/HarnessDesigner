@@ -20,8 +20,10 @@ from . import housings as _housings
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_covers(con, data: tuple[dict] | list[dict]):
     """
     Add a covers.
@@ -37,6 +39,7 @@ def add_covers(con, data: tuple[dict] | list[dict]):
         add_cover(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """
     Add a records.
@@ -105,6 +108,7 @@ def add_records(con, splash, data_path):
     os.chdir(cwd)
 
 
+@_check_types.do
 def add_cover(con, part_number, description, mfg=None, family=None, series=None,
               color=None, direction=None, image=None, datasheet=None, cad=None,
               min_temp=None, max_temp=None, model3d=None, length=0.0, width=0.0,

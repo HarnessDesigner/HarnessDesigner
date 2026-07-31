@@ -7,8 +7,10 @@ from .. import db_connectors as _con
 from . import file_types as _file_types
 from ... import resources as _resources
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def get_image_id(con, path: str):  # NOQA
     """
     Return the image ID.

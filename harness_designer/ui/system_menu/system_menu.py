@@ -10,6 +10,7 @@ from . import settings as _settings
 from . import view as _view
 from . import window as _window
 from . import help as _help
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class SystemMenu(QtWidgets.QMenuBar):
     Represent a system menu in :mod:`harness_designer.ui.system_menu.__init__`.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialise the :class:`SystemMenu` instance.

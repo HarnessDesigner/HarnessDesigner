@@ -4,6 +4,7 @@ from PySide6 import QtWidgets
 
 from ..widgets import combobox_ctrl as _combobox_ctrl
 from . import dialog_base as _dialog_base
+from ... import check_types as _check_types
 
 
 class OpenProjectDialog(_dialog_base.BaseDialog):
@@ -12,6 +13,7 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, last_project, project_names):
         """Initialise the :class:`OpenProjectDialog` instance.
 
@@ -51,6 +53,7 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
         sizer = QtWidgets.QVBoxLayout(self.panel)
         sizer.addLayout(h_sizer)
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 

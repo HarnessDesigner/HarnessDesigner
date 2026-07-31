@@ -15,6 +15,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ class ProjectModel(_base3d.Base3D):
     parent: "_project_model.ProjectModel" = None
     db_obj: "_project.Project" = None
 
+    @_check_types.do
     def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project", vbo):
         with parent.mainframe.editor3d.context:
             color = db_obj.color.ui
@@ -44,11 +46,14 @@ class ProjectModel(_base3d.Base3D):
         self.mainframe.editor3d.Refresh()
 
     @property
+    @_check_types.do
     def smooth(self):
         return True
 
+    @_check_types.do
     def get_context_menu(self):
         pass
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         super().render(faces_program, edges_program, vertices_program)

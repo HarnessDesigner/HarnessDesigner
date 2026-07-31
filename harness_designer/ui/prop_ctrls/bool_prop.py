@@ -4,6 +4,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class BoolProperty(QtWidgets.QWidget):
@@ -14,6 +15,7 @@ class BoolProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`BoolProperty` instance.
 
@@ -41,6 +43,7 @@ class BoolProperty(QtWidgets.QWidget):
 
         self._ctrl.checkStateChanged.connect(self._on_change)
 
+    @_check_types.do
     def _on_change(self, _):
         """Handle the change event.
 
@@ -61,6 +64,7 @@ class BoolProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetValue(self, value: bool):
         """Execute the set value operation.
 
@@ -76,6 +80,7 @@ class BoolProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> bool:
         """Execute the get value operation.
 
@@ -86,9 +91,11 @@ class BoolProperty(QtWidgets.QWidget):
         """
         return self._ctrl.isChecked()
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

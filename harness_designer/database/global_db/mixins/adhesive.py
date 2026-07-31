@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class AdhesiveMixin(BaseMixin):
     _stored_adhesives: list["_adhesive.Adhesive"] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def adhesives(self) -> list["_adhesive.Adhesive"]:
         """Return the adhesives.
 
@@ -51,6 +53,7 @@ class AdhesiveMixin(BaseMixin):
     _stored_adhesive_ids: list | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def adhesive_ids(self) -> list[str]:
         """Return the adhesive IDs.
 
@@ -66,6 +69,7 @@ class AdhesiveMixin(BaseMixin):
         return list(self._stored_adhesive_ids)
 
     @adhesive_ids.setter
+    @_check_types.do
     def adhesive_ids(self, value: list[str]):
         """Set the adhesive IDs.
 
@@ -86,6 +90,7 @@ class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`AdhesiveControl` instance.
 
@@ -98,6 +103,7 @@ class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
 
         super().__init__(parent, 'Adhesives')
 
+    @_check_types.do
     def _on_adhesives(self, evt):
         """Handle the adhesives event.
 
@@ -109,6 +115,7 @@ class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
         value = evt.GetValue()
         self.db_obj.adhesive_ids = value
 
+    @_check_types.do
     def set_obj(self, db_obj: AdhesiveMixin):
         """Set the obj.
 

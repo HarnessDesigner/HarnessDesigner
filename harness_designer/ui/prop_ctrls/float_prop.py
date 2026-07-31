@@ -6,6 +6,7 @@ from PySide6 import QtCore
 from ... import utils as _utils
 from ...geometry.decimal import Decimal as _d
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class FloatProperty(QtWidgets.QWidget):
@@ -16,6 +17,7 @@ class FloatProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label: str, min_value: float, max_value: float,
                  increment: float, units: str | None = None):
         """Initialise the :class:`FloatProperty` instance.
@@ -97,6 +99,7 @@ class FloatProperty(QtWidgets.QWidget):
         self._slider.valueChanged.connect(self._on_slider_scroll)
         self._ctrl.valueChanged.connect(self._on_spin_changed)
 
+    @_check_types.do
     def SetValue(self, value: float) -> None:
         """
         Execute the set value operation.
@@ -135,6 +138,7 @@ class FloatProperty(QtWidgets.QWidget):
         self._ctrl.blockSignals(False)
         self._slider.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> float:
         """
         Execute the get value operation.
@@ -145,6 +149,7 @@ class FloatProperty(QtWidgets.QWidget):
 
         return self._value
 
+    @_check_types.do
     def _on_slider_scroll(self, _) -> None:
         """
         Handle the slider scroll event.
@@ -172,6 +177,7 @@ class FloatProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def _on_spin_changed(self, spin_value: float) -> None:
         """
         Handle the spin changed event.
@@ -195,9 +201,11 @@ class FloatProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

@@ -6,8 +6,10 @@ from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def compute_edges(faces: np.ndarray) -> np.ndarray:
     """
     Create a numpy array of edges from vertices and triangle faces.
@@ -47,6 +49,7 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
     return edges
 
 
+@_check_types.do
 def convert_model_to_mesh(model, lin_deflection=0.001, ang_deflection=0.1, is_relative=True):
     """
     Triangulate a CAD model into vertex and face arrays.

@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from . import float_prop as _float_prop
+from ... import check_types as _check_types
 
 
 class Position3DProperty(QtWidgets.QGroupBox):
@@ -10,6 +11,7 @@ class Position3DProperty(QtWidgets.QGroupBox):
     :mod:`harness_designer.ui.prop_ctrls.position3d_prop`.
     """
 
+    @_check_types.do
     def __init__(self, parent, label: str):
         """
         Initialise the :class:`Position3DProperty` instance.
@@ -43,6 +45,7 @@ class Position3DProperty(QtWidgets.QGroupBox):
         self.y_ctrl.propertyChanged.connect(self._on_y)
         self.z_ctrl.propertyChanged.connect(self._on_z)
 
+    @_check_types.do
     def SetValue(self, position):
         """
         Execute the set value operation.
@@ -66,12 +69,14 @@ class Position3DProperty(QtWidgets.QGroupBox):
         if position is not None:
             position.bind(self._on_position)
 
+    @_check_types.do
     def _on_position(self, position):
         x, y, z = position.as_float
         self.x_ctrl.SetValue(x)
         self.y_ctrl.SetValue(y)
         self.z_ctrl.SetValue(z)
 
+    @_check_types.do
     def _on_x(self, evt):
         """
         Handle the x event.
@@ -83,6 +88,7 @@ class Position3DProperty(QtWidgets.QGroupBox):
         self._position.x = evt.GetValue()
         self._position.bind(self._on_position)
 
+    @_check_types.do
     def _on_y(self, evt):
         """
         Handle the y event.
@@ -94,6 +100,7 @@ class Position3DProperty(QtWidgets.QGroupBox):
         self._position.y = evt.GetValue()
         self._position.bind(self._on_position)
 
+    @_check_types.do
     def _on_z(self, evt):
         """
         Handle the z event.
@@ -105,10 +112,12 @@ class Position3DProperty(QtWidgets.QGroupBox):
         self._position.z = evt.GetValue()
         self._position.bind(self._on_position)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self.setTitle(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label
 

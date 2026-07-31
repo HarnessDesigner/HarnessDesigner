@@ -16,6 +16,7 @@ from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...shapes import text as _text
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ class Note(_base3d.Base3D):
     parent: "_note.Note" = None
     db_obj: "_pjt_note.PJTNote" = None
 
+    @_check_types.do
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
         """Initialise the :class:`Note` instance.
 
@@ -58,6 +60,7 @@ class Note(_base3d.Base3D):
             vbo, _width, _height = self._build()
             _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
+    @_check_types.do
     def _mesh_args(self) -> dict:
         """Current ``shapes.text.create``/``create_vbo`` args, from this
         note's live db_obj fields. ``depth=0.25`` extrudes the text
@@ -73,6 +76,7 @@ class Note(_base3d.Base3D):
             text_align=[build123d.TextAlign(self.db_obj.h_align3d), build123d.TextAlign.CENTER],
         )
 
+    @_check_types.do
     def _build(self):
         """Build this note's VBO (construction time only -- see
         :meth:`_rebuild` for in-place content updates).
@@ -81,6 +85,7 @@ class Note(_base3d.Base3D):
         """
         return _text.create_vbo(self._text_uuid, **self._mesh_args())
 
+    @_check_types.do
     def _rebuild(self):
         """Rebuild this note's mesh in place from its current db_obj
         fields and upload it to the existing VBO -- called by every
@@ -90,6 +95,7 @@ class Note(_base3d.Base3D):
         packed, count = _utils.compute_normals(vertices, faces)
         self._vbo.update(packed, count)
 
+    @_check_types.do
     def set_size(self, size):
         self.db_obj.size3d = size
 
@@ -97,6 +103,7 @@ class Note(_base3d.Base3D):
             self._rebuild()
         self.editor3d.Refresh()
 
+    @_check_types.do
     def set_style(self, style):
         self.db_obj.style3d = style
 
@@ -104,6 +111,7 @@ class Note(_base3d.Base3D):
             self._rebuild()
         self.editor3d.Refresh()
 
+    @_check_types.do
     def set_alignment(self, alignment):
         self.db_obj.h_align3d = alignment
 
@@ -111,6 +119,7 @@ class Note(_base3d.Base3D):
             self._rebuild()
         self.editor3d.Refresh()
 
+    @_check_types.do
     def set_text(self, text: str):
         """Set the note text and rebuild the 3d geometry."""
         self.db_obj.notes = text
@@ -119,6 +128,7 @@ class Note(_base3d.Base3D):
             self._rebuild()
         self.editor3d.Refresh()
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -136,6 +146,7 @@ class NoteMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`NoteMenu` instance.
 
@@ -172,8 +183,10 @@ class NoteMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_set_text(self):
         """Edit the note text."""
+        @_check_types.do
         def _do():
             from PySide6.QtWidgets import QInputDialog
 
@@ -190,14 +203,17 @@ class NoteMenu(QMenu):
 
         QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this note as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this note from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this note's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

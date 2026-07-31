@@ -6,6 +6,7 @@ from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValue
 from ..mixins import (NameMixin, DescriptionMixin)
 
 from .... import image as _image
+from .... import check_types as _check_types
 
 
 class IPFluidsTable(TableBase):
@@ -15,6 +16,7 @@ class IPFluidsTable(TableBase):
     """
     __table_name__ = 'ip_fluids'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -27,6 +29,7 @@ class IPFluidsTable(TableBase):
 
         return ip_fluids.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -40,6 +43,7 @@ class IPFluidsTable(TableBase):
         ip_fluids.table.add_to_db(self)
         ip_fluids.add_records(self._con, splash)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -49,6 +53,7 @@ class IPFluidsTable(TableBase):
 
         ip_fluids.table.update_fields(self)
 
+    @_check_types.do
     def __getitem__(self, item) -> "IPFluid":
         """Return the requested item.
 
@@ -72,6 +77,7 @@ class IPFluidsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["IPFluid"]:
         """Iterate over the available items.
 
@@ -83,6 +89,7 @@ class IPFluidsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield IPFluid(self, db_id)
 
+    @_check_types.do
     def insert(self, name: str, short_desc: str, description: str, icon_data: bytes | None) -> "IPFluid":
         """Execute the insert operation.
 
@@ -113,6 +120,7 @@ class IPFluid(EntryBase, NameMixin, DescriptionMixin):
     _stored_short_desc: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def short_desc(self) -> str:
         """Return the short desc.
 
@@ -127,6 +135,7 @@ class IPFluid(EntryBase, NameMixin, DescriptionMixin):
         return self._stored_short_desc
 
     @short_desc.setter
+    @_check_types.do
     def short_desc(self, value: str):
         """Set the short desc.
 
@@ -139,6 +148,7 @@ class IPFluid(EntryBase, NameMixin, DescriptionMixin):
         self._table.update(self._db_id, short_desc=value)
 
     @property
+    @_check_types.do
     def icon(self) -> _image.Image:
         """Return the icon.
 

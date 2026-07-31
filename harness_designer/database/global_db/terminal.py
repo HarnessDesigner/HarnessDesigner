@@ -29,6 +29,7 @@ from .mixins import (
     DimensionMixin, DimensionControl,
     CompatHousingsMixin, CompatHousingsControl,
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from . import cavity as _cavity
 
 
+@_check_types.do
 def _seal_eff_dia(wire_dia: float | None, wire_size_dia: float | None,
                   wire_size_cross: float | None, wire_size_awg: float | None) -> float | None:
     """Resolve a seal's effective wire diameter from its raw column values.
@@ -64,6 +66,7 @@ class TerminalsTable(TableBase):
     _control: "TerminalControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "TerminalControl":
         """Return the control.
 
@@ -77,6 +80,7 @@ class TerminalsTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -90,6 +94,7 @@ class TerminalsTable(TableBase):
         data_path = self._con.db_data.open(splash)
         terminals.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -102,6 +107,7 @@ class TerminalsTable(TableBase):
 
         return terminals.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -117,6 +123,7 @@ class TerminalsTable(TableBase):
 
         terminals.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -126,6 +133,7 @@ class TerminalsTable(TableBase):
 
         terminals.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Terminal"]:
         """Iterate over the available items.
 
@@ -137,6 +145,7 @@ class TerminalsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Terminal(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Terminal":
         """Return the requested item.
 
@@ -160,6 +169,7 @@ class TerminalsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_compat(self, seal: str = None, housing: str = None):
         """Return the compat.
 
@@ -196,6 +206,7 @@ class TerminalsTable(TableBase):
 
         return res
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, gender_id: int,
                series_id: int, family_id: int, sealing: bool, cavity_lock_id: int,
                image_id: int, datasheet_id: int, cad_id: int, material_id: int,
@@ -285,6 +296,7 @@ class TerminalsTable(TableBase):
         return Terminal(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -415,6 +427,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     _table: TerminalsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -443,6 +456,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return packet
 
     @property
+    @_check_types.do
     def compat_seals(self) -> list["_seal.Seal"]:
         """Return the compat seals.
 
@@ -497,6 +511,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_sealing: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def sealing(self) -> bool:
         """Return the sealing.
 
@@ -511,6 +526,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_sealing
 
     @sealing.setter
+    @_check_types.do
     def sealing(self, value: bool):
         """Set the sealing.
 
@@ -526,6 +542,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_blade_size: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def blade_size(self) -> float:
         """Return the blade size.
 
@@ -540,6 +557,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_blade_size
 
     @blade_size.setter
+    @_check_types.do
     def blade_size(self, value: float):
         """Set the blade size.
 
@@ -555,6 +573,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_resistance: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -569,6 +588,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_resistance
 
     @resistance.setter
+    @_check_types.do
     def resistance(self, value: float):
         """Set the resistance.
 
@@ -584,6 +604,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_mating_cycles: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def mating_cycles(self) -> int:
         """Return the mating cycles.
 
@@ -598,6 +619,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_mating_cycles
 
     @mating_cycles.setter
+    @_check_types.do
     def mating_cycles(self, value: int):
         """Set the mating cycles.
 
@@ -613,6 +635,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_max_vibration_g: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_vibration_g(self) -> int:
         """Return the max vibration g.
 
@@ -627,6 +650,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_max_vibration_g
 
     @max_vibration_g.setter
+    @_check_types.do
     def max_vibration_g(self, value: int):
         """Set the max vibration g.
 
@@ -642,6 +666,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_max_current_ma: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_current_ma(self) -> int:
         """Return the max current ma.
 
@@ -656,6 +681,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_max_current_ma
 
     @max_current_ma.setter
+    @_check_types.do
     def max_current_ma(self, value: int):
         """Set the max current ma.
 
@@ -671,6 +697,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_round_terminal: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def round_terminal(self) -> bool:
         """Return the round terminal.
 
@@ -685,6 +712,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_round_terminal
 
     @round_terminal.setter
+    @_check_types.do
     def round_terminal(self, value: bool):
         """Set the round terminal.
 
@@ -700,6 +728,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def length(self) -> float:
         """Return the length.
 
@@ -714,6 +743,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_length
 
     @length.setter
+    @_check_types.do
     def length(self, value: float):
         """Set the length.
 
@@ -730,6 +760,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def width(self) -> float:
         """Return the width.
 
@@ -753,6 +784,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_width
 
     @width.setter
+    @_check_types.do
     def width(self, value: float):
         """Set the width.
 
@@ -776,6 +808,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def height(self) -> float:
         """Return the height.
 
@@ -799,6 +832,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_height
 
     @height.setter
+    @_check_types.do
     def height(self, value: float):
         """Set the height.
 
@@ -819,6 +853,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
         self._populate('height')
 
+    @_check_types.do
     def effective_size(self, cavity: "_cavity.Cavity") -> tuple[float, float, float]:
         """
         Return (width, height, length) to use for this terminal's
@@ -846,6 +881,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _scale_id: str = None
     _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
 
@@ -866,6 +902,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
+    @_check_types.do
     def scale(self) -> _point.Point:
         """Return the scale.
 
@@ -932,6 +969,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: Terminal):
         """Set the obj.
 
@@ -988,6 +1026,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
             self.max_vibration_g_ctrl.setEnabled(True)
             self.max_current_ma_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_sealing(self, evt):
         """Handle the sealing event.
 
@@ -999,6 +1038,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.sealing = value
 
+    @_check_types.do
     def _on_blade_size(self, evt):
         """Handle the blade size event.
 
@@ -1010,6 +1050,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.blade_size = value
 
+    @_check_types.do
     def _on_resistance(self, evt):
         """Handle the resistance event.
 
@@ -1021,6 +1062,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.resistance = value
 
+    @_check_types.do
     def _on_mating_cycles(self, evt):
         """Handle the mating cycles event.
 
@@ -1032,6 +1074,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.mating_cycles = value
 
+    @_check_types.do
     def _on_vibration(self, evt):
         """Handle the vibration event.
 
@@ -1043,6 +1086,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.max_vibration_g = value
 
+    @_check_types.do
     def _on_current(self, evt):
         """Handle the current event.
 
@@ -1054,6 +1098,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.max_current_ma = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`TerminalControl` instance.
 

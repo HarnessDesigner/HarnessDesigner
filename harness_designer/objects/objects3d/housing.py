@@ -21,6 +21,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 
 from ... import debug as _debug
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
@@ -53,6 +54,7 @@ class _CavityMarker:
     side: str                # 'terminal' | 'wire' -- which face this stands in for
 
 
+@_check_types.do
 def _build_marker_local_verts(
     kind: str, center: np.ndarray, u: np.ndarray, v: np.ndarray,
     half_w: float, half_h: float, segments: int = 24,
@@ -85,6 +87,7 @@ class Housing(_base3d.Base3D):
     parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing" = None
 
+    @_check_types.do
     def __init__(self, parent: "_housing.Housing",
                  db_obj: "_pjt_housing.PJTHousing"):
         """Initialise the :class:`Housing` instance.
@@ -155,10 +158,12 @@ class Housing(_base3d.Base3D):
                        self._part.part_number, self._set_model)
 
     @property
+    @_check_types.do
     def cavities(self) -> list:
         return [c.obj3d for c in self.parent.cavities
                 if c is not None and c.obj3d is not None]
 
+    @_check_types.do
     def _set_model(self, model):
         # This callback runs from the background model-download dispatch
         # (process.manager), which never acquires a GL context before
@@ -208,6 +213,7 @@ class Housing(_base3d.Base3D):
             self.match_cavity_surfaces()
 
     @property
+    @_check_types.do
     def seal_position(self) -> _point.Point:
         """Return the seal position.
 
@@ -219,6 +225,7 @@ class Housing(_base3d.Base3D):
         return self.db_obj.seal_position3d
 
     @_debug.logfunc
+    @_check_types.do
     def match_cavity_surfaces(self) -> None:
         # Surface computation (coplanar grouping + connected components) is
         # purely a function of this part's mesh geometry -- identical for
@@ -455,6 +462,7 @@ class Housing(_base3d.Base3D):
             cavity_3d.wire_surf_idx = si
             self._surf_to_cavity.setdefault(si, cavity_3d)
 
+    @_check_types.do
     def _pick_marker(self, x: int, y: int) -> int:
         """Ray-cast against synthetic cavity-marker decals.
 
@@ -502,6 +510,7 @@ class Housing(_base3d.Base3D):
 
         return best_idx
 
+    @_check_types.do
     def _select_marker(self, marker_idx: int):
         marker = self._cavity_markers[marker_idx]
         self._picker.clear_selection()
@@ -509,6 +518,7 @@ class Housing(_base3d.Base3D):
         marker.cavity_3d._selected_is_wire_side = (marker.side == 'wire')  # NOQA
         return marker.cavity_3d
 
+    @_check_types.do
     def on_surface_selected(self, idx: int):
         cavity_3d = self._surf_to_cavity.get(idx)
         if cavity_3d is not None:
@@ -517,6 +527,7 @@ class Housing(_base3d.Base3D):
             cavity_3d._selected_is_wire_side = (idx != cavity_3d.surf_idx)  # NOQA
         return cavity_3d
 
+    @_check_types.do
     def try_pick_cavity(self, x: int, y: int):
         """Ray-cast at pixel (x, y); highlight the cavity (or its synthetic
         marker) if hit.  Markers are checked first — they are the only click
@@ -536,12 +547,14 @@ class Housing(_base3d.Base3D):
             return None
         return self.on_surface_selected(idx)
 
+    @_check_types.do
     def clear_cavity_overlay(self) -> None:
         """Hide any active cavity-plane highlight for this housing."""
         self._selected_marker_idx = -1
         self._picker.clear_selection()
 
     @staticmethod
+    @_check_types.do
     def _draw_overlay_triangles(positions_world: np.ndarray, color) -> None:
         """Immediate-mode filled-triangle draw used for both the picker's
         hover/click surface highlight and the persistent cavity-marker
@@ -565,6 +578,7 @@ class Housing(_base3d.Base3D):
         GL.glPolygonOffset(0.0, 0.0)
         GL.glDepthMask(GL.GL_TRUE)
 
+    @_check_types.do
     def render_surface_overlay(self, surf_idx: int, color) -> None:
         """Draw an overlay on one of this housing's mesh surfaces.
 
@@ -595,6 +609,7 @@ class Housing(_base3d.Base3D):
 
         self._draw_overlay_triangles(positions, color)
 
+    @_check_types.do
     def render_marker_overlay(self, marker_idx: int, color) -> None:
         """Draw an override-color overlay on one of this housing's synthetic
         cavity markers -- the marker equivalent of ``render_surface_overlay``.
@@ -619,6 +634,7 @@ class Housing(_base3d.Base3D):
 
         self._draw_overlay_triangles(positions, color)
 
+    @_check_types.do
     def _render_cavity_markers(self) -> None:
         """Draw every synthetic cavity-marker decal — persistent, not just
         on selection, since these are the only visual cue for cavities that
@@ -642,6 +658,7 @@ class Housing(_base3d.Base3D):
             color = selected_color if i == self._selected_marker_idx else default_color
             self._draw_overlay_triangles(positions, color)
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         super().render(faces_program, edges_program, vertices_program)
 
@@ -655,12 +672,14 @@ class Housing(_base3d.Base3D):
         self.render_surface_overlay(
             picker.selected_surf_idx, (r / 255.0, g / 255.0, b / 255.0, a / 255.0))
 
+    @_check_types.do
     def _delete(self):
         """Clean up the picker before delegating to Base3D."""
         self._picker.cleanup()
         self._picker = None
         super()._delete()
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -678,6 +697,7 @@ class HousingMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", obj: Housing):
         """Initialise the :class:`HousingMenu` instance.
 
@@ -741,11 +761,13 @@ class HousingMenu(QMenu):
         action = self.addAction('Housing Editor')
         action.triggered.connect(self.on_housing_editor)
 
+    @_check_types.do
     def on_housing_editor(self):
         """Handle the housing editor event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
+        @_check_types.do
         def _do(housing):
             """Execute the do operation.
 
@@ -762,6 +784,7 @@ class HousingMenu(QMenu):
 
         QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
 
+    @_check_types.do
     def on_add_mat_seal(self):
         """Attach a MAT seal to this housing."""
         from ... import handlers as _handlers
@@ -771,6 +794,7 @@ class HousingMenu(QMenu):
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddSealHandler(self.mainframe, housing=housing))
 
+    @_check_types.do
     def on_add_cavity_seal(self):
         """Add a plug seal interactively to one of this housing's cavities."""
         from ... import handlers as _handlers
@@ -782,6 +806,7 @@ class HousingMenu(QMenu):
             lambda: _handlers.AddSealHandler(
                 self.mainframe, housing=housing, for_cavity=True))
 
+    @_check_types.do
     def on_add_terminal(self):
         """Add terminals to this housing's cavities with a snapping preview."""
         from ... import handlers as _handlers
@@ -793,6 +818,7 @@ class HousingMenu(QMenu):
             lambda: _handlers.AddTerminalHandler(
                 self.mainframe, housing=housing))
 
+    @_check_types.do
     def on_add_cpa_lock(self):
         """Attach a CPA lock to this housing."""
         from ... import handlers as _handlers
@@ -802,6 +828,7 @@ class HousingMenu(QMenu):
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddCPALockHandler(self.mainframe, housing))
 
+    @_check_types.do
     def on_add_tpa_lock(self):
         """Attach a TPA lock to this housing."""
         from ... import handlers as _handlers
@@ -811,6 +838,7 @@ class HousingMenu(QMenu):
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddTPALockHandler(self.mainframe, housing))
 
+    @_check_types.do
     def on_add_cover(self):
         """Attach a cover to this housing."""
         from ... import handlers as _handlers
@@ -820,8 +848,10 @@ class HousingMenu(QMenu):
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddCoverHandler(self.mainframe, housing))
 
+    @_check_types.do
     def on_add_boot(self):
         """Attach a boot to this housing."""
+        @_check_types.do
         def _do():
             from .. import boot as _boot_obj
 
@@ -851,18 +881,22 @@ class HousingMenu(QMenu):
 
         QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def on_select(self):
         """Make this housing the active selection."""
         _menu_ops.select_object(self.obj)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this housing as the template."""
         _menu_ops.clone_object(self.obj)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this housing from the project."""
         _menu_ops.delete_object(self.obj)
 
+    @_check_types.do
     def on_properties(self):
         """Show this housing's properties in the object editor."""
         _menu_ops.show_properties(self.obj)

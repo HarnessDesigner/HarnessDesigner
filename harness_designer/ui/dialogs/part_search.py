@@ -11,6 +11,7 @@ from PySide6 import QtGui
 
 from . import dialog_base as _dialog_base
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class _QueryWorker(QtCore.QObject):
 
     resultReady = QtCore.Signal(int, object, object)  # request_id, rows, error
 
+    @_check_types.do
     def __init__(self, db_path: str):
         """Initialise the :class:`_QueryWorker` instance.
 
@@ -48,11 +50,13 @@ class _QueryWorker(QtCore.QObject):
         self._conn: Optional[sqlite3.Connection] = None
 
     @QtCore.Slot()
+    @_check_types.do
     def open(self) -> None:
         """Open this worker's own connection. Must run on the worker thread."""
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
 
     @QtCore.Slot(int, str, list)
+    @_check_types.do
     def run_query(self, request_id: int, sql: str, params: list) -> None:
         """Execute one query and report the result back to the main thread.
 
@@ -75,6 +79,7 @@ class _QueryWorker(QtCore.QObject):
 
         self.resultReady.emit(request_id, rows, None)
 
+    @_check_types.do
     def request_stop(self) -> None:
         """Abort any in-flight query so the worker thread can exit promptly.
 
@@ -100,6 +105,7 @@ class _MainTableInfo:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, conn, table_name: str):
         """Initialise the :class:`_MainTableInfo` instance.
 
@@ -127,6 +133,7 @@ class _MainTableInfo:
             self.fk_target[row[3]] = row[2]
 
     @property
+    @_check_types.do
     def exists(self) -> bool:
         """Return the exists.
 
@@ -137,6 +144,7 @@ class _MainTableInfo:
         """
         return bool(self.columns)
 
+    @_check_types.do
     def resolve_alias(self, alias: str) -> Optional[Tuple[str, Optional[str]]]:
         """Execute the resolve alias operation.
 
@@ -177,6 +185,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
     """
     kind: str = ""
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, on_change):
         """Initialise the :class:`_FilterPanelBase` instance.
 
@@ -196,6 +205,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
         self.setMaximumWidth(PANEL_W)
         self.setFrameShape = lambda *a: None  # compat stub
 
+    @_check_types.do
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
         """Return the predicate.
 
@@ -207,6 +217,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
         """
         raise NotImplementedError
 
+    @_check_types.do
     def clear(self) -> None:
         """Execute the clear operation.
 
@@ -216,6 +227,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
         """
         raise NotImplementedError
 
+    @_check_types.do
     def add_reset_button(self, layout):
         """Add a reset button.
 
@@ -238,6 +250,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
         layout.addWidget(line)
         layout.addLayout(row)
 
+    @_check_types.do
     def _on_reset_button(self):
         """Handle the reset button event.
 
@@ -253,6 +266,7 @@ class FKFilterPanel(_FilterPanelBase):
     """
     kind = FK_FILTER
 
+    @_check_types.do
     def __init__(self, parent, column, ref_table,
                  display_col, label, on_change):
         """Initialise the :class:`FKFilterPanel` instance.
@@ -294,6 +308,7 @@ class FKFilterPanel(_FilterPanelBase):
 
         self.list.itemChanged.connect(self._on_check)
 
+    @_check_types.do
     def populate(self, displays: List[str]) -> None:
         """Execute the populate operation.
 
@@ -311,6 +326,7 @@ class FKFilterPanel(_FilterPanelBase):
             self.list.addItem(item)
         self.list.blockSignals(False)
 
+    @_check_types.do
     def update_availability(self, available) -> None:
         """Update the availability.
 
@@ -330,6 +346,7 @@ class FKFilterPanel(_FilterPanelBase):
             ok = available is None or item.text() in available
             item.setForeground(normal if ok else DISABLED_COLOUR)
 
+    @_check_types.do
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
         """Return the predicate.
 
@@ -354,6 +371,7 @@ class FKFilterPanel(_FilterPanelBase):
 
         return sql, displays
 
+    @_check_types.do
     def clear(self) -> None:
         """Execute the clear operation.
 
@@ -364,6 +382,7 @@ class FKFilterPanel(_FilterPanelBase):
             self.list.item(i).setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
+    @_check_types.do
     def _on_check(self, _):
         """Handle the check event.
 
@@ -377,6 +396,7 @@ class FKFilterPanel(_FilterPanelBase):
 
         QtCore.QTimer.singleShot(0, self._sync_and_notify)
 
+    @_check_types.do
     def _sync_and_notify(self):
         """Execute the sync and notify operation.
 
@@ -405,6 +425,7 @@ class EnumFilterPanel(_FilterPanelBase):
     """
     kind = ENUM_FILTER
 
+    @_check_types.do
     def __init__(self, parent, column, label, on_change):
         """Initialise the :class:`EnumFilterPanel` instance.
 
@@ -438,6 +459,7 @@ class EnumFilterPanel(_FilterPanelBase):
 
         self.list.itemChanged.connect(self._on_check)
 
+    @_check_types.do
     def populate(self, values: List[int]) -> None:
         """Execute the populate operation.
 
@@ -457,6 +479,7 @@ class EnumFilterPanel(_FilterPanelBase):
 
         self.list.blockSignals(False)
 
+    @_check_types.do
     def update_availability(self, available) -> None:
         """Update the availability.
 
@@ -480,6 +503,7 @@ class EnumFilterPanel(_FilterPanelBase):
             ok = available is None or v in available
             item.setForeground(normal if ok else DISABLED_COLOUR)
 
+    @_check_types.do
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
         """Return the predicate.
 
@@ -503,6 +527,7 @@ class EnumFilterPanel(_FilterPanelBase):
         placeholders = ",".join(["?"] * len(vals))
         return f't.{self.column} IN ({placeholders})', vals
 
+    @_check_types.do
     def clear(self) -> None:
         """Execute the clear operation.
 
@@ -513,6 +538,7 @@ class EnumFilterPanel(_FilterPanelBase):
             self.list.item(i).setCheckState(QtCore.Qt.CheckState.Unchecked)
         self.list.blockSignals(False)
 
+    @_check_types.do
     def _on_check(self, _):
         """Handle the check event.
 
@@ -526,6 +552,7 @@ class EnumFilterPanel(_FilterPanelBase):
 
         QtCore.QTimer.singleShot(0, self._sync_and_notify)
 
+    @_check_types.do
     def _sync_and_notify(self):
         """Execute the sync and notify operation.
 
@@ -560,6 +587,7 @@ class RangeFilterPanel(_FilterPanelBase):
     _INT_LIMIT = 2 ** 31 - 1
     _FLOAT_LIMIT = 1.0e15
 
+    @_check_types.do
     def __init__(self, parent, column, is_int, label, on_change):
         """Initialise the :class:`RangeFilterPanel` instance.
 
@@ -615,6 +643,7 @@ class RangeFilterPanel(_FilterPanelBase):
         self.min_ctrl.valueChanged.connect(self._fire)
         self.max_ctrl.valueChanged.connect(self._fire)
 
+    @_check_types.do
     def _fire(self):
         """Execute the fire operation.
 
@@ -623,6 +652,7 @@ class RangeFilterPanel(_FilterPanelBase):
         QtCore.QTimer.singleShot(0, lambda: self.on_change(self))
 
     @staticmethod
+    @_check_types.do
     def _good_increment(span: float) -> float:
         """Execute the good increment operation.
 
@@ -643,6 +673,7 @@ class RangeFilterPanel(_FilterPanelBase):
             return 0.01
         return 0.001
 
+    @_check_types.do
     def update_bounds(self, lo, hi) -> None:
         """Update the bounds.
 
@@ -694,6 +725,7 @@ class RangeFilterPanel(_FilterPanelBase):
 
         self.range_label.setText(f"In data: {lo:g} - {hi:g}")
 
+    @_check_types.do
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
         """Return the predicate.
 
@@ -722,6 +754,7 @@ class RangeFilterPanel(_FilterPanelBase):
 
         return " AND ".join(clauses), params
 
+    @_check_types.do
     def clear(self) -> None:
         """Execute the clear operation.
 
@@ -749,6 +782,7 @@ class SearchDialog(_dialog_base.BaseDialog):
     # (thread-safe) event instead of calling it directly.
     _queryRequested = QtCore.Signal(int, str, list)
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", page_class, table, title: str, initial_results=None):
         """Initialise the :class:`SearchDialog` instance.
 
@@ -817,6 +851,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._build_ui()
         QtCore.QTimer.singleShot(0, self._populate)
 
+    @_check_types.do
     def done(self, result: int) -> None:
         """Shut down the query worker thread before the dialog closes.
 
@@ -842,6 +877,7 @@ class SearchDialog(_dialog_base.BaseDialog):
     # Async query plumbing
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _run_query_async(self, sql: str, params: list,
                          callback: Callable[[list], None]) -> None:
         """Submit a query to the worker thread; ``callback`` runs on the
@@ -860,6 +896,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._begin_query()
         self._queryRequested.emit(request_id, sql, list(params))
 
+    @_check_types.do
     def _on_query_result(self, request_id: int, rows, error) -> None:
         """Handle a result delivered back from the worker thread.
 
@@ -883,6 +920,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         callback(rows)
 
+    @_check_types.do
     def _begin_query(self) -> None:
         """Mark one more query as in flight, entering the busy state on
         the 0-to-1 transition.
@@ -895,6 +933,7 @@ class SearchDialog(_dialog_base.BaseDialog):
                 QtCore.Qt.CursorShape.WaitCursor)
             self.progress.setVisible(True)
 
+    @_check_types.do
     def _end_query(self) -> None:
         """Mark one in-flight query as finished, leaving the busy state on
         the 1-to-0 transition.
@@ -906,6 +945,7 @@ class SearchDialog(_dialog_base.BaseDialog):
             QtWidgets.QApplication.restoreOverrideCursor()
             self.progress.setVisible(False)
 
+    @_check_types.do
     def _populate(self) -> None:
         """Run the filter/result queries that fill in the dialog's
         already-visible, still-empty areas.
@@ -917,6 +957,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         """
         self._build_filters_for(self.current_table)
 
+    @_check_types.do
     def GetValue(self) -> Optional[int]:
         """Execute the get value operation.
 
@@ -937,6 +978,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         except Exception:  # NOQA
             return None
 
+    @_check_types.do
     def _build_ui(self) -> None:
         """Build the UI.
 
@@ -1019,6 +1061,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self.results.itemSelected.connect(lambda _row: ok_btn.setEnabled(True))
         self.results.itemUnselected.connect(lambda: ok_btn.setEnabled(False))
 
+    @_check_types.do
     def _build_filters_for(self, table: str) -> None:
         """Build the filters for.
 
@@ -1051,6 +1094,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         # same tick as the section's own creation.
         QtCore.QTimer.singleShot(0, lambda: self._build_next_filter_column(table))
 
+    @_check_types.do
     def _build_next_filter_column(self, table: str) -> None:
         """Build one column's filter panel (if warranted), then queue the
         next — or, once every column has been processed, run the initial
@@ -1069,6 +1113,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         idx = self._filter_column_queue.pop(0)
         self._build_filter_column(table, idx)
 
+    @_check_types.do
     def _build_filter_column(self, table: str, idx: int) -> None:
         """Query one column and add its filter panel to the layout, if
         warranted. The column's query (if any) runs on the worker thread;
@@ -1096,6 +1141,7 @@ class SearchDialog(_dialog_base.BaseDialog):
                    f'WHERE r.{ref_field} IS NOT NULL '
                    f'ORDER BY r.{ref_field} COLLATE NOCASE;')
 
+            @_check_types.do
             def _on_fk_rows(rows):
                 if len(rows) >= MIN_DISTINCT_FOR_FILTER:
                     p = FKFilterPanel(self._filter_container, field_name, ref_table,
@@ -1121,6 +1167,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         sql = (f'SELECT DISTINCT t.{field_name} FROM {table} t '
                f'WHERE t.{field_name} IS NOT NULL ORDER BY t.{field_name};')
 
+        @_check_types.do
         def _on_values(rows):
             values = [r[0] for r in rows]
 
@@ -1140,6 +1187,7 @@ class SearchDialog(_dialog_base.BaseDialog):
             minmax_sql = (f'SELECT MIN(t.{field_name}), MAX(t.{field_name}) '
                           f'FROM {table} t WHERE t.{field_name} IS NOT NULL;')
 
+            @_check_types.do
             def _on_minmax(mm_rows):
                 lo, hi = (None, None) if not mm_rows else mm_rows[0]
 
@@ -1156,6 +1204,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self._run_query_async(sql, [], _on_values)
 
+    @_check_types.do
     def _on_kw_changed(self) -> None:
         """Handle the kw changed event.
 
@@ -1170,6 +1219,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self._kw_timer.start(180)
 
+    @_check_types.do
     def _on_filter_changed(self, _changed_panel) -> None:
         """Handle the filter changed event.
 
@@ -1180,6 +1230,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         """
         self._refresh_all()
 
+    @_check_types.do
     def _on_clear_all(self) -> None:
         """Handle the clear all event.
 
@@ -1194,6 +1245,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self._refresh_all()
 
+    @_check_types.do
     def _refresh_all(self) -> None:
         """Kick off a chunked filter-availability refresh (one panel's
         query per tick, same pattern as :meth:`_build_next_filter_column`),
@@ -1210,6 +1262,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         self._refresh_col_queue = list(self.filters.keys())
         self._refresh_next_filter_availability(self._refresh_gen)
 
+    @_check_types.do
     def _refresh_next_filter_availability(self, gen: int) -> None:
         """Refresh one filter panel's availability, then queue the next --
         or, once the queue is empty, push the filtered results to the page.
@@ -1241,6 +1294,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self._refresh_filter_column_availability(col, panel, gen)
 
+    @_check_types.do
     def _build_predicates(
         self,
         exclude: Optional[str] = None
@@ -1287,6 +1341,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         return clauses, params
 
+    @_check_types.do
     def _refresh_filter_column_availability(self, col: str, panel: _FilterPanelBase,
                                             gen: int) -> None:
         """Run the single availability query for one filter panel, then
@@ -1322,6 +1377,7 @@ class SearchDialog(_dialog_base.BaseDialog):
                    f'WHERE r.{panel.display_col} IS NOT NULL '
                    f'{where_extra};')
 
+            @_check_types.do
             def _on_rows(rows):
                 if gen != self._refresh_gen:
                     return
@@ -1334,6 +1390,7 @@ class SearchDialog(_dialog_base.BaseDialog):
             sql = (f'SELECT DISTINCT t.{col} '
                    f'FROM {table} t {where};')
 
+            @_check_types.do
             def _on_rows(rows):
                 if gen != self._refresh_gen:
                     return
@@ -1346,6 +1403,7 @@ class SearchDialog(_dialog_base.BaseDialog):
             sql = (f'SELECT MIN(t.{col}), MAX(t.{col}) '
                    f'FROM {table} t {where};')
 
+            @_check_types.do
             def _on_rows(rows):
                 if gen != self._refresh_gen:
                     return
@@ -1358,6 +1416,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         else:
             self._refresh_next_filter_availability(gen)
 
+    @_check_types.do
     def _push_filter_to_page(self) -> None:
         """Execute the push filter to page operation.
 
@@ -1389,6 +1448,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         total = self.results._row_count  # NOQA
         self.status.setText(f"{total:,} result{'s' if total != 1 else ''}")
 
+    @_check_types.do
     def _on_row_activated(self, index) -> None:
         """Handle the row activated event.
 

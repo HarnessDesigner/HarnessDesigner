@@ -6,6 +6,7 @@ from . import gpu_vendor as _gpu_vendor
 from .gpu_base import GPU
 
 from .. import logger as _logger
+from .. import check_types as _check_types
 
 
 class GPUMemoryManager:
@@ -15,6 +16,7 @@ class GPUMemoryManager:
     :type opencl_device: object | None
     """
 
+    @_check_types.do
     def __init__(self, opencl_device=None):
         """Store the optional OpenCL device used for fallback estimation.
 
@@ -23,6 +25,7 @@ class GPUMemoryManager:
         """
         self.device = opencl_device
 
+    @_check_types.do
     def detect(self):
         """Detect the GPU vendor and populate shared GPU metrics.
 
@@ -43,6 +46,7 @@ class GPUMemoryManager:
             # _gpu_vendor.GPU_UNKNOWN
             self._fallback()
 
+    @_check_types.do
     def _nvidia(self):
         """Collect NVIDIA metrics and estimate VRAM if required.
 
@@ -55,6 +59,7 @@ class GPUMemoryManager:
         if not GPU.is_ok():
             self._opencl_estimate(multiplier=0.5)
 
+    @_check_types.do
     def _amd(self):
         """Collect AMD metrics and estimate VRAM if required.
 
@@ -68,6 +73,7 @@ class GPUMemoryManager:
         if not GPU.is_ok():
             self._opencl_estimate(multiplier=0.5)
 
+    @_check_types.do
     def _intel(self):
         """Collect Intel metrics and estimate VRAM if required.
 
@@ -81,6 +87,7 @@ class GPUMemoryManager:
         if not GPU.is_ok():
             self._opencl_estimate(multiplier=0.4)
 
+    @_check_types.do
     def _apple(self):
         """Collect Apple metrics and estimate VRAM if required.
 
@@ -94,6 +101,7 @@ class GPUMemoryManager:
         if not GPU.is_ok():
             self._opencl_estimate(multiplier=0.4)
 
+    @_check_types.do
     def _opencl_estimate(self, multiplier):
         """Estimate VRAM values from the configured OpenCL device.
 
@@ -114,6 +122,7 @@ class GPUMemoryManager:
 
         self._fallback()
 
+    @_check_types.do
     def _fallback(self):  # NOQA
         """Populate conservative default VRAM values.
 
@@ -125,6 +134,7 @@ class GPUMemoryManager:
         GPU.vram_size.value = 4294967296
         GPU.vram_use.value = 2147483648
 
+    @_check_types.do
     def get_chunk_size(self, width, height, target_usage=0.4):  # NOQA
         """Compute a render chunk height from the stored VRAM information.
 

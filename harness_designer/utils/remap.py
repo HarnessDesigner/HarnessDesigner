@@ -1,8 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from ..geometry.decimal import Decimal as _d
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def remap(
     value: int | float | _d,
     old_min: int | float | _d, old_max: int | float | _d,

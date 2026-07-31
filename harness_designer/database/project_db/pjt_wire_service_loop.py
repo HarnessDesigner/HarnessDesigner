@@ -21,6 +21,7 @@ from .mixins import (
     NotesMixin,  NotesControl,
     SmoothMixin, SmoothControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -39,6 +40,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
     _control: "PJTWireServiceLoopControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTWireServiceLoopControl":
         """Return the control.
 
@@ -54,6 +56,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -65,6 +68,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         cls._control = PJTWireServiceLoopControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -77,6 +81,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
         return wire_service_loops.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -86,6 +91,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
         wire_service_loops.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -95,6 +101,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
         wire_service_loops.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTWireServiceLoop"]:
         """Iterate over the available items.
 
@@ -106,6 +113,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireServiceLoop(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTWireServiceLoop":
         """Return the requested item.
 
@@ -125,6 +133,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, start_point3d_id: int, stop_point3d_id: int,
                circuit_id: int, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
         """Execute the insert operation.
@@ -165,6 +174,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     _table: PJTWireServiceLoopsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -187,6 +197,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_wire_service_loop_obj.WireServiceLoop":
         """Return the object.
 
@@ -200,6 +211,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -210,6 +222,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_wire_service_loop_obj.WireServiceLoop"):
         """Set the object.
 
@@ -226,6 +239,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _stored_terminal: "_pjt_terminal.PJTTerminal | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """Return the terminal.
 
@@ -256,6 +270,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _stored_wire: "_pjt_wire.PJTWire | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
         """Return the wire.
 
@@ -284,6 +299,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self._stored_wire
 
     @property
+    @_check_types.do
     def length_mm(self) -> float:
         """Return the length mm.
 
@@ -304,6 +320,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return length
 
     @property
+    @_check_types.do
     def length_m(self) -> float:
         """Return the length m.
 
@@ -315,6 +332,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self.length_mm / 1000.0
 
     @property
+    @_check_types.do
     def length_ft(self) -> float:
         """Return the length ft.
 
@@ -326,6 +344,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self.length_m * 3.28084
 
     @property
+    @_check_types.do
     def weight_g(self) -> float:
         """Return the weight g.
 
@@ -337,6 +356,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self.part.weight_g_m * self.length_m
 
     @property
+    @_check_types.do
     def weight_lb(self) -> float:
         """Return the weight lb.
 
@@ -348,6 +368,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self.part.weight_lb_ft * self.length_ft
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -364,6 +385,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return resistance * self.length_mm
 
     @property
+    @_check_types.do
     def table(self) -> PJTWireServiceLoopsTable:
         """Return the table.
 
@@ -377,6 +399,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _stored_circuit: "_pjt_circuit.PJTCircuit | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
         """Return the circuit.
 
@@ -402,6 +425,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _stored_circuit_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def circuit_id(self) -> int | None:
         """Return the circuit ID.
 
@@ -416,6 +440,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self._stored_circuit_id
 
     @circuit_id.setter
+    @_check_types.do
     def circuit_id(self, value: int | None):
         """Set the circuit ID.
 
@@ -433,6 +458,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _stored_is_visible: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """Return the is visible.
 
@@ -447,6 +473,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
         return self._stored_is_visible
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool):
         """Set the is visible.
 
@@ -462,6 +489,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _stored_part: "_wire.Wire | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> _wire.Wire:
         """Return the part.
 
@@ -491,6 +519,7 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTWireServiceLoop):
         """Set the obj.
 
@@ -501,6 +530,7 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -519,6 +549,7 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
             self.wire_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTWireServiceLoopControl` instance.
 

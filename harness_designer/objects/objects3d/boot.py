@@ -15,6 +15,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -33,6 +34,7 @@ class Boot(_base3d.Base3D):
     parent: "_boot.Boot" = None
     db_obj: "_pjt_boot.PJTBoot" = None
 
+    @_check_types.do
     def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot"):
         """Initialise the :class:`Boot` instance.
 
@@ -62,6 +64,7 @@ class Boot(_base3d.Base3D):
                        self._part.part_number, self._set_model)
 
     @property
+    @_check_types.do
     def smooth(self) -> bool:
         smooth = self.db_obj.smooth
         if smooth is None:
@@ -69,6 +72,7 @@ class Boot(_base3d.Base3D):
 
         return smooth
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -86,6 +90,7 @@ class BootMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`BootMenu` instance.
 
@@ -121,18 +126,22 @@ class BootMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_select(self):
         """Make this boot the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this boot as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this boot from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this boot's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

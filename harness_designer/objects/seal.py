@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import seal as _seal_2d
 from .objects3d import seal as _seal_3d
 from .objectspeg import seal as _seal_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Seal(_ObjectBase):
     objpeg: _seal_peg.Seal = None
     db_obj: "_pjt_seal.PJTSeal" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_seal.PJTSeal", project_load=False):
         """Initialise the :class:`Seal` instance.
@@ -46,6 +48,7 @@ class Seal(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def set_selected(self, flag):
         """Selecting a seal selects its owner instead (the cavity holding
         its terminal, the cavity it plugs, or the housing for a MAT seal).
@@ -69,6 +72,7 @@ class Seal(_ObjectBase):
 
         super().set_selected(flag)
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_seal(self.db_obj.db_id)

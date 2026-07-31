@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class PropertyGrid(QtWidgets.QTabWidget):
@@ -9,6 +10,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PropertyGrid` instance.
 
@@ -21,6 +23,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
         self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
+    @_check_types.do
     def Clear(self):
         """Execute the clear operation.
 
@@ -28,6 +31,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
         """
         self.clear()
 
+    @_check_types.do
     def Append(self, item):
         """Execute the append operation.
 

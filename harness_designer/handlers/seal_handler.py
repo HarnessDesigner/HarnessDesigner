@@ -45,6 +45,7 @@ from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import color as _color
 from .. import utils as _utils
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import ui as _ui
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
+@_check_types.do
 def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
     """Return the global wire part attached to *terminal*'s wire pin, or None."""
     pjt_terminal = terminal.db_obj
@@ -76,6 +78,7 @@ def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
     return mainframe.global_db.wires_table[rows[0][0]]
 
 
+@_check_types.do
 def _get_terminal_seal_pns(mainframe, terminal: _terminal.Terminal):
     """Return seal part numbers usable on *terminal*'s pin.
 
@@ -154,6 +157,7 @@ class AddSealHandler(_handler_base.HandlerBase):
 
     obj: _seal.Seal = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  housing: _housing.Housing = None,
                  terminal: _terminal.Terminal = None,
@@ -225,6 +229,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             self.set_part(part_id)
 
     @staticmethod
+    @_check_types.do
     def _cavity_midpoint(pjt_cavity):
         """
         Return world-space midpoint of *pjt_cavity* along its insertion axis.
@@ -239,6 +244,7 @@ class AddSealHandler(_handler_base.HandlerBase):
 
         return float(mid[0]), float(mid[1]), float(mid[2])
 
+    @_check_types.do
     def _cavity_plug_pns(self, max_dim):
         """
         Return PLUG and dummy-pin seal part numbers whose dimensions fit max_dim.
@@ -256,6 +262,7 @@ class AddSealHandler(_handler_base.HandlerBase):
 
         return [row[0] for row in self.mainframe.global_db.seals_table.fetchall()]
 
+    @_check_types.do
     def set_part(self, part_id: int):
         if self.obj is not None:
             self.obj.delete()
@@ -389,6 +396,7 @@ class AddSealHandler(_handler_base.HandlerBase):
             self.set_angle_from_cavity(self.obj, self._cavity.db_obj)
 
     @property
+    @_check_types.do
     def snap_pool(self):
         objects = []
         positions = []
@@ -422,6 +430,7 @@ class AddSealHandler(_handler_base.HandlerBase):
 
         return _utils.SnapPool(objects, positions)
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         if self._finalized:
             return
@@ -487,6 +496,7 @@ class AddSealHandler(_handler_base.HandlerBase):
         delta = point - position
         position += delta
 
+    @_check_types.do
     def release_capture(self) -> None:
         if self._finalized:
             return

@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QDialogButtonBox, QFrame, QSizePolicy
 )
 from PySide6.QtCore import Qt
+from ... import check_types as _check_types
 
 
 class _ArrayDialog(QDialog):
@@ -12,6 +13,7 @@ class _ArrayDialog(QDialog):
 
     _char_filter = None  # subclass sets to a callable(key_int) -> bool
 
+    @_check_types.do
     def __init__(self, parent, values, title='Modify Array'):
         """Initialise the :class:`_ArrayDialog` instance.
 
@@ -99,6 +101,7 @@ class _ArrayDialog(QDialog):
         layout.addWidget(dialog_btns)
         self.setLayout(layout)
 
+    @_check_types.do
     def _add_ctrl(self, text=''):
         """Add a ctrl.
 
@@ -120,6 +123,7 @@ class _ArrayDialog(QDialog):
         self._items.append(ctrl)
         return ctrl
 
+    @_check_types.do
     def _filter_input(self, text):
         """Execute the filter input operation.
 
@@ -135,6 +139,7 @@ class _ArrayDialog(QDialog):
             ctrl.setText(filtered)
             ctrl.blockSignals(False)
 
+    @_check_types.do
     def _on_item_focus(self, ctrl, event):
         """Handle the item focus event.
 
@@ -154,6 +159,7 @@ class _ArrayDialog(QDialog):
         self.move_item_down_button.setEnabled(idx < n - 1)
         self.remove_item_button.setEnabled(True)
 
+    @_check_types.do
     def _on_item_kill_focus(self, ctrl, event):
         """Handle the item kill focus event.
 
@@ -175,6 +181,7 @@ class _ArrayDialog(QDialog):
             self.remove_item_button.setEnabled(False)
             self.selected_item = None
 
+    @_check_types.do
     def _on_move_item_up(self):
         """Handle the move item up event.
 
@@ -191,6 +198,7 @@ class _ArrayDialog(QDialog):
         self._items[idx - 1].setText(v1)
         self._items[idx - 1].setFocus()
 
+    @_check_types.do
     def _on_move_item_down(self):
         """Handle the move item down event.
 
@@ -207,6 +215,7 @@ class _ArrayDialog(QDialog):
         self._items[idx + 1].setText(v1)
         self._items[idx + 1].setFocus()
 
+    @_check_types.do
     def _on_remove_item(self):
         """Handle the remove item event.
 
@@ -223,6 +232,7 @@ class _ArrayDialog(QDialog):
         self.move_item_down_button.setEnabled(False)
         self.remove_item_button.setEnabled(False)
 
+    @_check_types.do
     def _on_add_item(self):
         """Handle the add item event.
 
@@ -231,6 +241,7 @@ class _ArrayDialog(QDialog):
         ctrl = self._add_ctrl('')
         ctrl.setFocus()
 
+    @_check_types.do
     def _raw_values(self) -> list:
         """Execute the raw values operation.
 

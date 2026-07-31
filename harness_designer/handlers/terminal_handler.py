@@ -34,6 +34,7 @@ from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import color as _color
 from .. import utils as _utils
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ Config = _config.Config.colors
 # the bottom of this module).
 # ----------------------------------------------------------------------
 
+@_check_types.do
 def _terminal_extent(part, pjt_cavity) -> tuple[float, float]:
     """
     Return (front_z, back_z): the canonical-frame Z distance from *part*'s
@@ -100,6 +102,7 @@ def _terminal_extent(part, pjt_cavity) -> tuple[float, float]:
     return length / 2.0, -length / 2.0
 
 
+@_check_types.do
 def _female_terminal_position(part, pjt_cavity):
     """
     Return the female-terminal position: the FRONT of the terminal pin
@@ -142,6 +145,7 @@ def _female_terminal_position(part, pjt_cavity):
     return pos.as_float
 
 
+@_check_types.do
 def _male_terminal_position(part, pjt_cavity):
     """
     Return the male-terminal position: the point 1/3 of the pin's own
@@ -162,6 +166,7 @@ def _male_terminal_position(part, pjt_cavity):
     return pos.as_float
 
 
+@_check_types.do
 def _resolve_is_male(part, g_housing=None) -> bool:
     """
     Return True when *part* should be positioned/treated as male.
@@ -183,6 +188,7 @@ def _resolve_is_male(part, g_housing=None) -> bool:
     return True
 
 
+@_check_types.do
 def reposition_from_model(pjt_terminal) -> None:
     """
     Recompute *pjt_terminal*'s position3d now that its 3D model has
@@ -227,6 +233,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
     obj: _terminal.Terminal = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  housing: "_housing.Housing" = None,
                  cavity: _cavity.Cavity = None):
@@ -287,6 +294,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         else:
             self.set_part(part_id)
 
+    @_check_types.do
     def _get_cavity_compat_pns(self, housing, cavity):
         """
         Return terminal part numbers compatible with *cavity* / *housing* (Mode 1).
@@ -328,6 +336,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         return []
 
+    @_check_types.do
     def _get_housing_compat_pns(self, housing):
         """
         Return terminal part numbers compatible with *housing* (Mode 2).
@@ -383,6 +392,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
     # set_part – creates the terminal object for all three modes
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_part(self, part_id: int):
         if self.obj is not None:
             self.obj.delete()
@@ -480,6 +490,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
             self.set_angle_from_cavity(self.obj, self._cavity.db_obj)
 
     @property
+    @_check_types.do
     def snap_pool(self):
         objects = []
         positions = []
@@ -498,6 +509,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
 
         return _utils.SnapPool(objects, positions)
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """
         Snap the preview terminal to the nearest compatible cavity.
@@ -535,6 +547,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
         delta = point - position
         position += delta
 
+    @_check_types.do
     def release_capture(self) -> None:
         """
         Finalise terminal placement.

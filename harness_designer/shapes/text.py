@@ -22,8 +22,10 @@ import build123d
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def create(text: str, font_size: float, depth: float = 0.0,
            font_style: build123d.FontStyle = build123d.FontStyle.REGULAR,
            text_align: list[build123d.TextAlign] | None = None):
@@ -81,6 +83,7 @@ def create(text: str, font_size: float, depth: float = 0.0,
     return vertices, faces, width, height
 
 
+@_check_types.do
 def create_vbo(uuid_: str, text: str, font_size: float, depth: float = 0.0,
                font_style: build123d.FontStyle = build123d.FontStyle.REGULAR,
                text_align: list[build123d.TextAlign] | None = None

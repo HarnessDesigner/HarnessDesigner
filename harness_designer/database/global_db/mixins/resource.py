@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class ResourceMixin(BaseMixin):
 
     _stored_cad_obj: "DefaultStoredValueType | _cad_mod.CAD | None" = DefaultStoredValue
 
+    @_check_types.do
     def _get_cad_obj(self) -> "_cad_mod.CAD | None":
         """Return (and cache) the related CAD row, shared by ``cad``/``cad_type``."""
         if self._stored_cad_obj is DefaultStoredValue:
@@ -34,6 +36,7 @@ class ResourceMixin(BaseMixin):
         return self._stored_cad_obj
 
     @property
+    @_check_types.do
     def cad(self) -> str | None:
         """Return the cad.
 
@@ -49,6 +52,7 @@ class ResourceMixin(BaseMixin):
         return cad.data_path
 
     @property
+    @_check_types.do
     def cad_type(self) -> str | None:
         """Return the cad type.
 
@@ -65,6 +69,7 @@ class ResourceMixin(BaseMixin):
     _stored_cad_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def cad_id(self) -> int:
         """Return the cad ID.
 
@@ -79,6 +84,7 @@ class ResourceMixin(BaseMixin):
         return self._stored_cad_id
 
     @cad_id.setter
+    @_check_types.do
     def cad_id(self, value: int):
         """Set the cad ID.
 
@@ -94,6 +100,7 @@ class ResourceMixin(BaseMixin):
 
     _stored_image_obj: "DefaultStoredValueType | _image_mod.Image | None" = DefaultStoredValue
 
+    @_check_types.do
     def _get_image_obj(self) -> "_image_mod.Image | None":
         """Return (and cache) the related Image row, shared by ``image``/``image_type``."""
         if self._stored_image_obj is DefaultStoredValue:
@@ -107,6 +114,7 @@ class ResourceMixin(BaseMixin):
         return self._stored_image_obj
 
     @property
+    @_check_types.do
     def image(self) -> str | None:
         """Return the image.
 
@@ -122,6 +130,7 @@ class ResourceMixin(BaseMixin):
         return image.data_path
 
     @property
+    @_check_types.do
     def image_type(self) -> str:
         """Return the image type.
 
@@ -138,6 +147,7 @@ class ResourceMixin(BaseMixin):
     _stored_image_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def image_id(self) -> int:
         """Return the image ID.
 
@@ -152,6 +162,7 @@ class ResourceMixin(BaseMixin):
         return self._stored_image_id
 
     @image_id.setter
+    @_check_types.do
     def image_id(self, value: int):
         """Set the image ID.
 
@@ -167,6 +178,7 @@ class ResourceMixin(BaseMixin):
 
     _stored_datasheet_obj: "DefaultStoredValueType | _datasheet_mod.Datasheet | None" = DefaultStoredValue
 
+    @_check_types.do
     def _get_datasheet_obj(self) -> "_datasheet_mod.Datasheet | None":
         """Return (and cache) the related Datasheet row, shared by ``datasheet``/``datasheet_type``."""
         if self._stored_datasheet_obj is DefaultStoredValue:
@@ -180,6 +192,7 @@ class ResourceMixin(BaseMixin):
         return self._stored_datasheet_obj
 
     @property
+    @_check_types.do
     def datasheet(self) -> str | None:
         """Return the datasheet.
 
@@ -195,6 +208,7 @@ class ResourceMixin(BaseMixin):
         return datasheet.data_path
 
     @property
+    @_check_types.do
     def datasheet_type(self) -> str:
         """Return the datasheet type.
 
@@ -211,6 +225,7 @@ class ResourceMixin(BaseMixin):
     _stored_datasheet_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def datasheet_id(self) -> int:
         """Return the datasheet ID.
 
@@ -225,6 +240,7 @@ class ResourceMixin(BaseMixin):
         return self._stored_datasheet_id
 
     @datasheet_id.setter
+    @_check_types.do
     def datasheet_id(self, value: int):
         """Set the datasheet ID.
 
@@ -245,6 +261,7 @@ class ResourcesControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`ResourcesControl` instance.
 
@@ -269,6 +286,7 @@ class ResourcesControl(_prop_ctrls.Category):
         self.datasheet_ctrl.propertyChanged.connect(self._on_datasheet)
         self.cad_ctrl.propertyChanged.connect(self._on_cad)
 
+    @_check_types.do
     def set_obj(self, db_obj: ResourceMixin):
         """Set the obj.
 
@@ -326,6 +344,7 @@ class ResourcesControl(_prop_ctrls.Category):
             self.datasheet_ctrl.setEnabled(True)
             self.cad_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_image(self, evt):
         """Handle the image event.
 
@@ -350,6 +369,7 @@ class ResourcesControl(_prop_ctrls.Category):
 
         self.image_ctrl.SetValue([path, image.data_path])
 
+    @_check_types.do
     def _on_cad(self, evt):
         """Handle the cad event.
 
@@ -374,6 +394,7 @@ class ResourcesControl(_prop_ctrls.Category):
 
         self.cad_ctrl.SetValue([path, cad.data_path])
 
+    @_check_types.do
     def _on_datasheet(self, evt):
         """Handle the datasheet event.
 

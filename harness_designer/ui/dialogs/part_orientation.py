@@ -21,12 +21,14 @@ from ...geometry.angle import quaternion as _quaternion
 from ... import color as _color
 from ... import utils as _utils
 from ... import image as _image
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.global_db.model3d import Model3D as _Model3D
     from ... import ui as _ui
 
 
+@_check_types.do
 def _obb_face_for_direction(
         local_obb: np.ndarray,
         q: _quaternion.Quaternion,
@@ -126,18 +128,22 @@ class PartModel(_ObjectBase):
     """Non-selectable wrapper for the part model in the orientation dialog."""
     obj3d: "PartModel3D" = None
 
+    @_check_types.do
     def __init__(self, dialog, model_db):
         super().__init__(dialog, model_db)
         self.dialog = dialog
         self.obj3d = PartModel3D(self, model_db)
         dialog.add_object(self)
 
+    @_check_types.do
     def set_selected(self, flag):
         pass
 
+    @_check_types.do
     def delete(self):
         pass
 
+    @_check_types.do
     def close(self):
         pass
 
@@ -149,6 +155,7 @@ class PartModel3D(_base3d.Base3D):
     to the database when the dialog is accepted.
     """
 
+    @_check_types.do
     def __init__(self, parent: PartModel, model_db: "_Model3D"):
         self.db_obj = model_db
 
@@ -192,9 +199,11 @@ class PartModel3D(_base3d.Base3D):
             _base3d.Base3D.__init__(self, parent, model_db, vbo, angle, pos, scale, material)
             self._is_visible = True
 
+    @_check_types.do
     def set_selected(self, flag):
         pass
 
+    @_check_types.do
     def delete(self):
         pass
 
@@ -203,6 +212,7 @@ class AxisLabel(_ObjectBase):
     """Non-selectable fixed-world axis direction label."""
     obj3d: "AxisLabel3D" = None
 
+    @_check_types.do
     def __init__(self, dialog, text: str,
                  position: _point.Point, angle: _angle.Angle):
         super().__init__(dialog, None)
@@ -210,12 +220,15 @@ class AxisLabel(_ObjectBase):
         self.obj3d = AxisLabel3D(self, text, position, angle)
         dialog.add_object(self)
 
+    @_check_types.do
     def set_selected(self, flag):
         pass
 
+    @_check_types.do
     def delete(self):
         pass
 
+    @_check_types.do
     def close(self):
         pass
 
@@ -223,6 +236,7 @@ class AxisLabel(_ObjectBase):
 class AxisLabel3D(_base3d.Base3D):
     """3D extruded text label indicating a canonical axis direction."""
 
+    @_check_types.do
     def __init__(self, parent: AxisLabel, text: str,
                  position: _point.Point, angle: _angle.Angle):
         self.db_obj = None
@@ -243,9 +257,11 @@ class AxisLabel3D(_base3d.Base3D):
             _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
             self._is_visible = True
 
+    @_check_types.do
     def set_selected(self, flag):
         pass
 
+    @_check_types.do
     def delete(self):
         pass
 
@@ -260,6 +276,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
     """
     config = _Config
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame"):
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Part Orientation', size=(1100, 650),
@@ -281,6 +298,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         _icon_size = QSize(64, 64)
 
+        @_check_types.do
         def _make_btn(icon_img, tooltip, slot):
             btn = QtWidgets.QPushButton()
             btn.setIcon(QIcon(icon_img.resize(64, 64).pixmap))
@@ -350,6 +368,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         h_layout.addLayout(v_layout, 1)
         self.setLayout(h_layout)
 
+    @_check_types.do
     def SetValue(self, model_db: "_Model3D"):
         self.canvas.show()
         self.canvas.repaint()
@@ -394,6 +413,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._update_forward_up()
 
+    @_check_types.do
     def _on_rotate_left(self):
         angle = self._part_model.obj3d.angle.y + 90.0
 
@@ -405,6 +425,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._update_forward_up()
 
+    @_check_types.do
     def _on_rotate_right(self):
         angle = self._part_model.obj3d.angle.y - 90.0
 
@@ -415,6 +436,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._model_db.angle3d.y = angle
         self._update_forward_up()
 
+    @_check_types.do
     def _on_flip_forward(self):
         angle = self._part_model.obj3d.angle.x + 90.0
 
@@ -426,6 +448,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._update_forward_up()
 
+    @_check_types.do
     def _on_flip_backward(self):
         angle = self._part_model.obj3d.angle.x - 90.0
 
@@ -436,6 +459,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._model_db.angle3d.x = angle
         self._update_forward_up()
 
+    @_check_types.do
     def _on_roll_left(self):
         angle = self._part_model.obj3d.angle.z - 90.0
 
@@ -446,6 +470,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._model_db.angle3d.z = angle
         self._update_forward_up()
 
+    @_check_types.do
     def _on_roll_right(self):
         angle = self._part_model.obj3d.angle.z + 90.0
 
@@ -457,6 +482,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._update_forward_up()
 
+    @_check_types.do
     def _update_forward_up(self):
         if self._model_db is None or self._part_model is None:
             return
@@ -472,6 +498,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             local_obb, q, np.array([0.0, 1.0, 0.0], dtype=np.float32))
         self._model_db.forward_up = [fwd, up]
 
+    @_check_types.do
     def _flush_and_invalidate_vbo(self):
         """Sync working state to DB and evict the stale VBO from the singleton.
 
@@ -509,47 +536,59 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._part_model = None
 
+    @_check_types.do
     def accept(self):
         self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().accept()
 
+    @_check_types.do
     def reject(self):
         self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().reject()
 
+    @_check_types.do
     def closeEvent(self, event):
         self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().closeEvent(event)
 
     @property
+    @_check_types.do
     def editor2d(self):
         return None
 
     @property
+    @_check_types.do
     def editor3d(self):
         return self
 
+    @_check_types.do
     def add_object(self, obj):
         self.canvas.add_object(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         self.canvas.remove_object(obj)
 
+    @_check_types.do
     def _set_selected(self, obj):
         pass
 
+    @_check_types.do
     def set_selected(self, obj):
         pass
 
+    @_check_types.do
     def get_selected(self):
         return None
 
+    @_check_types.do
     def Refresh(self, *_, **__):
         self.canvas.Refresh()
 
     @property
+    @_check_types.do
     def context(self):
         return self.canvas.context

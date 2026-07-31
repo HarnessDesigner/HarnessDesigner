@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from ... import check_types as _check_types
 
 
 class AutoCompleteComboBox(QtWidgets.QComboBox):
@@ -12,6 +13,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
     existing call sites continue to work unchanged.
     """
 
+    @_check_types.do
     def __init__(self, parent=None, choices=None):
         """Initialise the :class:`AutoCompleteComboBox` instance.
 
@@ -42,6 +44,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
     # ------------------------------------------------------------------
     # Internal helper
     # ------------------------------------------------------------------
+    @_check_types.do
     def _rebuild_completer(self):
         """Execute the rebuild completer operation.
 
@@ -53,6 +56,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
     # ------------------------------------------------------------------
     # Mirrored list mutation API
     # ------------------------------------------------------------------
+    @_check_types.do
     def Clear(self):
         """Execute the clear operation.
 
@@ -62,6 +66,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         self._choices.clear()
         self._rebuild_completer()
 
+    @_check_types.do
     def Delete(self, n: int):
         """Execute the delete operation.
 
@@ -74,6 +79,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         self._choices.pop(n)
         self._rebuild_completer()
 
+    @_check_types.do
     def Insert(self, item: str, pos: int, _=None):
         """Execute the insert operation.
 
@@ -90,6 +96,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         self._choices.insert(pos, item)
         self._rebuild_completer()
 
+    @_check_types.do
     def Set(self, items):
         """Execute the set operation.
 
@@ -103,6 +110,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         self.addItems(self._choices)
         self._rebuild_completer()
 
+    @_check_types.do
     def SetItems(self, items):
         """Execute the set items operation.
 
@@ -113,6 +121,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         """
         self.Set(items)
 
+    @_check_types.do
     def AppendItems(self, items):
         """Execute the append items operation.
 
@@ -124,6 +133,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         for item in items:
             self.Append(item)
 
+    @_check_types.do
     def Append(self, item):
         """Execute the append operation.
 
@@ -143,6 +153,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
     # ------------------------------------------------------------------
     # Value access
     # ------------------------------------------------------------------
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -153,6 +164,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         """
         return self.currentText()
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -167,6 +179,7 @@ class AutoCompleteComboBox(QtWidgets.QComboBox):
         else:
             self.lineEdit().setText(value)
 
+    @_check_types.do
     def GetItems(self):
         """Execute the get items operation.
 

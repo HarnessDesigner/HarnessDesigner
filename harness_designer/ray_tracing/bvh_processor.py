@@ -14,6 +14,7 @@ import numpy as np
 import bvh_fast
 from dataclasses import dataclass
 from typing import Optional, List, Tuple
+from .. import check_types as _check_types
 
 
 @dataclass
@@ -45,6 +46,7 @@ class ProcessedObject:
 class BVHWorkerThread(threading.Thread):
     """Worker thread that processes objects from queue"""
 
+    @_check_types.do
     def __init__(self, thread_id: int, work_queue: queue.Queue,
                  results_queue: queue.Queue, stats_lock: threading.Lock):
         """Initialize the worker thread.
@@ -67,6 +69,7 @@ class BVHWorkerThread(threading.Thread):
         self.total_time = 0.0
         self.running = True
 
+    @_check_types.do
     def run(self):
         """Main thread loop"""
         while self.running:
@@ -109,6 +112,7 @@ class BVHWorkerThread(threading.Thread):
               f"(processed {self.objects_processed} objects, "
               f"avg {self.total_time / max(1, self.objects_processed):.1f}ms/object)")
 
+    @_check_types.do
     def _process_object(self, obj_data: ObjectData) -> ProcessedObject:  # NOQA
         """Process a single object: transform + BVH build"""
 
@@ -166,6 +170,7 @@ class BVHWorkerThread(threading.Thread):
 class ThreadedBVHProcessor:
     """Manages worker threads for parallel BVH processing"""
 
+    @_check_types.do
     def __init__(self, num_threads: int = 10):
         """Initialize the processor.
 
@@ -181,6 +186,7 @@ class ThreadedBVHProcessor:
 
         print(f"ThreadedBVHProcessor: {num_threads} threads")
 
+    @_check_types.do
     def start(self):
         """Start worker threads"""
         if self.running:
@@ -203,6 +209,7 @@ class ThreadedBVHProcessor:
         self.running = True
         elapsed = (time.time() - start_time) * 1000
 
+    @_check_types.do
     def process_objects(self, objects: List[ObjectData]) -> List[ProcessedObject]:
         """
         Process multiple objects in parallel
@@ -249,6 +256,7 @@ class ThreadedBVHProcessor:
 
         return results
 
+    @_check_types.do
     def shutdown(self):
         """Gracefully shutdown all worker threads"""
         if not self.running:
@@ -270,11 +278,13 @@ class ThreadedBVHProcessor:
 
         elapsed = (time.time() - start_time) * 1000
 
+    @_check_types.do
     def __enter__(self):
         """Context manager support"""
         self.start()
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager cleanup"""
         self.shutdown()

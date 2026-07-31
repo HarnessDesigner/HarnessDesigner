@@ -16,6 +16,7 @@ from ...gl import materials as _materials
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -31,13 +32,16 @@ class Cavity(_base3d.Base3D):
     parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity" = None
 
+    @_check_types.do
     def set_selected(self, state: bool) -> None:
         super().set_selected(state)
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu."""
         return CavityMenu(self)
 
+    @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity"):
         """Initialise the :class:`Cavity` instance.
@@ -79,6 +83,7 @@ class Cavity(_base3d.Base3D):
             # menu.
             self._selected_is_wire_side: bool = False
 
+    @_check_types.do
     def wire_surface_center(self) -> _point.Point | None:
         """
         Return the world-space centroid of this cavity's wire-side mesh
@@ -131,6 +136,7 @@ class Cavity(_base3d.Base3D):
 
         return None
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         accessory = self.db_obj.terminal or self.db_obj.seal
         if accessory is not None:
@@ -141,6 +147,7 @@ class Cavity(_base3d.Base3D):
         super()._update_position(position)
 
     @property
+    @_check_types.do
     def seal_position(self) -> _point.Point:
         """Return the seal position.
 
@@ -157,6 +164,7 @@ class CavityMenu(QMenu):
     cavity object itself, or (with the "Add Wire" option) a highlighted
     wire-side plane.
     """
+    @_check_types.do
     def __init__(self, cavity_3d: Cavity):
         """Initialise the :class:`CavityMenu` instance.
 
@@ -212,6 +220,7 @@ class CavityMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_terminal(self):
         """Add a terminal into this cavity."""
         from ... import handlers as _handlers
@@ -224,6 +233,7 @@ class CavityMenu(QMenu):
             lambda: _handlers.AddTerminalHandler(
                 mainframe, housing=housing_wrapper, cavity=cavity_obj))
 
+    @_check_types.do
     def on_add_seal(self):
         """Add a seal: a wire seal onto the terminal already in this
         cavity if one is seated, otherwise a plug seal into the cavity
@@ -261,6 +271,7 @@ class CavityMenu(QMenu):
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddSealHandler(mainframe, terminal=terminal_obj))
 
+    @_check_types.do
     def on_add_wire(self):
         """Start placing a wire from the terminal already in this cavity."""
         from ... import handlers as _handlers
@@ -277,8 +288,10 @@ class CavityMenu(QMenu):
             mainframe,
             lambda: _handlers.AddWireHandler(mainframe, terminal=terminal_obj))
 
+    @_check_types.do
     def on_edit_terminal(self):
         """Open the properties dialog for the terminal already in this cavity."""
+        @_check_types.do
         def _do():
             terminal_db = self._cavity_3d.db_obj.terminal
             if terminal_db is None:
@@ -290,10 +303,12 @@ class CavityMenu(QMenu):
 
         QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def on_select(self):
         """Make this cavity the active selection."""
         _menu_ops.select_object(self._cavity_3d)
 
+    @_check_types.do
     def on_properties(self):
         """Show this cavity's properties in the object editor."""
         _menu_ops.show_properties(self._cavity_3d)

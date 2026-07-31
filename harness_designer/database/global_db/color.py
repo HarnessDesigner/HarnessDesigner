@@ -7,6 +7,7 @@ import uuid
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 class ColorsTable(TableBase):
@@ -16,6 +17,7 @@ class ColorsTable(TableBase):
     """
     __table_name__ = 'colors'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -28,6 +30,7 @@ class ColorsTable(TableBase):
 
         return colors.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -42,6 +45,7 @@ class ColorsTable(TableBase):
         data_path = self._con.db_data.open(splash)
         colors.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -51,6 +55,7 @@ class ColorsTable(TableBase):
 
         colors.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Color"]:
         """Iterate over the available items.
 
@@ -62,6 +67,7 @@ class ColorsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Color(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Color":
         """Return the requested item.
 
@@ -85,6 +91,7 @@ class ColorsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, name: str, rgb: int) -> "Color":
         """Execute the insert operation.
 
@@ -109,6 +116,7 @@ class Color(EntryBase, NameMixin):
     _table: ColorsTable = None
     _color_id: str = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -123,6 +131,7 @@ class Color(EntryBase, NameMixin):
 
         return packet
 
+    @_check_types.do
     def _update_color(self, c: _color.Color) -> None:
         """Update the color.
 
@@ -137,6 +146,7 @@ class Color(EntryBase, NameMixin):
     _stored_ui: DefaultStoredValueType | _color.Color = DefaultStoredValue
 
     @property
+    @_check_types.do
     def ui(self) -> _color.Color:
         """Return the UI.
 
@@ -159,6 +169,7 @@ class Color(EntryBase, NameMixin):
     _stored_rgb: DefaultStoredValueType | tuple[int, int, int, int] = DefaultStoredValue
 
     @property
+    @_check_types.do
     def rgb(self) -> tuple[int, int, int, int]:
         """Return the RGB.
 
@@ -179,6 +190,7 @@ class Color(EntryBase, NameMixin):
         return self._stored_rgb
 
     @rgb.setter
+    @_check_types.do
     def rgb(self, value: tuple[int, int, int, int]):
         """Set the RGB.
 

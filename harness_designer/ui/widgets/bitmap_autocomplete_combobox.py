@@ -3,6 +3,7 @@
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
+from ... import check_types as _check_types
 
 
 class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
@@ -19,6 +20,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
                          EVT_TEXT_ENTER).  Connect to this instead.
     """
 
+    @_check_types.do
     def __init__(self, parent=None, choices=None):
         """Initialise the :class:`BitmapAutoCompleteComboBox` instance.
 
@@ -54,6 +56,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    @_check_types.do
     def _rebuild_completer(self):
         """Execute the rebuild completer operation.
 
@@ -62,6 +65,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._completer.setModel(
             QtCore.QStringListModel(self._ac_labels, self._completer))
 
+    @_check_types.do
     def _on_index_changed(self, index: int):
         """Handle the index changed event.
 
@@ -75,6 +79,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
             if tooltip:
                 self.setToolTip(tooltip)
 
+    @_check_types.do
     def _on_enter(self):
         """Handle the enter event.
 
@@ -89,6 +94,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     # ------------------------------------------------------------------
     # wx-compatible item management
     # ------------------------------------------------------------------
+    @_check_types.do
     def Clear(self):
         """Execute the clear operation.
 
@@ -99,6 +105,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._ac_labels.clear()
         self._rebuild_completer()
 
+    @_check_types.do
     def Delete(self, n: int):
         """Execute the delete operation.
 
@@ -112,6 +119,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._ac_labels.pop(n)
         self._rebuild_completer()
 
+    @_check_types.do
     def Insert(self, item: str, bitmap=None, pos: int = 0, clientData=None):
         """Execute the insert operation.
 
@@ -133,6 +141,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._ac_labels.insert(pos, item)
         self._rebuild_completer()
 
+    @_check_types.do
     def Set(self, items):
         """Execute the set operation.
 
@@ -145,6 +154,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         for entry in items:
             self.Append(*entry)
 
+    @_check_types.do
     def SetItems(self, items):
         """Execute the set items operation.
 
@@ -155,6 +165,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         """
         self.Set(items)
 
+    @_check_types.do
     def Append(self, item: str, bitmap=None, clientData=None):
         """Execute the append operation.
 
@@ -180,6 +191,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     # ------------------------------------------------------------------
     # Value access
     # ------------------------------------------------------------------
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -190,6 +202,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         """
         return self.currentText()
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -204,6 +217,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         else:
             self.lineEdit().setText(value)
 
+    @_check_types.do
     def GetItems(self) -> list[str]:
         """Execute the get items operation.
 
@@ -214,12 +228,14 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         """
         return self._ac_labels[:]
 
+    @_check_types.do
     def GetClientData(self, n: int):
         """Return the tooltip/clientData stored with item n."""
         if 0 <= n < len(self._choices):
             return self._choices[n][2]
         return None
 
+    @_check_types.do
     def GetSelection(self) -> int:
         """Execute the get selection operation.
 

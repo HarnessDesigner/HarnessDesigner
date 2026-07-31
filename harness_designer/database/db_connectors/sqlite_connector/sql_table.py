@@ -3,6 +3,7 @@
 """SQLite-flavored SQL table and field definition helpers."""
 
 from ....import logger as _logger
+from .... import check_types as _check_types
 
 FIELD_TYPE_REAL = 'REAL'
 FIELD_TYPE_TEXT = 'TEXT'
@@ -17,6 +18,7 @@ class SQLTable:
 
     """Describe a SQL table definition for the SQLite connector.
     """
+    @_check_types.do
     def __init__(self, name: str, *fields: "SQLField"):
         """Initialize the table definition.
 
@@ -28,6 +30,7 @@ class SQLTable:
         self.name = name
         self.fields = fields
 
+    @_check_types.do
     def is_in_db(self, db_cursor) -> bool:
         """Return whether the table already exists in the database.
 
@@ -44,6 +47,7 @@ class SQLTable:
 
         return self.name in table_names
 
+    @_check_types.do
     def is_ok(self, db_cursor) -> bool:
         """Return whether the existing table still needs field updates.
 
@@ -64,6 +68,7 @@ class SQLTable:
 
         return False
 
+    @_check_types.do
     def update_fields(self, db_cursor):
 
         """Add any missing fields to an existing table.
@@ -83,6 +88,7 @@ class SQLTable:
             if field.name not in column_names:
                 field.add_to_table(db_cursor, self.name)
 
+    @_check_types.do
     def add_to_db(self, db_cursor):
         """Create the table in the database.
 
@@ -112,6 +118,7 @@ class SQLFieldReference:
 
     """Represent a foreign-key reference for a SQL field.
     """
+    @_check_types.do
     def __init__(self, table: SQLTable, field: "SQLField", on_delete=REFERENCE_DEFAULT, on_update=REFERENCE_DEFAULT):
         """Initialize the foreign-key reference metadata.
 
@@ -129,11 +136,13 @@ class SQLFieldReference:
         self.on_delete = on_delete
         self.on_update = on_update
 
+    @_check_types.do
     def __str__(self):
         return (f' REFERENCES {self.table.name}({self.field.name}) '
                 f'ON DELETE {self.on_delete} '
                 f'ON UPDATE {self.on_update}')
 
+    @_check_types.do
     def format(self, field_name):
         """Return the SQL fragment for the foreign-key constraint.
 
@@ -152,6 +161,7 @@ class SQLField:
 
     """Represent a single SQL field definition.
     """
+    @_check_types.do
     def __init__(self, name: str, data_type: str, no_null: bool = False,
                  is_unique: bool = False, default: str | None = None,
                  references: SQLFieldReference | None = None, is_primary: bool = False):
@@ -184,6 +194,7 @@ class SQLField:
 
         self.parent: SQLTable = None
 
+    @_check_types.do
     def __str__(self):
         """Return the SQL definition fragment for the field.
 
@@ -217,6 +228,7 @@ class SQLField:
 
         return res
 
+    @_check_types.do
     def is_field_in_table(self, db_cursor, table_name: str):
         """Return whether this field exists in the named table.
 
@@ -235,6 +247,7 @@ class SQLField:
 
         return self.name in column_names
 
+    @_check_types.do
     def add_to_table(self, db_cursor, table_name: str):
 
         """Add this field definition to an existing table.
@@ -257,6 +270,7 @@ class PrimaryKeyField(SQLField):
 
     """Represent an auto-incrementing integer primary-key field.
     """
+    @_check_types.do
     def __init__(self, name: str):
 
         """Initialize the primary-key field definition.
@@ -271,6 +285,7 @@ class TextField(SQLField):
 
     """Represent a text field definition.
     """
+    @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None, references: SQLField | None = None):
 
@@ -295,6 +310,7 @@ class FloatField(SQLField):
 
     """Represent a floating-point field definition.
     """
+    @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None, references: SQLField | None = None):
 
@@ -319,6 +335,7 @@ class BytesField(SQLField):
 
     """Represent a bytes/blob field definition.
     """
+    @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None, references: SQLField | None = None):
 
@@ -343,6 +360,7 @@ class IntField(SQLField):
 
     """Represent an integer field definition.
     """
+    @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None, references: SQLField | None = None):
 
@@ -367,6 +385,7 @@ class BlobField(SQLField):
 
     """Represent a blob field definition.
     """
+    @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None, references: SQLField | None = None):
 

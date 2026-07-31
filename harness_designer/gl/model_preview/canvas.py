@@ -16,12 +16,14 @@ from PySide6.QtCore import QSize
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 # ---------------------------------------------------------------------------
 # Geometry helpers (unchanged)
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def _calculate_obb(vertices):
     """Calculate the OBB.
 
@@ -60,6 +62,7 @@ def _calculate_obb(vertices):
     return center, extents, np.array(corners)
 
 
+@_check_types.do
 def _find_best_corner_view(center, corners):
     """Find the best corner view.
 
@@ -80,6 +83,7 @@ def _find_best_corner_view(center, corners):
     return chosen_corner, view_direction
 
 
+@_check_types.do
 def _calculate_camera_distance(extents, fov_degrees, aspect_ratio, padding_factor=1.15):
     """Calculate the camera distance.
 
@@ -118,6 +122,7 @@ class Canvas(QOpenGLWidget):
         override pattern; context managed automatically.
     """
 
+    @_check_types.do
     def __init__(self, parent=None):
         """Initialise the :class:`Canvas` instance.
 
@@ -143,6 +148,7 @@ class Canvas(QOpenGLWidget):
     # Model loading (unchanged)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_model(self, color, vertices, faces):
         """Set the model.
 
@@ -176,6 +182,7 @@ class Canvas(QOpenGLWidget):
     # Qt: initializeGL; resizeGL; paintGL
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def initializeGL(self):
         """One-time GL setup (replaces init_gl called from on_paint)."""
         GL.glEnable(GL.GL_DEPTH_TEST)
@@ -198,12 +205,14 @@ class Canvas(QOpenGLWidget):
 
         self.initialized = True
 
+    @_check_types.do
     def resizeGL(self, width: int, height: int):
         """Called by Qt on resize (replaces on_size)."""
         if not self.isVisible():
             return
         GL.glViewport(0, 0, width, max(height, 1))
 
+    @_check_types.do
     def paintGL(self):
         """Render one frame (replaces on_paint)."""
         if not self.isVisible():
@@ -219,6 +228,7 @@ class Canvas(QOpenGLWidget):
     # Rendering helpers (unchanged)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def setup_projection(self):
         """Execute the setup projection operation.
 
@@ -256,6 +266,7 @@ class Canvas(QOpenGLWidget):
             up[0], up[1], up[2],
         )
 
+    @_check_types.do
     def render_model(self):
         """Render the model.
 

@@ -18,8 +18,10 @@ then call get() (no argument) to retrieve cached info.
 
 from OpenGL import GL
 from PySide6.QtGui import QOffscreenSurface, QOpenGLContext, QSurfaceFormat
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def _safe_gl_get_string(param) -> str:
     """Execute the safe GL get string operation.
 
@@ -39,6 +41,7 @@ def _safe_gl_get_string(param) -> str:
         return f"Error: {e}"
 
 
+@_check_types.do
 def _safe_gl_get_integer(param):
     """Execute the safe GL get integer operation.
 
@@ -55,6 +58,7 @@ def _safe_gl_get_integer(param):
         return None
 
 
+@_check_types.do
 def _safe_gl_get_integerv(param):
     """Execute the safe GL get integerv operation.
 
@@ -74,6 +78,7 @@ def _safe_gl_get_integerv(param):
 _info = None
 
 
+@_check_types.do
 def get(parent=None):
     """
     Get or collect OpenGL information.

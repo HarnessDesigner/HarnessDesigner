@@ -17,6 +17,7 @@ from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import config as _config
+from ... import check_types as _check_types
 
 _UP_PARALLEL_DOT_THRESHOLD = 0.999
 
@@ -26,6 +27,7 @@ class Overlay(QtWidgets.QWidget):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    @_check_types.do
     def __init__(self, parent, config: _config.Config.editor3d.axis_overlay):
         """
         Initialise the :class:`Overlay` instance.
@@ -50,6 +52,7 @@ class Overlay(QtWidgets.QWidget):
         if config.position is None:
             config.position = (0, 0)
 
+            @_check_types.do
             def _do():
                 psize = parent.size()
                 pw = psize.width()
@@ -84,6 +87,7 @@ class Overlay(QtWidgets.QWidget):
             self.move(*self.config.position),  # NOQA
             self.gl_overlay.update()))
 
+    @_check_types.do
     def setVisible(self, flag=True):
         """
         Execute the set visible operation.
@@ -95,6 +99,7 @@ class Overlay(QtWidgets.QWidget):
         self.config.is_visible = flag
         super().setVisible(flag)
 
+    @_check_types.do
     def resizeEvent(self, event):
         """
         Execute the resize event operation.
@@ -103,6 +108,7 @@ class Overlay(QtWidgets.QWidget):
         :type event: UNKNOWN
         """
 
+        @_check_types.do
         def _do():
             w = self.width()
             h = self.height()
@@ -112,6 +118,7 @@ class Overlay(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(0, _do)
         super().resizeEvent(event)
 
+    @_check_types.do
     def moveEvent(self, event):
         """
         Execute the move event operation.
@@ -120,6 +127,7 @@ class Overlay(QtWidgets.QWidget):
         :type event: UNKNOWN
         """
 
+        @_check_types.do
         def _do():
             pos = self.pos()
             self.config.position = (pos.x(), pos.y())
@@ -127,6 +135,7 @@ class Overlay(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(0, _do)
         super().moveEvent(event)
 
+    @_check_types.do
     def set_angle(self, point: _point.Point):
         """
         Set the angle.
@@ -137,6 +146,7 @@ class Overlay(QtWidgets.QWidget):
 
         self.gl_overlay.set_angle(point)
 
+    @_check_types.do
     def SetSize(self, size):
         """
         Execute the set size operation.
@@ -156,6 +166,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
     Represent a GL overlay in :mod:`harness_designer.gl.canvas3d.axis_overlay`.
     """
 
+    @_check_types.do
     def __init__(self, parent: Overlay, size=(-1, -1)):
         """
         Initialise the :class:`GLOverlay` instance.
@@ -179,7 +190,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         self.camera_eye = _point.Point(0.0, 0.5, 10.0)
 
         self.distance = 10.0
-        self._last_angle = _point.Point(0, 0, 0)
+        self._last_angle = _point.Point(0.0, 0.0, 0.0)
 
         self._triangles = []
 
@@ -189,6 +200,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         self.setMouseTracking(True)
 
+    @_check_types.do
     def mousePressEvent(self, event):
         """
         Execute the mouse press event operation.
@@ -202,6 +214,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         elif event.button() == QtCore.Qt.MouseButton.RightButton:
             self._on_right_down(event)
 
+    @_check_types.do
     def mouseReleaseEvent(self, event):
         """
         Execute the mouse release event operation.
@@ -215,6 +228,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         elif event.button() == QtCore.Qt.MouseButton.RightButton:
             self._on_right_up(event)
 
+    @_check_types.do
     def mouseMoveEvent(self, event):
         """
         Execute the mouse move event operation.
@@ -225,6 +239,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         self._on_mouse_motion(event)
 
+    @_check_types.do
     def _on_left_down(self, event):
         """
         Handle the left down event.
@@ -259,6 +274,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         self.grabMouse()
 
+    @_check_types.do
     def _on_left_up(self, event):
         """
         Handle the left up event.
@@ -270,6 +286,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         self.releaseMouse()
         self.grab_location = 0
 
+    @_check_types.do
     def _on_right_up(self, event):
         """
         Handle the right up event.
@@ -280,6 +297,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         pass
 
+    @_check_types.do
     def _on_right_down(self, event):
         """
         Handle the right down event.
@@ -290,6 +308,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         pass
 
+    @_check_types.do
     def _on_mouse_motion(self, event):
         """
         Handle the mouse motion event.
@@ -440,6 +459,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         else:
             self.setCursor(QtGui.QCursor(QtCore.Qt.CursorShape.SizeAllCursor))
 
+    @_check_types.do
     def build_model(self, size):
         """
         Build the model.
@@ -469,6 +489,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         s_material = _materials.Plastic(
             _color.Color(0.1, 0.1, 0.1, 1.0))
 
+        @_check_types.do
         def _unpack(packed, count):
             # mutable views into the packed array, one block per attribute
             return (packed[:count * 3],
@@ -505,6 +526,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
             [z_tris, z_smooth_nrmls, z_face_nrmls, z_count, z_material]
         ]
 
+    @_check_types.do
     def set_angle(self, point: _point.Point):
         """
         Set the angle.
@@ -537,6 +559,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def initializeGL(self):
         """
         Execute the initialize GL operation.
@@ -583,6 +606,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
 
         GLU.gluLookAt(*camera)
 
+    @_check_types.do
     def resizeGL(self, width, height):
         """
         Execute the resize GL operation.
@@ -597,6 +621,7 @@ class GLOverlay(QtOpenGLWidgets.QOpenGLWidget):
         self.size = (width, height)
         GL.glViewport(0, 0, width, height)
 
+    @_check_types.do
     def paintGL(self):
         """
         Execute the paint GL operation.

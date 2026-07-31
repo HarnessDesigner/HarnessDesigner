@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 class WeightMixin(BaseMixin):
@@ -14,6 +15,7 @@ class WeightMixin(BaseMixin):
     _stored_weight: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def weight(self) -> float:
         """Return the weight.
 
@@ -28,6 +30,7 @@ class WeightMixin(BaseMixin):
         return self._stored_weight
 
     @weight.setter
+    @_check_types.do
     def weight(self, value: float):
         """Set the weight.
 
@@ -47,6 +50,7 @@ class WeightControl(_prop_ctrls.FloatProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`WeightControl` instance.
 
@@ -61,6 +65,7 @@ class WeightControl(_prop_ctrls.FloatProperty):
 
         self.propertyChanged.connect(self._on_weight)
 
+    @_check_types.do
     def set_obj(self, db_obj: WeightMixin):
         """Set the obj.
 
@@ -77,6 +82,7 @@ class WeightControl(_prop_ctrls.FloatProperty):
             self.SetValue(db_obj.weight)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_weight(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the weight event.
 

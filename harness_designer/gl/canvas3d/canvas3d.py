@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QTimer, QSize
 from PySide6 import QtCore, QtGui
 
 from . import canvas as _canvas
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class Canvas3D(QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: QWidget, config: "_config.Config.editor3d",
                  size, axis_overlay=False):
         """Initialise the :class:`Canvas3D` instance.
@@ -62,6 +64,7 @@ class Canvas3D(QWidget):
     # Virtual-size API  (mirrors wx SetVirtualSize / GetVirtualSize)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_virtual_size(self, w: int, h: int) -> None:
         """
         Explicitly set the canvas's virtual (render) size.
@@ -75,6 +78,7 @@ class Canvas3D(QWidget):
         # Tell the inner canvas to update its GL viewport for the new size
         self._canvas.notify_virtual_size_changed(w, h)
 
+    @_check_types.do
     def get_virtual_size(self) -> tuple[int, int]:
         """Return the virtual size.
 
@@ -89,6 +93,7 @@ class Canvas3D(QWidget):
     # QAbstractScrollArea overrides
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Execute the resize event operation.
 
@@ -113,6 +118,7 @@ class Canvas3D(QWidget):
         # Reposition axis overlay so it stays within the visible viewport
         self._reposition_axis_overlay()
 
+    @_check_types.do
     def _reposition_axis_overlay(self) -> None:
         """Execute the reposition axis overlay operation.
 
@@ -159,6 +165,7 @@ class Canvas3D(QWidget):
     # Forwarded API — identical public interface as before
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def event(self, evt):
         """Execute the event operation.
 
@@ -172,6 +179,7 @@ class Canvas3D(QWidget):
         return QWidget.event(self, evt)
 
     @property
+    @_check_types.do
     def context(self):
         """Return the context.
 
@@ -183,6 +191,7 @@ class Canvas3D(QWidget):
         return self._canvas.context
 
     @property
+    @_check_types.do
     def camera(self):
         """Return the camera.
 
@@ -193,6 +202,7 @@ class Canvas3D(QWidget):
         """
         return self._canvas.camera
 
+    @_check_types.do
     def set_selected(self, obj):
         """Set the selected.
 
@@ -203,6 +213,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.set_selected(obj)
 
+    @_check_types.do
     def set_mode(self, mode: int) -> None:
         """Set the mode.
 
@@ -213,6 +224,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.set_mode(mode)
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -223,6 +235,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.add_object(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         """Remove the object.
 
@@ -233,6 +246,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.remove_object(obj)
 
+    @_check_types.do
     def clear(self) -> None:
         """Drop every scene object in bulk, without touching the database.
 
@@ -240,6 +254,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.clear()
 
+    @_check_types.do
     def __enter__(self):
         """Enter the managed context.
 
@@ -248,6 +263,7 @@ class Canvas3D(QWidget):
         self._ref_count += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the managed context.
 
@@ -262,10 +278,12 @@ class Canvas3D(QWidget):
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def bind(self, signal_name: str, handler) -> None:
         """Forward signal connections to the inner QOpenGLWidget canvas."""
         getattr(self._canvas, signal_name).connect(handler)
 
+    @_check_types.do
     def Refresh(self, *_, **__):
         """Execute the refresh operation.
 
@@ -282,6 +300,7 @@ class Canvas3D(QWidget):
 
         self._canvas.update()
 
+    @_check_types.do
     def Truck(self, delta) -> None:
         """Execute the truck operation.
 
@@ -292,6 +311,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.TruckPedestal(delta, 0.0)
 
+    @_check_types.do
     def Pedestal(self, delta) -> None:
         """Execute the pedestal operation.
 
@@ -302,6 +322,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.TruckPedestal(0.0, delta)
 
+    @_check_types.do
     def TruckPedestal(self, truck_delta, pedestal_delta) -> None:
         """Execute the truck pedestal operation.
 
@@ -314,6 +335,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.TruckPedestal(truck_delta, pedestal_delta)
 
+    @_check_types.do
     def Zoom(self, delta):
         """Execute the zoom operation.
 
@@ -324,6 +346,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.Zoom(delta, None)
 
+    @_check_types.do
     def RotateAbout(self, delta_x, delta_y) -> None:
         """Execute the rotate about operation.
 
@@ -336,6 +359,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.Rotate(delta_x, delta_y)
 
+    @_check_types.do
     def Dolly(self, delta):
         """Execute the dolly operation.
 
@@ -346,6 +370,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.Walk(delta, 0.0)
 
+    @_check_types.do
     def Walk(self, delta_z, delta_x) -> None:
         """Execute the walk operation.
 
@@ -358,6 +383,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.Walk(delta_z, delta_x)
 
+    @_check_types.do
     def Pan(self, delta):
         """Execute the pan operation.
 
@@ -368,6 +394,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.PanTilt(delta, 0.0)
 
+    @_check_types.do
     def Tilt(self, delta) -> None:
         """Execute the tilt operation.
 
@@ -378,6 +405,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.PanTilt(0.0, delta)
 
+    @_check_types.do
     def PanTilt(self, pan_delta, tilt_delta):
         """Execute the pan tilt operation.
 
@@ -390,6 +418,7 @@ class Canvas3D(QWidget):
         """
         self._canvas.PanTilt(pan_delta, tilt_delta)
 
+    @_check_types.do
     def cleanup(self):
         """Clean up GL resources before widget destruction."""
         self._canvas.cleanup()

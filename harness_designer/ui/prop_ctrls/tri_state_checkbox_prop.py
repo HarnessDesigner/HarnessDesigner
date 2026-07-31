@@ -5,6 +5,7 @@ from PySide6 import QtCore
 
 from ..widgets import tri_state_checkbox_ctrl as _tri_state_checkbox_ctrl
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class TriStateCheckboxProperty(QtWidgets.QWidget):
@@ -15,6 +16,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`BoolProperty` instance.
 
@@ -41,6 +43,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
 
         self._ctrl.checkStateChanged.connect(self._on_change)
 
+    @_check_types.do
     def _on_change(self, value: bool | None):
         """
         Handle the change event.
@@ -59,6 +62,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetValue(self, value: bool | None):
         """
         Execute the set value operation.
@@ -69,6 +73,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
         self._value = value
         self._ctrl.SetValue(value)
 
+    @_check_types.do
     def GetValue(self) -> bool | None:
         """
         Execute the get value operation.
@@ -79,9 +84,11 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
 
         return self._ctrl.GetValue()
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._ctrl.SetLabel(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

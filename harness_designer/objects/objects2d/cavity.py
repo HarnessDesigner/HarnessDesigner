@@ -13,6 +13,7 @@ from ... import color as _color
 from ...gl import materials as _materials
 from ...shapes import text as _text
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ class Cavity(_base2d.Base2D):
     _parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity"
 
+    @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity"):
         """Initialise the :class:`Cavity` instance.
@@ -75,10 +77,12 @@ class Cavity(_base2d.Base2D):
 
         self._name_cb = self.db_obj.bind(self._rebuild, 'name')
 
+    @_check_types.do
     def _mesh_args(self) -> dict:
         return dict(text=self.db_obj.name, font_size=Config.label.cavity_name_font_size,
                     text_align=_ALIGN_BOTTOM_RIGHT)
 
+    @_check_types.do
     def _build(self):
         """Build this cavity's name VBO (construction time only -- see
         :meth:`_rebuild` for in-place content updates).
@@ -87,6 +91,7 @@ class Cavity(_base2d.Base2D):
         """
         return _text.create_vbo(self._text_uuid, **self._mesh_args())
 
+    @_check_types.do
     def _rebuild(self, _entry=None):
         """Rebuild this cavity's name mesh in place from its current
         name and re-derive its OBB/AABB (``self._vbo.update`` recomputes
@@ -104,6 +109,7 @@ class Cavity(_base2d.Base2D):
 
         self.editor2d.Refresh()
 
+    @_check_types.do
     def _delete(self):
         self._name_cb.unbind()
         super()._delete()

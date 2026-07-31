@@ -6,6 +6,7 @@ import numpy as np
 
 from ....geometry import point as _point
 from ....geometry import angle as _angle
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class WireTypeMixin:
     editor3d: "_canvas3d.Canvas3D" = None
     db_obj = None
 
+    @_check_types.do
     def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
         """Every (p1, p2) sub-segment from start, through each interior
         waypoint in idx order, to stop -- as numpy arrays. A wire with no
@@ -40,6 +42,7 @@ class WireTypeMixin:
         return list(zip(points, points[1:]))
 
     @staticmethod
+    @_check_types.do
     def _closest_point_on_segment_to_ray(seg_p1, seg_p2, ray_origin, ray_dir):
         """
         Find the closest point on line segment (seg_p1, seg_p2) to a ray.
@@ -83,6 +86,7 @@ class WireTypeMixin:
 
         return closest
 
+    @_check_types.do
     def _point_on_wire(
         self,
         mouse_pos: _point.Point
@@ -199,6 +203,7 @@ class WireTypeMixin:
 
         return best_point, best_idx
 
+    @_check_types.do
     def get_closest_point(
         self,
         mouse_pos: _point.Point
@@ -241,6 +246,7 @@ class WireTypeMixin:
 
         return _point.Point(*closest_point), wire_angle, seg_idx
 
+    @_check_types.do
     def get_closest_endpoint(
         self,
         mouse_pos: _point.Point,

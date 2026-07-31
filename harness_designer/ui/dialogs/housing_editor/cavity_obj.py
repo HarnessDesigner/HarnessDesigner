@@ -13,6 +13,7 @@ from ....gl import materials as _materials
 from .... import color as _color
 from ....geometry.decimal import Decimal as _d
 from ....shapes import cylinder as _cylinder
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -28,6 +29,7 @@ class Cavity(_objects.ObjectBase):
     """
     obj3d: "Cavity3D" = None
 
+    @_check_types.do
     def __init__(self, parent: "_housing_editor.HousingEditorDialog", cavity: "_cavity.Cavity"):
         """Initialise the :class:`Cavity` instance.
 
@@ -53,6 +55,7 @@ class Cavity3D(_base3d.Base3D):
     """
     db_obj: "_cavity.Cavity" = None
 
+    @_check_types.do
     def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity"):
         """Initialise the :class:`Cavity3D` instance.
 
@@ -88,6 +91,7 @@ class Cavity3D(_base3d.Base3D):
             self.autoplace = False
             self.editor3d.Refresh(False)
 
+    @_check_types.do
     def set_selected(self, flag: bool):
         """Set the selected.
 
@@ -111,6 +115,7 @@ class Cavity3D(_base3d.Base3D):
             _base3d.Base3D.set_selected(self, flag)
 
     @property
+    @_check_types.do
     def compat_terminals(self) -> list["_terminal.Terminal"]:
         """Return the compat terminals.
 
@@ -122,6 +127,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.compat_terminals
 
     @compat_terminals.setter
+    @_check_types.do
     def compat_terminals(self, value: list[str]):
         """Set the compat terminals.
 
@@ -133,6 +139,7 @@ class Cavity3D(_base3d.Base3D):
         pass
 
     @property
+    @_check_types.do
     def width(self) -> float:
         """Return the width.
 
@@ -144,6 +151,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.width
 
     @width.setter
+    @_check_types.do
     def width(self, value: float):
         """Set the width.
 
@@ -156,6 +164,7 @@ class Cavity3D(_base3d.Base3D):
         self._scale.x = value
 
     @property
+    @_check_types.do
     def height(self) -> float:
         """Return the height.
 
@@ -167,6 +176,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.height
 
     @height.setter
+    @_check_types.do
     def height(self, value: float):
         """Set the height.
 
@@ -179,6 +189,7 @@ class Cavity3D(_base3d.Base3D):
         self._scale.y = value
 
     @property
+    @_check_types.do
     def length(self) -> float:
         """Return the length.
 
@@ -190,6 +201,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.length
 
     @length.setter
+    @_check_types.do
     def length(self, value: float):
         """Set the length.
 
@@ -202,6 +214,7 @@ class Cavity3D(_base3d.Base3D):
         self._scale.z = value
 
     @property
+    @_check_types.do
     def is_round(self) -> bool:
         """Return the is round.
 
@@ -213,6 +226,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.round_terminal
 
     @is_round.setter
+    @_check_types.do
     def is_round(self, value: bool):
         """Set the is round.
 
@@ -225,6 +239,7 @@ class Cavity3D(_base3d.Base3D):
         self.build()
 
     @property
+    @_check_types.do
     def terminal_sizes(self) -> list[float]:
         """Return the terminal sizes.
 
@@ -236,6 +251,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.terminal_sizes
 
     @terminal_sizes.setter
+    @_check_types.do
     def terminal_sizes(self, value: list[float]):
         """Set the terminal sizes.
 
@@ -247,6 +263,7 @@ class Cavity3D(_base3d.Base3D):
         self.db_obj.terminal_sizes = value
 
     @property
+    @_check_types.do
     def name(self) -> str:
         """Return the name.
 
@@ -258,6 +275,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.name
 
     @name.setter
+    @_check_types.do
     def name(self, value: str):
         """Set the name.
 
@@ -269,6 +287,7 @@ class Cavity3D(_base3d.Base3D):
         self.db_obj.name = value
 
     @property
+    @_check_types.do
     def idx(self) -> int:
         """Return the idx.
 
@@ -280,6 +299,7 @@ class Cavity3D(_base3d.Base3D):
         return self.db_obj.idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int):
         """Set the idx.
 
@@ -290,6 +310,7 @@ class Cavity3D(_base3d.Base3D):
         """
         self.db_obj.idx = value
 
+    @_check_types.do
     def apply_analysis(self, kind: str, params: dict, d_start: float, d_end: float) -> None:
         """Set position and orientation from surface analysis results."""
 
@@ -351,6 +372,7 @@ class Cavity3D(_base3d.Base3D):
 
         self.is_round = is_round
 
+    @_check_types.do
     def build(self):
         """Execute the build operation.
 

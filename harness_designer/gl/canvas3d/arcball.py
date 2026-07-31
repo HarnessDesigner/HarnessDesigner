@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class Arcball:
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         """Initialise the :class:`Arcball` instance.
 
@@ -49,6 +51,7 @@ class Arcball:
         self.start_vector = None
         self.is_dragging = False
 
+    @_check_types.do
     def __del__(self):
         """Execute the del operation.
 
@@ -56,6 +59,7 @@ class Arcball:
         """
         self.canvas.set_angle_view(None, None, None)
 
+    @_check_types.do
     def _get_screen_rect(self):
         """Return the screen rect.
 
@@ -92,6 +96,7 @@ class Arcball:
         width, height = self.canvas.GetParent().GetParent().GetSize()
         return width, height
 
+    @_check_types.do
     def map_to_sphere(self, mouse_pos: _point.Point) -> np.ndarray:
         """Map mouse screen coordinates to a virtual sphere."""
         x = mouse_pos.x
@@ -110,6 +115,7 @@ class Arcball:
 
         return np.array([float(nx), float(ny), float(nz)])
 
+    @_check_types.do
     def __call__(self, mouse_pos: _point.Point):
         """Call the instance.
 
@@ -136,6 +142,7 @@ class Arcball:
 
         self.rotate(mouse_pos)
 
+    @_check_types.do
     def rotate(self, mouse_pos: _point.Point):
         """Execute the rotate operation.
 
@@ -169,6 +176,7 @@ class Arcball:
         self.start_vector = current_vector
 
     @staticmethod
+    @_check_types.do
     def _rotation_matrix_from_axis_angle(axis, angle):
         """Generate a 4x4 rotation matrix given an axis and angle."""
         c, s = np.cos(angle), np.sin(angle)
@@ -183,6 +191,7 @@ class Arcball:
             ]
         )
 
+    @_check_types.do
     def _get_euler_angles(self):
         """Convert the rotation matrix to Euler angles in degrees."""
         rm = self.rotation_matrix

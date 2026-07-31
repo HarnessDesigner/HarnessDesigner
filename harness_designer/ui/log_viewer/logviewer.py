@@ -6,6 +6,7 @@ from PySide6 import QtCore
 
 from . import viewer as _viewer
 from .. import dock_base as _dock_base
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -18,6 +19,7 @@ class LogViewer(_dock_base.DockBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`LogViewer` instance.
@@ -33,6 +35,7 @@ class LogViewer(_dock_base.DockBase):
                          QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @property
+    @_check_types.do
     def viewer(self) -> "LogViewerPanel":
         return self._ui_obj
 

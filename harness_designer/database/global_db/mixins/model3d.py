@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QTabWidget
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import model3d as _model3d
@@ -22,6 +23,7 @@ class Model3DMixin(BaseMixin):
     _stored_model3d: "DefaultStoredValueType | _model3d.Model3D | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def model3d(self) -> "_model3d.Model3D":
         """Return the model 3D.
 
@@ -43,6 +45,7 @@ class Model3DMixin(BaseMixin):
     _stored_model3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def model3d_id(self) -> int:
         """Return the model 3D ID.
 
@@ -57,6 +60,7 @@ class Model3DMixin(BaseMixin):
         return self._stored_model3d_id
 
     @model3d_id.setter
+    @_check_types.do
     def model3d_id(self, value: int):
         """Set the model 3D ID.
 
@@ -77,6 +81,7 @@ class Model3DControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: Model3DMixin):
         """Set the obj.
 
@@ -192,6 +197,7 @@ class Model3DControl(_prop_ctrls.Category):
                 self.extension_ctrl.setEnabled(True)
                 self.mimetype_ctrl.setEnabled(True)
 
+    @_check_types.do
     def set_preview_model(self):
         """Set the preview model.
 
@@ -210,6 +216,7 @@ class Model3DControl(_prop_ctrls.Category):
         #         self.model_preview.set_model(color.ui, vertices, faces)
         pass
 
+    @_check_types.do
     def _on_path(self, evt):
         """Handle the path event.
 
@@ -224,6 +231,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.db_obj.model3d_id = model3d.db_id
         self.set_preview_model()
 
+    @_check_types.do
     def _on_simplify(self, evt):
         """Handle the simplify event.
 
@@ -236,6 +244,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.db_obj.model3d.simplify = value
         self.set_preview_model()
 
+    @_check_types.do
     def _on_target_count(self, evt):
         """Handle the target count event.
 
@@ -248,6 +257,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.db_obj.model3d.target_count = value
         self.set_preview_model()
 
+    @_check_types.do
     def _on_update_rate(self, evt):
         """Handle the update rate event.
 
@@ -260,6 +270,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.db_obj.model3d.update_rate = value
         self.set_preview_model()
 
+    @_check_types.do
     def _on_iterations(self, evt):
         """Handle the iterations event.
 
@@ -272,6 +283,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.db_obj.model3d.iterations = value
         self.set_preview_model()
 
+    @_check_types.do
     def _on_aggressiveness(self, evt):
         """Handle the aggressiveness event.
 
@@ -284,6 +296,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.db_obj.model3d.aggressiveness = value
         self.set_preview_model()
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Model3DControl` instance.
 

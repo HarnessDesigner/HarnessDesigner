@@ -3,6 +3,7 @@
 """Top-level package state and entry point for :mod:`harness_designer`."""
 
 from typing import TYPE_CHECKING
+from . import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ _mainframe: "_ui.MainFrame" = None
 _app = None
 
 
+@_check_types.do
 def __main__(args=None):
     """Start the application and enter the main event loop.
 

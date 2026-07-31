@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 class TableHiddenMixin(BaseMixin):
@@ -13,6 +14,7 @@ class TableHiddenMixin(BaseMixin):
     _stored_is_table_hidden: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_table_hidden(self) -> bool:
         """Return whether the data-table overlay is hidden.
 
@@ -25,6 +27,7 @@ class TableHiddenMixin(BaseMixin):
         return self._stored_is_table_hidden
 
     @is_table_hidden.setter
+    @_check_types.do
     def is_table_hidden(self, value: bool):
         """Set whether the data-table overlay is hidden.
 

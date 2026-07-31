@@ -2,12 +2,13 @@
 
 """Quaternion math used by :mod:`harness_designer.geometry.angle`."""
 
-from typing import Self
+from typing import Self, Union
 
 import math
 import numpy as np
 from ..decimal import Decimal as _d
 from .. import point as _point
+from ... import check_types as _check_types
 
 
 ONE = _d(1.0)
@@ -17,6 +18,7 @@ TWO = _d(2.0)
 class Quaternion:
     """Represent a normalized quaternion used for 3D rotations."""
 
+    @_check_types.do
     def __array_ufunc__(self, func, _, inputs,
                         instance, out=None, **__):
         """
@@ -43,8 +45,8 @@ class Quaternion:
                 qvec = np.array([x, y, z], dtype=np.float32)
                 # __matmul__
                 if out is None:
-                    t = np.cross(qvec, inputs)
-                    result = inputs + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+                    t = np.cross(qvec, inputs)  # NOQA
+                    result = inputs + 2.0 * w * t + 2.0 * np.cross(qvec, t)  # NOQA
 
                     return result
 
@@ -56,8 +58,8 @@ class Quaternion:
                     if len(shape) == 1:
                         out = out.reshape(-1, 3)
 
-                    t = np.cross(qvec, out)
-                    out += (2.0 * w * t) + (2.0 * np.cross(qvec, t))
+                    t = np.cross(qvec, out)  # NOQA
+                    out += (2.0 * w * t) + (2.0 * np.cross(qvec, t))  # NOQA
 
                     if len(shape) == 1:
                         out = out.reshape(-1)
@@ -107,6 +109,7 @@ class Quaternion:
 
         raise RuntimeError
 
+    @_check_types.do
     def __normalize(self):
         """
         Normalize the quaternion data in place.
@@ -129,6 +132,7 @@ class Quaternion:
         self._data[2] = y
         self._data[3] = z
 
+    @_check_types.do
     def __enter__(self):
         """
         Enter a mutation block before re-normalization.
@@ -139,6 +143,7 @@ class Quaternion:
 
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """
         Normalize the quaternion when leaving a mutation block.
@@ -155,6 +160,7 @@ class Quaternion:
 
         self.__normalize()
 
+    @_check_types.do
     def __init__(self, w=None, x=None, y=None, z=None, q=None):
         """
         Create and normalize a quaternion.
@@ -179,6 +185,7 @@ class Quaternion:
         self.__normalize()
 
     @property
+    @_check_types.do
     def w(self) -> float:
         """
         Return the scalar component.
@@ -190,7 +197,8 @@ class Quaternion:
         return float(self._data[0])
 
     @w.setter
-    def w(self, value: [float, _d]):
+    @_check_types.do
+    def w(self, value: float | _d):
         """
         Set the scalar component.
 
@@ -203,6 +211,7 @@ class Quaternion:
         self._data[0] = value
 
     @property
+    @_check_types.do
     def x(self) -> float:
         """
         Return the X vector component.
@@ -214,7 +223,8 @@ class Quaternion:
         return float(self._data[1])
 
     @x.setter
-    def x(self, value: [float, _d]):
+    @_check_types.do
+    def x(self, value: float | _d):
         """
         Set the X vector component.
 
@@ -227,6 +237,7 @@ class Quaternion:
         self._data[1] = value
 
     @property
+    @_check_types.do
     def y(self) -> float:
         """
         Return the Y vector component.
@@ -238,7 +249,8 @@ class Quaternion:
         return float(self._data[2])
 
     @y.setter
-    def y(self, value: [float, _d]):
+    @_check_types.do
+    def y(self, value: float | _d):
         """
         Set the Y vector component.
 
@@ -251,6 +263,7 @@ class Quaternion:
         self._data[2] = value
 
     @property
+    @_check_types.do
     def z(self) -> float:
         """
         Return the Z vector component.
@@ -262,7 +275,8 @@ class Quaternion:
         return float(self._data[3])
 
     @z.setter
-    def z(self, value: [float, _d]):
+    @_check_types.do
+    def z(self, value: float | _d):
         """
         Set the Z vector component.
 
@@ -275,6 +289,7 @@ class Quaternion:
         self._data[3] = value
 
     @property
+    @_check_types.do
     def as_numpy(self):
         """
         Return the underlying quaternion array.
@@ -286,6 +301,7 @@ class Quaternion:
         return self._data
 
     @property
+    @_check_types.do
     def as_float(self):
         """
         Return the quaternion components as floats.
@@ -297,6 +313,7 @@ class Quaternion:
         return [float(str(item)) for item in self._data.tolist()]
 
     @property
+    @_check_types.do
     def as_decimal(self):
         """
         Return the quaternion components as decimals.
@@ -311,6 +328,7 @@ class Quaternion:
         w, x, y, z = self.as_float
         return _d(w), _d(x), _d(y), _d(z)
 
+    @_check_types.do
     def __isub__(self, other: "Quaternion") -> Self:
         """
         Subtract ``other`` from this quaternion in place.
@@ -334,6 +352,7 @@ class Quaternion:
             self._data[3] = new_q[3]
         return self
 
+    @_check_types.do
     def __sub__(self, other: "Quaternion") -> "Quaternion":
         """
         Return ``self`` combined with the inverse of ``other``.
@@ -351,6 +370,7 @@ class Quaternion:
         return self.__mul(-other, self)
 
     @staticmethod
+    @_check_types.do
     def __mul(qa: "Quaternion", qb: "Quaternion") -> "Quaternion":
         """
         Multiply two quaternions.
@@ -372,6 +392,7 @@ class Quaternion:
 
         return Quaternion(q=q)
 
+    @_check_types.do
     def __iadd__(self, other: "Quaternion") -> Self:
         """
         Compose this quaternion with ``other`` in place.
@@ -396,6 +417,7 @@ class Quaternion:
 
         return self
 
+    @_check_types.do
     def __add__(self, other: "Quaternion") -> "Quaternion":
         """
         Compose this quaternion with ``other`` (``other ⊗ self``).
@@ -415,6 +437,7 @@ class Quaternion:
 
         return self.__mul(self, other)
 
+    @_check_types.do
     def __itruediv__(self, other: "Quaternion") -> Self:
         """
         Divide quaternion components in place.
@@ -438,6 +461,7 @@ class Quaternion:
         w1, x1, y1, z1 = self.as_decimal
         w2, x2, y2, z2 = [_d(str(item)) for item in other_arr.tolist()]
 
+        @_check_types.do
         def _div(v1, v2):
             """
             Safely divide two scalar values.
@@ -463,7 +487,8 @@ class Quaternion:
 
         return self
 
-    def __truediv__(self, other: "Quaternion") -> "Quaternion":
+    @_check_types.do
+    def __truediv__(self, other: Union["Quaternion", int, float]) -> "Quaternion":
         """
         Return a component-wise divided quaternion.
 
@@ -484,6 +509,7 @@ class Quaternion:
         w1, x1, y1, z1 = self.as_decimal
         w2, x2, y2, z2 = [_d(str(item)) for item in other_arr.tolist()]
 
+        @_check_types.do
         def _div(v1, v2):
             """
             Safely divide two scalar values.
@@ -508,6 +534,7 @@ class Quaternion:
 
         return Quaternion(w, x, y, z)
 
+    @_check_types.do
     def __matmul__(
         self,
         other: _point.Point | np.ndarray
@@ -532,15 +559,16 @@ class Quaternion:
         if isinstance(other, _point.Point):
             array = other.as_numpy
 
-            t = np.cross(qvec, array)
-            result = array + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+            t = np.cross(qvec, array)  # NOQA
+            result = array + 2.0 * w * t + 2.0 * np.cross(qvec, t)  # NOQA
 
             return _point.Point(*result)
         else:
-            t = np.cross(qvec, other)
-            result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+            t = np.cross(qvec, other)  # NOQA
+            result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)  # NOQA
             return result
 
+    @_check_types.do
     def __rmatmul__(
         self,
         other: _point.Point | np.ndarray
@@ -565,8 +593,8 @@ class Quaternion:
         if isinstance(other, _point.Point):
             array = other.as_numpy
 
-            t = np.cross(qvec, array)
-            result = array + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+            t = np.cross(qvec, array)  # NOQA
+            result = array + 2.0 * w * t + 2.0 * np.cross(qvec, t)  # NOQA
 
             with other:
                 other.x = float(result[0])
@@ -574,12 +602,13 @@ class Quaternion:
 
             other.z = float(result[2])
         else:
-            t = np.cross(qvec, other)
-            result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)
+            t = np.cross(qvec, other)  # NOQA
+            result = other + 2.0 * w * t + 2.0 * np.cross(qvec, t)  # NOQA
             other[:] = result
 
         return other
 
+    @_check_types.do
     def __iter__(self):
         """
         Iterate over ``w, x, y, z``.
@@ -590,6 +619,7 @@ class Quaternion:
 
         return iter(float(str(item)) for item in self._data.tolist())
 
+    @_check_types.do
     def conj(self) -> "Quaternion":
         """
         Return the quaternion conjugate.
@@ -601,6 +631,7 @@ class Quaternion:
         w, x, y, z = [float(str(item)) for item in self._data.tolist()]
         return Quaternion(w, -x, -y, -z)
 
+    @_check_types.do
     def __neg__(self) -> "Quaternion":
         """
         Return the multiplicative inverse quaternion.
@@ -614,7 +645,8 @@ class Quaternion:
         return Quaternion(*[float(item) for item in self.conj() / float(np.dot(q, q))])
 
     @classmethod
-    def from_euler(cls, x: float, y: float, z: float) -> "Quaternion":
+    @_check_types.do
+    def from_euler(cls, x: float | np.float32, y: float | np.float32, z: float | np.float32) -> "Quaternion":
         """
         Build a quaternion from Euler rotation angles in degrees.
 
@@ -628,7 +660,7 @@ class Quaternion:
         :rtype: :class:`Quaternion`
         """
 
-        rx, ry, rz = [_d(item) for item in np.deg2rad([x, y, z])]
+        rx, ry, rz = [_d(item) for item in np.deg2rad([float(str(x)), float(str(y)), float(str(z))])]
         qx = cls(math.cos(rx / TWO), math.sin(rx / TWO), 0.0, 0.0)
         qy = cls(math.cos(ry / TWO), 0.0, math.sin(ry / TWO), 0.0)
         qz = cls(math.cos(rz / TWO), 0.0, 0.0, math.sin(rz / TWO))
@@ -637,6 +669,7 @@ class Quaternion:
         return cls(*q.as_float)
 
     @property
+    @_check_types.do
     def as_euler(self) -> tuple[float, float, float]:
         """
         Return the quaternion as Euler angles in degrees.
@@ -672,6 +705,7 @@ class Quaternion:
         return tuple(float(item) for item in np.rad2deg([pitch, yaw, roll]))
 
     @property
+    @_check_types.do
     def as_matrix(self) -> np.ndarray:
         """
         Return the quaternion as a ``3 x 3`` rotation matrix.
@@ -696,6 +730,7 @@ class Quaternion:
                          ], dtype=np.float32)
 
     @classmethod
+    @_check_types.do
     def from_axis_angle(cls, axis, angle):
         """
         Create quaternion from axis-angle representation

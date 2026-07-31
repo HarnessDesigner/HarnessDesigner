@@ -4,6 +4,7 @@ from PySide6 import QtWidgets
 
 
 from . import float_prop as _float_prop
+from ... import check_types as _check_types
 
 
 class Angle3DProperty(QtWidgets.QGroupBox):
@@ -13,6 +14,7 @@ class Angle3DProperty(QtWidgets.QGroupBox):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`Angle3DProperty` instance.
 
@@ -47,12 +49,14 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         self.y_ctrl.propertyChanged.connect(self._on_y)
         self.z_ctrl.propertyChanged.connect(self._on_z)
 
+    @_check_types.do
     def _on_angle(self, angle):
         x, y, z = angle.as_euler_float
         self.x_ctrl.SetValue(x)
         self.y_ctrl.SetValue(y)
         self.z_ctrl.SetValue(z)
 
+    @_check_types.do
     def SetValue(self, angle):
         """Execute the set value operation.
 
@@ -77,6 +81,7 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         if angle is not None:
             angle.bind(self._on_angle)
 
+    @_check_types.do
     def _on_x(self, evt):
         """Handle the x event.
 
@@ -89,6 +94,7 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         self._angle.x = evt.GetValue()
         self._angle.bind(self._on_angle)
 
+    @_check_types.do
     def _on_y(self, evt):
         """Handle the y event.
 
@@ -101,6 +107,7 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         self._angle.y = evt.GetValue()
         self._angle.bind(self._on_angle)
 
+    @_check_types.do
     def _on_z(self, evt):
         """Handle the z event.
 
@@ -113,9 +120,11 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         self._angle.z = evt.GetValue()
         self._angle.bind(self._on_angle)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self.setTitle(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

@@ -21,6 +21,7 @@ added (see ``handlers/housing_handler.py``). A no-op when
 from typing import TYPE_CHECKING
 
 from ... import config as _config
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import project as _project
@@ -30,10 +31,12 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
+@_check_types.do
 def _cavity_count(housing: "_housing_obj.Housing") -> int:
     return len([c for c in housing.db_obj.cavities if c is not None])
 
 
+@_check_types.do
 def _cavity_extent(housing: "_housing_obj.Housing") -> float:
     """This housing's along-the-edge (cavity-axis) extent -- see
     ``objects2d/housing.py``'s ``Housing._compute_cavity_extent``, reused
@@ -42,6 +45,7 @@ def _cavity_extent(housing: "_housing_obj.Housing") -> float:
     return housing.obj2d._cavity_extent  # NOQA
 
 
+@_check_types.do
 def _text_extent(housing: "_housing_obj.Housing") -> float:
     """This housing's perpendicular (text-axis) extent -- fixed at
     ``Config.editor2d.housing.width``, see
@@ -50,6 +54,7 @@ def _text_extent(housing: "_housing_obj.Housing") -> float:
     return housing.obj2d._text_extent  # NOQA
 
 
+@_check_types.do
 def _apply_placement(housing: "_housing_obj.Housing", x: float, z: float, angle_deg: float) -> None:
     """Write *x*/*z* to ``position2d`` and *angle_deg* to ``angle2d.y`` --
     the same bound-callback write path ``Housing2D.move_to`` already uses,
@@ -70,6 +75,7 @@ def _apply_placement(housing: "_housing_obj.Housing", x: float, z: float, angle_
     housing.db_obj.angle2d.y = angle_deg
 
 
+@_check_types.do
 def _assign_sides(housings: list) -> tuple[list, list, list]:
     """Split *housings* (already sorted by cavity count, descending) into
     ``(left, right, remaining)``.
@@ -112,6 +118,7 @@ def _assign_sides(housings: list) -> tuple[list, list, list]:
     return left, right, remaining
 
 
+@_check_types.do
 def _assign_top_bottom(remaining: list) -> tuple[list, list]:
     """Greedily split *remaining* (still cavity-count descending) between
     top/bottom, always adding the next (largest remaining) housing to
@@ -133,6 +140,7 @@ def _assign_top_bottom(remaining: list) -> tuple[list, list]:
     return top, bottom
 
 
+@_check_types.do
 def _edge_span(members: list) -> float:
     if not members:
         return 0.0
@@ -142,6 +150,7 @@ def _edge_span(members: list) -> float:
             + spacing * (len(members) - 1))
 
 
+@_check_types.do
 def _place_column(members: list, x_sign: float, rect_width: float) -> None:
     """Stack *members* along world Z, pin edges flush at the shared
     interior boundary ``rect_width/2 + margin`` on the left (x_sign=-1) or
@@ -168,6 +177,7 @@ def _place_column(members: list, x_sign: float, rect_width: float) -> None:
         z += cav + spacing
 
 
+@_check_types.do
 def _place_row(members: list, z_sign: float, rect_height: float) -> None:
     """Stack *members* along world X, pin edges flush at the shared
     interior boundary ``rect_height/2 + margin`` on the bottom (z_sign=-1)
@@ -201,6 +211,7 @@ def _place_row(members: list, z_sign: float, rect_height: float) -> None:
         x += cav + spacing
 
 
+@_check_types.do
 def recompute_layout(project: "_project.Project") -> None:
     """Recompute and persist every housing's ``position2d``/``angle2d`` in
     *project* -- called after a new housing is added (see

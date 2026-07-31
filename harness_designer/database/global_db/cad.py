@@ -13,6 +13,7 @@ import weakref
 from ... import resources as _resources
 from ..create_database import cads as _cads
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ class CADsTable(TableBase):
     """
     __table_name__ = 'cads'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -36,6 +38,7 @@ class CADsTable(TableBase):
         """
         return _cads.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, _):
         """Add a table to database.
 
@@ -46,6 +49,7 @@ class CADsTable(TableBase):
         """
         _cads.table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -53,6 +57,7 @@ class CADsTable(TableBase):
         """
         _cads.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["CAD"]:
         """Iterate over the available items.
 
@@ -64,6 +69,7 @@ class CADsTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield CAD(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "CAD":
         """Return the requested item.
 
@@ -83,6 +89,7 @@ class CADsTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, path: str) -> "CAD":  # NOQA
         """Execute the insert operation.
 
@@ -113,6 +120,7 @@ class CAD(EntryBase):
     _table: CADsTable = None
     _callbacks = {}
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -131,6 +139,7 @@ class CAD(EntryBase):
 
         return packet
 
+    @_check_types.do
     def load(self, mfg, part_number, callback) -> QtGui.QPixmap:
         """
         Load a CAD file.
@@ -172,6 +181,7 @@ class CAD(EntryBase):
                 if resource_state.progress == -1:
                     resource_state.progress = 0
 
+                @_check_types.do
                 def _do():
                     # ensures the callbacks only get called a simgle time
                     if self.db_id not in self._callbacks:
@@ -235,6 +245,7 @@ class CAD(EntryBase):
             callback(self, data)
 
     @property
+    @_check_types.do
     def data_path(self) -> str | None:
         """Return the data path.
 
@@ -258,6 +269,7 @@ class CAD(EntryBase):
     _stored_path: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def path(self) -> str:
         """Return the path.
 
@@ -274,6 +286,7 @@ class CAD(EntryBase):
     _stored_uuid: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def uuid(self) -> str | None:
         """Return the uuid.
 
@@ -290,6 +303,7 @@ class CAD(EntryBase):
     _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def file_type(self) -> "_file_types.FileType":
         """Return the file type.
 
@@ -310,6 +324,7 @@ class CAD(EntryBase):
     _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def file_type_id(self) -> int | None:
         """Return the file type ID.
 
@@ -324,6 +339,7 @@ class CAD(EntryBase):
         return self._stored_file_type_id
 
     @file_type_id.setter
+    @_check_types.do
     def file_type_id(self, value: int):
         """Set the file type ID.
 

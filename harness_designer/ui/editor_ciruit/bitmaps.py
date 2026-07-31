@@ -8,6 +8,7 @@ from PySide6.QtGui import (
 from PySide6.QtCore import (
     Qt, QRectF, QPointF
 )
+from ... import check_types as _check_types
 
 
 # ---------------------------------------------------------------------------
@@ -29,6 +30,7 @@ CONDUCTOR_MATERIAL_COLORS: dict[str, str] = {
 }
 
 
+@_check_types.do
 def conductor_color(material: str | None) -> str:
     """Execute the conductor color operation.
 
@@ -57,6 +59,7 @@ ROW_H = 48   # px  (set once; must match verticalHeader default section size)
 # ---------------------------------------------------------------------------
 # ── Wire pixmap renderer ──────────────────────────────────────────────────
 # ---------------------------------------------------------------------------
+@_check_types.do
 def make_wire_pixmap(primary_hex: str | None, stripe_hex: str | None,
                      material: str | None, width: int = 160,
                      height: int = ROW_H) -> QPixmap:
@@ -92,6 +95,7 @@ def make_wire_pixmap(primary_hex: str | None, stripe_hex: str | None,
     end_x = width - 4
 
     # ── helpers ──────────────────────────────────────────────────────
+    @_check_types.do
     def _cylinder_gradient(color: QColor, x0: float, x1: float) -> QLinearGradient:  # NOQA
         """Vertical gradient faking cylindrical shading."""
 
@@ -207,6 +211,7 @@ def make_wire_pixmap(primary_hex: str | None, stripe_hex: str | None,
 # ── Housing / connector image renderer ───────────────────────────────────
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def scale_housing_pixmap(src: QPixmap, height: int = ROW_H) -> QPixmap:
     """Scale a housing image to fit within a cell, preserving aspect ratio."""
 
@@ -217,6 +222,7 @@ def scale_housing_pixmap(src: QPixmap, height: int = ROW_H) -> QPixmap:
         height - 6, Qt.TransformationMode.SmoothTransformation)
 
 
+@_check_types.do
 def placeholder_connector_pixmap(name: str, height: int = ROW_H) -> QPixmap:
     """
     Draw a minimal schematic connector symbol when no photo is available.
@@ -278,6 +284,7 @@ def placeholder_connector_pixmap(name: str, height: int = ROW_H) -> QPixmap:
 WIRE_PIXMAP_CACHE: dict[tuple, QPixmap] = {}
 
 
+@_check_types.do
 def cached_wire_pixmap(primary: str | None, stripe: str | None,
                        material: str | None, width: int,
                        height: int) -> QPixmap:

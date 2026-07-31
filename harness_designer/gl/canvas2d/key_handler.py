@@ -6,6 +6,7 @@ from PySide6.QtCore import Qt, QEvent, QTimer
 
 from . import canvas as _canvas
 from ... import debug as _debug
+from ... import check_types as _check_types
 
 
 # Same Qt-keyed equivalence table as canvas3d/key_handler.py.
@@ -66,6 +67,7 @@ KEY_MULTIPLES = {
 }
 
 
+@_check_types.do
 def _process_key_event(keycode: int, *keys):
     """Execute the process key event operation.
 
@@ -99,6 +101,7 @@ class KeyHandler:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: _canvas.Canvas):
         """Initialise the :class:`KeyHandler` instance.
 
@@ -118,6 +121,7 @@ class KeyHandler:
         self._keycode_thread.daemon = True
         self._keycode_thread.start()
 
+    @_check_types.do
     def eventFilter(self, obj, qt_event):
         """Execute the event filter operation.
 
@@ -139,6 +143,7 @@ class KeyHandler:
                 return False
         return False
 
+    @_check_types.do
     def _key_loop(self):
         """Execute the key loop operation.
 
@@ -163,6 +168,7 @@ class KeyHandler:
             self._key_event.wait(0.05)
 
     @_debug.logfunc
+    @_check_types.do
     def _on_key_up(self, evt):
         """Handle the key up event.
 
@@ -173,6 +179,7 @@ class KeyHandler:
         """
         keycode = evt.key()
 
+        @_check_types.do
         def remove_from_queue(func, k):
             """Remove the from queue.
 
@@ -230,6 +237,7 @@ class KeyHandler:
             return
 
     @_debug.logfunc
+    @_check_types.do
     def _on_key_down(self, evt):
         """Handle the key down event.
 
@@ -240,6 +248,7 @@ class KeyHandler:
         """
         keycode = evt.key()
 
+        @_check_types.do
         def add_to_queue(func, k):
             """Add a to queue.
 
@@ -299,6 +308,7 @@ class KeyHandler:
             return
 
     @_debug.logfunc
+    @_check_types.do
     def _process_rotate_key(self, factor, *keys):
         """Execute the process rotate key operation.
 
@@ -325,6 +335,7 @@ class KeyHandler:
         self.canvas.Rotate(dx * factor, dy * factor)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_pan_tilt_key(self, factor, *keys):
         """Execute the process pan tilt key operation.
 
@@ -351,6 +362,7 @@ class KeyHandler:
         self.canvas.PanTilt(dx * factor, dy * factor)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_truck_pedestal_key(self, factor, *keys):
         """Execute the process truck pedestal key operation.
 
@@ -377,6 +389,7 @@ class KeyHandler:
         self.canvas.TruckPedestal(dx * factor, dy * factor)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_walk_key(self, factor, *keys):
         """Execute the process walk key operation.
 
@@ -403,6 +416,7 @@ class KeyHandler:
         self.canvas.Walk(dx * factor, dy * factor)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_zoom_key(self, factor, *keys):
         """Execute the process zoom key operation.
 
@@ -424,6 +438,7 @@ class KeyHandler:
         self.canvas.Zoom(delta * factor, None)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_reset_key(self, *_):
         """Execute the process reset key operation.
 

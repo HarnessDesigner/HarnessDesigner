@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ...geometry import point as _point
 from ... import debug as _debug
 from . import move_arrows as _move_arrows
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class DragObject:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         """Initialise the :class:`DragObject` instance.
 
@@ -39,6 +41,7 @@ class DragObject:
         self.pick_offset = None
 
     @_debug.logfunc
+    @_check_types.do
     def __call__(self, delta):
         """Call the instance.
 

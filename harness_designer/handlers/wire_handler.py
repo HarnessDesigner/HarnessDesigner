@@ -44,6 +44,7 @@ from .. import config as _config
 from .. import color as _color
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -58,6 +59,7 @@ _SNAP_THRESHOLD = 5.0
 class _IncompatOverlay(QLabel):
     """Floating label shown near the cursor when a terminal is incompatible."""
 
+    @_check_types.do
     def __init__(self, parent):
         super().__init__(parent)
         self.setStyleSheet(
@@ -66,6 +68,7 @@ class _IncompatOverlay(QLabel):
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         self.hide()
 
+    @_check_types.do
     def show_message(self, mouse_pos, text):
         self.setText(text)
         self.adjustSize()
@@ -73,11 +76,13 @@ class _IncompatOverlay(QLabel):
         self.show()
         self.raise_()
 
+    @_check_types.do
     def hide_message(self):
         if self.isVisible():
             self.hide()
 
 
+@_check_types.do
 def _wire_layout_end_wire(wire_layout_obj, project, part_id):
     """Return (wire, endpoint) if the layout sits at one endpoint of a wire with matching part_id.
 
@@ -110,6 +115,7 @@ def _wire_layout_end_wire(wire_layout_obj, project, part_id):
     return None, None
 
 
+@_check_types.do
 def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, other_end: str):
     """Join *wire_obj*'s own (dangling) stop end to *other_wire*'s
     dangling *other_end* ('start' or 'stop'), merging them into a single
@@ -206,6 +212,7 @@ def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, othe
     return merged_obj
 
 
+@_check_types.do
 def _get_terminal_compat_pns(mainframe, terminal_obj):
     """Return wire part numbers whose outer diameter fits *terminal_obj*'s crimp range."""
     term_part = terminal_obj.db_obj.part
@@ -234,6 +241,7 @@ def _get_terminal_compat_pns(mainframe, terminal_obj):
     return [row[0] for row in table.fetchall()]
 
 
+@_check_types.do
 def _check_terminal_compat(terminal_obj, wire_part):
     """Return (is_compatible, message_or_None).
 
@@ -284,6 +292,7 @@ class AddWireHandler(_handler_base.HandlerBase):
 
     obj: _wire.Wire = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int = None,
                  terminal: _terminal.Terminal = None):
         if terminal is not None:
@@ -359,6 +368,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             else:
                 self._start_from_terminal(terminal, part_id)
 
+    @_check_types.do
     def _start_from_terminal(self, terminal: _terminal.Terminal, part_id: int):
         """Pin the preview wire's start to *terminal* and enter phase 1 directly."""
         self.part = self.mainframe.global_db.wires_table[part_id]
@@ -430,6 +440,7 @@ class AddWireHandler(_handler_base.HandlerBase):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _get_wire_part(self):
         """Return the global wire-part record for the current part_id, or None."""
         if self.part_id is None:
@@ -440,6 +451,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         except (IndexError, KeyError):
             return None
 
+    @_check_types.do
     def _set_hover_obj(self, obj, material):
         if obj is not self._hover_obj:
             if self._hover_obj is not None:
@@ -450,17 +462,20 @@ class AddWireHandler(_handler_base.HandlerBase):
 
             self._hover_obj = obj
 
+    @_check_types.do
     def _clear_hover(self):
         if self._hover_obj is not None:
             self._hover_obj.identify(None)
             self._hover_obj = None
 
+    @_check_types.do
     def _project_extension(self, world_np):
         """Project world_np onto the extension ray; never allows going backward."""
         t = float(np.dot(world_np - self._extension_origin, self._extension_dir))
 
         return self._extension_origin + max(0.0, t) * self._extension_dir
 
+    @_check_types.do
     def _update_preview_stop(self, world_pos):
         """Move the preview wire's stop position to world_pos."""
         if self.obj is None:
@@ -480,6 +495,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         # happens to trigger a repaint (zoom, camera move).
         self.mainframe.editor3d.Refresh(False)
 
+    @_check_types.do
     def _update_source_endpoint(self, world_np):
         """Live-move the source wire's endpoint to the projected ray position."""
         proj = self._project_extension(world_np)
@@ -494,12 +510,14 @@ class AddWireHandler(_handler_base.HandlerBase):
         # See _update_preview_stop -- same deferred-repaint gap.
         self.mainframe.editor3d.Refresh(False)
 
+    @_check_types.do
     def _cleanup(self):
         """Hide the overlay and unhighlight the last hovered object."""
         self._clear_hover()
         if self._overlay is not None:
             self._overlay.hide_message()
 
+    @_check_types.do
     def _destroy_overlay(self):
         if self._overlay is not None:
             self._overlay.deleteLater()
@@ -509,6 +527,7 @@ class AddWireHandler(_handler_base.HandlerBase):
     # Public interface – hover
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         if self._finalized:
             return
@@ -518,6 +537,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         else:
             self._hover_phase1(mouse_pos)
 
+    @_check_types.do
     def _hover_phase0(self, mouse_pos):
         project = self.mainframe.project
         wire_part = self._get_wire_part()
@@ -560,6 +580,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             self._overlay.hide_message()
             self._clear_hover()
 
+    @_check_types.do
     def _hover_phase1(self, mouse_pos):
         project = self.mainframe.project
         wire_part = self._get_wire_part()
@@ -614,6 +635,7 @@ class AddWireHandler(_handler_base.HandlerBase):
     # Public interface – clicks
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def release_capture(self):
         if self._finalized:
             return
@@ -626,6 +648,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         else:
             self._handle_second_click(self._captured_position)
 
+    @_check_types.do
     def _handle_first_click(self, mouse_pos):
         project = self.mainframe.project
         wire_part = self._get_wire_part()
@@ -777,6 +800,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             start_terminal.add_wire(self.obj, 'start')
             self.ptables.pjt_points3d_table[start_point_id].delete()
 
+    @_check_types.do
     def _handle_second_click(self, mouse_pos):
         project = self.mainframe.project
         wire_part = self._get_wire_part()
@@ -892,6 +916,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         self._destroy_overlay()
         self._finalized = True
 
+    @_check_types.do
     def _commit_waypoint(self) -> None:
         """
         Commit the current live preview stop position as a permanent
@@ -938,6 +963,7 @@ class AddWireHandler(_handler_base.HandlerBase):
     # Finishing early / cancellation
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def finalize_at_last_point(self) -> None:
         """
         Right-click: end the wire at the last confirmed point, discarding
@@ -1008,6 +1034,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         self._destroy_overlay()
         self._finalized = True
 
+    @_check_types.do
     def cancel(self):
         if self._extension_mode and self._extension_original_pos is not None:
             # Roll back the source wire's endpoint to where it was before phase 1

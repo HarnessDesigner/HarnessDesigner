@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Shared GPU attribute containers for :mod:`harness_designer.gpu_mem`."""
+from .. import check_types as _check_types
 
 
 class GPUAttribute:
@@ -10,6 +11,7 @@ class GPUAttribute:
     :type label: str
     """
 
+    @_check_types.do
     def __init__(self, label):
         """Initialize the attribute with a display label.
 
@@ -19,6 +21,7 @@ class GPUAttribute:
         self.label = label
         self.value = 'Unknown'
 
+    @_check_types.do
     def __str__(self):
         """Return the label and current value as a single string.
 
@@ -31,6 +34,7 @@ class GPUAttribute:
 class GPUMeta(type):
     """Metaclass that forwards class stringification to :class:`GPU`."""
 
+    @_check_types.do
     def __str__(cls):
         """Render the shared :class:`GPU` state as text.
 
@@ -79,6 +83,7 @@ class GPU(metaclass=GPUMeta):
     gpu_temp = GPUAttribute('Temperature: ')
 
     @classmethod
+    @_check_types.do
     def is_ok(cls):
         """Return whether the collected VRAM values look usable.
 
@@ -93,6 +98,7 @@ class GPU(metaclass=GPUMeta):
             cls.vram_size.value > 0)
 
     @classmethod
+    @_check_types.do
     def __str__(cls):
         """Format the current GPU state as a multi-section report.
 

@@ -2,6 +2,7 @@
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 class NotesMixin(BaseMixin):
@@ -13,6 +14,7 @@ class NotesMixin(BaseMixin):
     _stored_notes: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def notes(self) -> str:
         """Return the notes.
 
@@ -27,6 +29,7 @@ class NotesMixin(BaseMixin):
         return self._stored_notes
 
     @notes.setter
+    @_check_types.do
     def notes(self, value: str):
         """Set the notes.
 
@@ -46,6 +49,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`NotesControl` instance.
 
@@ -60,6 +64,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
 
         self.propertyChanged.connect(self._on_notes)
 
+    @_check_types.do
     def _on_notes(self, evt):
         """Handle the notes event.
 
@@ -71,6 +76,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
         value = evt.GetValue()
         self.db_obj.notes = value
 
+    @_check_types.do
     def set_obj(self, db_obj: NotesMixin):
         """Set the obj.
 

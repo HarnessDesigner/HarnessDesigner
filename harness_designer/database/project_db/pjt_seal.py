@@ -20,6 +20,7 @@ from .mixins import (
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class PJTSealsTable(PJTTableBase):
     _control: "PJTSealControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTSealControl":
         """Return the control.
 
@@ -53,6 +55,7 @@ class PJTSealsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -64,6 +67,7 @@ class PJTSealsTable(PJTTableBase):
         cls._control = PJTSealControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -76,6 +80,7 @@ class PJTSealsTable(PJTTableBase):
 
         return seals.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -85,6 +90,7 @@ class PJTSealsTable(PJTTableBase):
 
         seals.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -94,6 +100,7 @@ class PJTSealsTable(PJTTableBase):
 
         seals.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTSeal"]:
         """Iterate over the available items.
 
@@ -105,6 +112,7 @@ class PJTSealsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTSeal(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTSeal":
         """Return the requested item.
 
@@ -124,6 +132,7 @@ class PJTSealsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, position3d_id: int, housing_id: int | None,
                terminal_id: int | None, cavity_id: int = None) -> "PJTSeal":
         """Execute the insert operation.
@@ -169,6 +178,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
 
     _table: PJTSealsTable = None
 
+    @_check_types.do
     def delete(self) -> None:
         """Delete this seal, clearing its cavity's cached back-reference
         first (see the cavity_id setter/PJTSealsTable.insert) so
@@ -181,6 +191,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         if cavity_id is not None:
             self._table.db.pjt_cavities_table[cavity_id]._stored_seal = None  # NOQA
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -209,6 +220,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_seal_obj.Seal":
         """Return the object.
 
@@ -222,6 +234,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -232,6 +245,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_seal_obj.Seal"):
         """Set the object.
 
@@ -246,6 +260,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTSealsTable:
         """Return the table.
 
@@ -259,6 +274,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
     _stored_part: "_seal.Seal | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> "_seal.Seal":
         """Return the part.
 
@@ -284,6 +300,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
     _stored_terminal: "_pjt_terminal.PJTTerminal | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """Return the terminal.
 
@@ -309,6 +326,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
     # TODO: Finish adding cache
 
     @property
+    @_check_types.do
     def terminal_id(self) -> int:
         """Return the terminal ID.
 
@@ -320,6 +338,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         return self._table.select('terminal_id', id=self._db_id)[0][0]
 
     @terminal_id.setter
+    @_check_types.do
     def terminal_id(self, value: int):
         """Set the terminal ID.
 
@@ -334,6 +353,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
     _stored_cavity: "_pjt_cavity.PJTCavity" = None
 
     @property
+    @_check_types.do
     def cavity(self) -> "_pjt_cavity.PJTCavity":
         """Return the cavity.
 
@@ -354,6 +374,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         return self._stored_cavity
 
     @property
+    @_check_types.do
     def cavity_id(self) -> int:
         """Return the cavity ID.
 
@@ -365,6 +386,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
         return self._table.select('cavity_id', id=self._db_id)[0][0]
 
     @cavity_id.setter
+    @_check_types.do
     def cavity_id(self, value: int):
         """Set the cavity ID.
 
@@ -394,6 +416,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTSeal):
         """Set the obj.
 
@@ -404,6 +427,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -420,6 +444,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
             self.seal_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTSealControl` instance.
 

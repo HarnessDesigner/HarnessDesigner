@@ -42,6 +42,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 from collections import defaultdict
 from dataclasses import dataclass
 import numpy as np
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -57,6 +58,7 @@ class Surface:
     plane_dist: float   # dot(centroid, normal) — signed dist from origin
 
 
+@_check_types.do
 def _points_in_triangles(p: np.ndarray, a: np.ndarray, b: np.ndarray, c: np.ndarray) -> np.ndarray:
     """Vectorized point-in-triangle test.
 
@@ -130,25 +132,31 @@ class MeshSurfacePicker:
     _active: "MeshSurfacePicker" = None
 
     @property
+    @_check_types.do
     def camera(self):
         return self._camera
 
     @property
+    @_check_types.do
     def rot_mat(self) -> np.ndarray:
         return self._rot_mat
 
     @property
+    @_check_types.do
     def inv_rot(self) -> np.ndarray:
         return self._inv_rot
 
     @property
+    @_check_types.do
     def scale_arr(self) -> np.ndarray:
         return self._scale_arr
 
     @property
+    @_check_types.do
     def pos_arr(self) -> np.ndarray:
         return self._pos_arr
 
+    @_check_types.do
     def __init__(self, obj3d, canvas3d: "_Canvas3D"):
         self._obj3d = obj3d
         self._gl_widget = canvas3d._canvas  # NOQA
@@ -187,6 +195,7 @@ class MeshSurfacePicker:
         self._surfaces: list[Surface] = []
         self._build_surfaces()
 
+    @_check_types.do
     def _refresh_transform_cache(self) -> None:
         """
         Snapshot angle/position/scale into plain numpy arrays.
@@ -205,17 +214,21 @@ class MeshSurfacePicker:
         self._scale_arr = self._scale.as_numpy.astype(np.float64)
         self._pos_arr = self._position.as_numpy.astype(np.float64)
 
+    @_check_types.do
     def _on_position(self, position: "_point.Point") -> None:
         self._pos_arr = position.as_numpy.astype(np.float64)
 
+    @_check_types.do
     def _on_angle(self, angle: "_angle.Angle") -> None:
         rot = angle.as_matrix_numpy.astype(np.float64)
         self._rot_mat = rot.T
         self._inv_rot = rot
 
+    @_check_types.do
     def _on_scale(self, scale: "_point.Point") -> None:
         self._scale_arr = scale.as_numpy.astype(np.float64)
 
+    @_check_types.do
     def update_vbo(self, surfaces: list | None = None) -> None:
         """
         Reload local vertices from the object's current VBO.
@@ -276,6 +289,7 @@ class MeshSurfacePicker:
     # Surface geometry (static — no self needed)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _weld_vertices(self) -> np.ndarray:
         """Assign an integer id to every triangle corner in the whole mesh
         (shape ``(3*n_tris,)``) such that two corners share an id iff
@@ -296,6 +310,7 @@ class MeshSurfacePicker:
         _, welded = np.unique(rounded, axis=0, return_inverse=True)
         return welded.ravel()
 
+    @_check_types.do
     def compute_surfaces(self, normal_tol: float = 0.02, dist_tol: float = 0.5) -> list:
         """
         Group triangle indices into coplanar surface groups.
@@ -354,6 +369,7 @@ class MeshSurfacePicker:
         return [Surface(grp.tolist(), normals[grp[0]].astype(np.float32), float(dists[grp[0]]))
                 for grp in tri_groups]
 
+    @_check_types.do
     def split_into_components(self, surface: Surface) -> list:
         """
         Split a surface into topologically connected triangle islands.
@@ -418,11 +434,13 @@ class MeshSurfacePicker:
                 for comp in components]
 
     @staticmethod
+    @_check_types.do
     def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
         return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
                 abs(s.plane_dist - ref.plane_dist) < dist_tol)
 
     @staticmethod
+    @_check_types.do
     def find_coplanar_surfaces(
         reference: Surface,
         all_surfaces: list,
@@ -436,6 +454,7 @@ class MeshSurfacePicker:
         return [s for s in all_surfaces
                 if MeshSurfacePicker._coplanar(s, reference, normal_tol, dist_tol)]
 
+    @_check_types.do
     def surface_centroid(self, surface: Surface) -> np.ndarray:
         """
         Return the mean world-space position of all vertices belonging to surface.
@@ -447,6 +466,7 @@ class MeshSurfacePicker:
 
         return (local_c * self._scale_arr) @ self._rot_mat + self._pos_arr
 
+    @_check_types.do
     def _build_surfaces(self) -> None:
         """
         Group local vertices into coplanar surface islands.
@@ -464,6 +484,7 @@ class MeshSurfacePicker:
 
         self._set_surfaces([s for grp in raw for s in self.split_into_components(grp)])
 
+    @_check_types.do
     def _set_surfaces(self, surfaces: list) -> None:
         """Install an already-computed surface list (either just built by
         :meth:`_build_surfaces`, or a cached one reused from elsewhere --
@@ -482,6 +503,7 @@ class MeshSurfacePicker:
             self._surf_dists = np.zeros((0,), dtype=np.float64)
 
     @property
+    @_check_types.do
     def surfaces(self) -> list[Surface]:
         """
         Read-only view of the computed surface list.
@@ -489,6 +511,7 @@ class MeshSurfacePicker:
 
         return self._surfaces
 
+    @_check_types.do
     def compute_ray_world(
         self, px: int, py: int
     ) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
@@ -531,6 +554,7 @@ class MeshSurfacePicker:
 
         return near, d / mag
 
+    @_check_types.do
     def transform_ray_to_local(
         self,
         origin_world: np.ndarray,
@@ -566,6 +590,7 @@ class MeshSurfacePicker:
 
         return o, d / d_mag
 
+    @_check_types.do
     def pick_surface_at(
         self, px: int, py: int, candidate_indices: _Iterable[int] | None = None
     ) -> tuple[int, np.ndarray | None]:
@@ -589,6 +614,7 @@ class MeshSurfacePicker:
         return self.pick_surface_at_ray(
             origin_w, direction_w, candidate_indices=candidate_indices)
 
+    @_check_types.do
     def pick_surface_at_ray(
         self,
         origin_world: np.ndarray,
@@ -674,6 +700,7 @@ class MeshSurfacePicker:
 
         return best_idx, hit_w
 
+    @_check_types.do
     def _set_active(self) -> None:
         """
         Make this picker the scene-wide active one, clearing any other.
@@ -687,6 +714,7 @@ class MeshSurfacePicker:
 
         MeshSurfacePicker._active = self
 
+    @_check_types.do
     def select(self, surf_idx: int) -> None:
         """
         Highlight surface surf_idx.
@@ -695,6 +723,7 @@ class MeshSurfacePicker:
         self._set_active()
         self.selected_surf_idx = surf_idx
 
+    @_check_types.do
     def clear_selection(self) -> None:
         """
         Remove the highlight.
@@ -705,6 +734,7 @@ class MeshSurfacePicker:
         if MeshSurfacePicker._active is self:
             MeshSurfacePicker._active = None
 
+    @_check_types.do
     def cleanup(self) -> None:
         """
         Unbind transform callbacks.

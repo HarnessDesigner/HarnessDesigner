@@ -4,6 +4,7 @@ from OpenGL import GL
 import numpy as np
 
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 class GLMaterial:
@@ -33,6 +34,7 @@ class GLMaterial:
     _cl_reflectivity = 0.5
     _cl_ior = 0.5
 
+    @_check_types.do
     def __init__(self, color: _color.Color):
         """Initialise the :class:`GLMaterial` instance.
 
@@ -53,6 +55,7 @@ class GLMaterial:
         self.emissive = np.array(self._emissive, dtype=np.float32)
 
     @property
+    @_check_types.do
     def cl_array(self):
         """Return the cl array.
 
@@ -69,6 +72,7 @@ class GLMaterial:
              self._cl_reflectivity, a, self._cl_ior], dtype=np.float32)
 
     @property
+    @_check_types.do
     def color_scalar(self):
         """Return the color scalar.
 
@@ -80,6 +84,7 @@ class GLMaterial:
         return self._color.rgba_scalar
 
     @property
+    @_check_types.do
     def is_opaque(self):
         """Return the is opaque.
 
@@ -90,6 +95,7 @@ class GLMaterial:
         """
         return self._is_opaque
 
+    @_check_types.do
     def set(self, shader_program):
         """Execute the set operation.
 

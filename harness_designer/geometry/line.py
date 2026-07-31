@@ -9,6 +9,7 @@ import numpy as np
 
 from . import point as _point
 from . import angle as _angle
+from .. import check_types as _check_types
 
 
 ZERO_5 = 0.5
@@ -17,6 +18,7 @@ ZERO_5 = 0.5
 class Line:
     """Represent a line segment between two :class:`~.point.Point` objects."""
 
+    @_check_types.do
     def __array_ufunc__(self, func, _, inputs, instance, **__):
         """
         Handle selected NumPy ufuncs for line translation and rotation.
@@ -88,6 +90,7 @@ class Line:
 
         raise RuntimeError
 
+    @_check_types.do
     def __init__(self, p1: _point.Point,
                  p2: _point.Point | None = None,
                  length: float | None = None,
@@ -120,6 +123,7 @@ class Line:
         self._p2 = p2
 
     @property
+    @_check_types.do
     def as_numpy(self) -> np.ndarray:
         """
         Return the endpoints as a ``2 x 3`` :class:`numpy.ndarray`.
@@ -134,6 +138,7 @@ class Line:
         return np.array([p1, p2], dtype=np.float32)
 
     @property
+    @_check_types.do
     def as_float(self) -> tuple[list[float, float, float], list[float, float, float]]:
         """
         Return the endpoints as float tuples.
@@ -147,6 +152,7 @@ class Line:
 
         return p1, p2
 
+    @_check_types.do
     def copy(self) -> "Line":
         """
         Return a detached copy of the line.
@@ -160,6 +166,7 @@ class Line:
         return Line(p1, p2)
 
     @property
+    @_check_types.do
     def p1(self) -> _point.Point:
         """
         Return the start point.
@@ -171,6 +178,7 @@ class Line:
         return self._p1
 
     @property
+    @_check_types.do
     def p2(self) -> _point.Point:
         """
         Return the end point.
@@ -181,6 +189,7 @@ class Line:
 
         return self._p2
 
+    @_check_types.do
     def __len__(self) -> int:
         """
         Return the rounded segment length.
@@ -195,6 +204,7 @@ class Line:
         res = math.sqrt(x * x + y * y + z * z)
         return int(round(res))
 
+    @_check_types.do
     def length(self) -> float:
         """
         Return the Euclidean segment length.
@@ -209,6 +219,7 @@ class Line:
 
         return math.sqrt(x * x + y * y + z * z)
 
+    @_check_types.do
     def get_angle(self, origin: _point.Point) -> _angle.Angle:
         """
         Return the line orientation relative to ``origin``.
@@ -234,6 +245,7 @@ class Line:
 
         return _angle.Angle.from_points(temp_p1, temp_p2)
 
+    @_check_types.do
     def set_angle(self, angle: _angle.Angle, origin: _point.Point) -> None:
         """
         Rotate the line around ``origin`` in place.
@@ -280,6 +292,7 @@ class Line:
             self._p1 += diff_p1
             self._p2 += diff_p2
 
+    @_check_types.do
     def point_from_start(self, distance: float | int) -> _point.Point:
         """
         Calculate point on the line at a specific distance from the start point.
@@ -315,6 +328,7 @@ class Line:
 
         return _point.Point(p3[0], p3[1], p3[2])
 
+    @_check_types.do
     def __isub__(self, other: _point.Point | np.ndarray) -> "Line":
         """
         Translate the line in place by subtracting ``other`` from both endpoints.
@@ -330,6 +344,7 @@ class Line:
 
         return self
 
+    @_check_types.do
     def __sub__(self, other: _point.Point | np.ndarray) -> "Line":
         """
         Return a translated copy of the line.
@@ -345,6 +360,7 @@ class Line:
 
         return Line(p1, p2)
 
+    @_check_types.do
     def __iadd__(self, other: _point.Point | np.ndarray) -> "Line":
         """
         Translate the line in place by adding ``other`` to both endpoints.
@@ -360,6 +376,7 @@ class Line:
 
         return self
 
+    @_check_types.do
     def __add__(self, other: _point.Point | np.ndarray) -> "Line":
         """
         Return a translated copy of the line.
@@ -375,6 +392,7 @@ class Line:
 
         return Line(p1, p2)
 
+    @_check_types.do
     def __imul__(self, other: _point.Point | np.ndarray) -> "Line":
         """
         Scale the line in place component-wise.
@@ -390,6 +408,7 @@ class Line:
 
         return self
 
+    @_check_types.do
     def __mul__(self, other: _point.Point | np.ndarray) -> "Line":
         """
         Return a component-wise scaled copy of the line.
@@ -405,6 +424,7 @@ class Line:
 
         return Line(p1, p2)
 
+    @_check_types.do
     def __imatmul__(self, other: _angle.Angle | np.ndarray) -> "Line":
         """
         Rotate the line in place.
@@ -420,6 +440,7 @@ class Line:
 
         return self
 
+    @_check_types.do
     def __matmul__(self, other: _angle.Angle | np.ndarray) -> "Line":
         """
         Return a rotated copy of the line.
@@ -436,6 +457,7 @@ class Line:
         return Line(p1, p2)
 
     @property
+    @_check_types.do
     def center(self) -> _point.Point:
         """
         Return the midpoint of the segment.
@@ -449,6 +471,7 @@ class Line:
         z = (self._p1.z + self._p2.z) * ZERO_5
         return _point.Point(x, y, z)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable[_point.Point]:
         """
         Iterate over the two endpoints.
@@ -459,6 +482,7 @@ class Line:
 
         return iter([self._p1, self._p2])
 
+    @_check_types.do
     def get_rotated_line(self, angle: _angle.Angle, pivot: _point.Point) -> "Line":
         """
         Return a rotated copy of the line around ``pivot``.
@@ -486,6 +510,7 @@ class Line:
 
         return Line(p1, p2)
 
+    @_check_types.do
     def get_parallel_line(self, offset: float, offset_dir: _point.Point | None = None,
                           plane: str = 'x') -> "Line":
         """
@@ -560,6 +585,7 @@ class Line:
 
         return Line(p1, p2)
 
+    @_check_types.do
     def __contains__(self, test_point: _point.Point):
         """
         Check if a point lies on a line segment defined by two endpoints in 3D space.
@@ -596,6 +622,7 @@ class Line:
         # Point is on segment if 0 <= dot_product <= line_length_squared
         return -tolerance <= dot_product <= line_length_squared + tolerance
 
+    @_check_types.do
     def project_to_line(self, world_point: _point.Point):
         """
         Project a world space point onto a line defined by two endpoints.

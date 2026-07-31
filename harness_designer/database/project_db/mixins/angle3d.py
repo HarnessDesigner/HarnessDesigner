@@ -5,6 +5,7 @@ import uuid
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
+from .... import check_types as _check_types
 
 
 class Angle3DMixin(BaseMixin):
@@ -18,6 +19,7 @@ class Angle3DMixin(BaseMixin):
     # DB callback is suppressed while 3D render callbacks still fire.
     _skip_db_write: bool = False
 
+    @_check_types.do
     def _update_angle3d(self, angle: _angle.Angle):
         """Update the angle 3D.
 
@@ -40,6 +42,7 @@ class Angle3DMixin(BaseMixin):
         self._populate('angle3d')
 
     @property
+    @_check_types.do
     def angle3d(self) -> _angle.Angle:
         """Return the angle 3D.
 
@@ -69,6 +72,7 @@ class Angle3DControl(_prop_ctrls.Angle3DProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Angle3DControl` instance.
 
@@ -81,6 +85,7 @@ class Angle3DControl(_prop_ctrls.Angle3DProperty):
 
         super().__init__(parent, '3D Angle')
 
+    @_check_types.do
     def set_obj(self, db_obj: Angle3DMixin):
         """Set the obj.
 

@@ -15,6 +15,7 @@ from PySide6.QtCore import Qt, QTimer
 from ... import color as _color
 from ... import config as _config
 from ...gl import materials as _materials
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -24,11 +25,13 @@ if TYPE_CHECKING:
 _colors_config = _config.Config.colors
 
 
+@_check_types.do
 def select_object(obj3d: "_base3d.Base3D"):
     """Make the object the active selection in all of the editors."""
     select_object_for_object(obj3d.mainframe, obj3d.parent)
 
 
+@_check_types.do
 def select_object_for_object(mainframe, parent):
     """Make ``parent`` the active selection in all of the editors.
 
@@ -44,6 +47,7 @@ def select_object_for_object(mainframe, parent):
     parent.set_selected(True)
 
 
+@_check_types.do
 def clone_object(obj3d: "_base3d.Base3D"):
     """Arm clone mode using the object as the template."""
     mainframe = obj3d.mainframe
@@ -52,6 +56,7 @@ def clone_object(obj3d: "_base3d.Base3D"):
     mainframe.set_clone_obj(obj3d.parent)
 
 
+@_check_types.do
 def delete_object(obj3d: "_base3d.Base3D"):
     """Remove the object from the editors, the project and the database.
 
@@ -66,6 +71,7 @@ def delete_object(obj3d: "_base3d.Base3D"):
     parent.delete()
 
 
+@_check_types.do
 def show_properties(obj3d: "_base3d.Base3D"):
     """Open the modeless properties dialog for the object.
 
@@ -79,6 +85,7 @@ def show_properties(obj3d: "_base3d.Base3D"):
     show_properties_for_object(obj3d.mainframe, obj3d.parent)
 
 
+@_check_types.do
 def show_properties_for_object(mainframe, parent):
     """Open the modeless properties dialog for the ``parent`` wrapper object.
 
@@ -109,6 +116,7 @@ def show_properties_for_object(mainframe, parent):
     dlg = _properties_dialog.PropertiesDialog(
         mainframe, name + ' Properties', tab_widget, db_obj)
 
+    @_check_types.do
     def _cleanup(*_):
         # release the db object so the live position/angle callbacks bound
         # by the property controls do not outlive the dialog
@@ -119,12 +127,14 @@ def show_properties_for_object(mainframe, parent):
     dlg.show()
 
 
+@_check_types.do
 def start_handler(mainframe, handler_factory):
     """Install an interactive placement handler once the menu has closed.
 
     The factory may open a modal part-search dialog, so creation is deferred
     until the context menu has finished closing.
     """
+    @_check_types.do
     def _do():
         handler = handler_factory()
         if handler is None or handler.is_finalized:
@@ -135,6 +145,7 @@ def start_handler(mainframe, handler_factory):
     QTimer.singleShot(0, _do)
 
 
+@_check_types.do
 def run_attached_handler(handler_factory):
     """Run a placement handler whose target object is already known.
 
@@ -142,6 +153,7 @@ def run_attached_handler(handler_factory):
     where the handler attaches the new part as soon as it is constructed and
     no further mouse interaction is required.
     """
+    @_check_types.do
     def _do():
         handler = handler_factory()
         if handler.is_finalized or handler.obj is None:
@@ -154,6 +166,7 @@ def run_attached_handler(handler_factory):
     QTimer.singleShot(0, _do)
 
 
+@_check_types.do
 def get_part_id(mainframe, page_name: str, table, title: str,
                 initial_results=None):
     """Resolve a part id from the database editor's current selection or a
@@ -190,6 +203,7 @@ def get_part_id(mainframe, page_name: str, table, title: str,
     return part_id
 
 
+@_check_types.do
 def trace_circuit(obj3d: "_base3d.Base3D", db_obj=None):
     """Highlight every project object on the circuit the object belongs to."""
     if db_obj is None:

@@ -7,6 +7,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import wire as _wire_2d
 from .objects3d import wire as _wire_3d
 from .objectspeg import wire as _wire_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class Wire(_ObjectBase):
     objpeg: _wire_peg.Wire = None
     db_obj: "_pjt_wire.PJTWire" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire.PJTWire", project_load=False):
         """Initialise the :class:`Wire` instance.
@@ -58,17 +60,20 @@ class Wire(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @_check_types.do
     def start_sibling(self):
         """Whatever this wire's start end attaches to (Terminal, Splice,
         WireServiceLoop), or None for a dangling/free-space end."""
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
+    @_check_types.do
     def stop_sibling(self):
         """Whatever this wire's stop end attaches to (Terminal, Splice,
         WireServiceLoop), or None for a dangling/free-space end."""
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
+    @_check_types.do
     def set_sibling(self, other, end: str) -> None:
         """Record *other* as what this wire's *end* ('start' or 'stop')
         attaches to.
@@ -93,6 +98,7 @@ class Wire(_ObjectBase):
             raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
 
     @property
+    @_check_types.do
     def layouts(self) -> list["_wire_layout_obj.WireLayout"]:
         """Every WireLayout marking a point on this wire's own path --
         its true start/stop and every interior waypoint."""
@@ -104,6 +110,7 @@ class Wire(_ObjectBase):
             if layout.db_obj.position3d_id in point_ids
         ]
 
+    @_check_types.do
     def set_selected(self, flag):
         """Select this wire, and show every WireLayout on its own path
         in the selected color too -- via identify(), not set_selected()
@@ -118,6 +125,7 @@ class Wire(_ObjectBase):
             if layout.obj2d is not None:
                 layout.obj2d.identify(layout.obj2d.selected_material if flag else None)
 
+    @_check_types.do
     def trace_run(self) -> tuple[float, float]:
         """Walk outward from both ends of this wire through any attached
         Splice/WireServiceLoop, summing physical length (mm) and
@@ -163,6 +171,7 @@ class Wire(_ObjectBase):
 
         return total_length, total_resistance
 
+    @_check_types.do
     def delete(self):
         # TODO: If a wire segment is connected to other wire segments
         #       then the layouts at the ends that are attached shuld also be

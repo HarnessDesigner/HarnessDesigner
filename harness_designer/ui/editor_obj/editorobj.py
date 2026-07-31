@@ -6,6 +6,7 @@ from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 from .. import dock_base as _dock_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ class EditorObj(_dock_base.DockBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorObj` instance.
 
@@ -31,6 +33,7 @@ class EditorObj(_dock_base.DockBase):
         super().__init__(mainframe, 'Object Editor', 'editor_obj',
                          QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
+    @_check_types.do
     def _on_visibility_changed(self, visible):
         """Handle the visibility changed event.
 
@@ -42,6 +45,7 @@ class EditorObj(_dock_base.DockBase):
         if not visible:
             self.set_selected(None)
 
+    @_check_types.do
     def set_selected(self, obj):
         """Set the selected.
 
@@ -58,6 +62,7 @@ class EditorObj(_dock_base.DockBase):
             QtWidgets.QApplication.restoreOverrideCursor()
 
     @property
+    @_check_types.do
     def editor(self) -> "EditorObjPanel":
         return self._ui_obj
 
@@ -67,6 +72,7 @@ class EditorObjPanel(QtWidgets.QWidget):
     Represent an editor obj panel in :mod:`harness_designer.ui.editor_obj.editorobj`.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorObjPanel` instance.
@@ -86,6 +92,7 @@ class EditorObjPanel(QtWidgets.QWidget):
         self.sizer = hsizer
         self._selected = None
 
+    @_check_types.do
     def set_selected(self, obj):
         """
         Set the selected.

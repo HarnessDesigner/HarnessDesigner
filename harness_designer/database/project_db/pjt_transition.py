@@ -21,6 +21,7 @@ from .mixins import (
     Visible3DMixin, Visible3DControl,
     SmoothMixin, SmoothControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class PJTTransitionsTable(PJTTableBase):
     _control: "PJTTransitionControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTTransitionControl":
         """Return the control.
 
@@ -53,6 +55,7 @@ class PJTTransitionsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -64,6 +67,7 @@ class PJTTransitionsTable(PJTTableBase):
         cls._control = PJTTransitionControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -76,6 +80,7 @@ class PJTTransitionsTable(PJTTableBase):
 
         return transitions.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -85,6 +90,7 @@ class PJTTransitionsTable(PJTTableBase):
 
         transitions.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -94,6 +100,7 @@ class PJTTransitionsTable(PJTTableBase):
 
         transitions.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTTransition"]:
         """Iterate over the available items.
 
@@ -105,6 +112,7 @@ class PJTTransitionsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTransition(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTTransition":
         """Return the requested item.
 
@@ -124,6 +132,7 @@ class PJTTransitionsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, center_id: int, angle: _angle.Angle) -> "PJTTransition":
         """Execute the insert operation.
 
@@ -157,6 +166,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
 
     _table: PJTTransitionsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -189,6 +199,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_transition_obj.Transition":
         """Return the object.
 
@@ -202,6 +213,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -212,6 +224,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_transition_obj.Transition"):
         """Set the object.
 
@@ -226,6 +239,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTTransitionsTable:
         """Return the table.
 
@@ -239,6 +253,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_branch1: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch1(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 1.
 
@@ -261,6 +276,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_branch2: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch2(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 2.
 
@@ -283,6 +299,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_branch3: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch3(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 3.
 
@@ -305,6 +322,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_branch4: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch4(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 4.
 
@@ -327,6 +345,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_branch5: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch5(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 5.
 
@@ -349,6 +368,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_branch6: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch6(self) -> "_pjt_transition_branch.PJTTransitionBranch":
         """Return the branch 6.
 
@@ -371,6 +391,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _stored_part: "_transition.Transition | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> _transition.Transition:
         """Return the part.
 
@@ -400,6 +421,7 @@ class PJTTransitionControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTTransition):
         """Set the obj.
 
@@ -410,6 +432,7 @@ class PJTTransitionControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -426,6 +449,7 @@ class PJTTransitionControl(QTabWidget, LazyTabMixin):
             self.transition_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTTransitionControl` instance.
 

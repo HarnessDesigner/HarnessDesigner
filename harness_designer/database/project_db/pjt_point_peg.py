@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 class PJTPointsPegTable(PJTTableBase):
@@ -24,25 +25,30 @@ class PJTPointsPegTable(PJTTableBase):
     """
     __table_name__ = 'pjt_points_peg'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         from ..create_database import points_peg
 
         return points_peg.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         from ..create_database import points_peg
 
         points_peg.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         from ..create_database import points_peg
 
         points_peg.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTPointPeg"]:
         for db_id in PJTTableBase.__iter__(self):
             yield PJTPointPeg(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTPointPeg":
         if isinstance(item, int):
             if item in self:
@@ -51,6 +57,7 @@ class PJTPointsPegTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def for_bundle(self, bundle_id: int) -> list["PJTPointPeg"]:
         """Return every waypoint on a bundle, ordered by ``idx`` ascending.
 
@@ -64,6 +71,7 @@ class PJTPointsPegTable(PJTTableBase):
 
         return [self[row[0]] for row in rows]
 
+    @_check_types.do
     def insert(self, x: float, z: float, bundle_id: int = None,
                idx: int = None) -> "PJTPointPeg":
         """Create a new peg-board point row.
@@ -94,16 +102,19 @@ class PJTPointPeg(PJTEntryBase):
     """One peg-board position row, mirroring ``PJTPoint2D`` exactly."""
     _table: PJTPointsPegTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         return {'pjt_points_peg': [self.db_id]}
 
     @property
+    @_check_types.do
     def table(self) -> PJTPointsPegTable:
         return self._table
 
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def x(self) -> float:
         if self._stored_x is DefaultStoredValue:
             self._stored_x = self._table.select('x', id=self._db_id)[0][0]
@@ -111,6 +122,7 @@ class PJTPointPeg(PJTEntryBase):
         return self._stored_x
 
     @x.setter
+    @_check_types.do
     def x(self, value: float):
         self._stored_x = value
         self._table.update(self._db_id, x=value)
@@ -118,6 +130,7 @@ class PJTPointPeg(PJTEntryBase):
     _stored_z: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def z(self) -> float:
         if self._stored_z is DefaultStoredValue:
             self._stored_z = self._table.select('z', id=self._db_id)[0][0]
@@ -125,6 +138,7 @@ class PJTPointPeg(PJTEntryBase):
         return self._stored_z
 
     @z.setter
+    @_check_types.do
     def z(self, value: float):
         self._stored_z = value
         self._table.update(self._db_id, z=value)
@@ -132,6 +146,7 @@ class PJTPointPeg(PJTEntryBase):
     _stored_bundle_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def bundle_id(self) -> int | None:
         """Return the id of the bundle this waypoint belongs to, or
         ``None`` for an anchor's own position row.
@@ -145,6 +160,7 @@ class PJTPointPeg(PJTEntryBase):
         return self._stored_bundle_id
 
     @bundle_id.setter
+    @_check_types.do
     def bundle_id(self, value: int | None):
         self._stored_bundle_id = value
         self._table.update(self._db_id, bundle_id=value)
@@ -153,6 +169,7 @@ class PJTPointPeg(PJTEntryBase):
     _stored_idx: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int | None:
         """Return this waypoint's 0-based order along the bundle chain,
         or ``None`` for an anchor's own position row.
@@ -166,6 +183,7 @@ class PJTPointPeg(PJTEntryBase):
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int | None):
         self._stored_idx = value
         self._table.update(self._db_id, idx=value)
@@ -174,6 +192,7 @@ class PJTPointPeg(PJTEntryBase):
     _stored_point_peg: _point.Point = None
 
     @property
+    @_check_types.do
     def point(self) -> _point.Point:
         """Return this row's live, bindable position.
 
@@ -193,6 +212,7 @@ class PJTPointPeg(PJTEntryBase):
 
         return self._stored_point_peg
 
+    @_check_types.do
     def _update_point(self, point: _point.Point):
         x, _y, z = point.as_float
         self._stored_x = x

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Compatibility stub preserved for legacy imports."""
+from . import check_types as _check_types
 
 
 # monkey_patch.py
@@ -16,6 +17,7 @@
 # modification.
 
 # Previously exported by this module — kept as a no-op for any callers.
+@_check_types.do
 def get_offsets(_hwnd):
     """Return zero window-border offsets for Qt compatibility.
 

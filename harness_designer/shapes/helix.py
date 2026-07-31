@@ -11,6 +11,7 @@ import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
 # Real-world mm per full helix turn. Fixed regardless of wire diameter or
@@ -49,7 +50,8 @@ _vbo: _vbo_handler.PooledVBOHandler = None
 _current_length: float = 0.0
 
 
-def create_vbo(min_length: float) -> _vbo_handler.PooledVBOHandler:
+@_check_types.do
+def create_vbo(min_length: float | int) -> _vbo_handler.PooledVBOHandler:
     """Return the shared helix stripe VBO, growing it in place (never
     shrinking) so its mesh covers at least ``min_length`` mm.
 
@@ -90,6 +92,7 @@ def create_vbo(min_length: float) -> _vbo_handler.PooledVBOHandler:
     return _vbo
 
 
+@_check_types.do
 def create(radius, length, pitch):
     """Create a mesh for a helical stripe wrapped around a cylinder.
 

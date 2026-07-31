@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import weakref
+from .. import check_types as _check_types
 
 
 class CallbackMixin:
@@ -10,6 +11,7 @@ class CallbackMixin:
     __unbound_callbacks__: list = []
     __ref_count__: int = 0
 
+    @_check_types.do
     def __enter__(self):
         """
         Begin a batched update.
@@ -32,11 +34,13 @@ class CallbackMixin:
         self.__ref_count__ += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Decrement the ref-count guard.  See __enter__."""
 
         self.__ref_count__ -= 1
 
+    @_check_types.do
     def _remove_cb(self, ref):
         """
         Drop a dead callback weak reference from the callback list.
@@ -52,6 +56,7 @@ class CallbackMixin:
         except:  # NOQA
             pass
 
+    @_check_types.do
     def bind(self, callback):
         """
         Register a callback to be called whenever this Point's coordinates
@@ -82,6 +87,7 @@ class CallbackMixin:
 
         self.__callbacks__.append(ref)
 
+    @_check_types.do
     def unbind(self, callback):
         """
         Remove a previously registered callback.
@@ -112,6 +118,7 @@ class CallbackMixin:
                 while ref in self.__callbacks__:
                     self.__callbacks__.remove(ref)
 
+    @_check_types.do
     def _process_callbacks(self):
         """
         Fire all registered callbacks, unless batching is active.

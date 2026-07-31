@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import bundle_layout as _bundle_layout_2d
 from .objects3d import bundle_layout as _bundle_layout_3d
 from .objectspeg import bundle_layout as _bundle_layout_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class BundleLayout(_ObjectBase):
     objpeg: _bundle_layout_peg.BundleLayout = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout", project_load=False):
         """Initialise the :class:`BundleLayout` instance.
@@ -43,6 +45,7 @@ class BundleLayout(_ObjectBase):
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
         self.objpeg = _bundle_layout_peg.BundleLayout(self, db_obj)
 
+    @_check_types.do
     def delete(self):
         # TODO: handle deleting a layout
         #       if the layout has 2 bundles attached to it that means the

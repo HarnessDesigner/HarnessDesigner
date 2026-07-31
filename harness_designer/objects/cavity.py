@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import cavity as _cavity_2d
 from .objects3d import cavity as _cavity_3d
 from .objectspeg import cavity as _cavity_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ class Cavity(_ObjectBase):
     objpeg: _cavity_peg.Cavity = None
     db_obj: "_pjt_cavity.PJTCavity" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cavity.PJTCavity", project_load=False):
         """Initialise the :class:`Cavity` instance.
@@ -50,6 +52,7 @@ class Cavity(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @_check_types.do
     def terminal(self):
         terminal = self.db_obj.terminal
         if terminal is None:
@@ -58,6 +61,7 @@ class Cavity(_ObjectBase):
         return terminal.get_object()
 
     @property
+    @_check_types.do
     def seal(self):
         seal = self.db_obj.seal
         if seal is None:
@@ -65,6 +69,7 @@ class Cavity(_ObjectBase):
 
         return seal.get_object()
 
+    @_check_types.do
     def delete(self):
         super().delete()
 

@@ -3,6 +3,7 @@
 """Detect GPU vendor from OpenGL strings"""
 
 from OpenGL import GL
+from .. import check_types as _check_types
 
 GPU_UNKNOWN = 0x00
 GPU_NVIDIA = 0x01
@@ -11,6 +12,7 @@ GPU_APPLE = 0x03
 GPU_INTEL = 0x04
 
 
+@_check_types.do
 def get() -> str:
     """
     Get GPU vendor from OpenGL

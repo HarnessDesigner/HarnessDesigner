@@ -12,6 +12,7 @@ from .. import config as _config
 from .. import logger as _logger
 from .. import utils as _utils
 from ..geometry import point as _point
+from .. import check_types as _check_types
 
 
 # Maximum triangle-soup vertices managed in the imported-model arena.
@@ -40,6 +41,7 @@ class _ArenaAllocation:
 
 class _MeshArena:
 
+    @_check_types.do
     def __init__(self, capacity_vertices: int):
         self.capacity_vertices = int(capacity_vertices)
         self._allocations: dict[str, _ArenaAllocation] = {}
@@ -49,9 +51,11 @@ class _MeshArena:
         self._create_buffer()
 
     @property
+    @_check_types.do
     def buffer(self) -> int:
-        return self._buffer
+        return int(self._buffer)
 
+    @_check_types.do
     def _create_empty_array_buffer(self) -> int:
         buffer_id = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, buffer_id)
@@ -60,15 +64,18 @@ class _MeshArena:
                         self.capacity_vertices * VERTEX_STRIDE_BYTES,
                         None, GL.GL_DYNAMIC_DRAW)
 
-        return buffer_id
+        return int(buffer_id)
 
+    @_check_types.do
     def _create_buffer(self):
         self._buffer = self._create_empty_array_buffer()
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
+    @_check_types.do
     def get_allocation(self, key: str) -> _ArenaAllocation | None:
         return self._allocations.get(key)
 
+    @_check_types.do
     def can_fit(self, vertex_count: int) -> bool:
         needed = int(vertex_count)
         if needed <= 0:
@@ -76,6 +83,7 @@ class _MeshArena:
 
         return any(count >= needed for _, count in self._free_ranges)
 
+    @_check_types.do
     def allocate(self, key: str, vertex_count: int) -> _ArenaAllocation:
         if key in self._allocations:
             return self._allocations[key]
@@ -105,6 +113,7 @@ class _MeshArena:
                            f'total free {free_total}, '
                            f'capacity {self.capacity_vertices}')
 
+    @_check_types.do
     def free(self, key: str):
         alloc = self._allocations.pop(key, None)
         if alloc is None:
@@ -128,6 +137,7 @@ class _MeshArena:
 
         self._free_ranges = merged
 
+    @_check_types.do
     def upload(self, key: str, data: np.ndarray):
         alloc = self._allocations[key]
 
@@ -144,6 +154,7 @@ class _MeshArena:
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
     @property
+    @_check_types.do
     def fragmentation(self) -> float:
         if not self._free_ranges:
             return 0.0
@@ -156,20 +167,24 @@ class _MeshArena:
         return 1.0 - (largest_hole / float(free_total))
 
     @property
+    @_check_types.do
     def free_vertices(self) -> int:
         return sum(count for _, count in self._free_ranges)
 
     @property
+    @_check_types.do
     def used_vertices(self) -> int:
         return sum(alloc.count for alloc in self._allocations.values())
 
     @property
+    @_check_types.do
     def largest_free_range(self) -> int:
         if not self._free_ranges:
             return 0
 
         return max(count for _, count in self._free_ranges)
 
+    @_check_types.do
     def debug_metrics(self) -> dict:
         free_ranges = list(self._free_ranges)
 
@@ -183,6 +198,7 @@ class _MeshArena:
                     fragmentation=self.fragmentation,
                     free_ranges=free_ranges)
 
+    @_check_types.do
     def should_compact(self, threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
                        min_free_vertices: int = MODEL_ARENA_MIN_FREE_VERTICES,
                        needed_vertices: int = 0) -> bool:
@@ -196,6 +212,7 @@ class _MeshArena:
                 self.fragmentation >= float(threshold))
 
     @staticmethod
+    @_check_types.do
     def _gpu_copy(src_buffer: int, dst_buffer: int, src_vertex: int,
                   dst_vertex: int, vertex_count: int):
 
@@ -209,6 +226,7 @@ class _MeshArena:
         GL.glCopyBufferSubData(GL.GL_COPY_READ_BUFFER, GL.GL_COPY_WRITE_BUFFER,
                                read_offset, write_offset, size)
 
+    @_check_types.do
     def compact(self) -> bool:
         if not self._allocations:
             self._free_ranges = [(0, self.capacity_vertices)]
@@ -252,6 +270,7 @@ class VBOSingleton(type):
     _primitives = {}
 
     @classmethod
+    @_check_types.do
     def _remove_ref(cls, ref):
         for key, value in cls._instances.items():
             if value == ref:
@@ -263,12 +282,14 @@ class VBOSingleton(type):
 
         del cls._instances[key]
 
+    @_check_types.do
     def __contains__(cls, item):
         if item in cls._instances:
             return True
 
         return item in cls._primitives
 
+    @_check_types.do
     def __call__(cls, id_: str, data: np.ndarray | None = None,
                  count: int = 0,
                  aabb: np.ndarray | None = None,
@@ -301,6 +322,7 @@ class VBOSingleton(type):
 
 class VBOHandlerBase:
 
+    @_check_types.do
     def __init__(self, data: np.ndarray | None = None,
                  count: int = 0,
                  aabb: np.ndarray | None = None,
@@ -329,6 +351,7 @@ class VBOHandlerBase:
         else:
             self.local_obb = np.asarray(obb, dtype=np.float32).reshape(8, 3)
 
+    @_check_types.do
     def _compute_local_aabb(self):
         # Bounding volumes are calculated once when a model is converted
         # and stored in the database; only primitives (and legacy rows
@@ -338,6 +361,7 @@ class VBOHandlerBase:
         local_aabb = np.array([p1.as_numpy, p2.as_numpy], dtype=np.float32)
         return local_aabb
 
+    @_check_types.do
     def _compute_local_obb(self):
         local_aabb = self._compute_local_aabb().reshape(2, 3)
         p1 = _point.Point(*[float(str(item)) for item in local_aabb[0].tolist()])
@@ -348,6 +372,7 @@ class VBOHandlerBase:
         return local_obb
 
     @staticmethod
+    @_check_types.do
     def _normalize_vertex_count(count: int, array_len: int) -> int:
         if array_len % FLOATS_PER_VERTEX != 0:
             raise ValueError('packed array length must be divisible by '
@@ -367,10 +392,12 @@ class VBOHandlerBase:
         return vert_count
 
     @classmethod
+    @_check_types.do
     def _log_debug(cls, *args):
         _logger.debug_block(*args)
 
     @staticmethod
+    @_check_types.do
     def _is_vbo_debug_enabled() -> bool:
         try:
             return bool(Config.logging.log_debug)
@@ -378,16 +405,20 @@ class VBOHandlerBase:
             return False
 
     @property
+    @_check_types.do
     def is_dirty(self):
         return False
 
+    @_check_types.do
     def _attribute_offsets(self) -> tuple[int, int, int, int]:
         raise NotImplementedError
 
     @classmethod
+    @_check_types.do
     def _create_vbo(cls, data):
         raise NotImplementedError
 
+    @_check_types.do
     def _clear_vaos(self):
         for vao in self._vaos.values():
             self._release_vao(vao)
@@ -395,6 +426,7 @@ class VBOHandlerBase:
         self._vaos.clear()
 
     @property
+    @_check_types.do
     def ctx(self):
         ctx = QOpenGLContext.currentContext()
         if ctx is None:
@@ -402,6 +434,7 @@ class VBOHandlerBase:
 
         return ctx
 
+    @_check_types.do
     def release(self):
         ctx = self.ctx
         ctx_id = id(ctx)
@@ -411,6 +444,7 @@ class VBOHandlerBase:
             self._release_vao(vao)
 
     @staticmethod
+    @_check_types.do
     def _release_vao(vao):
         if vao is not None:
             try:
@@ -419,6 +453,7 @@ class VBOHandlerBase:
                 pass
 
     @staticmethod
+    @_check_types.do
     def _release_vbo(vbo=None):
         if vbo is not None:
             try:
@@ -426,6 +461,7 @@ class VBOHandlerBase:
             except Exception:  # NOQA
                 pass
 
+    @_check_types.do
     def get_aspect(self) -> tuple[float, float]:
         p1, p2 = self.local_aabb
 
@@ -443,29 +479,36 @@ class VBOHandlerBase:
         return w_h_aspect, w_l_aspect, h_l_aspect
 
     @property
+    @_check_types.do
     def data(self):
         return self._data
 
     @property
+    @_check_types.do
     def vertices(self):
         return self._data[:self._vert_count * 3]
 
     @property
+    @_check_types.do
     def smooth_normals(self):
         return self._data[self._vert_count * 3:self._vert_count * 6]
 
     @property
+    @_check_types.do
     def face_normals(self):
         return self._data[self._vert_count * 6:]
 
     @property
+    @_check_types.do
     def vertex_count(self) -> int:
         return self._vert_count
 
     @property
+    @_check_types.do
     def faces(self):
         return None
 
+    @_check_types.do
     def render(self):
         ctx = self.ctx
         ctx_id = id(ctx)
@@ -481,6 +524,7 @@ class VBOHandlerBase:
         GL.glDrawArrays(GL.GL_TRIANGLES, 0, self._vert_count)
         GL.glBindVertexArray(0)
 
+    @_check_types.do
     def acquire(self):
         ctx = self.ctx
 
@@ -514,6 +558,7 @@ class VBOHandlerBase:
 
 
 class NonPooledVBOHandler(VBOHandlerBase):
+    @_check_types.do
     def __init__(self, data: np.ndarray | None = None,
                  count: int = 0,
                  aabb: np.ndarray | None = None,
@@ -524,6 +569,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         self._vbo = self._create_vbo(self._data)
         self._dirty_vaos = {}
 
+    @_check_types.do
     def release(self):
         super().release()
 
@@ -533,6 +579,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         self._release_vbo(self._vbo)
         self._vbo = None
 
+    @_check_types.do
     def _attribute_offsets(self) -> tuple[int, int, int, int]:
         """Return (buffer id, position/smooth/face byte offsets)."""
         count = self._vert_count
@@ -543,6 +590,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 
         return buffer_id, base, base + block_size, base + 2 * block_size
 
+    @_check_types.do
     def acquire(self):
         ctx = self.ctx
         ctx_id = id(ctx)
@@ -553,6 +601,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         super().acquire()
 
     @classmethod
+    @_check_types.do
     def _create_vbo(cls, data, vbo=None):
         if vbo is None:
             vbo = GL.glGenBuffers(1)
@@ -571,6 +620,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 
         return vbo
 
+    @_check_types.do
     def update(self, data: np.ndarray, count: int) -> None:
         self._data = data
         self._vert_count = self._normalize_vertex_count(count, len(data))
@@ -583,6 +633,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         self.local_aabb = self._compute_local_aabb()
         self.local_obb = self._compute_local_obb()
 
+    @_check_types.do
     def _rebuild(self):
         ctx = self.ctx
         ctx_id = id(ctx)
@@ -620,12 +671,14 @@ class NonPooledVBOHandler(VBOHandlerBase):
         self._dirty_vaos[ctx_id] = False
 
     @property
+    @_check_types.do
     def is_dirty(self):
         ctx = self.ctx
 
         ctx_id = id(ctx)
         return self._dirty_vaos.get(ctx_id, True)
 
+    @_check_types.do
     def render(self):
         self._rebuild()
 
@@ -635,6 +688,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
     _model_arenas: list[_MeshArena] = []
 
+    @_check_types.do
     def __init__(self, id_: str, data: np.ndarray | None = None,
                  count: int = 0,
                  aabb: np.ndarray | None = None,
@@ -659,6 +713,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
             self._vbo = self._create_vbo(self._data)
 
     @staticmethod
+    @_check_types.do
     def _format_arena_metrics(title: str, metrics: dict) -> str:
         res = [title,
                f"  buffer_id: {metrics['buffer_id']}",
@@ -674,6 +729,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         return '\n'.join(res)
 
     @classmethod
+    @_check_types.do
     def _debug_print_new_buffer_allocation(cls, requested_vertices: int):
         if not cls._is_vbo_debug_enabled():
             return
@@ -690,6 +746,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         cls._log_debug('\n'.join(lines))
 
     @classmethod
+    @_check_types.do
     def _debug_print_compaction(cls, before: dict, after: dict):
         if not cls._is_vbo_debug_enabled():
             return
@@ -703,6 +760,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         cls._log_debug('\n'.join(lines))
 
     @classmethod
+    @_check_types.do
     def _allocate_model_arena(cls, key: str, vertex_count: int) -> _MeshArena:
         needed = int(vertex_count)
         if needed <= 0:
@@ -750,6 +808,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         return arena
 
     @classmethod
+    @_check_types.do
     def _clear_model_vaos_for_arena(cls, arena: _MeshArena):
         refs = list(VBOSingleton._instances.values())  # NOQA
         for ref in refs:
@@ -760,6 +819,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
             if instance._model_arena is arena:  # NOQA
                 instance._clear_vaos()  # NOQA
 
+    @_check_types.do
     def _attribute_offsets(self) -> tuple[int, int, int, int]:
         """Return (buffer id, position/smooth/face byte offsets)."""
         count = self._vert_count
@@ -781,8 +841,9 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
         block_size = count * 3 * _FLOAT_SIZE
 
-        return buffer_id, base, base + block_size, base + 2 * block_size
+        return int(buffer_id), int(base), int(base + block_size), int(base + 2 * block_size)
 
+    @_check_types.do
     def update(self, data: np.ndarray, count: int):
         new_vert_count = self._normalize_vertex_count(count, len(data))
 
@@ -834,6 +895,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         self.local_obb = self._compute_local_obb()
 
     @classmethod
+    @_check_types.do
     def maintain_model_arena(
         cls,
         threshold: float = MODEL_ARENA_FRAGMENTATION_THRESHOLD,
@@ -860,6 +922,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         return compacted
 
     @classmethod
+    @_check_types.do
     def release_model_allocation(cls, key: str):
         for arena in cls._model_arenas:
             if arena.get_allocation(key) is None:
@@ -869,6 +932,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
             break
 
     @classmethod
+    @_check_types.do
     def evict(cls, key: str):
         """Remove a key from the singleton cache and free its arena slot.
 
@@ -883,6 +947,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                 instance._clear_vaos()  # NOQA
                 instance._model_arena = None  # NOQA
 
+    @_check_types.do
     def release(self):
         super().release()
 
@@ -894,6 +959,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
             self._vbo = None
 
     @classmethod
+    @_check_types.do
     def _create_vbo(cls, data):
         vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
@@ -911,6 +977,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         return vbo
 
 
+@_check_types.do
 def create_model_vbo(model):
     """Create or return a shared arena-backed model VBO for a model record.
 

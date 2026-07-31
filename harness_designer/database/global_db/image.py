@@ -9,6 +9,7 @@ import weakref
 from ... import resources as _resources
 from ..create_database import images as _images
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ class ImagesTable(TableBase):
     """
     __table_name__ = 'images'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -32,6 +34,7 @@ class ImagesTable(TableBase):
         """
         return _images.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, _):
         """Add a table to database.
 
@@ -42,6 +45,7 @@ class ImagesTable(TableBase):
         """
         _images.table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -49,6 +53,7 @@ class ImagesTable(TableBase):
         """
         _images.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Image"]:
         """Iterate over the available items.
 
@@ -60,6 +65,7 @@ class ImagesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Image(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Image":
         """Return the requested item.
 
@@ -79,6 +85,7 @@ class ImagesTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, path: str) -> "Image":  # NOQA
         """Execute the insert operation.
 
@@ -109,6 +116,7 @@ class Image(EntryBase):
     _table: ImagesTable = None
     _download_callbacks = {}
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -127,6 +135,7 @@ class Image(EntryBase):
 
         return packet
 
+    @_check_types.do
     def download_complete(self):
         if self.db_id not in self._download_callbacks:
             return
@@ -153,6 +162,7 @@ class Image(EntryBase):
 
             del self._download_callbacks[self.db_id]
 
+    @_check_types.do
     def set_progress(self, step):
 
         if self.db_id not in self._download_callbacks:
@@ -165,6 +175,7 @@ class Image(EntryBase):
 
             cb_(self, step)
 
+    @_check_types.do
     def load(self, mfg, part_number, done_callback, progress_callback):
         """
         Load an image.
@@ -227,6 +238,7 @@ class Image(EntryBase):
             self.download_complete()
 
     @property
+    @_check_types.do
     def data_path(self) -> str | None:
         """Return the data path.
 
@@ -254,6 +266,7 @@ class Image(EntryBase):
     _stored_path: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def path(self) -> str:
         """Return the path.
 
@@ -270,6 +283,7 @@ class Image(EntryBase):
     _stored_uuid: DefaultStoredValueType | str | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def uuid(self) -> str | None:
         """Return the uuid.
 
@@ -286,6 +300,7 @@ class Image(EntryBase):
     _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def file_type(self) -> "_file_types.FileType":
         """Return the file type.
 
@@ -306,6 +321,7 @@ class Image(EntryBase):
     _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def file_type_id(self) -> int | None:
         """Return the file type ID.
 
@@ -320,6 +336,7 @@ class Image(EntryBase):
         return self._stored_file_type_id
 
     @file_type_id.setter
+    @_check_types.do
     def file_type_id(self, value: int):
         """Set the file type ID.
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from enum import Enum, auto
 from dataclasses import dataclass
 import math
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import editor_circuit as _editor_circuit
@@ -113,6 +114,7 @@ MM2_TO_AWG: dict[float, int] = {
 # ---------------------------------------------------------------------------
 # Geometry / wire-size helpers
 # ---------------------------------------------------------------------------
+@_check_types.do
 def awg_to_mm2(awg: int) -> float:
     """Execute the awg to mm 2 operation.
 
@@ -128,6 +130,7 @@ def awg_to_mm2(awg: int) -> float:
     return (math.pi / 4) * (d_mm ** 2)
 
 
+@_check_types.do
 def awg_to_od_mm(awg: int) -> float:
     """Execute the awg to od mm operation.
 
@@ -142,6 +145,7 @@ def awg_to_od_mm(awg: int) -> float:
     return d_in * 25.4 + 2.0
 
 
+@_check_types.do
 def nearest_wire_at_least(target_mm2: float) -> tuple[int | None, float | None]:
     """Execute the nearest wire at least operation.
 
@@ -159,6 +163,7 @@ def nearest_wire_at_least(target_mm2: float) -> tuple[int | None, float | None]:
     return None, None
 
 
+@_check_types.do
 def resolve_awg(awg, mm2) -> int | None:
     """Execute the resolve awg operation.
 
@@ -188,6 +193,7 @@ def resolve_awg(awg, mm2) -> int | None:
             pass
 
 
+@_check_types.do
 def worst_severity(issues: list[DRTIssue]) -> Severity:
     """Execute the worst severity operation.
 
@@ -210,6 +216,7 @@ def worst_severity(issues: list[DRTIssue]) -> Severity:
 # ---------------------------------------------------------------------------
 # DRT engine
 # ---------------------------------------------------------------------------
+@_check_types.do
 def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
     """Execute the run drt operation.
 
@@ -277,6 +284,7 @@ def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
     return issues
 
 
+@_check_types.do
 def safe(obj, attr: str, default=None):
     """Execute the safe operation.
 
@@ -297,6 +305,7 @@ def safe(obj, attr: str, default=None):
         return default
 
 
+@_check_types.do
 def find_bundle_by_name(db, name: str):
     """Find the bundle by name.
 
@@ -318,6 +327,7 @@ def find_bundle_by_name(db, name: str):
         pass
 
 
+@_check_types.do
 def bundle_wire_ods(bundle) -> list[float]:
     """Execute the bundle wire ods operation.
 
@@ -342,6 +352,7 @@ def bundle_wire_ods(bundle) -> list[float]:
     return ods
 
 
+@_check_types.do
 def generate_suggestions(row: "_editor_circuit.CircuitRow",
                          project_db) -> list[SplitSuggestion]:
     """Execute the generate suggestions operation.

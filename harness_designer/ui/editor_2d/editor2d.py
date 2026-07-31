@@ -8,6 +8,7 @@ from PySide6 import QtCore
 from ...gl import canvas2d as _canvas2d
 from ... import config as _config
 from .. import dock_base as _dock_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Editor2D(_dock_base.DockBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """Initialise the :class:`Editor2D` instance.
 
@@ -37,10 +39,12 @@ class Editor2D(_dock_base.DockBase):
                          QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
 
     @property
+    @_check_types.do
     def editor(self) -> "Editor2DPanel":
         return self._ui_obj
 
     @property
+    @_check_types.do
     def context(self):
         """Return the GL context manager owned by the inner canvas.
 
@@ -56,6 +60,7 @@ class Editor2D(_dock_base.DockBase):
         """
         return self._ui_obj.context
 
+    @_check_types.do
     def set_selected(self, obj):
         """Set the selected.
 
@@ -66,6 +71,7 @@ class Editor2D(_dock_base.DockBase):
         """
         self._ui_obj.set_selected(obj)
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -76,6 +82,7 @@ class Editor2D(_dock_base.DockBase):
         """
         self._ui_obj.add_object(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         """Remove the object.
 
@@ -86,6 +93,7 @@ class Editor2D(_dock_base.DockBase):
         """
         self._ui_obj.remove_object(obj)
 
+    @_check_types.do
     def clear(self) -> None:
         """Drop every scene object in bulk, without touching the database.
 
@@ -93,6 +101,7 @@ class Editor2D(_dock_base.DockBase):
         """
         self._ui_obj.clear()
 
+    @_check_types.do
     def bind(self, signal_name, handler):
         """Execute the bind operation.
 
@@ -105,6 +114,7 @@ class Editor2D(_dock_base.DockBase):
         """
         self._ui_obj.bind(signal_name, handler)
 
+    @_check_types.do
     def set_clone_obj(self, obj):
         """Set the clone obj.
 
@@ -122,6 +132,7 @@ class Editor2DPanel(_canvas2d.Canvas2D):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Editor2DPanel` instance.
 

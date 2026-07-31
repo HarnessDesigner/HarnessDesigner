@@ -19,6 +19,7 @@ from .mixins import (
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class PJTWireMarkersTable(PJTTableBase):
     _control: "PJTWireMarkerControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTWireMarkerControl":
         """Return the control.
 
@@ -51,6 +53,7 @@ class PJTWireMarkersTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -62,6 +65,7 @@ class PJTWireMarkersTable(PJTTableBase):
         cls._control = PJTWireMarkerControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -74,6 +78,7 @@ class PJTWireMarkersTable(PJTTableBase):
 
         return wire_markers.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -83,6 +88,7 @@ class PJTWireMarkersTable(PJTTableBase):
 
         wire_markers.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -92,6 +98,7 @@ class PJTWireMarkersTable(PJTTableBase):
 
         wire_markers.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTWireMarker"]:
         """Iterate over the available items.
 
@@ -103,6 +110,7 @@ class PJTWireMarkersTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWireMarker(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTWireMarker":
         """Return the requested item.
 
@@ -122,6 +130,7 @@ class PJTWireMarkersTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, point2d_id: int, point3d_id: int,
                wire_id: int, part_id: int, label: str) -> "PJTWireMarker":
         """Execute the insert operation.
@@ -156,6 +165,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     """
     _table: PJTWireMarkersTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -175,6 +185,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_wire_marker_obj.WireMarker":
         """Return the object.
 
@@ -188,6 +199,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -198,6 +210,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_wire_marker_obj.WireMarker"):
         """Set the object.
 
@@ -212,6 +225,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTWireMarkersTable:
         """Return the table.
 
@@ -225,6 +239,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     _stored_wire: "_pjt_wire.PJTWire | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
         """Return the wire.
 
@@ -245,6 +260,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     _stored_wire_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_id(self) -> int:
         """Return the wire ID.
 
@@ -259,6 +275,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         return self._stored_wire_id
 
     @wire_id.setter
+    @_check_types.do
     def wire_id(self, value: int):
         """Set the wire ID.
 
@@ -276,6 +293,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     _stored_part: "_wire_marker.WireMarker | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> _wire_marker.WireMarker:
         """Return the part.
 
@@ -300,6 +318,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
     _stored_label: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def label(self) -> str:
         """Return the label.
 
@@ -314,6 +333,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
         return self._stored_label
 
     @label.setter
+    @_check_types.do
     def label(self, value: str):
         """Set the label.
 
@@ -333,6 +353,7 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTWireMarker):
         """Set the obj.
 
@@ -343,6 +364,7 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -359,6 +381,7 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
             self.wire_marker_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTWireMarkerControl` instance.
 

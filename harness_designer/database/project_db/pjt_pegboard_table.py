@@ -10,6 +10,7 @@ of anchor owns that 3D point.
 from typing import Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from ... import check_types as _check_types
 
 
 class PJTPegboardTablesTable(PJTTableBase):
@@ -17,6 +18,7 @@ class PJTPegboardTablesTable(PJTTableBase):
 
     __table_name__ = 'pjt_pegboard_tables'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Return whether the table is missing any schema fields.
 
@@ -27,18 +29,21 @@ class PJTPegboardTablesTable(PJTTableBase):
 
         return pegboard_tables.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Create the ``pjt_pegboard_tables`` table in the database."""
         from ..create_database import pegboard_tables
 
         pegboard_tables.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Add any missing fields to the ``pjt_pegboard_tables`` table."""
         from ..create_database import pegboard_tables
 
         pegboard_tables.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTPegboardTable"]:
         """Iterate over every data-table overlay row for the open project.
 
@@ -48,6 +53,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTPegboardTable(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTPegboardTable":
         """Return the data-table overlay row for the given database id.
 
@@ -65,6 +71,7 @@ class PJTPegboardTablesTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_from_point3d_id(self, point3d_id: int) -> "PJTPegboardTable":
         """Return the data-table overlay row keyed by an anchor's ``point3d_id``.
 
@@ -77,6 +84,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         if rows:
             return self[rows[0][0]]
 
+    @_check_types.do
     def insert(self, point3d_id: int, x: float, z: float, width: float,
                height: float) -> "PJTPegboardTable":
         """Create a new data-table overlay for an anchor.
@@ -109,6 +117,7 @@ class PJTPegboardTable(PJTEntryBase):
     _table: PJTPegboardTablesTable = None
 
     @property
+    @_check_types.do
     def table(self) -> PJTPegboardTablesTable:
         """Return the owning table.
 
@@ -120,6 +129,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_point3d_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def point3d_id(self) -> int:
         """Return the id of the ``pjt_points3d`` row this row is keyed by.
 
@@ -134,6 +144,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def x(self) -> float:
         """Return the peg-board X coordinate of the table's top-left corner.
 
@@ -146,6 +157,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_x
 
     @x.setter
+    @_check_types.do
     def x(self, value: float):
         """Set the peg-board X coordinate of the table's top-left corner.
 
@@ -159,6 +171,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_z: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def z(self) -> float:
         """Return the peg-board (world) Z coordinate of the table's top-left corner.
 
@@ -171,6 +184,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_z
 
     @z.setter
+    @_check_types.do
     def z(self, value: float):
         """Set the peg-board (world) Z coordinate of the table's top-left corner.
 
@@ -184,6 +198,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def width(self) -> float:
         """Return the table's width, in world units.
 
@@ -196,6 +211,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_width
 
     @width.setter
+    @_check_types.do
     def width(self, value: float):
         """Set the table's width, in world units.
 
@@ -209,6 +225,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def height(self) -> float:
         """Return the table's height, in world units.
 
@@ -221,6 +238,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_height
 
     @height.setter
+    @_check_types.do
     def height(self, value: float):
         """Set the table's height, in world units.
 
@@ -234,6 +252,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_h_scroll: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def h_scroll(self) -> int:
         """Return the table's horizontal scroll offset.
 
@@ -246,6 +265,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_h_scroll
 
     @h_scroll.setter
+    @_check_types.do
     def h_scroll(self, value: int):
         """Set the table's horizontal scroll offset.
 
@@ -259,6 +279,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_v_scroll: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def v_scroll(self) -> int:
         """Return the table's vertical scroll offset.
 
@@ -271,6 +292,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_v_scroll
 
     @v_scroll.setter
+    @_check_types.do
     def v_scroll(self, value: int):
         """Set the table's vertical scroll offset.
 
@@ -284,6 +306,7 @@ class PJTPegboardTable(PJTEntryBase):
     _stored_is_collapsed: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_collapsed(self) -> int:
         """Return whether the table overlay is collapsed.
 
@@ -296,6 +319,7 @@ class PJTPegboardTable(PJTEntryBase):
         return self._stored_is_collapsed
 
     @is_collapsed.setter
+    @_check_types.do
     def is_collapsed(self, value: int):
         """Set whether the table overlay is collapsed.
 

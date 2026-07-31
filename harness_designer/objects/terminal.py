@@ -9,6 +9,7 @@ from .objects3d import terminal as _terminal_3d
 from .objectspeg import terminal as _terminal_peg
 from . import wire_layout as _wire_layout
 from ..geometry import point as _point
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class Terminal(_ObjectBase):
     objpeg: _terminal_peg.Terminal = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_terminal.PJTTerminal", project_load=False):
         """Initialise the :class:`Terminal` instance.
@@ -57,6 +59,7 @@ class Terminal(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @_check_types.do
     def wires(self) -> list["_wire_obj.Wire"]:
         """Every Wire currently attached to this terminal."""
         alive = []
@@ -71,6 +74,7 @@ class Terminal(_ObjectBase):
         self._wire_refs = alive
         return result
 
+    @_check_types.do
     def replace_wire(self, old_wire: "_wire_obj.Wire", new_wire: "_wire_obj.Wire") -> None:
         """Swap *old_wire* for *new_wire* in this terminal's own attached-
         wire list, in place, preserving position.
@@ -85,6 +89,7 @@ class Terminal(_ObjectBase):
                 self._wire_refs[i] = weakref.ref(new_wire)
                 return
 
+    @_check_types.do
     def add_wire(self, wire: "_wire_obj.Wire", end: str) -> bool:
         """Attach *wire*'s *end* ('start' or 'stop') to this terminal.
 
@@ -182,6 +187,7 @@ class Terminal(_ObjectBase):
         return True
 
     @staticmethod
+    @_check_types.do
     def _own_or_cloned_point_id(ptables, shared_point_id: int, is_first_wire: bool) -> int:
         """The first wire on a terminal reuses its shared back/cavity
         point row directly (so it keeps tracking the terminal/cavity if
@@ -195,6 +201,7 @@ class Terminal(_ObjectBase):
         cloned = ptables.pjt_points3d_table.insert(shared.x, shared.y, shared.z)
         return cloned.db_id
 
+    @_check_types.do
     def set_selected(self, flag):
         """Selecting a terminal selects its owning cavity instead.
 
@@ -211,6 +218,7 @@ class Terminal(_ObjectBase):
         super().set_selected(flag)
 
     @property
+    @_check_types.do
     def wire_position(self) -> _point.Point:
         """Return the wire position.
 
@@ -221,6 +229,7 @@ class Terminal(_ObjectBase):
         """
         return self.db_obj.wire_position3d
 
+    @_check_types.do
     def delete(self):
         # The attached-wire dangling/repointing and the internal wire-routing
         # stub/layout cleanup (see handlers.wire_handler._route_from_terminal)

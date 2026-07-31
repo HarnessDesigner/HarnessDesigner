@@ -17,11 +17,13 @@ import numpy as np
 
 from ..geometry import line as _line
 from ..objects import wire as _wire
+from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..objects.project import Project
 
 
+@_check_types.do
 def _segment_index(wire: _wire.Wire, position: np.ndarray) -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
@@ -51,6 +53,7 @@ def _segment_index(wire: _wire.Wire, position: np.ndarray) -> int:
     return best_idx
 
 
+@_check_types.do
 def split_wire_at_point(
     project: "Project",
     wire: _wire.Wire,
@@ -174,6 +177,7 @@ def split_wire_at_point(
     return wire1_obj, wire2_obj
 
 
+@_check_types.do
 def merge_wires(
     project: "Project",
     wire_before: _wire.Wire,

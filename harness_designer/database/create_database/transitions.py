@@ -22,8 +22,10 @@ from . import points_peg as _points_peg
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_transition(con, part_number, description, mfg=None, family=None, series=None,
                    color=None, image=None, datasheet=None, cad=None, min_temp=None,
                    max_temp=None, material=None, shape=None, protection=None,
@@ -115,6 +117,7 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
             _logger.traceback(err)
 
 
+@_check_types.do
 def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes='',
                        quat3d=None, angle3d=None, is_visible3d=1):
     """Add a PJT transition.
@@ -154,6 +157,7 @@ def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes
     con.commit()
 
 
+@_check_types.do
 def add_transitions(con, data: tuple[dict] | list[dict]):
     """Add a transitions.
 
@@ -169,6 +173,7 @@ def add_transitions(con, data: tuple[dict] | list[dict]):
         add_transition(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 

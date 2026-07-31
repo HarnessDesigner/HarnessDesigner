@@ -6,6 +6,7 @@ from . import basepeg as _basepeg
 from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import cylinder as _cylinder
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class Splice(_basepeg.BasePeg):
     """
     db_obj: "_pjt_splice.PJTSplice"
 
+    @_check_types.do
     def __init__(self, parent: "_splice.Splice",
                  db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
@@ -72,12 +74,14 @@ class Splice(_basepeg.BasePeg):
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
 
+    @_check_types.do
     def _flatten_hook(self) -> tuple:
         """Return the current OBB-derived "lay it flat" Euler orientation."""
         flatten_quat = _flatten.flatten_quaternion_for_model3d(
             self._vbo.local_obb, self._model.forward_up)  # NOQA
         return flatten_quat.as_euler
 
+    @_check_types.do
     def build_table_rows(self, project, point3d_id: int) -> list:
         """Start-side, then stop-side, then branch-side wires -- see
         ``table_rows.build_rows_for_splice``.

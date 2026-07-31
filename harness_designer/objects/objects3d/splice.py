@@ -16,6 +16,7 @@ from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor3d
 
 
+@_check_types.do
 def _build_model(p1: _point.Point, p2: _point.Point, diameter: float):
     """Build the model.
 
@@ -63,6 +65,7 @@ class Splice(_base3d.Base3D):
     parent: "_splice.Splice" = None
     db_obj: "_pjt_splice.PJTSplice" = None
 
+    @_check_types.do
     def __init__(self, parent: "_splice.Splice",
                  db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
@@ -137,6 +140,7 @@ class Splice(_base3d.Base3D):
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -148,11 +152,13 @@ class Splice(_base3d.Base3D):
         return SpliceMenu(self.mainframe.editor3d.editor, self)
 
     @property
+    @_check_types.do
     def start_position(self):
         """Wire start position (Point instance)"""
         return self._p1
 
     @property
+    @_check_types.do
     def wire_position(self) -> _point.Point:
         """Return the wire position.
 
@@ -164,11 +170,13 @@ class Splice(_base3d.Base3D):
         return self.branch_position
 
     @property
+    @_check_types.do
     def branch_position(self):
         """Wire branch position (Point instance)"""
         return self._p3
 
     @property
+    @_check_types.do
     def stop_position(self):
         """Wire stop position (Point instance)"""
         return self._p2
@@ -180,6 +188,7 @@ class SpliceMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`SpliceMenu` instance.
 
@@ -215,12 +224,14 @@ class SpliceMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_wire(self):
         """Start the interactive wire placement flow from this splice."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
 
+        @_check_types.do
         def _factory():
             part_id = _menu_ops.get_part_id(
                 mainframe, 'wires', mainframe.global_db.wires_table,
@@ -233,22 +244,27 @@ class SpliceMenu(QMenu):
 
         _menu_ops.start_handler(mainframe, _factory)
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Highlight every object on this splice's circuit."""
         _menu_ops.trace_circuit(self.selected)
 
+    @_check_types.do
     def on_select(self):
         """Make this splice the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this splice as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this splice from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this splice's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

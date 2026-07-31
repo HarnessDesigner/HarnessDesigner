@@ -5,6 +5,7 @@ from PySide6 import QtCore
 
 from ... import utils as _utils
 from ...geometry.decimal import Decimal as _d
+from ... import check_types as _check_types
 
 
 class FloatCtrl(QtWidgets.QWidget):
@@ -18,6 +19,7 @@ class FloatCtrl(QtWidgets.QWidget):
 
     value_changed: QtCore.SignalInstance = QtCore.Signal(float)
 
+    @_check_types.do
     def __init__(self, parent, label: str, min_val: float, max_val: float,
                  inc: float, slider: bool = True):
         """Initialise the :class:`FloatCtrl` instance.
@@ -101,6 +103,7 @@ class FloatCtrl(QtWidgets.QWidget):
             self.slider = None
             self.ctrl.valueChanged.connect(self._on_spin)
 
+    @_check_types.do
     def setRange(self, min_val, max_val):
         self.__min_val = min_val
         self.__max_val = max_val
@@ -138,6 +141,7 @@ class FloatCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+    @_check_types.do
     def _on_slider(self, slider_val: int):
         """Handle the slider event.
 
@@ -164,6 +168,7 @@ class FloatCtrl(QtWidgets.QWidget):
 
         self.value_changed.emit(value)
 
+    @_check_types.do
     def _on_spin(self, spin_value: float):
         """Handle the spin event.
 
@@ -187,6 +192,7 @@ class FloatCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # wx-compatible public API
     # ------------------------------------------------------------------
+    @_check_types.do
     def Enable(self, flag: bool = True):
         """Execute the enable operation.
 
@@ -201,6 +207,7 @@ class FloatCtrl(QtWidgets.QWidget):
         if self.slider is not None:
             self.slider.setEnabled(flag)
 
+    @_check_types.do
     def SetToolTip(self, text: str):
         """Execute the set tool tip operation.
 
@@ -217,6 +224,7 @@ class FloatCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
+    @_check_types.do
     def SetValue(self, value: float):
         """Execute the set value operation.
 
@@ -247,6 +255,7 @@ class FloatCtrl(QtWidgets.QWidget):
             self.slider.setValue(int(sv))
             self.slider.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> float:
         """Execute the get value operation.
 

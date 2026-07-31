@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import basepeg as _basepeg
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -14,5 +15,6 @@ class ProjectModel(_basepeg.BasePeg):
     _parent: "_project_model.ProjectModel" = None
     db_obj: "_project.Project" = None
 
+    @_check_types.do
     def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project"):
         _basepeg.BasePeg.__init__(self, parent, db_obj, None, None)

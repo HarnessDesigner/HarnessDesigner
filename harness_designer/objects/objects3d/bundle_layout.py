@@ -12,6 +12,7 @@ from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ... import config as _config
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ class BundleLayout(_base3d.Base3D):
     # Base3D._pick_priority.
     _pick_priority = 1
 
+    @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         """Initialise the :class:`BundleLayout` instance.
@@ -67,6 +69,7 @@ class BundleLayout(_base3d.Base3D):
 
             _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
+    @_check_types.do
     def set_diameter(self, value: float):
         """Set this layout's own displayed diameter to match whatever
         bundle it sits on.
@@ -82,6 +85,7 @@ class BundleLayout(_base3d.Base3D):
         diff = self._scale - scale
         self._scale += diff
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -99,6 +103,7 @@ class BundleLayoutMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`BundleLayoutMenu` instance.
 
@@ -120,12 +125,14 @@ class BundleLayoutMenu(QMenu):
         action = self.addAction('Delete')
         action.triggered.connect(self.on_delete)
 
+    @_check_types.do
     def on_add_transition(self):
         """Start the interactive transition placement flow."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
 
+        @_check_types.do
         def _factory():
             part_id = _menu_ops.get_part_id(
                 mainframe, 'transitions',
@@ -138,6 +145,7 @@ class BundleLayoutMenu(QMenu):
 
         _menu_ops.start_handler(mainframe, _factory)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this bundle layout from the project."""
         _menu_ops.delete_object(self.selected)

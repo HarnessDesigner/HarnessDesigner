@@ -17,6 +17,7 @@ from PySide6 import QtGui
 
 from . import dialog_base as _dialog_base
 from ... import __version__ as _version
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -37,6 +38,7 @@ _LICENSE_FILENAMES = frozenset([
 class _PackageInfo:
     """Metadata for one credited package (a third-party dist, or the interpreter)."""
 
+    @_check_types.do
     def __init__(self, name: str, version: str, summary: str,
                  author: str, homepage: str, license_text: str):
         self.name = name
@@ -47,6 +49,7 @@ class _PackageInfo:
         self.license_text = license_text
 
 
+@_check_types.do
 def _dist_license_text(dist: _importlib_metadata.Distribution) -> str:
     """Read the bundled license file out of a distribution's dist-info, if any."""
 
@@ -66,6 +69,7 @@ def _dist_license_text(dist: _importlib_metadata.Distribution) -> str:
     return 'No license information was found for this package.'
 
 
+@_check_types.do
 def _dist_homepage(dist: _importlib_metadata.Distribution) -> str:
     """Best-effort project URL from dist-info metadata."""
 
@@ -83,6 +87,7 @@ def _dist_homepage(dist: _importlib_metadata.Distribution) -> str:
     return ''
 
 
+@_check_types.do
 def _python_license_text() -> str:
     """Read the CPython license file, falling back to the interpreter's copyright banner."""
 
@@ -94,6 +99,7 @@ def _python_license_text() -> str:
         return sys.copyright
 
 
+@_check_types.do
 def _collect_packages() -> list[_PackageInfo]:
     """Enumerate every installed distribution plus the Python interpreter.
 
@@ -139,6 +145,7 @@ def _collect_packages() -> list[_PackageInfo]:
     return packages
 
 
+@_check_types.do
 def _version_tuple(v: str) -> tuple[int, ...]:
     """Numeric (major, minor, micro, ...) parts of a version string, ignoring any suffix."""
 
@@ -159,6 +166,7 @@ class _UpdateCheckWorker(QtCore.QThread):
 
     finished_check: QtCore.SignalInstance = QtCore.Signal(bool, str, str)  # success, latest, error
 
+    @_check_types.do
     def run(self):
         try:
             resp = requests.get(
@@ -176,6 +184,7 @@ class _UpdateCheckWorker(QtCore.QThread):
 class AboutDialog(_dialog_base.BaseDialog):
     """About box: application info, update check, and third-party package credits."""
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame"):
         """Initialise the :class:`AboutDialog` instance.
 
@@ -221,6 +230,7 @@ class AboutDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
     # About page
     # ------------------------------------------------------------------
+    @_check_types.do
     def _build_about_page(self) -> QtWidgets.QWidget:
         """Build the default "about the software" page."""
 
@@ -277,6 +287,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         layout.addStretch(1)
         return page
 
+    @_check_types.do
     def _on_check_updates(self):
         """Kick off a background check against the GitHub releases API."""
 
@@ -290,6 +301,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         self._update_worker.finished_check.connect(self._on_update_check_finished)
         self._update_worker.start()
 
+    @_check_types.do
     def _on_update_check_finished(self, success: bool, latest: str, error: str):
         """Handle the result of the background update check."""
 
@@ -312,6 +324,7 @@ class AboutDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
     # Package detail page
     # ------------------------------------------------------------------
+    @_check_types.do
     def _build_package_page(self) -> QtWidgets.QWidget:
         """Build the per-package metadata + license page."""
 
@@ -364,6 +377,7 @@ class AboutDialog(_dialog_base.BaseDialog):
 
         return page
 
+    @_check_types.do
     def _on_package_selected(self, row: int):
         """Populate the package page for the clicked list entry."""
 
@@ -385,6 +399,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         self._pkg_license_txt.setPlainText(pkg.license_text)
         self._stack.setCurrentWidget(self._package_page)
 
+    @_check_types.do
     def closeEvent(self, event: QtGui.QCloseEvent):
         """Give the background update-check thread a chance to wind down."""
 

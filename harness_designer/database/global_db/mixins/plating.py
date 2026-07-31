@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class PlatingMixin(BaseMixin):
     _stored_plating: "DefaultStoredValueType | _plating.Plating" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def plating(self) -> "_plating.Plating":
         """Return the plating.
 
@@ -36,6 +38,7 @@ class PlatingMixin(BaseMixin):
     _stored_plating_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def plating_id(self) -> int:
         """Return the plating ID.
 
@@ -50,6 +53,7 @@ class PlatingMixin(BaseMixin):
         return self._stored_plating_id
 
     @plating_id.setter
+    @_check_types.do
     def plating_id(self, value: int):
         """Set the plating ID.
 
@@ -70,6 +74,7 @@ class PlatingControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PlatingControl` instance.
 
@@ -94,6 +99,7 @@ class PlatingControl(_prop_ctrls.Category):
         self.symbol_ctrl.propertyChanged.connect(self._on_symbol)
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
+    @_check_types.do
     def set_obj(self, db_obj: PlatingMixin):
         """Set the obj.
 
@@ -129,6 +135,7 @@ class PlatingControl(_prop_ctrls.Category):
             self.symbol_ctrl.setEnabled(True)
             self.desc_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_symbol(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the symbol event.
 
@@ -159,6 +166,7 @@ class PlatingControl(_prop_ctrls.Category):
 
         setattr(self.db_obj, self.attribute_name + '_id', db_id)
 
+    @_check_types.do
     def SetAttributeName(self, name):
         """Execute the set attribute name operation.
 
@@ -169,6 +177,7 @@ class PlatingControl(_prop_ctrls.Category):
         """
         self.attribute_name = name
 
+    @_check_types.do
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the desc event.
 

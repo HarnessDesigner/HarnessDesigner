@@ -15,8 +15,10 @@ from PySide6 import QtGui
 
 from ... import image as _image
 from ... import resources as _resources
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def _pil_to_pixmap(pil_img) -> QtGui.QPixmap:
     """Convert a PIL RGBA image to QPixmap."""
     pil_img = pil_img.convert('RGBA')
@@ -25,6 +27,7 @@ def _pil_to_pixmap(pil_img) -> QtGui.QPixmap:
     return QtGui.QPixmap.fromImage(qimg)
 
 
+@_check_types.do
 def _no_image_pixmap() -> QtGui.QPixmap:
     """Execute the no image pixmap operation.
 
@@ -42,6 +45,7 @@ class ImageCtrl(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, file_types, original_path, saved_path,
                  support_pdf=False):
         """Initialise the :class:`ImageCtrl` instance.
@@ -84,6 +88,7 @@ class ImageCtrl(QtWidgets.QWidget):
         elif original_path:
             self.get_image(original_path)
 
+    @_check_types.do
     def SetFileTypes(self, file_types):
         """Execute the set file types operation.
 
@@ -94,6 +99,7 @@ class ImageCtrl(QtWidgets.QWidget):
         """
         self.file_types = file_types
 
+    @_check_types.do
     def _set_pixmap(self, pixmap: QtGui.QPixmap):
         """Set the pixmap.
 
@@ -106,6 +112,7 @@ class ImageCtrl(QtWidgets.QWidget):
             pixmap.scaled(100, 100, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
                           QtCore.Qt.TransformationMode.SmoothTransformation))
 
+    @_check_types.do
     def _set_pdf(self, path):
         """Render the first page of a PDF as a thumbnail in the image label."""
         rendered = False
@@ -133,6 +140,7 @@ class ImageCtrl(QtWidgets.QWidget):
         if not rendered:
             self._image_label.setText(f'PDF\n{os.path.basename(path)}')
 
+    @_check_types.do
     def _load_pil(self, path):
         """Load the pil.
 
@@ -149,6 +157,7 @@ class ImageCtrl(QtWidgets.QWidget):
         except Exception:  # NOQA
             self._set_pixmap(_no_image_pixmap())
 
+    @_check_types.do
     def get_image(self, path) -> bool:
         """Return the image.
 
@@ -236,6 +245,7 @@ class ImageCtrl(QtWidgets.QWidget):
         self._set_pixmap(_pil_to_pixmap(canvas))
         return True
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -246,6 +256,7 @@ class ImageCtrl(QtWidgets.QWidget):
         """
         return self._path
 
+    @_check_types.do
     def SetValue(self, value) -> bool:
         """Execute the set value operation.
 

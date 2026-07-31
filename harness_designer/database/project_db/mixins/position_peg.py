@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point_peg as _pjt_point_peg
+from .... import check_types as _check_types
 
 
 class PositionPegMixin(BaseMixin):
@@ -16,6 +17,7 @@ class PositionPegMixin(BaseMixin):
     _stored_position_peg: "_pjt_point_peg.PJTPointPeg | DefaultStoredValueType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def position_peg(self) -> _point.Point:
         """Return the peg-board position.
 
@@ -43,6 +45,7 @@ class PositionPegMixin(BaseMixin):
     _stored_position_peg_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def position_peg_id(self) -> int:
         """Return the peg-board position's row id.
 
@@ -65,6 +68,7 @@ class PositionPegMixin(BaseMixin):
         return self._stored_position_peg_id
 
     @position_peg_id.setter
+    @_check_types.do
     def position_peg_id(self, value: int):
         """Set the peg-board position's row id.
 

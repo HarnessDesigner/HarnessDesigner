@@ -5,8 +5,10 @@
 import amdsmi
 
 from . import gpu_base as _gpu_base
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def collect():
     """Populate :class:`.gpu_base.GPU` with metrics from the first AMD device.
 

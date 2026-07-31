@@ -11,6 +11,7 @@ from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
 from ...shapes import sphere as _sphere
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ class Splice(_base2d.Base2D):
     _parent: "_splice.Splice"
     db_obj: "_pjt_splice.PJTSplice"
 
+    @_check_types.do
     def __init__(self, parent: "_splice.Splice",
                  db_obj: "_pjt_splice.PJTSplice"):
         """Initialise the :class:`Splice` instance.
@@ -71,6 +73,7 @@ class SpliceMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`SpliceMenu` instance.
 
@@ -106,6 +109,7 @@ class SpliceMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_wire(self):
         """Handle the add wire event.
 
@@ -113,6 +117,7 @@ class SpliceMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Handle the trace circuit event.
 
@@ -120,6 +125,7 @@ class SpliceMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_select(self):
         """Handle the select event.
 
@@ -127,6 +133,7 @@ class SpliceMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_clone(self):
         """Handle the clone event.
 
@@ -134,6 +141,7 @@ class SpliceMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 
@@ -141,6 +149,7 @@ class SpliceMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_properties(self):
         """Handle the properties event.
 

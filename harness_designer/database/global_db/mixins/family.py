@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class FamilyMixin(BaseMixin):
     _stored_family: "DefaultStoredValueType | _family.Family" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def family(self) -> "_family.Family":
         """Return the family.
 
@@ -39,6 +41,7 @@ class FamilyMixin(BaseMixin):
     _stored_family_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def family_id(self) -> int:
         """Return the family ID.
 
@@ -53,6 +56,7 @@ class FamilyMixin(BaseMixin):
         return self._stored_family_id
 
     @family_id.setter
+    @_check_types.do
     def family_id(self, value: int):
         """Set the family ID.
 
@@ -74,6 +78,7 @@ class FamilyControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`FamilyControl` instance.
 
@@ -98,6 +103,7 @@ class FamilyControl(_prop_ctrls.Category):
         self.name_ctrl.propertyChanged.connect(self._on_name)
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
+    @_check_types.do
     def set_obj(self, db_obj: FamilyMixin):
         """Set the obj.
 
@@ -136,6 +142,7 @@ class FamilyControl(_prop_ctrls.Category):
             self.mfg_ctrl.setEnabled(True)
             self.desc_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name event.
 
@@ -167,6 +174,7 @@ class FamilyControl(_prop_ctrls.Category):
 
         self.db_obj.family_id = db_id
 
+    @_check_types.do
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the desc event.
 

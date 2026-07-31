@@ -8,6 +8,7 @@ from OpenGL import GL
 from . import basepeg as _basepeg
 from ...geometry import angle as _angle
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
@@ -23,6 +24,7 @@ class WireLayout(_basepeg.BasePeg):
     _parent: "_wire_layout.WireLayout" = None
     db_obj: "_pjt_wire_layout.PJTWireLayout"
 
+    @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.

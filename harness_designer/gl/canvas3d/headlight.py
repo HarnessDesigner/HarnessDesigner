@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import math
 import numpy as np
 from OpenGL import GL
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ class Headlight:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`Headlight` instance.
 
@@ -33,6 +35,7 @@ class Headlight:
         canvas.camera.position.bind(self.__update)
         canvas.camera.focal_position.bind(self.__update)
 
+    @_check_types.do
     def __update_light(self):
         """Update the light.
 
@@ -42,6 +45,7 @@ class Headlight:
         magnitude = math.sqrt(sum(d ** 2 for d in direction))
         self.light_direction = [d / magnitude for d in direction]
 
+    @_check_types.do
     def __update(self, _):
         """Execute the update operation.
 
@@ -52,6 +56,7 @@ class Headlight:
         """
         self.__update_light()
 
+    @_check_types.do
     def __call__(self, shader_program):
         """Call the instance.
 

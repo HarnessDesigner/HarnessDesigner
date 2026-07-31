@@ -19,6 +19,7 @@ from . import transition as _transition
 from . import wire as _wire
 from . import wire_marker as _wire_marker
 from .. import dock_base as _dock_base
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class EditorDB(_dock_base.DockBase):
     that holds the panel and exposes the same public surface.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
         Initialise the :class:`EditorDB` instance.
@@ -49,9 +51,11 @@ class EditorDB(_dock_base.DockBase):
                          Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @property
+    @_check_types.do
     def editor(self) -> "EditorDBPanel":
         return self._ui_obj
 
+    @_check_types.do
     def load_db(self, g_db: "_global_db.GLBTables") -> None:
         """Load the database.
 
@@ -63,6 +67,7 @@ class EditorDB(_dock_base.DockBase):
         self._ui_obj.load_db(g_db)
 
     @property
+    @_check_types.do
     def accessories(self) -> _accessory.AccessoriesPage:
         """Return the accessories.
 
@@ -74,6 +79,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.accessories
 
     @property
+    @_check_types.do
     def boots(self) -> _boot.BootsPage:
         """Return the boots.
 
@@ -85,6 +91,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.boots
 
     @property
+    @_check_types.do
     def bundle_covers(self) -> _bundle_cover.BundleCoversPage:
         """Return the bundle covers.
 
@@ -96,6 +103,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.bundle_covers
 
     @property
+    @_check_types.do
     def covers(self) -> _cover.CoversPage:
         """Return the covers.
 
@@ -107,6 +115,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.covers
 
     @property
+    @_check_types.do
     def cpa_locks(self) -> _cpa_lock.CPALocksPage:
         """Return the CPA locks.
 
@@ -118,6 +127,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.cpa_locks
 
     @property
+    @_check_types.do
     def housings(self) -> _housing.HousingsPage:
         """Return the housings.
 
@@ -129,6 +139,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.housings
 
     @property
+    @_check_types.do
     def seals(self) -> _seal.SealsPage:
         """Return the seals.
 
@@ -140,6 +151,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.seals
 
     @property
+    @_check_types.do
     def splices(self) -> _splice.SplicesPage:
         """Return the splices.
 
@@ -151,6 +163,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.splices
 
     @property
+    @_check_types.do
     def terminals(self) -> _terminal.TerminalsPage:
         """Return the terminals.
 
@@ -162,6 +175,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.terminals
 
     @property
+    @_check_types.do
     def tpa_locks(self) -> _tpa_lock.TPALocksPage:
         """Return the TPA locks.
 
@@ -173,6 +187,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.tpa_locks
 
     @property
+    @_check_types.do
     def transitions(self) -> _transition.TransitionsPage:
         """Return the transitions.
 
@@ -184,6 +199,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.transitions
 
     @property
+    @_check_types.do
     def wires(self) -> _wire.WiresPage:
         """Return the wires.
 
@@ -195,6 +211,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.wires
 
     @property
+    @_check_types.do
     def wire_markers(self) -> _wire_marker.WireMarkersPage:
         """Return the wire markers.
 
@@ -214,6 +231,7 @@ class EditorDBPanel(QTabWidget):
     equivalent and was rarely used interactively).
     """
 
+    @_check_types.do
     def __init__(self, parent: "_mainframe.MainFrame"):
         """Initialise the :class:`EditorDBPanel` instance.
 
@@ -245,6 +263,7 @@ class EditorDBPanel(QTabWidget):
         self.setUsesScrollButtons(True)
         self.setMovable(True)  # matches AUI_NB_TAB_MOVE
 
+    @_check_types.do
     def load_db(self, g_db: "_global_db.GLBTables"):
         """Load the database.
 
@@ -307,6 +326,7 @@ class EditorDBPanel(QTabWidget):
             self, self.mainframe, 'Wire Marker', g_db.wire_markers_table)
         self.addTab(self.wire_markers, 'Wire Markers')
 
+    @_check_types.do
     def Refresh(self, *_, **__):
         """Execute the refresh operation.
 

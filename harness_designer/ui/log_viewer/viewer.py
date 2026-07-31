@@ -12,6 +12,7 @@ from PySide6 import QtGui
 
 from harness_designer import app as _app
 from ...logger.log_handler import RotationEvent
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import logger as _logger
@@ -38,6 +39,7 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
     _TEXT_HORIZONTAL_PADDING = 6
     _TEXT_VERTICAL_PADDING = 4
 
+    @_check_types.do
     def paint(self, painter, option, index):
         if index.column() != 2:
             super().paint(painter, option, index)
@@ -90,6 +92,7 @@ class _LogMessageDelegate(QtWidgets.QStyledItemDelegate):
         painter.drawText(text_rect, flags, text)
         painter.restore()
 
+    @_check_types.do
     def sizeHint(self, option, index):
         size = super().sizeHint(option, index)
         if index.column() != 2:
@@ -137,6 +140,7 @@ class _LogModel(QtCore.QAbstractTableModel):
     _COLS = ['timestamp', 'level', 'message']
     _LEVEL_COL = _COLS.index('level')
 
+    @_check_types.do
     def __init__(self, parent=None):
         """
         Initialise the :class:`_LogModel` instance.
@@ -150,6 +154,7 @@ class _LogModel(QtCore.QAbstractTableModel):
         super().__init__(parent)
         self._data = pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
+    @_check_types.do
     def rowCount(self, parent=QtCore.QModelIndex()):
         """
         Execute the row count operation.
@@ -164,6 +169,7 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         return len(self._data)
 
+    @_check_types.do
     def columnCount(self, parent=QtCore.QModelIndex()):
         """
         Execute the column count operation.
@@ -178,6 +184,7 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         return 3
 
+    @_check_types.do
     def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
         """
         Execute the header data operation.
@@ -200,6 +207,7 @@ class _LogModel(QtCore.QAbstractTableModel):
         ):
             return self._HEADERS[section]
 
+    @_check_types.do
     def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
         row = index.row()
         if not index.isValid() or row >= len(self._data):
@@ -220,6 +228,7 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         return None
 
+    @_check_types.do
     def set_data(self, df: pd.DataFrame):
         """
         Set the data.
@@ -243,6 +252,7 @@ class _LogModel(QtCore.QAbstractTableModel):
 
         self.endResetModel()
 
+    @_check_types.do
     def append_data(self, df: pd.DataFrame):
         """
         Execute the append data operation.
@@ -266,6 +276,7 @@ class _LogModel(QtCore.QAbstractTableModel):
 class VirtualLogListCtrl(QtWidgets.QTableView):
     """Replaces wx.ListCtrl (LC_REPORT | LC_VIRTUAL | LC_SINGLE_SEL)."""
 
+    @_check_types.do
     def __init__(self, parent):
         """
         Initialise the :class:`VirtualLogListCtrl` instance.
@@ -315,6 +326,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         self._multiline_height_cache: dict[int, int] = {}
         self._height_update_guard = False
 
+    @_check_types.do
     def Destroy(self):
         """
         Execute the destroy operation.
@@ -325,6 +337,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         self._is_destroyed = True
         self.deleteLater()
 
+    @_check_types.do
     def _row_height_for_text(self, text: str) -> int:
         font_metrics = self.fontMetrics()
         lines = str(text).splitlines() or ['']
@@ -332,6 +345,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         top_bottom_margins = 8
         return (font_metrics.lineSpacing() * line_count) + top_bottom_margins
 
+    @_check_types.do
     def _ensure_row_height_for_index(self, index: QtCore.QModelIndex):
         if self._height_update_guard or not index.isValid():
             return
@@ -358,11 +372,13 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         finally:
             self._height_update_guard = False
 
+    @_check_types.do
     def is_at_bottom(self) -> bool:
         """Whether the view is currently scrolled to its last row."""
         scrollbar = self.verticalScrollBar()
         return scrollbar.value() >= scrollbar.maximum()
 
+    @_check_types.do
     def AppendData(self, data: pd.DataFrame):
         """Append rows to the model, keeping the view scrolled to the
         bottom if it already was there. Caller must already be on the main
@@ -378,6 +394,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         if was_at_bottom:
             self.scrollToBottom()
 
+    @_check_types.do
     def SetData(self, df: pd.DataFrame):
         """
         Execute the set data operation.
@@ -392,6 +409,7 @@ class VirtualLogListCtrl(QtWidgets.QTableView):
         self._model.set_data(df)
         self.viewport().update()
 
+    @_check_types.do
     def _on_section_resized(self, logical_index: int,
                             _old_size: int, _new_size: int):
 
@@ -410,6 +428,7 @@ class ViewerPanel(QtWidgets.QSplitter):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, logger: "_logger.Log"):
         """
         Initialise the :class:`LogViewerPanel` instance.
@@ -469,6 +488,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         # runs on the main thread regardless of caller.
         logger.log_handler.bind(self.new_data)
 
+        @_check_types.do
         def _do():
             QtWidgets.QApplication.setOverrideCursor(
                 QtCore.Qt.CursorShape.WaitCursor)
@@ -484,6 +504,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         # CallLater's job, not CallAfter's.
         _app.CallLater(_do)
 
+    @_check_types.do
     def Destroy(self):
         """
         Execute the destroy operation.
@@ -495,11 +516,13 @@ class ViewerPanel(QtWidgets.QSplitter):
         self.log_list.Destroy()
         self.deleteLater()
 
+    @_check_types.do
     def _clear_active_buffer(self):
         """Empty the active-file buffer - called when a new, empty log
         file starts, so nothing from the rotated-out file lingers in it."""
         self._active_buffer = pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
+    @_check_types.do
     def _extend_active_buffer(self, df: pd.DataFrame):
         """Add rows to the active-file buffer.
 
@@ -512,6 +535,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         self._active_buffer = pd.concat(
             [self._active_buffer, df], ignore_index=True)
 
+    @_check_types.do
     def _load_current_log_initial(self):
         """
         Load the current log initial.
@@ -531,6 +555,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         except Exception as e:
             self.logger.error(f"Failed to load initial log: {e}")
 
+    @_check_types.do
     def new_data(self, data=None):
         """Called via CallAfter, always on the main thread: `data` is a
         DataFrame for a new entry, or a RotationEvent for a rotation - see
@@ -544,6 +569,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         else:
             self._handle_new_row(data)
 
+    @_check_types.do
     def _handle_new_row(self, df: pd.DataFrame):
         """A single entry was written to the still-open active file."""
         self._extend_active_buffer(df)
@@ -552,6 +578,7 @@ class ViewerPanel(QtWidgets.QSplitter):
             # was already scrolled to the bottom.
             self.log_list.AppendData(df)
 
+    @_check_types.do
     def _handle_rotation(self, event: RotationEvent):
         """The active file hit its size limit and rotated to a new one.
 
@@ -595,6 +622,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         # view, an archive) - the active file rotating doesn't concern
         # this view beyond the tree refresh above.
 
+    @_check_types.do
     def _select_tree_item_for_path(self, path: str) -> bool:
         """Select the tree item for `path` without triggering the normal
         tree-selection-changed reload - _handle_rotation() above already
@@ -612,6 +640,7 @@ class ViewerPanel(QtWidgets.QSplitter):
                 return True
         return False
 
+    @_check_types.do
     def _select_archived_file(self, archive_path: str, filename: str) -> bool:
         """Find the archive's (just-created, so not yet expanded) tree
         item, load its member list, and select `filename` inside it -
@@ -645,6 +674,7 @@ class ViewerPanel(QtWidgets.QSplitter):
     # Tree selection
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_tree_selection_changed(self):
         """
         Handle the tree selection changed event.
@@ -690,6 +720,7 @@ class ViewerPanel(QtWidgets.QSplitter):
                 data['archive_path'], data['filename'],
                 date_filter=data['date'], hour_filter=data['hour'])
 
+    @_check_types.do
     def on_tree_expanding(self, item: QtWidgets.QTreeWidgetItem):
         """
         Handle the tree expanding event.
@@ -722,6 +753,7 @@ class ViewerPanel(QtWidgets.QSplitter):
             self._load_hours_for_archive_date(
                 item, data['archive_path'], data['filename'], data['date'], item_id)
 
+    @_check_types.do
     def on_tree_collapsed(self, item: QtWidgets.QTreeWidgetItem):
         """
         Handle the tree collapsed event.
@@ -741,6 +773,7 @@ class ViewerPanel(QtWidgets.QSplitter):
     # Lazy-load helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _load_dates_for_file(self, file_item: QtWidgets.QTreeWidgetItem,
                              log_path: str, item_id: int):
         """
@@ -759,6 +792,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         file_item.takeChildren()
         QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
+        @_check_types.do
         def load_dates():
             """
             Load the dates.
@@ -771,6 +805,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         threading.Thread(target=load_dates, daemon=True).start()
 
+    @_check_types.do
     def _populate_dates(self, parent_item: QtWidgets.QTreeWidgetItem, log_path: str,
                         dates: List[str], item_id: int):
         """
@@ -803,6 +838,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
             QtWidgets.QTreeWidgetItem(date_item, ['Loading...'])
 
+    @_check_types.do
     def _load_hours_for_date(self, date_item: QtWidgets.QTreeWidgetItem, log_path: str,
                              date_str: str, item_id: int):
         """
@@ -823,6 +859,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         date_item.takeChildren()
         QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
+        @_check_types.do
         def load_hours():
             """
             Load the hours.
@@ -836,6 +873,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         threading.Thread(target=load_hours, daemon=True).start()
 
+    @_check_types.do
     def _populate_hours(self, parent_item: QtWidgets.QTreeWidgetItem,
                         log_path: Optional[str], date_str: str,
                         hours: List[int], item_id: int, is_archive: bool,
@@ -867,6 +905,7 @@ class ViewerPanel(QtWidgets.QSplitter):
                                   {'type': 'hour', 'file': log_path,
                                    'date': date_str, 'hour': hour})
 
+    @_check_types.do
     def _load_archive_files(self, archive_item: QtWidgets.QTreeWidgetItem,
                             archive_path: str, item_id: int):
         """Load the archive files."""
@@ -887,6 +926,7 @@ class ViewerPanel(QtWidgets.QSplitter):
             self.logger.error(f"Failed to load archive {archive_path}: {e}")
             QtWidgets.QTreeWidgetItem(archive_item, ['(Error loading archive)'])
 
+    @_check_types.do
     def _load_dates_for_archive_file(self, file_item: QtWidgets.QTreeWidgetItem,
                                      archive_path: str, filename: str, item_id: int):
         """Load the dates for archive file."""
@@ -894,6 +934,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         file_item.takeChildren()
         QtWidgets.QTreeWidgetItem(file_item, ['Loading dates...'])
 
+        @_check_types.do
         def load_dates():
             dates = self._get_dates_in_archive(archive_path, filename)
 
@@ -902,6 +943,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         threading.Thread(target=load_dates, daemon=True).start()
 
+    @_check_types.do
     def _populate_archive_dates(self, parent_item: QtWidgets.QTreeWidgetItem,
                                 archive_path: str, filename: str,
                                 dates: List[str], item_id: int):
@@ -920,6 +962,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
             QtWidgets.QTreeWidgetItem(date_item, ['Loading...'])
 
+    @_check_types.do
     def _load_hours_for_archive_date(self, date_item: QtWidgets.QTreeWidgetItem,
                                      archive_path: str, filename: str,
                                      date_str: str, item_id: int):
@@ -928,6 +971,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         date_item.takeChildren()
         QtWidgets.QTreeWidgetItem(date_item, ['Loading hours...'])
 
+        @_check_types.do
         def load_hours():
             hours = self._get_hours_in_archive_date(archive_path, filename, date_str)
 
@@ -941,10 +985,12 @@ class ViewerPanel(QtWidgets.QSplitter):
     # Data loading
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _load_log_data(self, log_path: str, date_filter: Optional[str] = None,
                        hour_filter: Optional[int] = None):
         """Load the log data."""
 
+        @_check_types.do
         def load_data():
             df = self._read_log_file(log_path)
             if date_filter and hour_filter is not None:
@@ -956,11 +1002,13 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         threading.Thread(target=load_data, daemon=True).start()
 
+    @_check_types.do
     def _load_archive_file(self, archive_path: str, filename: str,
                            date_filter: Optional[str] = None,
                            hour_filter: Optional[int] = None):
         """Load the archive file."""
 
+        @_check_types.do
         def load_data():
             df = self._read_archive_file(archive_path, filename)
             if date_filter and hour_filter is not None:
@@ -972,6 +1020,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         threading.Thread(target=load_data, daemon=True).start()
 
+    @_check_types.do
     def _display_log_data(self, df: pd.DataFrame):
         """Execute the display log data operation."""
 
@@ -983,6 +1032,7 @@ class ViewerPanel(QtWidgets.QSplitter):
     # adds the UI-facing error handling and empty-DataFrame fallback).
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _read_log_file(self, log_path: str) -> pd.DataFrame:
         """Execute the read log file operation."""
 
@@ -992,6 +1042,7 @@ class ViewerPanel(QtWidgets.QSplitter):
             self.logger.error(f"Failed to read log file {log_path}: {e}")
             return pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
+    @_check_types.do
     def _read_archive_file(self, archive_path: str, filename: str) -> pd.DataFrame:
         """Execute the read archive file operation."""
 
@@ -1001,6 +1052,7 @@ class ViewerPanel(QtWidgets.QSplitter):
             self.logger.error(f"Failed to read archive file {filename}: {e}")
             return pd.DataFrame(columns=['timestamp', 'level', 'message'])
 
+    @_check_types.do
     def _get_dates_in_log(self, log_path: str) -> List[str]:
         df = self._read_log_file(log_path)
         if df.empty:
@@ -1009,6 +1061,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         dates = df['timestamp'].dt.date.unique()
         return sorted([str(d) for d in dates], reverse=True)
 
+    @_check_types.do
     def _get_dates_in_archive(self, archive_path: str, filename: str) -> List[str]:
         df = self._read_archive_file(archive_path, filename)
         if df.empty:
@@ -1017,6 +1070,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         dates = df['timestamp'].dt.date.unique()
         return sorted([str(d) for d in dates], reverse=True)
 
+    @_check_types.do
     def _get_hours_in_date(self, log_path: str, date_str: str) -> List[int]:
         df = self._read_log_file(log_path)
         if df.empty:
@@ -1029,6 +1083,7 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         return sorted(df_date['timestamp'].dt.hour.unique().tolist())
 
+    @_check_types.do
     def _get_hours_in_archive_date(self, archive_path: str, filename: str,
                                    date_str: str) -> List[int]:
 
@@ -1044,6 +1099,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         return sorted(df_date['timestamp'].dt.hour.unique().tolist())
 
     @staticmethod
+    @_check_types.do
     def _filter_by_date(df: pd.DataFrame, date_str: str) -> pd.DataFrame:
         if df.empty:
             return df
@@ -1052,6 +1108,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         return df[df['timestamp'].dt.date == target_date].copy()
 
     @staticmethod
+    @_check_types.do
     def _filter_by_date_and_hour(df: pd.DataFrame, date_str: str,
                                  hour: int) -> pd.DataFrame:
 
@@ -1062,6 +1119,7 @@ class ViewerPanel(QtWidgets.QSplitter):
         return df[(df['timestamp'].dt.date == target_date) &
                   (df['timestamp'].dt.hour == hour)].copy()
 
+    @_check_types.do
     def load(self):
         self.treectrl.clear()
         self.expanded_items.clear()
@@ -1090,10 +1148,12 @@ class ViewerPanel(QtWidgets.QSplitter):
 
         self.root.setExpanded(True)
 
+    @_check_types.do
     def get_archives(self):
         """Return archive paths, newest first."""
         return list(reversed(self.logger.log_handler.list_archives()))
 
+    @_check_types.do
     def get_logfiles(self):
         """Return current (non-archived) log file paths, newest first."""
         return list(reversed(self.logger.log_handler.list_logfiles()))

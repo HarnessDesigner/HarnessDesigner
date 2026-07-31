@@ -29,6 +29,7 @@ from ...geometry import point as _point
 from . import grid as _grid
 
 from .. import events as _events
+from ... import check_types as _check_types
 
 
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
@@ -80,6 +81,7 @@ class Canvas(QOpenGLWidget):
     gl_aux2_dclick = Signal(object)
     gl_capture_lost = Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, config: _config.Config.editor2d, size: QSize = None):
         """Initialise the :class:`Canvas` instance.
 
@@ -138,6 +140,7 @@ class Canvas(QOpenGLWidget):
     # Camera movement
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def Zoom(self, dx: float, _=None):
         """Execute the zoom operation.
 
@@ -151,6 +154,7 @@ class Canvas(QOpenGLWidget):
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
+    @_check_types.do
     def Pan(self, dx: float, dy: float) -> None:
         """Execute the pan operation.
 
@@ -174,6 +178,7 @@ class Canvas(QOpenGLWidget):
     # Grid / snap helpers (unchanged)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def snap_to_grid(self, world_pos: _point.Point) -> _point.Point:
         """Execute the snap to grid operation.
 
@@ -194,6 +199,7 @@ class Canvas(QOpenGLWidget):
             round(world_pos.y / spacing) * spacing,
         )
 
+    @_check_types.do
     def apply_angle_lock(self, start_pos: _point.Point, end_pos: _point.Point) -> _point.Point:
         """Execute the apply angle lock operation.
 
@@ -224,6 +230,7 @@ class Canvas(QOpenGLWidget):
             start_pos.y + dist * math.sin(locked_rad),
         )
 
+    @_check_types.do
     def set_grid_snap(self, value):
         """Set the grid snap.
 
@@ -234,6 +241,7 @@ class Canvas(QOpenGLWidget):
         """
         self.config.grid.snap = bool(value)
 
+    @_check_types.do
     def set_angle_lock(self, value):
         """Set the angle lock.
 
@@ -244,6 +252,7 @@ class Canvas(QOpenGLWidget):
         """
         self.config.angle.lock = bool(value)
 
+    @_check_types.do
     def set_grid_display(self, value):
         """Set the grid display.
 
@@ -260,6 +269,7 @@ class Canvas(QOpenGLWidget):
     # Object management
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_selected(self, obj):
         """Set the selected.
 
@@ -270,6 +280,7 @@ class Canvas(QOpenGLWidget):
         """
         self._selected = obj
 
+    @_check_types.do
     def get_selected(self):
         """Return the selected.
 
@@ -280,6 +291,7 @@ class Canvas(QOpenGLWidget):
         """
         return self._selected
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -292,6 +304,7 @@ class Canvas(QOpenGLWidget):
             self._objects.append(obj)
             self.update()
 
+    @_check_types.do
     def remove_object(self, obj):
         """Remove the object.
 
@@ -310,6 +323,7 @@ class Canvas(QOpenGLWidget):
         except ValueError:
             pass
 
+    @_check_types.do
     def clear(self) -> None:
         """Drop every scene object in bulk, without touching the database.
 
@@ -322,6 +336,7 @@ class Canvas(QOpenGLWidget):
         self.update()
 
     @property
+    @_check_types.do
     def objects(self):
         """Return the objects.
 
@@ -336,6 +351,7 @@ class Canvas(QOpenGLWidget):
     # Reference-counting context manager
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def __enter__(self):
         """Enter the managed context.
 
@@ -344,6 +360,7 @@ class Canvas(QOpenGLWidget):
         self._ref_count += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the managed context.
 
@@ -358,6 +375,7 @@ class Canvas(QOpenGLWidget):
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def Refresh(self, *args, **kwargs):
         """Execute the refresh operation.
 
@@ -377,6 +395,7 @@ class Canvas(QOpenGLWidget):
     # QOpenGLWidget lifecycle
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def initializeGL(self):
         """One-time GL setup (replaces _init_gl called from _on_paint).
         Qt guarantees the context is already current here.
@@ -395,6 +414,7 @@ class Canvas(QOpenGLWidget):
         self._grid.set(self.config.grid.enabled)
         self._program = _shaders.compile_schematic2d_program()
 
+    @_check_types.do
     def resizeGL(self, width: int, height: int):
         """Called by Qt on resize (replaces EVT_SIZE handler).
         Context is already current here.
@@ -403,6 +423,7 @@ class Canvas(QOpenGLWidget):
         GL.glViewport(0, 0, width, height)
         self._setup_projection()
 
+    @_check_types.do
     def paintGL(self):
         """Render one frame (replaces EVT_PAINT / _on_paint).
         Context is already current here.
@@ -427,6 +448,7 @@ class Canvas(QOpenGLWidget):
         self._render_vbo_objects()
         # Qt handles SwapBuffers automatically.
 
+    @_check_types.do
     def _projection_matrix(self) -> np.ndarray:
         """Build the orthographic projection matrix for the schematic2d
         shader, matching :meth:`_setup_projection`'s ``glOrtho`` bounds
@@ -452,6 +474,7 @@ class Canvas(QOpenGLWidget):
             [0.0, 0.0, 0.0, 1.0],
         ], dtype=np.float32)
 
+    @_check_types.do
     def _render_vbo_objects(self):
         """Render every VBO-backed object (``obj.obj2d.vbo is not None``)
         under the schematic2d shader -- mirrors
@@ -521,6 +544,7 @@ class Canvas(QOpenGLWidget):
     # Projection (unchanged)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _setup_projection(self):
         """Execute the setup projection operation.
 

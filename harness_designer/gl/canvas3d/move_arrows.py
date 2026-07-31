@@ -13,6 +13,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class MoveArrows(_object_base.ObjectBase):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):
         """Initialise the :class:`MoveArrows` instance.
@@ -53,6 +55,7 @@ class MoveArrows(_object_base.ObjectBase):
         self._treeitem = None
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def set_treeitem(self, treeitem):
         """Set the treeitem.
 
@@ -63,6 +66,7 @@ class MoveArrows(_object_base.ObjectBase):
         """
         self._treeitem = treeitem
 
+    @_check_types.do
     def get_treeitem(self):
         """Return the treeitem.
 
@@ -73,6 +77,7 @@ class MoveArrows(_object_base.ObjectBase):
         """
         return self._treeitem
 
+    @_check_types.do
     def __del__(self):
         """Execute the del operation.
 
@@ -88,6 +93,7 @@ class MoveArrows(_object_base.ObjectBase):
         except RuntimeError:
             pass
 
+    @_check_types.do
     def delete(self):
         """Execute the delete operation.
 
@@ -96,6 +102,7 @@ class MoveArrows(_object_base.ObjectBase):
         # print('deleting object from mainframe')
         self.mainframe.remove_object(self)
 
+    @_check_types.do
     def close(self):
         """Execute the close operation.
 
@@ -105,6 +112,7 @@ class MoveArrows(_object_base.ObjectBase):
         """
         raise NotImplementedError
 
+    @_check_types.do
     def set_selected(self, flag):
         """Set the selected.
 
@@ -116,6 +124,7 @@ class MoveArrows(_object_base.ObjectBase):
         pass
 
     @property
+    @_check_types.do
     def is_selected(self) -> bool:
         """Return the is selected.
 
@@ -127,6 +136,7 @@ class MoveArrows(_object_base.ObjectBase):
         return False
 
     @is_selected.setter
+    @_check_types.do
     def is_selected(self, value: bool):
         """Set the is selected.
 
@@ -144,6 +154,7 @@ class Arrows2D(_base2d.Base2D):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`Arrows2D` instance.
 
@@ -161,6 +172,7 @@ class Arrows2D(_base2d.Base2D):
         # the inert legacy-contract branch, same as boot.py/cover.py/etc).
         _base2d.Base2D.__init__(self, parent, None, None, angle, position, None, None)
 
+    @_check_types.do
     def set_selected(self, flag: bool):
         """Set the selected.
 
@@ -172,6 +184,7 @@ class Arrows2D(_base2d.Base2D):
         pass
 
     @property
+    @_check_types.do
     def is_selected(self) -> bool:
         """Return the is selected.
 
@@ -189,6 +202,7 @@ class Arrows3D(_base3d.Base3D):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):
         """
@@ -267,6 +281,7 @@ class Arrows3D(_base3d.Base3D):
 
         self._is_visible = True
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Track position changes WITHOUT Base3D's floor-lock logic.
 
@@ -280,6 +295,7 @@ class Arrows3D(_base3d.Base3D):
         self._compute_obb()
         self._compute_aabb()
 
+    @_check_types.do
     def _compute_aabb(self):
         """Compute the AABB, clamped during init so floor-lock never fires."""
         _base3d.Base3D._compute_aabb(self)
@@ -289,6 +305,7 @@ class Arrows3D(_base3d.Base3D):
             if self._aabb[0][1] < ground:
                 self._aabb[0][1] = ground
 
+    @_check_types.do
     def _on_obj_position(self, position: _point.Point):
         """Update arrow position when the dragged object moves."""
 
@@ -297,6 +314,7 @@ class Arrows3D(_base3d.Base3D):
 
         self._position += delta
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         """Render bidirectional arrow by drawing the VBO twice with a 180° rotation."""
 

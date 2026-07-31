@@ -5,6 +5,7 @@ from PySide6 import QtCore
 
 from ..widgets import autocomplete_textctrl as _autocomplete_textctrl
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class AutocompleteStringProperty(QtWidgets.QWidget):
@@ -15,6 +16,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label, style=0, units=None):
         """
         Initialise the :class:`AutocompleteStringProperty` instance.
@@ -59,6 +61,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         self.setLayout(sizer)
         self._ctrl.returnPressed.connect(self._on_enter)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -69,6 +72,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         """
         return self._value
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -84,6 +88,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def SetItems(self, items: list) -> None:
         """Execute the set items operation.
 
@@ -96,6 +101,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         if self._ctrl is not None:
             self._ctrl.SetItems(items)
 
+    @_check_types.do
     def _on_enter(self):
         """Handle the enter event.
 
@@ -119,9 +125,11 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         else:
             self._value = text
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

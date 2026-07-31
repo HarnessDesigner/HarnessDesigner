@@ -5,6 +5,7 @@ from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
+from .... import check_types as _check_types
 
 
 class StartStopPosition3DMixin(BaseMixin):
@@ -16,6 +17,7 @@ class StartStopPosition3DMixin(BaseMixin):
     _stored_start_position3d: _pjt_point3d.PJTPoint3D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def start_position3d(self) -> _point.Point:
         """Return the start position 3D.
 
@@ -46,6 +48,7 @@ class StartStopPosition3DMixin(BaseMixin):
     _stored_start_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def start_position3d_id(self) -> int:
         """Return the start position 3D ID.
 
@@ -70,6 +73,7 @@ class StartStopPosition3DMixin(BaseMixin):
         return self._stored_start_position3d_id
 
     @start_position3d_id.setter
+    @_check_types.do
     def start_position3d_id(self, value: int):
         """Set the start position 3D ID.
 
@@ -88,6 +92,7 @@ class StartStopPosition3DMixin(BaseMixin):
     _stored_stop_position3d: _pjt_point3d.PJTPoint3D | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def stop_position3d(self) -> _point.Point:
         """Return the stop position 3D.
 
@@ -118,6 +123,7 @@ class StartStopPosition3DMixin(BaseMixin):
     _stored_stop_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def stop_position3d_id(self) -> int:
         """Return the stop position 3D ID.
 
@@ -142,6 +148,7 @@ class StartStopPosition3DMixin(BaseMixin):
         return self._stored_stop_position3d_id
 
     @stop_position3d_id.setter
+    @_check_types.do
     def stop_position3d_id(self, value: int):
         """Set the stop position 3D ID.
 
@@ -164,6 +171,7 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`StartStopPosition3DControl` instance.
 
@@ -182,6 +190,7 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
         self.addWidget(self.start_ctrl)
         self.addWidget(self.stop_ctrl)
 
+    @_check_types.do
     def set_obj(self, db_obj: StartStopPosition3DMixin):
         """Set the obj.
 

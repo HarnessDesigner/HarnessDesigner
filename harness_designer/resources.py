@@ -14,6 +14,7 @@ from PIL import Image
 import requests.exceptions
 from urllib.parse import urlsplit
 import http.cookiejar
+from . import check_types as _check_types
 
 COOKIES = {}
 
@@ -35,6 +36,7 @@ header = {
 class ResourceException(Exception):
     __msg__ = 'Resource Base Exception'
 
+    @_check_types.do
     def __init__(self):
         super().__init__(self.__msg__)
 
@@ -42,6 +44,7 @@ class ResourceException(Exception):
 class RequestsError(ResourceException):
     __msg__ = ''
 
+    @_check_types.do
     def __init__(self, msg, code, url):
         self.__msg__ = msg
         self.code = code
@@ -53,6 +56,7 @@ class ImageReadError(ResourceException):
 
     __msg__ = 'Image Read Error'
 
+    @_check_types.do
     def __init__(self, path):
         self.path = path
         self.code = -10
@@ -63,6 +67,7 @@ class SaveFileError(ResourceException):
 
     __msg__ = 'Save File Error'
 
+    @_check_types.do
     def __init__(self, path, code):
         self.path = path
         self.code = code
@@ -73,6 +78,7 @@ class RemoveFileError(ResourceException):
 
     __msg__ = 'Remove File Error'
 
+    @_check_types.do
     def __init__(self, path, code):
         self.path = path
         self.code = code
@@ -83,6 +89,7 @@ class FileTypeNotSupportedError(ResourceException):
 
     __msg__ = 'File Type Not Supported'
 
+    @_check_types.do
     def __init__(self, path):
         self.path = path
         self.code = -20
@@ -93,12 +100,14 @@ class ExistingFileNotFoundError(ResourceException):
 
     __msg__ = 'File Not Found'
 
+    @_check_types.do
     def __init__(self, path):
         self.path = path
         self.code = -30
         super().__init__()
 
 
+@_check_types.do
 def handle_cookie(response):
     """
     Extract cookie data from a requests response.
@@ -122,6 +131,7 @@ def handle_cookie(response):
             COOKIES[domain][cookie.name] = cookie
 
 
+@_check_types.do
 def requests_get(url, is_retry=False, **kwargs):
     """
     Fetch a URL and normalise its content type.
@@ -192,6 +202,7 @@ def requests_get(url, is_retry=False, **kwargs):
     return response, content_type, url
 
 
+@_check_types.do
 def _download_model(con, url, is_type):
     """
     Download a model resource and store it with a generated filename.
@@ -265,6 +276,7 @@ def _download_model(con, url, is_type):
     return model_path
 
 
+@_check_types.do
 def _reformat_image(img: Image.Image):
     """
     Resize and pad an image into a 256x256 RGBA preview.
@@ -302,6 +314,7 @@ def _reformat_image(img: Image.Image):
     return new_img
 
 
+@_check_types.do
 def _download_image(con, url, image_path, is_type):
     """
     Download an image-like resource and save it locally.
@@ -380,6 +393,7 @@ RESOURCE_TYPE_CAD = 3
 RESOURCE_TYPE_MODEL = 4
 
 
+@_check_types.do
 def collect_resource(con, image_type, in_path):
     """
     Collect a local or remote resource into managed storage.

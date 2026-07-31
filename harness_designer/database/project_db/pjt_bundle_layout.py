@@ -14,6 +14,7 @@ from .mixins import (
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
     _control: "PJTBundleLayoutControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTBundleLayoutControl":
         """Return the control.
 
@@ -47,6 +49,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -58,6 +61,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         cls._control = PJTBundleLayoutControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def get_from_position3d_id(self, position3d_id) -> "PJTBundleLayout":
         """Return the from position 3D ID.
 
@@ -72,6 +76,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         if rows:
             return self[rows[0][0]]
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -84,6 +89,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
 
         return bundle_cover_layouts.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -93,6 +99,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
 
         bundle_cover_layouts.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -102,6 +109,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
 
         bundle_cover_layouts.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTBundleLayout"]:
         """Iterate over the available items.
 
@@ -113,6 +121,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTBundleLayout(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTBundleLayout":
         """Return the requested item.
 
@@ -132,6 +141,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, coord_id: int, diameter: float) -> "PJTBundleLayout":
         """Execute the insert operation.
 
@@ -156,6 +166,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
     """
     _table: PJTBundleLayoutsTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -170,6 +181,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         }
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_bundle_layout_obj.BundleLayout":
         """Return the object.
 
@@ -183,6 +195,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -193,6 +206,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_bundle_layout_obj.BundleLayout"):
         """Set the object.
 
@@ -207,6 +221,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
             self._obj = obj
 
     @property
+    @_check_types.do
     def attached_bundles(self) -> list["_pjt_bundle.PJTBundle"]:
         """Every bundle whose true start/stop lands on this layout's point.
 
@@ -234,6 +249,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         return []
 
     @property
+    @_check_types.do
     def table(self) -> PJTBundleLayoutsTable:
         """Return the table.
 
@@ -247,6 +263,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
     _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         """Return the diameter.
 
@@ -262,6 +279,7 @@ class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin,
         return self._stored_diameter
 
     @diameter.setter
+    @_check_types.do
     def diameter(self, value: float):
         """Set the diameter.
 
@@ -282,6 +300,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTBundleLayout):
         """Set the obj.
 
@@ -292,6 +311,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -307,6 +327,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
             self.position_ctrl.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTBundleLayoutControl` instance.
 

@@ -11,11 +11,13 @@ import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
 
 
+@_check_types.do
 def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached arrow VBO.
 

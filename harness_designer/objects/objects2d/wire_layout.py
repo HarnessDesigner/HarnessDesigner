@@ -11,6 +11,7 @@ from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
 from ...shapes import sphere as _sphere
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ class WireLayout(_base2d.Base2D):
     # objects.objectsvar.base_var.BaseVar._pick_priority.
     _pick_priority = 1
 
+    @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.
@@ -81,6 +83,7 @@ class WireLayoutMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`WireLayoutMenu` instance.
 
@@ -109,6 +112,7 @@ class WireLayoutMenu(QMenu):
         action = self.addAction('Delete')
         action.triggered.connect(self.on_delete)
 
+    @_check_types.do
     def on_add_splice(self):
         """Handle the add splice event.
 
@@ -116,6 +120,7 @@ class WireLayoutMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Handle the trace circuit event.
 
@@ -123,6 +128,7 @@ class WireLayoutMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_select(self):
         """Handle the select event.
 
@@ -130,6 +136,7 @@ class WireLayoutMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 

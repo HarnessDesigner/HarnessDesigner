@@ -4,6 +4,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class LongStringDialog(QtWidgets.QDialog):
@@ -12,6 +13,7 @@ class LongStringDialog(QtWidgets.QDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, value: str, title: str = 'Enter Text'):
         """Initialise the :class:`LongStringDialog` instance.
 
@@ -51,6 +53,7 @@ class LongStringDialog(QtWidgets.QDialog):
         layout.addWidget(button_box)
         self.setLayout(layout)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -70,6 +73,7 @@ class LongStringProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label: str, style: int = 0, units: str | None = None):
         """Initialise the :class:`LongStringProperty` instance.
 
@@ -115,6 +119,7 @@ class LongStringProperty(QtWidgets.QWidget):
         self.setLayout(sizer)
         self._button.clicked.connect(self._on_dialog_button)
 
+    @_check_types.do
     def SetDialogTitle(self, value: str) -> None:
         """
         Execute the set dialog title operation.
@@ -125,6 +130,7 @@ class LongStringProperty(QtWidgets.QWidget):
 
         self._dialog_title = value
 
+    @_check_types.do
     def GetValue(self) -> str:
         """
         Execute the get value operation.
@@ -135,6 +141,7 @@ class LongStringProperty(QtWidgets.QWidget):
 
         return self._value
 
+    @_check_types.do
     def SetValue(self, value: str) -> None:
         """
         Execute the set value operation.
@@ -150,6 +157,7 @@ class LongStringProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def _on_dialog_button(self) -> None:
         """
         Handle the dialog button event.
@@ -172,9 +180,11 @@ class LongStringProperty(QtWidgets.QWidget):
             evt.SetProperty(self)
             self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

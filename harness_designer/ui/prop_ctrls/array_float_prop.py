@@ -6,8 +6,10 @@ from PySide6 import QtCore
 
 from ._array_dialog_base import _ArrayDialog
 from . import events as _events
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def _float_char_ok(key: int) -> bool:
     """Execute the float char ok operation.
 
@@ -29,6 +31,7 @@ class ArrayFloatDialog(_ArrayDialog):
     """
     _char_filter = staticmethod(_float_char_ok)
 
+    @_check_types.do
     def __init__(self, parent, values, title='Modify Array'):
         """Initialise the :class:`ArrayFloatDialog` instance.
 
@@ -43,6 +46,7 @@ class ArrayFloatDialog(_ArrayDialog):
         """
         _ArrayDialog.__init__(self, parent, values, title)
 
+    @_check_types.do
     def GetValue(self) -> list:
         """Execute the get value operation.
 
@@ -68,6 +72,7 @@ class ArrayFloatProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(list)
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`ArrayFloatProperty` instance.
 
@@ -100,6 +105,7 @@ class ArrayFloatProperty(QtWidgets.QWidget):
 
         self._button.clicked.connect(self._on_dialog_button)
 
+    @_check_types.do
     def GetValue(self) -> list:
         """Execute the get value operation.
 
@@ -110,6 +116,7 @@ class ArrayFloatProperty(QtWidgets.QWidget):
         """
         return self._value
 
+    @_check_types.do
     def SetValue(self, value: list):
         """Execute the set value operation.
 
@@ -121,6 +128,7 @@ class ArrayFloatProperty(QtWidgets.QWidget):
         self._value = value
         self._ctrl.setText(', '.join(str(v) for v in value))
 
+    @_check_types.do
     def SetDialogTitle(self, value: str):
         """Execute the set dialog title operation.
 
@@ -131,6 +139,7 @@ class ArrayFloatProperty(QtWidgets.QWidget):
         """
         self._dialog_title = value
 
+    @_check_types.do
     def _on_dialog_button(self):
         """Handle the dialog button event.
 
@@ -153,9 +162,11 @@ class ArrayFloatProperty(QtWidgets.QWidget):
             evt.SetProperty(self)
             self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

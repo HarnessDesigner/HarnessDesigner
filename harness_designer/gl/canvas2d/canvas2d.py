@@ -6,6 +6,7 @@ from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from . import canvas as _canvas
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -19,6 +20,7 @@ class Canvas2D(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", config: "_config.Config.editor2d", size=None):
         """Initialise the :class:`Canvas2D` instance.
 
@@ -49,6 +51,7 @@ class Canvas2D(QtWidgets.QWidget):
 
         self.config = config
 
+    @_check_types.do
     def event(self, event):
         """Execute the event operation.
 
@@ -62,6 +65,7 @@ class Canvas2D(QtWidgets.QWidget):
         return QtWidgets.QWidget.event(self, event)
 
     @property
+    @_check_types.do
     def context(self):
         """Return the context.
 
@@ -73,6 +77,7 @@ class Canvas2D(QtWidgets.QWidget):
         return self._canvas.context
 
     @property
+    @_check_types.do
     def camera(self):
         """Return the camera.
 
@@ -83,6 +88,7 @@ class Canvas2D(QtWidgets.QWidget):
         """
         return self._canvas.camera
 
+    @_check_types.do
     def set_selected(self, obj):
         """Set the selected.
 
@@ -93,6 +99,7 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._canvas.set_selected(obj)
 
+    @_check_types.do
     def set_mode(self, mode: int) -> None:
         """Set the mode.
 
@@ -103,6 +110,7 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._canvas.set_mode(mode)
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -113,6 +121,7 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._canvas.add_object(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         """Remove the object.
 
@@ -123,6 +132,7 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._canvas.remove_object(obj)
 
+    @_check_types.do
     def clear(self) -> None:
         """Drop every scene object in bulk, without touching the database.
 
@@ -130,6 +140,7 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._canvas.clear()
 
+    @_check_types.do
     def __enter__(self):
         """Enter the managed context.
 
@@ -138,6 +149,7 @@ class Canvas2D(QtWidgets.QWidget):
         self._ref_count += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the managed context.
 
@@ -152,10 +164,12 @@ class Canvas2D(QtWidgets.QWidget):
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def bind(self, signal_name: str, handler) -> None:
         """Forward signal connections to the inner QOpenGLWidget canvas."""
         getattr(self._canvas, signal_name).connect(handler)
 
+    @_check_types.do
     def Refresh(self, *_, **__):
         """Execute the refresh operation.
 

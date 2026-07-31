@@ -8,6 +8,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from . import dialog_base as _dialog_base
 from ..widgets import choice_ctrl as _choice_ctrl
 from ...exporter import exporter as _exporter
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import ui as _ui
@@ -45,6 +46,7 @@ _FORMAT_TYPES = [fmt for fmt, _ in _FORMAT_LIST]
 _FORMAT_DISPLAY_NAMES = [name for _, name in _FORMAT_LIST]
 
 
+@_check_types.do
 def _wx_to_qt_filter(wx_wildcard: str) -> str:
     """Convert 'Desc|*.ext;*.ext2|' (wx) to 'Desc (*.ext *.ext2)' (Qt)."""
     parts = [p for p in wx_wildcard.rstrip('|').split('|') if p]
@@ -54,6 +56,7 @@ def _wx_to_qt_filter(wx_wildcard: str) -> str:
     return wx_wildcard
 
 
+@_check_types.do
 def _obj_label(obj) -> str:
     try:
         return f'{type(obj).__name__} [{obj.db_obj.part.part_number}]'
@@ -70,6 +73,7 @@ def _obj_label(obj) -> str:
 
 class _FilePickerRow(QtWidgets.QWidget):
 
+    @_check_types.do
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -91,9 +95,11 @@ class _FilePickerRow(QtWidgets.QWidget):
         row.addWidget(self._edit, 1)
         row.addWidget(self._browse_btn)
 
+    @_check_types.do
     def set_filter(self, qt_filter: str):
         self._qt_filter = qt_filter
 
+    @_check_types.do
     def _on_browse(self):
         start = self._edit.text().strip() or ''
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
@@ -101,6 +107,7 @@ class _FilePickerRow(QtWidgets.QWidget):
         if path:
             self._edit.setText(path)
 
+    @_check_types.do
     def get_path(self) -> str:
         return self._edit.text().strip()
 
@@ -115,6 +122,7 @@ class _ExportWorker(QtCore.QThread):
     step_progressed = QtCore.Signal(int)     # current step value
     export_finished = QtCore.Signal(bool, str)  # (success, error_message)
 
+    @_check_types.do
     def __init__(self, verts: np.ndarray, normals: np.ndarray,
                  path: str, export_type: int):
         super().__init__()
@@ -124,6 +132,7 @@ class _ExportWorker(QtCore.QThread):
         self._export_type = export_type
         self._current_total = 0
 
+    @_check_types.do
     def _progress_cb(self, current: int, total: int, phase: str):
         if total < 0:
             # File-write phase — log only, bar stays at max
@@ -134,6 +143,7 @@ class _ExportWorker(QtCore.QThread):
             self.step_started.emit(phase, total)
         self.step_progressed.emit(current)
 
+    @_check_types.do
     def run(self):
         try:
             n_verts = len(self._verts)
@@ -177,6 +187,7 @@ class _ExportWorker(QtCore.QThread):
 class ExportDialog(_dialog_base.BaseDialog):
     """Non-modal dialog for exporting all visible 3-D model data."""
 
+    @_check_types.do
     def __init__(self, parent: '_ui.MainFrame'):
         super().__init__(
             parent, 'Export Models', size=(720, 560),
@@ -238,11 +249,13 @@ class ExportDialog(_dialog_base.BaseDialog):
     # Helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _log_line(self, text: str):
         self._log.appendPlainText(text)
         self._log.verticalScrollBar().setValue(
             self._log.verticalScrollBar().maximum())
 
+    @_check_types.do
     def _selected_export_type(self) -> int:
         return _FORMAT_TYPES[self._format_ctrl.GetSelection()]
 
@@ -250,12 +263,14 @@ class ExportDialog(_dialog_base.BaseDialog):
     # Slots
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_format_changed(self, _display_name: str):
         export_type = self._selected_export_type()
         wx_wildcard = _exporter.FILE_WILDCARDS.get(export_type, 'All Files (*.*)')
         qt_filter = _wx_to_qt_filter(wx_wildcard)
         self._file_picker.set_filter(qt_filter)
 
+    @_check_types.do
     def _on_export(self):
         if self._worker and self._worker.isRunning():
             return
@@ -315,14 +330,17 @@ class ExportDialog(_dialog_base.BaseDialog):
         self._worker.export_finished.connect(self._on_export_finished)
         self._worker.start()
 
+    @_check_types.do
     def _on_step_started(self, description: str, total: int):
         self._phase_label.setText(description)
         self._progress.setRange(0, max(total, 1))
         self._progress.setValue(0)
 
+    @_check_types.do
     def _on_step_progressed(self, current: int):
         self._progress.setValue(current)
 
+    @_check_types.do
     def _on_export_finished(self, success: bool, error_msg: str):
         if success:
             self._phase_label.setText('Done')
@@ -337,6 +355,7 @@ class ExportDialog(_dialog_base.BaseDialog):
     # Mesh collection
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _collect_mesh_data(self, project):
         """
         Walk all visible 3D objects, apply their world transforms, and
@@ -412,9 +431,11 @@ class ExportDialog(_dialog_base.BaseDialog):
     # QDialog overrides
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def GetValue(self):
         return None
 
+    @_check_types.do
     def closeEvent(self, event: QtGui.QCloseEvent):
         if self._worker and self._worker.isRunning():
             self._worker.wait(2000)

@@ -15,6 +15,7 @@ from ...shapes import box as _box
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ class Terminal(_base3d.Base3D):
     # that computed Y and persist the overwrite to the DB.
     _floor_lock_exempt = True
 
+    @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
         """Initialise the :class:`Terminal` instance.
@@ -164,6 +166,7 @@ class Terminal(_base3d.Base3D):
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
+    @_check_types.do
     def _set_model(self, model):
         super()._set_model(model)
 
@@ -195,6 +198,7 @@ class Terminal(_base3d.Base3D):
 
             _terminal_handler.reposition_from_model(self.db_obj)
 
+    @_check_types.do
     def _refresh_overlay_state(self) -> None:
         """(Re)resolve which of the housing's mesh surfaces this terminal
         should overlay, and which wrapper object's selection state drives
@@ -246,6 +250,7 @@ class Terminal(_base3d.Base3D):
         if self._pin_overlay_needed(pjt_cavity) and cavity_3d.surf_idx >= 0:
             self._overlay_pin_surf_idx = cavity_3d.surf_idx
 
+    @_check_types.do
     def _pin_overlay_needed(self, pjt_cavity) -> bool:
         """Male terminals never show a pin-side overlay; female terminals
         always do; an undetermined gender defaults to showing it (terminal
@@ -263,6 +268,7 @@ class Terminal(_base3d.Base3D):
 
         return True
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         super().render(faces_program, edges_program, vertices_program)
 
@@ -292,6 +298,7 @@ class Terminal(_base3d.Base3D):
         if self._overlay_pin_surf_idx is not None:
             housing_3d.render_surface_overlay(self._overlay_pin_surf_idx, color)
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Update the position.
 
@@ -308,6 +315,7 @@ class Terminal(_base3d.Base3D):
 
         _base3d.Base3D._update_position(self, position)
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -325,6 +333,7 @@ class Terminal(_base3d.Base3D):
         _base3d.Base3D._update_angle(self, angle)
 
     @property
+    @_check_types.do
     def seal_position(self) -> _point.Point:
         """Return the seal position.
 
@@ -336,6 +345,7 @@ class Terminal(_base3d.Base3D):
         return self.wire_position
 
     @property
+    @_check_types.do
     def wire_position(self) -> _point.Point:
         """Return the wire position.
 
@@ -346,6 +356,7 @@ class Terminal(_base3d.Base3D):
         """
         return self.db_obj.wire_position3d
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -356,10 +367,12 @@ class Terminal(_base3d.Base3D):
         """
         return TerminalMenu(self.mainframe.editor3d.editor, self)
 
+    @_check_types.do
     def _delete(self):
         self._dangle_attached_wires()
         super()._delete()
 
+    @_check_types.do
     def _dangle_attached_wires(self):
         """Detach every wire attached to this terminal (see
         objects.terminal.Terminal.add_wire/.wires), leaving each dangling
@@ -423,6 +436,7 @@ class Terminal(_base3d.Base3D):
             wire.obj3d.refresh_waypoints()
 
     @staticmethod
+    @_check_types.do
     def _delete_layout_at(ptables, point_id):
         """Delete the WireLayout (if any) sitting at point_id."""
         for row in ptables.pjt_wire_layouts_table.select('id', position3d_id=point_id):
@@ -440,6 +454,7 @@ class TerminalMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`TerminalMenu` instance.
 
@@ -486,12 +501,14 @@ class TerminalMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_wire(self):
         """Start the interactive wire placement flow from this terminal."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
 
+        @_check_types.do
         def _factory():
             part_id = _menu_ops.get_part_id(
                 mainframe, 'wires', mainframe.global_db.wires_table,
@@ -504,6 +521,7 @@ class TerminalMenu(QMenu):
 
         _menu_ops.start_handler(mainframe, _factory)
 
+    @_check_types.do
     def on_add_seal(self):
         """Attach a seal to this terminal."""
         from ... import handlers as _handlers
@@ -514,22 +532,27 @@ class TerminalMenu(QMenu):
         _menu_ops.run_attached_handler(
             lambda: _handlers.AddSealHandler(mainframe, terminal))
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Highlight every object on this terminal's circuit."""
         _menu_ops.trace_circuit(self.selected)
 
+    @_check_types.do
     def on_select(self):
         """Make this terminal the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this terminal as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this terminal from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this terminal's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

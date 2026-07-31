@@ -24,6 +24,7 @@ from .mixins import (
     Angle2DMixin, Angle2DControl,
     Angle3DMixin, Angle3DControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ class PJTCavitiesTable(PJTTableBase):
     _control: "PJTCavityControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTCavityControl":
         """
         Return the control.
@@ -60,6 +62,7 @@ class PJTCavitiesTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """
         Start the control.
@@ -81,6 +84,7 @@ class PJTCavitiesTable(PJTTableBase):
 
     _controls: list["PJTCavityControl"] = []
 
+    @_check_types.do
     def get_control(self, index):
         """
         Return the control.
@@ -101,6 +105,7 @@ class PJTCavitiesTable(PJTTableBase):
 
         return self._controls[index]
 
+    @_check_types.do
     def get_from_position3d_id(self, position3d_id) -> "PJTCavity":
         """
         Return the from position 3D ID.
@@ -121,6 +126,7 @@ class PJTCavitiesTable(PJTTableBase):
         if rows:
             return self[rows[0][0]]
 
+    @_check_types.do
     def get_from_position2d_id(self, position2d_id) -> "PJTCavity":
         """
         Return the from position 2D ID.
@@ -138,6 +144,7 @@ class PJTCavitiesTable(PJTTableBase):
         if rows:
             return self[rows[0][0]]
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """
         Execute the table needs update operation.
@@ -152,6 +159,7 @@ class PJTCavitiesTable(PJTTableBase):
 
         return cavities.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """
         Add a table to database.
@@ -161,6 +169,7 @@ class PJTCavitiesTable(PJTTableBase):
 
         cavities.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """
         Update the table in database.
@@ -170,6 +179,7 @@ class PJTCavitiesTable(PJTTableBase):
 
         cavities.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTCavity"]:
         """
         Iterate over the available items.
@@ -181,6 +191,7 @@ class PJTCavitiesTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTCavity(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTCavity":
         """
         Return the requested item.
@@ -202,6 +213,7 @@ class PJTCavitiesTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, housing_id: int, name: str = "") -> "PJTCavity":
         """
         Execute the insert operation.
@@ -294,6 +306,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     _table: PJTCavitiesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """
         Build the monitor packet.
@@ -316,6 +329,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_cavity_obj.Cavity":
         """
         Return the object.
@@ -329,6 +343,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """
         Release the obj ref.
@@ -336,6 +351,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_cavity_obj.Cavity"):
         """
         Set the object.
@@ -350,6 +366,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTCavitiesTable:
         """
         Return the table.
@@ -363,6 +380,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_aabb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def aabb(self) -> np.ndarray:
         if self._stored_aabb is DefaultStoredValue:
             value = self._table.select('aabb', id=self._db_id)[0][0]
@@ -372,6 +390,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._stored_aabb
 
     @aabb.setter
+    @_check_types.do
     def aabb(self, value: np.ndarray):
         self._stored_aabb = value
         
@@ -383,6 +402,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_obb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
     
     @property
+    @_check_types.do
     def obb(self) -> np.ndarray:
         if self._stored_obb is DefaultStoredValue:
             value = self._table.select('obb', id=self._db_id)[0][0]
@@ -392,6 +412,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._stored_obb
 
     @obb.setter
+    @_check_types.do
     def obb(self, value: np.ndarray):
         self._stored_obb = value
 
@@ -403,6 +424,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_terminal: "DefaultStoredValueType | _pjt_terminal.PJTTerminal | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """
         Return the terminal.
@@ -426,6 +448,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_terminal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal_position3d(self) -> _point.Point:
         """
         Return the terminal position 3D.
@@ -455,6 +478,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_terminal_position3d_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def terminal_position3d_id(self) -> int:
         """
         Return the terminal position 3D ID.
@@ -495,6 +519,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._stored_terminal_position3d_id
 
     @terminal_position3d_id.setter
+    @_check_types.do
     def terminal_position3d_id(self, value: int):
         """
         Set the terminal position 3D ID.
@@ -512,6 +537,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_wire_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_position3d(self) -> _point.Point:
         """
         Return the wire-side layout point -- where a wire's WireLayout
@@ -543,6 +569,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_wire_position3d_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_position3d_id(self) -> int:
         """
         Return the ``pjt_points3d`` row id for the wire-side layout point,
@@ -597,6 +624,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._stored_wire_position3d_id
 
     @wire_position3d_id.setter
+    @_check_types.do
     def wire_position3d_id(self, value: int):
         """
         Set the wire-side layout point's ``pjt_points3d`` row id.
@@ -612,6 +640,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self._populate('wire_position3d_id')
 
     @property
+    @_check_types.do
     def wire_point3d_id_raw(self) -> int | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if a wire has
         never been routed to this cavity yet.
@@ -628,6 +657,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
     @property
+    @_check_types.do
     def terminal_position2d(self) -> _point.Point:
         """
         Return the terminal position 2D.
@@ -639,6 +669,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self.position2d
 
     @property
+    @_check_types.do
     def terminal_position2d_id(self) -> int:
         """
         Return the terminal position 2D ID.
@@ -650,6 +681,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self.position2d_id
 
     @terminal_position2d_id.setter
+    @_check_types.do
     def terminal_position2d_id(self, value: int):
         """
         Set the terminal position 2D ID.
@@ -664,6 +696,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_seal: "_pjt_seal.PJTSeal | DefaultStoredValueType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def seal(self) -> "_pjt_seal.PJTSeal":
         """
         Return the seal.
@@ -684,6 +717,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self._stored_seal
 
     @property
+    @_check_types.do
     def seal_position3d(self) -> _point.Point:
         """
         Return the seal position 3D.
@@ -694,6 +728,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         return self.terminal_position3d
 
     @property
+    @_check_types.do
     def seal_position3d_id(self) -> int:
         """
         Return the seal position 3D ID.
@@ -707,6 +742,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _stored_part: "_cavity.Cavity | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> "_cavity.Cavity":
         """
         Return the part.
@@ -728,6 +764,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return self._stored_part
 
+    @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle):
         """
         Update the angle 2D.
@@ -759,6 +796,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         self._populate('angle2d')
 
+    @_check_types.do
     def _update_angle3d(self, angle: _angle.Angle):
         """
         Update the angle 3D.
@@ -833,6 +871,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self._populate('angle3d')
 
     @property
+    @_check_types.do
     def angle3d(self) -> _angle.Angle:
         """
         Return the angle 3D.
@@ -865,14 +904,17 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
 
     _label = 'Cavity'
 
+    @_check_types.do
     def GetLabel(self) -> str:
         """Return the tab label a parent notebook should use for this control."""
         return self._label
 
+    @_check_types.do
     def SetLabel(self, value: str) -> None:
         """Set the tab label a parent notebook should use for this control."""
         self._label = value
 
+    @_check_types.do
     def SetIndex(self, index):
         """
         Execute the set index operation.
@@ -883,6 +925,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
 
         self.SetLabel(f'Cavity {index}')
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTCavity):
         """
         Set the obj.
@@ -892,6 +935,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         db_obj = self.db_obj
@@ -917,6 +961,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
 
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """
         Initialise the :class:`PJTCavityControl` instance.

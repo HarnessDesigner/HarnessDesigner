@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import project_model as _project_model_2d
 from .objects3d import project_model as _project_model_3d
 from .objectspeg import project_model as _project_model_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class ProjectModel(_ObjectBase):
     objpeg: _project_model_peg.ProjectModel = None
     db_obj: "_project.Project" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_project.Project", vbo):
 
@@ -33,8 +35,10 @@ class ProjectModel(_ObjectBase):
         self.objpeg = _project_model_peg.ProjectModel(self, db_obj)
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def set_selected(self, flag):
         pass
 
+    @_check_types.do
     def is_selected(self) -> bool:
         return False

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QScrollArea, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout
+from ... import check_types as _check_types
 
 
 class Category(QScrollArea):
@@ -9,6 +10,7 @@ class Category(QScrollArea):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`Category` instance.
 
@@ -31,6 +33,7 @@ class Category(QScrollArea):
         self.setWidget(self._container)
         self.setWidgetResizable(True)
 
+    @_check_types.do
     def GetLabel(self):
         """Execute the get label operation.
 
@@ -41,6 +44,7 @@ class Category(QScrollArea):
         """
         return self._label
 
+    @_check_types.do
     def SetLabel(self, value):
         """Execute the set label operation.
 
@@ -51,6 +55,7 @@ class Category(QScrollArea):
         """
         self._label = value
 
+    @_check_types.do
     def addWidget(self, widget):
         """Add a property widget to this category."""
         pos = self._sizer.count() - 1

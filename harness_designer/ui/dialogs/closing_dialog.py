@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from PySide6 import QtCore
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ class ClosingDialog(QtWidgets.QDialog):
     that nested loop.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", total_steps: int = 1):
         """Build and center the shutdown progress dialog.
 
@@ -67,6 +69,7 @@ class ClosingDialog(QtWidgets.QDialog):
         self.adjustSize()
         self._center_on_parent()
 
+    @_check_types.do
     def _center_on_parent(self) -> None:
         """Center this dialog over its parent window.
 
@@ -94,6 +97,7 @@ class ClosingDialog(QtWidgets.QDialog):
     # Public API
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_step(self, step: int) -> None:
         """Advance the progress bar to ``step``.
 
@@ -103,6 +107,7 @@ class ClosingDialog(QtWidgets.QDialog):
         """
         self._bar.setValue(step)
 
+    @_check_types.do
     def set_message(self, text: str) -> None:
         """Update the status label shown below the progress bar.
 

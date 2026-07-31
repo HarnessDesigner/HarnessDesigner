@@ -2,11 +2,13 @@
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from ... import check_types as _check_types
 
 
 class _AutoCompleter:
     """Pure-Python autocomplete state machine, shared by all widget wrappers."""
 
+    @_check_types.do
     def __init__(self, choices):
         """Initialise the :class:`_AutoCompleter` instance.
 
@@ -17,6 +19,7 @@ class _AutoCompleter:
         """
         self.choices = list(choices)
 
+    @_check_types.do
     def SetChoices(self, choices):
         """Execute the set choices operation.
 
@@ -27,6 +30,7 @@ class _AutoCompleter:
         """
         self.choices = list(choices)
 
+    @_check_types.do
     def GetChoices(self):
         """Execute the get choices operation.
 
@@ -37,6 +41,7 @@ class _AutoCompleter:
         """
         return self.choices[:]
 
+    @_check_types.do
     def AppendChoices(self, choices):
         """Execute the append choices operation.
 
@@ -47,6 +52,7 @@ class _AutoCompleter:
         """
         self.choices.extend(choices)
 
+    @_check_types.do
     def InsertChoice(self, item: str, pos: int):
         """Execute the insert choice operation.
 
@@ -59,6 +65,7 @@ class _AutoCompleter:
         """
         self.choices.insert(pos, item)
 
+    @_check_types.do
     def RemoveChoice(self, pos: int):
         """Execute the remove choice operation.
 
@@ -70,6 +77,7 @@ class _AutoCompleter:
         self.choices.pop(pos)
 
 
+@_check_types.do
 def _attach_completer(widget, ac: _AutoCompleter):
     """
     Create and attach a QCompleter to *widget*, returning it so callers can
@@ -85,6 +93,7 @@ def _attach_completer(widget, ac: _AutoCompleter):
     return completer
 
 
+@_check_types.do
 def _refresh_completer(widget, ac: _AutoCompleter):
     """Rebuild the completer model from the current choices list."""
     completer = widget.completer()
@@ -100,6 +109,7 @@ class AutoComplete(QtWidgets.QLineEdit):
     QLineEdit with inline autocomplete (replaces the wx AutoComplete TextCtrl).
     """
 
+    @_check_types.do
     def __init__(self, parent=None, value='', autocomplete_choices=None):
         """Initialise the :class:`AutoComplete` instance.
 
@@ -117,6 +127,7 @@ class AutoComplete(QtWidgets.QLineEdit):
         self._ac = _AutoCompleter(autocomplete_choices or [])
         _attach_completer(self, self._ac)
 
+    @_check_types.do
     def SetAutoCompleteChoices(self, choices):
         """Execute the set auto complete choices operation.
 
@@ -128,6 +139,7 @@ class AutoComplete(QtWidgets.QLineEdit):
         self._ac.SetChoices(choices)
         _refresh_completer(self, self._ac)
 
+    @_check_types.do
     def GetAutoCompleteChoices(self):
         """Execute the get auto complete choices operation.
 

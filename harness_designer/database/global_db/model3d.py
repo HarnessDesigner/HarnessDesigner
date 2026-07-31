@@ -12,6 +12,7 @@ from ...geometry import point as _point
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import resources as _resources
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
@@ -24,6 +25,7 @@ class Models3DTable(TableBase):
 
     __table_name__ = 'models3d'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """
         Execute the table needs update operation.
@@ -34,6 +36,7 @@ class Models3DTable(TableBase):
 
         return _models3d.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, _):
         """
         Add a table to database.
@@ -44,6 +47,7 @@ class Models3DTable(TableBase):
 
         _models3d.table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """
         Update the table in database.
@@ -51,6 +55,7 @@ class Models3DTable(TableBase):
 
         _models3d.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Model3D"]:
         """
         Iterate over the available items.
@@ -62,6 +67,7 @@ class Models3DTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Model3D(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Model3D":
         """
         Return the requested item.
@@ -81,6 +87,7 @@ class Models3DTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, path: str) -> "Model3D":  # NOQA
         """
         Get-or-create a ``models3d`` row for *path*, without touching the
@@ -138,6 +145,7 @@ class Model3D(EntryBase):
 
     _download_callbacks = {}
 
+    @_check_types.do
     def build_monitor_packet(self):
         """
         Build the monitor packet.
@@ -157,6 +165,7 @@ class Model3D(EntryBase):
         return packet
 
     @property
+    @_check_types.do
     def data_path(self) -> str | None:
         """
         Return the data path.
@@ -190,6 +199,7 @@ class Model3D(EntryBase):
     _stored_path: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def path(self) -> str:
         """
         Return the path.
@@ -206,6 +216,7 @@ class Model3D(EntryBase):
     _stored_uuid: str | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def uuid(self) -> str | None:
         """
         Return the uuid.
@@ -222,6 +233,7 @@ class Model3D(EntryBase):
     _stored_vertex_count: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def vertex_count(self) -> int | None:
         """
         Return the cached mesh vertex count (triangle-soup vertices).
@@ -237,6 +249,7 @@ class Model3D(EntryBase):
         return self._stored_vertex_count
 
     @vertex_count.setter
+    @_check_types.do
     def vertex_count(self, value: int):
         """
         Set the cached mesh vertex count.
@@ -249,6 +262,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, vertex_count=value)
 
     @property
+    @_check_types.do
     def aabb(self) -> np.ndarray | None:
         """
         Return the mesh axis-aligned bounding box.
@@ -270,6 +284,7 @@ class Model3D(EntryBase):
         return np.asarray(eval(value), dtype=np.float32)
 
     @aabb.setter
+    @_check_types.do
     def aabb(self, value):
         """
         Set the mesh axis-aligned bounding box.
@@ -283,6 +298,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, aabb=str(value))
 
     @property
+    @_check_types.do
     def obb(self) -> np.ndarray | None:
         """
         Return the mesh bounding-box corner coordinates.
@@ -304,6 +320,7 @@ class Model3D(EntryBase):
         return np.asarray(eval(value), dtype=np.float32)
 
     @obb.setter
+    @_check_types.do
     def obb(self, value):
         """
         Set the mesh bounding-box corner coordinates.
@@ -320,6 +337,7 @@ class Model3D(EntryBase):
     _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def file_type(self) -> "_file_types.FileType":
         """
         Return the file type.
@@ -340,6 +358,7 @@ class Model3D(EntryBase):
     _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def file_type_id(self) -> int | None:
         """
         Return the file type ID.
@@ -354,6 +373,7 @@ class Model3D(EntryBase):
         return self._stored_file_type_id
 
     @file_type_id.setter
+    @_check_types.do
     def file_type_id(self, value: int):
         """
         Set the file type ID.
@@ -367,6 +387,7 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, file_type_id=value)
 
+    @_check_types.do
     def __update_angle3d(self, angle: _angle.Angle):
         """
         Update the angle 3D.
@@ -384,6 +405,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
     @property
+    @_check_types.do
     def angle3d(self) -> _angle.Angle:
         """
         Return the angle 3D.
@@ -415,6 +437,7 @@ class Model3D(EntryBase):
         return angle
 
     @angle3d.setter
+    @_check_types.do
     def angle3d(self, value: list[float, float, float] | None):
         if value is None:
             quat = None
@@ -430,6 +453,7 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
+    @_check_types.do
     def __update_position3d(self, offset: _point.Point):
         """
         Update the position 3D.
@@ -443,6 +467,7 @@ class Model3D(EntryBase):
     _stored_position3d: list[float, float, float] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def position3d(self) -> _point.Point:
         """
         Return the position 3D.
@@ -476,6 +501,7 @@ class Model3D(EntryBase):
         return position
 
     @position3d.setter
+    @_check_types.do
     def position3d(self, value: list[float, float, float] | None):
         real_value: str | None = None
 
@@ -486,6 +512,7 @@ class Model3D(EntryBase):
 
         self._table.update(self._db_id, point3d=real_value)
 
+    @_check_types.do
     def __update_scale(self, scale: _point.Point):
         """
         Update the scale.
@@ -499,6 +526,7 @@ class Model3D(EntryBase):
     _stored_scale3d: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def scale(self) -> _point.Point:
         """
         Return the scale.
@@ -521,6 +549,7 @@ class Model3D(EntryBase):
         return self._stored_scale3d
 
     @scale.setter
+    @_check_types.do
     def scale(self, value: list[float, float, float] | None):
         real_value: str | None = None
 
@@ -534,6 +563,7 @@ class Model3D(EntryBase):
     _stored_forward_up: list[int, int] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def forward_up(self) -> list[int, int]:
         """
         Return the forward and up side indexes.
@@ -548,6 +578,7 @@ class Model3D(EntryBase):
         return list(self._stored_forward_up)
 
     @forward_up.setter
+    @_check_types.do
     def forward_up(self, value: list[int, int]):
         """
         Set the forward and up side indexes.
@@ -562,6 +593,7 @@ class Model3D(EntryBase):
     _stored_target_count: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def target_count(self) -> int:
         """
         Return the target count.
@@ -576,6 +608,7 @@ class Model3D(EntryBase):
         return self._stored_target_count
 
     @target_count.setter
+    @_check_types.do
     def target_count(self, value: int):
         """
         Set the target count.
@@ -590,6 +623,7 @@ class Model3D(EntryBase):
     _stored_aggressiveness: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def aggressiveness(self) -> float:
         """
         Return the aggressiveness.
@@ -604,6 +638,7 @@ class Model3D(EntryBase):
         return self._stored_aggressiveness
 
     @aggressiveness.setter
+    @_check_types.do
     def aggressiveness(self, value: float):
         """
         Set the aggressiveness.
@@ -618,6 +653,7 @@ class Model3D(EntryBase):
     _stored_update_rate: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def update_rate(self) -> int:
         """
         Return the update rate.
@@ -632,6 +668,7 @@ class Model3D(EntryBase):
         return self._stored_update_rate
 
     @update_rate.setter
+    @_check_types.do
     def update_rate(self, value: int):
         """
         Set the update rate.
@@ -646,6 +683,7 @@ class Model3D(EntryBase):
     _stored_simplify: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def simplify(self) -> bool:
         """
         Return the simplify.
@@ -660,6 +698,7 @@ class Model3D(EntryBase):
         return self._stored_simplify
 
     @simplify.setter
+    @_check_types.do
     def simplify(self, value: bool):
         """
         Set the simplify.
@@ -674,6 +713,7 @@ class Model3D(EntryBase):
     _stored_iterations: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def iterations(self) -> int:
         """
         Return the iterations.
@@ -688,6 +728,7 @@ class Model3D(EntryBase):
         return self._stored_iterations
 
     @iterations.setter
+    @_check_types.do
     def iterations(self, value: int):
         """
         Set the iterations.
@@ -702,6 +743,7 @@ class Model3D(EntryBase):
     _stored_size: tuple[float, float, float] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def size(self) -> tuple[float, float, float]:
         """
         Collects the length, width and height of a model from the obb after
@@ -725,6 +767,7 @@ class Model3D(EntryBase):
 
         return self._stored_size
 
+    @_check_types.do
     def download_complete(self):
         if self.db_id not in self._download_callbacks:
             return
@@ -771,6 +814,7 @@ class Model3D(EntryBase):
 
             del self._download_callbacks[self.db_id]
 
+    @_check_types.do
     def load(self, mfg, part_number, callback) -> None:
         """
         Load a 3d model.

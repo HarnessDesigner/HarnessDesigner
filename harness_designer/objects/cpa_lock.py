@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import cpa_lock as _cpa_lock_2d
 from .objects3d import cpa_lock as _cpa_lock_3d
 from .objectspeg import cpa_lock as _cpa_lock_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class CPALock(_ObjectBase):
     objpeg: _cpa_lock_peg.CPALock = None
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_cpa_lock.PJTCPALock", project_load=False):
         """Initialise the :class:`CPALock` instance.
@@ -46,6 +48,7 @@ class CPALock(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_cpa_lock(self.db_obj.db_id)

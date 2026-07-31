@@ -21,6 +21,7 @@ from .mixins import (
     WeightMixin, WeightControl,
     FamilyMixin, FamilyControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class BundleCoversTable(TableBase):
     _control: "BundleCoverControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "BundleCoverControl":
         """Return the control.
 
@@ -50,6 +52,7 @@ class BundleCoversTable(TableBase):
             self._control.hide()
         return self._control
 
+    @_check_types.do
     def _load_database(self, splash):
         """Load the database.
 
@@ -63,6 +66,7 @@ class BundleCoversTable(TableBase):
         data_path = self._con.db_data.open(splash)
         bundle_covers.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -75,6 +79,7 @@ class BundleCoversTable(TableBase):
 
         return bundle_covers.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -90,6 +95,7 @@ class BundleCoversTable(TableBase):
 
         bundle_covers.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -99,6 +105,7 @@ class BundleCoversTable(TableBase):
 
         bundle_covers.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["BundleCover"]:
         """Iterate over the available items.
 
@@ -110,6 +117,7 @@ class BundleCoversTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield BundleCover(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "BundleCover":
         """Return the requested item.
 
@@ -133,6 +141,7 @@ class BundleCoversTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_number: str, mfg_id: int, description: str, series_id: int, image_id: int,
                datasheet_id: int, cad_id: int, min_temp_id: int, max_temp_id: int, color_id: int,
                min_size: float, max_size: float, wall: str, shrink_ratio: str, protections: str,
@@ -197,6 +206,7 @@ class BundleCoversTable(TableBase):
         return BundleCover(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -307,6 +317,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     
     _table: BundleCoversTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -335,6 +346,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_rigidity: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def rigidity(self) -> str:
         """Return the rigidity.
 
@@ -349,6 +361,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         return self._stored_rigidity
 
     @rigidity.setter
+    @_check_types.do
     def rigidity(self, value: str):
         """Set the rigidity.
 
@@ -364,6 +377,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_shrink_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def shrink_temp(self) -> "_temperature.Temperature":
         """Return the shrink temp.
 
@@ -383,6 +397,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_shrink_temp_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def shrink_temp_id(self) -> int:
         """Return the shrink temp ID.
 
@@ -397,6 +412,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         return self._stored_shrink_temp_id
 
     @shrink_temp_id.setter
+    @_check_types.do
     def shrink_temp_id(self, value: int):
         """Set the shrink temp ID.
 
@@ -414,6 +430,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_shrink_ratio: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def shrink_ratio(self) -> str:
         """Return the shrink ratio.
 
@@ -428,6 +445,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         return self._stored_shrink_ratio
 
     @shrink_ratio.setter
+    @_check_types.do
     def shrink_ratio(self, value: str):
         """Set the shrink ratio.
 
@@ -443,6 +461,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_wall: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wall(self) -> str:
         """Return the wall.
 
@@ -457,6 +476,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         return self._stored_wall
 
     @wall.setter
+    @_check_types.do
     def wall(self, value: str):
         """Set the wall.
 
@@ -472,6 +492,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_min_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def min_dia(self) -> float:
         """Return the min dia.
 
@@ -486,6 +507,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         return self._stored_min_dia
 
     @min_dia.setter
+    @_check_types.do
     def min_dia(self, value: float):
         """Set the min dia.
 
@@ -501,6 +523,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
     _stored_max_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_dia(self) -> float:
         """Return the max dia.
 
@@ -515,6 +538,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         return self._stored_max_dia
 
     @max_dia.setter
+    @_check_types.do
     def max_dia(self, value: float):
         """Set the max dia.
 
@@ -534,6 +558,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: BundleCover):
         """Set the obj.
 
@@ -544,6 +569,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         """
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -600,6 +626,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
             self.resources_page.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_rigidity(self, evt):
         """Handle the rigidity event.
 
@@ -611,6 +638,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.rigidity = value
 
+    @_check_types.do
     def _on_shrink_ratio(self, evt):
         """Handle the shrink ratio event.
 
@@ -622,6 +650,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.shrink_ratio = value
 
+    @_check_types.do
     def _on_wall(self, evt):
         """Handle the wall event.
 
@@ -633,6 +662,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.wall = value
 
+    @_check_types.do
     def _on_min_dia(self, evt):
         """Handle the min dia event.
 
@@ -644,6 +674,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.min_dia = value
 
+    @_check_types.do
     def _on_max_dia(self, evt):
         """Handle the max dia event.
 
@@ -655,6 +686,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.max_dia = value
 
+    @_check_types.do
     def _on_shrink_temp(self, evt):
         """Handle the shrink temp event.
 
@@ -685,6 +717,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
 
         self.db_obj.shrink_temp_id = db_id
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`BundleCoverControl` instance.
 

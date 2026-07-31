@@ -8,6 +8,7 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 from ..geometry import point as _point
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class HandlerBase:
     Base class for the 3d handlers
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", part_id: int | None):
         """
         Initialize the object and capture the state required for later interaction.
@@ -40,6 +42,7 @@ class HandlerBase:
         self._finalized = False
 
     @staticmethod
+    @_check_types.do
     def obb_face_direction(
         current_obb: np.ndarray,
         local_obb: np.ndarray,
@@ -66,6 +69,7 @@ class HandlerBase:
         return fc / n
 
     @staticmethod
+    @_check_types.do
     def euler_from_matrix_continuous(rot_mat: np.ndarray, prev_euler_deg):
         """
         YXZ Euler (degrees) from *rot_mat*, wrapped to stay within ±180° of *prev_euler_deg*.
@@ -87,6 +91,7 @@ class HandlerBase:
         return result
 
     @classmethod
+    @_check_types.do
     def set_angle_from_housing(cls, acc_obj, housing_obj) -> bool:
         """
         Align *acc_db_obj*'s angle3d to match the housing's current world-space rotation.
@@ -156,6 +161,7 @@ class HandlerBase:
         return True
 
     @classmethod
+    @_check_types.do
     def set_angle_from_cavity(cls, acc_obj, pjt_cavity) -> bool:
         """
         Align *acc_obj*'s angle3d to match *pjt_cavity*'s world-space rotation.
@@ -218,6 +224,7 @@ class HandlerBase:
         return True
 
     @staticmethod
+    @_check_types.do
     def reset_angle(acc_obj) -> None:
         """
         Reset *acc_db_obj*'s angle3d to the identity rotation (0, 0, 0).
@@ -238,6 +245,7 @@ class HandlerBase:
 
         obj_angle._process_callbacks()  # NOQA
 
+    @_check_types.do
     def capture_position(self, position: "_point.Point") -> None:
         """
         Store the most recently captured cursor position for later use by the handler.
@@ -248,6 +256,7 @@ class HandlerBase:
 
         self._captured_position = position
 
+    @_check_types.do
     def release_capture(self) -> None:
         """
         Handle release of the captured position and complete any deferred placement work.
@@ -257,12 +266,14 @@ class HandlerBase:
 
         raise NotImplementedError
 
+    @_check_types.do
     def ignore_next_input(self):
         """
         Removes a current mouse capture if any.
         """
         self._captured_position = None
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """
         Update preview or highlight state for the supplied mouse position.
@@ -273,6 +284,7 @@ class HandlerBase:
 
         pass
 
+    @_check_types.do
     def cancel(self):
         """
         Cancel the active operation and clean up any preview objects.
@@ -280,6 +292,7 @@ class HandlerBase:
 
         self.obj.delete()
 
+    @_check_types.do
     def finalize_at_last_point(self) -> None:
         """
         Right-click hook: end the operation at the last confirmed point,
@@ -293,6 +306,7 @@ class HandlerBase:
         pass
 
     @property
+    @_check_types.do
     def is_finalized(self) -> bool:
         """
         Return whether the handler has completed all required work.

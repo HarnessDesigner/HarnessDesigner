@@ -50,6 +50,7 @@ from ...geometry import point as _point
 from .. import events as _events
 from ..canvas3d.rotation_rings import (
     HANDLE_PICK_TOLERANCE, wrap_angle, validate_snap_angle)
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -72,6 +73,7 @@ MOUSE_REVERSE_WHEEL_AXIS = _config.MOUSE_REVERSE_WHEEL_AXIS
 MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 
+@_check_types.do
 def _qt_pos(qt_event) -> _point.Point:
     """Convert a Qt mouse event's position to a :class:`_point.Point`.
 
@@ -84,6 +86,7 @@ def _qt_pos(qt_event) -> _point.Point:
     return _point.Point(p.x(), p.y())
 
 
+@_check_types.do
 def _qt_buttons_flag(qt_event) -> int:
     """Convert Qt button flags to our BTN_* bitmask."""
     btns = qt_event.buttons()
@@ -101,6 +104,7 @@ def _qt_buttons_flag(qt_event) -> int:
     return flags
 
 
+@_check_types.do
 def _find_anchor_at_point(anchors: list, world_pos: _point.Point):
     """Hit-test *world_pos* against *anchors*, topmost-drawn-first.
 
@@ -155,6 +159,7 @@ def _find_anchor_at_point(anchors: list, world_pos: _point.Point):
 _WAYPOINT_HIT_RADIUS_MM = 5.0
 
 
+@_check_types.do
 def _find_waypoint_at_point(nodes: list, world_pos: _point.Point,
                             radius: float = _WAYPOINT_HIT_RADIUS_MM):
     """Hit-test *world_pos* against every waypoint node in *nodes*.
@@ -197,6 +202,7 @@ def _find_waypoint_at_point(nodes: list, world_pos: _point.Point,
     return best
 
 
+@_check_types.do
 def _find_selected_anchor(anchors: list):
     """Return whichever anchor's wrapped object is currently selected.
 
@@ -219,6 +225,7 @@ def _find_selected_anchor(anchors: list):
     return None
 
 
+@_check_types.do
 def _find_table_point_at(anchors: list, world_pos: _point.Point):
     """Return whichever data-table anchor point is under *world_pos*, if any.
 
@@ -266,6 +273,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     :class:`harness_designer.gl.canvas2d.mouse_handler.MouseHandler2D`.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`MouseHandlerPegBoard` instance.
 
@@ -328,6 +336,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     # Phase 3: drag arming / add-waypoint mode
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def arm_waypoint_drag(self, node) -> None:
         """Arm a continuous drag for *node* (a waypoint), without
         requiring a prior "click once to select, click again to arm"
@@ -355,6 +364,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._drag_touching = self.canvas.edges_touching_node(
             waypoint_id=node.waypoint_id)
 
+    @_check_types.do
     def start_add_waypoint(self) -> None:
         """Activate "click on a bundle strand to add a new waypoint"
         mode for the next left-click.
@@ -376,6 +386,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     # Rotate-gizmo hit-testing / drag
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _rotation_handle_hit(self, mouse_pos: _point.Point) -> bool:
         """Return whether *mouse_pos* (screen coordinates) hits the active
         rotate gizmo's grab handle.
@@ -405,6 +416,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
 
         return math.hypot(dx, dz) <= HANDLE_PICK_TOLERANCE
 
+    @_check_types.do
     def _rotate_center_screen(self, anchor) -> tuple:
         """Return the active gizmo's target *anchor*'s screen-space center.
 
@@ -418,6 +430,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         return float(screen.x), float(screen.y)
 
     @staticmethod
+    @_check_types.do
     def _rotate_screen_phi(mouse_pos: _point.Point, center_x: float,
                            center_z: float) -> float:
         """Return the math-orientation angle of the cursor around
@@ -441,6 +454,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         return math.atan2(-(float(mouse_pos.y) - center_z),
                           float(mouse_pos.x) - center_x)
 
+    @_check_types.do
     def _arm_rotate_drag(self, mouse_pos: _point.Point) -> None:
         """Arm a continuous rotate-drag starting at *mouse_pos*.
 
@@ -455,6 +469,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
             mouse_pos, *self._rotate_center)
         self._rotate_total = 0.0
 
+    @_check_types.do
     def _update_rotate_drag(self, mouse_pos: _point.Point) -> None:
         """Update the in-progress rotate-drag from the current mouse
         position -- writes immediately through the anchor's bound
@@ -492,6 +507,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     # Signal dispatch helper
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _send_event(self, event, qt_event):
         """Populate event fields and emit the named canvas signal."""
         mouse_pos = _qt_pos(qt_event)
@@ -512,6 +528,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     # Qt event filter dispatcher
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def eventFilter(self, obj, qt_event):
         """Execute the event filter operation.
 
@@ -586,6 +603,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _process_mouse(self, code):
         """Return a pan/zoom/reset wrapper bound to whichever of
         config.pan/config.zoom/config.reset claims ``code``, or a no-op.
@@ -604,6 +622,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
                 continue
 
             if config.mouse & code:
+                @_check_types.do
                 def _wrapper_func(c):
                     """Bind ``func`` with axis-swap applied per ``c.mouse``.
 
@@ -612,6 +631,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
                     :returns: Return value. UNKNOWN details.
                     :rtype: UNKNOWN
                     """
+                    @_check_types.do
                     def _wrapper(dx, dy):
                         """Execute the wrapper operation.
 
@@ -627,6 +647,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
                     return _wrapper
                 return _wrapper_func(config)
 
+        @_check_types.do
         def _do_nothing_func(_, __):
             """No binding claimed this button -- do nothing.
 
@@ -643,6 +664,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
     # Button handlers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def on_left_down(self, evt):
         """Handle the left down event.
 
@@ -764,6 +786,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         if refresh:
             self.canvas.update()
 
+    @_check_types.do
     def on_left_up(self, evt):
         """Handle the left up event.
 
@@ -818,6 +841,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_LEFT_UP), evt)
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def on_left_dclick(self, evt):
         """Handle the left dclick event.
 
@@ -829,6 +853,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
 
         self._send_event(_events.GLEvent(_events.EVT_GL_LEFT_DCLICK), evt)
 
+    @_check_types.do
     def on_right_down(self, evt):
         """Handle the right down event.
 
@@ -861,6 +886,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_DOWN), evt)
         self.canvas.grabMouse()
 
+    @_check_types.do
     def on_right_up(self, evt):
         """Handle the right up event.
 
@@ -883,6 +909,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_UP), evt)
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def _show_table_context_menu(self, mouse_pos: _point.Point) -> None:
         """Show the Show/Hide Data Table context menu for whichever
         table-point is under *mouse_pos*, if any.
@@ -907,6 +934,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         menu.exec(self.canvas.mapToGlobal(
             QtCore.QPoint(int(mouse_pos.x), int(mouse_pos.y))))
 
+    @_check_types.do
     def on_right_dclick(self, evt):
         """Handle the right dclick event.
 
@@ -915,6 +943,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_DCLICK), evt)
 
+    @_check_types.do
     def on_middle_down(self, evt):
         """Handle the middle down event.
 
@@ -927,6 +956,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_DOWN), evt)
         self.canvas.grabMouse()
 
+    @_check_types.do
     def on_middle_up(self, evt):
         """Handle the middle up event.
 
@@ -938,6 +968,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_UP), evt)
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def on_middle_dclick(self, evt):
         """Handle the middle dclick event.
 
@@ -946,6 +977,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_DCLICK), evt)
 
+    @_check_types.do
     def on_aux1_up(self, evt):
         """Handle the aux 1 up event.
 
@@ -954,6 +986,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_UP), evt)
 
+    @_check_types.do
     def on_aux1_down(self, evt):
         """Handle the aux 1 down event.
 
@@ -962,6 +995,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_DOWN), evt)
 
+    @_check_types.do
     def on_aux1_dclick(self, evt):
         """Handle the aux 1 dclick event.
 
@@ -970,6 +1004,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_DCLICK), evt)
 
+    @_check_types.do
     def on_aux2_up(self, evt):
         """Handle the aux 2 up event.
 
@@ -978,6 +1013,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_UP), evt)
 
+    @_check_types.do
     def on_aux2_down(self, evt):
         """Handle the aux 2 down event.
 
@@ -986,6 +1022,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_DOWN), evt)
 
+    @_check_types.do
     def on_aux2_dclick(self, evt):
         """Handle the aux 2 dclick event.
 
@@ -994,6 +1031,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_DCLICK), evt)
 
+    @_check_types.do
     def on_mouse_motion(self, evt):
         """Handle the mouse motion event.
 
@@ -1091,6 +1129,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
             # the next zoom) instead of tracking the pan live.
             self.canvas.Refresh()
 
+    @_check_types.do
     def on_mouse_wheel(self, evt):
         """Handle the mouse wheel event.
 

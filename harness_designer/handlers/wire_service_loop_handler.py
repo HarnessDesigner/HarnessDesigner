@@ -31,6 +31,7 @@ from ..objects import wire as _wire
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
+@_check_types.do
 def _wire_segments(wire: _wire.Wire):
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
@@ -94,6 +96,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
     """
     obj: _wire_service_loop.WireServiceLoop | None = None
 
+    @_check_types.do
     def __init__(
         self,
         mainframe: "_ui.MainFrame",
@@ -126,6 +129,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
     # Helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _closest_point_on_line(
         self,
         line: _line.Line,
@@ -159,6 +163,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
 
         return position, wire_angle
 
+    @_check_types.do
     def _create_preview(
         self,
         wire: _wire.Wire,
@@ -216,6 +221,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         # in release_capture/_teardown_preview.
         self.obj.obj3d.begin_move_session()
 
+    @_check_types.do
     def _update_preview(self, position: _point.Point):
         """Slide the existing preview to a new position on the same wire.
 
@@ -232,6 +238,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         start_p = self.obj.obj3d.start_position
         start_p += position - start_p
 
+    @_check_types.do
     def _split_wire_for_loop(
         self,
         wire: _wire.Wire,
@@ -288,6 +295,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
 
         return state
 
+    @_check_types.do
     def _restore_wire_from_split(self, state: _SplitState) -> None:
         """Reverse _split_wire_for_loop: delete both layouts, then merge
         wire1/wire2 back into a single wire via handlers.wire_topology.
@@ -311,6 +319,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         # Not sure what this was but I had to comment it out to get the app to compile.
         # project.add_wire(restored_obj)
 
+    @_check_types.do
     def _teardown_preview(self) -> None:
         """Delete the live loop preview and restore the wire it split."""
         if self.obj is not None:
@@ -327,6 +336,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
     # Handler protocol
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """Slide the preview along the wire's own (fixed) line.
 
@@ -348,6 +358,7 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         with self.mainframe.editor3d.context:
             self._update_preview(position)
 
+    @_check_types.do
     def release_capture(self):
         if self._finalized:
             return
@@ -380,5 +391,6 @@ class AddWireServiceLoopHandler(_handler_base.HandlerBase):
         self.obj = None
         self._split_state = None
 
+    @_check_types.do
     def cancel(self):
         self._teardown_preview()

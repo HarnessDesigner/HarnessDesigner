@@ -7,6 +7,7 @@ from . import ObjectBase as _ObjectBase
 from .objects2d import splice as _splice_2d
 from .objects3d import splice as _splice_3d
 from .objectspeg import splice as _splice_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class Splice(_ObjectBase):
     objpeg: _splice_peg.Splice = None
     db_obj: "_pjt_splice.PJTSplice" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_splice.PJTSplice", project_load=False):
         """Initialise the :class:`Splice` instance.
@@ -59,14 +61,17 @@ class Splice(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @_check_types.do
     def start_sibling(self) -> "_wire_obj.Wire | None":
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
+    @_check_types.do
     def stop_sibling(self) -> "_wire_obj.Wire | None":
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @property
+    @_check_types.do
     def branch_wires(self) -> list["_wire_obj.Wire"]:
         """Every wire attached to this splice's branch point."""
         alive = []
@@ -82,6 +87,7 @@ class Splice(_ObjectBase):
         return result
 
     @property
+    @_check_types.do
     def wires(self) -> list["_wire_obj.Wire"]:
         """Every wire attached to this splice -- through-pair plus branch."""
         result = []
@@ -92,6 +98,7 @@ class Splice(_ObjectBase):
         result.extend(self.branch_wires)
         return result
 
+    @_check_types.do
     def set_siblings(self, wire_a: "_wire_obj.Wire", wire_b: "_wire_obj.Wire") -> None:
         """Record *wire_a*/*wire_b* as this splice's through-pair.
 
@@ -117,6 +124,7 @@ class Splice(_ObjectBase):
             elif stop_id in (w_start, w_stop):
                 self._stop_sibling_ref = weakref.ref(wire)
 
+    @_check_types.do
     def add_wire(self, wire: "_wire_obj.Wire") -> None:
         """Attach *wire* to this splice's branch point.
 
@@ -126,6 +134,7 @@ class Splice(_ObjectBase):
         """
         self._branch_wire_refs.append(weakref.ref(wire))
 
+    @_check_types.do
     def replace_wire(self, old_wire: "_wire_obj.Wire", new_wire: "_wire_obj.Wire") -> None:
         """Swap *old_wire* for *new_wire* wherever it currently sits
         (start, stop, or branch), preserving position/role.
@@ -148,6 +157,7 @@ class Splice(_ObjectBase):
                 self._branch_wire_refs[i] = weakref.ref(new_wire)
                 return
 
+    @_check_types.do
     def delete(self):
         """Reconnect the through-pair back into a single wire (undoing
         the fork handlers.splice_handler made when this splice was

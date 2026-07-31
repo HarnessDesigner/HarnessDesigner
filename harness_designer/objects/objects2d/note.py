@@ -8,6 +8,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base2d as _base2d
 from ...ui.widgets import context_menus as _context_menus
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class Note(_base2d.Base2D):
     _parent: "_note.Note" = None
     db_obj: "_pjt_note.PJTNote"
 
+    @_check_types.do
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
         """Initialise the :class:`Note` instance.
 
@@ -39,6 +41,7 @@ class Note(_base2d.Base2D):
 
         _base2d.Base2D.__init__(self, parent, db_obj, None, angle, position, None, None)
 
+    @_check_types.do
     def set_size(self, size):
         self.db_obj.size2d = size
 
@@ -46,6 +49,7 @@ class Note(_base2d.Base2D):
             self._vbo.update(*self._build())
         self.editor2d.Refresh()
 
+    @_check_types.do
     def set_style(self, style):
         self.db_obj.style2d = style
 
@@ -53,6 +57,7 @@ class Note(_base2d.Base2D):
             self._vbo.update(*self._build())
         self.editor2d.Refresh()
 
+    @_check_types.do
     def set_alignment(self, alignment):
         self.db_obj.h_align2d = alignment
 
@@ -60,6 +65,7 @@ class Note(_base2d.Base2D):
             self._vbo.update(*self._build())
         self.editor2d.Refresh()
 
+    @_check_types.do
     def set_text(self, text: str):
         """Set the note text and rebuild the 3d geometry."""
         self.db_obj.notes = text
@@ -75,6 +81,7 @@ class NoteMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`NoteMenu` instance.
 
@@ -111,6 +118,7 @@ class NoteMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_set_text(self):
         """Handle the set text event.
 
@@ -118,6 +126,7 @@ class NoteMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_clone(self):
         """Handle the clone event.
 
@@ -125,6 +134,7 @@ class NoteMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_delete(self):
         """Handle the delete event.
 
@@ -132,6 +142,7 @@ class NoteMenu(QMenu):
         """
         pass
 
+    @_check_types.do
     def on_properties(self):
         """Handle the properties event.
 

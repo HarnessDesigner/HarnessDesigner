@@ -15,6 +15,7 @@ from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import add_note as _add_note
 from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ class AddNoteHandler(_handler_base.HandlerBase):
     """
     obj: _note.Note = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialize the object and capture the state required for later interaction.
@@ -56,6 +58,7 @@ class AddNoteHandler(_handler_base.HandlerBase):
         self.obj = _note.Note(mainframe, db_obj)
         self.obj.identify(self._preview_material)
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         """
         Update preview or highlight state for the supplied mouse position.
@@ -74,6 +77,7 @@ class AddNoteHandler(_handler_base.HandlerBase):
         delta = world_pos - position
         position += delta
 
+    @_check_types.do
     def release_capture(self) -> None:
         """
         Handle release of the captured position and complete any

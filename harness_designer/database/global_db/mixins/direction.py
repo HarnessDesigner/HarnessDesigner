@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class DirectionMixin(BaseMixin):
     _stored_direction: "DefaultStoredValueType | _direction.Direction" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def direction(self) -> "_direction.Direction":
         """Return the direction.
 
@@ -40,6 +42,7 @@ class DirectionMixin(BaseMixin):
     _stored_direction_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def direction_id(self) -> int:
         """Return the direction ID.
 
@@ -54,6 +57,7 @@ class DirectionMixin(BaseMixin):
         return self._stored_direction_id
 
     @direction_id.setter
+    @_check_types.do
     def direction_id(self, value: int):
         """Set the direction ID.
 
@@ -75,6 +79,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`DirectionControl` instance.
 
@@ -90,6 +95,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
         super().__init__(parent, 'Direction')
         self.propertyChanged.connect(self._on_direction)
 
+    @_check_types.do
     def set_obj(self, db_obj: DirectionMixin):
         """Set the obj.
 
@@ -114,6 +120,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
             self.SetValue(db_obj.direction.name)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_direction(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the direction event.
 

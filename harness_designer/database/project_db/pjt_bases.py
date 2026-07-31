@@ -6,6 +6,7 @@ import weakref
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class _PJTEntrySingleton(type):
     """
     _instances = {}
 
+    @_check_types.do
     def __init__(cls, name, bases, dct):
         """Initialise the :class:`_PJTEntrySingleton` instance.
 
@@ -53,6 +55,7 @@ class _PJTEntrySingleton(type):
         cls._instances = {}
 
     @classmethod
+    @_check_types.do
     def __remove_instance_ref(cls, ref):
         """Remove the instance ref.
 
@@ -69,6 +72,7 @@ class _PJTEntrySingleton(type):
 
         del cls._instances[key]
 
+    @_check_types.do
     def __call__(cls, table, db_id: int, project_id: int | None):
         """Call the instance.
 
@@ -104,6 +108,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, table: "PJTTableBase", db_id: int, project_id: int | None):
         """Initialise the :class:`PJTEntryBase` instance.
 
@@ -125,6 +130,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         self._treeitem = None
         _callback.CallbackMixin.__init__(self)
 
+    @_check_types.do
     def update_objects(self):
         """Update the objects.
 
@@ -137,6 +143,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
 
             obj.reload_from_db()
 
+    @_check_types.do
     def __remove_ref(self, ref):
         """Remove the ref.
 
@@ -150,6 +157,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         except ValueError:
             pass
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -160,6 +168,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         """
         self._objects.append(weakref.ref(obj, self.__remove_ref))
 
+    @_check_types.do
     def get_object(self):
         """Return the object.
 
@@ -169,6 +178,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         """
         raise NotImplementedError
 
+    @_check_types.do
     def set_object(self, obj):
         """Set the object.
 
@@ -183,6 +193,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
     _selected: bool = False
 
     @property
+    @_check_types.do
     def selected(self) -> bool:
         """Return the selected.
 
@@ -194,6 +205,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         return self._selected
 
     @selected.setter
+    @_check_types.do
     def selected(self, flag: bool):
         """Set the selected.
 
@@ -205,6 +217,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         self._selected = flag
 
     @staticmethod
+    @_check_types.do
     def merge_packet_data(src: dict, dst: dict):
         """Execute the merge packet data operation.
 
@@ -223,6 +236,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
                 dst[key] = values[:]
 
     @property
+    @_check_types.do
     def db_id(self) -> int:
         """Return the database ID.
 
@@ -234,6 +248,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         return self._db_id
 
     @property
+    @_check_types.do
     def table(self):
         """Return the table.
 
@@ -244,6 +259,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         """
         return self._table
 
+    @_check_types.do
     def delete(self) -> None:
         """Execute the delete operation.
 
@@ -264,6 +280,7 @@ class PJTTableBase:
     """
     __table_name__: str = None
 
+    @_check_types.do
     def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: "_splash.Splash"):
         """Initialise the :class:`PJTTableBase` instance.
 
@@ -297,6 +314,7 @@ class PJTTableBase:
         self.project_id = project_id
 
     @property
+    @_check_types.do
     def field_names(self):
         """Return the field names.
 
@@ -317,6 +335,7 @@ class PJTTableBase:
 
         return self.__field_names__
 
+    @_check_types.do
     def get_records(self, project_id):
         """Return the records.
 
@@ -338,6 +357,7 @@ class PJTTableBase:
 
         return rows
 
+    @_check_types.do
     def set_project(self, project_id: int | None = None):
         """Set the project.
 
@@ -348,6 +368,7 @@ class PJTTableBase:
         """
         self.project_id = project_id
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -359,6 +380,7 @@ class PJTTableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -368,6 +390,7 @@ class PJTTableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -377,6 +400,7 @@ class PJTTableBase:
         """
         raise NotImplementedError
 
+    @_check_types.do
     def __getitem__(self, item):
         """Return the requested item.
 
@@ -392,6 +416,7 @@ class PJTTableBase:
         for line in self._con.fetchall():
             return line
 
+    @_check_types.do
     def __iter__(self) -> _Iterable[int]:
         """Iterate over the available items.
 
@@ -409,6 +434,7 @@ class PJTTableBase:
             yield line[0]
 
     @property
+    @_check_types.do
     def table_name(self) -> str:
         """Return the table name.
 
@@ -419,6 +445,7 @@ class PJTTableBase:
         """
         return self.__table_name__
 
+    @_check_types.do
     def __contains__(self, db_id: int) -> bool:
         """Return whether the requested item is present.
 
@@ -436,6 +463,7 @@ class PJTTableBase:
 
         return False
 
+    @_check_types.do
     def insert(self, **kwargs) -> int:
         """Execute the insert operation.
 
@@ -466,6 +494,7 @@ class PJTTableBase:
         self._con.commit()
         return self._con.lastrowid
 
+    @_check_types.do
     def select(self, *args, OR: bool = False, **kwargs):
         """Execute the select operation.
 
@@ -516,6 +545,7 @@ class PJTTableBase:
         res = self._con.fetchall()
         return res
 
+    @_check_types.do
     def delete(self, db_id: int) -> None:
         """Execute the delete operation.
 
@@ -527,6 +557,7 @@ class PJTTableBase:
         self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = {db_id};')
         self._con.commit()
 
+    @_check_types.do
     def update(self, db_id: int, **kwargs):
         """Execute the update operation.
 
@@ -548,6 +579,7 @@ class PJTTableBase:
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = {db_id};', values)
         self._con.commit()
 
+    @_check_types.do
     def batch_update(self, field_names: list, rows: list) -> None:
         """Update multiple rows in one transaction.
 
@@ -565,6 +597,7 @@ class PJTTableBase:
         self._con.commit()
 
     @property
+    @_check_types.do
     def has_points3d(self):
         """Return the has points 3D.
 
@@ -576,6 +609,7 @@ class PJTTableBase:
         return any([name for name in self.field_names if name.endswith('_point3d_id')])
 
     @property
+    @_check_types.do
     def has_points2d(self):
         """Return the has points 2D.
 
@@ -586,6 +620,7 @@ class PJTTableBase:
         """
         return any([name for name in self.field_names if name.endswith('_point2d_id')])
 
+    @_check_types.do
     def find_unreferenced_point3d_ids(self, candidate_ids: list[int]) -> list[int]:
         """Find the unreferenced point 3D IDs.
 
@@ -598,6 +633,7 @@ class PJTTableBase:
         """
         return self._find_unreferenced_point_ids(candidate_ids, '_point3d_id')
 
+    @_check_types.do
     def find_unreferenced_point2d_ids(self, candidate_ids: list[int]) -> list[int]:
         """Find the unreferenced point 2D IDs.
 
@@ -610,6 +646,7 @@ class PJTTableBase:
         """
         return self._find_unreferenced_point_ids(candidate_ids, '_point2d_id')
 
+    @_check_types.do
     def _find_unreferenced_point_ids(self, candidate_ids: list[int], suffix: str) -> list[int]:
         """
         Given a set of candidate point IDs, return only those NOT referenced
@@ -701,6 +738,7 @@ class PJTTableBase:
         ret = {row[0] for row in self._con.fetchall() if row[0] is not None}
         return list(ret)
 
+    @_check_types.do
     def execute(self, cmd, params=None):
         """Execute the execute operation.
 
@@ -718,6 +756,7 @@ class PJTTableBase:
         else:
             return self._con.execute(cmd, params)
 
+    @_check_types.do
     def fetchall(self):
         """Execute the fetchall operation.
 
@@ -728,6 +767,7 @@ class PJTTableBase:
         """
         return self._con.fetchall()
 
+    @_check_types.do
     def fetchone(self):
         """Execute the fetchone operation.
 
@@ -738,6 +778,7 @@ class PJTTableBase:
         """
         return self._con.fetchone()
 
+    @_check_types.do
     def commit(self):
         """Execute the commit operation.
 
@@ -746,6 +787,7 @@ class PJTTableBase:
         self._con.commit()
 
     @property
+    @_check_types.do
     def lastrowid(self):
         """Return the lastrowid.
 
@@ -793,6 +835,7 @@ class PJTTables:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, splash, mainframe: "_ui.MainFrame"):
         """Initialise the :class:`PJTTables` instance.
 
@@ -843,6 +886,7 @@ class PJTTables:
         self._current_count = 0
 
     @property
+    @_check_types.do
     def tables(self) -> list[PJTTableBase]:
         """Return the tables.
 
@@ -854,6 +898,7 @@ class PJTTables:
         return [getattr(self, name) for name in sorted(list(dir(self)), reverse=True)
                 if name.endswith('_table') and not name.startswith('_')]
 
+    @_check_types.do
     def load(self, project_id):
         """Execute the load operation.
 
@@ -874,6 +919,7 @@ class PJTTables:
             """
 
             @staticmethod
+            @_check_types.do
             def SetText(msg):
                 """Execute the set text operation.
 
@@ -914,6 +960,7 @@ class PJTTables:
         self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
 
     @property
+    @_check_types.do
     def pjt_bundles_table(self) -> PJTBundlesTable:
         """Return the PJT bundles table.
 
@@ -925,6 +972,7 @@ class PJTTables:
         return self._pjt_bundles_table
 
     @property
+    @_check_types.do
     def pjt_bundle_layouts_table(self) -> PJTBundleLayoutsTable:
         """Return the PJT bundle layouts table.
 
@@ -936,6 +984,7 @@ class PJTTables:
         return self._pjt_bundle_layouts_table
 
     @property
+    @_check_types.do
     def pjt_circuits_table(self) -> PJTCircuitsTable:
         """Return the PJT circuits table.
 
@@ -947,6 +996,7 @@ class PJTTables:
         return self._pjt_circuits_table
 
     @property
+    @_check_types.do
     def pjt_points2d_table(self) -> PJTPoints2DTable:
         """Return the PJT points 2D table.
 
@@ -958,6 +1008,7 @@ class PJTTables:
         return self._pjt_points2d_table
 
     @property
+    @_check_types.do
     def pjt_points3d_table(self) -> PJTPoints3DTable:
         """Return the PJT points 3D table.
 
@@ -969,6 +1020,7 @@ class PJTTables:
         return self._pjt_points3d_table
 
     @property
+    @_check_types.do
     def pjt_housings_table(self) -> PJTHousingsTable:
         """Return the PJT housings table.
 
@@ -980,6 +1032,7 @@ class PJTTables:
         return self._pjt_housings_table
 
     @property
+    @_check_types.do
     def pjt_splices_table(self) -> PJTSplicesTable:
         """Return the PJT splices table.
 
@@ -991,6 +1044,7 @@ class PJTTables:
         return self._pjt_splices_table
 
     @property
+    @_check_types.do
     def pjt_transitions_table(self) -> PJTTransitionsTable:
         """Return the PJT transitions table.
 
@@ -1002,6 +1056,7 @@ class PJTTables:
         return self._pjt_transitions_table
 
     @property
+    @_check_types.do
     def pjt_wires_table(self) -> PJTWiresTable:
         """Return the PJT wires table.
 
@@ -1013,6 +1068,7 @@ class PJTTables:
         return self._pjt_wires_table
 
     @property
+    @_check_types.do
     def pjt_wire_layouts_table(self) -> PJTWireLayoutsTable:
         """Return the PJT wire layouts table.
 
@@ -1024,6 +1080,7 @@ class PJTTables:
         return self._pjt_wire_layouts_table
 
     @property
+    @_check_types.do
     def projects_table(self) -> ProjectsTable:
         """Return the projects table.
 
@@ -1035,6 +1092,7 @@ class PJTTables:
         return self._projects_table
 
     @property
+    @_check_types.do
     def pjt_cavities_table(self) -> PJTCavitiesTable:
         """Return the PJT cavities table.
 
@@ -1046,6 +1104,7 @@ class PJTTables:
         return self._pjt_cavities_table
 
     @property
+    @_check_types.do
     def pjt_terminals_table(self) -> PJTTerminalsTable:
         """Return the PJT terminals table.
 
@@ -1057,6 +1116,7 @@ class PJTTables:
         return self._pjt_terminals_table
 
     @property
+    @_check_types.do
     def pjt_seals_table(self) -> PJTSealsTable:
         """Return the PJT seals table.
 
@@ -1068,6 +1128,7 @@ class PJTTables:
         return self._pjt_seals_table
 
     @property
+    @_check_types.do
     def pjt_covers_table(self) -> PJTCoversTable:
         """Return the PJT covers table.
 
@@ -1079,6 +1140,7 @@ class PJTTables:
         return self._pjt_covers_table
 
     @property
+    @_check_types.do
     def pjt_boots_table(self) -> PJTBootsTable:
         """Return the PJT boots table.
 
@@ -1090,6 +1152,7 @@ class PJTTables:
         return self._pjt_boots_table
 
     @property
+    @_check_types.do
     def pjt_cpa_locks_table(self) -> PJTCPALocksTable:
         """Return the PJT CPA locks table.
 
@@ -1101,6 +1164,7 @@ class PJTTables:
         return self._pjt_cpa_locks_table
 
     @property
+    @_check_types.do
     def pjt_tpa_locks_table(self) -> PJTTPALocksTable:
         """Return the PJT TPA locks table.
 
@@ -1112,6 +1176,7 @@ class PJTTables:
         return self._pjt_tpa_locks_table
 
     @property
+    @_check_types.do
     def pjt_wire_markers_table(self) -> PJTWireMarkersTable:
         """Return the PJT wire markers table.
 
@@ -1123,6 +1188,7 @@ class PJTTables:
         return self._pjt_wire_markers_table
 
     @property
+    @_check_types.do
     def pjt_wire_service_loops_table(self) -> PJTWireServiceLoopsTable:
         """Return the PJT wire service loops table.
 
@@ -1134,6 +1200,7 @@ class PJTTables:
         return self._pjt_wire_service_loops_table
 
     @property
+    @_check_types.do
     def pjt_notes_table(self) -> PJTNotesTable:
         """Return the PJT notes table.
 
@@ -1145,6 +1212,7 @@ class PJTTables:
         return self._pjt_notes_table
 
     @property
+    @_check_types.do
     def pjt_concentrics_table(self) -> PJTConcentricsTable:
         """Return the PJT concentrics table.
 
@@ -1156,6 +1224,7 @@ class PJTTables:
         return self._pjt_concentrics_table
 
     @property
+    @_check_types.do
     def pjt_concentric_layers_table(self) -> PJTConcentricLayersTable:
         """Return the PJT concentric layers table.
 
@@ -1167,6 +1236,7 @@ class PJTTables:
         return self._pjt_concentric_layers_table
 
     @property
+    @_check_types.do
     def pjt_concentric_wires_table(self) -> PJTConcentricWiresTable:
         """Return the PJT concentric wires table.
 
@@ -1178,6 +1248,7 @@ class PJTTables:
         return self._pjt_concentric_wires_table
 
     @property
+    @_check_types.do
     def pjt_transition_branches_table(self) -> PJTTransitionBranchesTable:
         """Return the PJT transition branches table.
 
@@ -1189,6 +1260,7 @@ class PJTTables:
         return self._pjt_transition_branches_table
 
     @property
+    @_check_types.do
     def pjt_points_peg_table(self) -> PJTPointsPegTable:
         """Return the peg-board points table.
 
@@ -1198,6 +1270,7 @@ class PJTTables:
         return self._pjt_points_peg_table
 
     @property
+    @_check_types.do
     def pjt_pegboard_tables_table(self) -> PJTPegboardTablesTable:
         """Return the peg-board data-table overlay table.
 

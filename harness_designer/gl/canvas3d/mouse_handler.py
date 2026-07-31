@@ -16,6 +16,7 @@ from ...objects import housing as _housing
 from ...objects import terminal as _terminal
 from ...objects import wire as _wire
 from ...objects import bundle as _bundle
+from ... import check_types as _check_types
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -34,6 +35,7 @@ MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 _EPSILON = 1e-6
 
 
+@_check_types.do
 def _qt_pos(qt_event) -> _point.Point:
     """Execute the qt pos operation.
 
@@ -48,6 +50,7 @@ def _qt_pos(qt_event) -> _point.Point:
     return _point.Point(p.x(), p.y())
 
 
+@_check_types.do
 def _qt_buttons_flag(qt_event) -> int:
     """Convert Qt mouse buttons bitmask to our internal BTN_* flags."""
     btns = qt_event.buttons()
@@ -71,6 +74,7 @@ class MouseHandler:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: _canvas.Canvas):
         """Initialise the :class:`MouseHandler` instance.
 
@@ -119,6 +123,7 @@ class MouseHandler:
     # Qt event filter dispatcher
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def handle_event(self, event):
         """Handle the event.
 
@@ -193,6 +198,7 @@ class MouseHandler:
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _pick_object(self, mouse_pos, current_selection=None):
         """Pick a scene object, ignoring the rotation ring gizmo."""
         objects = self.canvas.objects_in_view
@@ -204,6 +210,7 @@ class MouseHandler:
             mouse_pos, objects, self.canvas.camera,
             current_selection=current_selection)
 
+    @_check_types.do
     def _exit_angle_mode(self):
         """Remove the rotation rings and end any active rotation drag."""
         if self._rotate_drag is not None:
@@ -214,6 +221,7 @@ class MouseHandler:
             self._rotation_rings.delete()
             self._rotation_rings = None
 
+    @_check_types.do
     def _process_mouse(self, code):
         """Execute the process mouse operation.
 
@@ -249,6 +257,7 @@ class MouseHandler:
                 continue
 
             if config.mouse & code:
+                @_check_types.do
                 def _wrapper_func(c):
                     """Execute the wrapper func operation.
 
@@ -259,6 +268,7 @@ class MouseHandler:
                     :returns: Return value. UNKNOWN details.
                     :rtype: UNKNOWN
                     """
+                    @_check_types.do
                     def _wrapper(dx, dy):
                         """Execute the wrapper operation.
 
@@ -277,6 +287,7 @@ class MouseHandler:
 
                 return _wrapper_func(config)
 
+        @_check_types.do
         def _do_nothing_func(_, __):
             """Execute the do nothing func operation.
 
@@ -292,6 +303,7 @@ class MouseHandler:
         return _do_nothing_func
 
     @property
+    @_check_types.do
     def active_event(self) -> _events.GLEvent | _events.GLObjectEvent | None:
         """Return the active event.
 
@@ -302,6 +314,7 @@ class MouseHandler:
         """
         return self._gl_mouse_event
 
+    @_check_types.do
     def _send_event(self, new_event: _events.GLEvent | _events.GLObjectEvent,
                     qt_event) -> bool:
         """Execute the send event operation.
@@ -336,6 +349,7 @@ class MouseHandler:
 
         return new_event.ShouldPropagate()
 
+    @_check_types.do
     def _send_capture_lost(self):
         """Execute the send capture lost operation.
 
@@ -362,6 +376,7 @@ class MouseHandler:
     # Button handlers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def on_left_down(self, evt):
         """Handle the left down event.
 
@@ -392,6 +407,7 @@ class MouseHandler:
 
         self.canvas.grabMouse()
 
+    @_check_types.do
     def on_left_up(self, evt):
         """Handle the left up event.
 
@@ -521,6 +537,7 @@ class MouseHandler:
         if refresh:
             self.canvas.repaint()
 
+    @_check_types.do
     def on_left_dclick(self, evt):
         """Handle the left dclick event.
 
@@ -542,6 +559,7 @@ class MouseHandler:
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
+    @_check_types.do
     def on_middle_up(self, evt):
         """Handle the middle up event.
 
@@ -570,6 +588,7 @@ class MouseHandler:
         if refresh:
             self.canvas.repaint()
 
+    @_check_types.do
     def on_middle_down(self, evt):
         """Handle the middle down event.
 
@@ -587,6 +606,7 @@ class MouseHandler:
 
         self._mouse_pos = _qt_pos(evt)
 
+    @_check_types.do
     def on_middle_dclick(self, evt):
         """Handle the middle dclick event.
 
@@ -609,6 +629,7 @@ class MouseHandler:
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
+    @_check_types.do
     def on_right_up(self, evt):
         """Handle the right up event.
 
@@ -664,6 +685,7 @@ class MouseHandler:
         if refresh:
             self.canvas.repaint()
 
+    @_check_types.do
     def on_right_down(self, evt):
         """Handle the right down event.
 
@@ -714,6 +736,7 @@ class MouseHandler:
 
         self.canvas.grabMouse()
 
+    @_check_types.do
     def on_right_dclick(self, evt):
         """Handle the right dclick event.
 
@@ -736,6 +759,7 @@ class MouseHandler:
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
+    @_check_types.do
     def on_mouse_wheel(self, evt):
         """Handle the mouse wheel event.
 
@@ -752,7 +776,9 @@ class MouseHandler:
         self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
         self.canvas.repaint()
 
+    @_check_types.do
     def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point, wheel_delta: float) -> None:
+        @_check_types.do
         def _norm(values) -> float:
             return math.sqrt(sum(v * v for v in values))
 
@@ -817,6 +843,7 @@ class MouseHandler:
 
         camera.PanTilt(yaw_delta / 6, pitch_delta / 6)
 
+    @_check_types.do
     def on_mouse_motion(self, evt):
         """Handle the mouse motion event.
 
@@ -920,6 +947,7 @@ class MouseHandler:
         if refresh:
             self.canvas.repaint()
 
+    @_check_types.do
     def on_aux1_up(self, evt):
         """Handle the aux 1 up event.
 
@@ -941,6 +969,7 @@ class MouseHandler:
 
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def on_aux1_down(self, evt):
         """Handle the aux 1 down event.
 
@@ -953,6 +982,7 @@ class MouseHandler:
         self.canvas.grabMouse()
         self._mouse_pos = _qt_pos(evt)
 
+    @_check_types.do
     def on_aux1_dclick(self, evt):
         """Handle the aux 1 dclick event.
 
@@ -971,6 +1001,7 @@ class MouseHandler:
                 event.SetGLObject(selected)
                 self._send_event(event, evt)
 
+    @_check_types.do
     def on_aux2_up(self, evt):
         """Handle the aux 2 up event.
 
@@ -992,6 +1023,7 @@ class MouseHandler:
 
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def on_aux2_down(self, evt):
         """Handle the aux 2 down event.
 
@@ -1004,6 +1036,7 @@ class MouseHandler:
         self.canvas.grabMouse()
         self._mouse_pos = _qt_pos(evt)
 
+    @_check_types.do
     def on_aux2_dclick(self, evt):
         """Handle the aux 2 dclick event.
 

@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin,
                      FamilyMixin, SeriesMixin, ColorMixin, MaterialMixin)
+from ... import check_types as _check_types
 
 
 class AccessoriesTable(TableBase):
@@ -17,6 +18,7 @@ class AccessoriesTable(TableBase):
     _control = None  # : "AccessoryControl" = None
 
     @property
+    @_check_types.do
     def control(self):  # -> "AccessoryControl":
         """Return the control.
 
@@ -30,6 +32,7 @@ class AccessoriesTable(TableBase):
 
         return self._control
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -42,6 +45,7 @@ class AccessoriesTable(TableBase):
 
         return accessories.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -57,6 +61,7 @@ class AccessoriesTable(TableBase):
         data_path = self._con.db_data.open(splash)
         accessories.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -66,6 +71,7 @@ class AccessoriesTable(TableBase):
 
         accessories.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Accessory"]:
         """Iterate over the available items.
 
@@ -77,6 +83,7 @@ class AccessoriesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield Accessory(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Accessory":
         """Return the requested item.
 
@@ -100,6 +107,7 @@ class AccessoriesTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_number: str, description: str, mfg_id: int, family_id: int,
                series_id: int, material_id: int, color_id: int) -> "Accessory":
         """Execute the insert operation.
@@ -131,6 +139,7 @@ class AccessoriesTable(TableBase):
         return Accessory(self, db_id)
 
     @property
+    @_check_types.do
     def search_items(self) -> dict:
         """Return the search items.
 
@@ -188,6 +197,7 @@ class Accessory(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
     _table: AccessoriesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 

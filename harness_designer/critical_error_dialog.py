@@ -5,11 +5,13 @@
 import traceback
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from . import check_types as _check_types
 
 
 class CriticalErrorDialog(QtWidgets.QDialog):
     """Display an exception and issue-reporting instructions to the user."""
 
+    @_check_types.do
     def __init__(self, parent, err, title='Critical Error', context=None):
         """Build the critical error dialog.
 

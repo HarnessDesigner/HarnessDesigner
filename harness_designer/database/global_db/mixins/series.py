@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class SeriesMixin(BaseMixin):
     _stored_series: "DefaultStoredValueType | _series.Series" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def series(self) -> "_series.Series":
         """Return the series.
 
@@ -39,6 +41,7 @@ class SeriesMixin(BaseMixin):
     _stored_series_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def series_id(self) -> int:
         """Return the series ID.
 
@@ -53,6 +56,7 @@ class SeriesMixin(BaseMixin):
         return self._stored_series_id
 
     @series_id.setter
+    @_check_types.do
     def series_id(self, value: int):
         """Set the series ID.
 
@@ -74,6 +78,7 @@ class SeriesControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`SeriesControl` instance.
 
@@ -98,6 +103,7 @@ class SeriesControl(_prop_ctrls.Category):
         self.name_ctrl.propertyChanged.connect(self._on_name)
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
+    @_check_types.do
     def set_obj(self, db_obj: SeriesMixin):
         """Set the obj.
 
@@ -137,6 +143,7 @@ class SeriesControl(_prop_ctrls.Category):
             self.mfg_ctrl.setEnabled(True)
             self.desc_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_name(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the name event.
 
@@ -168,6 +175,7 @@ class SeriesControl(_prop_ctrls.Category):
 
         self.db_obj.series_id = db_id
 
+    @_check_types.do
     def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the desc event.
 

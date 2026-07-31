@@ -24,8 +24,10 @@ from . import circuits as _circuits
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 
@@ -84,6 +86,7 @@ def add_records(con, splash, data_path):
     os.chdir(cwd)
 
 
+@_check_types.do
 def add_splices(con, data: tuple[dict] | list[dict]):
     """Add a splices.
 
@@ -99,6 +102,7 @@ def add_splices(con, data: tuple[dict] | list[dict]):
         add_splice(con, **line)
 
 
+@_check_types.do
 def add_splice(con, part_number, description, mfg=None, family=None, series=None,
                color=None, image=None, datasheet=None, cad=None, min_temp=None,
                max_temp=None, model3d=None, material=None, plating=None,  type=None,  # NOQA
@@ -209,6 +213,7 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
         return con.lastrowid
 
 
+@_check_types.do
 def add_pjt_splice(con, project_id, part_id, start_point3d_id=None, stop_point3d_id=None,
                    branch_point3d_id=None, point2d_id=None, circuit_id=None, name='',
                    notes='', is_visible2d=0, is_visible3d=0):

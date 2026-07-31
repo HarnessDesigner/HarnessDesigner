@@ -8,6 +8,7 @@ import os
 
 from .. import utils as _utils
 from .. import logger as _logger
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 get_appdata = _utils.get_appdata
 
 
+@_check_types.do
 def _sep_cavity_id(id_):
     """Split a cavity identifier into its alphabetic and numeric segments.
 
@@ -42,6 +44,7 @@ def _sep_cavity_id(id_):
     return res
 
 
+@_check_types.do
 def enumerate_alpha(start, stop):
     """Enumerate inclusive alphabetical identifiers between two characters.
 
@@ -61,6 +64,7 @@ def enumerate_alpha(start, stop):
     return res
 
 
+@_check_types.do
 def _enumerate_int(start, stop):
 
     """Enumerate inclusive numeric identifiers between two values.
@@ -81,6 +85,7 @@ def _enumerate_int(start, stop):
     return res
 
 
+@_check_types.do
 def _enumerate_ids(start, stop):
 
     """Expand a mixed cavity identifier range into individual identifiers.
@@ -124,6 +129,7 @@ def _enumerate_ids(start, stop):
     return res
 
 
+@_check_types.do
 def get_cavity_ids(str_cav):
     """Expand a comma-separated cavity identifier specification.
 
@@ -146,6 +152,7 @@ def get_cavity_ids(str_cav):
     return out_ids
 
 
+@_check_types.do
 def purge_stale_files(db: "_global_db.GLBTables"):
     """Remove resource files that are no longer referenced by the database.
 
@@ -157,6 +164,7 @@ def purge_stale_files(db: "_global_db.GLBTables"):
     """
     con = db.connector
 
+    @_check_types.do
     def _get_files_to_prune(table, path):
         """Return files present on disk that are missing from the database records.
 
@@ -175,6 +183,7 @@ def purge_stale_files(db: "_global_db.GLBTables"):
         files = set(list(os.listdir(image_path)))
         return list(files.difference(files_db))
 
+    @_check_types.do
     def _remove_files(files, path):
         """Delete the supplied files from disk, logging any failures.
 

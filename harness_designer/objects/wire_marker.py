@@ -6,6 +6,7 @@ from . import ObjectBase as _ObjectBase
 from .objects3d import wire_marker as _wire_marker_3d
 from .objects2d import wire_marker as _wire_marker_2d
 from .objectspeg import wire_marker as _wire_marker_peg
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class WireMarker(_ObjectBase):
     objpeg: _wire_marker_peg.WireMarker = None
     db_obj: "_wire_marker.PJTWireMarker" = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
                  db_obj: "_wire_marker.PJTWireMarker", project_load=False):
         """Initialise the :class:`WireMarker` instance.
@@ -46,6 +48,7 @@ class WireMarker(_ObjectBase):
 
         self.mainframe.add_object(self)
 
+    @_check_types.do
     def select2d(self, evt):
         """Execute the select 2D operation.
 
@@ -56,6 +59,7 @@ class WireMarker(_ObjectBase):
         """
         pass
 
+    @_check_types.do
     def select3d(self, evt):
         """Execute the select 3D operation.
 
@@ -66,6 +70,7 @@ class WireMarker(_ObjectBase):
         """
         pass
 
+    @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_wire_marker(self.db_obj.db_id)

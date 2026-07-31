@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from OpenGL import GL
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -13,6 +14,7 @@ if TYPE_CHECKING:
 class SceneLight:
     """Manages the main scene lighting uniforms"""
     
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`SceneLight` instance.
 
@@ -24,6 +26,7 @@ class SceneLight:
         self.canvas = canvas
         self.config = self.canvas.config.lighting
 
+    @_check_types.do
     def set(self, shader_program):
         """Set the light uniforms in the shader"""
 

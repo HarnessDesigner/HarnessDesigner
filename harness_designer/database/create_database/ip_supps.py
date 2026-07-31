@@ -1,8 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from .. import db_connectors as _con
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, _=None):
     """
     Add a records.

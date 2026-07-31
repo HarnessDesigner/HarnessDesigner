@@ -8,6 +8,7 @@ from PySide6 import QtCore
 from ..widgets import autocomplete_combobox as _autocomplete_combobox
 from . import events as _events
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 class ColorProperty(QtWidgets.QWidget):
@@ -18,6 +19,7 @@ class ColorProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`ColorProperty` instance.
 
@@ -57,6 +59,7 @@ class ColorProperty(QtWidgets.QWidget):
 
         self._button.clicked.connect(self._on_colour)
 
+    @_check_types.do
     def _on_colour(self):
         """Handle the colour event.
 
@@ -94,6 +97,7 @@ class ColorProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def _on_change(self, value):
         """Handle the change event.
 
@@ -126,6 +130,7 @@ class ColorProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetValue(self, value: list[str, _color.Color | QtGui.QColor] | tuple[str, _color.Color | QtGui.QColor]):
         """Execute the set value operation.
 
@@ -167,6 +172,7 @@ class ColorProperty(QtWidgets.QWidget):
         self._ctrl.blockSignals(False)
         self._value = [name, color]
 
+    @_check_types.do
     def GetValue(self) -> list[str, _color.Color]:
         """Execute the get value operation.
 
@@ -177,6 +183,7 @@ class ColorProperty(QtWidgets.QWidget):
         """
         return self._value
 
+    @_check_types.do
     def Clear(self):  # NOQA
         """Execute the clear operation.
 
@@ -185,6 +192,7 @@ class ColorProperty(QtWidgets.QWidget):
         self._choices = []
         self._ctrl.clear()
 
+    @_check_types.do
     def GetItems(self):
         """Execute the get items operation.
 
@@ -195,6 +203,7 @@ class ColorProperty(QtWidgets.QWidget):
         """
         return self._choices
 
+    @_check_types.do
     def SetItems(self, items):
         """Execute the set items operation.
 
@@ -211,9 +220,11 @@ class ColorProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

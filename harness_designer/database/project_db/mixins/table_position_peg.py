@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point_peg as _pjt_point_peg
+from .... import check_types as _check_types
 
 
 class TablePositionPegMixin(BaseMixin):
@@ -21,6 +22,7 @@ class TablePositionPegMixin(BaseMixin):
     _stored_table_position_peg: "_pjt_point_peg.PJTPointPeg | DefaultStoredValueType | None" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def table_position_peg(self) -> _point.Point:
         """Return the data-table overlay's peg-board position.
 
@@ -48,6 +50,7 @@ class TablePositionPegMixin(BaseMixin):
     _stored_table_position_peg_id: int | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @_check_types.do
     def table_position_peg_id(self) -> int:
         """Return the data-table overlay's peg-board position row id.
 
@@ -70,6 +73,7 @@ class TablePositionPegMixin(BaseMixin):
         return self._stored_table_position_peg_id
 
     @table_position_peg_id.setter
+    @_check_types.do
     def table_position_peg_id(self, value: int):
         """Set the data-table overlay's peg-board position row id.
 

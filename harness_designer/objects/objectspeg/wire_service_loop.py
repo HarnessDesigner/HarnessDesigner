@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import basepeg as _basepeg
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class WireServiceLoop(_basepeg.BasePeg):
     _parent: "_wire_service_loop.WireServiceLoop" = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"
 
+    @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
         """Initialise the :class:`WireServiceLoop` instance.

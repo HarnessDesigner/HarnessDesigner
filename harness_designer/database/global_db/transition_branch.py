@@ -7,6 +7,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin, NameControl
 from ...geometry import point as _point
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class TransitionBranchesTable(TableBase):
     """
     __table_name__ = 'transition_branches'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -33,6 +35,7 @@ class TransitionBranchesTable(TableBase):
 
         return transition_branches.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, _):
         """Add a table to database.
 
@@ -45,6 +48,7 @@ class TransitionBranchesTable(TableBase):
 
         transition_branches.table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -54,6 +58,7 @@ class TransitionBranchesTable(TableBase):
 
         transition_branches.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["TransitionBranch"]:
         """Iterate over the available items.
 
@@ -65,6 +70,7 @@ class TransitionBranchesTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield TransitionBranch(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "TransitionBranch":
         """Return the requested item.
 
@@ -84,6 +90,7 @@ class TransitionBranchesTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, transition_id: int, idx: int, name: int, bulb_offset: _point.Point | None,
                bulb_length: float | None, min_dia: float, max_dia: float, length: float,
                angle: float, offset: _point.Point | None, flange_height: float | None,
@@ -136,6 +143,7 @@ class TransitionBranch(EntryBase, NameMixin):
     """
     _table: TransitionBranchesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -154,6 +162,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_transition: "DefaultStoredValueType | _transition.Transition" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def transition(self) -> "_transition.Transition":
         """Return the transition.
 
@@ -174,6 +183,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_transition_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def transition_id(self) -> int:
         """Return the transition ID.
 
@@ -190,6 +200,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int:
         """Return the idx.
 
@@ -204,6 +215,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int):
         """Set the idx.
 
@@ -219,6 +231,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_bulb_offset: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def bulb_offset(self) -> _point.Point:
         """Return the bulb offset.
 
@@ -238,6 +251,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_bulb_offset
 
     @bulb_offset.setter
+    @_check_types.do
     def bulb_offset(self, value: _point.Point):
         """Set the bulb offset.
 
@@ -253,6 +267,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_bulb_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def bulb_length(self) -> float:
         """Return the bulb length.
 
@@ -272,6 +287,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_bulb_length
 
     @bulb_length.setter
+    @_check_types.do
     def bulb_length(self, value: float):
         """Set the bulb length.
 
@@ -285,6 +301,7 @@ class TransitionBranch(EntryBase, NameMixin):
         self._populate('bulb_length')
 
     @property
+    @_check_types.do
     def compat_bundle_covers(self) -> list["_bundle_cover.BundleCover"]:
         """Return the compat bundle covers.
 
@@ -307,6 +324,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_min_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def min_dia(self) -> float:
         """Return the min dia.
 
@@ -321,6 +339,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_min_dia
 
     @min_dia.setter
+    @_check_types.do
     def min_dia(self, value: float):
         """Set the min dia.
 
@@ -336,6 +355,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_max_dia: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def max_dia(self) -> float:
         """Return the max dia.
 
@@ -350,6 +370,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_max_dia
 
     @max_dia.setter
+    @_check_types.do
     def max_dia(self, value: float):
         """Set the max dia.
 
@@ -365,6 +386,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def length(self) -> float:
         """Return the length.
 
@@ -379,6 +401,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_length
 
     @length.setter
+    @_check_types.do
     def length(self, value: float):
         """Set the length.
 
@@ -394,6 +417,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_angle: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def angle(self) -> float:
         """Return the angle.
 
@@ -408,6 +432,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_angle
 
     @angle.setter
+    @_check_types.do
     def angle(self, value: float):
         """Set the angle.
 
@@ -423,6 +448,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_offset: "_point.Point | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def offset(self) -> _point.Point:
         """Return the offset.
 
@@ -442,6 +468,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_offset
 
     @offset.setter
+    @_check_types.do
     def offset(self, value: _point.Point):
         """Set the offset.
 
@@ -457,6 +484,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_flange_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def flange_height(self) -> float:
         """Return the flange height.
 
@@ -471,6 +499,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_flange_height
 
     @flange_height.setter
+    @_check_types.do
     def flange_height(self, value: float):
         """Set the flange height.
 
@@ -486,6 +515,7 @@ class TransitionBranch(EntryBase, NameMixin):
     _stored_flange_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def flange_width(self) -> float:
         """Return the flange width.
 
@@ -500,6 +530,7 @@ class TransitionBranch(EntryBase, NameMixin):
         return self._stored_flange_width
 
     @flange_width.setter
+    @_check_types.do
     def flange_width(self, value: float):
         """Set the flange width.
 
@@ -519,6 +550,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: TransitionBranch):
         """Set the obj.
 
@@ -572,6 +604,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
             self.flange_height_ctrl.setEnabled(True)
             self.flange_width_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_length(self, evt):
         """Handle the length event.
 
@@ -583,6 +616,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.length = value
 
+    @_check_types.do
     def _on_angle(self, evt):
         """Handle the angle event.
 
@@ -594,6 +628,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.angle = value
 
+    @_check_types.do
     def _on_bulb_length(self, evt):
         """Handle the bulb length event.
 
@@ -605,6 +640,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.bulb_length = value
 
+    @_check_types.do
     def _on_min_dia(self, evt):
         """Handle the min dia event.
 
@@ -616,6 +652,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.min_dia = value
 
+    @_check_types.do
     def _on_max_dia(self, evt):
         """Handle the max dia event.
 
@@ -627,6 +664,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.max_dia = value
 
+    @_check_types.do
     def _on_flange_height(self, evt):
         """Handle the flange height event.
 
@@ -638,6 +676,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.flange_height = value
 
+    @_check_types.do
     def _on_flange_width(self, evt):
         """Handle the flange width event.
 
@@ -649,6 +688,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         value = evt.GetValue()
         self.db_obj.flange_width = value
 
+    @_check_types.do
     def SetIndex(self, index):
         """Execute the set index operation.
 
@@ -659,6 +699,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         """
         self.SetLabel(f'Branch {index}')
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`TransitionBranchControl` instance.
 

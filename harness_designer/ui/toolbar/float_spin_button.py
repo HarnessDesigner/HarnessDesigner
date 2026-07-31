@@ -8,6 +8,7 @@ centred below, and a dropdown QDoubleSpinBox for editing.
 from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 class FloatSpinButton(QtWidgets.QToolButton):
@@ -35,6 +36,7 @@ class FloatSpinButton(QtWidgets.QToolButton):
 
     valueChanged: QtCore.SignalInstance = QtCore.Signal(float)
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str, icon: QtGui.QIcon,
                  min_val: float, max_val: float, step: float = 0.1, decimals: int = 2,
                  suffix: str = ""):
@@ -84,10 +86,12 @@ class FloatSpinButton(QtWidgets.QToolButton):
 
         self.setMenu(menu)
 
+    @_check_types.do
     def GetValue(self) -> float:
         """Return the current float value."""
         return self._spin.value()
 
+    @_check_types.do
     def SetValue(self, v: float) -> None:
         """Set the value programmatically (also updates button text)."""
         with QtCore.QSignalBlocker(self._spin):
@@ -96,11 +100,13 @@ class FloatSpinButton(QtWidgets.QToolButton):
 
     # ── internals ─────────────────────────────────────────────────────────
 
+    @_check_types.do
     def _refresh_text(self, value: float) -> None:
         # Only the formatted number goes under the icon; the icon/tooltip
         # conveys the label so the button stays compact.
         self.setText(f"{value:.{self._decimals}f}{self._suffix}")
 
+    @_check_types.do
     def _on_spin_changed(self, value: float) -> None:
         self._refresh_text(value)
         self.valueChanged.emit(value)

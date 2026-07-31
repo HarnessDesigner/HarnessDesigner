@@ -6,6 +6,7 @@ from PySide6 import QtCore
 
 from . import dialog_base as _dialog_base
 from ... import config as _config
+from ... import check_types as _check_types
 
 Config = _config.Config.ray_trace
 
@@ -16,6 +17,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`RenderSettingsDialog` instance.
 
@@ -146,6 +148,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
         self.button_box.accepted.disconnect()
         self.button_box.accepted.connect(self.on_apply)
 
+    @_check_types.do
     def on_load_envmap(self):
         """Handle the load envmap event.
 
@@ -160,6 +163,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
             self.gen_check.setChecked(False)
             self.envmap_check.setChecked(True)
 
+    @_check_types.do
     def on_apply(self):
         """Handle the apply event.
 
@@ -185,6 +189,7 @@ class LightingPanel(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`LightingPanel` instance.
 
@@ -215,6 +220,7 @@ class LightingPanel(QtWidgets.QWidget):
         lay.addLayout(inner)
         lay.addLayout(btn_row)
 
+    @_check_types.do
     def on_add(self):
         """Handle the add event.
 
@@ -222,6 +228,7 @@ class LightingPanel(QtWidgets.QWidget):
         """
         self.lights_panel.add_light()
 
+    @_check_types.do
     def on_remove(self):
         """Handle the remove event.
 
@@ -229,6 +236,7 @@ class LightingPanel(QtWidgets.QWidget):
         """
         self.lights_panel.remove_item()
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -246,6 +254,7 @@ class LightsPanel(QtWidgets.QScrollArea):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent, lights):
         """Initialise the :class:`LightsPanel` instance.
 
@@ -274,6 +283,7 @@ class LightsPanel(QtWidgets.QScrollArea):
             self.items.append(item)
             self.main_sizer.addWidget(item)
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -284,6 +294,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         """
         return [light.GetValue() for light in self.items]
 
+    @_check_types.do
     def add_light(self):
         """Add a light.
 
@@ -298,6 +309,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         self.items.append(light)
         self.main_sizer.addWidget(light)
 
+    @_check_types.do
     def remove_item(self):
         """Remove the item.
 
@@ -312,6 +324,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         self.selected.deleteLater()
         self.selected = None
 
+    @_check_types.do
     def _set_selected(self, light):
         """Set the selected.
 
@@ -326,6 +339,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         light.select()
 
 
+@_check_types.do
 def _item_row(parent, label_text, ctrl):
     """Execute the item row operation.
 
@@ -353,6 +367,7 @@ class LightItem(QtWidgets.QWidget):
     """
     clicked_signal: QtCore.SignalInstance = QtCore.Signal()
 
+    @_check_types.do
     def __init__(self, parent, position, intensity, color):
         """Initialise the :class:`LightItem` instance.
 
@@ -412,6 +427,7 @@ class LightItem(QtWidgets.QWidget):
 
         row.addWidget(self.color_btn)
 
+    @_check_types.do
     def _pick_color(self):
         """Execute the pick color operation.
 
@@ -430,6 +446,7 @@ class LightItem(QtWidgets.QWidget):
             self.color_btn.setStyleSheet(
                 f'background-color: {chosen.name()}; min-width:40px;')
 
+    @_check_types.do
     def GetValue(self):
         """Execute the get value operation.
 
@@ -446,6 +463,7 @@ class LightItem(QtWidgets.QWidget):
             color=list(self._color)
         )
 
+    @_check_types.do
     def select(self):
         """Execute the select operation.
 
@@ -453,6 +471,7 @@ class LightItem(QtWidgets.QWidget):
         """
         self.setStyleSheet('background-color: palette(highlight);')
 
+    @_check_types.do
     def unselect(self):
         """Execute the unselect operation.
 
@@ -460,6 +479,7 @@ class LightItem(QtWidgets.QWidget):
         """
         self.setStyleSheet('')
 
+    @_check_types.do
     def mousePressEvent(self, event):
         """Execute the mouse press event operation.
 

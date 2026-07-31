@@ -19,8 +19,10 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 from ..widgets import autocomplete_combobox as _acb
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def valid_snap_angles(max_angle: float = 180.0) -> list[float]:
     """Return every legal snap angle up to ``max_angle``, ascending.
 
@@ -32,6 +34,7 @@ def valid_snap_angles(max_angle: float = 180.0) -> list[float]:
     return [d / 100.0 for d in range(1, limit + 1) if 36000 % d == 0]
 
 
+@_check_types.do
 def _format_angle(value: float) -> str:
     """Format a snap angle without trailing zeros (15, 22.5, 0.05)."""
     return f'{value:g}'
@@ -60,6 +63,7 @@ class SnapAngleButton(QtWidgets.QToolButton):
     snapEnabledChanged: QtCore.SignalInstance = QtCore.Signal(bool)
     snapAngleChanged: QtCore.SignalInstance = QtCore.Signal(float)
 
+    @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str,
                  checked_icon: QtGui.QIcon, unchecked_icon: QtGui.QIcon):
         super().__init__(parent)
@@ -109,10 +113,12 @@ class SnapAngleButton(QtWidgets.QToolButton):
 
     # ── public API ─────────────────────────────────────────────────────────
 
+    @_check_types.do
     def GetValue(self) -> float:
         """Return the current snap angle."""
         return self._value
 
+    @_check_types.do
     def SetValue(self, value: float) -> None:
         """Set the snap angle programmatically (coerced to the nearest
         valid value, no signal emitted)."""
@@ -123,10 +129,12 @@ class SnapAngleButton(QtWidgets.QToolButton):
 
         self._refresh_text()
 
+    @_check_types.do
     def IsSnapEnabled(self) -> bool:
         """Return whether snapping is enabled."""
         return self._enabled_state
 
+    @_check_types.do
     def SetSnapEnabled(self, enabled: bool) -> None:
         """Set the toggle state programmatically (no signal emitted)."""
         self._enabled_state = bool(enabled)
@@ -134,6 +142,7 @@ class SnapAngleButton(QtWidgets.QToolButton):
 
     # ── internals ──────────────────────────────────────────────────────────
 
+    @_check_types.do
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.MouseButton.RightButton:
             self._menu.exec(self.mapToGlobal(self.rect().bottomLeft()))
@@ -142,11 +151,13 @@ class SnapAngleButton(QtWidgets.QToolButton):
 
         super().mousePressEvent(event)
 
+    @_check_types.do
     def _on_clicked(self, _: bool = False) -> None:
         self._enabled_state = not self._enabled_state
         self._refresh_icon()
         self.snapEnabledChanged.emit(self._enabled_state)
 
+    @_check_types.do
     def _nearest_valid(self, value) -> float:
         """Coerce any input to the closest legal snap angle."""
         try:
@@ -156,13 +167,16 @@ class SnapAngleButton(QtWidgets.QToolButton):
 
         return min(self._angles, key=lambda a: abs(a - v))
 
+    @_check_types.do
     def _refresh_icon(self) -> None:
         self.setIcon(self._checked_icon if self._enabled_state
                      else self._unchecked_icon)
 
+    @_check_types.do
     def _refresh_text(self) -> None:
         self.setText(f'{_format_angle(self._value)}°')
 
+    @_check_types.do
     def _on_combo_committed(self, *_) -> None:
         new_value = self._nearest_valid(self._combo.GetValue())
 

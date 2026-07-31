@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from . import base2d as _base2d
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class BundleLayout(_base2d.Base2D):
     _parent: "_bundle_layout.BundleLayout" = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout"
 
+    @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
                  db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
         """Initialise the :class:`BundleLayout` instance.

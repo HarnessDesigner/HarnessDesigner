@@ -9,6 +9,7 @@ from ... import config as _config
 from ...geometry import point as _point
 from .. import events as _events
 from .. import object_picker as _object_picker
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -29,6 +30,7 @@ MOUSE_REVERSE_WHEEL_AXIS = _config.MOUSE_REVERSE_WHEEL_AXIS
 MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 
+@_check_types.do
 def _qt_pos(qt_event) -> _point.Point:
     """Execute the qt pos operation.
 
@@ -43,6 +45,7 @@ def _qt_pos(qt_event) -> _point.Point:
     return _point.Point(p.x(), p.y())
 
 
+@_check_types.do
 def _qt_buttons_flag(qt_event) -> int:
     """Convert Qt button flags to our BTN_* bitmask."""
     btns = qt_event.buttons()
@@ -66,6 +69,7 @@ class MouseHandler2D(QtCore.QObject):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas"):
         """Initialise the :class:`MouseHandler2D` instance.
 
@@ -94,6 +98,7 @@ class MouseHandler2D(QtCore.QObject):
     # Signal dispatch helper
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _send_event(self, event, qt_event):
         """Populate event fields and emit the named canvas signal."""
         mouse_pos = _qt_pos(qt_event)
@@ -114,6 +119,7 @@ class MouseHandler2D(QtCore.QObject):
     # Qt event filter dispatcher
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def eventFilter(self, obj, qt_event):
         """Execute the event filter operation.
 
@@ -190,6 +196,7 @@ class MouseHandler2D(QtCore.QObject):
     # Internal helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _get_object_at_point(self, mouse_pos: _point.Point):
         """Return the object under *mouse_pos* (screen-pixel coordinates).
 
@@ -206,6 +213,7 @@ class MouseHandler2D(QtCore.QObject):
         return _object_picker.find_object(
             mouse_pos, self.canvas.objects, self.canvas.camera, attr='obj2d')
 
+    @_check_types.do
     def _process_mouse(self, code):
         """Execute the process mouse operation.
 
@@ -225,6 +233,7 @@ class MouseHandler2D(QtCore.QObject):
                 continue
 
             if config.mouse & code:
+                @_check_types.do
                 def _wrapper_func(c):
                     """Execute the wrapper func operation.
 
@@ -235,6 +244,7 @@ class MouseHandler2D(QtCore.QObject):
                     :returns: Return value. UNKNOWN details.
                     :rtype: UNKNOWN
                     """
+                    @_check_types.do
                     def _wrapper(dx, dy):
                         """Execute the wrapper operation.
 
@@ -253,6 +263,7 @@ class MouseHandler2D(QtCore.QObject):
 
                 return _wrapper_func(config)
 
+        @_check_types.do
         def _do_nothing_func(_, __):
             """Execute the do nothing func operation.
 
@@ -271,6 +282,7 @@ class MouseHandler2D(QtCore.QObject):
     # Button handlers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def on_left_down(self, evt):
         """Handle the left down event.
 
@@ -321,6 +333,7 @@ class MouseHandler2D(QtCore.QObject):
         if refresh:
             self.canvas.update()
 
+    @_check_types.do
     def on_left_up(self, evt):
         """Handle the left up event.
 
@@ -354,6 +367,7 @@ class MouseHandler2D(QtCore.QObject):
         if refresh:
             self.canvas.update()
 
+    @_check_types.do
     def on_left_dclick(self, evt):
         """Handle the left dclick event.
 
@@ -390,6 +404,7 @@ class MouseHandler2D(QtCore.QObject):
         if refresh:
             self.canvas.update()
 
+    @_check_types.do
     def on_right_down(self, evt):
         """Handle the right down event.
 
@@ -404,6 +419,7 @@ class MouseHandler2D(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_DOWN), evt)
         self.canvas.grabMouse()
 
+    @_check_types.do
     def on_right_up(self, evt):
         """Handle the right up event.
 
@@ -456,6 +472,7 @@ class MouseHandler2D(QtCore.QObject):
 
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def on_right_dclick(self, evt):
         """Handle the right dclick event.
 
@@ -466,6 +483,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_RIGHT_DCLICK), evt)
 
+    @_check_types.do
     def on_middle_down(self, evt):
         """Handle the middle down event.
 
@@ -480,6 +498,7 @@ class MouseHandler2D(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_DOWN), evt)
         self.canvas.grabMouse()
 
+    @_check_types.do
     def on_middle_up(self, evt):
         """Handle the middle up event.
 
@@ -493,6 +512,7 @@ class MouseHandler2D(QtCore.QObject):
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_UP), evt)
         self.canvas.releaseMouse()
 
+    @_check_types.do
     def on_middle_dclick(self, evt):
         """Handle the middle dclick event.
 
@@ -503,6 +523,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_MIDDLE_DCLICK), evt)
 
+    @_check_types.do
     def on_aux1_up(self, evt):
         """Handle the aux 1 up event.
 
@@ -513,6 +534,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_UP), evt)
 
+    @_check_types.do
     def on_aux1_down(self, evt):
         """Handle the aux 1 down event.
 
@@ -523,6 +545,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_DOWN), evt)
 
+    @_check_types.do
     def on_aux1_dclick(self, evt):
         """Handle the aux 1 dclick event.
 
@@ -533,6 +556,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX1_DCLICK), evt)
 
+    @_check_types.do
     def on_aux2_up(self, evt):
         """Handle the aux 2 up event.
 
@@ -543,6 +567,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_UP), evt)
 
+    @_check_types.do
     def on_aux2_down(self, evt):
         """Handle the aux 2 down event.
 
@@ -553,6 +578,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_DOWN), evt)
 
+    @_check_types.do
     def on_aux2_dclick(self, evt):
         """Handle the aux 2 dclick event.
 
@@ -563,6 +589,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self._send_event(_events.GLEvent(_events.EVT_GL_AUX2_DCLICK), evt)
 
+    @_check_types.do
     def on_mouse_motion(self, evt):
         """Handle the mouse motion event.
 
@@ -632,6 +659,7 @@ class MouseHandler2D(QtCore.QObject):
         if refresh:
             self.canvas.update()
 
+    @_check_types.do
     def on_mouse_wheel(self, evt):
         """Handle the mouse wheel event.
 
@@ -649,6 +677,7 @@ class MouseHandler2D(QtCore.QObject):
     # Context menu
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _show_canvas_context_menu(self, pos: _point.Point):
         """Show the canvas context menu.
 
@@ -690,6 +719,7 @@ class MouseHandler2D(QtCore.QObject):
         from PySide6.QtCore import QPoint
         menu.exec(self.canvas.mapToGlobal(QPoint(int(pos.x), int(pos.y))))
 
+    @_check_types.do
     def _on_toggle_grid(self):
         """Handle the toggle grid event.
 
@@ -697,6 +727,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self.canvas.set_grid(not self.canvas.config.grid.enabled)
 
+    @_check_types.do
     def _on_toggle_snap(self):
         """Handle the toggle snap event.
 
@@ -704,6 +735,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self.canvas.set_snap_to_grid(not self.canvas.config.grid.snap)
 
+    @_check_types.do
     def _on_toggle_angle_lock(self):
         """Handle the toggle angle lock event.
 
@@ -711,6 +743,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self.canvas.set_angle_lock(not self.canvas.config.angle.lock)
 
+    @_check_types.do
     def _on_reset_view(self):
         """Handle the reset view event.
 
@@ -718,6 +751,7 @@ class MouseHandler2D(QtCore.QObject):
         """
         self.canvas.camera.reset()
 
+    @_check_types.do
     def _on_zoom_to_fit(self):
         """Handle the zoom to fit event.
 

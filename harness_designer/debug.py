@@ -10,6 +10,7 @@ import inspect
 
 
 from . import config as _config
+from . import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -24,11 +25,13 @@ _stack_count = 0
 class DebugPrinter:
     """Route debug output either to stdout or the application logger."""
 
+    @_check_types.do
     def __init__(self):
         """Initialise the fallback debug printer.
 
         """
 
+        @_check_types.do
         def log_printer(*args):
             """Print debug output until a logger becomes available.
 
@@ -45,6 +48,7 @@ class DebugPrinter:
         self._logger = log_printer
         self._flush = sys.stdout.flush
 
+    @_check_types.do
     def set_logger(self, logger: "_logger.Log"):
         """Send future debug output to the application logger.
 
@@ -54,6 +58,7 @@ class DebugPrinter:
         self._logger = logger.debug
         self._flush = logger.log_handler.flush
 
+    @_check_types.do
     def __call__(self, *args, end_stack=False):
         """Emit debug output.
 
@@ -71,6 +76,7 @@ class DebugPrinter:
 _print_func = DebugPrinter()
 
 
+@_check_types.do
 def logfunc(func):
     """Decorate a callable to log arguments and/or duration.
 
@@ -106,6 +112,7 @@ def logfunc(func):
             is_static_method = True
 
     @functools.wraps(func)
+    @_check_types.do
     def _wrapper(*args, **kwargs):
         """Invoke ``func`` while collecting configured debug output.
 

@@ -5,8 +5,10 @@ import json
 
 from .. import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 
@@ -49,6 +51,7 @@ def add_records(con, splash, data_path):
     con.commit()
 
 
+@_check_types.do
 def add_temperature(con, name, id=None, commit=True):  # NOQA
     """Add a temperature.
 
@@ -84,6 +87,7 @@ def add_temperature(con, name, id=None, commit=True):  # NOQA
         return con.lastrowid
 
 
+@_check_types.do
 def get_temperature_id(con, name):
     """Return the temperature ID.
 

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NotesMixin, Position2DMixin
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ class PJTConcentricWiresTable(PJTTableBase):
     """
     __table_name__ = 'pjt_concentric_wires'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -33,6 +35,7 @@ class PJTConcentricWiresTable(PJTTableBase):
 
         return concentric_wires.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -42,6 +45,7 @@ class PJTConcentricWiresTable(PJTTableBase):
 
         concentric_wires.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -51,6 +55,7 @@ class PJTConcentricWiresTable(PJTTableBase):
 
         concentric_wires.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTConcentricWire"]:
         """Iterate over the available items.
 
@@ -62,6 +67,7 @@ class PJTConcentricWiresTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTConcentricWire(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTConcentricWire":
         """Return the requested item.
 
@@ -81,6 +87,7 @@ class PJTConcentricWiresTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, layer_id: int, idx: int, wire_id: int, is_filler: bool) -> "PJTConcentricWire":
         """Execute the insert operation.
 
@@ -110,6 +117,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     """
     _table: PJTConcentricWiresTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -155,6 +163,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     #     self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTConcentricWiresTable:
         """Return the table.
 
@@ -168,6 +177,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _stored_layer: "_pjt_concentric_layer.PJTConcentricLayer | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def layer(self) -> "_pjt_concentric_layer.PJTConcentricLayer":
         """Return the layer.
 
@@ -185,6 +195,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _stored_layer_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def layer_id(self) -> int:
         """Return the layer ID.
 
@@ -199,6 +210,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         return self._stored_layer_id
 
     @layer_id.setter
+    @_check_types.do
     def layer_id(self, value: int):
         """Set the layer ID.
 
@@ -216,6 +228,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def idx(self) -> int:
         """Return the idx.
 
@@ -230,6 +243,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         return self._stored_idx
 
     @idx.setter
+    @_check_types.do
     def idx(self, value: int):
         """Set the idx.
 
@@ -245,6 +259,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _stored_is_filler: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_filler(self) -> bool:
         """Return the is filler.
 
@@ -259,6 +274,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         return self._stored_is_filler
 
     @is_filler.setter
+    @_check_types.do
     def is_filler(self, value: bool):
         """Set the is filler.
 
@@ -274,6 +290,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _stored_wire: "_pjt_wire.PJTWire | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
         """Return the wire.
 
@@ -291,6 +308,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     _stored_wire_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_id(self) -> int:
         """Return the wire ID.
 
@@ -305,6 +323,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         return self._stored_wire_id
 
     @wire_id.setter
+    @_check_types.do
     def wire_id(self, value: int):
         """Set the wire ID.
 
@@ -320,6 +339,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         self._populate('wire_id')
 
     @property
+    @_check_types.do
     def propgrid(self) -> _prop_ctrls.Property:
         """Return the propgrid.
 

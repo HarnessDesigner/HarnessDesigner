@@ -37,6 +37,7 @@ from ... import color as _color
 from ...geometry import point as _point
 from ..canvas2d import grid as _grid
 from . import tables_overlay as _tables_overlay
+from ... import check_types as _check_types
 
 
 # Table-overlay drag leader-line -- world-unit (mm) width and RGB color,
@@ -111,6 +112,7 @@ class Canvas(QOpenGLWidget):
     gl_aux2_dclick = Signal(object)
     gl_capture_lost = Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, config: _config.Config.editor_pegboard = None,
                  size: QSize = None):
         """Initialise the :class:`Canvas` instance.
@@ -281,6 +283,7 @@ class Canvas(QOpenGLWidget):
     # Camera movement
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def Zoom(self, dx: float, _=None):
         """Execute the zoom operation.
 
@@ -292,6 +295,7 @@ class Canvas(QOpenGLWidget):
         dx *= self.config.zoom.sensitivity
         self.camera.Zoom(dx)
 
+    @_check_types.do
     def Pan(self, dx: float, dy: float) -> None:
         """Execute the pan operation.
 
@@ -313,6 +317,7 @@ class Canvas(QOpenGLWidget):
     # Grid / snap helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def snap_to_grid(self, world_pos: _point.Point) -> _point.Point:
         """Snap a world position to the current grid spacing.
 
@@ -332,6 +337,7 @@ class Canvas(QOpenGLWidget):
             round(world_pos.y / spacing) * spacing,
         )
 
+    @_check_types.do
     def set_grid_snap(self, value) -> None:
         """Enable/disable snap-to-grid.
 
@@ -340,6 +346,7 @@ class Canvas(QOpenGLWidget):
         """
         self.config.grid.snap = bool(value)
 
+    @_check_types.do
     def set_grid_display(self, value) -> None:
         """Show/hide the reference grid.
 
@@ -356,11 +363,13 @@ class Canvas(QOpenGLWidget):
     # camera moves and only repaint once)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def __enter__(self):
         """Enter the managed context."""
         self._ref_count += 1
         return self
 
+    @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Exit the managed context.
 
@@ -373,6 +382,7 @@ class Canvas(QOpenGLWidget):
         """
         self._ref_count -= 1
 
+    @_check_types.do
     def Refresh(self, *args, **kwargs):
         """Repaint the canvas, unless a batching context is still open.
 
@@ -397,6 +407,7 @@ class Canvas(QOpenGLWidget):
     # QOpenGLWidget lifecycle
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def initializeGL(self):
         """One-time GL setup. Qt guarantees the context is already current here."""
         GL.glClearColor(0.9600, 0.9568, 0.9372, 1.0)
@@ -414,12 +425,14 @@ class Canvas(QOpenGLWidget):
 
         self._pegboard_program = _shaders.compile_schematic2d_program()
 
+    @_check_types.do
     def resizeGL(self, width: int, height: int):
         """Called by Qt on resize. Context is already current here."""
         self.size = (width, height)
         GL.glViewport(0, 0, width, height)
         self._setup_projection()
 
+    @_check_types.do
     def paintGL(self):
         """Render one frame. Context is already current here."""
         GL.glClear(GL.GL_COLOR_BUFFER_BIT)
@@ -429,6 +442,7 @@ class Canvas(QOpenGLWidget):
         # Qt handles SwapBuffers automatically.
 
     @staticmethod
+    @_check_types.do
     def _collect_anchors(project) -> list:
         """Walk every already-constructed housing/splice/transition/terminal
         row and collect its real, active ``objpeg``.
@@ -475,6 +489,7 @@ class Canvas(QOpenGLWidget):
 
         return anchors
 
+    @_check_types.do
     def load_project(self, project) -> None:
         """Build this canvas's anchor list from *project* and repaint.
 
@@ -540,6 +555,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def clear(self) -> None:
         """Drop every anchor/strand in bulk, without touching the database.
 
@@ -562,6 +578,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def add_anchor(self, obj_pegboard: "_basepeg.BasePeg") -> None:
         """Incrementally register one anchor, without a full rebuild.
 
@@ -582,6 +599,7 @@ class Canvas(QOpenGLWidget):
         self._ensure_tables_for_anchor(obj_pegboard)
         self.update()
 
+    @_check_types.do
     def remove_anchor(self, obj_pegboard: "_basepeg.BasePeg") -> None:
         """Incrementally unregister one anchor, without a full rebuild.
 
@@ -604,6 +622,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def _ensure_tables_for_anchor(self, anchor: "_basepeg.BasePeg") -> None:
         """Create/refresh every data-table overlay *anchor* needs.
 
@@ -626,6 +645,7 @@ class Canvas(QOpenGLWidget):
                 point3d_id, world_x, world_z, label, rows,
                 anchor.table_include_cavity_columns, live_position)
 
+    @_check_types.do
     def center_on_object(self, obj) -> None:
         """Pan the camera so *obj*'s anchor is centered, keeping the
         current zoom/distance -- used by ``mainframe._set_selected()`` to
@@ -644,6 +664,7 @@ class Canvas(QOpenGLWidget):
                 return
 
     @property
+    @_check_types.do
     def project(self):
         """Return the project :meth:`load_project` was last called with
         (``None`` before the first call) -- public read accessor for
@@ -654,6 +675,7 @@ class Canvas(QOpenGLWidget):
         """
         return self._project
 
+    @_check_types.do
     def begin_table_drag(self, anchor_world_pos: _point.Point) -> None:
         """Start rendering a leader line from *anchor_world_pos* to
         wherever a table overlay is currently being dragged -- called by
@@ -673,6 +695,7 @@ class Canvas(QOpenGLWidget):
         self._table_drag_line_dirty = True
         self.Refresh()
 
+    @_check_types.do
     def update_table_drag(self, table_world_pos: _point.Point) -> None:
         """Update the leader line's table-side endpoint -- called on every
         mouse-move by ``tables_overlay._TitleStrip.mouseMoveEvent``.
@@ -690,6 +713,7 @@ class Canvas(QOpenGLWidget):
         self._table_drag_line_dirty = True
         self.Refresh()
 
+    @_check_types.do
     def end_table_drag(self) -> None:
         """Stop rendering the drag leader line and release its GPU buffer
         -- called by ``tables_overlay._TitleStrip.mouseReleaseEvent``.
@@ -704,6 +728,7 @@ class Canvas(QOpenGLWidget):
 
         self.Refresh()
 
+    @_check_types.do
     def _rebuild_table_drag_line(self) -> None:
         """(Re)build/update the GPU-side drag leader-line quad from
         :attr:`_table_drag_anchor_pos`/:attr:`_table_drag_current_pos`.
@@ -731,6 +756,7 @@ class Canvas(QOpenGLWidget):
         self._table_drag_line_dirty = False
 
     @property
+    @_check_types.do
     def anchors(self) -> list["_basepeg.BasePeg"]:
         """Return the current Phase 1 static anchor list.
 
@@ -745,6 +771,7 @@ class Canvas(QOpenGLWidget):
         return self._anchors
 
     @property
+    @_check_types.do
     def nodes(self) -> list["_layout_graph.PegboardNode"]:
         """Return the current Phase 3 live node list.
 
@@ -758,6 +785,7 @@ class Canvas(QOpenGLWidget):
         return self._nodes
 
     @property
+    @_check_types.do
     def edges(self) -> list["_layout_graph.PegboardEdge"]:
         """Return the current Phase 3 live edge list.
 
@@ -776,6 +804,7 @@ class Canvas(QOpenGLWidget):
     # Phase 3: drag-to-reposition (local per-edge length clamp)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def edges_touching_node(self, *, anchor=None,
                             waypoint_id: int = None) -> list:
         """Return every live edge touching an anchor or waypoint node.
@@ -825,6 +854,7 @@ class Canvas(QOpenGLWidget):
         return touching
 
     @staticmethod
+    @_check_types.do
     def _clamp_to_edge(cand_x: float, cand_z: float, neighbor_x: float,
                        neighbor_z: float, max_length_mm: float) -> tuple:
         """Clamp ``(cand_x, cand_z)`` so its distance from
@@ -848,6 +878,7 @@ class Canvas(QOpenGLWidget):
         scale = max_length_mm / dist
         return neighbor_x + dx * scale, neighbor_z + dz * scale
 
+    @_check_types.do
     def _apply_local_clamp(self, cand_x: float, cand_z: float,
                            touching: list) -> tuple:
         """Apply :meth:`_clamp_to_edge` for every ``(index, edge,
@@ -862,6 +893,7 @@ class Canvas(QOpenGLWidget):
 
         return cand_x, cand_z
 
+    @_check_types.do
     def _entity_for_node(self, node: "_layout_graph.PegboardNode") -> tuple:
         """Return the stable "moving entity" a :class:`PegboardNode` maps to.
 
@@ -886,6 +918,7 @@ class Canvas(QOpenGLWidget):
         return 'waypoint', node.waypoint_id
 
     @staticmethod
+    @_check_types.do
     def _same_entity(a: tuple, b: tuple) -> bool:
         """Return whether entities *a* and *b* (see :meth:`_entity_for_node`)
         refer to the same draggable thing."""
@@ -895,6 +928,7 @@ class Canvas(QOpenGLWidget):
             return a[1] is b[1]
         return a[1] == b[1]
 
+    @_check_types.do
     def _entity_pos(self, entity: tuple) -> tuple:
         """Return an entity's current live ``(x, z)`` position."""
         if entity[0] == 'anchor':
@@ -908,6 +942,7 @@ class Canvas(QOpenGLWidget):
 
         return None
 
+    @_check_types.do
     def _entity_set_pos(self, entity: tuple, x: float, z: float) -> None:
         """Set an entity's live ``(x, z)`` position, keeping every
         :class:`PegboardNode` wrapping it (an anchor may back several, one
@@ -936,6 +971,7 @@ class Canvas(QOpenGLWidget):
                 node.x = x
                 node.z = z
 
+    @_check_types.do
     def _entity_touching_edges(self, entity: tuple) -> list:
         """Return ``edges_touching_node()`` for an entity (see
         :meth:`_entity_for_node`)."""
@@ -943,6 +979,7 @@ class Canvas(QOpenGLWidget):
             return self.edges_touching_node(anchor=entity[1])
         return self.edges_touching_node(waypoint_id=entity[1])
 
+    @_check_types.do
     def _propagate_pull(self, start_entity: tuple, cand_x: float,
                         cand_z: float) -> list:
         """"Pull" drag mode: move *start_entity* to ``(cand_x, cand_z)``
@@ -1013,6 +1050,7 @@ class Canvas(QOpenGLWidget):
 
         return moved
 
+    @_check_types.do
     def _record_drag_dirty(self, entity: tuple) -> None:
         """Remember a *waypoint* entity as needing a database write on
         release (see :meth:`commit_drag`) -- de-duplicated so a waypoint
@@ -1034,6 +1072,7 @@ class Canvas(QOpenGLWidget):
             if waypoint_id not in self._drag_dirty_waypoint_ids:
                 self._drag_dirty_waypoint_ids.append(waypoint_id)
 
+    @_check_types.do
     def drag_update_anchor(self, anchor: "_basepeg.BasePeg",
                            cand_x: float, cand_z: float,
                            touching: list) -> None:
@@ -1086,6 +1125,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def drag_update_waypoint(self, node: "_layout_graph.PegboardNode",
                              cand_x: float, cand_z: float,
                              touching: list) -> None:
@@ -1124,6 +1164,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def commit_waypoint_drag(self, node: "_layout_graph.PegboardNode") -> None:
         """Persist a waypoint *node*'s current position to its existing
         ``pjt_points_peg`` row.
@@ -1142,6 +1183,7 @@ class Canvas(QOpenGLWidget):
         row.x = node.x
         row.z = node.z
 
+    @_check_types.do
     def commit_waypoint_drag_by_id(self, waypoint_id: int) -> None:
         """Persist a waypoint by its row id (see :meth:`commit_waypoint_drag`)
         without requiring a live :class:`PegboardNode` reference -- used by
@@ -1161,6 +1203,7 @@ class Canvas(QOpenGLWidget):
                 row.z = node.z
                 return
 
+    @_check_types.do
     def commit_drag(self, primary_anchor=None, primary_node=None) -> None:
         """Persist every waypoint moved during the just-finished drag,
         exactly once each, on mouse release.
@@ -1216,6 +1259,7 @@ class Canvas(QOpenGLWidget):
     _COLLINEAR_TOLERANCE_MM = 2.0
 
     @staticmethod
+    @_check_types.do
     def _perpendicular_distance_mm(px: float, pz: float, ax: float, az: float,
                                    bx: float, bz: float) -> float:
         """Return the perpendicular distance from ``(px, pz)`` to the
@@ -1233,6 +1277,7 @@ class Canvas(QOpenGLWidget):
         ap_x, ap_z = px - ax, pz - az
         return abs(ab_x * ap_z - ab_z * ap_x) / length
 
+    @_check_types.do
     def _remove_collinear_waypoints(self, waypoint_ids: set) -> None:
         """Remove every waypoint in *waypoint_ids* that now sits (within
         :attr:`_COLLINEAR_TOLERANCE_MM`) on the straight line between its
@@ -1298,6 +1343,7 @@ class Canvas(QOpenGLWidget):
 
         self.load_project(self._project)
 
+    @_check_types.do
     def begin_drag(self) -> None:
         """Reset "pull"-mode dirty bookkeeping at the start of a new drag.
 
@@ -1311,6 +1357,7 @@ class Canvas(QOpenGLWidget):
         """
         self._drag_dirty_waypoint_ids.clear()
 
+    @_check_types.do
     def arm_waypoint_drag(self, node: "_layout_graph.PegboardNode") -> None:
         """Forward to the mouse handler to arm a continuous drag for
         *node*.
@@ -1333,6 +1380,7 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @property
+    @_check_types.do
     def rotation_gizmo_anchor(self) -> "_basepeg.BasePeg | None":
         """Return the anchor currently showing its rotate ring, or ``None``.
 
@@ -1346,6 +1394,7 @@ class Canvas(QOpenGLWidget):
         return self._rotation_gizmo_anchor
 
     @property
+    @_check_types.do
     def rotation_gizmo_degrees(self) -> float:
         """Return the active gizmo's live, in-progress rotation, in degrees.
 
@@ -1360,6 +1409,7 @@ class Canvas(QOpenGLWidget):
         """
         return self._rotation_gizmo_degrees
 
+    @_check_types.do
     def enter_rotation_mode(self, anchor: "_basepeg.BasePeg") -> None:
         """Show the rotate-ring gizmo for *anchor*.
 
@@ -1385,6 +1435,7 @@ class Canvas(QOpenGLWidget):
         self._rotation_gizmo_dirty = True
         self.update()
 
+    @_check_types.do
     def exit_rotation_mode(self) -> None:
         """Hide the rotate-ring gizmo, releasing its GL buffers.
 
@@ -1405,6 +1456,7 @@ class Canvas(QOpenGLWidget):
         self._rotation_gizmo_dirty = False
         self.update()
 
+    @_check_types.do
     def update_rotation_drag(self, rotation_deg: float) -> None:
         """Update the live, in-progress rotation during a drag.
 
@@ -1434,6 +1486,7 @@ class Canvas(QOpenGLWidget):
 
         self.update()
 
+    @_check_types.do
     def rotation_gizmo_handle_world_pos(self) -> _point.Point | None:
         """Return the active gizmo's grab handle world position, or ``None``.
 
@@ -1452,6 +1505,7 @@ class Canvas(QOpenGLWidget):
 
         return self._rotation_gizmo.handle_world_pos(self._rotation_gizmo_degrees)
 
+    @_check_types.do
     def _pegboard_projection_matrix(self) -> np.ndarray:
         """Build the orthographic projection matrix for the schematic2d
         shader, matching :meth:`_setup_projection`'s legacy
@@ -1481,6 +1535,7 @@ class Canvas(QOpenGLWidget):
         ], dtype=np.float32)
 
     @staticmethod
+    @_check_types.do
     def _release_strand_draws(draws: list) -> None:
         """Release the GL buffers backing one bare-wire-strand draw list.
 
@@ -1493,6 +1548,7 @@ class Canvas(QOpenGLWidget):
             vbo_handler.release()
 
     @staticmethod
+    @_check_types.do
     def _build_strand_draws(strands: list) -> list:
         """Build one ``(NonPooledVBOHandler, Generic material)`` pair per
         bare-wire-strand dataclass, via ``strand_mesh.build_strand_quad``.
@@ -1520,6 +1576,7 @@ class Canvas(QOpenGLWidget):
 
         return draws
 
+    @_check_types.do
     def _rebuild_strand_draws(self) -> None:
         """(Re)build the GPU-side bare-wire-strand draw list from the
         current ``self._bare_wire_strands`` dataclass list.
@@ -1534,6 +1591,7 @@ class Canvas(QOpenGLWidget):
 
         self._strand_draws_dirty = False
 
+    @_check_types.do
     def _rebuild_rotation_gizmo(self) -> None:
         """(Re)build the GPU-side rotation-ring gizmo for whichever anchor
         is currently in "rotation mode" (:attr:`_rotation_gizmo_anchor`).
@@ -1558,6 +1616,7 @@ class Canvas(QOpenGLWidget):
 
         self._rotation_gizmo_dirty = False
 
+    @_check_types.do
     def _render_strand_draws(self, draws: list) -> None:
         """Render one bare-wire-strand draw list under the already-bound
         ``self._pegboard_program``.
@@ -1591,6 +1650,7 @@ class Canvas(QOpenGLWidget):
             material.set(self._pegboard_program)
             vbo_handler.render()
 
+    @_check_types.do
     def _render_bundle_strands(self) -> None:
         """Render every live bundle-graph edge as the shared, pooled unit
         cylinder VBO (``shapes.cylinder.create_vbo``), GPU-instanced
@@ -1661,6 +1721,7 @@ class Canvas(QOpenGLWidget):
             GL.glUniform3f(scale_loc, width, width, width)
             sphere_vbo.render()
 
+    @_check_types.do
     def _render_objects(self):
         """Render placed peg-board scene objects.
 
@@ -1806,6 +1867,7 @@ class Canvas(QOpenGLWidget):
     # Projection
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _setup_projection(self):
         """Set up the top-down orthographic projection from the camera."""
         if self.size is None:

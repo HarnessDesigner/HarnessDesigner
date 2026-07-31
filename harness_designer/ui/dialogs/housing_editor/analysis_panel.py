@@ -7,6 +7,7 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtWidgets
 from dataclasses import dataclass
+from .... import check_types as _check_types
 
 
 @dataclass
@@ -34,6 +35,7 @@ class AnalysisItem:
     # own OBB back face instead of the shared real surface.
     wire_is_shared: bool = False
 
+    @_check_types.do
     def __post_init__(self):
         if self.wire_surf_indices is None:
             self.wire_surf_indices = [self.wire_surf_si] if self.wire_surf_si >= 0 else []
@@ -41,18 +43,22 @@ class AnalysisItem:
             self.term_surf_indices = [self.term_surf_si] if self.term_surf_si >= 0 else []
 
     @property
+    @_check_types.do
     def radius(self) -> float:
         return float(self.params.get('radius', 0.0))
 
     @property
+    @_check_types.do
     def half_w(self) -> float:
         return float(self.params.get('half_w', 0.0))
 
     @property
+    @_check_types.do
     def half_h(self) -> float:
         return float(self.params.get('half_h', 0.0))
 
     @property
+    @_check_types.do
     def length(self) -> float:
         return abs(float(self.d_end) - float(self.d_start))
 
@@ -63,6 +69,7 @@ _ROLE = QtCore.Qt.ItemDataRole.UserRole
 class _ListWidget(QtWidgets.QListWidget):
     itemRemoveRequested: QtCore.SignalInstance = QtCore.Signal(int)   # row
 
+    @_check_types.do
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setDragDropMode(
@@ -78,6 +85,7 @@ class _ListWidget(QtWidgets.QListWidget):
 
         self.customContextMenuRequested.connect(self._ctx_menu)
 
+    @_check_types.do
     def _ctx_menu(self, pos: QtCore.QPoint):
         item = self.itemAt(pos)
         if item is None:
@@ -93,6 +101,7 @@ class _ListWidget(QtWidgets.QListWidget):
 class _EditPanel(QtWidgets.QWidget):
     itemChanged: QtCore.SignalInstance = QtCore.Signal()
 
+    @_check_types.do
     def __init__(self, parent=None):
         super().__init__(parent)
         self._item: Optional[AnalysisItem] = None
@@ -109,6 +118,7 @@ class _EditPanel(QtWidgets.QWidget):
         self._shape.addItems(['circle', 'rect'])
         form.addRow('Shape:', self._shape)
 
+        @_check_types.do
         def _dspin():
             s = QtWidgets.QDoubleSpinBox()
             s.setRange(0.001, 9999.0)
@@ -141,6 +151,7 @@ class _EditPanel(QtWidgets.QWidget):
         self.setEnabled(False)
         self._show_circle(True)
 
+    @_check_types.do
     def _show_circle(self, flag: bool):
         for w in (self._r_lbl, self._r):
             w.setVisible(flag)
@@ -148,6 +159,7 @@ class _EditPanel(QtWidgets.QWidget):
         for w in (self._w_lbl, self._w, self._h_lbl, self._h):
             w.setVisible(not flag)
 
+    @_check_types.do
     def load(self, item: Optional[AnalysisItem]):
         self._item = item
         self.setEnabled(item is not None)
@@ -168,6 +180,7 @@ class _EditPanel(QtWidgets.QWidget):
         finally:
             self._guard = False
 
+    @_check_types.do
     def _on_name(self):
         if self._guard or self._item is None:
             return
@@ -175,6 +188,7 @@ class _EditPanel(QtWidgets.QWidget):
         self._item.name = self._name.text()
         self.itemChanged.emit()
 
+    @_check_types.do
     def _on_shape(self, _):
         if self._guard or self._item is None:
             return
@@ -184,6 +198,7 @@ class _EditPanel(QtWidgets.QWidget):
         self._show_circle(kind == 'circle')
         self.itemChanged.emit()
 
+    @_check_types.do
     def _on_r(self, v):
         if self._guard or self._item is None:
             return
@@ -191,6 +206,7 @@ class _EditPanel(QtWidgets.QWidget):
         self._item.params['radius'] = v
         self.itemChanged.emit()
 
+    @_check_types.do
     def _on_w(self, v):
         if self._guard or self._item is None:
             return
@@ -198,6 +214,7 @@ class _EditPanel(QtWidgets.QWidget):
         self._item.params['half_w'] = v
         self.itemChanged.emit()
 
+    @_check_types.do
     def _on_h(self, v):
         if self._guard or self._item is None:
             return
@@ -205,6 +222,7 @@ class _EditPanel(QtWidgets.QWidget):
         self._item.params['half_h'] = v
         self.itemChanged.emit()
 
+    @_check_types.do
     def _on_l(self, v):
         if self._guard or self._item is None:
             return
@@ -226,6 +244,7 @@ class AnalysisResultPanel(QtWidgets.QWidget):
     # Emits row index of selected item, or -1 when nothing is selected
     selectionChanged: QtCore.SignalInstance = QtCore.Signal(int)
 
+    @_check_types.do
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumWidth(260)
@@ -269,6 +288,7 @@ class AnalysisResultPanel(QtWidgets.QWidget):
 
     # ── public ────────────────────────────────────────────────────────────────
 
+    @_check_types.do
     def load(self, items: List[AnalysisItem]):
         self._list.clear()
         self._edit.load(None)
@@ -284,6 +304,7 @@ class AnalysisResultPanel(QtWidgets.QWidget):
         else:
             self.hide()
 
+    @_check_types.do
     def items(self) -> List[AnalysisItem]:
         return [
             self._list.item(i).data(_ROLE)
@@ -292,6 +313,7 @@ class AnalysisResultPanel(QtWidgets.QWidget):
     # ── internal ──────────────────────────────────────────────────────────────
 
     @staticmethod
+    @_check_types.do
     def _label(i: int, item: AnalysisItem) -> str:
         if item.kind == 'circle':
             dims = f'r={item.radius:.3f}'
@@ -299,6 +321,7 @@ class AnalysisResultPanel(QtWidgets.QWidget):
             dims = f'{item.half_w * 2:.3f} × {item.half_h * 2:.3f}'
         return f'[{i + 1}]  {item.name} — {item.kind}  ({dims})'
 
+    @_check_types.do
     def _on_row(self, row: int):
         if 0 <= row < self._list.count():
             self._edit.load(self._list.item(row).data(_ROLE))
@@ -307,6 +330,7 @@ class AnalysisResultPanel(QtWidgets.QWidget):
             self._edit.load(None)
             self.selectionChanged.emit(-1)
 
+    @_check_types.do
     def _remove(self, row: int):
         self._list.takeItem(row)
         self._refresh_all_labels()
@@ -317,17 +341,20 @@ class AnalysisResultPanel(QtWidgets.QWidget):
             self._edit.load(None)
             self.selectionChanged.emit(-1)
 
+    @_check_types.do
     def _on_reorder(self, *_):
         self._refresh_all_labels()
         # selection_changed fires via currentRowChanged which Qt emits after move
         self.selectionChanged.emit(self._list.currentRow())
 
+    @_check_types.do
     def _refresh_current_label(self):
         row = self._list.currentRow()
         if 0 <= row < self._list.count():
             lw = self._list.item(row)
             lw.setText(self._label(row, lw.data(_ROLE)))
 
+    @_check_types.do
     def _refresh_all_labels(self):
         for i in range(self._list.count()):
             lw = self._list.item(i)

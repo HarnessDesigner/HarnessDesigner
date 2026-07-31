@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from . import float_prop as _float_prop
+from ... import check_types as _check_types
 
 
 class Scale3DProperty(QtWidgets.QGroupBox):
@@ -10,6 +11,7 @@ class Scale3DProperty(QtWidgets.QGroupBox):
     :mod:`harness_designer.ui.prop_ctrls.scale3d_prop`.
     """
 
+    @_check_types.do
     def __init__(self, parent, label: str):
         """
         Initialise the :class:`Scale3DProperty` instance.
@@ -44,6 +46,7 @@ class Scale3DProperty(QtWidgets.QGroupBox):
         self.y_ctrl.propertyChanged.connect(self._on_y)
         self.z_ctrl.propertyChanged.connect(self._on_z)
 
+    @_check_types.do
     def SetValue(self, scale):
         """
         Execute the set value operation.
@@ -61,6 +64,7 @@ class Scale3DProperty(QtWidgets.QGroupBox):
         self.y_ctrl.setEnabled(enabled)
         self.z_ctrl.setEnabled(enabled)
 
+    @_check_types.do
     def _on_x(self, evt):
         """
         Handle the x event.
@@ -71,6 +75,7 @@ class Scale3DProperty(QtWidgets.QGroupBox):
 
         self._scale.x = evt.GetValue()
 
+    @_check_types.do
     def _on_y(self, evt):
         """
         Handle the y event.
@@ -81,6 +86,7 @@ class Scale3DProperty(QtWidgets.QGroupBox):
 
         self._scale.y = evt.GetValue()
 
+    @_check_types.do
     def _on_z(self, evt):
         """
         Handle the z event.
@@ -91,9 +97,11 @@ class Scale3DProperty(QtWidgets.QGroupBox):
 
         self._scale.z = evt.GetValue()
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self.setTitle(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

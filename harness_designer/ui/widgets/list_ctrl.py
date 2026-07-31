@@ -23,6 +23,7 @@ Features:
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
+from ... import check_types as _check_types
 
 
 class ListCtrl(QtWidgets.QWidget):
@@ -38,6 +39,7 @@ class ListCtrl(QtWidgets.QWidget):
     _MODE_ADD = "add"
     _MODE_EDIT = "edit"
 
+    @_check_types.do
     def __init__(
         self,
         parent: QtWidgets.QWidget,
@@ -149,6 +151,7 @@ class ListCtrl(QtWidgets.QWidget):
         for item in sorted(items or []):
             self._list.addItem(str(item))
 
+    @_check_types.do
     def _validate(self, value):
         """Execute the validate operation.
 
@@ -168,6 +171,7 @@ class ListCtrl(QtWidgets.QWidget):
         except ValueError:
             return False, None
 
+    @_check_types.do
     def _existing_values(self, exclude_row: int = -1) -> set[str]:
         """Execute the existing values operation.
 
@@ -184,6 +188,7 @@ class ListCtrl(QtWidgets.QWidget):
             if i != exclude_row
         }
 
+    @_check_types.do
     def _is_duplicate(self, text: str, exclude_row: int = -1) -> bool:
         """Return whether the duplicate is available.
 
@@ -198,6 +203,7 @@ class ListCtrl(QtWidgets.QWidget):
         """
         return self._unique and text in self._existing_values(exclude_row)
 
+    @_check_types.do
     def _enter_add_mode(self) -> None:
         """Execute the enter add mode operation.
 
@@ -214,6 +220,7 @@ class ListCtrl(QtWidgets.QWidget):
         self._set_main_buttons_enabled(False)
         self._btn_ok.setEnabled(False)
 
+    @_check_types.do
     def _enter_edit_mode(self, row: int | None = None) -> None:
         """Execute the enter edit mode operation.
 
@@ -247,6 +254,7 @@ class ListCtrl(QtWidgets.QWidget):
         self._set_main_buttons_enabled(False)
         self._btn_ok.setEnabled(False)
 
+    @_check_types.do
     def _exit_edit_mode(self) -> None:
         """Revert any live preview and disable the edit bar."""
 
@@ -265,6 +273,7 @@ class ListCtrl(QtWidgets.QWidget):
         self._set_main_buttons_enabled(True)
         self._on_selection_changed()
 
+    @_check_types.do
     def _set_main_buttons_enabled(self, enabled: bool) -> None:
         """Set the main buttons enabled.
 
@@ -278,6 +287,7 @@ class ListCtrl(QtWidgets.QWidget):
             self._btn_edit.setEnabled(False)
             self._btn_remove.setEnabled(False)
 
+    @_check_types.do
     def _on_text_changed(self, text: str) -> None:
         """Handle the text changed event.
 
@@ -328,6 +338,7 @@ class ListCtrl(QtWidgets.QWidget):
 
         self._btn_ok.setEnabled(is_ok)
 
+    @_check_types.do
     def _on_ok(self) -> None:
         """Handle the ok event.
 
@@ -361,6 +372,7 @@ class ListCtrl(QtWidgets.QWidget):
             self._exit_edit_mode()
             self.itemChanged.emit(row, typed_value, old_typed)
 
+    @_check_types.do
     def _on_cancel(self) -> None:
         """Handle the cancel event.
 
@@ -368,6 +380,7 @@ class ListCtrl(QtWidgets.QWidget):
         """
         self._exit_edit_mode()
 
+    @_check_types.do
     def _on_selection_changed(self) -> None:
         """Handle the selection changed event.
 
@@ -380,6 +393,7 @@ class ListCtrl(QtWidgets.QWidget):
         self._btn_edit.setEnabled(has_selection)
         self._btn_remove.setEnabled(has_selection)
 
+    @_check_types.do
     def _do_remove(self, row: int | None = None) -> None:
         """Execute the do remove operation.
 
@@ -399,6 +413,7 @@ class ListCtrl(QtWidgets.QWidget):
             _, typed_value = self._validate(item.text())
             self.itemRemoved.emit(row, typed_value)
 
+    @_check_types.do
     def _show_context_menu(self, pos) -> None:
         """Show the context menu.
 
@@ -436,6 +451,7 @@ class ListCtrl(QtWidgets.QWidget):
         menu.exec(self._list.mapToGlobal(pos))
 
     @property
+    @_check_types.do
     def unique(self) -> bool:
         """Return the unique.
 
@@ -447,6 +463,7 @@ class ListCtrl(QtWidgets.QWidget):
         return self._unique
 
     @unique.setter
+    @_check_types.do
     def unique(self, value: bool) -> None:
         """Set the unique.
 
@@ -458,6 +475,7 @@ class ListCtrl(QtWidgets.QWidget):
         self._unique = value
 
     @property
+    @_check_types.do
     def item_type(self) -> type:
         """Return the item type.
 
@@ -468,6 +486,7 @@ class ListCtrl(QtWidgets.QWidget):
         """
         return self._item_type
 
+    @_check_types.do
     def add_item(self, value: str | int | float) -> bool:
         """Append programmatically; returns False if blocked by uniqueness."""
 
@@ -482,6 +501,7 @@ class ListCtrl(QtWidgets.QWidget):
 
         return True
 
+    @_check_types.do
     def remove_item(self, index: int) -> None:
         """Remove by index programmatically."""
 
@@ -490,6 +510,7 @@ class ListCtrl(QtWidgets.QWidget):
             _, typed = self._validate(item.text())
             self.itemRemoved.emit(index, typed)
 
+    @_check_types.do
     def set_item(self, index: int, value: str | int | float) -> bool:
         """Replace item at index programmatically; returns False if blocked."""
 
@@ -509,6 +530,7 @@ class ListCtrl(QtWidgets.QWidget):
 
         return True
 
+    @_check_types.do
     def GetValue(self) -> list[str | int | float]:
         """Return all current values cast to item_type."""
         res = []
@@ -522,11 +544,13 @@ class ListCtrl(QtWidgets.QWidget):
 
         return res
 
+    @_check_types.do
     def clear(self) -> None:
         """Remove all items without emitting signals."""
 
         self._list.clear()
 
+    @_check_types.do
     def count(self) -> int:
         """Execute the count operation.
 

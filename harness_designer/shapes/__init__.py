@@ -6,6 +6,7 @@ Shape helper modules used to build reusable geometry and 2D overlays.
 This subpackage collects small generators and painter-backed helpers used by
 other parts of :mod:`harness_designer`.
 """
+from .. import check_types as _check_types
 
 
 _arrow_vbo = None
@@ -18,6 +19,7 @@ _rectangle_vbo = None
 _sphere_vbo = None
 
 
+@_check_types.do
 def cache_primitives(mainframe):
     from . import arrow
     from . import box

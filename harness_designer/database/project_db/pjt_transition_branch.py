@@ -6,6 +6,7 @@ from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultSt
 from .mixins import Position3DMixin, PartMixin, TablePositionPegMixin, TableHiddenMixin
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
     """
     __table_name__ = 'pjt_transition_branches'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -34,6 +36,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
 
         return transition_branches.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -43,6 +46,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
 
         transition_branches.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -52,6 +56,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
 
         transition_branches.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTTransitionBranch"]:
         """Iterate over the available items.
 
@@ -63,6 +68,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTTransitionBranch(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTTransitionBranch":
         """Return the requested item.
 
@@ -82,6 +88,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, transition_id: int, point_id: int,
                branch_id: int, diameter: float) -> "PJTTransitionBranch":
         """Execute the insert operation.
@@ -118,6 +125,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     """
     _table: PJTTransitionBranchesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -138,6 +146,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         return packet
 
     @property
+    @_check_types.do
     def table(self) -> PJTTransitionBranchesTable:
         """Return the table.
 
@@ -149,6 +158,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         return self._table
 
     @property
+    @_check_types.do
     def wires(self) -> "_pjt_wire.PJTWire":
         """Return the wires.
 
@@ -167,6 +177,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     _stored_bundle: "_pjt_bundle.PJTBundle | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def bundle(self) -> "_pjt_bundle.PJTBundle":
         """Return the bundle.
 
@@ -191,6 +202,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
 
@@ -212,6 +224,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     _stored_transition: "_pjt_transition.PJTTransition | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def transition(self) -> "_pjt_transition.PJTTransition":
         """Return the transition.
 
@@ -229,6 +242,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     _stored_transition_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def transition_id(self) -> int:
         """Return the transition ID.
 
@@ -243,6 +257,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         return self._stored_transition_id
 
     @transition_id.setter
+    @_check_types.do
     def transition_id(self, value: int):
         """Set the transition ID.
 
@@ -260,6 +275,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     _stored_branch_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def branch_id(self) -> int:
         """Return the branch ID.
 
@@ -274,6 +290,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         return self._stored_branch_id
 
     @branch_id.setter
+    @_check_types.do
     def branch_id(self, value: int):
         """Set the branch ID.
 
@@ -289,6 +306,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
     _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def diameter(self) -> float:
         """Return the diameter.
 
@@ -303,6 +321,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         return self._stored_diameter
 
     @diameter.setter
+    @_check_types.do
     def diameter(self, value: float):
         """Set the diameter.
 
@@ -317,6 +336,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
 
     _stored_part: "_transition_branch.TransitionBranch | DefaultStoredValueType" = DefaultStoredValue
 
+    @_check_types.do
     def reload_from_db(self):
         """Execute the reload from database operation.
 
@@ -325,6 +345,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         self.transition.update_objects()
 
     @property
+    @_check_types.do
     def part(self) -> _transition_branch.TransitionBranch:
         """Return the part.
 
@@ -341,6 +362,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
         return self._stored_part
 
     @property
+    @_check_types.do
     def propgrid(self) -> tuple[_prop_ctrls.Category, _prop_ctrls.Category]:
         """Return the propgrid.
 

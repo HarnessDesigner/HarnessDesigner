@@ -5,6 +5,7 @@ from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
+from .... import check_types as _check_types
 
 
 class DimensionMixin(BaseMixin):
@@ -15,6 +16,7 @@ class DimensionMixin(BaseMixin):
     _scale_id: str = None
     _stored_scale3d: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """Update the scale.
 
@@ -33,6 +35,7 @@ class DimensionMixin(BaseMixin):
         self._table.update(self._db_id, width=width, height=height, length=length)
 
     @property
+    @_check_types.do
     def scale(self) -> _point.Point:
         """Return the scale.
 
@@ -76,6 +79,7 @@ class DimensionMixin(BaseMixin):
     _stored_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def length(self) -> float:
         """Return the length.
 
@@ -90,6 +94,7 @@ class DimensionMixin(BaseMixin):
         return self._stored_length
 
     @length.setter
+    @_check_types.do
     def length(self, value: float):
         """Set the length.
 
@@ -112,6 +117,7 @@ class DimensionMixin(BaseMixin):
     _stored_width: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def width(self) -> float:
         """Return the width.
 
@@ -126,6 +132,7 @@ class DimensionMixin(BaseMixin):
         return self._stored_width
 
     @width.setter
+    @_check_types.do
     def width(self, value: float):
         """Set the width.
 
@@ -148,6 +155,7 @@ class DimensionMixin(BaseMixin):
     _stored_height: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def height(self) -> float:
         """Return the height.
 
@@ -162,6 +170,7 @@ class DimensionMixin(BaseMixin):
         return self._stored_height
 
     @height.setter
+    @_check_types.do
     def height(self, value: float):
         """Set the height.
 
@@ -184,6 +193,7 @@ class DimensionMixin(BaseMixin):
     _stored_size: tuple[float, float, float] | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def size(self) -> tuple[float, float, float]:
         if self._stored_size is DefaultStoredValue:
             self._stored_size = self._table.select('width', 'height', 'length', id=self._db_id)[0]
@@ -191,6 +201,7 @@ class DimensionMixin(BaseMixin):
         return self._stored_size
 
     @size.setter
+    @_check_types.do
     def size(self, value: tuple[float, float, float]):
         self._stored_size = value
         self._stored_width = value[0]
@@ -206,6 +217,7 @@ class DimensionControl(_prop_ctrls.Category):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`DimensionControl` instance.
 
@@ -235,6 +247,7 @@ class DimensionControl(_prop_ctrls.Category):
         self.width_ctrl.propertyChanged.connect(self._on_width)
         self.height_ctrl.propertyChanged.connect(self._on_height)
 
+    @_check_types.do
     def set_obj(self, db_obj: DimensionMixin):
         """Set the obj.
 
@@ -260,6 +273,7 @@ class DimensionControl(_prop_ctrls.Category):
             self.width_ctrl.setEnabled(True)
             self.height_ctrl.setEnabled(True)
 
+    @_check_types.do
     def _on_length(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the length event.
 
@@ -270,6 +284,7 @@ class DimensionControl(_prop_ctrls.Category):
         """
         self.db_obj.length = evt.GetValue()
 
+    @_check_types.do
     def _on_width(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the width event.
 
@@ -280,6 +295,7 @@ class DimensionControl(_prop_ctrls.Category):
         """
         self.db_obj.width = evt.GetValue()
 
+    @_check_types.do
     def _on_height(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the height event.
 

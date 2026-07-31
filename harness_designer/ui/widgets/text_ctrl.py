@@ -2,6 +2,7 @@
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from ... import check_types as _check_types
 
 
 class TextCtrl(QtWidgets.QWidget):
@@ -29,6 +30,7 @@ class TextCtrl(QtWidgets.QWidget):
     text_committed: QtCore.SignalInstance = QtCore.Signal()
     text_changed: QtCore.SignalInstance = QtCore.Signal(str)
 
+    @_check_types.do
     def __init__(self, parent=None, label: str = '', size=None,
                  style: int = 0, apply_button: bool = True, # NOQA
                  hslider: bool = True, readonly: bool = False,
@@ -119,6 +121,7 @@ class TextCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+    @_check_types.do
     def _on_text_changed(self, text: str):
         """Handle the text changed event.
 
@@ -130,6 +133,7 @@ class TextCtrl(QtWidgets.QWidget):
         QtCore.QTimer.singleShot(
             0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
+    @_check_types.do
     def _on_text_changed_multi(self):
         """Handle the text changed multi event.
 
@@ -141,6 +145,7 @@ class TextCtrl(QtWidgets.QWidget):
             QtCore.QTimer.singleShot(
                 0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
+    @_check_types.do
     def _on_enter(self):
         """Handle the enter event.
 
@@ -153,6 +158,7 @@ class TextCtrl(QtWidgets.QWidget):
         else:
             self.text_committed.emit()
 
+    @_check_types.do
     def _on_apply(self):
         """Handle the apply event.
 
@@ -163,6 +169,7 @@ class TextCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # wx-compatible public API
     # ------------------------------------------------------------------
+    @_check_types.do
     def Enable(self, flag: bool = True):
         """Execute the enable operation.
 
@@ -181,6 +188,7 @@ class TextCtrl(QtWidgets.QWidget):
             else:
                 self.apply_button.setEnabled(False)
 
+    @_check_types.do
     def SetToolTip(self, text: str):
         """Execute the set tool tip operation.
 
@@ -194,6 +202,7 @@ class TextCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -215,6 +224,7 @@ class TextCtrl(QtWidgets.QWidget):
         if self.apply_button is not None:
             self.apply_button.setEnabled(False)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -232,15 +242,18 @@ class TextCtrl(QtWidgets.QWidget):
     # Forwarding helpers — let callers interact with appearance / completion
     # without reaching into the private .ctrl attribute directly
     # ------------------------------------------------------------------
+    @_check_types.do
     def setCompleter(self, completer):
         """Forward to the inner QLineEdit (single-line only)."""
         if not self._multiline:
             self.ctrl.setCompleter(completer)
 
+    @_check_types.do
     def inputPalette(self):
         """Return the palette of the inner input control."""
         return self.ctrl.palette()
 
+    @_check_types.do
     def setInputPalette(self, palette):
         """Apply *palette* to the inner input control."""
         self.ctrl.setPalette(palette)

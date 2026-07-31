@@ -14,6 +14,7 @@ from ..geometry import point as _point
 from ..geometry import line as _line
 from ..geometry.decimal import Decimal as _decimal
 from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ class Line:
     geometry or colors change.
     """
 
+    @_check_types.do
     def __init__(self, p1: _point.Point, p2: _point.Point, width: _decimal,
                  color: _color.Color, stripe_color: _color.Color | None):
         """Initialize the drawable line.
@@ -54,6 +56,7 @@ class Line:
         p2.bind(self._update_artist)
 
     @property
+    @_check_types.do
     def width(self) -> _decimal:
         """Return the current line width.
 
@@ -63,6 +66,7 @@ class Line:
         return self._width
 
     @width.setter
+    @_check_types.do
     def width(self, value: _decimal):
         """Set the line width and refresh the artist.
 
@@ -76,6 +80,7 @@ class Line:
         self._update_artist()
 
     @property
+    @_check_types.do
     def color(self) -> _color.Color:
         """Return the primary line color.
 
@@ -85,6 +90,7 @@ class Line:
         return self._color
 
     @color.setter
+    @_check_types.do
     def color(self, value: _color.Color):
         """Set the primary line color.
 
@@ -98,6 +104,7 @@ class Line:
         self._update_artist()
 
     @property
+    @_check_types.do
     def stripe_color(self) -> _color.Color:
         """Return the optional stripe color.
 
@@ -107,6 +114,7 @@ class Line:
         return self._stripe_color
 
     @stripe_color.setter
+    @_check_types.do
     def stripe_color(self, value: _color.Color):
         """Set the optional stripe color.
 
@@ -120,6 +128,7 @@ class Line:
         self._update_artist()
 
     @property
+    @_check_types.do
     def p1(self) -> _point.Point:
         """Return the start point.
 
@@ -129,6 +138,7 @@ class Line:
         return self._p1
 
     @p1.setter
+    @_check_types.do
     def p1(self, value: _point.Point):
         """Replace the start point and refresh callbacks.
 
@@ -145,6 +155,7 @@ class Line:
         self._update_artist()
 
     @property
+    @_check_types.do
     def p2(self) -> _point.Point:
         """Return the end point.
 
@@ -154,6 +165,7 @@ class Line:
         return self._p2
 
     @p2.setter
+    @_check_types.do
     def p2(self, value: _point.Point):
         """Replace the end point and refresh callbacks.
 
@@ -170,6 +182,7 @@ class Line:
         self._update_artist()
 
     @staticmethod
+    @_check_types.do
     def _make_qcolor(c: _color.Color) -> QColor:
         """Convert an internal color value into :class:`QColor`.
 
@@ -181,6 +194,7 @@ class Line:
         r, g, b, a = c
         return QColor(int(r * 255), int(g * 255), int(b * 255), int(a * 255))
 
+    @_check_types.do
     def _get_pixmap(self):
         """Build or return the cached pixmap for the line.
 
@@ -256,6 +270,7 @@ class Line:
         return self._pixmap
 
     @property
+    @_check_types.do
     def is_added(self):
         """Return whether the line currently has an attached artist.
 
@@ -264,6 +279,7 @@ class Line:
         """
         return self.artist is not None
 
+    @_check_types.do
     def _update_artist(self, p: _point.Point | None = None):
         """Refresh the backing artist if one exists.
 
@@ -281,6 +297,7 @@ class Line:
         pixmap = self._get_pixmap()
         self.artist.update((5, 5), pixmap)
 
+    @_check_types.do
     def add_to_plot(self, axes: "Editor2D") -> None:
         """Add the line to an editor plot.
 

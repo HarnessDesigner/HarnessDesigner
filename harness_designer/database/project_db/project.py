@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import ColorMixin
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects import project as _project_obj
@@ -17,6 +18,7 @@ class ProjectsTable(PJTTableBase):
     """
     __table_name__ = 'projects'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -29,6 +31,7 @@ class ProjectsTable(PJTTableBase):
 
         return projects.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -38,6 +41,7 @@ class ProjectsTable(PJTTableBase):
 
         projects.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -47,6 +51,7 @@ class ProjectsTable(PJTTableBase):
 
         projects.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["Project"]:
         """Iterate over the available items.
 
@@ -59,6 +64,7 @@ class ProjectsTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield Project(self, db_id, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "Project":
         """Return the requested item.
 
@@ -78,6 +84,7 @@ class ProjectsTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def get_object_count(self, project_id) -> int:
         """Return the object count.
 
@@ -90,6 +97,7 @@ class ProjectsTable(PJTTableBase):
         """
         return self.select('object_count', id=project_id)[0][0]
 
+    @_check_types.do
     def set_object_count(self, project_id, value: int):
         """Set the object count.
 
@@ -102,6 +110,7 @@ class ProjectsTable(PJTTableBase):
         """
         self.update(project_id, object_count=value)
 
+    @_check_types.do
     def insert(self, name: str, description: str, creator: str, model_id: int | None, color_id: int) -> "Project":
         """Execute the insert operation.
 
@@ -135,6 +144,7 @@ class Project(PJTEntryBase, ColorMixin):
     """
     _table: ProjectsTable = None
 
+    @_check_types.do
     def get_object(self) -> "_project_obj.Project":
         """Return the object.
 
@@ -145,6 +155,7 @@ class Project(PJTEntryBase, ColorMixin):
         """
         return self._obj
 
+    @_check_types.do
     def set_object(self, obj: "_project_obj.Project"):
         """Set the object.
 
@@ -156,6 +167,7 @@ class Project(PJTEntryBase, ColorMixin):
         self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> ProjectsTable:
         """Return the table.
 
@@ -169,6 +181,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_name: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def name(self) -> str:
         """Return the name.
 
@@ -183,6 +196,7 @@ class Project(PJTEntryBase, ColorMixin):
         return self._stored_name
 
     @name.setter
+    @_check_types.do
     def name(self, value: str):
         """Set the name.
 
@@ -197,6 +211,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_description: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def description(self) -> str:
         """Return the description.
 
@@ -211,6 +226,7 @@ class Project(PJTEntryBase, ColorMixin):
         return self._stored_description
 
     @description.setter
+    @_check_types.do
     def description(self, value: str):
         """Set the description.
 
@@ -225,6 +241,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_creator: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def creator(self) -> str:
         """Return the creator.
 
@@ -239,6 +256,7 @@ class Project(PJTEntryBase, ColorMixin):
         return self._stored_creator
 
     @creator.setter
+    @_check_types.do
     def creator(self, value: str):
         """Set the creator.
 
@@ -253,6 +271,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_wire_stripe_max_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def wire_stripe_max_length(self) -> float:
         """Length (mm) the shared wire-stripe helix VBO is currently built
         at. Grows (never shrinks) to the longest wire segment ever created
@@ -265,6 +284,7 @@ class Project(PJTEntryBase, ColorMixin):
         return self._stored_wire_stripe_max_length
 
     @wire_stripe_max_length.setter
+    @_check_types.do
     def wire_stripe_max_length(self, value: float):
         self._stored_wire_stripe_max_length = value
         self._table.update(self._db_id, wire_stripe_max_length=value)
@@ -272,14 +292,16 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_model_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
-    def model_id(self) -> int:
+    @_check_types.do
+    def model_id(self) -> int | None:
         if self._stored_model_id is DefaultStoredValue:
             self._stored_model_id = self._table.select('model_id', id=self._db_id)[0][0]
 
         return self._stored_model_id
 
     @model_id.setter
-    def model_id(self, value: int):
+    @_check_types.do
+    def model_id(self, value: int | None):
         self._stored_model_id = value
         self._stored_model = DefaultStoredValue
 
@@ -288,6 +310,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_model: "_model3d.Model3D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def model(self) -> "_model3d.Model3D":
         if self._stored_model is DefaultStoredValue:
             model_id = self.model_id

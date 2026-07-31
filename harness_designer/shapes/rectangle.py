@@ -13,12 +13,14 @@ import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
 _vbo_based: _vbo_handler.PooledVBOHandler = None
 
 
+@_check_types.do
 def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached unit rectangle VBO.
 
@@ -46,6 +48,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
     return _vbo
 
 
+@_check_types.do
 def create_vbo_based() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached unit "based" rectangle VBO -- same
     shape as :func:`create_vbo`, but X spans ``[0, 1]`` instead of
@@ -79,6 +82,7 @@ def create_vbo_based() -> _vbo_handler.PooledVBOHandler:
     return _vbo_based
 
 
+@_check_types.do
 def create_based(width, height):
     """Create vertex and face arrays for a flat rectangle based at the
     origin along X (``[0, width]``) instead of centered (see
@@ -107,6 +111,7 @@ def create_based(width, height):
     return vertices, faces
 
 
+@_check_types.do
 def create(width, height):
     """Create vertex and face arrays for a flat, axis-aligned rectangle.
 

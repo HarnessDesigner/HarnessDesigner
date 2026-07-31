@@ -54,6 +54,7 @@ from PySide6.QtCore import Qt, QEvent, QObject
 from . import canvas as _canvas
 from ... import app as _app
 from ... import debug as _debug
+from ... import check_types as _check_types
 
 
 # Same Qt-keyed equivalence table as canvas2d/canvas3d key_handler.py.
@@ -129,6 +130,7 @@ _ZOOM_KEY_STEP = 20.0
 _KEY_REPEAT_INTERVAL = 0.05
 
 
+@_check_types.do
 def _process_key_event(keycode: int, *keys):
     """Return the canonical key from ``keys`` that matches ``keycode``.
 
@@ -166,6 +168,7 @@ class KeyHandler(QObject):
     call before ever getting to a keypress.
     """
 
+    @_check_types.do
     def __init__(self, canvas: _canvas.Canvas):
         """Initialise the :class:`KeyHandler` instance.
 
@@ -184,6 +187,7 @@ class KeyHandler(QObject):
         self._keycode_thread.daemon = True
         self._keycode_thread.start()
 
+    @_check_types.do
     def eventFilter(self, obj, qt_event):
         """Execute the event filter operation.
 
@@ -203,6 +207,7 @@ class KeyHandler(QObject):
                 return False
         return False
 
+    @_check_types.do
     def _key_loop(self):
         """Background thread: re-fire held-key actions every repeat tick.
 
@@ -230,6 +235,7 @@ class KeyHandler(QObject):
             self._key_event.wait(_KEY_REPEAT_INTERVAL)
 
     @_debug.logfunc
+    @_check_types.do
     def _on_key_up(self, evt):
         """Handle the key up event.
 
@@ -238,6 +244,7 @@ class KeyHandler(QObject):
         """
         keycode = evt.key()
 
+        @_check_types.do
         def remove_from_queue(func, k):
             """Remove ``k`` from ``func``'s held-key set.
 
@@ -271,6 +278,7 @@ class KeyHandler(QObject):
             return
 
     @_debug.logfunc
+    @_check_types.do
     def _on_key_down(self, evt):
         """Handle the key down event.
 
@@ -279,6 +287,7 @@ class KeyHandler(QObject):
         """
         keycode = evt.key()
 
+        @_check_types.do
         def add_to_queue(func, k):
             """Add ``k`` to ``func``'s held-key set.
 
@@ -312,6 +321,7 @@ class KeyHandler(QObject):
             return
 
     @_debug.logfunc
+    @_check_types.do
     def _process_pan_key(self, *keys):
         """Execute the process pan key operation.
 
@@ -336,6 +346,7 @@ class KeyHandler(QObject):
         self.canvas.Pan(dx, dy)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_zoom_key(self, *keys):
         """Execute the process zoom key operation.
 
@@ -355,6 +366,7 @@ class KeyHandler(QObject):
         self.canvas.Zoom(delta, None)
 
     @_debug.logfunc
+    @_check_types.do
     def _process_reset_key(self, *_):
         """Execute the process reset key operation.
 

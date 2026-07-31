@@ -3,8 +3,10 @@
 from .. import db_connectors as _con
 from . import manufacturers as _manufacturers
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, _):
     """Add a records.
 
@@ -28,6 +30,7 @@ def add_records(con, splash, _):
     con.commit()
 
 
+@_check_types.do
 def get_series_id(con, name, mfg_id):
     """Return the series ID.
 

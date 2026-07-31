@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 try:
@@ -28,6 +29,7 @@ class DatabaseMenu(QtWidgets.QMenu):
     Represent a database menu in :mod:`harness_designer.ui.system_menu.database`.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialise the :class:`DatabaseMenu` instance.
@@ -46,6 +48,7 @@ class DatabaseMenu(QtWidgets.QMenu):
 
         self.addSeparator()
 
+    @_check_types.do
     def on_sqlite_settings(self):
         """
         Handle the sqlite settings event.
@@ -56,10 +59,12 @@ class DatabaseMenu(QtWidgets.QMenu):
         pass
 
     if mysql is None:
+        @_check_types.do
         def on_mysql_settings(self):
             pass
 
     else:
+        @_check_types.do
         def on_mysql_settings(self):
             """
             Handle the mysql settings event.

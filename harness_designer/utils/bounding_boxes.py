@@ -3,8 +3,10 @@
 import numpy as np
 
 from ..geometry import point as _point
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def compute_aabb(verts: np.ndarray) -> tuple[_point.Point, _point.Point]:
     """
     Compute an axis-aligned bounding box from vertex positions.
@@ -20,6 +22,7 @@ def compute_aabb(verts: np.ndarray) -> tuple[_point.Point, _point.Point]:
     return p1, p2
 
 
+@_check_types.do
 def compute_obb(p1: _point.Point, p2: _point.Point) -> np.ndarray:
     """
     Construct bounding-box corner coordinates from two opposite points.
@@ -48,6 +51,7 @@ def compute_obb(p1: _point.Point, p2: _point.Point) -> np.ndarray:
     return corners
 
 
+@_check_types.do
 def adjust_aabb(aabb: np.ndarray) -> np.ndarray:
     """
     Normalise an AABB array to explicit min/max rows.

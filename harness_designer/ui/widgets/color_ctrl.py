@@ -6,6 +6,7 @@ from PySide6 import QtCore
 
 from .combobox_ctrl import ComboBoxCtrl
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 class ColorCtrl(QtWidgets.QWidget):
@@ -19,6 +20,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
     colorChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent=None, label: str = '', table=None):
         """Initialise the :class:`ColorCtrl` instance.
 
@@ -59,6 +61,7 @@ class ColorCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # Internal
     # ------------------------------------------------------------------
+    @_check_types.do
     def _update_button_colour(self, qc: QtGui.QColor):
         """Update the button colour.
 
@@ -74,6 +77,7 @@ class ColorCtrl(QtWidgets.QWidget):
                                   f' border: 1px solid #666; }}')
 
     @staticmethod
+    @_check_types.do
     def _rgba_from_qcolor(_: str, qc: QtGui.QColor) -> int:
         """Execute the RGBA from qcolor operation.
 
@@ -90,6 +94,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
         return r << 24 | g << 16 | b << 8 | 0xFF
 
+    @_check_types.do
     def _on_colour_button(self):
         """Handle the colour button event.
 
@@ -115,6 +120,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
         self.colorChanged.emit(self.GetColor())
 
+    @_check_types.do
     def _on_combobox(self, value: str):
         """Handle the combobox event.
 
@@ -139,6 +145,7 @@ class ColorCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     # wx-compatible public API
     # ------------------------------------------------------------------
+    @_check_types.do
     def Enable(self, flag: bool = True):
         """Execute the enable operation.
 
@@ -150,6 +157,7 @@ class ColorCtrl(QtWidgets.QWidget):
         self.ctrl.setEnabled(flag)
         self.button.setEnabled(flag)
 
+    @_check_types.do
     def SetToolTip(self, text: str):
         """Execute the set tool tip operation.
 
@@ -163,6 +171,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
     SetToolTipString = SetToolTip
 
+    @_check_types.do
     def GetColor(self) -> _color.Color:
         """Execute the get colour operation.
 
@@ -185,6 +194,7 @@ class ColorCtrl(QtWidgets.QWidget):
 
         return _color.Color(qc.red(), qc.green(), qc.blue(), a, db_id=str(db_id))
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -195,6 +205,7 @@ class ColorCtrl(QtWidgets.QWidget):
         """
         return self.ctrl.GetValue()
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 

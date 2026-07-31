@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 from PySide6 import QtWidgets
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -14,6 +15,7 @@ class EditMenu(QtWidgets.QMenu):
     Represent an edit menu in :mod:`harness_designer.ui.system_menu.edit`.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialise the :class:`EditMenu` instance.

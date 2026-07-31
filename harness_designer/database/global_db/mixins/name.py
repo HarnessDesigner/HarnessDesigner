@@ -3,6 +3,7 @@
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
 from ....ui import prop_ctrls as _prop_ctrls
+from .... import check_types as _check_types
 
 
 class NameMixin(BaseMixin):
@@ -14,6 +15,7 @@ class NameMixin(BaseMixin):
     _stored_name: DefaultStoredValueType | str = DefaultStoredValue
 
     @property
+    @_check_types.do
     def name(self) -> str:
         """Return the name.
 
@@ -28,6 +30,7 @@ class NameMixin(BaseMixin):
         return self._stored_name
 
     @name.setter
+    @_check_types.do
     def name(self, value: str):
         """Set the name.
 
@@ -47,6 +50,7 @@ class NameControl(_prop_ctrls.StringProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: NameMixin):
         """Set the obj.
 
@@ -64,6 +68,7 @@ class NameControl(_prop_ctrls.StringProperty):
             self.SetValue(db_obj.name)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_name(self, evt):
         """Handle the name event.
 
@@ -75,6 +80,7 @@ class NameControl(_prop_ctrls.StringProperty):
         value = evt.GetValue()
         self.db_obj.name = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`NameControl` instance.
 

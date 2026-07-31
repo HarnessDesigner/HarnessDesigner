@@ -20,6 +20,7 @@ from ... import color as _color
 from ... import config as _config
 from ... import utils as _utils
 from . import mixins as _mixins
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
@@ -44,6 +45,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
     parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire" = None
 
+    @_check_types.do
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
 
@@ -137,9 +139,11 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             self._recalculate_geometry()
 
     @property
+    @_check_types.do
     def length(self) -> float:
         return self._length
 
+    @_check_types.do
     def _calc_length(self):
         """Straight-line seed length used only to size this wire's
         initial scale before Base3D.__init__ runs (self.db_obj isn't
@@ -158,6 +162,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return math.sqrt(dx * dx + dy * dy + dz * dz)
 
+    @_check_types.do
     def _bind_waypoints(self) -> None:
         """(Re-)bind this wire's own _update_position callback to every
         current interior waypoint's live Point, unbinding it from whatever
@@ -175,6 +180,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         for point in self._waypoint_points:
             point.bind(self._update_position)
 
+    @_check_types.do
     def refresh_waypoints(self) -> None:
         """Public entry point for handlers: call after this wire's own
         waypoint rows change (added, removed, or reordered) so live
@@ -184,15 +190,18 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self.editor3d.Refresh()
 
     @property
+    @_check_types.do
     def start_position(self):
         """Wire start position (Point instance)"""
         return self._p1
 
     @property
+    @_check_types.do
     def stop_position(self):
         """Wire stop position (Point instance)"""
         return self._p2
 
+    @_check_types.do
     def is_housing_attached(self) -> bool:
         """True if either endpoint shares a db_id with any cavity's or
         terminal's housing-derived wire-routing point (cavity.wire_position3d,
@@ -223,6 +232,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return False
 
+    @_check_types.do
     def set_start_position(self, point: _point.Point) -> None:
         """Repoint this wire's own start end to *point* entirely.
 
@@ -238,6 +248,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p1.bind(self._update_position)
         self._recalculate_geometry()
 
+    @_check_types.do
     def set_stop_position(self, point: _point.Point) -> None:
         """See set_start_position."""
         self._p2.unbind(self._update_position)
@@ -245,6 +256,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._p2.bind(self._update_position)
         self._recalculate_geometry()
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """Update the angle.
 
@@ -255,6 +267,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         """
         self._update_position(None)
 
+    @_check_types.do
     def _recalculate_geometry(self):
         """Compute total length, an aggregate angle, and OBB/AABB from
         the wire's current start/interior-waypoints/stop path.
@@ -294,6 +307,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._compute_obb()
         self._compute_aabb()
 
+    @_check_types.do
     def _update_position(self, _: _point.Point):
         """Recompute geometry immediately, not deferred to the next
         render pass -- bound to the start/stop endpoints and every
@@ -304,6 +318,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         self._recalculate_geometry()
 
+    @_check_types.do
     def _segment_transforms(self):
         """Yield (position, angle, scale, length) for every sub-segment
         of this wire's current path -- the values render()/hit_test_step3
@@ -324,6 +339,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
             yield seg_position, seg_angle, seg_scale, seg_len
 
+    @_check_types.do
     def _compute_obb(self):
         """Union AABB across every sub-segment, expressed as an 8-corner
         box (same shape find_object/_ray_intersect_obb expects) -- a
@@ -350,6 +366,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
 
+    @_check_types.do
     def _compute_aabb(self):
         """See _compute_obb -- same union-of-segments envelope."""
         if self._vbo is None:
@@ -365,6 +382,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             for j in range(3):
                 self._aabb[i][j] = aabb[i][j]
 
+    @_check_types.do
     def _segment_world_corners(self):
         """World-space AABB corners (8 per segment) for every sub-segment,
         stacked into one array -- the shared building block for both
@@ -402,6 +420,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return np.concatenate(all_corners, axis=0)
 
+    @_check_types.do
     def hit_test_step3(self, ray_origin, ray_dir):
         """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
         tests every sub-segment's own transformed triangles individually
@@ -424,6 +443,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
 
         return False
 
+    @_check_types.do
     def _conductor_segment_ends(self) -> tuple[bool, bool]:
         """Return (start_is_conductor, stop_is_conductor) -- whether the
         first/last sub-segment crimps directly into a Terminal and should
@@ -441,6 +461,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         return (isinstance(self.parent.start_sibling, _terminal.Terminal),
                 isinstance(self.parent.stop_sibling, _terminal.Terminal))
 
+    @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         """Render every sub-segment of the wire's current path.
 
@@ -514,6 +535,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             self._stripe._position = stripe_position  # NOQA
             self._stripe._angle = stripe_angle  # NOQA
 
+    @_check_types.do
     def set_selected(self, flag: bool):
         """Set the selected.
 
@@ -527,6 +549,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             self._stripe.set_selected(flag)
 
     @staticmethod
+    @_check_types.do
     def _rotation_from_direction(direction):
         """Create quaternion to rotate +Z axis to align with direction"""
         # Unit cylinder points along +Z, rotate it to point along 'direction'
@@ -552,11 +575,13 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         return _angle.Angle.from_axis_angle(axis, angle)
 
     @property
+    @_check_types.do
     def bundle(self):
         """Return the bundle this wire belongs to, if any."""
         return self._bundle
 
     @bundle.setter
+    @_check_types.do
     def bundle(self, value):
         """Set the bundle this wire belongs to.
 
@@ -565,6 +590,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         self._bundle = value
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """Return the is visible.
 
@@ -576,6 +602,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         return self._is_visible
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool) -> None:
         """Set the is visible.
 
@@ -590,6 +617,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         if self._stripe is not None:
             self._stripe.is_visible = value
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -607,6 +635,7 @@ class WireStripe(_base3d.Base3D):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent: "_wire.Wire", wire: Wire, color: _color.Color, scale: _point.Point,
                  angle: _angle.Angle, position: _point.Point):
         """Initialise the :class:`WireStripe` instance.
@@ -666,6 +695,7 @@ class WireStripe(_base3d.Base3D):
         _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
 
     @staticmethod
+    @_check_types.do
     def _ensure_stripe_capacity(mainframe, required: float) -> None:
         """Grow the shared wire-stripe helix mesh -- and persist the new
         true-required max back onto the project row -- if `required`
@@ -693,6 +723,7 @@ class WireStripe(_base3d.Base3D):
             _helix.create_vbo(required + _HELIX_OVERSHOOT_MM)
 
     @property
+    @_check_types.do
     def smooth(self) -> bool:
         """Always smooth-shaded -- the helix is a swept curved surface with
         no flat faces, so there's no reason for this to ever be flat (see
@@ -700,6 +731,7 @@ class WireStripe(_base3d.Base3D):
         subclass doesn't define this)."""
         return True
 
+    @_check_types.do
     def render_segment(self, faces_program, edges_program, vertices_program,
                         clip_start: float, clip_stop: float):
         """Draw this stripe windowed to [clip_start, clip_stop] -- one
@@ -734,14 +766,17 @@ class WireStripe(_base3d.Base3D):
         GL.glUniform1f(start_loc, 0.0)
         GL.glUniform1f(stop_loc, 0.0)
 
+    @_check_types.do
     def _compute_obb(self):
         """No-op: the stripe has no independent geometry of its own. See
         the _obb property below."""
 
+    @_check_types.do
     def _compute_aabb(self):
         """See _compute_obb."""
 
     @property
+    @_check_types.do
     def _obb(self):
         """Always the wire's current OBB array -- read-only everywhere
         obb/aabb are used (hit-testing, debug overlay boxes), so there's
@@ -749,20 +784,24 @@ class WireStripe(_base3d.Base3D):
         return self._wire._obb
 
     @_obb.setter
+    @_check_types.do
     def _obb(self, value):
         # Base3D.__init__ assigns this once before calling _compute_obb();
         # the wire is the source of truth, so the write is discarded.
         pass
 
     @property
+    @_check_types.do
     def _aabb(self):
         """See _obb."""
         return self._wire._aabb
 
     @_aabb.setter
+    @_check_types.do
     def _aabb(self, value):
         pass
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Recompute (copy) OBB/AABB from the wire; the wire's own
         _update_position already triggers a repaint, so this doesn't need
@@ -776,6 +815,7 @@ class WireStripe(_base3d.Base3D):
 
         pass
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """See _update_position.
 
@@ -787,6 +827,7 @@ class WireStripe(_base3d.Base3D):
 
         pass
 
+    @_check_types.do
     def _update_scale(self, scale: _point.Point):
         """See _update_position.
 
@@ -799,6 +840,7 @@ class WireStripe(_base3d.Base3D):
         pass
 
     @property
+    @_check_types.do
     def is_visible(self) -> bool:
         """Return the is visible.
 
@@ -810,6 +852,7 @@ class WireStripe(_base3d.Base3D):
         return self._is_visible
 
     @is_visible.setter
+    @_check_types.do
     def is_visible(self, value: bool):
         """Set the is visible.
 
@@ -827,6 +870,7 @@ class WireMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`WireMenu` instance.
 
@@ -875,6 +919,7 @@ class WireMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def _midpoint(self) -> _point.Point:
         """Return the world space midpoint of the wire."""
         line = _line.Line(self.selected.start_position,
@@ -882,6 +927,7 @@ class WireMenu(QMenu):
 
         return line.point_from_start(line.length() / 2.0)
 
+    @_check_types.do
     def on_add_handle(self):
         """Insert a wire layout (drag handle) at the point on the wire
         that was right-clicked to open this menu (falls back to the
@@ -914,11 +960,13 @@ class WireMenu(QMenu):
 
         self.selected.editor3d.Refresh()
 
+    @_check_types.do
     def on_add_marker(self):
         """Add a wire marker at the point on the wire that was
         right-clicked to open this menu (falls back to the wire's
         midpoint if no click point was captured -- e.g. the menu was
         opened some other way)."""
+        @_check_types.do
         def _do():
             from .. import wire_marker as _wire_marker_obj
 
@@ -950,6 +998,7 @@ class WireMenu(QMenu):
 
         QTimer.singleShot(0, _do)
 
+    @_check_types.do
     def on_add_splice(self):
         """Start the interactive splice placement flow on this wire."""
         from ... import handlers as _handlers
@@ -960,6 +1009,7 @@ class WireMenu(QMenu):
         _menu_ops.start_handler(
             mainframe, lambda: _handlers.AddSpliceHandler(mainframe, wire))
 
+    @_check_types.do
     def on_add_wire(self):
         """Start placing another wire of the same part type."""
         from ... import handlers as _handlers
@@ -970,6 +1020,7 @@ class WireMenu(QMenu):
         _menu_ops.start_handler(
             mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
 
+    @_check_types.do
     def on_add_wire_service_loop(self):
         """Start placing a service loop on this wire, anchored at the point
         that was right-clicked to open this menu."""
@@ -983,6 +1034,7 @@ class WireMenu(QMenu):
             mainframe,
             lambda: _handlers.AddWireServiceLoopHandler(mainframe, wire, click_pos))
 
+    @_check_types.do
     def on_add_to_bundle(self):
         """Add this wire to the closest bundle in the project."""
         mainframe = self.selected.mainframe
@@ -1010,18 +1062,22 @@ class WireMenu(QMenu):
 
         mainframe.editor3d.Refresh()
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Highlight every object on this wire's circuit."""
         _menu_ops.trace_circuit(self.selected)
 
+    @_check_types.do
     def on_select(self):
         """Make this wire the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this wire from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this wire's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

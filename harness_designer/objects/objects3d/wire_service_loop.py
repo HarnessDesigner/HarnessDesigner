@@ -13,6 +13,7 @@ from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
 from ... import config as _config
 from ...shapes import cylinder_helix as _cylinder_helix
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ Config = _config.Config.editor3d
 # epoxy resin afterward.
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     """Hamilton product of two [w, x, y, z] quaternions."""
     w1, x1, y1, z1 = q1
@@ -49,6 +51,7 @@ def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
     ], dtype=np.float64)
 
 
+@_check_types.do
 def _mesh_world_triangles(
     vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
 ) -> np.ndarray | None:
@@ -68,6 +71,7 @@ def _mesh_world_triangles(
     return verts.reshape(-1, 3, 3)
 
 
+@_check_types.do
 def _triangle_edges(tris: np.ndarray) -> np.ndarray:
     """(N*3, 2, 3) start/end pairs for every edge of every triangle --
     shared edges get tested twice, which is harmless."""
@@ -94,6 +98,7 @@ _OBB_TRIANGLE_INDICES = np.array([
 ], dtype=np.int32)
 
 
+@_check_types.do
 def _candidate_obb(vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
                    ) -> np.ndarray | None:
     """(8, 3) world-space OBB corners for a hypothetical (not-yet-applied)
@@ -111,11 +116,13 @@ def _candidate_obb(vbo, position: np.ndarray, angle: _angle.Angle, scale: np.nda
     return obb
 
 
+@_check_types.do
 def _obb_triangles(obb: np.ndarray) -> np.ndarray:
     """(12, 3, 3) triangles for an OBB's own 8 corners."""
     return obb[_OBB_TRIANGLE_INDICES]
 
 
+@_check_types.do
 def _rays_vs_triangles_batched(
     ray_origins: np.ndarray, ray_dirs: np.ndarray, tris: np.ndarray, max_t: float | None = None
 ) -> np.ndarray:
@@ -170,6 +177,7 @@ def _rays_vs_triangles_batched(
     return hit
 
 
+@_check_types.do
 def _meshes_intersect(tris_a: np.ndarray | None, tris_b: np.ndarray | None) -> bool:
     """True if any edge of one mesh crosses a face of the other -- both
     directions batched in one call each via _rays_vs_triangles_batched,
@@ -196,6 +204,7 @@ def _meshes_intersect(tris_a: np.ndarray | None, tris_b: np.ndarray | None) -> b
     return False
 
 
+@_check_types.do
 def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndarray:
     """Indices into session.candidates whose OBB overlaps my_obb_tris --
     the broad-phase for _is_clear, entirely batched against the whole
@@ -232,6 +241,7 @@ def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndar
     return np.unique(np.concatenate(owners))
 
 
+@_check_types.do
 def _is_clear(
     vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
     my_obb: np.ndarray | None, session: "_MoveSession",
@@ -311,6 +321,7 @@ class WireServiceLoop(_base3d.Base3D):
     parent: "_wire_service_loop.WireServiceLoop" = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
+    @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
                  db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
         """Initialise the :class:`WireServiceLoop` instance.
@@ -363,6 +374,7 @@ class WireServiceLoop(_base3d.Base3D):
             self._sync_stop_position()
             self._last_centroid = self._world_centroid()
 
+    @_check_types.do
     def _world_centroid(self) -> np.ndarray:
         """World-space centroid of the loop's own OBB -- the rotation pivot
         (see _update_angle), not the start/stop connection points.
@@ -373,6 +385,7 @@ class WireServiceLoop(_base3d.Base3D):
         centroid = centroid + self._position.as_numpy
         return centroid
 
+    @_check_types.do
     def _sync_stop_position(self) -> None:
         """Recompute the derived stop point from the current start
         position, angle and scale -- the same scale/rotate/translate of
@@ -386,6 +399,7 @@ class WireServiceLoop(_base3d.Base3D):
 
         self._p2 += tmp - self._p2
 
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """Base3D recomputes OBB/AABB/floor-lock off the start point alone
         -- also keep the derived stop point in step with it, resolve any
@@ -397,6 +411,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._sync_stop_position()
         self._last_centroid = self._world_centroid()
 
+    @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """Rotate the loop around its own centroid, not its start point.
 
@@ -437,6 +452,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._sync_stop_position()
         self._last_centroid = self._world_centroid()
 
+    @_check_types.do
     def _write_angle(self, target_angle: _angle.Angle) -> None:
         """Write target_angle's exact rotation into self._angle, bypassing
         its normal Euler-driven derivation. Caller is responsible for
@@ -463,6 +479,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._angle._q.z = target_angle._q.z  # NOQA
         self._angle._process_callbacks()  # NOQA
 
+    @_check_types.do
     def _roll_axis(self) -> np.ndarray | None:
         """Direction from the loop's own current start to stop point -- the
         axis _resolve_collision twists candidate orientations around.
@@ -480,6 +497,7 @@ class WireServiceLoop(_base3d.Base3D):
 
         return direction / length
 
+    @_check_types.do
     def _attached_wires(self) -> list["_wire.Wire"]:
         """Wires directly touching this loop's own start/stop points --
         found by the object itself (via the shared Point db_id, see
@@ -493,6 +511,7 @@ class WireServiceLoop(_base3d.Base3D):
             if w.obj3d.start_position.db_id in ids or w.obj3d.stop_position.db_id in ids
         ]
 
+    @_check_types.do
     def _markers_on_attached_wires(self) -> list["_wire_marker.WireMarker"]:
         """Wire markers sitting on either of this loop's attached wires --
         both a collision obstacle and a hard slide boundary (see
@@ -504,6 +523,7 @@ class WireServiceLoop(_base3d.Base3D):
             return []
         return [m for m in self.mainframe.project.wire_markers if m.db_obj.wire_id in wire_ids]
 
+    @_check_types.do
     def _apply_resolved(self, position_np: np.ndarray, q_arr: np.ndarray) -> None:
         """Commit a (position, quaternion) pair found by _resolve_collision
         without re-entering _update_position/_update_angle -- the search
@@ -534,6 +554,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._compute_obb()
         self._compute_aabb()
 
+    @_check_types.do
     def _viewport_candidates(self) -> list:
         """Wires and other loops currently visible in the viewport -- the
         filter tier for begin_move_session.
@@ -560,6 +581,7 @@ class WireServiceLoop(_base3d.Base3D):
             and (obj.is_wire or obj.is_wire_service_loop)
         ]
 
+    @_check_types.do
     def begin_move_session(self) -> None:
         """Start caching the collision-candidate list -- and every
         candidate's OBB, pre-stacked into one array apiece -- for a whole
@@ -618,6 +640,7 @@ class WireServiceLoop(_base3d.Base3D):
 
         self._move_session = session
 
+    @_check_types.do
     def end_move_session(self) -> None:
         """Stop caching -- the next call to _resolve_collision without an
         active session builds and uses a throwaway one-shot list instead
@@ -626,6 +649,7 @@ class WireServiceLoop(_base3d.Base3D):
         """
         self._move_session = None
 
+    @_check_types.do
     def _resolve_collision(self) -> None:
         """Roll then slide until the current pose is clear of nearby wires,
         other loops, and wire markers on the attached wires -- mutates
@@ -676,6 +700,7 @@ class WireServiceLoop(_base3d.Base3D):
         scale_np = self._scale.as_numpy
         t0 = float(np.dot(self._position.as_numpy - p1_np, axis))
 
+        @_check_types.do
         def _roll_search(t_: float) -> np.ndarray | None:
             pos_np = p1_np + t_ * axis
             for step_ in range(16):
@@ -754,6 +779,7 @@ class WireServiceLoop(_base3d.Base3D):
         if self._last_resolved_position is not None:
             self._apply_resolved(self._last_resolved_position, self._last_resolved_quat)
 
+    @_check_types.do
     def _commit_resolved(self, position_np: np.ndarray, q_arr: np.ndarray) -> None:
         """Apply a pose _resolve_collision just verified as clear, and
         remember it as the fallback for a future resolve attempt that
@@ -762,6 +788,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._last_resolved_position = self._position.as_numpy.copy()
         self._last_resolved_quat = np.array(self._angle.as_quat_float, dtype=np.float64)
 
+    @_check_types.do
     def set_placement(self, position: _point.Point, quat: np.ndarray) -> None:
         """Snap the loop to an exact start position + rotation (a
         [w, x, y, z] quaternion) in one atomic step, bypassing the
@@ -793,6 +820,7 @@ class WireServiceLoop(_base3d.Base3D):
         self._last_centroid = self._world_centroid()
         self.editor3d.Refresh(False)
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -802,11 +830,13 @@ class WireServiceLoop(_base3d.Base3D):
         return WireServiceLoopMenu(self.mainframe.editor3d.editor, self)
 
     @property
+    @_check_types.do
     def start_position(self):
         """Wire start position (Point instance)"""
         return self._p1
 
     @property
+    @_check_types.do
     def stop_position(self):
         """Wire stop position (Point instance)"""
         return self._p2
@@ -818,6 +848,7 @@ class WireServiceLoopMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`WireServiceLoopMenu` instance.
 
@@ -853,6 +884,7 @@ class WireServiceLoopMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_add_wire(self):
         """Start placing a wire using this service loop's part type."""
         from ... import handlers as _handlers
@@ -863,22 +895,27 @@ class WireServiceLoopMenu(QMenu):
         _menu_ops.start_handler(
             mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Highlight every object on this service loop's circuit."""
         _menu_ops.trace_circuit(self.selected)
 
+    @_check_types.do
     def on_select(self):
         """Make this wire service loop the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this wire service loop as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this wire service loop from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this wire service loop's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

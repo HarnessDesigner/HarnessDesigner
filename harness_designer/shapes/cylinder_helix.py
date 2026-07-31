@@ -12,11 +12,13 @@ import numpy as np
 from .. import utils as _utils
 from ..geometry import point as _point
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
 
 
+@_check_types.do
 def create_vbo():
     """Create or return the cached cylinder-helix VBO.
 

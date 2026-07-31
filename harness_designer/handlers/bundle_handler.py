@@ -21,6 +21,7 @@ from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 
 
+@_check_types.do
 def _wire_fits_bundle(bundle_part, wire) -> bool:
     """
     Return True when the wire's OD falls within the bundle cover's diameter range.
@@ -63,6 +65,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
     obj: _bundle.Bundle = None
     _preview_conc_db = None
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         part_id = mainframe.editor_db.editor.bundle_covers.GetSelection()
 
@@ -99,15 +102,18 @@ class AddBundleHandler(_handler_base.HandlerBase):
     # Helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _highlight_compatible_wires(self):
         for w in self.mainframe.project.wires:
             if _wire_fits_bundle(self.part, w):
                 w.identify(self._wire_highlight_material)
 
+    @_check_types.do
     def _clear_wire_highlights(self):
         for w in self.mainframe.project.wires:
             w.identify(None)
 
+    @_check_types.do
     def _bundle_diameter(self, wire: _wire.Wire) -> float:
         if wire.db_obj.part:
             wire_od = float(wire.db_obj.part.od_mm or 0.0)
@@ -116,6 +122,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
 
         return max(float(self.part.min_dia), wire_od)
 
+    @_check_types.do
     def _create_preview(self, wire: _wire.Wire):
         """Rebuild the preview bundle sized to *wire*'s full span."""
         if self.obj is not None:
@@ -151,6 +158,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
     # Handler protocol
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         if self._finalized:
             return
@@ -177,6 +185,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
         if self.obj is not None:
             self.obj.obj3d.is_visible = True
 
+    @_check_types.do
     def release_capture(self):
         if (
             self._finalized or
@@ -207,6 +216,7 @@ class AddBundleHandler(_handler_base.HandlerBase):
         self.mainframe.project.add_bundle(self.obj)
         self.obj = None
 
+    @_check_types.do
     def cancel(self):
         self._clear_wire_highlights()
 

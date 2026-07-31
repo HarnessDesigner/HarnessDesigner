@@ -13,6 +13,7 @@ from . import toolbar as _toolbar
 from .. import gl as _gl
 from .. import handlers as _handlers
 from .. import app as _app
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -45,6 +46,7 @@ class MainFrame(QtWidgets.QMainWindow):
     _project: "_project.Project" = None
 
     @property
+    @_check_types.do
     def project(self) -> "_project.Project":
 
         while self._project is None:
@@ -53,9 +55,11 @@ class MainFrame(QtWidgets.QMainWindow):
         return self._project
 
     @project.setter
+    @_check_types.do
     def project(self, value: Union["_project.Project", None]):
         self._project = value
 
+    @_check_types.do
     def __init__(self, splash, logger: "_logger.Log"):
         """Initialise the :class:`MainFrame` instance.
 
@@ -439,9 +443,11 @@ class MainFrame(QtWidgets.QMainWindow):
     # Dock widget factory
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def end_progress_bar(self):
         self.progress_bar.hide()
 
+    @_check_types.do
     def set_progress(self, value: int, label: str = None):
         """Set the progress.
 
@@ -468,6 +474,7 @@ class MainFrame(QtWidgets.QMainWindow):
         # close handler).
         QtWidgets.QApplication.processEvents()
 
+    @_check_types.do
     def start_progress(self, label: str, max_value: int):
         """Start the progress.
 
@@ -483,6 +490,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.status_bar.showMessage(label)
         self.progress_bar.show()
 
+    @_check_types.do
     def _center_on_screen(self):
         """Execute the center on screen operation.
 
@@ -498,6 +506,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # GL signal wiring
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _connect_editor3d_signals(self):
         """Wire all EVT_GL_* signal sentinels to their mainframe handlers."""
 
@@ -539,24 +548,31 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor3d.bind(_gl.EVT_GL_CAMERA_ROTATE, self._on_camera_rotate_3d)
         self.editor3d.bind(_gl.EVT_GL_CAMERA_RESET, self._on_camera_reset_3d)
 
+    @_check_types.do
     def _on_camera_zoom_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
 
+    @_check_types.do
     def _on_camera_orbit_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
 
+    @_check_types.do
     def _on_camera_walk_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
 
+    @_check_types.do
     def _on_camera_truckpedistal_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
 
+    @_check_types.do
     def _on_camera_rotate_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
 
+    @_check_types.do
     def _on_camera_reset_3d(self, evt: _gl.GLCameraEvent):
         self.Set3DCoordinates(evt)
 
+    @_check_types.do
     def _connect_editor2d_signals(self):
         self.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_2d)
@@ -589,6 +605,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.bind(_gl.EVT_GL_AUX2_UP, self._on_aux2_up_2d)
         self.editor2d.bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_2d)
 
+    @_check_types.do
     def _connect_editor_pegboard_signals(self):
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_pegboard)
@@ -625,6 +642,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # QMainWindow event overrides (replace wx.EVT_* bindings)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def moveEvent(self, event):
         """Execute the move event operation.
 
@@ -636,6 +654,7 @@ class MainFrame(QtWidgets.QMainWindow):
         QtWidgets.QMainWindow.moveEvent(self, event)
         QtCore.QTimer.singleShot(0, self._save_position)
 
+    @_check_types.do
     def resizeEvent(self, event):
         """Execute the resize event operation.
 
@@ -647,6 +666,7 @@ class MainFrame(QtWidgets.QMainWindow):
         QtWidgets.QMainWindow.resizeEvent(self, event)
         QtCore.QTimer.singleShot(0, self._save_size)
 
+    @_check_types.do
     def closeEvent(self, event):
         """Execute the close event operation.
 
@@ -687,10 +707,12 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self.process_manager.stop()
 
+        @_check_types.do
         def _finished():
             close_dlg.close()
             QtWidgets.QApplication.instance().quit()
 
+        @_check_types.do
         def _do():
             count = 0
             import time
@@ -717,6 +739,7 @@ class MainFrame(QtWidgets.QMainWindow):
             close_dlg.set_step(2)
             QtWidgets.QApplication.processEvents()
 
+            @_check_types.do
             def _run(label, func, step):
                 time.sleep(0.250)
                 self.logger.info(label)
@@ -741,6 +764,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         event.ignore()
 
+    @_check_types.do
     def _save_position(self):
         """Save the position.
 
@@ -749,6 +773,7 @@ class MainFrame(QtWidgets.QMainWindow):
         pos = self.pos()
         Config.position = (pos.x(), pos.y())
 
+    @_check_types.do
     def _save_size(self):
         """Save the size.
 
@@ -761,6 +786,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # Idle processing (replaces wx.EVT_IDLE / event.RequestMore)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_idle(self):
         """
         Called by the zero-interval QTimer whenever the event loop is idle.
@@ -788,6 +814,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # Status bar helpers (public API used by canvas handlers)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def SetStatusText(self, text, _=None):
         """Execute the set status text operation.
 
@@ -800,6 +827,7 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         self.status_bar.showMessage(text)
 
+    @_check_types.do
     def RevertStatusText(self):
         """Execute the revert status text operation.
 
@@ -807,6 +835,7 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         self.status_bar.clearMessage()
 
+    @_check_types.do
     def Set3DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
         """Execute the set 3dcoordinates operation.
 
@@ -827,6 +856,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText(f'Z: {round(float(z), 4)}')
 
+    @_check_types.do
     def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
         """Execute the set 3dcoordinates operation.
 
@@ -846,6 +876,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._status_y.setText(f'Y: {round(float(y), 4)}')
         self._status_z.setText('')
 
+    @_check_types.do
     def showEvent(self, event):
         """Execute the show event operation.
 
@@ -862,6 +893,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         QtCore.QTimer.singleShot(0, self._open_project)
 
+    @_check_types.do
     def _open_project(self):
         from .. import shapes
 
@@ -883,6 +915,7 @@ class MainFrame(QtWidgets.QMainWindow):
         if self._project is not None:
             self.editor_pegboard.load_project(self._project)
 
+    @_check_types.do
     def load_project(self):
         """Handler for the ``File > Load Project...`` menu action.
 
@@ -917,6 +950,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # GL object event handlers (3D canvas)
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_obj_selected_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj selected 3D event.
 
@@ -930,6 +964,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_unselected_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj unselected 3D event.
 
@@ -943,6 +978,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_activated_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj activated 3D event.
 
@@ -956,6 +992,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_right_click_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right click 3D event.
 
@@ -983,6 +1020,7 @@ class MainFrame(QtWidgets.QMainWindow):
                 )
                 context_menu.exec(global_pos)
 
+    @_check_types.do
     def _on_obj_right_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right dclick 3D event.
 
@@ -996,6 +1034,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_middle_click_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj middle click 3D event.
 
@@ -1009,6 +1048,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_middle_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj middle dclick 3D event.
 
@@ -1022,6 +1062,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux1_click_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 1 click 3D event.
 
@@ -1035,6 +1076,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux1_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 1 dclick 3D event.
 
@@ -1048,6 +1090,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux2_click_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 2 click 3D event.
 
@@ -1061,6 +1104,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux2_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 2 dclick 3D event.
 
@@ -1077,6 +1121,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_drag_3d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj drag 3D event.
 
@@ -1093,6 +1138,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_key_down_3d(self, evt: _gl.GLKeyEvent) -> None:
         """Handle the key down 3D event.
 
@@ -1124,6 +1170,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         evt.Skip()
 
+    @_check_types.do
     def _on_key_up_3d(self, evt: _gl.GLKeyEvent) -> None:
         """Handle the key up 3D event.
 
@@ -1137,6 +1184,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_mouse_move_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the mouse move 3D event.
 
@@ -1154,6 +1202,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_capture_lost_3d(self, evt: _gl.GLCaptureLostEvent) -> None:
         """Handle the capture lost 3D event.
 
@@ -1167,6 +1216,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_down_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the left down 3D event.
 
@@ -1187,6 +1237,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_up_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the left up 3D event.
 
@@ -1218,6 +1269,7 @@ class MainFrame(QtWidgets.QMainWindow):
             evt.StopPropagation()
             self.editor3d.editor.Zoom(-1.0)
 
+    @_check_types.do
     def _on_left_dclick_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the left dclick 3D event.
 
@@ -1234,6 +1286,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_down_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the right down 3D event.
 
@@ -1250,6 +1303,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_up_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the right up 3D event.
 
@@ -1269,6 +1323,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_dclick_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the right dclick 3D event.
 
@@ -1285,6 +1340,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_down_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the middle down 3D event.
 
@@ -1301,6 +1357,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_up_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the middle up 3D event.
 
@@ -1317,6 +1374,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_dclick_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the middle dclick 3D event.
 
@@ -1333,6 +1391,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_down_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 down 3D event.
 
@@ -1349,6 +1408,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_up_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 up 3D event.
 
@@ -1365,6 +1425,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_dclick_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 dclick 3D event.
 
@@ -1378,6 +1439,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_down_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 down 3D event.
 
@@ -1394,6 +1456,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_up_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 up 3D event.
 
@@ -1410,6 +1473,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_dclick_3d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 dclick 3D event.
 
@@ -1432,6 +1496,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # EVT_GL_* signal protocol, routed through editor2d.connect().
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_obj_selected_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj selected 2D event.
 
@@ -1446,6 +1511,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_unselected_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj unselected 2D event.
 
@@ -1459,6 +1525,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_activated_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj activated 2D event.
 
@@ -1472,6 +1539,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_right_click_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right click 2D event.
 
@@ -1495,6 +1563,7 @@ class MainFrame(QtWidgets.QMainWindow):
             #     )
             #     context_menu.exec(global_pos)
 
+    @_check_types.do
     def _on_obj_right_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right dclick 2D event.
 
@@ -1508,6 +1577,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_middle_click_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj middle click 2D event.
 
@@ -1521,6 +1591,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_middle_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj middle dclick 2D event.
 
@@ -1534,6 +1605,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux1_click_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 1 click 2D event.
 
@@ -1547,6 +1619,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux1_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 1 dclick 2D event.
 
@@ -1560,6 +1633,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux2_click_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 2 click 2D event.
 
@@ -1573,6 +1647,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux2_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 2 dclick 2D event.
 
@@ -1586,6 +1661,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_drag_2d(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj drag 2D event.
 
@@ -1599,6 +1675,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_key_down_2d(self, evt: _gl.GLKeyEvent) -> None:
         """Handle the key down 2D event.
 
@@ -1631,6 +1708,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         evt.Skip()
 
+    @_check_types.do
     def _on_key_up_2d(self, evt: _gl.GLKeyEvent) -> None:
         """Handle the key up 2D event.
 
@@ -1644,6 +1722,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_mouse_move_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the mouse move 2D event.
 
@@ -1665,6 +1744,7 @@ class MainFrame(QtWidgets.QMainWindow):
         # else:
         #     evt.Skip()
 
+    @_check_types.do
     def _on_capture_lost_2d(self, evt: _gl.GLCaptureLostEvent) -> None:
         """Handle the capture lost 2D event.
 
@@ -1678,6 +1758,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_down_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the left down 2D event.
 
@@ -1758,6 +1839,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         evt.Skip()
 
+    @_check_types.do
     def _on_left_up_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the left up 2D event.
 
@@ -1776,6 +1858,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_dclick_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the left dclick 2D event.
 
@@ -1789,6 +1872,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_down_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the right down 2D event.
 
@@ -1802,6 +1886,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_up_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the right up 2D event.
 
@@ -1815,6 +1900,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_dclick_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the right dclick 2D event.
 
@@ -1828,6 +1914,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_down_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the middle down 2D event.
 
@@ -1841,6 +1928,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_up_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the middle up 2D event.
 
@@ -1854,6 +1942,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_dclick_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the middle dclick 2D event.
 
@@ -1867,6 +1956,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_down_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 down 2D event.
 
@@ -1880,6 +1970,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_up_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 up 2D event.
 
@@ -1893,6 +1984,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_dclick_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 dclick 2D event.
 
@@ -1906,6 +1998,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_down_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 down 2D event.
 
@@ -1919,6 +2012,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_up_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 up 2D event.
 
@@ -1932,6 +2026,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_dclick_2d(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 dclick 2D event.
 
@@ -1954,6 +2049,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # every other editor) -- no new logic beyond that gate.
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_obj_selected_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj selected peg board event.
 
@@ -1968,6 +2064,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_unselected_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj unselected peg board event.
 
@@ -1982,6 +2079,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_activated_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj activated peg board event.
 
@@ -1996,6 +2094,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_right_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right click peg board event.
 
@@ -2010,6 +2109,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_right_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj right dclick peg board event.
 
@@ -2024,6 +2124,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_middle_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj middle click peg board event.
 
@@ -2038,6 +2139,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_middle_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj middle dclick peg board event.
 
@@ -2052,6 +2154,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux1_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 1 click peg board event.
 
@@ -2066,6 +2169,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux1_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 1 dclick peg board event.
 
@@ -2080,6 +2184,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux2_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 2 click peg board event.
 
@@ -2094,6 +2199,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_aux2_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj aux 2 dclick peg board event.
 
@@ -2108,6 +2214,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_obj_drag_pegboard(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj drag peg board event.
 
@@ -2122,6 +2229,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_key_down_pegboard(self, evt: _gl.GLKeyEvent) -> None:
         """Handle the key down peg board event.
 
@@ -2152,6 +2260,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         evt.Skip()
 
+    @_check_types.do
     def _on_key_up_pegboard(self, evt: _gl.GLKeyEvent) -> None:
         """Handle the key up peg board event.
 
@@ -2163,6 +2272,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_mouse_move_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the mouse move peg board event.
 
@@ -2178,6 +2288,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_capture_lost_pegboard(self, evt: _gl.GLCaptureLostEvent) -> None:
         """Handle the capture lost peg board event.
 
@@ -2189,6 +2300,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_down_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the left down peg board event.
 
@@ -2206,6 +2318,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_up_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the left up peg board event.
 
@@ -2225,6 +2338,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_left_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the left dclick peg board event.
 
@@ -2239,6 +2353,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_down_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the right down peg board event.
 
@@ -2253,6 +2368,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_up_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the right up peg board event.
 
@@ -2267,6 +2383,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_right_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the right dclick peg board event.
 
@@ -2281,6 +2398,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_down_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the middle down peg board event.
 
@@ -2292,6 +2410,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_up_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the middle up peg board event.
 
@@ -2306,6 +2425,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_middle_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the middle dclick peg board event.
 
@@ -2320,6 +2440,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_down_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 down peg board event.
 
@@ -2334,6 +2455,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_up_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 up peg board event.
 
@@ -2348,6 +2470,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux1_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 1 dclick peg board event.
 
@@ -2362,6 +2485,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_down_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 down peg board event.
 
@@ -2376,6 +2500,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_up_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 up peg board event.
 
@@ -2390,6 +2515,7 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
     def _on_aux2_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
         """Handle the aux 2 dclick peg board event.
 
@@ -2408,6 +2534,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # focus-tracking; this stub preserves the hook for future use.
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_pane_activated(self, dock: QtWidgets.QDockWidget) -> None:
         """Handle the pane activated event.
 
@@ -2435,6 +2562,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # Object management
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def set_clone_obj(self, obj):
         """Set the clone obj.
 
@@ -2448,6 +2576,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.set_clone_obj(obj)
         self.editor_pegboard.set_clone_obj(obj)
 
+    @_check_types.do
     def get_clone_obj(self):
         """Return the clone obj.
 
@@ -2458,6 +2587,7 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         return self._clone_obj
 
+    @_check_types.do
     def set_obj_handler(self, handler):
         """Install an interactive placement handler.
 
@@ -2472,6 +2602,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self._obj_handler = handler
 
+    @_check_types.do
     def add_object(self, obj):
         """Add an object.
 
@@ -2490,6 +2621,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor_pegboard.add_object(obj)
         self._add_to_object_browser(obj)
 
+    @_check_types.do
     def _add_to_object_browser(self, obj: "_objects.ObjectBase") -> None:
         """Register ``obj`` under the appropriate category in the object
         browser tree, if it is a part type the browser tracks.
@@ -2536,6 +2668,7 @@ class MainFrame(QtWidgets.QMainWindow):
         elif obj.is_wire_service_loop:
             self.object_browser.add_wire_service_loop(obj)
 
+    @_check_types.do
     def remove_object(self, obj):
         """Remove the object.
 
@@ -2549,6 +2682,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor3d.remove_object(obj)
         self.editor_pegboard.remove_object(obj)
 
+    @_check_types.do
     def _set_selected(self, obj: "_objects.ObjectBase"):
         """Set the selected.
 
@@ -2602,6 +2736,7 @@ class MainFrame(QtWidgets.QMainWindow):
         if source_editor != 'editor_pegboard' and not obj.is_in_pegboardview:
             self.editor_pegboard.editor.center_on_object(obj)
 
+    @_check_types.do
     def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA
         """Set the selected.
 
@@ -2613,6 +2748,7 @@ class MainFrame(QtWidgets.QMainWindow):
         if obj is not None:
             obj.set_selected(True)
 
+    @_check_types.do
     def get_selected(self) -> "_objects.ObjectBase":
         """Return the selected.
 
@@ -2627,6 +2763,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # Add-object helpers
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_tool_mode_change(self, mode: int) -> None:
         if self._obj_handler is not None:
             if not self._obj_handler.is_finalized:
@@ -2704,6 +2841,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
             self._obj_handler = _handlers.AddCoverHandler(self, selected)
 
+    @_check_types.do
     def unload(self):
         """Tear down the currently loaded project's in-memory state,
         without touching the database or deleting anything.
@@ -2753,6 +2891,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         gc.collect()
 
+    @_check_types.do
     def open_database(self, splash):
         """Open the database.
 

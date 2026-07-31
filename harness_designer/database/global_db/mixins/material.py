@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class MaterialMixin(BaseMixin):
     _stored_material: "DefaultStoredValueType | _material.Material" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def material(self) -> "_material.Material":
         """Return the material.
 
@@ -37,6 +39,7 @@ class MaterialMixin(BaseMixin):
     _stored_material_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def material_id(self) -> int:
         """Return the material ID.
 
@@ -51,6 +54,7 @@ class MaterialMixin(BaseMixin):
         return self._stored_material_id
 
     @material_id.setter
+    @_check_types.do
     def material_id(self, value: int):
         """Set the material ID.
 
@@ -72,6 +76,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`MaterialControl` instance.
 
@@ -86,6 +91,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
         super().__init__(parent, 'Material')
         self.propertyChanged.connect(self._on_material)
 
+    @_check_types.do
     def set_obj(self, db_obj: MaterialMixin):
         """Set the obj.
 
@@ -110,6 +116,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
             self.SetValue(db_obj.material.name)
             self.setEnabled(True)
 
+    @_check_types.do
     def _on_material(self, evt: _prop_ctrls.PropertyEvent):
         """Handle the material event.
 

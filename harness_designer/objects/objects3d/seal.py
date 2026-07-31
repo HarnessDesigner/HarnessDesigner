@@ -16,6 +16,7 @@ from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
 from ... import utils as _utils
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor3d
 
 
+@_check_types.do
 def _build_sws(length, o_dia, i_dia):
     """Build the sws.
 
@@ -63,6 +65,7 @@ class Seal(_base3d.Base3D):
     parent: "_seal.Seal" = None
     db_obj: "_pjt_seal.PJTSeal" = None
 
+    @_check_types.do
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
         """Initialise the :class:`Seal` instance.
 
@@ -122,6 +125,7 @@ class Seal(_base3d.Base3D):
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -139,6 +143,7 @@ class SealMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`SealMenu` instance.
 
@@ -174,18 +179,22 @@ class SealMenu(QMenu):
         action = self.addAction('Properties')
         action.triggered.connect(self.on_properties)
 
+    @_check_types.do
     def on_select(self):
         """Make this seal the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_clone(self):
         """Arm clone mode using this seal as the template."""
         _menu_ops.clone_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this seal from the project."""
         _menu_ops.delete_object(self.selected)
 
+    @_check_types.do
     def on_properties(self):
         """Show this seal's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

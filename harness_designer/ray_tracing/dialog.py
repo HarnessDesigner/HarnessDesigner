@@ -23,6 +23,7 @@ from ..ui.dialogs import header as _header
 from . import renderer as _renderer
 from . import scene as _scene
 from .. import config as _config
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ class RayTracingDialog(QDialog):
 
     """Display render progress, preview the current image, and expose save/settings actions for the ray tracer.
     """
+    @_check_types.do
     def __init__(self, parent: "_ui.MainFrame", title="Ray Tracing Progress"):
         """Initialize the object and capture the state required for later interaction.
 
@@ -121,12 +123,14 @@ class RayTracingDialog(QDialog):
                 self.rect().center()
             )
 
+    @_check_types.do
     def on_settings(self):
         """Open the render settings dialog for the current operation.
         """
         dlg = _render_settings.RenderSettingsDialog(self)
         dlg.exec()
 
+    @_check_types.do
     def on_mfb2(self):
         """Handle the secondary action button. UNKNOWN button naming details.
         """
@@ -171,6 +175,7 @@ class RayTracingDialog(QDialog):
             self.mfb1.setEnabled(True)
             self.settings_btn.setEnabled(True)
 
+    @_check_types.do
     def on_mfb1(self):
         """Handle the primary action button. UNKNOWN button naming details.
         """
@@ -194,6 +199,7 @@ class RayTracingDialog(QDialog):
                 if self.current_image:
                     self.current_image.save(path)
 
+    @_check_types.do
     def update_progress(self, start_y, image_array, progress):
         """Update the render image with a newly completed chunk and schedule a UI refresh.
 
@@ -223,6 +229,7 @@ class RayTracingDialog(QDialog):
 
         return not self.cancelled
 
+    @_check_types.do
     def _update_ui(self, progress):
         """Refresh the visible progress widgets and preview image for the current render.
 
@@ -247,6 +254,7 @@ class RayTracingDialog(QDialog):
             self.mfb2.setText('Start')
             self.settings_btn.setEnabled(True)
 
+    @_check_types.do
     def get_image(self):
         """Return the most recently rendered image stored by the dialog.
 

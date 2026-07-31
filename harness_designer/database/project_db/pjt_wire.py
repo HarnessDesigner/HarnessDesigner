@@ -21,6 +21,7 @@ from .mixins import (
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -42,6 +43,7 @@ class PJTWiresTable(PJTTableBase):
     _control: "PJTWireControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTWireControl":
         """Return the control.
 
@@ -57,6 +59,7 @@ class PJTWiresTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -68,6 +71,7 @@ class PJTWiresTable(PJTTableBase):
         cls._control = PJTWireControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -80,6 +84,7 @@ class PJTWiresTable(PJTTableBase):
 
         return wires.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -89,6 +94,7 @@ class PJTWiresTable(PJTTableBase):
 
         wires.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -98,6 +104,7 @@ class PJTWiresTable(PJTTableBase):
 
         wires.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTWire"]:
         """Iterate over the available items.
 
@@ -109,6 +116,7 @@ class PJTWiresTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTWire(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTWire":
         """Return the requested item.
 
@@ -128,6 +136,7 @@ class PJTWiresTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, part_id: int, name: str, circuit_id: int, start_point3d_id: int | None, stop_point3d_id: int | None,
                start_point2d_id: int | None, stop_point2d_id: int | None, is_visible3d: bool, is_visible2d: bool,
                layer_view_point_id: int | None, layer_id: int | None, is_filler_wire: bool) -> "PJTWire":
@@ -170,6 +179,7 @@ class PJTWiresTable(PJTTableBase):
 
         return PJTWire(self, db_id, self.project_id)
 
+    @_check_types.do
     def find_by_start_point3d_id(self, point3d_id: int) -> "PJTWire | None":
         """Return the wire whose ``start_point3d_id`` matches ``point3d_id``.
 
@@ -185,6 +195,7 @@ class PJTWiresTable(PJTTableBase):
 
         return self[db_ids[0][0]]
 
+    @_check_types.do
     def find_by_stop_point3d_id(self, point3d_id: int) -> "PJTWire | None":
         """Return the wire whose ``stop_point3d_id`` matches ``point3d_id``.
 
@@ -210,6 +221,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
     _table: PJTWiresTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -247,6 +259,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_wire_obj.Wire":
         """Return the object.
 
@@ -260,6 +273,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -270,6 +284,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_wire_obj.Wire"):
         """Set the object.
 
@@ -283,6 +298,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         else:
             self._obj = obj
 
+    @_check_types.do
     def delete(self) -> None:
         """Delete this wire row, every interior waypoint row it owns, and
         any WireLayout marking one of those waypoints.
@@ -311,6 +327,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         super().delete()
 
     @staticmethod
+    @_check_types.do
     def _delete_layouts_at(layouts_table, id_field: str, point_id: int) -> None:
         """Delete every WireLayout referencing *point_id* via *id_field*
         (``position3d_id`` or ``position2d_id``) -- through its own live
@@ -326,6 +343,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
                 layout_db.delete()
 
     @property
+    @_check_types.do
     def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         """Return the terminals.
 
@@ -351,6 +369,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return res
 
     @property
+    @_check_types.do
     def wire_markers(self) -> list["_pjt_wire_marker.PJTWireMarker"]:
         """Return the wire markers.
 
@@ -369,6 +388,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_layer_view_position: "_pjt_point2d.PJTPoint2D | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def layer_view_position(self) -> "_point.Point":
         """Return the layer view position.
 
@@ -398,6 +418,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_layer_view_position_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def layer_view_position_id(self) -> int:
         """Return the layer view position ID.
 
@@ -412,6 +433,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_layer_view_position_id
 
     @layer_view_position_id.setter
+    @_check_types.do
     def layer_view_position_id(self, value: int):
         """Set the layer view position ID.
 
@@ -429,6 +451,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_layer_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def layer_id(self) -> int | None:
         """Return the layer ID.
 
@@ -443,6 +466,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_layer_id
 
     @layer_id.setter
+    @_check_types.do
     def layer_id(self, value: int | None):
         """Set the layer ID.
 
@@ -458,6 +482,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_is_filler_wire: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_filler_wire(self) -> bool:
         """Return the is filler wire.
 
@@ -472,6 +497,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_is_filler_wire
 
     @is_filler_wire.setter
+    @_check_types.do
     def is_filler_wire(self, value: bool):
         """Set the is filler wire.
 
@@ -485,6 +511,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._populate('is_filler_wire')
 
     @property
+    @_check_types.do
     def waypoints3d(self) -> list["_pjt_point3d.PJTPoint3D"]:
         """Every interior 3D waypoint on this wire, in chain order (start
         and stop themselves are not included -- see start_position3d/
@@ -492,6 +519,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._table.db.pjt_points3d_table.for_wire(self.db_id)
 
     @property
+    @_check_types.do
     def waypoints2d(self) -> list["_pjt_point2d.PJTPoint2D"]:
         """Every interior 2D waypoint on this wire, in chain order (start
         and stop themselves are not included -- see start_position2d/
@@ -499,6 +527,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._table.db.pjt_points2d_table.for_wire(self.db_id)
 
     @property
+    @_check_types.do
     def length_mm(self) -> float:
         """Total physical length: the sum of every sub-segment from
         start, through each interior waypoint in order, to stop -- not
@@ -517,6 +546,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return total
 
     @property
+    @_check_types.do
     def length_m(self) -> float:
         """Return the length m.
 
@@ -528,6 +558,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self.length_mm / 1000.0
 
     @property
+    @_check_types.do
     def length_ft(self) -> float:
         """Return the length ft.
 
@@ -539,6 +570,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self.length_m * 3.28084
 
     @property
+    @_check_types.do
     def weight_g(self) -> float:
         """Return the weight g.
 
@@ -550,6 +582,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self.part.weight_g_m * self.length_m
 
     @property
+    @_check_types.do
     def weight_lb(self) -> float:
         """Return the weight lb.
 
@@ -561,6 +594,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self.part.weight_lb_ft * self.length_ft
 
     @property
+    @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
 
@@ -576,6 +610,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return resistance * length
 
     @property
+    @_check_types.do
     def table(self) -> PJTWiresTable:
         """Return the table.
 
@@ -589,6 +624,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_circuit: "_pjt_circuit.PJTCircuit | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def circuit(self) -> "_pjt_circuit.PJTCircuit":
         """Return the circuit.
 
@@ -609,10 +645,12 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_circuit_id: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def has_stripe(self):
         return isinstance(self.part.stripe_color_id, int)
 
     @property
+    @_check_types.do
     def circuit_id(self) -> int:
         """Return the circuit ID.
 
@@ -627,6 +665,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_circuit_id
 
     @circuit_id.setter
+    @_check_types.do
     def circuit_id(self, value: int):
         """Set the circuit ID.
 
@@ -644,6 +683,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_part: "_wire.Wire | None | DefaultStoredValueType" = DefaultStoredValue
 
     @property
+    @_check_types.do
     def part(self) -> _wire.Wire:
         """Return the part.
 
@@ -673,6 +713,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def _update_position3d(self, _):
         """Update the position 3D.
 
@@ -688,6 +729,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         self.weight_lb_ctrl.SetValue(str(self.db_obj.weight_lb))
         self.resistance_ctrl.SetValue(str(self.db_obj.resistance))
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTWire):
         """Set the obj.
 
@@ -701,6 +743,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
             self.db_obj.stop_position3d.unbind(self._update_position3d)
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -743,6 +786,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
             self.wire_ctrl.set_obj(None if self.db_obj is None else self.db_obj.part)
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTWireControl` instance.
 

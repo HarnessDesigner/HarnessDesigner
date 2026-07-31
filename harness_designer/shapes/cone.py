@@ -11,11 +11,13 @@ import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
 
 
+@_check_types.do
 def create_vbo() -> _vbo_handler.PooledVBOHandler:
     """Create or return the cached cone VBO.
 
@@ -41,6 +43,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
     return _vbo
 
 
+@_check_types.do
 def create(radius=1.0, height=2.0, resolution=None, split=None):
     """Create vertices and faces for a cone surface.
 

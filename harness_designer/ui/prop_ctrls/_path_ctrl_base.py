@@ -3,6 +3,7 @@
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 import os
+from ... import check_types as _check_types
 
 
 class PathCtrl(QtWidgets.QWidget):
@@ -12,6 +13,7 @@ class PathCtrl(QtWidgets.QWidget):
 
     pathChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
+    @_check_types.do
     def __init__(self, parent, path, wildcard='', http_browse=True):
         """
         Initialise the :class:`PathCtrl` instance.
@@ -48,6 +50,7 @@ class PathCtrl(QtWidgets.QWidget):
         self.path_button.clicked.connect(self.on_open_file)
         self.path_ctrl.returnPressed.connect(self._on_enter)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """
         Execute the get value operation.
@@ -58,6 +61,7 @@ class PathCtrl(QtWidgets.QWidget):
 
         return self._path
 
+    @_check_types.do
     def SetValue(self, value: str):
         """
         Execute the set value operation.
@@ -73,6 +77,7 @@ class PathCtrl(QtWidgets.QWidget):
 
         self.path_ctrl.blockSignals(False)
 
+    @_check_types.do
     def SetWildcards(self, value: str):
         """
         Execute the set wildcards operation.
@@ -83,6 +88,7 @@ class PathCtrl(QtWidgets.QWidget):
 
         self._wildcard = value
 
+    @_check_types.do
     def on_open_file(self):
         """
         Handle the open file event.
@@ -108,6 +114,7 @@ class PathCtrl(QtWidgets.QWidget):
             self.path_ctrl.setText(path)
             self.pathChanged.emit(path)
 
+    @_check_types.do
     def _on_enter(self):
         """
         Handle the enter event.

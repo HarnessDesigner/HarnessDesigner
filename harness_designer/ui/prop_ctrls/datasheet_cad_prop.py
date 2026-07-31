@@ -7,6 +7,7 @@ from ._path_ctrl_base import PathCtrl
 from ._image_ctrl_base import ImageCtrl
 from ... import utils as _utils
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class DatasheetCADProperty(QtWidgets.QWidget):
@@ -17,6 +18,7 @@ class DatasheetCADProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label: str):
         """
         Initialise the :class:`DatasheetCADProperty` instance.
@@ -56,6 +58,7 @@ class DatasheetCADProperty(QtWidgets.QWidget):
 
         self._ctrl.pathChanged.connect(self._on_path_changed)
 
+    @_check_types.do
     def SetFileTypes(self, file_types: str) -> None:
         """
         Execute the set file types operation.
@@ -67,6 +70,7 @@ class DatasheetCADProperty(QtWidgets.QWidget):
         self._file_types = file_types
         self._image.SetFileTypes(file_types)
 
+    @_check_types.do
     def _on_path_changed(self, path: str) -> None:
         """
         Handle the path changed event.
@@ -86,6 +90,7 @@ class DatasheetCADProperty(QtWidgets.QWidget):
             evt.SetProperty(self)
             self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """
         Execute the get value operation.
@@ -96,6 +101,7 @@ class DatasheetCADProperty(QtWidgets.QWidget):
 
         return self._value
 
+    @_check_types.do
     def SetValue(self, value: str) -> None:
         """
         Execute the set value operation.
@@ -114,9 +120,11 @@ class DatasheetCADProperty(QtWidgets.QWidget):
 
         self._ctrl.SetValue(value[0])
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

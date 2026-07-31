@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin, DescriptionMixin
+from ... import check_types as _check_types
 
 
 class CavityLocksTable(TableBase):
@@ -13,6 +14,7 @@ class CavityLocksTable(TableBase):
     """
     __table_name__ = 'cavity_locks'
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -25,6 +27,7 @@ class CavityLocksTable(TableBase):
 
         return cavity_locks.table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self, splash):
         """Add a table to database.
 
@@ -39,6 +42,7 @@ class CavityLocksTable(TableBase):
         data_path = self._con.db_data.open(splash)
         cavity_locks.add_records(self._con, splash, data_path)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -48,6 +52,7 @@ class CavityLocksTable(TableBase):
 
         cavity_locks.table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["CavityLock"]:
         """Iterate over the available items.
 
@@ -59,6 +64,7 @@ class CavityLocksTable(TableBase):
         for db_id in TableBase.__iter__(self):
             yield CavityLock(self, db_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "CavityLock":
         """Return the requested item.
 
@@ -82,6 +88,7 @@ class CavityLocksTable(TableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, name: str, description: str) -> "CavityLock":
         """Execute the insert operation.
 
@@ -98,6 +105,7 @@ class CavityLocksTable(TableBase):
         return CavityLock(self, db_id)
 
     @property
+    @_check_types.do
     def choices(self) -> list[str]:
         """Return the choices.
 
@@ -116,6 +124,7 @@ class CavityLock(EntryBase, NameMixin, DescriptionMixin):
     """
     _table: CavityLocksTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 

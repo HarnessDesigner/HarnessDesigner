@@ -12,6 +12,7 @@ from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import config as _config
 from ... import color as _color
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -34,6 +35,7 @@ class WireLayout(_base3d.Base3D):
     # Base3D._pick_priority.
     _pick_priority = 1
 
+    @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.
@@ -67,6 +69,7 @@ class WireLayout(_base3d.Base3D):
             _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
 
     @property
+    @_check_types.do
     def wire_position(self) -> _point.Point:
         """Return the wire position.
 
@@ -77,6 +80,7 @@ class WireLayout(_base3d.Base3D):
         """
         return self.position
 
+    @_check_types.do
     def _sync_from_bundle_layout_point(self, point: _point.Point):
         """Callback to sync wire layout point position from bundle layout point.
 
@@ -91,6 +95,7 @@ class WireLayout(_base3d.Base3D):
         delta = point - self._position
         self._position += delta
 
+    @_check_types.do
     def bind_to_bundle_layout_point(self, bundle_layout_point: _point.Point):
         """Register callback to bundle layout point for synchronization.
 
@@ -110,6 +115,7 @@ class WireLayout(_base3d.Base3D):
         # Initial sync
         self._sync_from_bundle_layout_point(bundle_layout_point)
 
+    @_check_types.do
     def unbind_from_bundle_layout_point(self):
         """Unbind from bundle layout point.
 
@@ -133,12 +139,14 @@ class WireLayout(_base3d.Base3D):
 
         self._bundle_layout_point_id = None
 
+    @_check_types.do
     def _delete(self):
         """Clean up bundle bindings and reconnect split wires before deleting."""
         self.unbind_from_bundle_layout_point()
         self._reconnect_wires()
         super()._delete()
 
+    @_check_types.do
     def _reconnect_wires(self):
         """Remove this layout's own bend from whatever wire(s) it sits on.
 
@@ -196,6 +204,7 @@ class WireLayout(_base3d.Base3D):
         if wire_obj is not None:
             wire_obj.obj3d.refresh_waypoints()
 
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
 
@@ -213,6 +222,7 @@ class WireLayoutMenu(QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, canvas, selected):
         """Initialise the :class:`WireLayoutMenu` instance.
 
@@ -241,6 +251,7 @@ class WireLayoutMenu(QMenu):
         action = self.addAction('Delete')
         action.triggered.connect(self.on_delete)
 
+    @_check_types.do
     def on_add_splice(self):
         """Start the interactive splice placement flow."""
         from ... import handlers as _handlers
@@ -250,6 +261,7 @@ class WireLayoutMenu(QMenu):
         _menu_ops.start_handler(
             mainframe, lambda: _handlers.AddSpliceHandler(mainframe))
 
+    @_check_types.do
     def on_trace_circuit(self):
         """Highlight every object on the circuit of an attached wire."""
         wires = self.selected.db_obj.attached_wires
@@ -257,10 +269,12 @@ class WireLayoutMenu(QMenu):
         if wires:
             _menu_ops.trace_circuit(self.selected, wires[0])
 
+    @_check_types.do
     def on_select(self):
         """Make this wire layout the active selection."""
         _menu_ops.select_object(self.selected)
 
+    @_check_types.do
     def on_delete(self):
         """Delete this wire layout from the project."""
         _menu_ops.delete_object(self.selected)

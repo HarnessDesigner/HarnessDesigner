@@ -9,8 +9,7 @@ import threading
 import traceback
 import sqlite3
 from typing import (Optional as _Optional,
-                    Union as _Union,
-                    Generator as _Generator)
+                    Union as _Union)
 from datetime import (date as _date,
                       datetime as _datetime,
                       time as _time,
@@ -26,6 +25,7 @@ from .. import base as _base
 from .... import config as _config
 from .... import logger as _logger
 from .... process import manager as _manager
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -51,6 +51,7 @@ class SQLConnector(_base.ConnectorBase):
     Implement database access through :mod:`sqlite3`.
     """
 
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
         """
         Initialize the SQLite connector state.
@@ -78,10 +79,12 @@ class SQLConnector(_base.ConnectorBase):
         # still logged, just not re-shown.
         self._shown_sql_errors: set[str] = set()
 
+    @_check_types.do
     def reset_query_profile(self) -> None:
         """Clear accumulated query-profile stats (see ``Config.debug.database.profile_queries``)."""
         self._query_profile = {}
 
+    @_check_types.do
     def dump_query_profile(self, top_n: int = 30, label: str = '') -> None:
         """Log a summary of queries recorded since the last reset.
 
@@ -110,6 +113,7 @@ class SQLConnector(_base.ConnectorBase):
         for sql, (count, secs) in by_count[:top_n]:
             _logger.database(f'{count:6d}x  {secs * 1000:8.1f}ms  {secs / count * 1000:6.3f}ms/call  {sql}')
 
+    @_check_types.do
     def get_tables(self) -> list[str]:
         """
         Return the table names stored in the SQLite database.
@@ -123,6 +127,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return [row[0] for row in rows]
 
+    @_check_types.do
     def get_table_column_names(self, table_name: str) -> list[str]:
         """
         Return the column names defined for a table.
@@ -140,6 +145,7 @@ class SQLConnector(_base.ConnectorBase):
         column_names = list(eval(self.fetchall()[0][0]))
         return column_names
 
+    @_check_types.do
     def connect(self, splash) -> bool:
         """
         Open the configured SQLite database and start update monitoring.
@@ -148,6 +154,7 @@ class SQLConnector(_base.ConnectorBase):
         :rtype: bool
         """
 
+        @_check_types.do
         def _download_data(url, label, dst):
             response = requests.get(url, stream=True)
 
@@ -261,9 +268,10 @@ class SQLConnector(_base.ConnectorBase):
 
         return True
 
+    @_check_types.do
     def execute(self, operation: str,
                 params: _Optional[_ParamsSequenceOrDictType] = None,
-                _=None) -> _Optional[_Generator[sqlite3.Cursor, None, None]]:
+                _=None) -> sqlite3.Cursor | None:
 
         """
         Execute a SQLite operation using the active cursor.
@@ -276,7 +284,7 @@ class SQLConnector(_base.ConnectorBase):
         :type _: None
 
         :returns: The connector-specific cursor result, if one is returned.
-        :rtype: _Generator[sqlite3.Cursor, None, None] | None
+        :rtype: sqlite3.Cursor | None
         """
 
         try:
@@ -298,6 +306,7 @@ class SQLConnector(_base.ConnectorBase):
             call_stack = traceback.extract_stack()[:-1]
             self._report_sql_error(err, operation, params, call_stack)
 
+    @_check_types.do
     def _report_sql_error(self, err: Exception, operation: str, params,
                           call_stack: list = None) -> None:
         """Log a failed SQL statement's traceback and pop an error dialog.
@@ -333,6 +342,7 @@ class SQLConnector(_base.ConnectorBase):
 
         from .... import app as _app
 
+        @_check_types.do
         def _do(e=err, op=operation, p=params, stack=stack_text):
             from .... import critical_error_dialog as _ced
 
@@ -346,9 +356,10 @@ class SQLConnector(_base.ConnectorBase):
 
         _app.CallAfter(_do)
 
+    @_check_types.do
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
-    ) -> _Optional[_Generator[sqlite3.Cursor, None, None]]:
+    ) -> sqlite3.Cursor | None:
 
         """
         Execute a SQLite operation for multiple parameter sets.
@@ -359,7 +370,7 @@ class SQLConnector(_base.ConnectorBase):
         :type seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
 
         :returns: The connector-specific cursor result, if one is returned.
-        :rtype: _Generator[sqlite3.Cursor, None, None] | None
+        :rtype: sqlite3.Cursor | None
         """
 
         try:
@@ -373,6 +384,7 @@ class SQLConnector(_base.ConnectorBase):
             return None
 
     @property
+    @_check_types.do
     def lastrowid(self) -> _Optional[int]:
         """
         Return the last inserted SQLite row identifier.
@@ -383,6 +395,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.lastrowid
 
+    @_check_types.do
     def fetchone(self) -> _Optional[_RowType]:
         """
         Fetch a single row from the SQLite cursor.
@@ -393,6 +406,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.fetchone()
 
+    @_check_types.do
     def fetchmany(self, size: _Optional[int] = None) -> list[_RowType]:
         """
         Fetch multiple rows from the SQLite cursor.
@@ -406,6 +420,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.fetchmany(size)
 
+    @_check_types.do
     def fetchall(self) -> list[_RowType]:
         """
         Fetch all remaining rows from the SQLite cursor.
@@ -416,6 +431,7 @@ class SQLConnector(_base.ConnectorBase):
 
         return self._cursor.fetchall()
 
+    @_check_types.do
     def commit(self):
         """
         Commit the active SQLite transaction.
@@ -426,6 +442,7 @@ class SQLConnector(_base.ConnectorBase):
 
         self._connection.commit()
 
+    @_check_types.do
     def close(self):
         """
         Close the SQLite connector and stop related monitors.

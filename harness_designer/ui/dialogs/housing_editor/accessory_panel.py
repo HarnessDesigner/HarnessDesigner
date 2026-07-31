@@ -8,6 +8,7 @@ from . import housing_obj as _housing_obj
 from .... import color as _color
 from . import accessory_obj as _accessory_obj
 from ...widgets import triple_float_ctrl as _triple_float_ctrl
+from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -20,6 +21,7 @@ class AccessoryPanel(QtWidgets.QTabWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def __init__(self, dialog, panel: "_housing_editor.HousingEditorDialog",
                  housing: _housing_obj.Housing3D):
         """Initialise the :class:`AccessoryPanel` instance.

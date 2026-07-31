@@ -5,8 +5,10 @@ from .. import db_connectors as _con
 from . import ip_supps as _ip_supps
 from . import ip_fluids as _ip_fluids
 from . import ip_solids as _ip_solids
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_records(con, splash, _=None):
     """
     Add a records.
@@ -84,6 +86,7 @@ def add_records(con, splash, _=None):
     con.commit()
 
 
+@_check_types.do
 def get_ip_rating_id(con, ip_rating):  # NOQA
     """
     Return the ip rating ID.

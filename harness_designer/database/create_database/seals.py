@@ -22,8 +22,10 @@ from . import terminals as _terminals
 
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
+from ... import check_types as _check_types
 
 
+@_check_types.do
 def add_seal(con, part_number, description, mfg=None, family=None, series=None,
              color=None, image=None, datasheet=None, cad=None, min_temp=None,
              max_temp=None, model3d=None, type=None, hardness=-1, lubricant='',  # NOQA
@@ -171,6 +173,7 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
         return con.lastrowid
 
 
+@_check_types.do
 def add_pjt_seal(con, project_id, part_id, point3d_id=None, housing_id=None,
                  terminal_id=None, name='', notes='', quat3d=None, angle3d=None,
                  is_visible3d=0):
@@ -217,6 +220,7 @@ def add_pjt_seal(con, project_id, part_id, point3d_id=None, housing_id=None,
     con.commit()
 
 
+@_check_types.do
 def add_seals(con, data: tuple[dict] | list[dict]):
     """Add a seals.
 
@@ -231,6 +235,7 @@ def add_seals(con, data: tuple[dict] | list[dict]):
         add_seal(con, **line)
 
 
+@_check_types.do
 def add_records(con, splash, data_path):
     """Add a records.
 

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 
+from ... import check_types as _check_types
 class LazyTabMixin:
     """Defer per-tab DB queries until the tab is first shown.
 
@@ -9,18 +10,22 @@ class LazyTabMixin:
     Subclasses must implement _load_tab(index).
     """
 
+    @_check_types.do
     def _init_lazy_tabs(self):
         self._tab_loaded = []
         self.currentChanged.connect(self._on_tab_changed)
 
+    @_check_types.do
     def _lazy_set_obj(self, db_obj):
         self.db_obj = db_obj
         self._tab_loaded = [False] * self.count()
         self._load_tab(self.currentIndex())
 
+    @_check_types.do
     def _on_tab_changed(self, index: int):
         if not self._tab_loaded[index]:
             self._load_tab(index)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         raise NotImplementedError

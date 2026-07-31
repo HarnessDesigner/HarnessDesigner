@@ -4,6 +4,7 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -12,6 +13,7 @@ if TYPE_CHECKING:
 
 class SnapPool:
 
+    @_check_types.do
     def __init__(self, objects: list, snap_points: list["_point.Point"],
                  threshold: float = 5.00):
 
@@ -19,6 +21,7 @@ class SnapPool:
         self.numpy_points = np.array([point.as_float for point in snap_points], dtype=np.float32).reshape(-1, 3)
         self.threshold_sq = threshold ** 2
 
+    @_check_types.do
     def query(self, pos: "_point.Point"):
         if not self.objects:
             return None

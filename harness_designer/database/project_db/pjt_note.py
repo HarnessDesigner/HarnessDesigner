@@ -21,6 +21,7 @@ from .mixins import (
     Scale3DMixin, Scale3DControl,
     ColorMixin, ColorControl
 )
+from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
@@ -37,6 +38,7 @@ class PJTNotesTable(PJTTableBase):
     _control: "PJTNoteControl" = None
 
     @property
+    @_check_types.do
     def control(self) -> "PJTNoteControl":
         """Return the control.
 
@@ -52,6 +54,7 @@ class PJTNotesTable(PJTTableBase):
         return self._control
 
     @classmethod
+    @_check_types.do
     def start_control(cls, mainframe):
         """Start the control.
 
@@ -63,6 +66,7 @@ class PJTNotesTable(PJTTableBase):
         cls._control = PJTNoteControl(mainframe)
         cls._control.hide()
 
+    @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.
 
@@ -75,6 +79,7 @@ class PJTNotesTable(PJTTableBase):
 
         return notes.pjt_table.is_ok(self)
 
+    @_check_types.do
     def _add_table_to_db(self):
         """Add a table to database.
 
@@ -84,6 +89,7 @@ class PJTNotesTable(PJTTableBase):
 
         notes.pjt_table.add_to_db(self)
 
+    @_check_types.do
     def _update_table_in_db(self):
         """Update the table in database.
 
@@ -93,6 +99,7 @@ class PJTNotesTable(PJTTableBase):
 
         notes.pjt_table.update_fields(self)
 
+    @_check_types.do
     def __iter__(self) -> _Iterable["PJTNote"]:
         """Iterate over the available items.
 
@@ -104,6 +111,7 @@ class PJTNotesTable(PJTTableBase):
         for db_id in PJTTableBase.__iter__(self):
             yield PJTNote(self, db_id, self.project_id)
 
+    @_check_types.do
     def __getitem__(self, item) -> "PJTNote":
         """Return the requested item.
 
@@ -123,6 +131,7 @@ class PJTNotesTable(PJTTableBase):
 
         raise KeyError(item)
 
+    @_check_types.do
     def insert(self, point3d_id: int | None, point2d_id: int | None,
                notes: str, size: int, align: int, style: int, color_id: int = 0) -> "PJTNote":
         """Execute the insert operation.
@@ -171,6 +180,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
 
     _table: PJTNotesTable = None
 
+    @_check_types.do
     def build_monitor_packet(self):
         """Build the monitor packet.
 
@@ -188,6 +198,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
 
         return packet
 
+    @_check_types.do
     def get_object(self) -> "_note_obj.Note":
         """Return the object.
 
@@ -201,6 +212,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
 
         return self._obj
 
+    @_check_types.do
     def __release_obj_ref(self, _):
         """Release the obj ref.
 
@@ -211,6 +223,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         """
         self._obj = None
 
+    @_check_types.do
     def set_object(self, obj: "_note_obj.Note"):
         """Set the object.
 
@@ -225,6 +238,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
             self._obj = obj
 
     @property
+    @_check_types.do
     def table(self) -> PJTNotesTable:
         """Return the table.
 
@@ -238,6 +252,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_size2d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def size2d(self) -> int:
         """Return the size 2D.
 
@@ -252,6 +267,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_size2d
 
     @size2d.setter
+    @_check_types.do
     def size2d(self, value: int):
         """Set the size 2D.
 
@@ -269,6 +285,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_h_align2d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def h_align2d(self) -> int:
         """Return the h align 2D.
 
@@ -283,6 +300,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_h_align2d
 
     @h_align2d.setter
+    @_check_types.do
     def h_align2d(self, value: int):
         """Set the h align 2D.
 
@@ -299,6 +317,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_style2d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def style2d(self) -> int:
         """Return the style 2D.
 
@@ -313,6 +332,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_style2d
 
     @style2d.setter
+    @_check_types.do
     def style2d(self, value: int):
         """Set the style 2D.
 
@@ -329,6 +349,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_is_visible2d: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_visible2d(self) -> bool:
         """Return the is visible 2D.
 
@@ -344,6 +365,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_is_visible2d
 
     @is_visible2d.setter
+    @_check_types.do
     def is_visible2d(self, value: bool):
         """Set the is visible 2D.
 
@@ -360,6 +382,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_size3d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def size3d(self) -> float:
         """Return the size 3D.
 
@@ -374,6 +397,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_size3d
 
     @size3d.setter
+    @_check_types.do
     def size3d(self, value: float):
         """Set the size 3D.
 
@@ -390,6 +414,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_h_align3d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def h_align3d(self) -> int:
         """Return the h align 3D.
 
@@ -405,6 +430,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_h_align3d
 
     @h_align3d.setter
+    @_check_types.do
     def h_align3d(self, value: int):
         """Set the h align 3D.
 
@@ -421,6 +447,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_style3d: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def style3d(self) -> int:
         """Return the style 3D.
 
@@ -436,6 +463,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_style3d
 
     @style3d.setter
+    @_check_types.do
     def style3d(self, value: int):
         """Set the style 3D.
 
@@ -452,6 +480,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _stored_is_visible3d: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @_check_types.do
     def is_visible3d(self) -> bool:
         """Return the is visible 3D.
 
@@ -466,6 +495,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
         return self._stored_is_visible3d
 
     @is_visible3d.setter
+    @_check_types.do
     def is_visible3d(self, value: bool):
         """Set the is visible 3D.
 
@@ -487,6 +517,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    @_check_types.do
     def set_obj(self, db_obj: PJTNote):
         """Set the obj.
 
@@ -504,6 +535,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
                 self.style_3d_ctrl.SetValue(build123d.FontStyle.REGULAR)
         self._lazy_set_obj(db_obj)
 
+    @_check_types.do
     def _load_tab(self, index: int):
         page = self.widget(index)
         if page is self._general_page:
@@ -567,6 +599,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
                     self.align_3d_ctrl.hide()
         self._tab_loaded[index] = True
 
+    @_check_types.do
     def _on_align2d(self, evt):
         """Handle the align 2D event.
 
@@ -578,6 +611,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.h_align2d = value
 
+    @_check_types.do
     def _on_align3d(self, evt):
         """Handle the align 3D event.
 
@@ -589,6 +623,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.h_align3d = value
 
+    @_check_types.do
     def _on_style2d(self, evt):
         """Handle the style 2D event.
 
@@ -600,6 +635,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.style2d = value
 
+    @_check_types.do
     def _on_style3d(self, evt):
         """Handle the style 3D event.
 
@@ -611,6 +647,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         value = evt.GetValue()
         self.db_obj.style3d = value
 
+    @_check_types.do
     def __init__(self, parent):
         """Initialise the :class:`PJTNoteControl` instance.
 

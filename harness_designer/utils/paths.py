@@ -2,8 +2,10 @@
 
 import sys
 import os
+from .. import check_types as _check_types
 
 
+@_check_types.do
 def get_appdata():
     """
     Return the ``harness_designer`` application-data directory, creating it if needed.
@@ -26,6 +28,7 @@ def get_appdata():
     return app_data
 
 
+@_check_types.do
 def get_documents():
     """
     Return the user's default documents directory.

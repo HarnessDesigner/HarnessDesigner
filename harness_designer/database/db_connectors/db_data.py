@@ -7,18 +7,21 @@ import tempfile
 import os
 import zipfile
 import shutil
+from ... import check_types as _check_types
 
 
 class DBData:
 
     """Download and expose external database seed data.
     """
+    @_check_types.do
     def __init__(self):
         """Initialize the data download helper.
         """
         self._data_dir = None
         self._alt_path = None
 
+    @_check_types.do
     def close(self):
         """Remove any downloaded data directory managed by this helper.
 
@@ -29,6 +32,7 @@ class DBData:
             if os.path.exists(self._data_dir):
                 shutil.rmtree(self._data_dir)
 
+    @_check_types.do
     def open(self, splash):
         """Download, unpack, and return the database data directory.
 

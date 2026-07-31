@@ -5,6 +5,7 @@ from PySide6 import QtCore
 
 from ..widgets import bitmap_autocomplete_combobox as _bitmap_autocomplete_combobox
 from . import events as _events
+from ... import check_types as _check_types
 
 
 class BitmapComboBoxProperty(QtWidgets.QWidget):
@@ -15,6 +16,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
 
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
+    @_check_types.do
     def __init__(self, parent, label):
         """Initialise the :class:`BitmapComboBoxProperty` instance.
 
@@ -56,6 +58,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
             self._ctrl.setToolTip(self._tooltip)
             self._st.setToolTip(self._tooltip)
 
+    @_check_types.do
     def _on_change(self, value=None):
         """Handle the change event.
 
@@ -78,6 +81,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         evt.SetProperty(self)
         self.propertyChanged.emit(evt)
 
+    @_check_types.do
     def SetValue(self, value: str):
         """Execute the set value operation.
 
@@ -97,6 +101,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def GetValue(self) -> str:
         """Execute the get value operation.
 
@@ -107,6 +112,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         """
         return self._ctrl.currentText()
 
+    @_check_types.do
     def Clear(self):  # NOQA
         """Execute the clear operation.
 
@@ -114,6 +120,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         """
         self._ctrl.clear()
 
+    @_check_types.do
     def GetItems(self) -> list:
         """Execute the get items operation.
 
@@ -124,6 +131,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         """
         return [self._ctrl.itemText(i) for i in range(self._ctrl.count())]
 
+    @_check_types.do
     def SetItems(self, items: list):
         """Execute the set items operation.
 
@@ -139,9 +147,11 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
 
         self._ctrl.blockSignals(False)
 
+    @_check_types.do
     def SetLabel(self, value: str):
         self._label = value
         self._st.setText(value)
 
+    @_check_types.do
     def GetLabel(self) -> str:
         return self._label

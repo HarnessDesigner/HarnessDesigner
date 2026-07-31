@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from PySide6 import QtWidgets, QtCore, QtGui
 
 from . import dialog_base as _dialog_base
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects.objects3d import transition as _objects3d_transition
@@ -17,12 +18,14 @@ if TYPE_CHECKING:
 # Wire label helpers
 # ---------------------------------------------------------------------------
 
+@_check_types.do
 def _color_name(color_obj) -> str:
     if color_obj is None:
         return 'None'
     return str(color_obj.name)
 
 
+@_check_types.do
 def _wire_label(conc_wire) -> str:
     pjt_wire = conc_wire.wire
     part = pjt_wire.part
@@ -41,6 +44,7 @@ def _wire_label(conc_wire) -> str:
     return label
 
 
+@_check_types.do
 def _effective_diameter(conc_wires, g_branch) -> float:
     total_area = 0.0
     for cw in conc_wires:
@@ -63,6 +67,7 @@ class _WireList(QtWidgets.QListWidget):
 
     wire_moved = QtCore.Signal(object, object, object)  # (conc_wire, src_list, dst_list)
 
+    @_check_types.do
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setDragEnabled(True)
@@ -71,6 +76,7 @@ class _WireList(QtWidgets.QListWidget):
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.DragDrop)
         self.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
 
+    @_check_types.do
     def startDrag(self, supported_actions):
         item = self.currentItem()
         if item is None:
@@ -81,18 +87,21 @@ class _WireList(QtWidgets.QListWidget):
         drag.setMimeData(mime)
         drag.exec(QtCore.Qt.DropAction.MoveAction)
 
+    @_check_types.do
     def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
         if event.source() is not self and event.mimeData().hasFormat(_MIME_TYPE):
             event.acceptProposedAction()
         else:
             event.ignore()
 
+    @_check_types.do
     def dragMoveEvent(self, event: QtGui.QDragMoveEvent):
         if event.source() is not self and event.mimeData().hasFormat(_MIME_TYPE):
             event.acceptProposedAction()
         else:
             event.ignore()
 
+    @_check_types.do
     def dropEvent(self, event: QtGui.QDropEvent):
         src = event.source()
         if src is self or not isinstance(src, _WireList):
@@ -117,6 +126,7 @@ class _WireList(QtWidgets.QListWidget):
 
 class _BranchGroup(QtWidgets.QGroupBox):
 
+    @_check_types.do
     def __init__(self, branch_idx: int, branch_db, g_branch, parent=None):
         label = f'Branch {branch_idx}'
         super().__init__(label, parent)
@@ -139,6 +149,7 @@ class _BranchGroup(QtWidgets.QGroupBox):
 
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _conc_wires(self) -> list:
         try:
             conc = self.branch_db.concentric
@@ -151,6 +162,7 @@ class _BranchGroup(QtWidgets.QGroupBox):
             wires.extend(layer.wires)
         return wires
 
+    @_check_types.do
     def _update_capacity_label(self):
         cw = self._conc_wires()
         used = _effective_diameter(cw, self.g_branch)
@@ -163,6 +175,7 @@ class _BranchGroup(QtWidgets.QGroupBox):
         else:
             self._cap_label.setStyleSheet('color: #40c040;')
 
+    @_check_types.do
     def rebuild_list(self):
         self.list_widget.clear()
         for cw in self._conc_wires():
@@ -180,12 +193,14 @@ class _BranchGroup(QtWidgets.QGroupBox):
 class TransitionRoutingDialog(_dialog_base.BaseDialog):
     """Show one list per output branch; allow drag-and-drop wire reassignment."""
 
+    @_check_types.do
     def __init__(self, parent, transition_3d: "_objects3d_transition.Transition"):
         super().__init__(parent, 'Route Wires', size=(780, 520))
         self._transition_3d = transition_3d
         self._branch_groups: list[_BranchGroup] = []
         self._build_ui(transition_3d)
 
+    @_check_types.do
     def _build_ui(self, transition_3d: "_objects3d_transition.Transition"):
         transition_db = transition_3d.db_obj
         g_transition = transition_db.part
@@ -227,6 +242,7 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
 
     # ------------------------------------------------------------------
 
+    @_check_types.do
     def _on_wire_moved(self, conc_wire, src_list: _WireList, dst_list: _WireList):
         # Find destination branch group
         dst_grp = self._group_for_list(dst_list)
@@ -278,12 +294,14 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
             src_grp.rebuild_list()
         dst_grp.rebuild_list()
 
+    @_check_types.do
     def _group_for_list(self, list_widget: _WireList) -> _BranchGroup | None:
         for grp in self._branch_groups:
             if grp.list_widget is list_widget:
                 return grp
         return None
 
+    @_check_types.do
     def _update_branch_3d(self, grp: _BranchGroup, new_diameter: float):
         branch_id = grp.branch_db.branch_id
         branches = self._transition_3d._branches
@@ -291,5 +309,6 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
             branch_3d = branches[branch_id - 1]
             branch_3d.diameter = new_diameter
 
+    @_check_types.do
     def GetValue(self):
         return None
