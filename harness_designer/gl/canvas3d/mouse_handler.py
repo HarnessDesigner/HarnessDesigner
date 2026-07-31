@@ -465,7 +465,7 @@ class MouseHandler:
                 # cavity is highlighted) opens the cavity context menu.
                 if isinstance(selected, _housing.Housing):
                     cavity = selected.obj3d.try_pick_cavity(
-                        mouse_pos.x, mouse_pos.y)
+                        int(mouse_pos.x), int(mouse_pos.y))
 
                     if cavity is not None:
                         housing = selected.obj3d
@@ -662,7 +662,7 @@ class MouseHandler:
                         self._active_cavity_housing.parent is selected
                     ):
                         cavity = selected.obj3d.try_pick_cavity(
-                            mouse_pos.x, mouse_pos.y)
+                            int(mouse_pos.x), int(mouse_pos.y))
 
                     is_cavity_menu_target = cavity is not None and cavity.parent is cur_selected
 
@@ -713,7 +713,7 @@ class MouseHandler:
                 self._active_cavity_housing.parent is selected
             ):
                 cavity = selected.obj3d.try_pick_cavity(
-                    mouse_pos.x, mouse_pos.y)
+                    int(mouse_pos.x), int(mouse_pos.y))
 
             is_cavity_menu_target = cavity is not None and cavity.parent is cur_selected
 

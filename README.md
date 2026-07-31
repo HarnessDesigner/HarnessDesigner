@@ -23,6 +23,23 @@ harness spread out.
 
 ## Screenshots
 
+New screen shots that show the level of detail I went into with writing
+the code for the application. 
+![img_8.png](img_8.png)
+
+If you look at the connector when it is selected 
+you can see the terminals, seals and wires inside of the connector. I even stripped 
+off the end of the wire where the crimp is made and it's all positioned like it 
+would be when the connector is assembled.
+![img_9.png](img_9.png)
+
+The wires move when you move the connector or rotate the connector. Actually 
+everything that is apart of the connector "assembly" all moves and rotates keeping 
+orientation in tact.
+![img_10.png](img_10.png)
+
+
+
 ![img_3.png](img_3.png)
 
 Object rotation with gimbal-lock-safe angle display:

@@ -469,7 +469,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @property
     @_check_types.do
-    def x(self) -> _d:
+    def x(self) -> float:
         """
         Return the X coordinate.
 
@@ -477,7 +477,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
         """
 
-        return _d(self._data[0])
+        return float(str(self._data[0]))
 
     @x.setter
     @_check_types.do
@@ -497,7 +497,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @property
     @_check_types.do
-    def y(self) -> _d:
+    def y(self) -> float:
         """
         Return the Y coordinate.
 
@@ -505,7 +505,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
         """
 
-        return _d(self._data[1])
+        return float(str(self._data[1]))
 
     @y.setter
     @_check_types.do
@@ -525,7 +525,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @property
     @_check_types.do
-    def z(self) -> _d:
+    def z(self) -> float:
         """
         Return the Z coordinate.
 
@@ -533,7 +533,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
         """
 
-        return _d(self._data[2])
+        return float(str(self._data[2]))
 
     @z.setter
     @_check_types.do

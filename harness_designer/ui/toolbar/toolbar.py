@@ -1428,14 +1428,18 @@ class GeneralToolbar(QtWidgets.QToolBar):
 
     @_check_types.do
     def on_bom(self, checked: bool = False):
-        """Handle the bom event.
+        """Open the BOM Builder dialog against the current project.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param checked: Value for ``checked``.
+        :param checked: Unused -- present to match the ``QAction.triggered`` signal.
         :type checked: bool
         """
-        pass
+        from ..dialogs.bom_dialog import BomDialog
+
+        dlg = BomDialog(self.mainframe)
+        try:
+            dlg.exec()
+        finally:
+            dlg.deleteLater()
 
     @_check_types.do
     def Refresh(self, *_, **__):
