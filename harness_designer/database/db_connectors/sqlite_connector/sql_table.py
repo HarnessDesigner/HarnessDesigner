@@ -58,8 +58,14 @@ class SQLTable:
         :returns: ``True`` when the table requires updates; otherwise ``False``.
         :rtype: bool
         """
+        # pragma_table_xinfo, not pragma_table_info -- the latter silently
+        # omits GENERATED columns (e.g. ProjectIdField's project_id) on this
+        # SQLite build, which made every pjt_*/project_id table look like it
+        # always needed an update, even immediately after being created with
+        # that column already in place (ALTER TABLE ADD COLUMN then fails
+        # with "duplicate column name").
         db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                               f'pragma_table_info("{self.name}");')
+                               f'pragma_table_xinfo("{self.name}");')
 
         column_names = eval(db_cursor._con.fetchall()[0][0])
 
@@ -80,8 +86,10 @@ class SQLTable:
         :returns: ``None``.
         :rtype: None
         """
+        # See is_ok() -- pragma_table_xinfo, not pragma_table_info, so
+        # GENERATED columns already present aren't re-added here.
         db_cursor._con.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                               f'pragma_table_info("{self.name}");')
+                               f'pragma_table_xinfo("{self.name}");')
 
         column_names = eval(db_cursor._con.fetchall()[0][0])
 

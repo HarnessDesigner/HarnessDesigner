@@ -6,6 +6,7 @@ from . import points2d as _points2d
 
 from .. import db_connectors as _con
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 pjt_id_field = _con.UUIDField('id', is_primary=True)
@@ -34,9 +35,11 @@ def add_pjt_wire_layout(con, project_id, point2d_id=None, point3d_id=None, notes
     :type is_visible3d: UNKNOWN
     """
 
-    con.execute('INSERT INTO pjt_wire_layouts (project_id, point2d_id, point3d_id, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_wire_layouts (id, point2d_id, point3d_id, '
                 'notes, is_visible2d, is_visible3d) VALUES (?, ?, ?, ?, ?, ?);',
-                (project_id, point2d_id, point3d_id, notes, is_visible2d, is_visible3d))
+                (new_id, point2d_id, point3d_id, notes, is_visible2d, is_visible3d))
 
     con.commit()
 

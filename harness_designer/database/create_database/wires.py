@@ -26,6 +26,7 @@ from . import concentric_layers as _concentric_layers
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -188,13 +189,14 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
     image_id = _images.get_image_id(con, image)
     cad_id = _cads.get_cad_id(con, cad)
 
-    con.execute('INSERT INTO wires (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO wires (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, material_id, stripe_color_id, core_material_id, '
                 'num_conductors, shielded, tpi, wire_size_dia, wire_size_cross, wire_size_awg, '
                 'od_mm, weight_1km, resistance_1km, volts, strands) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
                  stripe_color_id, core_material_id, num_conductors, shielded, tpi,
                  wire_size_dia, wire_size_cross, wire_size_awg, od_mm, weight_1km, resistance_1km,
@@ -204,7 +206,7 @@ def add_wire(con, part_number, description, mfg=None, family=None, series=None,
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 id_field = _con.UUIDField('id', is_primary=True)

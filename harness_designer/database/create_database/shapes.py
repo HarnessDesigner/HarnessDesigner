@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -18,11 +19,11 @@ def add_records(con, splash, _):
     :param _: Value for ``_``.
     :type _: UNKNOWN
     """
-    con.execute('SELECT id FROM shapes WHERE id=0;')
+    con.execute('SELECT id FROM shapes WHERE id=?;', (_id_generator.NIL_UUID.bytes,))
     if con.fetchall():
         return
 
-    data = ((0, 'No Shape'),)
+    data = ((_id_generator.NIL_UUID.bytes, 'No Shape'),)
 
     splash.SetText(f'Adding shape to db [1 | 1]...')
     splash.flush()
@@ -45,18 +46,18 @@ def get_shape_id(con, name):
     :rtype: UNKNOWN
     """
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM shapes WHERE name="{name}";')
+    con.execute('SELECT id FROM shapes WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding shape ("{name}")')
 
-        con.execute('INSERT INTO shapes (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO shapes (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'shape added "{name}" = {db_id}')
 

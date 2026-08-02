@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -20,14 +21,18 @@ def add_records(con, splash, _):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM genders WHERE id=0;')
+    con.execute('SELECT 1 FROM genders LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Building genders...')
     splash.flush()
 
-    data = ((0, "Unknown"), (1, "Male"), (2, "Female"))
+    data = (
+        (_id_generator.NIL_UUID.bytes, "Unknown"),
+        (_id_generator.generate_global_row_id(con).bytes, "Male"),
+        (_id_generator.generate_global_row_id(con).bytes, "Female"),
+    )
 
     splash.SetText(f'Adding genders to db [{len(data)} | {len(data)}]...')
     splash.flush()
@@ -52,17 +57,17 @@ def get_gender_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM genders WHERE name="{name}";')
+    con.execute('SELECT id FROM genders WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding gender ("{name}")')
-        con.execute('INSERT INTO genders (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO genders (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'gender added "{name}" = {db_id}')
 

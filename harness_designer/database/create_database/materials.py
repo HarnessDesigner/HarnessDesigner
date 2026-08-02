@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -24,7 +25,7 @@ def add_records(con, splash, _):
     if con.fetchall():
         return
 
-    data = ((0, 'Unknown Material'),)
+    data = ((_id_generator.NIL_UUID.bytes, 'Unknown Material'),)
 
     try:
         splash.SetText(f'Adding materials to db [{len(data)} | {len(data)}]...')
@@ -54,18 +55,18 @@ def get_material_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM materials WHERE name="{name}";')
+    con.execute('SELECT id FROM materials WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding material ("{name}")')
 
-        con.execute('INSERT INTO materials (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO materials (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'material added "{name}" = {db_id}')
 

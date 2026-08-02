@@ -6,6 +6,7 @@ from ... import logger as _logger
 import os
 import json
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -23,7 +24,7 @@ def add_records(con, splash, data_path):
     :type data_path: UNKNOWN
     """
 
-    con.execute('SELECT * from file_types WHERE id=1;')
+    con.execute('SELECT 1 FROM file_types LIMIT 1;')
     if con.fetchall():
         return
 
@@ -88,14 +89,16 @@ def add_file_type(con, name, extension, is_model: bool | int = 0,
     :rtype: UNKNOWN
     """
 
-    con.execute('INSERT INTO file_types (mimetype, extension, name, is_model, is_image, is_datasheet, is_cad) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?);', (mimetype, extension, name, int(is_model), int(is_image), int(is_datasheet), int(is_cad)))
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO file_types (id, mimetype, extension, name, is_model, is_image, is_datasheet, is_cad) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, mimetype, extension, name, int(is_model), int(is_image), int(is_datasheet), int(is_cad)))
 
     _logger.database(f'file type added "{extension}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do
@@ -120,7 +123,7 @@ def get_file_type(con, extension=None, mimetype=None):
         return None
 
     if extension is not None and mimetype is not None:
-        con.execute(f'SELECT id FROM file_types WHERE extension="{extension}" AND mimetype="{mimetype}";')
+        con.execute('SELECT id FROM file_types WHERE extension=? AND mimetype=?;', (extension, mimetype))
         res = con.fetchall()
 
         if res:
@@ -128,17 +131,18 @@ def get_file_type(con, extension=None, mimetype=None):
 
         _logger.database(f'adding file type ("{extension}", "{mimetype}")')
 
-        con.execute('INSERT INTO file_types (extension, mimetype) VALUES (?, ?);', (extension, mimetype))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO file_types (id, extension, mimetype) VALUES (?, ?, ?);',
+                    (db_id, extension, mimetype))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'file type added "{extension}" = {db_id}')
 
         return db_id
 
     elif extension is not None:
-        con.execute(f'SELECT id FROM file_types WHERE extension="{extension}";')
+        con.execute('SELECT id FROM file_types WHERE extension=?;', (extension,))
         res = con.fetchall()
 
         if res:
@@ -146,17 +150,17 @@ def get_file_type(con, extension=None, mimetype=None):
 
         _logger.database(f'adding file type ("{extension}")')
 
-        con.execute('INSERT INTO file_types (extension,) VALUES (?);', (extension,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO file_types (id, extension) VALUES (?, ?);', (db_id, extension))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'file type added "{extension}" = {db_id}')
 
         return db_id
 
     elif mimetype is not None:
-        con.execute(f'SELECT id FROM file_types WHERE mimetype="{mimetype}";')
+        con.execute('SELECT id FROM file_types WHERE mimetype=?;', (mimetype,))
         res = con.fetchall()
 
         if res:

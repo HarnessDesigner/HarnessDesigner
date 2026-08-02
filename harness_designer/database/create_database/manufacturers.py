@@ -6,6 +6,7 @@ import os
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -76,7 +77,7 @@ def add_records(con, splash, data_path):
     :type data_path: UNKNOWN
     """
 
-    con.execute('SELECT id FROM manufacturers WHERE id=0;')
+    con.execute('SELECT 1 FROM manufacturers LIMIT 1;')
     if con.fetchall():
         return
 
@@ -150,23 +151,19 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
     """
 
     if id is None:
-        con.execute(
-            'INSERT INTO manufacturers (name, description, address, contact_person, phone, ext, email, website) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
-            (name, description, address, contact_person, phone, ext, email, website)
-            )
-    else:
-        con.execute(
-            'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '
-            'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-            (id, name, description, address, contact_person, phone, ext, email, website)
-            )
+        id = _id_generator.generate_global_row_id(con).bytes
+
+    con.execute(
+        'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+        (id, name, description, address, contact_person, phone, ext, email, website)
+        )
 
     _logger.database(f'manufacturer added "{name}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return id
 
 
 @_check_types.do
@@ -185,18 +182,18 @@ def get_mfg_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM manufacturers WHERE name="{name}";')
+    con.execute('SELECT id FROM manufacturers WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding manufacturer ("{name}", "", "", "", "")')
-        con.execute('INSERT INTO manufacturers (name, phone, address, email, website) '
-                    'VALUES (?, ?, ?, ?, ?);', (name, '', '', '', ''))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO manufacturers (id, name, phone, address, email, website) '
+                    'VALUES (?, ?, ?, ?, ?, ?);', (db_id, name, '', '', '', ''))
 
         con.commit()
-        db_id = con.lastrowid
         _logger.database(f'manufacturer added "{name}" = {db_id}')
 
         return db_id

@@ -13,6 +13,7 @@ from . import cads as _cads
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -30,26 +31,37 @@ def add_records(con, splash, _):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM accessories WHERE id=0;')
+    con.execute('SELECT 1 FROM accessories LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Building accessories...')
     splash.flush()
 
-    data = (
-        (0, 'None', 'No Accessories', 0),
-        (1, 'S1017-1.0X50', '1" x 50\' Polyamide Adhesive, -20 – 60 °C [-4 – 140 °F], Hot Melt Tape', 1),
-        (2, 'S1030', 'Polyolefin Adhesive, -80 – 80 °C [-112 – 176 °F], Hot Melt Tape', 1),
-        (3, 'S1030-TAPE-3/4X33FT', '3/4" x 33\' Polyolefin Adhesive, -80 – 80 °C [-112 – 176 °F], Hot Melt Tape', 1),
-        (4, 'S1048-TAPE-1X100-FT', '1" x 100\' Thermoplastic Adhesive, -55 – 120 °C [-67 – 248 °F], Hot Melt Tape', 1),
-        (5, 'S1048-TAPE-3/4X100-FT', '3/4" x 100\' Thermoplastic Adhesive, -55 – 120 °C [-67 – 248 °F], Hot Melt Tape', 1),
-        (6, 'S1125-KIT-1', 'Dual Pack, 5 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives', 1),
-        (7, 'S1125-KIT-4', 'Dual Pack, 5 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives', 1),
-        (8, 'S1125-KIT-5', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives', 1),
-        (9, 'S1125-KIT-8', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives', 1),
-        (10, 'S1125-APPLICATOR', 'Epoxy Adhesives Dispensing Gun', 1)
+    rows = (
+        ('None', 'No Accessories'),
+        ('S1017-1.0X50', '1" x 50\' Polyamide Adhesive, -20 – 60 °C [-4 – 140 °F], Hot Melt Tape'),
+        ('S1030', 'Polyolefin Adhesive, -80 – 80 °C [-112 – 176 °F], Hot Melt Tape'),
+        ('S1030-TAPE-3/4X33FT', '3/4" x 33\' Polyolefin Adhesive, -80 – 80 °C [-112 – 176 °F], Hot Melt Tape'),
+        ('S1048-TAPE-1X100-FT', '1" x 100\' Thermoplastic Adhesive, -55 – 120 °C [-67 – 248 °F], Hot Melt Tape'),
+        ('S1048-TAPE-3/4X100-FT', '3/4" x 100\' Thermoplastic Adhesive, -55 – 120 °C [-67 – 248 °F], Hot Melt Tape'),
+        ('S1125-KIT-1', 'Dual Pack, 5 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
+        ('S1125-KIT-4', 'Dual Pack, 5 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
+        ('S1125-KIT-5', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
+        ('S1125-KIT-8', 'Dual Pack, 1 Packaging Quantity, 150 °C Temperature (Max), Epoxy Adhesives'),
+        ('S1125-APPLICATOR', 'Epoxy Adhesives Dispensing Gun')
     )
+
+    # mfg_id previously pointed at whatever manufacturer had sequential id=1
+    # under the old int-id scheme -- not recoverable, and every other
+    # UUID-keyed table already treats the nil sentinel as a valid
+    # "unassigned" mfg_id (see the X'00...00' schema default below), so
+    # that's what these fall back to rather than guessing a real one.
+    data = tuple(
+        (_id_generator.generate_global_row_id(con).bytes, part_number, description,
+         _id_generator.NIL_UUID.bytes)
+        for part_number, description in rows)
+
     splash.SetText(f'Adding accessories to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
@@ -152,11 +164,12 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
         description += ' Accessory'
 
     _logger.database(f'adding accessory {part_number}, {description}')
-    con.execute('INSERT INTO accessories (part_number, description, mfg_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO accessories (id, part_number, description, mfg_id, '
                 'family_id, series_id, color_id, material_id, image_id, '
                 'datasheet_id, cad_id, model3d_id, length, width, height, weight) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  material_id, image_id, datasheet_id, cad_id, model3d_id, length,
                  width, height, weight))
 
@@ -164,7 +177,7 @@ def add_accessory(con, part_number, mfg, description=None, series=None,
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 id_field = _con.UUIDField('id', is_primary=True)

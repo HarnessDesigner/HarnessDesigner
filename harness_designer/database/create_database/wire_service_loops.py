@@ -7,6 +7,7 @@ from . import wires as _wires
 
 from .. import db_connectors as _con
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 pjt_id_field = _con.UUIDField('id', is_primary=True)
@@ -45,10 +46,12 @@ def add_pjt_wire_service_loop(con, project_id, part_id, name='', start_point3d_i
     :type is_visible3d: UNKNOWN
     """
 
-    con.execute('INSERT INTO pjt_wire_service_loops (project_id, part_id, name, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_wire_service_loops (id, part_id, name, '
                 'start_point3d_id, stop_point3d_id, circuit_id, notes, quat3d, '
                 'angle3d, is_visible3d) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, name, start_point3d_id, stop_point3d_id, circuit_id,
+                (new_id, part_id, name, start_point3d_id, stop_point3d_id, circuit_id,
                  notes, quat3d, angle3d, is_visible3d))
     con.commit()
 

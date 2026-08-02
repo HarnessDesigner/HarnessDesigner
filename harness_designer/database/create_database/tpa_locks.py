@@ -20,6 +20,7 @@ from . import housings as _housings
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -114,12 +115,13 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
     _logger.database(f'adding tpa lock {part_number}, {description}')
 
-    con.execute('INSERT INTO tpa_locks (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO tpa_locks (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, lock_type, length, width, height, weight, '
                 'pins, terminal_size, compat_housings) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  lock_type, length, width, height, weight, pins, terminal_size,
                  compat_housings))
@@ -128,7 +130,7 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do
@@ -166,10 +168,12 @@ def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
     if angle3d is None:
         angle3d = [1.0, 0.0, 0.0, 0.0]
 
-    con.execute('INSERT INTO pjt_tpa_locks (project_id, part_id, point3d_id, housing_id, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_tpa_locks (id, part_id, point3d_id, housing_id, '
                 'name, notes, quat3d, angle3d, is_visible3d) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, point3d_id, housing_id, name,
+                (new_id, part_id, point3d_id, housing_id, name,
                  notes, str(quat3d), str(angle3d), is_visible3d))
 
     con.commit()

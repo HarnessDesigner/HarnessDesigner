@@ -29,6 +29,7 @@ from .. import config as _config
 from .. import logger as _logger
 from ..shapes import helix as _helix
 from .. import check_types as _check_types
+from ..database import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
@@ -602,10 +603,10 @@ class Project:
                 project_name, creator, description, model_path, color_id = dlg.GetValue()
 
                 if model_path:
+                    model_id = _id_generator.generate_global_row_id(connector).bytes
                     connector.execute(
-                        f'INSERT INTO models3d (path) VALUES (?);', (model_path,))
+                        'INSERT INTO models3d (id, path) VALUES (?, ?);', (model_id, model_path))
                     connector.commit()
-                    model_id = connector.lastrowid
                 else:
                     model_id = None
 

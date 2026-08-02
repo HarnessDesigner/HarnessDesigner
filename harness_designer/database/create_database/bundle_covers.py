@@ -21,6 +21,7 @@ from . import points3d as _points3d
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -202,12 +203,13 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
 
     adhesive_ids = ', '.join(adhesive_ids)
 
-    con.execute('INSERT INTO bundle_covers (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO bundle_covers (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, material_id, image_id, datasheet_id, cad_id, '
                 'shrink_temp_id, min_temp_id, max_temp_id, protection_id, rigidity, '
                 'shrink_ratio, wall, min_dia, max_dia, adhesive_ids, weight) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id, material_id,
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id, material_id,
                  image_id, datasheet_id, cad_id, shrink_temp_id, min_temp_id, max_temp_id,
                  protection_id, rigidity, shrink_ratio, wall, min_dia, max_dia, adhesive_ids,
                  weight))
@@ -216,7 +218,7 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 id_field = _con.UUIDField('id', is_primary=True)

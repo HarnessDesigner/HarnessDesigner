@@ -2,6 +2,7 @@
 
 from .. import db_connectors as _con
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -19,14 +20,14 @@ def add_records(con, splash, _=None):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM ip_supps WHERE id=0;')
+    con.execute('SELECT 1 FROM ip_supps LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Building IP suppliments...')
     splash.flush()
 
-    data = (
+    names = (
         ('D', 'Wire'),
         ('G', 'Oil resistant'),
         ('F', 'Oil resistant'),
@@ -36,10 +37,14 @@ def add_records(con, splash, _=None):
         ('W', 'Weather conditions')
     )
 
+    data = tuple(
+        (_id_generator.generate_global_row_id(con).bytes, name, description)
+        for name, description in names)
+
     splash.SetText(f'Adding IP suppliments to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
 
-    con.executemany('INSERT INTO ip_supps (name, description) VALUES (?, ?);', data)
+    con.executemany('INSERT INTO ip_supps (id, name, description) VALUES (?, ?, ?);', data)
     con.commit()
 
 

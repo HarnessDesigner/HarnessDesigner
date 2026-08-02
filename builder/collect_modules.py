@@ -48,12 +48,12 @@ from packaging.utils import canonicalize_name
 # separators normalized to '-').
 _EXCLUDED_DISTRIBUTIONS = frozenset({
     'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6', 'vtk',
-    'amdsmi', 'nvidia-ml-py', 'apple-smi',
-})
+    'amdsmi', 'nvidia-ml-py', 'apple-smi'})
 
 
 def _distribution_to_import_names():
-    """{canonical_distribution_name: [import_name, ...]} for every installed
+    """
+    {canonical_distribution_name: [import_name, ...]} for every installed
     package.
 
     importlib.metadata.packages_distributions() gives the reverse mapping
@@ -76,11 +76,13 @@ def _distribution_to_import_names():
     for import_name, dist_names in importlib.metadata.packages_distributions().items():
         for dist_name in dist_names:
             forward.setdefault(canonicalize_name(dist_name), []).append(import_name)
+
     return forward
 
 
 def _walk_distributions(name, seen):
-    """Recursively resolve every distribution name in name's dependency
+    """
+    Recursively resolve every distribution name in name's dependency
     graph.
 
     Only follows requirements whose environment marker applies to the
@@ -97,6 +99,7 @@ def _walk_distributions(name, seen):
     key = canonicalize_name(name)
     if key in seen:
         return
+
     seen.add(key)
 
     if key in _EXCLUDED_DISTRIBUTIONS:
@@ -111,12 +114,14 @@ def _walk_distributions(name, seen):
         req = Requirement(req_str)
         if req.marker is not None and not req.marker.evaluate():
             continue
+
         _walk_distributions(req.name, seen)
 
 
 @functools.cache
 def _resolve_import_names():
-    """Every import name reachable from harness_designer's own installed
+    """
+    Every import name reachable from harness_designer's own installed
     dependency graph.
 
     Walking from harness_designer itself (rather than re-parsing
@@ -176,6 +181,7 @@ def get_modules():
             except ModuleNotFoundError:
                 missing.append(name)
                 continue
+
             except Exception:
                 # The package is installed but its import-time code raised
                 # something other than ModuleNotFoundError — e.g. GPU
@@ -222,16 +228,16 @@ def get_modules():
         print(
             f'{len(load_failed)} of those raised on import (not ModuleNotFoundError) '
             'in this environment -- bundled anyway since the failure looks environmental '
-            '(e.g. a hardware/driver probe with no matching device on this build machine):'
-        )
+            '(e.g. a hardware/driver probe with no matching device on this build machine):')
+
         for name in load_failed:
             print(f'  {name}')
 
     if missing:
         print(
             f'{len(missing)} resolved name(s) not importable here '
-            '(expected for platform-conditional dependencies not installed on this OS):'
-        )
+            '(expected for platform-conditional dependencies not installed on this OS):')
+
         for name in missing:
             print(f'  {name}')
 
@@ -256,7 +262,10 @@ def get_test_excludes():
     excludes = set()
 
     def _add_all(dir_path, prefix):
-        """Add every module and sub-package under an already-identified test dir."""
+        """
+        Add every module and sub-package under an already-identified test dir.
+        """
+
         try:
             entries = os.scandir(dir_path)
         except OSError:
@@ -277,7 +286,9 @@ def get_test_excludes():
                 excludes.add(prefix + entry.name[:-3])
 
     def _scan(dir_path, prefix):
-        """Recurse into a package directory, stopping at test sub-directories."""
+        """
+        Recurse into a package directory, stopping at test sub-directories.
+        """
         try:
             entries = os.scandir(dir_path)
         except OSError:

@@ -5,6 +5,7 @@ import os
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -38,7 +39,7 @@ def add_records(con, splash, appdata):
     :param appdata: Value for ``appdata``.
     :type appdata: UNKNOWN
     """
-    con.execute('SELECT id FROM settings WHERE id=1;')
+    con.execute('SELECT id FROM settings WHERE name="model_path";')
     if con.fetchall():
         return
 
@@ -72,22 +73,30 @@ def add_records(con, splash, appdata):
     splash.SetText(f'Adding setting to db [1 | 4]...')
     splash.flush()
 
-    con.execute(f'INSERT INTO settings (id, name, value) VALUES(1, "model_path", "{model_path}");')
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "model_path", ?);',
+                (new_id, model_path))
 
     splash.SetText(f'Adding setting to db [2 | 4]...')
     splash.flush()
 
-    con.execute(f'INSERT INTO settings (id, name, value) VALUES(2, "image_path", "{image_path}");')
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "image_path", ?);',
+                (new_id, image_path))
 
     splash.SetText(f'Adding setting to db [3 | 4]...')
     splash.flush()
 
-    con.execute(f'INSERT INTO settings (id, name, value) VALUES(3, "cad_path", "{cad_path}");')
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "cad_path", ?);',
+                (new_id, cad_path))
 
     splash.SetText(f'Adding setting to db [4 | 4]...')
     splash.flush()
 
-    con.execute(f'INSERT INTO settings (id, name, value) VALUES(4, "datasheet_path", "{datasheet_path}");')
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO settings (id, name, value) VALUES(?, "datasheet_path", ?);',
+                (new_id, datasheet_path))
 
     con.commit()
 
@@ -110,14 +119,15 @@ def add_setting(con, key, value, commit=True):
     :rtype: UNKNOWN
     """
 
-    con.execute(f'INSERT INTO pjt_transition_branches (name, value) VALUES (?, ?);',
-                (key, value))
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO settings (id, name, value) VALUES (?, ?, ?);',
+                (new_id, key, value))
 
     _logger.database(f'setting added "{key}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 id_field = _con.UUIDField('id', is_primary=True)

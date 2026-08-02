@@ -267,3 +267,12 @@ def generate_global_row_id(connector) -> uuid.UUID:
         row_bytes = pack_global_row_id(timestamp_ns, _LOCAL_USER_ID)
 
     return uuid.UUID(bytes=row_bytes)
+
+
+# The "unassigned" sentinel for a UUID foreign key -- matches every migrated
+# table's own `default="X'00000000000000000000000000000000'"` DDL default
+# (see db_connectors/*/sql_table.py's UUIDField). Real sentinel *rows* (e.g.
+# "No Protection", "Unknown Material") are keyed on this id rather than a
+# randomly generated one, so an FK column left at its schema default already
+# points at the correct row with no lookup needed.
+NIL_UUID = uuid.UUID(bytes=b'\x00' * 16)

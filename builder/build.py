@@ -16,7 +16,9 @@ if sys.platform.startswith('darwin'):
 
 
 def build_dependency_installer():
-    """Build dep_installer.exe — the lightweight GUI that installs external packages."""
+    """
+    Build dep_installer.exe — the lightweight GUI that installs external packages.
+    """
 
     base_path = os.path.abspath(os.path.dirname(__file__))
 
@@ -82,14 +84,20 @@ def _clean_dist(app_dir):
     # its internal archive as bytecode; the .py copies left on disk are from
     # --collect-all data collection and are never imported by the frozen app.
     _REMOVE_EXTS = frozenset(['.py', '.pyi', '.pyx', '.c', '.cpp', '.h'])
+
     # _tcl_data / _tk_data must be kept — PyInstaller's pyi_rth__tkinter runtime
     # hook checks for _tcl_data at startup and crashes with FileNotFoundError
     # if it is absent, even when the app itself does not call tkinter directly.
     _REMOVE_DATADIRS = frozenset()
+
     # PyOpenGL ships freeglut/gle DLLs for vc9 (VS2008) and vc10 (VS2010) that
     # require MSVCR90.dll / MSVCR100.dll — old runtimes absent on modern Windows.
     # The vc15 (VS2017+) variants use the universal CRT and are sufficient.
-    _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll') if sys.platform.startswith('win') else ()
+    if sys.platform.startswith('win'):
+        _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll')
+    else:
+        _remove_dll_suffixes = ()
+
     # File names (lower-cased) treated as license files worth keeping
     # _LICENSE_NAMES = frozenset([
     #     'license', 'license.txt', 'license.md', 'license.rst',
@@ -119,13 +127,18 @@ def _clean_dist(app_dir):
         'pyside6', 'shiboken6', 'mysql_connector_python', 'mysql',
         'amdsmi', 'nvidia_ml_py', 'pynvml', 'apple_smi',
     )
+
     for name in os.listdir(app_dir):
         lname = name.lower()
-        stem = lname.split('-', 1)[0] if lname.endswith('.dist-info') else lname
-        if stem in _RUNTIME_ONLY_PREFIXES or any(
-            stem == f'{pfx}_essentials' or stem == f'{pfx}_addons'
-            for pfx in _RUNTIME_ONLY_PREFIXES
-        ):
+        if lname.endswith('.dist-info'):
+            stem = lname.split('-', 1)[0]
+        else:
+            stem = lname
+
+        has_prefix = any(stem == f'{pfx}_essentials' or stem == f'{pfx}_addons'
+                         for pfx in _RUNTIME_ONLY_PREFIXES)
+
+        if stem in _RUNTIME_ONLY_PREFIXES or has_prefix:
             path = os.path.join(app_dir, name)
             shutil.rmtree(path, ignore_errors=True)
             n_dirs += 1
@@ -147,9 +160,9 @@ def _clean_dist(app_dir):
         # Remove unwanted individual files
         for fname in files:
             flower = fname.lower()
-            if os.path.splitext(fname)[1] in _REMOVE_EXTS or any(
-                flower.endswith(s) for s in _remove_dll_suffixes
-            ):
+
+            has_suffix = any(flower.endswith(s) for s in _remove_dll_suffixes)
+            if os.path.splitext(fname)[1] in _REMOVE_EXTS or has_suffix:
                 try:
                     os.remove(os.path.join(root, fname))
                     n_files += 1
@@ -169,34 +182,6 @@ def _clean_dist(app_dir):
             if dname.endswith('.dist-info'):
                 continue
 
-                # # Extract every license-like file before nuking the dir
-                # pkg_name = dname.replace('.dist-info', '')
-                # for lic_root, _, lic_files in os.walk(dir_path):
-                #     for lic_fname in lic_files:
-                #         if lic_fname.lower() in _LICENSE_NAMES:
-                #             src = os.path.join(lic_root, lic_fname)
-                #             # Unique dest: pkgname + relative path joined with _
-                #             rel = os.path.relpath(src, dir_path)
-                #             rel_flat = rel.replace(os.sep, '_')
-                #             dest = os.path.join(licenses_dir, f'{pkg_name}_{rel_flat}')
-                #             try:
-                #                 shutil.copy2(src, dest)
-                #             except OSError:
-                #                 pass
-                # try:
-                #     shutil.rmtree(dir_path, ignore_errors=True)
-                #     n_dirs += 1
-                # except OSError:
-                #     pass
-
-        # # Remove the directory itself if it is now empty (skip root)
-        # if root != app_dir and os.path.isdir(root):
-        #     try:
-        #         os.rmdir(root)
-        #         n_dirs += 1
-        #     except OSError:
-        #         pass
-
     print(f'_clean_dist: removed {n_files} files and {n_dirs} directories')
 
 
@@ -209,6 +194,7 @@ def build_installer():
     # In-process filter (covers the analysis phase which runs in this process):
     warnings.filterwarnings('ignore', category=DeprecationWarning, module='setuptools')
     warnings.filterwarnings('ignore', category=DeprecationWarning, module='pkg_resources')
+
     # Subprocess filter (covers any workers PyInstaller forks for collection):
     _pw = os.environ.get('PYTHONWARNINGS', '')
     _suppress = 'ignore::DeprecationWarning:setuptools,ignore::DeprecationWarning:pkg_resources'

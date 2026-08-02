@@ -481,12 +481,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
                 x, y, z = (position + ((ref - position) / 2.0)).as_float
 
-                self._table.execute(
-                    f'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                    (self._table.project_id, x, y, z))
-
-                self._table.commit()
-                point_id = self._table.lastrowid
+                point_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
                 self.terminal_position3d_id = point_id
 
                 self._stored_terminal_position3d_id = point_id
@@ -586,12 +581,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
                 x, y, z = center.as_float
 
-                self._table.execute(
-                    'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-                    (self._table.project_id, x, y, z))
-
-                self._table.commit()
-                point_id = self._table.lastrowid
+                point_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
                 self.wire_position3d_id = point_id
 
                 self._stored_wire_position3d_id = point_id

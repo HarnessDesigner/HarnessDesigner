@@ -4,6 +4,7 @@ from .. import db_connectors as _con
 from . import manufacturers as _manufacturers
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -19,14 +20,14 @@ def add_records(con, splash, _):
     :param _: Value for ``_``.
     :type _: UNKNOWN
     """
-    con.execute('SELECT id FROM series WHERE id=0;')
+    con.execute('SELECT 1 FROM series LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Adding series to db [1 | 1]...')
     splash.flush()
 
-    con.execute('INSERT INTO series (id, name) VALUES(0, "No Series");')
+    con.execute('INSERT INTO series (id, name) VALUES(?, "No Series");', (_id_generator.NIL_UUID.bytes,))
     con.commit()
 
 
@@ -46,18 +47,18 @@ def get_series_id(con, name, mfg_id):
     :rtype: UNKNOWN
     """
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM series WHERE name="{name}" AND mfg_id={mfg_id};')
+    con.execute('SELECT id FROM series WHERE name=? AND mfg_id=?;', (name, mfg_id))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding series ("{name}")')
 
-        con.execute('INSERT INTO series (name, mfg_id) VALUES (?, ?);', (name, mfg_id))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO series (id, name, mfg_id) VALUES (?, ?, ?);', (db_id, name, mfg_id))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'series added "{name}" = {db_id}')
 

@@ -6,6 +6,7 @@ import os
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -21,7 +22,7 @@ def add_records(con, splash, data_path):
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
-    con.execute('SELECT id FROM splice_types WHERE id=0;')
+    con.execute('SELECT 1 FROM splice_types LIMIT 1;')
     if con.fetchall():
         return
 
@@ -70,21 +71,18 @@ def add_splice_type(con, name, id=None, commit=True):  # NOQA
     """
 
     if id is None:
-        con.execute(
-            'INSERT INTO splice_types (name) '
-            'VALUES (?);', (name,)
-            )
-    else:
-        con.execute(
-            'INSERT INTO splice_types (id, name) '
-            'VALUES (?, ?);', (id, name)
-            )
+        id = _id_generator.generate_global_row_id(con).bytes
+
+    con.execute(
+        'INSERT INTO splice_types (id, name) '
+        'VALUES (?, ?);', (id, name)
+        )
 
     _logger.database(f'splice type added "{name}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return id
 
 
 @_check_types.do
@@ -101,18 +99,18 @@ def get_splice_type_id(con, name):
     :rtype: UNKNOWN
     """
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM splice_types WHERE name="{name}";')
+    con.execute('SELECT id FROM splice_types WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding splice type ("{name}")')
 
-        con.execute('INSERT INTO splice_types (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO splice_types (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'splice type added "{name}" = {db_id}')
 

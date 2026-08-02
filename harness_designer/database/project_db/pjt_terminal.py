@@ -756,12 +756,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         x, y, z = back_pt.as_float
 
-        self._table.execute(
-            'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-            (self._table.project_id, x, y, z)
-        )
-        self._table.commit()
-        wire_point3d_id = self._table.lastrowid
+        wire_point3d_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
         self._table.update(self._db_id, wire_point3d_id=wire_point3d_id)
 
         return wire_point3d_id
@@ -790,12 +785,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         x, y, z = attach_pt.as_float
 
-        self._table.execute(
-            'INSERT INTO pjt_points3d (project_id, x, y, z) VALUES (?, ?, ?, ?);',
-            (self._table.project_id, x, y, z)
-        )
-        self._table.commit()
-        attach_point3d_id = self._table.lastrowid
+        attach_point3d_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
         self._table.update(self._db_id, attach_point3d_id=attach_point3d_id)
 
         return attach_point3d_id

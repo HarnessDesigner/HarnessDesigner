@@ -6,6 +6,7 @@ import os
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -21,7 +22,7 @@ def add_records(con, splash, data_path):
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
-    con.execute('SELECT id FROM platings WHERE id=0;')
+    con.execute('SELECT 1 FROM platings LIMIT 1;')
     if con.fetchall():
         return
 
@@ -72,17 +73,16 @@ def add_plating(con, symbol, description='', id=None, commit=True):  # NOQA
     """
 
     if id is None:
-        con.execute('INSERT INTO platings (symbol, description) '
-                    'VALUES (?, ?);', (symbol, description))
-    else:
-        con.execute('INSERT INTO platings (id, symbol, description) '
-                    'VALUES (?, ?, ?);', (id, symbol, description))
+        id = _id_generator.generate_global_row_id(con).bytes
+
+    con.execute('INSERT INTO platings (id, symbol, description) '
+                'VALUES (?, ?, ?);', (id, symbol, description))
 
     _logger.database(f'plating added "{symbol}" - "{description}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return id
 
 
 @_check_types.do
@@ -99,17 +99,17 @@ def get_plating_id(con, symbol):
     :rtype: UNKNOWN
     """
     if not symbol:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM platings WHERE symbol="{symbol}";')
+    con.execute('SELECT id FROM platings WHERE symbol=?;', (symbol,))
     rows = con.fetchall()
 
     if not rows:
-        con.execute(f'SELECT id FROM platings WHERE description="{symbol}";')
+        con.execute('SELECT id FROM platings WHERE description=?;', (symbol,))
         rows = con.fetchall()
 
     if not rows:
-        con.execute(f'SELECT symbol, description FROM platings;')
+        con.execute('SELECT symbol, description FROM platings;')
         rows = con.fetchall()
 
         items = {}
@@ -128,7 +128,7 @@ def get_plating_id(con, symbol):
 
             symbol = '/'.join(symbol)
 
-            con.execute(f'SELECT id FROM platings WHERE symbol="{symbol}";')
+            con.execute('SELECT id FROM platings WHERE symbol=?;', (symbol,))
             rows = con.fetchall()
 
             if rows:
@@ -139,11 +139,11 @@ def get_plating_id(con, symbol):
 
         _logger.database(f'adding plating ("{symbol}", "{description}")')
 
-        con.execute('INSERT INTO platings (symbol, description) VALUES (?, ?);',
-                    (symbol, description))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO platings (id, symbol, description) VALUES (?, ?, ?);',
+                    (db_id, symbol, description))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'plating added "{symbol}" = {db_id}')
 

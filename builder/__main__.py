@@ -24,7 +24,9 @@ def main():
     # resolves via the already-imported package's __path__, not sys.path),
     # so it's safe to strip every repo-root-referring entry from sys.path
     # now, before importing harness_designer.
-    _norm = lambda p: os.path.normcase(os.path.normpath(p or os.getcwd()))
+    def _norm(p):
+        return os.path.normcase(os.path.normpath(p or os.getcwd()))
+
     _base_norm = _norm(base_path)
     sys.path[:] = [p for p in sys.path if _norm(p) != _base_norm]
 
@@ -43,11 +45,11 @@ def main():
     # drive-letter/casing differences (Windows paths are case-insensitive).
     _hd_parent = os.path.normcase(os.path.abspath(hd_path))
     _base_norm = os.path.normcase(os.path.abspath(base_path))
+
     if _hd_parent == _base_norm:
-        raise RuntimeError(
-            f'harness_designer resolved to {hd_path!r}, inside the repo '
-            f'({base_path!r}) instead of the installed site-packages copy.'
-        )
+        raise RuntimeError(f'harness_designer resolved to {hd_path!r}, inside the '
+                           f'repo ({base_path!r}) instead of the installed '
+                           f'site-packages copy.')
 
     os.chdir(base_path)
 

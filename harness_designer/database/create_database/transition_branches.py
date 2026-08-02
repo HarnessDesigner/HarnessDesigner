@@ -9,6 +9,7 @@ from . import points_peg as _points_peg
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -55,17 +56,18 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
     if bulb_offset is not None:
         bulb_offset = str(bulb_offset)
 
-    con.execute(f'INSERT INTO transition_branches (transition_id, idx, bulb_offset, '
-                f'bulb_length, min_dia, max_dia, length, offset, angle, flange_height, '
-                f'flange_width) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (transition_id, idx, bulb_offset, bulb_length, min_dia, max_dia,
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO transition_branches (id, transition_id, idx, bulb_offset, '
+                'bulb_length, min_dia, max_dia, length, offset, angle, flange_height, '
+                'flange_width) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, transition_id, idx, bulb_offset, bulb_length, min_dia, max_dia,
                  length, offset, angle, flange_height, flange_width))
 
     _logger.database(f'transition branch added {idx} - {transition_id}')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do
@@ -91,9 +93,11 @@ def add_pjt_transition_branch(con, project_id, part_id, transition_id,
     :type branch_id: UNKNOWN
     """
 
-    con.execute(f'INSERT INTO pjt_transition_branches (project_id, part_id, transition_id, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute(f'INSERT INTO pjt_transition_branches (id, part_id, transition_id, '
                 f'point3d_id, diameter, branch_id) VALUES (?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, transition_id, point3d_id, diameter, branch_id))
+                (new_id, part_id, transition_id, point3d_id, diameter, branch_id))
 
     con.commit()
 

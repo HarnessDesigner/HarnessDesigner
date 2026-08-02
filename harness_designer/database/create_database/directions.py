@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -20,15 +21,22 @@ def add_records(con, splash, _):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM directions WHERE id=0;')
+    con.execute('SELECT 1 FROM directions LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Building directions...')
     splash.flush()
 
-    data = ((0, "Unknown"), (1, "Left"), (2, "Right"), (3, "Straight"),
-            (4, "90°"), (5, "180°"), (6, "270°"))
+    data = (
+        (_id_generator.NIL_UUID.bytes, "Unknown"),
+        (_id_generator.generate_global_row_id(con).bytes, "Left"),
+        (_id_generator.generate_global_row_id(con).bytes, "Right"),
+        (_id_generator.generate_global_row_id(con).bytes, "Straight"),
+        (_id_generator.generate_global_row_id(con).bytes, "90°"),
+        (_id_generator.generate_global_row_id(con).bytes, "180°"),
+        (_id_generator.generate_global_row_id(con).bytes, "270°"),
+    )
 
     splash.SetText(f'Adding directions to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
@@ -53,18 +61,18 @@ def get_direction_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM directions WHERE name="{name}";')
+    con.execute('SELECT id FROM directions WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding direction ("{name}")')
 
-        con.execute('INSERT INTO directions (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO directions (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'direction added "{name}" = {db_id}')
 

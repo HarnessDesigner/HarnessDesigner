@@ -60,12 +60,7 @@ class TablePositionPegMixin(BaseMixin):
         if self._stored_table_position_peg_id is DefaultStoredValue:
             point_id = self._table.select('table_point_peg_id', id=self._db_id)[0][0]
             if point_id is None:
-                self._table.execute(
-                    'INSERT INTO pjt_points_peg (project_id, x, z) VALUES (?, ?, ?);',
-                    (self._table.project_id, 0.0, 0.0))
-
-                self._table.commit()
-                point_id = self._table.lastrowid
+                point_id = self._table.db.pjt_points_peg_table.insert(x=0.0, z=0.0)
                 self.table_position_peg_id = point_id
 
             self._stored_table_position_peg_id = point_id

@@ -21,6 +21,7 @@ from . import housings as _housings
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -221,12 +222,13 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
 
     _logger.database(f'adding cover {part_number}: {description}')
 
-    con.execute('INSERT INTO covers (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO covers (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, direction_id, image_id, datasheet_id, cad_id, '
                 'min_temp_id, max_temp_id, model3d_id, length, width, height, weight, '
                 'pins, compat_housings) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  direction_id, image_id, datasheet_id, cad_id, min_temp_id, max_temp_id,
                  model3d_id, length, width, height, weight, pins, compat_housings))
 
@@ -234,7 +236,7 @@ def add_cover(con, part_number, description, mfg=None, family=None, series=None,
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 id_field = _con.UUIDField('id', is_primary=True)

@@ -23,6 +23,7 @@ from . import points_peg as _points_peg
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -95,20 +96,19 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
     cad_id = _cads.get_cad_id(con, cad)
     datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
 
-    con.execute('INSERT INTO transitions (part_number, description, mfg_id, '
+    transition_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO transitions (id, part_number, description, mfg_id, '
                 'family_id, series_id, color_id, image_id, datasheet_id, cad_id, '
                 'min_temp_id, max_temp_id, material_id, shape_id, protection_id, '
                 'branch_count, adhesive_ids, weight) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (transition_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
                  shape_id, protection_id, branch_count,
                  str(adhesive_ids), weight))
 
     con.commit()
     _logger.database(f'transition added "{part_number}"')
-
-    transition_id = con.lastrowid
 
     for i, branch in enumerate(branches):
         try:
@@ -150,9 +150,11 @@ def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes
     if angle3d is None:
         angle3d = [0.0, 0.0, 0.0]
 
-    con.execute('INSERT INTO pjt_transitions (project_id, part_id, point3d_id, name, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_transitions (id, part_id, point3d_id, name, '
                 'notes, quat3d, angle3d, is_visible3d) VALUES (?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, point3d_id, name, notes, quat3d, angle3d, is_visible3d))
+                (new_id, part_id, point3d_id, name, notes, quat3d, angle3d, is_visible3d))
 
     con.commit()
 

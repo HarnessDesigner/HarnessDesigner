@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -20,25 +21,18 @@ def add_records(con, splash, _):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM cavity_locks WHERE id=0;')
+    con.execute('SELECT 1 FROM cavity_locks LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Building cavity locks...')
     splash.flush()
 
-    data = (
-        (0, 'No Lock'),
-        (1, 'Cavity Lock'),
-        (2, 'Clean Body'),
-        (3, 'Locking Lance'),
-        (4, 'Clean Body and Lance'),
-        (5, 'Flex Arm'),
-        (6, 'Insert Molded'),
-        (7, 'Molded On'),
-        (8, 'Nose Piece'),
-        (9, 'Press Fit')
-    )
+    names = ('Cavity Lock', 'Clean Body', 'Locking Lance', 'Clean Body and Lance',
+             'Flex Arm', 'Insert Molded', 'Molded On', 'Nose Piece', 'Press Fit')
+
+    data = ((_id_generator.NIL_UUID.bytes, 'No Lock'),) + tuple(
+        (_id_generator.generate_global_row_id(con).bytes, name) for name in names)
 
     splash.SetText(f'Adding cavity locks to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
@@ -64,18 +58,18 @@ def get_cavity_lock_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM cavity_locks WHERE name="{name}";')
+    con.execute('SELECT id FROM cavity_locks WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding cavity lock ("{name}")')
 
-        con.execute('INSERT INTO cavity_locks (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO cavity_locks (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'cavity lock added "{name}" = {db_id}')
 

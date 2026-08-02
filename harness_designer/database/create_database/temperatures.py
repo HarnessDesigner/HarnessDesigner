@@ -6,6 +6,7 @@ import json
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -21,7 +22,7 @@ def add_records(con, splash, data_path):
     :param data_path: Value for ``data_path``.
     :type data_path: UNKNOWN
     """
-    con.execute('SELECT id FROM temperatures WHERE id=0;')
+    con.execute('SELECT 1 FROM temperatures LIMIT 1;')
     if con.fetchall():
         return
 
@@ -70,21 +71,18 @@ def add_temperature(con, name, id=None, commit=True):  # NOQA
     """
 
     if id is None:
-        con.execute(
-            'INSERT INTO temperatures (name) '
-            'VALUES (?);', (name,)
-            )
-    else:
-        con.execute(
-            'INSERT INTO temperatures (id, name) '
-            'VALUES (?, ?);', (id, name)
-            )
+        id = _id_generator.generate_global_row_id(con).bytes
+
+    con.execute(
+        'INSERT INTO temperatures (id, name) '
+        'VALUES (?, ?);', (id, name)
+        )
 
     _logger.database(f'temperature added "{name}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return id
 
 
 @_check_types.do
@@ -101,7 +99,7 @@ def get_temperature_id(con, name):
     :rtype: UNKNOWN
     """
     if name in ('', None):
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
     if isinstance(name, str):
         if '-' in name:
@@ -114,16 +112,16 @@ def get_temperature_id(con, name):
     else:
         name = str(name) + '°C'
 
-    con.execute(f'SELECT id FROM temperatures WHERE name="{name}";')
+    con.execute('SELECT id FROM temperatures WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding temperature ("{name}")')
-        con.execute('INSERT INTO temperatures (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO temperatures (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
 
-        db_id = con.lastrowid
         _logger.database(f'temperature added "{name}" = {db_id}')
 
         return db_id

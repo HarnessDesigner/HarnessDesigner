@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -20,30 +21,21 @@ def add_records(con, splash, _):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM cpa_lock_types WHERE id=0;')
+    con.execute('SELECT 1 FROM cpa_lock_types LIMIT 1;')
     if con.fetchall():
         return
 
     splash.SetText(f'Building cpa lock types...')
     splash.flush()
 
-    data = (
-        (0, 'No Lock'),
-        (1, 'Lever'),
-        (2, 'Steel Lever'),
-        (3, 'Lever at Cover'),
-        (4, 'Locking Lever'),
-        (5, 'Lever Claw'),
-        (6, 'Locking Slide'),
-        (7, 'Slide'),
-        (8, 'Lever and Locking Slide'),
-        (9, 'Locking Lever and Locking Slide'),
-        (10, 'External CPA Lock'),
-        (11, 'Plastic Clip or Metal Holder'),
-        (12, 'Plastic Lever or Metal Lever'),
-        (13, 'Plastic Clip'),
-        (14, 'Groove')
-    )
+    names = ('Lever', 'Steel Lever', 'Lever at Cover', 'Locking Lever', 'Lever Claw',
+             'Locking Slide', 'Slide', 'Lever and Locking Slide',
+             'Locking Lever and Locking Slide', 'External CPA Lock',
+             'Plastic Clip or Metal Holder', 'Plastic Lever or Metal Lever',
+             'Plastic Clip', 'Groove')
+
+    data = ((_id_generator.NIL_UUID.bytes, 'No Lock'),) + tuple(
+        (_id_generator.generate_global_row_id(con).bytes, name) for name in names)
 
     splash.SetText(f'Adding cpa lock types to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
@@ -69,18 +61,18 @@ def get_cpa_lock_type_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM cpa_lock_types WHERE name="{name}";')
+    con.execute('SELECT id FROM cpa_lock_types WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding cpa lock type ("{name}")')
 
-        con.execute('INSERT INTO cpa_lock_types (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO cpa_lock_types (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'cpa lock type added "{name}" = {db_id}')
 

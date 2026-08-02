@@ -147,17 +147,38 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         :type table: :class:`PJTTableBase`
         :param db_id: Identifier for the database.
         :type db_id: int
-        :param project_id: Identifier for the project.
+        :param project_id: Identifier for the project. Accepted for
+            backward-compatible call sites and the singleton cache key
+            (see :class:`_PJTEntrySingleton`), but not stored directly --
+            :attr:`project_id` derives it from ``db_id`` instead (see the
+            property below), since the two can never disagree once ids are
+            client-generated.
         :type project_id: int | None
         """
         self._table = table
         self._db_id = db_id
-        self.project_id = project_id
 
         self._obj = None
         self._objects = []
         self._treeitem = None
         _callback.CallbackMixin.__init__(self)
+
+    @property
+    @_check_types.do
+    def project_id(self) -> int:
+        """Return the owning project's id, derived from this row's own
+        ``db_id`` -- the leading ``PROJECT_ID_BYTES`` bytes of the packed
+        row id (see database/id_generator.py) -- rather than a separately
+        tracked value that could drift out of sync with the row it's on.
+
+        :returns: The embedded project id.
+        :rtype: int
+        """
+        db_id = self._db_id
+        if isinstance(db_id, uuid.UUID):
+            db_id = db_id.bytes
+
+        return _id_generator.unpack_project_id(db_id)
 
     @_check_types.do
     def update_objects(self):

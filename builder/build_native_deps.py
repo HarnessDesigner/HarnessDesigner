@@ -24,12 +24,10 @@ from . import msvc_env, spawn
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Build assimp from source and install pyassimp against it.',
-    )
+        description='Build assimp from source and install pyassimp against it.')
     parser.add_argument(
         '--debug', action='store_true',
-        help='Build assimp in Debug mode instead of Release (for local debugging).',
-    )
+        help='Build assimp in Debug mode instead of Release (for local debugging).')
     args = parser.parse_args()
 
     # cmake/ninja need the MSVC toolchain on PATH to find cl.exe; no-op on
@@ -46,8 +44,7 @@ def main():
         'cd libs/assimp&&'
         f'cmake -G Ninja -DASSIMP_BUILD_TESTS=off -DASSIMP_INSTALL=off{cmake_build_type} -S . -B build&&'
         'cd build&&'
-        'ninja'
-    )
+        'ninja')
 
     if sys.platform.startswith('linux'):
         os.environ['CPPFLAGS'] = '-Wno-error=maybe-uninitialized'
@@ -92,8 +89,7 @@ def main():
     try:
         subprocess.run(
             [sys.executable, '-m', 'pip', 'install', '--no-build-isolation', assimp_path],
-            check=True,
-        )
+            check=True)
     finally:
         if os.path.exists(toml_bak):
             if os.path.exists(toml_path):

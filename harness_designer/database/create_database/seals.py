@@ -23,6 +23,7 @@ from . import terminals as _terminals
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -152,15 +153,16 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
     compat_terminals = ', '.join(compat_terminals)
 
     _logger.database(f'adding seal {part_number}, {description}')
-    con.execute('INSERT INTO seals (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO seals (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, type_id, hardness, lubricant, length, '
                 'width, height, weight, o_dia, i_dia, wire_size_dia_min, wire_size_dia_max, '
                 'wire_size_cross_min, wire_size_cross_max, wire_size_awg_min, wire_size_awg_max, '
                 'compat_housings, compat_terminals) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
                 '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  type_id, hardness, lubricant, length, width, height, weight, o_dia,
                  i_dia, wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, wire_size_cross_max,
@@ -170,7 +172,7 @@ def add_seal(con, part_number, description, mfg=None, family=None, series=None,
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do
@@ -211,10 +213,12 @@ def add_pjt_seal(con, project_id, part_id, point3d_id=None, housing_id=None,
     if angle3d is None:
         angle3d = [0.0, 0.0, 0.0]
 
-    con.execute('INSERT INTO pjt_seals (project_id, part_id, point3d_id, housing_id, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_seals (id, part_id, point3d_id, housing_id, '
                 'terminal_id, name, notes, quat3d, angle3d, is_visible3d) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, point3d_id, housing_id, terminal_id, name,
+                (new_id, part_id, point3d_id, housing_id, terminal_id, name,
                  notes, str(quat3d), str(angle3d), is_visible3d))
 
     con.commit()

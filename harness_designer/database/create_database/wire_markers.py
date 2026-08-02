@@ -20,6 +20,7 @@ from . import wires as _wires
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -173,13 +174,14 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
     datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
     cad_id = _cads.get_cad_id(con, cad)
 
-    con.execute('INSERT INTO wire_markers (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO wire_markers (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, min_diameter, max_diameter, wire_size_awg_min, wire_size_awg_max, '
                 'wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, '
                 'length, weight, has_label) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, min_diameter,
                  max_diameter, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
                  wire_size_dia_max, wire_size_cross_min, wire_size_cross_max, length,
@@ -189,7 +191,7 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do
@@ -224,10 +226,12 @@ def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=No
     :type is_visible3d: UNKNOWN
     """
 
-    con.execute('INSERT INTO pjt_wire_markers (project_id, part_id, point3d_id, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_wire_markers (id, part_id, point3d_id, '
                 'point2d_id, wire_id, name, notes, label, is_visible2d, is_visible3d) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, point3d_id, point2d_id, wire_id, name, notes,
+                (new_id, part_id, point3d_id, point2d_id, wire_id, name, notes,
                  label, is_visible2d, is_visible3d))
 
     con.commit()

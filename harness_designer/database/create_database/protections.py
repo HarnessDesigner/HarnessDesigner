@@ -3,6 +3,7 @@
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -18,11 +19,11 @@ def add_records(con, splash, _):
     :param _: Value for ``_``.
     :type _: UNKNOWN
     """
-    con.execute('SELECT id FROM protections WHERE id=0;')
+    con.execute('SELECT id FROM protections WHERE id=?;', (_id_generator.NIL_UUID.bytes,))
     if con.fetchall():
         return
 
-    data = (dict(id=0, name='No Protection'),)
+    data = (dict(id=_id_generator.NIL_UUID.bytes, name='No Protection'),)
 
     splash.SetText(f'Adding protections to db [0 | {len(data)}]...')
     splash.flush()
@@ -51,21 +52,18 @@ def add_protection(con, name, id=None, commit=True):  # NOQA
     """
 
     if id is None:
-        con.execute(
-            'INSERT INTO protections (name) '
-            'VALUES (?);', (name,)
-            )
-    else:
-        con.execute(
-            'INSERT INTO protections (id, name) '
-            'VALUES (?, ?);', (id, name)
-            )
+        id = _id_generator.generate_global_row_id(con).bytes
+
+    con.execute(
+        'INSERT INTO protections (id, name) '
+        'VALUES (?, ?);', (id, name)
+        )
 
     _logger.database(f'protection added "{repr(name)}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return id
 
 
 @_check_types.do
@@ -82,18 +80,18 @@ def get_protection_id(con, name):
     :rtype: UNKNOWN
     """
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM protections WHERE name="{name}";')
+    con.execute('SELECT id FROM protections WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding protection ("{name}")')
 
-        con.execute('INSERT INTO protections (name) VALUES (?);', (name,))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO protections (id, name) VALUES (?, ?);', (db_id, name))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'protection added "{name}" = {db_id}')
 

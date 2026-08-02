@@ -61,12 +61,7 @@ class StartStopPosition3DMixin(BaseMixin):
         if self._stored_start_position3d_id is DefaultStoredValue:
             point_id = self._table.select('start_point3d_id', id=self._db_id)[0][0]
             if point_id is None:
-                self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y) VALUES (?, ?, ?);',
-                                    (self._table.project_id, 0.0, 0.0))
-
-                self._table.commit()
-                point_id = self._table.lastrowid
-
+                point_id = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0)
                 self.start_position3d_id = point_id
             self._stored_start_position3d_id = point_id
 
@@ -136,11 +131,7 @@ class StartStopPosition3DMixin(BaseMixin):
         if self._stored_stop_position3d_id is DefaultStoredValue:
             point_id = self._table.select('stop_point3d_id', id=self._db_id)[0][0]
             if point_id is None:
-                self._table.execute(f'INSERT INTO pjt_points3d (project_id, x, y) VALUES (?, ?, ?);',
-                                    (self._table.project_id, 0.0, 0.0))
-
-                self._table.commit()
-                point_id = self._table.lastrowid
+                point_id = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0)
                 self.stop_position3d_id = point_id
 
             self._stored_stop_position3d_id = point_id

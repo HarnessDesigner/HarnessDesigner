@@ -13,6 +13,7 @@ from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueT
 from ... import resources as _resources
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
@@ -117,7 +118,7 @@ class Models3DTable(TableBase):
         if not path:
             return None
 
-        self._con.execute(f'SELECT id FROM models3d WHERE path="{path}";')
+        self._con.execute('SELECT id FROM models3d WHERE path=?;', (path,))
         rows = self._con.fetchall()
 
         if rows:
@@ -125,9 +126,9 @@ class Models3DTable(TableBase):
         else:
             _logger.database(f'adding model3d ("{path}")')
 
-            self._con.execute('INSERT INTO models3d (path) VALUES (?);', (path,))
+            db_id = _id_generator.generate_global_row_id(self._con).bytes
+            self._con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);', (db_id, path))
             self._con.commit()
-            db_id = self._con.lastrowid
 
             _logger.database(f'model3d added "{path}" = {db_id}')
 

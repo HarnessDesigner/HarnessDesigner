@@ -4,6 +4,7 @@ from .. import db_connectors as _con
 from . import manufacturers as _manufacturers
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -21,13 +22,13 @@ def add_records(con, splash, _):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM families WHERE id=0;')
+    con.execute('SELECT 1 FROM families LIMIT 1;')
     if con.fetchall():
         return
 
-    data = (0, 'No Family', 0)
+    data = (_id_generator.NIL_UUID.bytes, 'No Family', _id_generator.NIL_UUID.bytes)
 
-    splash.SetText(f'Adding families to db [{len(data)} | {len(data)}]...', log=False)
+    splash.SetText(f'Adding families to db [1 | 1]...', log=False)
     splash.flush()
 
     con.execute('INSERT INTO families (id, name, mfg_id) VALUES(?, ?, ?);', data)
@@ -53,18 +54,18 @@ def get_family_id(con, name, mfg_id):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM families WHERE name="{name}" AND mfg_id={mfg_id};')
+    con.execute('SELECT id FROM families WHERE name=? AND mfg_id=?;', (name, mfg_id))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding family ("{name}")')
 
-        con.execute('INSERT INTO families (name, mfg_id) VALUES (?, ?);', (name, mfg_id))
+        db_id = _id_generator.generate_global_row_id(con).bytes
+        con.execute('INSERT INTO families (id, name, mfg_id) VALUES (?, ?, ?);', (db_id, name, mfg_id))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'family added "{name}" = {db_id}')
 

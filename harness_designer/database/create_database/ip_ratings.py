@@ -6,6 +6,14 @@ from . import ip_supps as _ip_supps
 from . import ip_fluids as _ip_fluids
 from . import ip_solids as _ip_solids
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
+
+# Positional index -> ip_solids.name / ip_fluids.name, matching the order
+# each was seeded in (see ip_solids.py/ip_fluids.py add_records) -- this
+# table's own data below still refers to solids/fluids by that original
+# sequential position, not by name directly.
+_SOLID_NAMES_BY_INDEX = ('0', '1', '2', '3', '4', '5', '6', 'X')
+_FLUID_NAMES_BY_INDEX = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '6K', '9K', 'X')
 
 
 @_check_types.do
@@ -23,7 +31,7 @@ def add_records(con, splash, _=None):
     :type _: UNKNOWN
     """
 
-    con.execute('SELECT id FROM ip_ratings WHERE id=0;')
+    con.execute('SELECT 1 FROM ip_ratings LIMIT 1;')
     if con.fetchall():
         return
 
@@ -76,7 +84,18 @@ def add_records(con, splash, _=None):
             ('IPX6K', 7, 10),
             ('IPX9K', 7, 11))
 
-    data = [(i,) + item for i, item in enumerate(data)]
+    con.execute('SELECT id, name FROM ip_solids;')
+    solid_ids = {name: db_id for db_id, name in con.fetchall()}
+
+    con.execute('SELECT id, name FROM ip_fluids;')
+    fluid_ids = {name: db_id for db_id, name in con.fetchall()}
+
+    data = [
+        (_id_generator.generate_global_row_id(con).bytes, name,
+         solid_ids[_SOLID_NAMES_BY_INDEX[solid_idx]],
+         fluid_ids[_FLUID_NAMES_BY_INDEX[fluid_idx]])
+        for name, solid_idx, fluid_idx in data
+    ]
 
     splash.SetText(f'Adding IP ratings to db [{len(data)} | {len(data)}]...', log=False)
     splash.flush()
@@ -102,16 +121,21 @@ def get_ip_rating_id(con, ip_rating):  # NOQA
     """
 
     if ip_rating is None:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
     ip_rating = ip_rating.upper().replace('-', '').replace(' ', '')
 
-    con.execute(f'SELECT id FROM ip_ratings WHERE name=?;', (ip_rating,))
+    con.execute('SELECT id FROM ip_ratings WHERE name=?;', (ip_rating,))
     rows = con.fetchall()
     if rows:
         return rows[0][0]
 
-    return 1
+    con.execute('SELECT id FROM ip_ratings WHERE name=?;', ('IPXX',))
+    rows = con.fetchall()
+    if rows:
+        return rows[0][0]
+
+    return _id_generator.NIL_UUID.bytes
 
 
 id_field = _con.UUIDField('id', is_primary=True)

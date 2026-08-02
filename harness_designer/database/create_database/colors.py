@@ -5,6 +5,7 @@ from ... import logger as _logger
 import os
 import json
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -76,17 +77,16 @@ def add_color(con, name, rgb, id=None, commit=True): # NOQA
     """
 
     if id is None:
-        con.execute('INSERT INTO colors (name, rgb) '
-                    'VALUES (?, ?);', (name, rgb))
-    else:
-        con.execute('INSERT INTO colors (id, name, rgb) '
-                    'VALUES (?, ?, ?);', (id, name, rgb))
+        id = _id_generator.generate_global_row_id(con).bytes
+
+    con.execute('INSERT INTO colors (id, name, rgb) '
+                'VALUES (?, ?, ?);', (id, name, rgb))
 
     _logger.database(f'color added "{name}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return id
 
 
 @_check_types.do
@@ -105,18 +105,18 @@ def get_color_id(con, name):
     """
 
     if not name:
-        return 0
+        return _id_generator.NIL_UUID.bytes
 
-    con.execute(f'SELECT id FROM colors WHERE name="{name}";')
+    con.execute('SELECT id FROM colors WHERE name=?;', (name,))
     res = con.fetchall()
 
     if not res:
-        con.execute(f'SELECT id FROM colors WHERE name="{name.title()}";')
+        con.execute('SELECT id FROM colors WHERE name=?;', (name.title(),))
         res = con.fetchall()
 
     if not res:
         print('MISSING COLOR:', name)
-        return 1019
+        return _id_generator.NIL_UUID.bytes
         # raise RuntimeError(name)
 
     return res[0][0]

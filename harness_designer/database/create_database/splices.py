@@ -25,6 +25,7 @@ from . import circuits as _circuits
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -192,15 +193,16 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
     type_id = _splice_types.get_splice_type_id(con, type)
     model3d_id = _models3d.get_model3d_id(con, model3d)
 
-    con.execute('INSERT INTO splices (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO splices (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, material_id, plating_id, type_id, min_dia, '
                 'max_dia, resistance, length, weight, wire_size_awg_min, wire_size_awg_max, '
                 'wire_size_dia_min, wire_size_dia_max, wire_size_cross_min, '
                 'wire_size_cross_max, num_wires) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
-                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  material_id, plating_id, type_id, min_dia, max_dia, resistance,
                  length, weight, wire_size_awg_min, wire_size_awg_max, wire_size_dia_min,
@@ -210,7 +212,7 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do
@@ -247,11 +249,13 @@ def add_pjt_splice(con, project_id, part_id, start_point3d_id=None, stop_point3d
     :type is_visible3d: UNKNOWN
     """
 
-    con.execute('INSERT INTO pjt_splices (project_id, part_id, start_point3d_id, '
+    new_id = _id_generator.generate_project_row_id(con, project_id).bytes
+
+    con.execute('INSERT INTO pjt_splices (id, part_id, start_point3d_id, '
                 'stop_point3d_id, branch_point3d_id, point2d_id, circuit_id, name, '
                 'notes, is_visible2d, is_visible3d) '
                 'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (project_id, part_id, start_point3d_id, stop_point3d_id, branch_point3d_id,
+                (new_id, part_id, start_point3d_id, stop_point3d_id, branch_point3d_id,
                  point2d_id, circuit_id, name, notes, is_visible2d, is_visible3d))
 
     con.commit()

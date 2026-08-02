@@ -215,3 +215,4 @@ __marimo__/
 /libs/assimp/port/PyAssimp/pyassimp.egg-info/
 /libs/assimp/port/PyAssimp/build/
 /build_logs/
+/scratches/

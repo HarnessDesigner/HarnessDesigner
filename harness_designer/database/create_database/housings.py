@@ -27,6 +27,7 @@ from . import points_peg as _points_peg
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -271,7 +272,8 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
     compat_housings = ', '.join(compat_housings)
     compat_boots = ', '.join(compat_boots)
 
-    con.execute('INSERT INTO housings (part_number, description, mfg_id, family_id, '
+    new_id = _id_generator.generate_global_row_id(con).bytes
+    con.execute('INSERT INTO housings (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, model3d_id, direction_id, gender_id, cavity_lock_id, '
                 'ip_rating_id, seal_type_id, cpa_lock_type_id, sealing, rows, num_pins, '
@@ -281,8 +283,8 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                 'cover_point3d, seal_point3d, boot_point3d, tpa_lock_1_point3d, '
                 'tpa_lock_2_point3d, cpa_lock_point3d) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '
-                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                (part_number, description, mfg_id, family_id, series_id, color_id,
+                '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, model3d_id,
                  direction_id, gender_id, cavity_lock_id, ip_rating_id, seal_type_id,
                  cpa_lock_type_id, sealing, rows, num_pins, str(terminal_sizes),
@@ -292,11 +294,11 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
                  weight, str(cover_point3d), str(seal_point3d), str(boot_point3d),
                  str(tpa_lock_1_point3d), str(tpa_lock_2_point3d), str(cpa_lock_point3d)))
 
-    _logger.database(f'boot added "{part_number}"')
+    _logger.database(f'housing added "{part_number}"')
 
     if commit:
         con.commit()
-        return con.lastrowid
+        return new_id
 
 
 @_check_types.do

@@ -8,6 +8,7 @@ from . import file_types as _file_types
 from ... import resources as _resources
 from ... import logger as _logger
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 @_check_types.do
@@ -26,33 +27,34 @@ def get_model3d_id(con, path: str):  # NOQA
     if not path:
         return None
 
-    con.execute(f'SELECT id FROM models3d WHERE path="{path}";')
+    con.execute('SELECT id FROM models3d WHERE path=?;', (path,))
     res = con.fetchall()
 
     if not res:
         _logger.database(f'adding model3d ("{path}")')
 
+        db_id = _id_generator.generate_global_row_id(con).bytes
+
         if path.startswith('http'):
-            con.execute('INSERT INTO models3d (path) VALUES (?);', (path,))
+            con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);', (db_id, path))
         else:
 
-            con.execute(f'SELECT value FROM settings WHERE name="model_path";')
+            con.execute('SELECT value FROM settings WHERE name="model_path";')
             model_path = con.fetchall()[0][0]
 
             src = path
             dst = os.path.join(model_path, os.path.split(path)[-1])
 
-            con.execute(f'SELECT id FROM models3d WHERE path="{dst}";')
+            con.execute('SELECT id FROM models3d WHERE path=?;', (dst,))
             res = con.fetchall()
 
             if res:
                 return res[0][0]
 
             shutil.move(src, dst)
-            con.execute('INSERT INTO models3d (path) VALUES (?);', (dst,))
+            con.execute('INSERT INTO models3d (id, path) VALUES (?, ?);', (db_id, dst))
 
         con.commit()
-        db_id = con.lastrowid
 
         _logger.database(f'model3d added "{path}" = {db_id}')
 
