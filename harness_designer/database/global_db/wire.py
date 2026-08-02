@@ -1,4 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+import uuid
 
 from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
@@ -131,7 +132,7 @@ class WiresTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return Wire(self, item)
             raise IndexError(str(item))

@@ -1,4 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+import uuid
 
 from typing import Iterable as _Iterable
 
@@ -73,7 +74,7 @@ class PJTPoints3DTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return PJTPoint3D(self, item, self.project_id)
             raise IndexError(str(item))

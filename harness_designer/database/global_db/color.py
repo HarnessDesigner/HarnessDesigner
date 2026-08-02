@@ -80,7 +80,7 @@ class ColorsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return Color(self, item)
             raise IndexError(str(item))

@@ -1,4 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+import uuid
 
 # TODO: Rewrite the splices so they accept models and a set number
 #       of splice points. It also needs to be written so there can be a
@@ -134,7 +135,7 @@ class PJTSplicesTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return PJTSplice(self, item, self.project_id)
             raise IndexError(str(item))

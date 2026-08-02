@@ -206,7 +206,7 @@ class PJTCavitiesTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
 
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return PJTCavity(self, item, self.project_id)
             raise IndexError(str(item))

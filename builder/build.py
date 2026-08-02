@@ -10,6 +10,7 @@ import warnings
 
 from . import collect_stdlib
 from . import collect_modules
+from . import prune_dist
 
 if sys.platform.startswith('darwin'):
     import plistlib
@@ -71,8 +72,12 @@ def _clean_dist(app_dir):
     Removes:
       - .py   — Python source files (bytecode is in PyInstaller's archive)
       - .pyi / .pyx / .c / .cpp / .h — stubs and other source files
+      - py.typed — PEP 561 marker consulted only by static type checkers,
+        never by the running app
       - *.dist-info/  — package metadata; license files are extracted first
       - __pycache__/  — bytecode cache dirs
+      - any directory left empty by the removals above, including
+        directories that only ever held a lone py.typed or .py file
       - _tcl_data / _tk_data — Tcl/Tk runtime data (not needed with PySide6)
       - empty directories left over after the above removals
 
@@ -162,7 +167,8 @@ def _clean_dist(app_dir):
             flower = fname.lower()
 
             has_suffix = any(flower.endswith(s) for s in _remove_dll_suffixes)
-            if os.path.splitext(fname)[1] in _REMOVE_EXTS or has_suffix:
+            if (os.path.splitext(fname)[1] in _REMOVE_EXTS or has_suffix
+                    or flower == 'py.typed'):
                 try:
                     os.remove(os.path.join(root, fname))
                     n_files += 1
@@ -178,9 +184,22 @@ def _clean_dist(app_dir):
                     n_dirs += 1
                 except OSError:
                     pass
+                continue
 
             if dname.endswith('.dist-info'):
                 continue
+
+            # topdown=False means dname was already fully visited (its own
+            # files removed, its own now-empty subdirs pruned) in an
+            # earlier iteration of this same walk, so an empty listdir()
+            # here is final, not a snapshot that a later step could still
+            # fill in.
+            try:
+                if not os.listdir(dir_path):
+                    os.rmdir(dir_path)
+                    n_dirs += 1
+            except OSError:
+                pass
 
     print(f'_clean_dist: removed {n_files} files and {n_dirs} directories')
 
@@ -411,9 +430,17 @@ def build_installer():
     # Strip type stubs, C sources, dist-info, __pycache__, and empty dirs from
     # the PyInstaller output before the installer packages everything up.
     if sys.platform.startswith('darwin'):
-        _clean_dist(os.path.join(scripts_dir, 'dist', 'harness_designer.app'))
+        _dist_dir = os.path.join(scripts_dir, 'dist', 'harness_designer.app')
     else:
-        _clean_dist(os.path.join(scripts_dir, 'dist', 'harness_designer'))
+        _dist_dir = os.path.join(scripts_dir, 'dist', 'harness_designer')
+
+    _clean_dist(_dist_dir)
+
+    # Second pass: strip dependency payload that's dead specifically for
+    # this app (whole bundled test suites, Fortran/Cython/link-time build
+    # artifacts, and a few packages' features harness_designer never
+    # calls into) -- see prune_dist.py for the audit behind each removal.
+    prune_dist.prune_dist(_dist_dir)
 
     # --info-plist is not a valid PyInstaller CLI flag; merge custom keys into
     # the generated Info.plist after the build instead.

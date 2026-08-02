@@ -81,7 +81,7 @@ class Models3DTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
 
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return Model3D(self, item)
             raise IndexError(str(item))

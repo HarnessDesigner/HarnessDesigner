@@ -1,4 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+import uuid
 
 """Excel-like data-table overlay geometry and scroll state.
 
@@ -64,7 +65,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         :raises KeyError: Raised when ``item`` is not an ``int``.
         :raises IndexError: Raised when no row with that id exists.
         """
-        if isinstance(item, int):
+        if isinstance(item, (int, bytes, uuid.UUID)):
             if item in self:
                 return PJTPegboardTable(self, item, self.project_id)
             raise IndexError(str(item))
