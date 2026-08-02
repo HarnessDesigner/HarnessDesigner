@@ -241,30 +241,6 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     _table: WireMarkersTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        mfg = self.manufacturer
-        color = self.color
-
-        packet = {
-            'wire_markers': [self.db_id],
-            'colors': [color.db_id],
-            'datasheets': [self.datasheet_id],
-            'cads': [self.cad_id],
-            'images': [self.image_id]
-        }
-
-        self.merge_packet_data(mfg.build_monitor_packet(), packet)
-
-        return packet
-
     _stored_weight: float | DefaultStoredValueType = DefaultStoredValue
 
     @property

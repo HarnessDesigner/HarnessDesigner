@@ -43,7 +43,7 @@ def add_records(con, splash, _=None):
     con.commit()
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'ip_supps',

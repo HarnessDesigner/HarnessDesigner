@@ -312,34 +312,6 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     _table: TPALocksTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        mfg = self.manufacturer
-        color = self.color
-
-        packet = {
-            'tpa_locks': [self.db_id],
-            'families': [self.family_id],
-            'series': [self.series_id],
-            'temperatures': [self.min_temp_id, self.max_temp_id],
-            'colors': [color.db_id],
-            'datasheets': [self.datasheet_id],
-            'cads': [self.cad_id],
-            'images': [self.image_id],
-            'models3d': [self.model3d_id]
-        }
-
-        self.merge_packet_data(mfg.build_monitor_packet(), packet)
-
-        return packet
-
     _stored_pins: DefaultStoredValueType | str = DefaultStoredValue
 
     @property

@@ -126,21 +126,6 @@ class FileType(EntryBase, NameMixin):
     """
     _table: FileTypesTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'file_types': [self.db_id],
-        }
-
-        return packet
-
     _stored_extension: DefaultStoredValueType | str = DefaultStoredValue
 
     @property

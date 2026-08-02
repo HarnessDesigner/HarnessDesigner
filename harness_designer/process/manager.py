@@ -291,10 +291,8 @@ class ProcessManager(threading.Thread):
         """
         self.mainframe = mainframe
         self._print_lock = multiprocessing.Lock()
-        self._db_queue_lock = threading.Lock()
         self._model_lock = threading.Lock()
         self._exit_event = threading.Event()
-        self._db_queue = []
         self._wait_event = threading.Event()
         self._core_count = os.cpu_count()
         self.wait_duration = Config.monitor_duration
@@ -313,11 +311,9 @@ class ProcessManager(threading.Thread):
             self.mainframe.close()
             sys.exit(1)
 
-        from . import db_process
         from . import image_process
         from . import model_process
 
-        self._db_process = db_process.ProcessWorker(self, self._print_lock)
         self._image_process = image_process.ProcessWorker(self, self._print_lock)
         self._model_processes = [model_process.ProcessWorker(self, self._print_lock)]
         self._model_processes_running = [None]
@@ -333,7 +329,6 @@ class ProcessManager(threading.Thread):
         :rtype: None
         :raises RuntimeError: Raised when the connector or worker enters an unexpected state.
         """
-        self._db_process.start()
         self._image_process.start()
         self._model_processes[0].start(True)
 
@@ -647,27 +642,6 @@ class ProcessManager(threading.Thread):
             self._wait_event.wait(0.05)
             self._wait_event.clear()
 
-            args = self._db_process.recv()
-
-            while args is not None:
-                _app.CallAfter(self.mainframe.project.update_objects, *args)
-                args = self._db_process.recv()
-
-            with self._db_queue_lock:
-                messages = self._db_queue[:]
-                del self._db_queue[:]
-
-            for message in messages:
-                self._db_process.send(message)
-
-    def reset(self):
-        """Clear cached monitor state in the worker process.
-
-        :returns: ``None``.
-        :rtype: None
-        """
-        self.send(type='reset_storage')
-
     def get_model(self, model_db: "_model3d.Model3D", resource_db: "_resource_state.ResourceState",
                   mfg: str, part_number: str, path: str):
 
@@ -715,21 +689,6 @@ class ProcessManager(threading.Thread):
             self.wait_duration = 1
             self._wait_event.set()
 
-    def send(self, **kwargs):
-        """Queue a message for delivery to the worker process.
-
-        :param kwargs: Additional credential fields to persist.
-        :type kwargs: UNKNOWN
-
-        :returns: ``None``.
-        :rtype: None
-        """
-        message = json.dumps(kwargs)
-        with self._db_queue_lock:
-            self._db_queue.append(message)
-
-        self._wait_event.set()
-
     @property
     def is_stopped(self):
         return not self.is_alive()
@@ -742,7 +701,6 @@ class ProcessManager(threading.Thread):
         """
 
         self._image_process.stop()
-        self._db_process.stop()
 
         for process in self._model_processes[:]:
             process.stop()

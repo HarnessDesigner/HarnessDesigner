@@ -114,16 +114,21 @@ def get_ip_rating_id(con, ip_rating):  # NOQA
     return 1
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'ip_ratings',
     id_field,
     _con.TextField('name', is_unique=True, no_null=True),
-    _con.IntField('solid_id', default='7', no_null=True,
+    # No schema-level default: previously defaulted to the seeded "Unknown"
+    # row (id 7/12 under the old sequential scheme), but a fixed integer
+    # can't name a dynamically-generated UUID. Callers that relied on the
+    # implicit default now need to resolve the Unknown row's real id
+    # explicitly before inserting.
+    _con.UUIDField('solid_id', no_null=True,
                   references=_con.SQLFieldReference(_ip_solids.table, _ip_solids.id_field)),
-    _con.IntField('fluid_id', default='12', no_null=True,
+    _con.UUIDField('fluid_id', no_null=True,
                   references=_con.SQLFieldReference(_ip_fluids.table, _ip_fluids.id_field)),
-    _con.IntField('supp_id', default='NULL',
+    _con.UUIDField('supp_id', default='NULL',
                   references=_con.SQLFieldReference(_ip_supps.table, _ip_supps.id_field))
 )

@@ -863,6 +863,9 @@ class AddWireHandler(_handler_base.HandlerBase):
             self.obj.db_obj.stop_position3d_id = picked.db_obj.branch_position3d_id
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
+            self.obj.db_obj.stop_position2d_id = picked.db_obj.position2d_id
+            self.obj.obj2d.set_stop_position(picked.db_obj.position2d)
+
             picked.add_wire(self.obj)
             self.obj.set_sibling(picked, 'stop')
 

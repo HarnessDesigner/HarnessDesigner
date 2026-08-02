@@ -15,6 +15,7 @@ from . import terminal_handler as _terminal_handler
 from . import tpa_lock_handler as _tpa_lock_handler
 from . import transition_handler as _transition_handler
 from . import wire_handler as _wire_handler
+from . import wire_handler_2d as _wire_handler_2d
 from . import wire_layout_handler as _wire_layout_handler
 from . import wire_service_loop_handler as _wire_service_loop_handler
 from . import handler_base as _handler_base
@@ -34,6 +35,7 @@ AddTerminalHandler = _terminal_handler.AddTerminalHandler
 AddTPALockHandler = _tpa_lock_handler.AddTPALockHandler
 AddTransitionHandler = _transition_handler.AddTransitionHandler
 AddWireHandler = _wire_handler.AddWireHandler
+AddWireHandler2D = _wire_handler_2d.AddWireHandler2D
 AddWireLayoutHandler = _wire_layout_handler.AddWireLayoutHandler
 AddWireServiceLoopHandler = _wire_service_loop_handler.AddWireServiceLoopHandler
 AddNoteHandler = _note_handler.AddNoteHandler
@@ -51,6 +53,7 @@ del _terminal_handler
 del _tpa_lock_handler
 del _transition_handler
 del _wire_handler
+del _wire_handler_2d
 del _wire_layout_handler
 del _wire_service_loop_handler
 del _note_handler

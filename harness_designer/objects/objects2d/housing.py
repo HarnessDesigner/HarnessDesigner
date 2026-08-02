@@ -305,10 +305,17 @@ class Housing(_base2d.Base2D):
     @_check_types.do
     def _place_child(child_db_obj, local_x: float, local_z: float,
                      housing_position: _point.Point, housing_angle: _angle.Angle):
-        """Write *child_db_obj*'s own ``position2d``/``angle2d`` from a
-        housing-local ``(local_x, local_z)`` offset -- same rotate-then-
-        translate math as ``objects2d/housing_layout.py``'s own
-        ``_apply_placement``, and the same bound-Point write path.
+        """Write *child_db_obj*'s own ``position2d`` from a housing-local
+        ``(local_x, local_z)`` offset -- same rotate-then-translate math
+        as ``objects2d/housing_layout.py``'s own ``_apply_placement``,
+        and the same bound-Point write path.
+
+        *child_db_obj*'s own ``angle2d`` is deliberately left untouched
+        (stays identity) -- cavity/terminal text must always render
+        upright/axis-aligned no matter which way the owning housing is
+        rotated, only its anchor position follows the rotation. See
+        :meth:`render_extras`, which applies the same "position rotates,
+        glyph doesn't" rule to this housing's own corner label.
         """
         points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
         wx, _wy, wz = _base2d._rotate_about_y(points, housing_angle.y)[0]  # NOQA
@@ -317,8 +324,6 @@ class Housing(_base2d.Base2D):
         with position:
             position.x = housing_position.x + float(wx)
             position.z = housing_position.z + float(wz)
-
-        child_db_obj.angle2d.y = housing_angle.y
 
     @_check_types.do
     def _build_corner_label(self, db_obj, cavity_extent, text_extent):
@@ -355,11 +360,17 @@ class Housing(_base2d.Base2D):
         ``objects2d/cavity.py``'s ``Cavity``/``objects2d/terminal.py``'s
         ``Terminal`` -- their own position2d/angle2d are kept in sync by
         :meth:`_layout_children` above.
+
+        Rendered at an identity rotation (not this housing's own
+        ``self._angle``, which drives the rectangle body) so the label
+        always reads upright regardless of the housing's rotation -- its
+        anchor point still follows the rotated corner via
+        :meth:`_world_offset` below, only the glyph orientation is fixed.
         """
         if self._position is None or self._corner_label_vbo is None:
             return
 
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
+        GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)  # identity, (w, x, y, z)
         GL.glUniform1i(normal_loc, 0)
         GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
 
@@ -419,6 +430,14 @@ class Housing(_base2d.Base2D):
         with self._position:
             self._position.x = world_x
             self._position.z = world_y
+
+    @_check_types.do
+    def get_context_menu(self):
+        """Return this housing's own right-click context menu (see
+        ``ui/mainframe.py``'s ``_on_obj_right_click_2d``, which calls
+        this on whatever ``obj2d`` was right-clicked).
+        """
+        return HousingMenu(self.editor2d.editor, self)
 
 
 class HousingMenu(QMenu):

@@ -9,6 +9,7 @@ FIELD_TYPE_REAL = 'DOUBLE'
 FIELD_TYPE_TEXT = 'LONGTEXT'
 FIELD_TYPE_INT = 'INT'
 FIELD_TYPE_BLOB = 'LONGBLOB'
+FIELD_TYPE_UUID = 'BINARY(16)'
 
 REFERENCE_CASCADE = 'CASCADE'
 REFERENCE_DEFAULT = 'RESTRICT'
@@ -164,7 +165,8 @@ class SQLField:
     @_check_types.do
     def __init__(self, name: str, data_type: str, no_null: bool = False,
                  is_unique: bool = False, default: str | None = None,
-                 references: SQLFieldReference | None = None, is_primary: bool = False):
+                 references: SQLFieldReference | None = None, is_primary: bool = False,
+                 autoincrement: bool = True):
 
         """Initialize the SQL field metadata.
 
@@ -182,6 +184,10 @@ class SQLField:
         :type references: SQLFieldReference | None
         :param is_primary: Whether the field is the primary key.
         :type is_primary: bool
+        :param autoincrement: Whether a primary-key field is engine-generated
+            (``AUTO_INCREMENT``). Ignored unless ``is_primary`` is ``True`` --
+            client-generated primary keys (e.g. UUIDField) set this ``False``.
+        :type autoincrement: bool
         """
         self.name = name
 
@@ -191,6 +197,7 @@ class SQLField:
         self.no_null = no_null
         self.references = references
         self.is_primary = is_primary
+        self.autoincrement = autoincrement
 
         self.parent: SQLTable = None
 
@@ -202,7 +209,7 @@ class SQLField:
         :rtype: str
         """
         if self.is_primary:
-            primary = ' AUTO_INCREMENT PRIMARY KEY'
+            primary = ' AUTO_INCREMENT PRIMARY KEY' if self.autoincrement else ' PRIMARY KEY'
         else:
             primary = ''
 
@@ -294,6 +301,102 @@ class PrimaryKeyField(SQLField):
         :type name: str
         """
         super().__init__(name, FIELD_TYPE_INT, is_primary=True)
+
+
+class UUIDField(SQLField):
+
+    """Represent a 128-bit, client-generated UUID-style field (16 raw bytes).
+
+    Never engine-generated (no AUTOINCREMENT/AUTO_INCREMENT) -- the value is
+    always supplied explicitly on INSERT, whether this field is a primary
+    key or a foreign key pointing at one.
+
+    Primary-key usage should leave ``default`` unset (``None``) -- the
+    choke-point insert() code always supplies an explicit generated id.
+    Foreign-key usage may set ``default="X'00000000000000000000000000000000'"``
+    (the nil UUID -- 16 zero bytes) as the not-yet-assigned sentinel, the
+    UUID equivalent of the old int scheme's ``default='0'``. The real
+    generation mechanism never produces the nil UUID, since a genuine
+    timestamp component is always > 0.
+    """
+    @_check_types.do
+    def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
+                 default: str | None = None,
+                 references: SQLFieldReference | None = None, is_primary: bool = False):
+
+        """Initialize the UUID field definition.
+
+        :param name: Name associated with the object being created.
+        :type name: str
+        :param no_null: Whether ``NULL`` values should be disallowed.
+        :type no_null: bool
+        :param is_unique: Whether the field should enforce unique values.
+        :type is_unique: bool
+        :param default: Default SQL literal for the field, if any. See class
+            docstring -- leave unset for primary-key usage.
+        :type default: str | None
+        :param references: Optional foreign-key reference metadata.
+        :type references: SQLFieldReference | None
+        :param is_primary: Whether the field is the primary key.
+        :type is_primary: bool
+        """
+        super().__init__(name, FIELD_TYPE_UUID, no_null, is_unique,
+                         default, references, is_primary, autoincrement=False)
+
+
+class GeneratedField(SQLField):
+
+    """Represent a virtual generated column -- one whose value is always
+    derived from an expression over other columns in the same row, never
+    stored/written directly and never supplied on INSERT.
+
+    Used for ``project_id`` on migrated ``pjt_*`` tables: rather than
+    storing it redundantly, it's derived from the leading 3 bytes of the
+    row's own ``id`` (see database/id_generator.py for the bit layout) --
+    ``GENERATED ALWAYS AS (SUBSTRING(id, 1, 3)) VIRTUAL``. Existing
+    ``WHERE project_id = ?`` call sites keep working unchanged; only the
+    Python-side value passed in needs to switch from an int to the 3-byte
+    big-endian prefix (see id_generator.pack_project_row_id).
+    """
+    @_check_types.do
+    def __init__(self, name: str, data_type: str, expression: str):
+
+        """Initialize the generated field definition.
+
+        :param name: Name associated with the object being created.
+        :type name: str
+        :param data_type: SQL data type of the derived value.
+        :type data_type: str
+        :param expression: SQL expression the column's value is derived from.
+        :type expression: str
+        """
+        super().__init__(name, data_type)
+        self.expression = expression
+
+    @_check_types.do
+    def __str__(self):
+        """Return the SQL definition fragment for the generated column.
+
+        :returns: The SQL fragment describing the field.
+        :rtype: str
+        """
+        return f'{self.name} {self.type} GENERATED ALWAYS AS ({self.expression}) VIRTUAL'
+
+
+class ProjectIdField(GeneratedField):
+
+    """Represent the derived ``project_id`` column on a migrated ``pjt_*`` table.
+
+    Zero-config, connector-agnostic wrapper around GeneratedField so
+    create_database/*.py schema files never need to know the connector-
+    specific type string -- matches how PrimaryKeyField/UUIDField etc. are
+    already used without exposing raw SQL type literals.
+    """
+    @_check_types.do
+    def __init__(self):
+        """Initialize the ``project_id`` generated-column definition.
+        """
+        super().__init__('project_id', 'BINARY(3)', 'SUBSTRING(id, 1, 3)')
 
 
 class TextField(SQLField):

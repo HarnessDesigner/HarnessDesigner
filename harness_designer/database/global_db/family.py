@@ -126,17 +126,3 @@ class Family(EntryBase, NameMixin, DescriptionMixin, ManufacturerMixin):
     """
     _table: FamiliesTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'families': [self.db_id],
-        }
-
-        return packet

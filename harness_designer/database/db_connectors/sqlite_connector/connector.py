@@ -26,6 +26,7 @@ from .... import config as _config
 from .... import logger as _logger
 from .... process import manager as _manager
 from .... import check_types as _check_types
+from .... import __version__ as _version
 
 
 if TYPE_CHECKING:
@@ -187,31 +188,87 @@ class SQLConnector(_base.ConnectorBase):
 
             buf.close()
 
+        @_check_types.do
+        def _find_release_asset_url():
+            """Return the harness_designer_database.zip download URL from the
+            newest database release whose major.minor matches this app's own
+            (MAJOR.MINOR) -- micro-version differences are data-only fixes and
+            don't need to match. Returns None on any lookup failure or if no
+            release matches, so the caller can fall back to an empty database
+            instead of crashing.
+            """
+            try:
+                response = requests.get(
+                    'https://api.github.com/repos/HarnessDesigner/database/releases',
+                    timeout=10)
+                response.raise_for_status()
+                releases = response.json()
+            except Exception as err:  # NOQA
+                _logger.error('failed to look up database releases:', err)
+                return None
+
+            best_release = None
+            best_micro = -1
+
+            for release in releases:
+                tag = release.get('tag_name', '')
+                if not tag.startswith('v'):
+                    continue
+
+                parts = tag[1:].split('.')
+                if len(parts) != 3:
+                    continue
+
+                try:
+                    major, minor, micro = (int(part) for part in parts)
+                except ValueError:
+                    continue
+
+                if major != _version.MAJOR or minor != _version.MINOR:
+                    continue
+
+                if micro > best_micro:
+                    best_micro = micro
+                    best_release = release
+
+            if best_release is None:
+                _logger.error(
+                    f'no database release found matching v{_version.MAJOR}.{_version.MINOR}.x')
+                return None
+
+            for asset in best_release.get('assets', []):
+                if asset.get('name') == 'harness_designer_database.zip':
+                    return asset.get('browser_download_url')
+
+            _logger.error(
+                f'database release {best_release.get("tag_name")} has no '
+                f'harness_designer_database.zip asset')
+            return None
+
+        downloaded = False
+
         if not os.path.exists(self.db_name):
             db_path, db_name = os.path.split(self.db_name)
+            os.makedirs(db_path, exist_ok=True)
 
-            _download_data(
-                'https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/harness_designer_database.zip',
-                'Database', db_path)
-            if db_name != 'harness_designer.db':
-                src = os.path.join(db_path, 'harness_designer.db')
-                os.rename(src, self.db_name)
+            asset_url = _find_release_asset_url()
 
-            model_path = os.path.join(db_path, 'models')
-            cad_path = os.path.join(db_path, 'cads')
-
-            items = [
-                ('https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/cads1.zip', 'CAD 1', cad_path),
-                ('https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/cads2.zip', 'CAD 2', cad_path),
-                ('https://github.com/HarnessDesigner/database/raw/refs/heads/main/prebuilt/models.zip', 'models', model_path)
-            ]
-
-            for item in items:
-                _download_data(*item)
-
-            downloaded = True
-        else:
-            downloaded = False
+            if asset_url is None:
+                splash.SetText('Could not find a matching database download -- '
+                               'starting with an empty database')
+                splash.flush()
+            else:
+                try:
+                    _download_data(asset_url, 'Database', db_path)
+                    if db_name != 'harness_designer.db':
+                        src = os.path.join(db_path, 'harness_designer.db')
+                        os.rename(src, self.db_name)
+                    downloaded = True
+                except Exception as err:  # NOQA
+                    _logger.error('failed to download database:', err)
+                    splash.SetText('Could not download the database -- '
+                                   'starting with an empty database')
+                    splash.flush()
 
         self._connection = sqlite3.connect(self.db_name, check_same_thread=False)
         self._cursor = self._connection.cursor()

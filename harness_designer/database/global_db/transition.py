@@ -271,35 +271,6 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
     
     _table: TransitionsTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        mfg = self.manufacturer
-        color = self.color
-
-        packet = {
-            'transitions': [self.db_id],
-            'families': [self.family_id],
-            'series': [self.series_id],
-            'shapes': [self.shape_id],
-            'materials': [self.material_id],
-            'temperatures': [self.min_temp_id, self.max_temp_id],
-            'colors': [color.db_id],
-            'datasheets': [self.datasheet_id],
-            'cads': [self.cad_id],
-            'images': [self.image_id]
-        }
-
-        self.merge_packet_data(mfg.build_monitor_packet(), packet)
-
-        return packet
-
     _stored_branch_count: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
@@ -500,7 +471,9 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         old_value = self.db_obj.branch_count
 
         if new_value > old_value:
-            self.db_obj.table.execute(f'SELECT id FROM transition_branches WHERE idx={new_value} AND transition_id={self.db_obj.db_id};')
+            self.db_obj.table.execute(
+                f'SELECT id FROM transition_branches WHERE idx={new_value} AND transition_id=?;',
+                (self.db_obj.db_id.bytes,))
             rows = self.db_obj.table.fetchall()
 
             if rows:

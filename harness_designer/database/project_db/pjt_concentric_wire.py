@@ -117,29 +117,6 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     """
     _table: PJTConcentricWiresTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        layer = self.layer
-        wire = self.wire
-
-        packet = {
-            'pjt_concentric_wires': [self.db_id],
-            'pjt_wires': [wire.db_id],
-            'pjt_points2d': [self.point_id],
-            'pjt_concentric_layers': [layer.db_id]
-        }
-
-        self.merge_packet_data(layer.build_monitor_packet(), packet)
-        self.merge_packet_data(wire.build_monitor_packet(), packet)
-
-        return packet
     #
     # def get_object(self) -> "_boot_obj.Boot":
     #     if self._obj is not None:

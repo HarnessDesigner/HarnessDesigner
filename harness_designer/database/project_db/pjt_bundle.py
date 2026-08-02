@@ -164,26 +164,6 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     """
     _table: PJTBundlesTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'pjt_bundles': [self.db_id],
-            'bundle_covers': [self.part_id],
-            'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id],
-            'pjt_points_peg': [self.table_position_peg_id],
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        return packet
-    
     _stored_diameter: float | None | DefaultStoredValueType = DefaultStoredValue
 
     @property

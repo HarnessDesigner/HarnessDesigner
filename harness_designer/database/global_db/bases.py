@@ -4,15 +4,30 @@ from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 
 import weakref
 import json
+import uuid
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import splash as _splash
+
+
+@_check_types.do
+def _as_db_value(value):
+    """Convert a ``uuid.UUID`` to raw bytes for binding; pass everything else through.
+
+    :param value: The value being bound as a query parameter.
+
+    :returns: ``value.bytes`` if ``value`` is a ``uuid.UUID``, otherwise ``value`` unchanged.
+    """
+    if isinstance(value, uuid.UUID):
+        return value.bytes
+    return value
 
 
 # These next 2 classes are for cached values.
@@ -179,25 +194,6 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         """
         self._table.delete(self.db_id)
 
-    @staticmethod
-    @_check_types.do
-    def merge_packet_data(src: dict, dst: dict):
-        """Execute the merge packet data operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param src: Value for ``src``.
-        :type src: dict
-        :param dst: Value for ``dst``.
-        :type dst: dict
-        """
-        for key, values in src.items():
-            if key in dst:
-                values = [value for value in values if value not in dst[key]]
-                dst[key].extend(values)
-            else:
-                dst[key] = values[:]
-
 
 class TableBase:
     """Represent a table base in :mod:`harness_designer.database.global_db.bases`.
@@ -205,6 +201,11 @@ class TableBase:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     __table_name__: str = None
+
+    # True for every migrated global_db table (client-generated UUID row
+    # ids). False only for AppUsersTable, which keeps a plain AUTO_INCREMENT
+    # id -- see the migration plan for why.
+    __uses_uuid_id__: bool = True
 
     @_check_types.do
     def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool):
@@ -273,7 +274,8 @@ class TableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id={db_id};')
+        self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id=?;',
+                    (_as_db_value(db_id),))
         rows = self.fetchall()
 
         if rows:
@@ -340,7 +342,7 @@ class TableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = {item};')
+        self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(item),))
 
         for line in self._con.fetchall():
             return line
@@ -372,17 +374,17 @@ class TableBase:
         return self.__table_name__
 
     @_check_types.do
-    def __contains__(self, db_id: int) -> bool:
+    def __contains__(self, db_id: int | bytes | uuid.UUID) -> bool:
         """Return whether the requested item is present.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes | uuid.UUID
         :returns: ``True`` when the condition is satisfied.
         :rtype: bool
         """
-        self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = {db_id};')
+        self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(db_id),))
 
         if self._con.fetchall():
             return True
@@ -390,29 +392,42 @@ class TableBase:
         return False
 
     @_check_types.do
-    def insert(self, **kwargs) -> int:
+    def insert(self, **kwargs) -> int | uuid.UUID:
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: int
+        :returns: The new row's id -- a ``uuid.UUID`` for every migrated
+            table, or a plain ``int`` for ``AppUsersTable`` (still
+            AUTO_INCREMENT).
+        :rtype: int | uuid.UUID
         """
         fields = []
         values = []
         args = []
+        new_id = None
+
+        if self.__uses_uuid_id__:
+            new_id = _id_generator.generate_global_row_id(self._con)
+            fields.append('id')
+            values.append('?')
+            args.append(new_id.bytes)
 
         for key, value in kwargs.items():
             fields.append(key)
-            args.append(value)
+            args.append(_as_db_value(value))
             values.append('?')
 
         fields = ', '.join(fields)
         values = ', '.join(values)
         self._con.execute(f'INSERT INTO {self.__table_name__} ({fields}) VALUES ({values});', args)
         self._con.commit()
+
+        if self.__uses_uuid_id__:
+            return new_id
+
         return self._con.lastrowid
 
     @_check_types.do
@@ -471,50 +486,6 @@ class TableBase:
         return count
 
     @_check_types.do
-    def load_from_json(self, data: list[dict[str, float | int | str]] | str) -> int:
-        """Load the from json.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param data: Data payload.
-        :type data: list[dict[str, float | int | str]] | str
-        :returns: Return value. UNKNOWN details.
-        :rtype: int
-        :raises RuntimeError: Raised when the operation cannot be completed.
-        """
-        if isinstance(data, str):
-            data = json.loads(data)
-
-        self.execute(f'SELECT "(\'" || group_concat(name, "\', \'") || "\')" from '
-                     f'pragma_table_info("{self.__table_name__}");')
-
-        column_names = sorted(list(eval(self.fetchall()[0][0])))
-        values = ['?'] * len(column_names)
-        found_column_names = []
-
-        insert_cmd = (f'INSERT INTO {self.__table_name__} ({", ".join(column_names)}) '
-                      f'VALUES ({", ".join(values)});')
-        count = 0
-        for line in data:
-            if not found_column_names:
-                found_column_names = sorted(list(line.keys()))
-
-                if found_column_names != column_names:
-                    raise RuntimeError(
-                        'column names in file do not match database table')
-
-            row_data = []
-            for key in column_names:
-                row_data.append(line[key])
-
-            self._con.execute(insert_cmd, row_data)
-
-            count += 1
-
-        self._con.commit()
-        return count
-
-    @_check_types.do
     def select(self, *args, **kwargs):
         """Execute the select operation.
 
@@ -530,45 +501,44 @@ class TableBase:
         args = ', '.join(args)
 
         if kwargs:
-            values = []
+            clauses = []
+            params = []
             for key, value in kwargs.items():
-                if isinstance(value, (str, float)):
-                    value = f'"{value}"'
-                elif value is None:
-                    value = 'NULL'
+                if value is None:
+                    clauses.append(f'{key} IS NULL')
+                else:
+                    clauses.append(f'{key} = ?')
+                    params.append(_as_db_value(value))
 
-                values.append(f'{key} = {value}')
-
-            values = ' AND '.join(values)
-
-            where = f' WHERE {values}'
+            where = f' WHERE {" AND ".join(clauses)}'
         else:
             where = ''
+            params = []
 
-        self._con.execute(f'SELECT {args} FROM {self.__table_name__}{where};')
+        self._con.execute(f'SELECT {args} FROM {self.__table_name__}{where};', params)
         res = self._con.fetchall()
         return res
 
     @_check_types.do
-    def delete(self, db_id: int) -> None:
+    def delete(self, db_id: int | bytes | uuid.UUID) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes | uuid.UUID
         """
-        self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = {db_id};')
+        self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(db_id),))
         self._con.commit()
 
     @_check_types.do
-    def update(self, db_id: int, **kwargs):
+    def update(self, db_id: int | bytes | uuid.UUID, **kwargs):
         """Execute the update operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes | uuid.UUID
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
         """
@@ -577,10 +547,11 @@ class TableBase:
 
         for key, value in kwargs.items():
             fields.append(f'{key} = ?')
-            values.append(value)
+            values.append(_as_db_value(value))
 
         fields = ', '.join(fields)
-        self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = {db_id};', values)
+        values.append(_as_db_value(db_id))
+        self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = ?;', values)
         self._con.commit()
 
     @_check_types.do
@@ -834,6 +805,7 @@ from .datasheet import DatasheetsTable  # NOQA
 from .cpa_lock_type import CPALockTypesTable  # NOQA
 from .resource_state import ResourceStateTable  # NOQA
 from .used_part import UsedPartsTable  # NOQA
+from .app_users import AppUsersTable  # NOQA
 
 
 class GLBTables:
@@ -903,6 +875,7 @@ class GLBTables:
         self._used_parts_table = UsedPartsTable(self, tables, splash, load_database)
         self._wires_table = WiresTable(self, tables, splash, load_database)
         self._wire_markers_table = WireMarkersTable(self, tables, splash, load_database)
+        self._app_users_table = AppUsersTable(self, tables, splash, load_database)
 
         self.connector.db_data = None
 
@@ -999,6 +972,16 @@ class GLBTables:
         :rtype: :class:`BootsTable`
         """
         return self._boots_table
+
+    @property
+    @_check_types.do
+    def app_users_table(self) -> AppUsersTable:
+        """Return the app_users table.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`AppUsersTable`
+        """
+        return self._app_users_table
 
     @property
     @_check_types.do

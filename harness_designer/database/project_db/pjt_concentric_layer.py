@@ -119,26 +119,6 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     """
     _table: PJTConcentricLayersTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        concentric = self.concentric
-
-        packet = {
-            'pjt_concentric_layers': [self.db_id],
-            'pjt_concentrics': [concentric.db_id]
-        }
-
-        self.merge_packet_data(concentric.build_monitor_packet(), packet)
-
-        return packet
-
     # def get_object(self) -> "_boot_obj.Boot":
     #     if self._obj is not None:
     #         return self._obj()

@@ -165,7 +165,7 @@ def get_file_type(con, extension=None, mimetype=None):
         return None
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'file_types',

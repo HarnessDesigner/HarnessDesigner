@@ -142,22 +142,6 @@ class Manufacturer(EntryBase, NameMixin, DescriptionMixin):
     """
     _table: ManufacturersTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'manufacturers': [self.db_id]
-        }
-
-        return packet
-
     _stored_address: DefaultStoredValueType | str = DefaultStoredValue
 
     @property

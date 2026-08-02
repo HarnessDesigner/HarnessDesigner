@@ -11,7 +11,6 @@ from PySide6.QtWidgets import QMenu
 from . import base2d as _base2d
 from ...geometry import angle as _angle
 from ...geometry import point as _point
-from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
@@ -22,9 +21,6 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
-
-
-Config = _config.Config.editor2d
 
 
 class Wire(_base2d.Base2D):
@@ -48,9 +44,10 @@ class Wire(_base2d.Base2D):
     text are, since a cylinder viewed edge-on from directly above already
     reads as a plain rectangle.
 
-    Unlike the 3D editor's real ``od_mm``, every wire renders at the same
-    fixed width (``Config.editor2d.wire.diameter``); unlike 3D's
-    ``stripe_clip_start``/``stripe_clip_stop`` (calibrated to real 3D
+    Renders at the part's real ``od_mm`` -- same value ``objects3d/wire.py``'s
+    ``Wire`` uses -- so gauge is visually distinguishable in the schematic
+    too; unlike 3D's ``stripe_clip_start``/``stripe_clip_stop`` (calibrated
+    to real 3D
     routing length and chained across split segments so the phase never
     jumps at a splice), each 2D segment's stripe starts fresh at its own
     beginning -- the 2D schematic's endpoint distances are laid out
@@ -74,6 +71,7 @@ class Wire(_base2d.Base2D):
         :type db_obj: :class:`_pjt_wire.PJTWire`
         """
         self._part = db_obj.part
+        self._waypoint_points = []
 
         self._p1 = db_obj.start_position2d
         self._p2 = db_obj.stop_position2d
@@ -84,7 +82,7 @@ class Wire(_base2d.Base2D):
         self._stripe_material = (
             _materials.Generic(stripe_color.ui) if stripe_color is not None else None)
 
-        diameter = Config.wire.diameter
+        diameter = self._part.od_mm
         self._length = self._calc_length()
         scale = _point.Point(diameter, diameter, self._length)
 
@@ -107,6 +105,7 @@ class Wire(_base2d.Base2D):
 
             super().__init__(parent, db_obj, vbo, angle, self._p1, scale, material)
 
+            self._bind_waypoints()
             self._recalculate_geometry()
 
     @_check_types.do
@@ -279,6 +278,177 @@ class Wire(_base2d.Base2D):
         update here).
         """
         self._recalculate_geometry()
+
+    @_check_types.do
+    def set_start_position(self, point: _point.Point) -> None:
+        """Repoint this wire's own 2D start end to *point* entirely --
+        mirrors ``objects3d/wire.py``'s ``Wire.set_start_position`` (same
+        "caller already computed where this should be, nothing here
+        moves it" contract; the old start point is left alone as an
+        independent point). Also updates ``self._position`` --
+        ``BaseVar``'s own position, an alias for ``self._p1`` set at
+        construction -- since OBB/AABB, generic drag, etc. all read that,
+        not ``self._p1`` directly.
+        """
+        self._p1.unbind(self._update_position)
+        self._p1 = point
+        self._position = point
+        self._p1.bind(self._update_position)
+        self._recalculate_geometry()
+
+    @_check_types.do
+    def set_stop_position(self, point: _point.Point) -> None:
+        """See :meth:`set_start_position`."""
+        self._p2.unbind(self._update_position)
+        self._p2 = point
+        self._p2.bind(self._update_position)
+        self._recalculate_geometry()
+
+    @_check_types.do
+    def _bind_waypoints(self):
+        """(Re)bind every current interior 2D waypoint's own Point to
+        :meth:`_update_position`, so dragging one recomputes this wire's
+        geometry live -- mirrors ``objects3d/wire.py``'s
+        ``Wire._bind_waypoints``.
+        """
+        for point in self._waypoint_points:
+            point.unbind(self._update_position)
+
+        self._waypoint_points = [wp.point for wp in self.db_obj.waypoints2d]
+
+        for point in self._waypoint_points:
+            point.bind(self._update_position)
+
+    @_check_types.do
+    def refresh_waypoints(self) -> None:
+        """Public entry point for handlers: call after this wire's own
+        2D waypoint rows change (added, removed, or reordered) so live
+        callbacks and geometry all catch up -- mirrors
+        ``objects3d/wire.py``'s ``Wire.refresh_waypoints``.
+        """
+        self._bind_waypoints()
+        self._recalculate_geometry()
+        self.editor2d.Refresh()
+
+    @_check_types.do
+    def _segment_chain(self) -> tuple[list, list[bool]]:
+        """This wire's current path as ``(points, is_fixed)`` -- live
+        Point objects ``[start, wp0, wp1, ..., stop]`` and, for each,
+        whether it's a fixed endpoint (index 0/-1, this wire's own true
+        start/stop -- attached to a Terminal/Splice, must never be moved
+        directly) or a draggable interior waypoint.
+        """
+        waypoints = self.db_obj.waypoints2d
+        points = [self._p1] + [wp.point for wp in waypoints] + [self._p2]
+        is_fixed = [True] + [False] * len(waypoints) + [True]
+        return points, is_fixed
+
+    @staticmethod
+    @_check_types.do
+    def _dist_to_segment(px: float, pz: float, ax: float, az: float,
+                         bx: float, bz: float) -> float:
+        dx, dz = bx - ax, bz - az
+        length_sq = dx * dx + dz * dz
+
+        if length_sq < 1e-9:
+            t = 0.0
+        else:
+            t = ((px - ax) * dx + (pz - az) * dz) / length_sq
+            t = max(0.0, min(1.0, t))
+
+        cx, cz = ax + t * dx, az + t * dz
+        return math.hypot(px - cx, pz - cz)
+
+    @_check_types.do
+    def _insert_waypoint(self, x: float, z: float, at_start: bool) -> _point.Point:
+        """Insert a real, persisted interior waypoint at *(x, z)* --
+        at the very start of the chain (``at_start=True``, renumbering
+        every existing waypoint's ``idx`` up by one) or the very end
+        (``at_start=False``, appended after every existing one).
+        Rebinds/recomputes via :meth:`refresh_waypoints` before
+        returning the new waypoint's own live Point.
+        """
+        ptables = self.mainframe.project.ptables
+        waypoints = self.db_obj.waypoints2d
+
+        if at_start:
+            for wp in waypoints:
+                wp.idx = wp.idx + 1
+            idx = 0
+        else:
+            idx = len(waypoints)
+
+        new_wp = ptables.pjt_points2d_table.insert(x, z, wire_id=self.db_obj.db_id, idx=idx)
+        self.refresh_waypoints()
+
+        return new_wp.point
+
+    @_check_types.do
+    def begin_segment_drag(self, world_pos: _point.Point):
+        """Start dragging whichever of this wire's current segments is
+        nearest *world_pos* -- promoting either bounding end to a real,
+        independent waypoint first if it's currently this wire's own
+        fixed start/stop (so the Terminal/Splice it's attached to is
+        never moved by the drag) -- and return the ``(point_a, point_b,
+        horizontal)`` session :meth:`update_segment_drag` needs for the
+        rest of the drag. ``None`` if this wire has no path at all yet.
+        """
+        points, is_fixed = self._segment_chain()
+        if len(points) < 2:
+            return None
+
+        px, pz = world_pos.x, world_pos.z
+
+        best_i = 0
+        best_dist = None
+        for i in range(len(points) - 1):
+            a, b = points[i], points[i + 1]
+            dist = self._dist_to_segment(px, pz, a.x, a.z, b.x, b.z)
+            if best_dist is None or dist < best_dist:
+                best_dist = dist
+                best_i = i
+
+        a_point, a_fixed = points[best_i], is_fixed[best_i]
+        b_point, b_fixed = points[best_i + 1], is_fixed[best_i + 1]
+
+        # Orientation is read from the two ORIGINAL (possibly-fixed)
+        # points, before either is promoted below -- every existing
+        # segment is already exactly horizontal or vertical (the
+        # auto-router, objects2d/wire_routing.py, only ever produces
+        # orthogonal paths), so this is stable regardless of promotion.
+        horizontal = abs(a_point.z - b_point.z) < 1e-6
+
+        if a_fixed:
+            a_point = self._insert_waypoint(a_point.x, a_point.z, at_start=True)
+
+        if b_fixed:
+            b_point = self._insert_waypoint(b_point.x, b_point.z, at_start=False)
+
+        return a_point, b_point, horizontal
+
+    @staticmethod
+    @_check_types.do
+    def update_segment_drag(session, world_pos: _point.Point) -> None:
+        """Move the dragged segment's shared perpendicular coordinate
+        (both of *session*'s points, together) to *world_pos* -- motion
+        parallel to the segment is ignored, since a jog has exactly one
+        degree of freedom. Everything on either side of these two points
+        -- another waypoint, or this wire's own untouched fixed start/
+        stop -- simply changes length on the next render; nothing else
+        needs updating here.
+        """
+        a_point, b_point, horizontal = session
+
+        if horizontal:
+            with a_point:
+                a_point.z = world_pos.z
+            with b_point:
+                b_point.z = world_pos.z
+        else:
+            with a_point:
+                a_point.x = world_pos.x
+            with b_point:
+                b_point.x = world_pos.x
 
     @_check_types.do
     def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc):

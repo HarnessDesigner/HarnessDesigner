@@ -19,6 +19,9 @@ if Config.database.connector == CONNECTOR_SQLITE:
     SQLTable = sql_table.SQLTable
     SQLFieldReference = sql_table.SQLFieldReference
     PrimaryKeyField = sql_table.PrimaryKeyField
+    UUIDField = sql_table.UUIDField
+    GeneratedField = sql_table.GeneratedField
+    ProjectIdField = sql_table.ProjectIdField
     BytesField = sql_table.BytesField
     FloatField = sql_table.FloatField
     IntField = sql_table.IntField
@@ -34,6 +37,9 @@ elif Config.database.connector == CONNECTOR_MYSQL:
     SQLTable = sql_table.SQLTable
     SQLFieldReference = sql_table.SQLFieldReference
     PrimaryKeyField = sql_table.PrimaryKeyField
+    UUIDField = sql_table.UUIDField
+    GeneratedField = sql_table.GeneratedField
+    ProjectIdField = sql_table.ProjectIdField
     BytesField = sql_table.BytesField
     FloatField = sql_table.FloatField
     IntField = sql_table.IntField

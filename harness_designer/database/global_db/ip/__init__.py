@@ -119,24 +119,6 @@ class IPRating(EntryBase):
     """
     _table: IPRatingsTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'ip_ratings': [self.db_id],
-            'ip_solids': [self.ip_solid_id],
-            'ip_fluids': [self.ip_fluid_id],
-            'ip_supps': [self.ip_supp_id]
-        }
-
-        return packet
-
     _stored_name: str | DefaultStoredValueType = DefaultStoredValue
 
     @property

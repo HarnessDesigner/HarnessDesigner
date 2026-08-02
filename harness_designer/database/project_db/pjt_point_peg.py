@@ -102,10 +102,6 @@ class PJTPointPeg(PJTEntryBase):
     """One peg-board position row, mirroring ``PJTPoint2D`` exactly."""
     _table: PJTPointsPegTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        return {'pjt_points_peg': [self.db_id]}
-
     @property
     @_check_types.do
     def table(self) -> PJTPointsPegTable:

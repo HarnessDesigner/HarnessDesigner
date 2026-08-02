@@ -140,10 +140,12 @@ class Terminal(_ObjectBase):
             wire.db_obj.start_position3d_id = attach_point.db_id
             wire.db_obj.start_position2d_id = self.db_obj.position2d_id
             wire.obj3d.set_start_position(attach_point.point)
+            wire.obj2d.set_start_position(self.db_obj.position2d)
         else:
             wire.db_obj.stop_position3d_id = attach_point.db_id
             wire.db_obj.stop_position2d_id = self.db_obj.position2d_id
             wire.obj3d.set_stop_position(attach_point.point)
+            wire.obj2d.set_stop_position(self.db_obj.position2d)
 
         new_point_ids = [self._own_or_cloned_point_id(
             ptables, self.db_obj.wire_point3d_id, is_first_wire)]

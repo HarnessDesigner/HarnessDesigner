@@ -98,13 +98,13 @@ def add_pjt_transition_branch(con, project_id, part_id, transition_id,
     con.commit()
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 
 table = _con.SQLTable(
     'transition_branches',
     id_field,
-    _con.IntField('transition_id', no_null=True,
+    _con.UUIDField('transition_id', no_null=True,
                   references=_con.SQLFieldReference(_transitions.table,
                                                     _transitions.id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
@@ -122,34 +122,30 @@ table = _con.SQLTable(
 )
 
 
-pjt_id_field = _con.PrimaryKeyField('id')
+pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 pjt_table = _con.SQLTable(
     'pjt_transition_branches',
     pjt_id_field,
-    _con.IntField('project_id', no_null=True,
-                  references=_con.SQLFieldReference(_projects.pjt_table,
-                                                    _projects.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('part_id', no_null=True,
+    _con.ProjectIdField(),
+    _con.UUIDField('part_id', no_null=True,
                   references=_con.SQLFieldReference(table,
                                                     id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('transition_id', no_null=True,
+    _con.UUIDField('transition_id', no_null=True,
                   references=_con.SQLFieldReference(_transitions.pjt_table,
                                                     _transitions.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('point3d_id', no_null=True,
+    _con.UUIDField('point3d_id', no_null=True,
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('diameter', no_null=True),
     _con.IntField('branch_id', no_null=True),
-    _con.IntField('table_point_peg_id', default="NULL",
+    _con.UUIDField('table_point_peg_id', default="NULL",
                   references=_con.SQLFieldReference(_points_peg.pjt_table,
                                                     _points_peg.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,

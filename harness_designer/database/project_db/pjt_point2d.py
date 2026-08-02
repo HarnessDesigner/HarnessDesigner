@@ -125,21 +125,6 @@ class PJTPoint2D(PJTEntryBase):
     """
     _table: PJTPoints2DTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'pjt_points2d': [self.db_id],
-        }
-
-        return packet
-
     @property
     @_check_types.do
     def table(self) -> PJTPoints2DTable:

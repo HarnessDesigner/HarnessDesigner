@@ -117,21 +117,6 @@ class Color(EntryBase, NameMixin):
     _color_id: str = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'colors': [self.db_id],
-        }
-
-        return packet
-
-    @_check_types.do
     def _update_color(self, c: _color.Color) -> None:
         """Update the color.
 

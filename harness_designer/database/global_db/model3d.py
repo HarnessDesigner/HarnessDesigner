@@ -145,25 +145,6 @@ class Model3D(EntryBase):
 
     _download_callbacks = {}
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """
-        Build the monitor packet.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'models3d': [self.db_id]
-        }
-
-        file_type_id = self.file_type_id
-        if file_type_id is not None:
-            packet['file_types'] = [file_type_id]
-
-        return packet
-
     @property
     @_check_types.do
     def data_path(self) -> str | None:

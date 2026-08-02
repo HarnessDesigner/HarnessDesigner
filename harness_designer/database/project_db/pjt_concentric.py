@@ -113,35 +113,6 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     """
     _table: PJTConcentricsTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        bundle = self.bundle
-        transition_branch = self.transition_branch
-
-        packet = {
-            'pjt_concentrics': [self.db_id],
-        }
-
-        if bundle is not None:
-            packet['pjt_bundles'] = [bundle.db_id]
-
-        if transition_branch is not None:
-            packet['pjt_transition_branches'] = [transition_branch.db_id]
-
-        if bundle is not None:
-            self.merge_packet_data(bundle.build_monitor_packet(), packet)
-        if transition_branch is not None:
-            self.merge_packet_data(transition_branch.build_monitor_packet(), packet)
-
-        return packet
-
     # def get_object(self) -> "_boot_obj.Boot":
     #     if self._obj is not None:
     #         return self._obj()

@@ -143,22 +143,6 @@ class TransitionBranch(EntryBase, NameMixin):
     """
     _table: TransitionBranchesTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'transition_branches': [self.db_id],
-            'transitions': [self.transition_id]
-        }
-
-        return packet
-
     _stored_transition: "DefaultStoredValueType | _transition.Transition" = DefaultStoredValue
 
     @property

@@ -181,24 +181,6 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
     _table: PJTNotesTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'pjt_notes': [self.db_id],
-            'pjt_points3d': [self.position3d_id],
-            'pjt_points2d': [self.position2d_id],
-        }
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_note_obj.Note":
         """Return the object.
 

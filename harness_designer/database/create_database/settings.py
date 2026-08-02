@@ -120,7 +120,7 @@ def add_setting(con, key, value, commit=True):
         return con.lastrowid
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'settings',

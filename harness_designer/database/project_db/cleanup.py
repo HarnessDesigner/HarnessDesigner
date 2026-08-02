@@ -48,6 +48,7 @@ from typing import TYPE_CHECKING
 
 from ... import config as _config
 from ... import check_types as _check_types
+from .pjt_bases import _project_id_prefix
 
 if TYPE_CHECKING:
     from . import pjt_bases as _pjt_bases
@@ -55,6 +56,12 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config
+
+# Sentinel used both as the starting cursor and the "batch complete" marker --
+# the nil UUID (16 zero bytes), the same reserved value used as the FK
+# not-yet-assigned sentinel throughout the schema. A real generated row id
+# can never be this value, since a genuine timestamp component is always > 0.
+_CURSOR_START = b'\x00' * 16
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -96,8 +103,8 @@ class ProjectCleanup:
         :type project: :class:`_project.Project`
         """
         self.project = project
-        self._cursor_3d = 0
-        self._cursor_2d = 0
+        self._cursor_3d = _CURSOR_START
+        self._cursor_2d = _CURSOR_START
         self._phase = '3d'
 
         self._tables_3d = [table for table in project.ptables.tables if table.has_points3d]
@@ -116,7 +123,7 @@ class ProjectCleanup:
             self._cursor_3d = self._process_batch(
                 'pjt_points3d', self._tables_3d, self._cursor_3d)
 
-            if self._cursor_3d == 0:
+            if self._cursor_3d == _CURSOR_START:
                 self._phase = '2d'
 
             return True
@@ -125,7 +132,7 @@ class ProjectCleanup:
             self._cursor_2d = self._process_batch(
                 'pjt_points2d', self._tables_2d, self._cursor_2d)
 
-            if self._cursor_2d == 0:
+            if self._cursor_2d == _CURSOR_START:
                 self._phase = '3d'
 
         return False
@@ -138,17 +145,20 @@ class ProjectCleanup:
         delete them.  Returns True when the end of the table is reached.
         """
         con = self.project.connector
+        project_id_prefix = _project_id_prefix(self.project.project_id)
 
         # Compare cursor against the actual highest ID in the table.
         # len(rows) < BATCH_SIZE cannot reliably signal end-of-table
         # because deleted rows leave gaps in the ID sequence — there
         # may be rows with higher IDs even when fewer than BATCH_SIZE
-        # rows were returned for this range.
+        # rows were returned for this range. MAX()/comparison on the id
+        # BLOB column works the same way it did on integers, since ids are
+        # packed big-endian -- byte-wise ordering matches numeric ordering.
         con.execute(f'SELECT MAX(id) FROM {table_name} WHERE project_id = ?;',
-                    (self.project.project_id,))
+                    (project_id_prefix,))
 
         result = con.fetchone()
-        max_id = result[0] if result and result[0] is not None else 0
+        max_id = result[0] if result and result[0] is not None else _CURSOR_START
 
         rows = ()
         new_cursor = cursor
@@ -156,7 +166,7 @@ class ProjectCleanup:
         while not rows and new_cursor < max_id:
             con.execute(f'SELECT id FROM {table_name} '
                         f'WHERE project_id = ? AND id > ? ORDER BY id LIMIT ?;',
-                        (self.project.project_id, cursor,
+                        (project_id_prefix, cursor,
                          Config.database.maintenance.point_batch_size))
 
             rows = con.fetchall()
@@ -165,7 +175,7 @@ class ProjectCleanup:
                 new_cursor = rows[-1][0]
 
         if not rows:
-            return 0
+            return _CURSOR_START
 
         db_ids = [row[0] for row in rows]
 
@@ -186,7 +196,7 @@ class ProjectCleanup:
             self._delete_batch(table_name, db_ids)
 
         if new_cursor >= max_id:
-            return 0
+            return _CURSOR_START
 
         return new_cursor
 
@@ -203,6 +213,6 @@ class ProjectCleanup:
 
         placeholders = ','.join('?' * len(orphan_ids))
         con.execute(f'DELETE FROM {table_name} WHERE project_id = ? AND id IN ({placeholders});',
-                    [self.project.project_id, *orphan_ids])
+                    [_project_id_prefix(self.project.project_id), *orphan_ids])
 
         con.commit()

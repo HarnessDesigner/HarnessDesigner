@@ -160,29 +160,6 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
     _table: PJTCoversTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'pjt_covers': [self.db_id],
-            'pjt_points3d': [self.position3d_id],
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        housing = self.housing
-        if housing is not None:
-            self.merge_packet_data(housing.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_cover_obj.Cover":
         """Return the object.
 

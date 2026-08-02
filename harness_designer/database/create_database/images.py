@@ -69,13 +69,13 @@ def get_image_id(con, path: str):  # NOQA
         return res[0][0]
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'images',
     id_field,
     _con.TextField('uuid', default="NULL"),
-    _con.IntField('file_type_id', default="NULL",
+    _con.UUIDField('file_type_id', default="NULL",
                   references=_con.SQLFieldReference(_file_types.table,
                                                     _file_types.id_field)),
     _con.BlobField('data', default='NULL'),

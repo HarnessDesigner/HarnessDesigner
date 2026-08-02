@@ -123,17 +123,3 @@ class Direction(EntryBase, NameMixin):
     """
     _table: DirectionsTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'directions': [self.db_id]
-        }
-
-        return packet

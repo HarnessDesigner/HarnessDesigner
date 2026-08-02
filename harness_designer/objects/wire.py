@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 import weakref
 
 from . import ObjectBase as _ObjectBase
+from . import terminal as _terminal
+from . import splice as _splice
 from .objects2d import wire as _wire_2d
 from .objects3d import wire as _wire_3d
 from .objectspeg import wire as _wire_peg
@@ -96,6 +98,22 @@ class Wire(_ObjectBase):
             self._stop_sibling_ref = ref
         else:
             raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
+
+    @property
+    @_check_types.do
+    def is_connected(self) -> bool:
+        """Whether this wire has a completed connection (a Terminal or a
+        Splice, never a dangling/free-space end or a bare WireLayout) at
+        *both* its start and stop -- the schematic editor only ever
+        shows/picks a wire meeting this (see ``gl/canvas2d/canvas.py``'s
+        ``_render_vbo_objects``/``gl/canvas2d/mouse_handler.py``'s
+        ``_get_object_at_point``), and it's also what the auto-layout
+        (``objects2d/housing_layout.py``) and auto-router
+        (``objects2d/wire_routing.py``) treat as a real obstacle to route
+        around -- an in-progress wire isn't really "there" yet.
+        """
+        return (isinstance(self.start_sibling, (_terminal.Terminal, _splice.Splice))
+                and isinstance(self.stop_sibling, (_terminal.Terminal, _splice.Splice)))
 
     @property
     @_check_types.do

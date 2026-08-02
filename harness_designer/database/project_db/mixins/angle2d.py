@@ -78,7 +78,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         """
         self.db_obj: Angle2DMixin = None
 
-        super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+        super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=90.0, units='°')
 
         self.propertyChanged.connect(self._on_angle)
 
@@ -86,12 +86,24 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
     def _on_angle(self, evt):
         """Handle the angle event.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Rotation in the 2D editor is about world Y (see ``angle2d.y``'s
+        axis convention, used everywhere in ``objects2d/``), and locked
+        to 90° increments (matches ``objects2d/housing.py``'s ``# TODO:
+        Lock a housing to only be able to be rotated in 90° increments``
+        note) -- round the typed/spun value to the nearest multiple of
+        90 rather than writing it verbatim, so this free-text field can't
+        put a housing at an angle the rotate menu itself never produces.
 
         :param evt: Event object.
         :type evt: UNKNOWN
         """
-        self.db_obj.angle2d.z = evt.GetValue()
+        y = round(evt.GetValue() / 90.0) * 90.0
+        if y > 180.0:
+            y -= 360.0
+        elif y < -180.0:
+            y += 360.0
+
+        self.db_obj.angle2d.y = y
 
     @_check_types.do
     def set_obj(self, db_obj: Angle2DMixin):
@@ -107,5 +119,5 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
             self.SetValue(0.0)
             self.setEnabled(False)
         else:
-            self.SetValue(db_obj.angle2d.z)
+            self.SetValue(db_obj.angle2d.y)
             self.setEnabled(True)

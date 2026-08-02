@@ -152,7 +152,7 @@ def get_plating_id(con, symbol):
         return rows[0][0]
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'platings',

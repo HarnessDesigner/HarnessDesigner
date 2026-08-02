@@ -6,7 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType, _project_id_prefix
 from ...geometry import point as _point
 from ...geometry.decimal import Decimal as _d
 from ... import logger as _logger
@@ -207,22 +207,6 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     _table: PJTCircuitsTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'pjt_circuits': [self.db_id],
-        }
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_circuit_obj.Circuit":
         """Return the object.
 
@@ -383,7 +367,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
                 if not obj.is_start:
                     return [obj]
 
-                db_ids = list(obj.table.db.pjt_wires_table.select('db_id', start_point3d_id=int(point.db_id)))
+                db_ids = list(obj.table.db.pjt_wires_table.select('db_id', start_point3d_id=point.db_id))
 
                 if not db_ids:
                     return [obj]
@@ -432,7 +416,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
             elif isinstance(obj, _pjt_wire.PJTWire):
                 db_ids = list(obj.table.db.pjt_terminals_table.select(
-                    'db_id', circuit_id=self.db_id, point3d_id=int(point.db_id)))
+                    'db_id', circuit_id=self.db_id, point3d_id=point.db_id))
 
                 for db_id in db_ids:
                     terminal = obj.table.db.pjt_terminals_table[db_id[0]]
@@ -443,21 +427,21 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
                     return res
 
                 db_ids = obj.table.db.pjt_wires_table.select(
-                    'db_id', circuit_id=self.db_id, start_point3d_id=int(point.db_id))
+                    'db_id', circuit_id=self.db_id, start_point3d_id=point.db_id)
 
                 for db_id in db_ids:
                     wire = obj.table.db.pjt_wires_table[db_id[0]]
                     res.extend(iter_objs(wire, wire.stop_position3d))
 
                 db_ids = obj.table.db.pjt_wire_service_loops_table.select(
-                    'db_id', circuit_id=self.db_id, start_point3d_id=int(point.db_id))
+                    'db_id', circuit_id=self.db_id, start_point3d_id=point.db_id)
 
                 for db_id in db_ids:
                     loop = obj.table.db.pjt_wire_service_loops_table[db_id[0]]
                     res.extend(iter_objs(loop, loop.stop_position3d))
 
                 db_ids = obj.table.db.pjt_splices_table.select(
-                    'db_id', circuit_id=self.db_id, start_point3d_id=int(point.db_id))
+                    'db_id', circuit_id=self.db_id, start_point3d_id=point.db_id)
 
                 for db_id in db_ids:
                     splice = obj.table.db.pjt_splices_table[db_id[0]]
@@ -479,7 +463,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
                 res.append(wires[:])
                 wires = []
                 db_ids = obj.table.db.pjt_wires_table.select(
-                    'db_id', circuit_id=self.db_id, start_point3d_id=int(point.db_id))
+                    'db_id', circuit_id=self.db_id, start_point3d_id=point.db_id)
 
                 for db_id in db_ids:
                     wire = obj.table.db.pjt_wires_table[db_id[0]]
@@ -504,10 +488,10 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
             elif isinstance(obj, _pjt_wire_service_loop.PJTWireServiceLoop):
                 db_ids = list(obj.table.db.pjt_wires_table.select(
-                    'db_id', circuit_id=self.db_id, start_point3d_id=int(point.db_id)))
+                    'db_id', circuit_id=self.db_id, start_point3d_id=point.db_id))
 
                 db_ids.extend(list(obj.table.db.pjt_wires_table.select(
-                    'db_id', circuit_id=self.db_id, stop_point3d_id=int(point.db_id))))
+                    'db_id', circuit_id=self.db_id, stop_point3d_id=point.db_id)))
 
                 if not db_ids:
                     return [obj]
@@ -990,7 +974,9 @@ class PJTCircuitControl(QTabWidget):
             self.circuit_num_ctrl.SetValue('')
             return
 
-        self.db_obj.table.execute(f'SELECT id FROM pjt_circuits WHERE circuit_num={num} AND project_id={self.db_obj.project_id};')
+        self.db_obj.table.execute(
+            f'SELECT id FROM pjt_circuits WHERE circuit_num={num} AND project_id=?;',
+            (_project_id_prefix(self.db_obj.project_id),))
         rows = self.db_obj.table.fetchall()
 
         if rows:
@@ -1045,14 +1031,18 @@ class PJTCircuitControl(QTabWidget):
         """
         name = evt.GetValue()
 
-        self.db_obj.table.execute(f'SELECT id FROM pjt_circuits WHERE name="{name}" AND project_id={self.db_obj.project_id};')
+        self.db_obj.table.execute(
+            f'SELECT id FROM pjt_circuits WHERE name="{name}" AND project_id=?;',
+            (_project_id_prefix(self.db_obj.project_id),))
         rows = self.db_obj.table.fetchall()
 
         if rows:
             db_id = rows[0]
 
         else:
-            self.db_obj.table.execute(f'SELECT circuit_num FROM pjt_circuits WHERE  project_id={self.db_obj.project_id};')
+            self.db_obj.table.execute(
+                'SELECT circuit_num FROM pjt_circuits WHERE project_id=?;',
+                (_project_id_prefix(self.db_obj.project_id),))
             rows = self.db_obj.table.fetchall()
             if rows:
                 circuit_num = max([row[0] for row in rows])

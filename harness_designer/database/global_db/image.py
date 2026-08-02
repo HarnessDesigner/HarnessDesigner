@@ -117,25 +117,6 @@ class Image(EntryBase):
     _download_callbacks = {}
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'images': [self.db_id]
-        }
-
-        file_type_id = self.file_type_id
-        if file_type_id is not None:
-            packet['file_types'] = [file_type_id]
-
-        return packet
-
-    @_check_types.do
     def download_complete(self):
         if self.db_id not in self._download_callbacks:
             return

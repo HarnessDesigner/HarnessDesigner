@@ -307,29 +307,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
     _table: PJTCavitiesTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """
-        Build the monitor packet.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        housing = self.housing
-
-        packet = {
-            'pjt_cavities': [self.db_id],
-            'pjt_points3d': [self.position3d_id],
-            'pjt_points2d': [self.position2d_id],
-            'pjt_housings': [housing.db_id]
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-        self.merge_packet_data(housing.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_cavity_obj.Cavity":
         """
         Return the object.

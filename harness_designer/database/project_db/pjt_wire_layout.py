@@ -151,29 +151,6 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
     _table: PJTWireLayoutsTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        position3d_id = self.position3d_id
-        position2d_id = self.position2d_id
-
-        packet = {
-            'pjt_wire_layouts': [self.db_id]
-        }
-        if position3d_id is not None:
-            packet['pjt_points3d'] = [position3d_id]
-
-        if position2d_id is not None:
-            packet['pjt_points2d'] = [position2d_id]
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_wire_layout_obj.WireLayout":
         """Return the object.
 

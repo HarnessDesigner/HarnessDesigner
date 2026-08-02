@@ -37,27 +37,34 @@ class Rotate2DMenu(QtWidgets.QMenu):
 
     @_check_types.do
     def on_pos_90(self):
-        """Handle the pos 90 event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """Rotate clockwise 90 degrees -- see ``objects2d/housing.py``'s
+        ``# TODO: Lock a housing to only be able to be rotated in 90°
+        increments`` note; every write to a housing's ``angle2d.y`` stays
+        on a multiple of 90 by construction here.
         """
-        pass
+        y = self.selected.angle.y + 90.0
+        if y > 180.0:
+            y -= 360.0
+
+        self.selected.angle.y = y
 
     @_check_types.do
     def on_neg_90(self):
-        """Handle the neg 90 event.
+        """Rotate counter-clockwise 90 degrees -- see :meth:`on_pos_90`."""
+        y = self.selected.angle.y - 90.0
+        if y < -180.0:
+            y += 360.0
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        self.selected.angle.y = y
 
     @_check_types.do
     def on_pos_180(self):
-        """Handle the pos 180 event.
+        """Rotate 180 degrees -- see :meth:`on_pos_90`."""
+        y = self.selected.angle.y + 180.0
+        if y > 180.0:
+            y -= 360.0
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        self.selected.angle.y = y
 
 
 class Mirror2DMenu(QtWidgets.QMenu):

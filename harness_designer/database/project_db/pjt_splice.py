@@ -182,28 +182,6 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _table: PJTSplicesTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'pjt_cavities': [self.db_id],
-            'cavities': [self.part_id],
-            'pjt_points3d': [self.start_position3d_id, self.stop_position3d_id, self.branch_position3d_id],
-            'pjt_points2d': [self.position2d_id],
-            'pjt_points_peg': [self.position_peg_id],
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_splice_obj.Splice":
         """Return the object.
 

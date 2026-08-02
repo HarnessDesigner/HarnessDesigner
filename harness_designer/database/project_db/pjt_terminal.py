@@ -217,35 +217,6 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
             cavity._populate('terminal_id')  # see PJTTerminalsTable.insert
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        circuit = self.circuit
-        cavity = self.cavity
-
-        packet = {
-            'pjt_terminals': [self.db_id],
-            'pjt_points3d': [self.position3d_id],
-            'pjt_points2d': [self.position2d_id],
-            'pjt_points_peg': [self.position_peg_id],
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        if cavity is not None:
-            self.merge_packet_data(cavity.build_monitor_packet(), packet)
-
-        if circuit is not None:
-            self.merge_packet_data(circuit.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_terminal_obj.Terminal":
         """Return the object.
 

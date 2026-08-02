@@ -9,12 +9,12 @@ from . import points2d as _points2d
 from .. import db_connectors as _con
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'cavities',
     id_field,
-    _con.IntField('housing_id', default='0', no_null=True,
+    _con.UUIDField('housing_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_housings.table,
                                                     _housings.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
@@ -51,33 +51,29 @@ table = _con.SQLTable(
 )
 
 
-pjt_id_field = _con.PrimaryKeyField('id')
+pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 pjt_table = _con.SQLTable(
     'pjt_cavities',
     pjt_id_field,
-    _con.IntField('project_id', no_null=True,
-                  references=_con.SQLFieldReference(_projects.pjt_table,
-                                                    _projects.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('part_id', no_null=True,
+    _con.ProjectIdField(),
+    _con.UUIDField('part_id', no_null=True,
                   references=_con.SQLFieldReference(table,
                                                     id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
 
-    _con.IntField('point2d_id', no_null=True,
+    _con.UUIDField('point2d_id', no_null=True,
                   references=_con.SQLFieldReference(_points2d.pjt_table,
                                                     _points2d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('point3d_id', no_null=True,
+    _con.UUIDField('point3d_id', no_null=True,
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('terminal_point3d_id', default='NULL',
+    _con.UUIDField('terminal_point3d_id', default='NULL',
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
@@ -87,12 +83,12 @@ pjt_table = _con.SQLTable(
     # wire-side mesh surface centroid, falling back to an OBB-derived
     # point) and persisted the first time it's needed; see
     # PJTCavity.wire_position3d.
-    _con.IntField('wire_point3d_id', default='NULL',
+    _con.UUIDField('wire_point3d_id', default='NULL',
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('housing_id', no_null=True,
+    _con.UUIDField('housing_id', no_null=True,
                   references=_con.SQLFieldReference(_housings.pjt_table,
                                                     _housings.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,

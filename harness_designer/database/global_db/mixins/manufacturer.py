@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from ..bases import _as_db_value
 from .... import check_types as _check_types
 
 
@@ -157,7 +158,9 @@ class ManufacturerControl(_prop_ctrls.Category):
         else:
             mfg = db_obj.manufacturer
 
-            self.db_obj.table.execute(f'SELECT name, description, address, contact_person, phone, ext, email, website FROM manufacturers WHERE id={mfg.db_id};')
+            self.db_obj.table.execute(
+                'SELECT name, description, address, contact_person, phone, ext, email, website '
+                'FROM manufacturers WHERE id=?;', (_as_db_value(mfg.db_id),))
             rows = db_obj.table.fetchall()
             name, desc, addr, contact, phone, ext, email, website = rows[0]
 

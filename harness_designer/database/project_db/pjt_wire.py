@@ -222,44 +222,6 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _table: PJTWiresTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        layer_view_position_id = self.layer_view_position_id
-
-        start_position2d_id = self.start_position2d_id
-        stop_position2d_id = self.stop_position2d_id
-
-        start_position3d_id = self.start_position3d_id
-        stop_position3d_id = self.stop_position3d_id
-
-        packet = {
-            'pjt_wires': [self.db_id],
-            'wires': [self.part_id]
-        }
-
-        if None not in (start_position3d_id, stop_position3d_id):
-            packet['pjt_points3d'] = [start_position3d_id, stop_position3d_id]
-
-        if None not in (start_position2d_id, stop_position2d_id):
-            packet['pjt_points2d'] = [start_position2d_id, stop_position2d_id]
-
-        if layer_view_position_id is not None:
-            if 'pjt_points2d' not in packet:
-                packet['pjt_points2d'] = []
-
-            packet['pjt_points2d'].append(layer_view_position_id)
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_wire_obj.Wire":
         """Return the object.
 

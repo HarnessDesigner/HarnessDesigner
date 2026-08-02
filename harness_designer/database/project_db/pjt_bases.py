@@ -3,15 +3,44 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
+import uuid
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
 from ... import check_types as _check_types
+from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import splash as _splash
+
+
+@_check_types.do
+def _project_id_prefix(project_id: int) -> bytes:
+    """Return the big-endian prefix used to filter on the generated
+    ``project_id`` column (see database/id_generator.py -- the column is a
+    BLOB matching the leading bytes of ``id``, not an integer).
+
+    :param project_id: The project's plain integer id (``projects.id``).
+
+    :returns: The prefix to compare the generated column against.
+    :rtype: bytes
+    """
+    return project_id.to_bytes(_id_generator.PROJECT_ID_BYTES, byteorder='big')
+
+
+@_check_types.do
+def _as_db_value(value):
+    """Convert a ``uuid.UUID`` to raw bytes for binding; pass everything else through.
+
+    :param value: The value being bound as a query parameter.
+
+    :returns: ``value.bytes`` if ``value`` is a ``uuid.UUID``, otherwise ``value`` unchanged.
+    """
+    if isinstance(value, uuid.UUID):
+        return value.bytes
+    return value
 
 
 # These next 2 classes are for cached values.
@@ -216,25 +245,6 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         """
         self._selected = flag
 
-    @staticmethod
-    @_check_types.do
-    def merge_packet_data(src: dict, dst: dict):
-        """Execute the merge packet data operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param src: Value for ``src``.
-        :type src: dict
-        :param dst: Value for ``dst``.
-        :type dst: dict
-        """
-        for key, values in src.items():
-            if key in dst:
-                values = [value for value in values if value not in dst[key]]
-                dst[key].extend(values)
-            else:
-                dst[key] = values[:]
-
     @property
     @_check_types.do
     def db_id(self) -> int:
@@ -279,6 +289,11 @@ class PJTTableBase:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     __table_name__: str = None
+
+    # True for every migrated pjt_* table (client-generated UUID row ids).
+    # False only for ProjectsTable, which keeps a plain AUTO_INCREMENT id --
+    # see the migration plan for why.
+    __uses_uuid_id__: bool = True
 
     @_check_types.do
     def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: "_splash.Splash"):
@@ -346,7 +361,8 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE project_id={project_id};')
+        self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE project_id=?;',
+                    (_project_id_prefix(project_id),))
         rows = self.fetchall()
         if rows:
             rows = list(rows)
@@ -411,7 +427,7 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = {item};')
+        self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(item),))
 
         for line in self._con.fetchall():
             return line
@@ -428,7 +444,8 @@ class PJTTableBase:
         if self.project_id is None:
             self._con.execute(f'SELECT id FROM {self.__table_name__};')
         else:
-            self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE project_id = {self.project_id};')
+            self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE project_id = ?;',
+                              (_project_id_prefix(self.project_id),))
 
         for line in self._con.fetchall():
             yield line[0]
@@ -446,17 +463,17 @@ class PJTTableBase:
         return self.__table_name__
 
     @_check_types.do
-    def __contains__(self, db_id: int) -> bool:
+    def __contains__(self, db_id: int | bytes | uuid.UUID) -> bool:
         """Return whether the requested item is present.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes | uuid.UUID
         :returns: ``True`` when the condition is satisfied.
         :rtype: bool
         """
-        self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = {db_id};')
+        self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(db_id),))
 
         if self._con.fetchall():
             return True
@@ -464,34 +481,45 @@ class PJTTableBase:
         return False
 
     @_check_types.do
-    def insert(self, **kwargs) -> int:
+    def insert(self, **kwargs) -> int | uuid.UUID:
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: int
+        :returns: The new row's id -- a ``uuid.UUID`` for every migrated
+            table, or a plain ``int`` for ``ProjectsTable`` (still
+            AUTO_INCREMENT).
+        :rtype: int | uuid.UUID
         """
         fields = []
         values = []
         args = []
+        new_id = None
 
-        if self.project_id is not None:
-            fields.append('project_id')
+        if self.__uses_uuid_id__:
+            new_id = _id_generator.generate_project_row_id(self._con, self.project_id)
+            fields.append('id')
             values.append('?')
-            args.append(self.project_id)
+            args.append(new_id.bytes)
+
+        # project_id is a generated column on every UUID-keyed table (derived
+        # from the leading bytes of id) -- it can never be inserted directly.
 
         for key, value in kwargs.items():
             fields.append(key)
-            args.append(value)
+            args.append(_as_db_value(value))
             values.append('?')
 
         fields = ', '.join(fields)
         values = ', '.join(values)
         self._con.execute(f'INSERT INTO {self.__table_name__} ({fields}) VALUES ({values});', args)
         self._con.commit()
+
+        if self.__uses_uuid_id__:
+            return new_id
+
         return self._con.lastrowid
 
     @_check_types.do
@@ -511,60 +539,62 @@ class PJTTableBase:
         """
         args = ', '.join(args)
 
-        kwarg_values = []
+        kwarg_clauses = []
+        kwarg_params = []
 
         for key, value in kwargs.items():
-            if isinstance(value, (str, float)):
-                value = f'"{value}"'
-            elif value is None:
-                value = 'NULL'
-
-            kwarg_values.append(f'{key} = {value}')
+            if value is None:
+                kwarg_clauses.append(f'{key} IS NULL')
+            else:
+                kwarg_clauses.append(f'{key} = ?')
+                kwarg_params.append(_as_db_value(value))
 
         if OR:
-            kwarg_clause = ' OR '.join(kwarg_values)
-            if kwarg_values:
+            kwarg_clause = ' OR '.join(kwarg_clauses)
+            if kwarg_clauses:
                 kwarg_clause = f'({kwarg_clause})'
         else:
-            kwarg_clause = ' AND '.join(kwarg_values)
+            kwarg_clause = ' AND '.join(kwarg_clauses)
 
         # project_id must always be AND-ed against the kwarg clause, even
         # when OR=True -- otherwise "project_id = X OR <kwargs>" matches
         # every row in the project regardless of the kwargs.
-        values = []
+        where_parts = []
+        where_params = []
         if self.project_id is not None:
-            values.append(f'project_id = {self.project_id}')
+            where_parts.append('project_id = ?')
+            where_params.append(_project_id_prefix(self.project_id))
         if kwarg_clause:
-            values.append(kwarg_clause)
+            where_parts.append(kwarg_clause)
+            where_params.extend(kwarg_params)
 
-        values = ' AND '.join(values)
+        where_clause = ' AND '.join(where_parts)
+        where = f' WHERE {where_clause}' if where_clause else ''
 
-        where = f' WHERE {values}'
-
-        self._con.execute(f'SELECT {args} FROM {self.__table_name__}{where};')
+        self._con.execute(f'SELECT {args} FROM {self.__table_name__}{where};', where_params)
         res = self._con.fetchall()
         return res
 
     @_check_types.do
-    def delete(self, db_id: int) -> None:
+    def delete(self, db_id: int | bytes | uuid.UUID) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes | uuid.UUID
         """
-        self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = {db_id};')
+        self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(db_id),))
         self._con.commit()
 
     @_check_types.do
-    def update(self, db_id: int, **kwargs):
+    def update(self, db_id: int | bytes | uuid.UUID, **kwargs):
         """Execute the update operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes | uuid.UUID
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
         """
@@ -573,10 +603,11 @@ class PJTTableBase:
 
         for key, value in kwargs.items():
             fields.append(f'{key} = ?')
-            values.append(value)
+            values.append(_as_db_value(value))
 
         fields = ', '.join(fields)
-        self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = {db_id};', values)
+        values.append(_as_db_value(db_id))
+        self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = ?;', values)
         self._con.commit()
 
     @_check_types.do
@@ -696,7 +727,7 @@ class PJTTableBase:
             the full input set is returned unchanged so the chain continues.
         """
         if not candidate_ids:
-            return set()
+            return []
 
         point_cols = [col for col in self.field_names if col.endswith(suffix)]
 
@@ -704,11 +735,12 @@ class PJTTableBase:
             # This table has no relevant columns — pass the set through unchanged
             return candidate_ids
 
-        params = candidate_ids[:]
+        params = [_as_db_value(p) for p in candidate_ids]
         placeholders = ','.join('?' * len(params))
 
-        # CTE rows: candidate IDs inlined as literals
-        cte_rows = ','.join(f'({p})' for p in params)
+        # CTE rows: one parameterized placeholder per candidate id (ids are
+        # now UUID bytes, not bare integers -- can't be inlined as literals)
+        cte_rows = ','.join('(?)' for _ in params)
 
         # Each SELECT in the UNION filters by project_id so we only
         # consider rows belonging to the currently open project
@@ -727,10 +759,12 @@ class PJTTableBase:
                  f'ON candidates.id = referenced.point_id '
                  f'WHERE referenced.point_id IS NULL;')
 
-        # One project_id + one copy of params per column in the UNION
-        all_params = []
+        # CTE VALUES params first (matches their position in the query text),
+        # then one project_id prefix + one copy of the candidate params per
+        # column in the UNION.
+        all_params = params[:]
         for _ in point_cols:
-            all_params.append(self.project_id)
+            all_params.append(_project_id_prefix(self.project_id))
             all_params.extend(params)
 
         self._con.execute(query, all_params)

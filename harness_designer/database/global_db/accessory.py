@@ -197,29 +197,6 @@ class Accessory(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
     _table: AccessoriesTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        color = self.color
-
-        packet = {
-            'accessories': [self.db_id],
-            'families': [self.family_id],
-            'series': [self.series_id],
-            'materials': [self.material_id],
-            'colors': [color.db_id],
-        }
-
-        self.merge_packet_data(self.manufacturer.build_monitor_packet(), packet)
-
-        return packet
-
 
 '''
  @property

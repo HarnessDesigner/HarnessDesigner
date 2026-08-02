@@ -73,14 +73,14 @@ def get_family_id(con, name, mfg_id):
         return res[0][0]
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'families',
     id_field,
     _con.TextField('name', no_null=True),
     _con.TextField('description', default='""', no_null=True),
-    _con.IntField('mfg_id', default='0', no_null=True,
+    _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE))

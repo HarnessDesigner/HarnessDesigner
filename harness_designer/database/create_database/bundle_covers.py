@@ -219,59 +219,59 @@ def add_bundle_cover(con, part_number, description, mfg=None, family=None, serie
         return con.lastrowid
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'bundle_covers',
     id_field,
     _con.TextField('part_number', is_unique=True, no_null=True),
     _con.TextField('description', default='""', no_null=True),
-    _con.IntField('mfg_id', default='0', no_null=True,
+    _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('family_id', default='0', no_null=True,
+    _con.UUIDField('family_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_families.table,
                                                     _families.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('series_id', default='0', no_null=True,
+    _con.UUIDField('series_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_series.table,
                                                     _series.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('color_id', default='0', no_null=True,
+    _con.UUIDField('color_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('material_id', default='0', no_null=True,
+    _con.UUIDField('material_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_materials.table,
                                                     _materials.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('image_id', default='NULL',
+    _con.UUIDField('image_id', default='NULL',
                   references=_con.SQLFieldReference(_images.table,
                                                     _images.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('datasheet_id', default='NULL',
+    _con.UUIDField('datasheet_id', default='NULL',
                   references=_con.SQLFieldReference(_datasheets.table,
                                                     _datasheets.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('cad_id', default='NULL',
+    _con.UUIDField('cad_id', default='NULL',
                   references=_con.SQLFieldReference(_cads.table,
                                                     _cads.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('shrink_temp_id', default='0', no_null=True,
+    _con.UUIDField('shrink_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
 
-    _con.IntField('min_temp_id', default='0', no_null=True,
+    _con.UUIDField('min_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('max_temp_id', default='0', no_null=True,
+    _con.UUIDField('max_temp_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_temperatures.table,
                                                     _temperatures.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('protection_id', default='0', no_null=True,
+    _con.UUIDField('protection_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_protections.table,
                                                     _protections.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
@@ -285,27 +285,23 @@ table = _con.SQLTable(
 )
 
 
-pjt_id_field = _con.PrimaryKeyField('id')
+pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 pjt_table = _con.SQLTable(
     'pjt_bundles',
     pjt_id_field,
-    _con.IntField('project_id', no_null=True,
-                  references=_con.SQLFieldReference(_projects.pjt_table,
-                                                    _projects.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('part_id', no_null=True,
+    _con.ProjectIdField(),
+    _con.UUIDField('part_id', no_null=True,
                   references=_con.SQLFieldReference(table,
                                                     id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('start_point3d_id', no_null=True,
+    _con.UUIDField('start_point3d_id', no_null=True,
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('stop_point3d_id', no_null=True,
+    _con.UUIDField('stop_point3d_id', no_null=True,
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
@@ -321,6 +317,6 @@ pjt_table = _con.SQLTable(
     # construction time, not a lazy/string reference, so a real FK back the
     # other way here would be a circular module import. Still holds a
     # pjt_points_peg row id -- just without a DB-enforced constraint.
-    _con.IntField('table_point_peg_id', default="NULL"),
+    _con.UUIDField('table_point_peg_id', default="NULL"),
     _con.IntField('table_hidden', default='0', no_null=True)
 )

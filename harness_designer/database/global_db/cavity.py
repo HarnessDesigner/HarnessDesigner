@@ -181,23 +181,6 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     """
     _table: CavitiesTable = None
 
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'cavities': [self.db_id]
-        }
-
-        self.merge_packet_data(self.housing.build_monitor_packet(), packet)
-
-        return packet
-
     _stored_housing: "DefaultStoredValueType | _housing.Housing" = DefaultStoredValue
 
     @property

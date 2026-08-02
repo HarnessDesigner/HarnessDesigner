@@ -175,29 +175,6 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
     _table: PJTWireServiceLoopsTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        circuit = self.circuit
-
-        packet = {
-            'pjt_wire_service_loops': [self.db_id],
-            'pjt_points3d': [self.start_position3d_id, self.stop_position3d],
-        }
-
-        if circuit is not None:
-            self.merge_packet_data(circuit.build_monitor_packet(), packet)
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_wire_service_loop_obj.WireServiceLoop":
         """Return the object.
 

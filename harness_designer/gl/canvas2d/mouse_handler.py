@@ -92,6 +92,13 @@ class MouseHandler2D(QtCore.QObject):
         self._is_panning = False
         self._click_threshold = 3
 
+        # Set on the first on_mouse_motion of a Wire drag (see
+        # _wire_drag_session_or_start below), so a whole drag gesture
+        # keeps dragging the same segment (and its already-promoted
+        # waypoints) rather than re-picking the nearest segment on every
+        # motion event. Reset whenever a drag starts/ends.
+        self._wire_drag_session = None
+
         canvas.installEventFilter(self)
 
     # ------------------------------------------------------------------
@@ -206,12 +213,21 @@ class MouseHandler2D(QtCore.QObject):
         _update_views``. Replaces the previous per-object ``obj2d.hit_test()``
         loop.
 
+        A ``Wire`` without a completed connection at both ends (see
+        ``objects/wire.py``'s ``Wire.is_connected``) is excluded from the
+        candidate set -- it isn't rendered either (see
+        ``gl.canvas2d.canvas.Canvas._render_vbo_objects``), so it
+        shouldn't be clickable.
+
         :param mouse_pos: Screen-pixel mouse position (not world coordinates).
         :type mouse_pos: :class:`_point.Point`
         :returns: The picked object, or ``None``.
         """
+        candidates = [
+            obj for obj in self.canvas.objects if getattr(obj, 'is_connected', True)]
+
         return _object_picker.find_object(
-            mouse_pos, self.canvas.objects, self.canvas.camera, attr='obj2d')
+            mouse_pos, candidates, self.canvas.camera, attr='obj2d')
 
     @_check_types.do
     def _process_mouse(self, code):
@@ -314,6 +330,7 @@ class MouseHandler2D(QtCore.QObject):
         else:
             if selected == cur_selected:
                 self._drag_obj = selected
+                self._wire_drag_session = None
             else:
                 if cur_selected is not None:
                     cur_selected.set_selected(False)
@@ -360,6 +377,7 @@ class MouseHandler2D(QtCore.QObject):
             if self._drag_obj is not None:
                 self._drag_obj = None
 
+        self._wire_drag_session = None
         self._is_motion = False
         self._send_event(_events.GLEvent(_events.EVT_GL_LEFT_UP), evt)
         self.canvas.releaseMouse()
@@ -625,8 +643,23 @@ class MouseHandler2D(QtCore.QObject):
                         if self.canvas.config.angle.lock and self._drag_offset is not None:
                             world_pos = self.canvas.apply_angle_lock(self._drag_offset, world_pos)
 
-                        position = self._drag_obj.obj2d.position
-                        position += world_pos - position
+                        obj2d = self._drag_obj.obj2d
+                        if hasattr(obj2d, 'begin_segment_drag'):
+                            # A wire's own position is just its start
+                            # endpoint -- dragging that would stretch/
+                            # re-angle it rather than move a section of
+                            # its path, so it gets its own interaction
+                            # (see objects2d/wire.py's begin_segment_drag/
+                            # update_segment_drag) instead of the generic
+                            # "set .position" path below.
+                            if self._wire_drag_session is None:
+                                self._wire_drag_session = obj2d.begin_segment_drag(world_pos)
+
+                            if self._wire_drag_session is not None:
+                                obj2d.update_segment_drag(self._wire_drag_session, world_pos)
+                        else:
+                            position = obj2d.position
+                            position += world_pos - position
 
                         drag_event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_DRAG)
                         drag_event.SetGLObject(self._drag_obj)

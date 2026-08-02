@@ -482,11 +482,21 @@ class Canvas(QOpenGLWidget):
         setting contract exactly (``objectPosition``/``objectRotation``/
         ``objectScale`` per object, same per-frame lighting/camera
         uniforms).
+
+        A ``Wire`` without a completed connection (Terminal or Splice) at
+        both ends is skipped -- see ``objects/wire.py``'s
+        ``Wire.is_connected`` -- so an in-progress/dangling wire simply
+        doesn't appear in the schematic. Every other object type has no
+        ``is_connected`` attribute at all, so ``getattr(..., True)``
+        leaves them unaffected.
         """
         if self._program is None:
             return
 
-        vbo_objects = [obj for obj in self._objects if obj.obj2d.vbo is not None]
+        vbo_objects = [
+            obj for obj in self._objects
+            if obj.obj2d.vbo is not None and getattr(obj, 'is_connected', True)
+        ]
         if not vbo_objects:
             return
 

@@ -9,11 +9,11 @@ pjt_id_field = _con.PrimaryKeyField('id')
 pjt_table = _con.SQLTable(
     'projects',
     pjt_id_field,
-    _con.IntField('model_id', default='NULL',
+    _con.UUIDField('model_id', default='NULL',
                   references=_con.SQLFieldReference(_models3d.table,
                                                     _models3d.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('color_id', default='0',
+    _con.UUIDField('color_id', default="X'00000000000000000000000000000000'",
                   references=_con.SQLFieldReference(_colors.table,
                                                     _colors.id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),

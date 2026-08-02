@@ -93,7 +93,7 @@ class AddNoteDialog(_dialog_base.BaseDialog):
         style = FONT_STYLE_MAPPING[self.style_ctrl.GetSelection()]
 
         color = self.color_ctrl.GetColor()
-        color_id = int(color.db_id)
+        color_id = color.db_id
 
         return (self.note_ctrl.GetValue(), align,
                 style, color_id, self.size_ctrl.GetValue())

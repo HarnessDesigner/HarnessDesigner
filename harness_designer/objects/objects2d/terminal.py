@@ -177,6 +177,16 @@ class Terminal(_base2d.Base2D):
         super()._delete()
 
     @_check_types.do
+    def get_context_menu(self):
+        """Return this terminal's own right-click context menu (see
+        ``ui/mainframe.py``'s ``_on_obj_right_click_2d``, which calls
+        this on whatever ``obj2d`` was right-clicked) -- notably the
+        entry point for drawing a wire from the schematic editor (see
+        :meth:`TerminalMenu.on_add_wire`).
+        """
+        return TerminalMenu(self.editor2d.editor, self)
+
+    @_check_types.do
     def _detach_extra_wires_at_position2d(self):
         """Give every wire but the first one attached at this terminal's
         own 2D point its own new point at the same coordinates.
@@ -270,11 +280,19 @@ class TerminalMenu(QMenu):
 
     @_check_types.do
     def on_add_wire(self):
-        """Handle the add wire event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """Start the interactive 2D wire-drawing flow (see
+        ``handlers/wire_handler_2d.py``), pinned to this terminal as the
+        start end.
         """
-        pass
+        from ..objects3d import menu_ops as _menu_ops
+        from ...handlers import wire_handler_2d as _wire_handler_2d
+
+        mainframe = self.selected.mainframe
+        terminal_obj = self.selected.parent
+
+        _menu_ops.start_handler(
+            mainframe,
+            lambda: _wire_handler_2d.AddWireHandler2D(mainframe, terminal=terminal_obj))
 
     @_check_types.do
     def on_add_wire_service_loop(self):

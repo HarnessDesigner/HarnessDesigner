@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout,
                                QHBoxLayout, QLabel, QLineEdit, QPushButton)
 
 from .. import base as _base
+from . import row_id_functions as _row_id_functions
 from ....ui.widgets import auto_complete
 from .... import logger as _logger
 from .... process import manager as _manager
@@ -229,9 +230,29 @@ class SQLConnector(_base.ConnectorBase):
             printlock, CONNECTOR_MYSQL, host=Config.host, port=Config.port,
             user=username, password=password, database=self.db_name)
 
+        self._ensure_row_id_functions()
+
         self.mainframe.process_manager.start()
 
         return True
+
+    @_check_types.do
+    def _ensure_row_id_functions(self) -> None:
+        """
+        Create/replace the server-side row-id generation functions and their
+        supporting state table if they don't already match.
+
+        Runs on every connect -- cheap (a handful of DDL statements) and
+        keeps every seat's schema in sync with the current function bodies,
+        the same way table field updates already happen on every startup.
+
+        :returns: ``None``.
+        :rtype: None
+        """
+        for statement in _row_id_functions.ROW_ID_STATEMENTS:
+            self._cursor.execute(statement)
+
+        self._connection.commit()
 
     @_check_types.do
     def get_tables(self) -> list[str]:

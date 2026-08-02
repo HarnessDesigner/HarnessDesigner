@@ -114,7 +114,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
                 self.creator_ctrl.GetValue(),
                 self.desc_ctrl.GetValue(),
                 self.user_model_ctrl.GetValue(),
-                int(color.db_id)
+                color.db_id
                 )
 
     @_check_types.do

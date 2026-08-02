@@ -167,39 +167,6 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixi
     _table: PJTTransitionsTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-
-        packet = {
-            'pjt_transitions': [self.db_id],
-            'pjt_points3d': [self.position3d_id],
-            'pjt_points_peg': [self.position_peg_id],
-        }
-
-        for branch in (
-            self.branch1,
-            self.branch2,
-            self.branch3,
-            self.branch4,
-            self.branch5,
-            self.branch6
-        ):
-            if branch is None:
-                continue
-
-            self.merge_packet_data(branch.build_monitor_packet(), packet)
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_transition_obj.Transition":
         """Return the object.
 

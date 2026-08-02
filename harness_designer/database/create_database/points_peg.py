@@ -39,20 +39,16 @@ from . import bundle_covers as _bundle_covers
 from .. import db_connectors as _con
 
 
-pjt_id_field = _con.PrimaryKeyField('id')
+pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 pjt_table = _con.SQLTable(
     'pjt_points_peg',
     pjt_id_field,
-    _con.IntField('project_id', no_null=True,
-                  references=_con.SQLFieldReference(_projects.pjt_table,
-                                                    _projects.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.ProjectIdField(),
     _con.FloatField('x', no_null=True),
     _con.FloatField('z', no_null=True),
     # Bundle-waypoint-only columns -- NULL for an anchor's own point row.
-    _con.IntField('bundle_id', default='NULL',
+    _con.UUIDField('bundle_id', default='NULL',
                   references=_con.SQLFieldReference(_bundle_covers.pjt_table,
                                                     _bundle_covers.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,

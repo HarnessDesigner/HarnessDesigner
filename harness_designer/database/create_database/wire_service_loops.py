@@ -9,7 +9,7 @@ from .. import db_connectors as _con
 from ... import check_types as _check_types
 
 
-pjt_id_field = _con.PrimaryKeyField('id')
+pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
@@ -56,27 +56,23 @@ def add_pjt_wire_service_loop(con, project_id, part_id, name='', start_point3d_i
 pjt_table = _con.SQLTable(
     'pjt_wire_service_loops',
     pjt_id_field,
-    _con.IntField('project_id', no_null=True,
-                  references=_con.SQLFieldReference(_projects.pjt_table,
-                                                    _projects.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('part_id', no_null=True,
+    _con.ProjectIdField(),
+    _con.UUIDField('part_id', no_null=True,
                   references=_con.SQLFieldReference(_wires.table,
                                                     _wires.id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
 
     _con.TextField('name', default='""', no_null=True),
-    _con.IntField('start_point3d_id', default="NULL",
+    _con.UUIDField('start_point3d_id', default="NULL",
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('stop_point3d_id', default="NULL",
+    _con.UUIDField('stop_point3d_id', default="NULL",
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('circuit_id', default='NULL',
+    _con.UUIDField('circuit_id', default='NULL',
                   references=_con.SQLFieldReference(_circuits.pjt_table,
                                                     _circuits.pjt_id_field,
                                                     on_update=_con.REFERENCE_CASCADE)),

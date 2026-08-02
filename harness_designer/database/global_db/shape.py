@@ -121,18 +121,3 @@ class Shape(EntryBase, NameMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: ShapesTable = None
-
-    @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'shapes': [self.db_id]
-        }
-
-        return packet

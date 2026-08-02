@@ -276,31 +276,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _table: PJTHousingsTable = None
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        packet = {
-            'pjt_housings': [self.db_id],
-            'housings': [self.part_id],
-            'pjt_points3d': [self.position3d_id, self.cover_position3d_id,
-                             self.seal_position3d_id, self.boot_position3d_id,
-                             self.tpa_lock_1_position3d_id, self.tpa_lock_2_position3d_id,
-                             self.cpa_lock_position3d_id],
-            'pjt_points2d': [self.position2d_id],
-            'pjt_points_peg': [self.position_peg_id, self.table_position_peg_id],
-
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def update_cavities(self):
         for cavity in self.cavities:
             if cavity is not None:

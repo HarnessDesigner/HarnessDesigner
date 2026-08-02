@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from ..bases import _as_db_value
 from .... import check_types as _check_types
 
 
@@ -128,7 +129,7 @@ class SeriesControl(_prop_ctrls.Category):
             series = db_obj.series
             mfg_id = series.manufacturer.db_id
 
-            db_obj.table.execute(f'SELECT name FROM series WHERE mfg_id={mfg_id};')
+            db_obj.table.execute('SELECT name FROM series WHERE mfg_id=?;', (_as_db_value(mfg_id),))
 
             rows = db_obj.table.fetchall()
 
@@ -155,7 +156,8 @@ class SeriesControl(_prop_ctrls.Category):
         name = evt.GetValue()
         mfg_id = self.db_obj.series.mfg_id
 
-        self.db_obj.table.execute(f'SELECT id, description FROM series WHERE name="{name}" AND mfg_id={mfg_id};')
+        self.db_obj.table.execute(f'SELECT id, description FROM series WHERE name="{name}" AND mfg_id=?;',
+                                  (_as_db_value(mfg_id),))
         rows = self.db_obj.table.fetchall()
 
         if rows:

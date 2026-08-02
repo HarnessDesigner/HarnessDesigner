@@ -1552,16 +1552,16 @@ class MainFrame(QtWidgets.QMainWindow):
             evt.StopPropagation()
         else:
             evt.Skip()
-            # obj = evt.GetGLObject()
+            obj = evt.GetGLObject()
 
-            # context_menu = obj.obj2d.get_context_menu()
-            # if context_menu is not None:
-            #     x, y, _ = evt.GetPosition().as_int
-            #     canvas_widget = self.editor2d.editor
-            #     global_pos = canvas_widget.mapToGlobal(
-            #         canvas_widget.rect().topLeft().__class__(x, y)
-            #     )
-            #     context_menu.exec(global_pos)
+            context_menu = obj.obj2d.get_context_menu()
+            if context_menu is not None:
+                x, y, _ = evt.GetPosition().as_int
+                canvas_widget = self.editor2d.editor
+                global_pos = canvas_widget.mapToGlobal(
+                    canvas_widget.rect().topLeft().__class__(x, y)
+                )
+                context_menu.exec(global_pos)
 
     @_check_types.do
     def _on_obj_right_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:

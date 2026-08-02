@@ -102,7 +102,7 @@ def get_protection_id(con, name):
         return res[0][0]
 
 
-id_field = _con.PrimaryKeyField('id')
+id_field = _con.UUIDField('id', is_primary=True)
 
 table = _con.SQLTable(
     'protections',

@@ -192,35 +192,6 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
             self._table.db.pjt_cavities_table[cavity_id]._stored_seal = None  # NOQA
 
     @_check_types.do
-    def build_monitor_packet(self):
-        """Build the monitor packet.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        housing = self.housing
-        terminal = self.terminal
-        cavity = self.cavity
-
-        packet = {
-            'pjt_seal': [self.db_id],
-            'cavities': [self.part_id],
-            'pjt_points3d': [self.position3d_id],
-        }
-
-        self.merge_packet_data(self.part.build_monitor_packet(), packet)
-        if housing is not None:
-            self.merge_packet_data(housing.build_monitor_packet(), packet)
-        if terminal is not None:
-            self.merge_packet_data(terminal.build_monitor_packet(), packet)
-        if cavity is not None:
-            self.merge_packet_data(cavity.build_monitor_packet(), packet)
-
-        return packet
-
-    @_check_types.do
     def get_object(self) -> "_seal_obj.Seal":
         """Return the object.
 

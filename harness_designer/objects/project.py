@@ -206,7 +206,6 @@ class Project:
         self.project_id = project_id
         self.project_name = project_name
         self.ptables = ptables = mainframe.project_db
-        self.mainframe.process_manager.reset()
         ptables.load(project_id)
         mainframe.object_browser.reset()
 
@@ -220,13 +219,6 @@ class Project:
         from ..database.project_db.cleanup import ProjectCleanup
 
         self.cleanup = ProjectCleanup(self)
-
-        project_tables = [getattr(self.ptables, item) for item in dir(self.ptables) if not item.startswith('_') and item.endswith('_table')]
-        global_tables = [getattr(self.gtables, item) for item in dir(self.gtables) if not item.startswith('_') and item.endswith('_table')]
-
-        for table in project_tables + global_tables:
-            kwargs = {'type': f'field_names_{table.table_name}', 'data': table.field_names}
-            self.mainframe.process_manager.send(**kwargs)
 
         self._boots = {}
         self._bundles = {}
@@ -262,7 +254,6 @@ class Project:
         # long as it's still None.
         mainframe.project = self
 
-        db_ids = {}
         count = 0
 
         # Build the shared wire-stripe helix mesh at the project's last
@@ -282,7 +273,7 @@ class Project:
             _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
         @_check_types.do
-        def _load_objects(table_, label, obj_cls, ids_, container,
+        def _load_objects(table_, label, obj_cls, container,
                           cur_count, max_count):
             # helper function for loading a project
             # note: the object browser tree is populated by
@@ -298,7 +289,6 @@ class Project:
                     mainframe.set_progress(max_count - 1, f'Loading {label}...')
 
                 gui_obj = obj_cls(mainframe, db_obj_, project_load=True)
-                db_obj_.merge_packet_data(db_obj_.build_monitor_packet(), ids_)
                 container[db_obj_.db_id] = gui_obj
 
                 _logger.info(f'{label} Loaded - db_id: {db_obj_.db_id}')
@@ -308,12 +298,12 @@ class Project:
         start_time = time.time()
         count = _load_objects(
             ptables.pjt_notes_table, 'Note',
-            _note.Note, db_ids, self._notes,
+            _note.Note, self._notes,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_circuits_table, 'Circuit',
-            _circuit.Circuit, db_ids, self._circuits,
+            _circuit.Circuit, self._circuits,
             count, self._obj_count)
 
         # Loaded before housings: a housing whose model is already cached
@@ -330,67 +320,67 @@ class Project:
         # persisted at insert time.
         count = _load_objects(
             ptables.pjt_cavities_table, 'Cavity',
-            _cavity.Cavity, db_ids, self._cavities,
+            _cavity.Cavity, self._cavities,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_housings_table, 'Housing',
-            _housing.Housing, db_ids, self._housings,
+            _housing.Housing, self._housings,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_covers_table, 'Cover',
-            _cover.Cover, db_ids, self._covers,
+            _cover.Cover, self._covers,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_cpa_locks_table, 'CPA Lock',
-            _cpa_lock.CPALock, db_ids, self._cpa_locks,
+            _cpa_lock.CPALock, self._cpa_locks,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_tpa_locks_table, 'TPA Lock',
-            _tpa_lock.TPALock, db_ids, self._tpa_locks,
+            _tpa_lock.TPALock, self._tpa_locks,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_boots_table, 'Boot',
-            _boot.Boot, db_ids, self._boots,
+            _boot.Boot, self._boots,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_terminals_table, 'Terminal',
-            _terminal.Terminal, db_ids, self._terminals,
+            _terminal.Terminal, self._terminals,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_seals_table, 'Seal',
-            _seal.Seal, db_ids, self._seals,
+            _seal.Seal, self._seals,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wires_table, 'Wire',
-            _wire.Wire, db_ids, self._wires,
+            _wire.Wire, self._wires,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wire_service_loops_table, 'Wire Service Loop',
-            _wire_service_loop.WireServiceLoop, db_ids, self._wire_service_loops,
+            _wire_service_loop.WireServiceLoop, self._wire_service_loops,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wire_markers_table, 'Wire Marker',
-            _wire_marker.WireMarker, db_ids, self._wire_markers,
+            _wire_marker.WireMarker, self._wire_markers,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_wire_layouts_table, 'Wire Layout',
-            _wire_layout.WireLayout, db_ids, self._wire_layouts,
+            _wire_layout.WireLayout, self._wire_layouts,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_splices_table, 'Splice',
-            _splice.Splice, db_ids, self._splices,
+            _splice.Splice, self._splices,
             count, self._obj_count)
 
         # Terminal/Wire/WireServiceLoop/Splice all exist by now -- rebuild
@@ -401,17 +391,17 @@ class Project:
 
         count = _load_objects(
             ptables.pjt_bundles_table, 'Bundle',
-            _bundle.Bundle, db_ids, self._bundles,
+            _bundle.Bundle, self._bundles,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_bundle_layouts_table, 'Bundle Layout',
-            _bundle_layout.BundleLayout, db_ids, self._bundle_layouts,
+            _bundle_layout.BundleLayout, self._bundle_layouts,
             count, self._obj_count)
 
         count = _load_objects(
             ptables.pjt_transitions_table, 'Transition',
-            _transition.Transition, db_ids, self._transitions,
+            _transition.Transition, self._transitions,
             count, self._obj_count)
 
         # Bundle/Transition both exist by now -- rebuild the in-memory
@@ -435,13 +425,6 @@ class Project:
         self.obj_count = count
 
         _logger.info(f'project loaded: object count: {count}')
-
-        for table_name, ids in db_ids.items():
-            while None in ids:
-                ids.remove(None)
-
-            kwargs = {'type': f'add_{table_name}', 'data': ids}
-            self.mainframe.process_manager.send(**kwargs)
 
     @_check_types.do
     def close(self):
@@ -540,20 +523,6 @@ class Project:
     @_check_types.do
     def wire_stripe_max_length(self, value: float):
         self.db_obj.wire_stripe_max_length = value
-
-    @_check_types.do
-    def update_objects(self, table_name, db_id):
-        """Update the objects.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param table_name: Value for ``table_name``.
-        :type table_name: UNKNOWN
-        :param db_id: Identifier for the database.
-        :type db_id: UNKNOWN
-        """
-        # TODO: Add updating objects from subprocess
-        pass
 
     @property
     @_check_types.do

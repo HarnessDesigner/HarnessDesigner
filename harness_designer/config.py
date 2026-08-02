@@ -684,14 +684,8 @@ class Config(metaclass=ConfigDB):
             objects3d/splice.py's Splice uses (schematic2d's shader
             already does the full 3D lighting/transform before
             projecting to 2D, so there's no need for a flat-only mesh
-            here), sized relative to the fixed 1mm wire diameter."""
+            here)."""
             diameter = 3.0  # mm
-
-        class wire(metaclass=ConfigDB):
-            """Fixed wire sizing for the 2D schematic editor -- every
-            wire renders at the same width regardless of gauge (unlike
-            the 3D editor, which uses the part's real od_mm)."""
-            diameter = 1.0  # mm
 
         class wire_layout(metaclass=ConfigDB):
             """Fixed wire-layout (drag handle) sizing for the 2D
@@ -713,15 +707,24 @@ class Config(metaclass=ConfigDB):
             height = 14.0  # mm
 
         class layout(metaclass=ConfigDB):
-            """Automatic housing placement for the 2D schematic editor."""
+            """Automatic housing placement and wire routing for the 2D
+            schematic editor."""
             auto_layout_enabled = True
 
-            # mm, gap between adjacent housings on one edge
+            # mm, minimum clearance kept between a newly auto-placed
+            # housing's own footprint and every other housing's/connected
+            # wire's -- see objects2d/housing_layout.py's place_housing.
+            # Also used by objects2d/wire_routing.py as the routing
+            # grid's own clearance around housings and its bounding-box
+            # margin around a wire's two endpoints.
             housing_spacing = 10.0
 
-            # mm, gap between the interior rectangle and
-            # each housing row/column (room for wire routing)
-            margin = 20.0
+            # mm, uniform routing-grid resolution objects2d/wire_routing.py's
+            # auto-router adds between a wire's two endpoints (on top of
+            # exact lines through the endpoints and every nearby housing
+            # edge) -- finer than housing_spacing so a route has room to
+            # jog around obstacles without being forced into a wide detour.
+            routing_grid = 5.0
 
         class label(metaclass=ConfigDB):
             """Housing/cavity/terminal schematic label text sizing --

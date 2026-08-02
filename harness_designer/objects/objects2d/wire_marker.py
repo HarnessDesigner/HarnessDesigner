@@ -11,7 +11,6 @@ from . import base2d as _base2d
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
-from ... import config as _config
 from ...gl import materials as _materials
 from ...shapes import cylinder as _cylinder
 from ... import logger as _logger
@@ -22,9 +21,6 @@ if TYPE_CHECKING:
     from .. import wire_marker as _wire_marker
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
     from ...database.project_db import pjt_wire as _pjt_wire
-
-
-Config = _config.Config.editor2d
 
 
 class WireMarker(_base2d.Base2D):
@@ -40,9 +36,7 @@ class WireMarker(_base2d.Base2D):
     endpoints move. Structurally mirrors
     ``objects3d/wire_marker.py``'s ``WireMarker`` (percent-of-buffered-
     range tracking, wire-too-short guard, ``rebind_wire`` for a split
-    wire), with two 2D-specific differences: the fixed
-    ``Config.editor2d.wire.diameter`` (rather than the wire's real
-    ``od_mm``) drives its width, and its rotation is computed directly
+    wire), with one 2D-specific difference: its rotation is computed directly
     (``atan2(dx, dz)`` about world Y, same formula ``objects2d/wire.py``
     already uses and has verified against ``_rotate_about_y``) rather
     than via ``Angle.from_points``, whose axis convention isn't verified
@@ -99,7 +93,7 @@ class WireMarker(_base2d.Base2D):
 
             material = _materials.Generic(self._part.color.ui)
 
-            diameter = Config.wire.diameter
+            diameter = wire.part.od_mm
             length = self._marker_length
 
             if wire.has_stripe:

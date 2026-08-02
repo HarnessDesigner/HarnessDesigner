@@ -125,9 +125,11 @@ class AddHousingHandler(_handler_base.HandlerBase):
         self.obj.db_obj.update_cavities()
         self.obj.obj3d.match_cavity_surfaces()
 
-        # A housing was just added -- rebalance the whole 2D schematic
-        # formation (no-op if Config.editor2d.layout.auto_layout_enabled
-        # is off).
-        _housing_layout.recompute_layout(self.mainframe.project)
+        # A housing was just added -- give it its own non-overlapping
+        # spot in the 2D schematic (no-op if
+        # Config.editor2d.layout.auto_layout_enabled is off). Every
+        # other housing already placed, by this or an earlier auto-
+        # placement or by hand, is left untouched.
+        _housing_layout.place_housing(self.mainframe.project, self.obj)
 
         self.obj = None
