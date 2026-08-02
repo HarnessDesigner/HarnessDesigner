@@ -27,7 +27,17 @@ import shutil
 # Directories with these basenames (case-insensitive) are a package's own
 # test suite, never imported by the running app. Removed wholesale,
 # wherever they appear in the tree, at any depth.
-_TEST_DIR_NAMES = frozenset(['test', 'tests', 'testing', 'test-examples'])
+#
+# Deliberately excludes singular 'testing': that name collides with a
+# real public runtime API in some packages (numpy.testing, pandas.testing
+# both ship production code like assert_allclose/assert_frame_equal that
+# other libraries import directly -- scipy._lib.array_api_compat does
+# exactly this, which is how removing numpy/testing wholesale broke the
+# app's actual import chain the first time this ran). Plural 'tests' and
+# the stdlib/ctypes/tkinter convention of singular 'test' don't have that
+# problem -- no package in this bundle exposes either as public API, only
+# ever as an internal suite.
+_TEST_DIR_NAMES = frozenset(['test', 'tests', 'test-examples'])
 
 # Extensions that only ever matter at compile/link time for the packages
 # in this bundle (numpy/scipy Fortran + f2py + Cython + MSVC import-lib
