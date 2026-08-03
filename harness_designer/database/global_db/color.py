@@ -80,9 +80,10 @@ class ColorsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Color(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', name=item)
@@ -114,7 +115,7 @@ class Color(EntryBase, NameMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: ColorsTable = None
-    _color_id: str = None
+    _color_id: bytes | None = None
 
     @_check_types.do
     def _update_color(self, c: _color.Color) -> None:
@@ -142,7 +143,7 @@ class Color(EntryBase, NameMixin):
         """
         if self._stored_ui is DefaultStoredValue:
             if self._color_id is None:
-                self._color_id = str(uuid.uuid4())
+                self._color_id = uuid.uuid4().bytes
 
             color = _color.Color(*self.rgb, db_id=self._color_id)
             color.bind(self._update_color)

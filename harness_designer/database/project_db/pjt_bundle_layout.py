@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -120,7 +119,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         :rtype: _Iterable['PJTBundleLayout']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTBundleLayout(self, db_id, self.project_id)
+            yield PJTBundleLayout(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTBundleLayout":
@@ -135,21 +134,21 @@ class PJTBundleLayoutsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTBundleLayout(self, item, self.project_id)
+                return PJTBundleLayout(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, coord_id: int, diameter: float) -> "PJTBundleLayout":
+    def insert(self, coord_id: bytes, diameter: float) -> "PJTBundleLayout":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param coord_id: Identifier for the coord.
-        :type coord_id: int
+        :type coord_id: bytes
         :param diameter: Value for ``diameter``.
         :type diameter: float
         :returns: Return value. UNKNOWN details.
@@ -157,7 +156,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(self, coord_id=coord_id, diameter=diameter)
 
-        return PJTBundleLayout(self, db_id, self.project_id)
+        return PJTBundleLayout(self, db_id)
 
 
 class PJTBundleLayout(PJTEntryBase, Position3DMixin, Visible3DMixin, NotesMixin, SmoothMixin):

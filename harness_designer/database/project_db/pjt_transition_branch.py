@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -67,7 +66,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
         :rtype: _Iterable['PJTTransitionBranch']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTTransitionBranch(self, db_id, self.project_id)
+            yield PJTTransitionBranch(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTTransitionBranch":
@@ -82,24 +81,24 @@ class PJTTransitionBranchesTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTTransitionBranch(self, item, self.project_id)
+                return PJTTransitionBranch(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, transition_id: int, point_id: int,
+    def insert(self, transition_id: bytes, point_id: bytes,
                branch_id: int, diameter: float) -> "PJTTransitionBranch":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param transition_id: Identifier for the transition.
-        :type transition_id: int
+        :type transition_id: bytes
         :param point_id: Identifier for the point.
-        :type point_id: int
+        :type point_id: bytes
         :param branch_id: Identifier for the branch.
         :type branch_id: int
         :param diameter: Value for ``diameter``.
@@ -115,7 +114,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, transition_id=transition_id, point_id=point_id,
                                     branch_id=branch_id, diameter=float(diameter))
 
-        return PJTTransitionBranch(self, db_id, self.project_id)
+        return PJTTransitionBranch(self, db_id)
 
 
 class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
@@ -220,17 +219,17 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
 
         return self._stored_transition
 
-    _stored_transition_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_transition_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def transition_id(self) -> int:
+    def transition_id(self) -> bytes:
         """Return the transition ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_transition_id is DefaultStoredValue:
             self._stored_transition_id = self._table.select('transition_id', id=self._db_id)[0][0]
@@ -239,13 +238,13 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
 
     @transition_id.setter
     @_check_types.do
-    def transition_id(self, value: int):
+    def transition_id(self, value: bytes):
         """Set the transition ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_transition_id = value
         self._stored_transition = DefaultStoredValue

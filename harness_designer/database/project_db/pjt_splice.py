@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 # TODO: Rewrite the splices so they accept models and a set number
 #       of splice points. It also needs to be written so there can be a
@@ -120,7 +119,7 @@ class PJTSplicesTable(PJTTableBase):
         :rtype: _Iterable['PJTSplice']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTSplice(self, db_id, self.project_id)
+            yield PJTSplice(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTSplice":
@@ -135,32 +134,32 @@ class PJTSplicesTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTSplice(self, item, self.project_id)
+                return PJTSplice(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, start_point3d_id: int, stop_point3d_id: int,
-               branch_point3d_id: int, point2d_id: int, circuit_id: int) -> "PJTSplice":
+    def insert(self, part_id: bytes, name: str, start_point3d_id: bytes, stop_point3d_id: bytes,
+               branch_point3d_id: bytes, point2d_id: bytes, circuit_id: bytes) -> "PJTSplice":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param start_point3d_id: Identifier for the start point 3D.
-        :type start_point3d_id: int
+        :type start_point3d_id: bytes
         :param stop_point3d_id: Identifier for the stop point 3D.
-        :type stop_point3d_id: int
+        :type stop_point3d_id: bytes
         :param branch_point3d_id: Identifier for the branch point 3D.
-        :type branch_point3d_id: int
+        :type branch_point3d_id: bytes
         :param point2d_id: Identifier for the point 2D.
-        :type point2d_id: int
+        :type point2d_id: bytes
         :param circuit_id: Identifier for the circuit.
-        :type circuit_id: int
+        :type circuit_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTSplice`
         """
@@ -169,7 +168,7 @@ class PJTSplicesTable(PJTTableBase):
                                     start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
                                     branch_point3d_id=branch_point3d_id, point2d_id=point2d_id)
 
-        return PJTSplice(self, db_id, self.project_id)
+        return PJTSplice(self, db_id)
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
@@ -301,17 +300,17 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return self._stored_branch_position3d.point
 
-    _stored_branch_position3d_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_branch_position3d_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def branch_position3d_id(self) -> int:
+    def branch_position3d_id(self) -> bytes:
         """Return the branch position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_branch_position3d_id is DefaultStoredValue:
             point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
@@ -325,13 +324,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @branch_position3d_id.setter
     @_check_types.do
-    def branch_position3d_id(self, value: int):
+    def branch_position3d_id(self, value: bytes):
         """Set the branch position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_branch_position3d_id = value
         self._stored_branch_position3d = DefaultStoredValue
@@ -357,17 +356,17 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return self._stored_circuit
 
-    _stored_circuit_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_circuit_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def circuit_id(self) -> int:
+    def circuit_id(self) -> bytes:
         """Return the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_circuit_id is DefaultStoredValue:
             self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
@@ -376,13 +375,13 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: int):
+    def circuit_id(self, value: bytes):
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_circuit_id = value
         self._stored_circuit = DefaultStoredValue

@@ -175,13 +175,13 @@ class AddWireHandler2D(_handler_base.HandlerBase):
         position so the connection is valid in either editor.
         """
         if end == 'start':
-            stale3d_id = int(self.obj.obj3d.start_position.db_id[:-2])
+            stale3d_id = self.obj.obj3d.start_position.db_id[:-2]
             self.obj.obj3d.set_start_position(splice_obj.obj3d.wire_position)
             self.obj.db_obj.start_position3d_id = splice_obj.db_obj.branch_position3d_id
             self.obj.db_obj.start_position2d_id = splice_obj.db_obj.position2d_id
             self.obj.obj2d.set_start_position(splice_obj.db_obj.position2d)
         else:
-            stale3d_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+            stale3d_id = self.obj.obj3d.stop_position.db_id[:-2]
             self.obj.obj3d.set_stop_position(splice_obj.obj3d.wire_position)
             self.obj.db_obj.stop_position3d_id = splice_obj.db_obj.branch_position3d_id
             self.obj.db_obj.stop_position2d_id = splice_obj.db_obj.position2d_id
@@ -232,7 +232,7 @@ class AddWireHandler2D(_handler_base.HandlerBase):
                     return
 
             stale2d_id = self._stop_point2d.db_id
-            stale3d_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+            stale3d_id = self.obj.obj3d.stop_position.db_id[:-2]
             picked.add_wire(self.obj, 'stop')
             self.ptables.pjt_points2d_table[stale2d_id].delete()
             self.ptables.pjt_points3d_table[stale3d_id].delete()

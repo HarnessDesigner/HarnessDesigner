@@ -147,9 +147,10 @@ class HousingsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Housing(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', part_number=item)
@@ -217,10 +218,10 @@ class HousingsTable(TableBase):
         return res
 
     @_check_types.do
-    def insert(self, part_number: str, mfg_id: int, description: str, family_id: int, series_id: int,
-               gender_id: int, ip_rating_id: int, image_id: int, datasheet_id: int, cad_id: int,
-               min_temp_id: int, max_temp_id: int, cavity_lock_id: int, direction_id: int, sealed: bool,
-               length: float, width: float, height: float, centerline: float, color_id: int, rows: int,
+    def insert(self, part_number: str, mfg_id: bytes, description: str, family_id: bytes, series_id: bytes,
+               gender_id: bytes, ip_rating_id: bytes, image_id: bytes, datasheet_id: bytes, cad_id: bytes,
+               min_temp_id: bytes, max_temp_id: bytes, cavity_lock_id: bytes, direction_id: bytes, sealed: bool,
+               length: float, width: float, height: float, centerline: float, color_id: bytes, rows: int,
                num_pins: int, terminal_sizes: list[float], compat_cpas: list[str], compat_tpas: list[str],
                compat_covers: list[str], compat_terminals: list[str], compat_seals: list[str],
                compat_housings: list[str], weight: float) -> "Housing":
@@ -231,31 +232,31 @@ class HousingsTable(TableBase):
         :param part_number: Value for ``part_number``.
         :type part_number: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :param family_id: Identifier for the family.
-        :type family_id: int
+        :type family_id: bytes
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param gender_id: Identifier for the gender.
-        :type gender_id: int
+        :type gender_id: bytes
         :param ip_rating_id: Identifier for the ip rating.
-        :type ip_rating_id: int
+        :type ip_rating_id: bytes
         :param image_id: Identifier for the image.
-        :type image_id: int
+        :type image_id: bytes
         :param datasheet_id: Identifier for the datasheet.
-        :type datasheet_id: int
+        :type datasheet_id: bytes
         :param cad_id: Identifier for the cad.
-        :type cad_id: int
+        :type cad_id: bytes
         :param min_temp_id: Identifier for the min temp.
-        :type min_temp_id: int
+        :type min_temp_id: bytes
         :param max_temp_id: Identifier for the max temp.
-        :type max_temp_id: int
+        :type max_temp_id: bytes
         :param cavity_lock_id: Identifier for the cavity lock.
-        :type cavity_lock_id: int
+        :type cavity_lock_id: bytes
         :param direction_id: Identifier for the direction.
-        :type direction_id: int
+        :type direction_id: bytes
         :param sealed: Value for ``sealed``.
         :type sealed: bool
         :param length: Value for ``length``.
@@ -267,7 +268,7 @@ class HousingsTable(TableBase):
         :param centerline: Value for ``centerline``.
         :type centerline: float
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :param rows: Value for ``rows``.
         :type rows: int
         :param num_pins: Value for ``num_pins``.
@@ -732,7 +733,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_ip_rating
 
-    _stored_ip_rating_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_ip_rating_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -782,7 +783,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_cavity_lock
 
-    _stored_cavity_lock_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_cavity_lock_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -832,7 +833,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_seal_type
 
-    _stored_seal_type_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_seal_type_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -882,7 +883,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_cpa_lock_type
 
-    _stored_cpa_lock_type_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_cpa_lock_type_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1176,7 +1177,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     def mesh_surfaces(self, value: list) -> None:
         self._stored_mesh_surfaces = value
 
-    _cover_position3d: str = None
+    _cover_position3d: bytes | None = None
     _stored_cover_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
@@ -1203,7 +1204,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_cover_position3d is DefaultStoredValue:
             if self._cover_position3d is None:
-                self._cover_position3d = str(uuid.uuid4())
+                self._cover_position3d = uuid.uuid4().bytes + b'3d'
 
             coords = eval(self._table.select('cover_point3d', id=self._db_id)[0][0])
             position = _point.Point(*coords, db_id=self._cover_position3d)
@@ -1213,7 +1214,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_cover_position3d
 
-    _seal_position3d: str = None
+    _seal_position3d: bytes | None = None
     _stored_seal_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
@@ -1240,7 +1241,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_seal_position3d is DefaultStoredValue:
             if self._seal_position3d is None:
-                self._seal_position3d = str(uuid.uuid4())
+                self._seal_position3d = uuid.uuid4().bytes + b'3d'
 
             coords = eval(self._table.select('seal_point3d', id=self._db_id)[0][0])
             position = _point.Point(*coords, db_id=self._seal_position3d)
@@ -1250,7 +1251,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_seal_position3d
     
-    _boot_position3d: str = None
+    _boot_position3d: bytes | None = None
     _stored_boot_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
@@ -1277,7 +1278,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_boot_position3d is DefaultStoredValue:
             if self._boot_position3d is None:
-                self._boot_position3d = str(uuid.uuid4())
+                self._boot_position3d = uuid.uuid4().bytes + b'3d'
 
             coords = eval(self._table.select('boot_point3d', id=self._db_id)[0][0])
             position = _point.Point(*coords, db_id=self._boot_position3d)
@@ -1287,7 +1288,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_boot_position3d
     
-    _tpa_lock_1_position3d: str = None
+    _tpa_lock_1_position3d: bytes | None = None
     _stored_tpa_lock_1_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
@@ -1314,7 +1315,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_tpa_lock_1_position3d is DefaultStoredValue:
             if self._tpa_lock_1_position3d is None:
-                self._tpa_lock_1_position3d = str(uuid.uuid4())
+                self._tpa_lock_1_position3d = uuid.uuid4().bytes + b'3d'
 
             coords = eval(self._table.select('tpa_lock_1_point3d', id=self._db_id)[0][0])
             position = _point.Point(*coords, db_id=self._tpa_lock_1_position3d)
@@ -1324,7 +1325,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_tpa_lock_1_position3d
 
-    _tpa_lock_2_position3d: str = None
+    _tpa_lock_2_position3d: bytes | None = None
     _stored_tpa_lock_2_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
@@ -1351,7 +1352,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_tpa_lock_2_position3d is DefaultStoredValue:
             if self._tpa_lock_2_position3d is None:
-                self._tpa_lock_2_position3d = str(uuid.uuid4())
+                self._tpa_lock_2_position3d = uuid.uuid4().bytes + b'3d'
 
             coords = eval(self._table.select('tpa_lock_2_point3d', id=self._db_id)[0][0])
             position = _point.Point(*coords, db_id=self._tpa_lock_2_position3d)
@@ -1361,7 +1362,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_tpa_lock_2_position3d
 
-    _cpa_lock_position3d: str = None
+    _cpa_lock_position3d: bytes | None = None
     _stored_cpa_lock_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
@@ -1388,7 +1389,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_cpa_lock_position3d is DefaultStoredValue:
             if self._cpa_lock_position3d is None:
-                self._cpa_lock_position3d = str(uuid.uuid4())
+                self._cpa_lock_position3d = uuid.uuid4().bytes + b'3d'
 
             coords = eval(self._table.select('cpa_lock_point3d', id=self._db_id)[0][0])
             position = _point.Point(*coords, db_id=self._cpa_lock_position3d)
@@ -1398,7 +1399,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         return self._stored_cpa_lock_position3d
 
-    _angle3d_db_id: str = None
+    _angle3d_db_id: bytes | None = None
     _stored_angle3d: DefaultStoredValueType | _angle.Angle = DefaultStoredValue
 
     @_check_types.do
@@ -1432,7 +1433,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         """
         if self._stored_angle3d is DefaultStoredValue:
             if self._angle3d_db_id is None:
-                self._angle3d_db_id = str(uuid.uuid4())
+                self._angle3d_db_id = uuid.uuid4().bytes
 
             quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
             euler_angle = eval(self._table.select('angle3d', id=self._db_id)[0][0])

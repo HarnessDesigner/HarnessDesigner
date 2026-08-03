@@ -10,7 +10,6 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_circuits',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.IntField('circuit_num', no_null=True),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),

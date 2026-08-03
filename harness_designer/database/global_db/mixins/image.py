@@ -30,17 +30,17 @@ class ImageMixin(BaseMixin):
 
         return self._stored_image
 
-    _stored_image_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_image_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def image_id(self) -> int:
+    def image_id(self) -> bytes:
         """Return the image ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_image_id is DefaultStoredValue:
             self._stored_image_id = self._table.select('image_id', id=self._db_id)[0][0]
@@ -49,13 +49,13 @@ class ImageMixin(BaseMixin):
 
     @image_id.setter
     @_check_types.do
-    def image_id(self, value: int):
+    def image_id(self, value: bytes):
         """Set the image ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_image_id = value
         self._stored_image = DefaultStoredValue

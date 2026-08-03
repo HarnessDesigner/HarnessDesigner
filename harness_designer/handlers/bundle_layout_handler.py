@@ -122,7 +122,7 @@ def _create_bundle_layout_at_endpoint(
     else:
         point = bundle.obj3d.stop_position
 
-    coord_id = int(point.db_id[:-2])
+    coord_id = point.db_id[:-2]
     db_obj = project.ptables.pjt_bundle_layouts_table.insert(coord_id, diameter)
     layout_obj = _bundle_layout.BundleLayout(project.mainframe, db_obj)
     project.add_bundle_layout(layout_obj)
@@ -285,7 +285,7 @@ class AddBundleLayoutHandler(_handler_base.HandlerBase):
             # id (now what self.obj.obj3d.position.db_id reports, since a
             # delegator forwards db_id to its root) so the sharing survives
             # a reload instead of only existing as a live delegation.
-            self.obj.db_obj.position3d_id = int(self.obj.obj3d.position.db_id[:-2])
+            self.obj.db_obj.position3d_id = self.obj.obj3d.position.db_id[:-2]
 
             self.obj.db_obj.diameter = diameter
             self.obj.obj3d.is_visible = True

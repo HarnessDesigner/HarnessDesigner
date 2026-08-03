@@ -13,7 +13,7 @@ class Angle2DMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    _angle2d_db_id: str = None
+    _angle2d_db_id: bytes | None = None
     _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
@@ -51,7 +51,7 @@ class Angle2DMixin(BaseMixin):
             euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
 
             if self._angle2d_db_id is None:
-                self._angle2d_db_id = str(uuid.uuid4())
+                self._angle2d_db_id = uuid.uuid4().bytes
 
             angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle2d_db_id)
             angle.bind(self._update_angle2d)

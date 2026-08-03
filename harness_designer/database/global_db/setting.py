@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from .bases import TableBase
 from ... import utils as _utils
@@ -63,7 +62,7 @@ class SettingsTable(TableBase):
         :raises AttributeError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             value = self.select('value', id=item)
             if not value:
                 raise IndexError(str(item))

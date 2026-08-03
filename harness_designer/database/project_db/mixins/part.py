@@ -10,33 +10,33 @@ class PartMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     
-    _stored_part_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_part_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
     _stored_part: DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def part_id(self) -> int:
+    def part_id(self) -> bytes:
         """Return the part ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_part_id is DefaultStoredValue:
             self._stored_part_id = self._table.select('part_id', id=self._db_id)[0][0]
-            
+
         return self._stored_part_id
 
     @part_id.setter
     @_check_types.do
-    def part_id(self, value: int):
+    def part_id(self, value: bytes):
         """Set the part ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_part_id = value
         self._stored_part = DefaultStoredValue

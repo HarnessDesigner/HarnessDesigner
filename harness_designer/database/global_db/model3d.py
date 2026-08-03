@@ -81,9 +81,10 @@ class Models3DTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
 
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Model3D(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -141,8 +142,8 @@ class Model3D(EntryBase):
     """
 
     _table: Models3DTable = None
-    _angle3d_id: str = None
-    _position3d_id: str = None
+    _angle3d_id: bytes | None = None
+    _position3d_id: bytes | None = None
 
     _download_callbacks = {}
 
@@ -337,16 +338,16 @@ class Model3D(EntryBase):
 
         return self._stored_file_type
 
-    _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_file_type_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def file_type_id(self) -> int | None:
+    def file_type_id(self) -> bytes | None:
         """
         Return the file type ID.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int | None
+        :rtype: bytes | None
         """
 
         if self._stored_file_type_id is DefaultStoredValue:
@@ -356,12 +357,12 @@ class Model3D(EntryBase):
 
     @file_type_id.setter
     @_check_types.do
-    def file_type_id(self, value: int):
+    def file_type_id(self, value: bytes):
         """
         Set the file type ID.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
 
         self._stored_file_type_id = value
@@ -403,7 +404,7 @@ class Model3D(EntryBase):
         """
 
         if self._angle3d_id is None:
-            self._angle3d_id = str(uuid.uuid4())
+            self._angle3d_id = uuid.uuid4().bytes
 
         quat = self._table.select('quat3d', id=self._db_id)[0][0]
         euler_angle = self._table.select('angle3d', id=self._db_id)[0][0]
@@ -467,7 +468,7 @@ class Model3D(EntryBase):
         if self._stored_position3d is DefaultStoredValue:
 
             if self._position3d_id is None:
-                self._position3d_id = str(uuid.uuid4())
+                self._position3d_id = uuid.uuid4().bytes + b'3d'
 
             value = self._table.select('point3d', id=self._db_id)[0][0]
 

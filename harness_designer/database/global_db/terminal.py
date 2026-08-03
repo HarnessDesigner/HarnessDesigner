@@ -158,9 +158,10 @@ class TerminalsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Terminal(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', part_number=item)
@@ -207,13 +208,13 @@ class TerminalsTable(TableBase):
         return res
 
     @_check_types.do
-    def insert(self, part_number: str, mfg_id: int, description: str, gender_id: int,
-               series_id: int, family_id: int, sealing: bool, cavity_lock_id: int,
-               image_id: int, datasheet_id: int, cad_id: int, material_id: int,
+    def insert(self, part_number: str, mfg_id: bytes, description: str, gender_id: bytes,
+               series_id: bytes, family_id: bytes, sealing: bool, cavity_lock_id: bytes,
+               image_id: bytes, datasheet_id: bytes, cad_id: bytes, material_id: bytes,
                blade_size: float, resistance: int, mating_cycles: int,
                max_vibration_g: int, max_current_ma: int, wire_size_min_awg: int,
                wire_size_max_awg: int, wire_dia_min: float, wire_dia_max: float,
-               min_wire_cross: float, max_wire_cross: float, plating_id: int,
+               min_wire_cross: float, max_wire_cross: float, plating_id: bytes,
                weight: float, length: float, width, _decimal, height: float) -> "Terminal":
         """Execute the insert operation.
 
@@ -222,27 +223,27 @@ class TerminalsTable(TableBase):
         :param part_number: Value for ``part_number``.
         :type part_number: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :param gender_id: Identifier for the gender.
-        :type gender_id: int
+        :type gender_id: bytes
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param family_id: Identifier for the family.
-        :type family_id: int
+        :type family_id: bytes
         :param sealing: Value for ``sealing``.
         :type sealing: bool
         :param cavity_lock_id: Identifier for the cavity lock.
-        :type cavity_lock_id: int
+        :type cavity_lock_id: bytes
         :param image_id: Identifier for the image.
-        :type image_id: int
+        :type image_id: bytes
         :param datasheet_id: Identifier for the datasheet.
-        :type datasheet_id: int
+        :type datasheet_id: bytes
         :param cad_id: Identifier for the cad.
-        :type cad_id: int
+        :type cad_id: bytes
         :param material_id: Identifier for the material.
-        :type material_id: int
+        :type material_id: bytes
         :param blade_size: Value for ``blade_size``.
         :type blade_size: float
         :param resistance: Value for ``resistance``.
@@ -266,7 +267,7 @@ class TerminalsTable(TableBase):
         :param max_wire_cross: Value for ``max_wire_cross``.
         :type max_wire_cross: float
         :param plating_id: Identifier for the plating.
-        :type plating_id: int
+        :type plating_id: bytes
         :param weight: Value for ``weight``.
         :type weight: float
         :param length: Value for ``length``.
@@ -850,7 +851,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
         return cavity.width, cavity.height, cavity.length / 2.0
 
-    _scale_id: str = None
+    _scale_id: bytes | None = None
     _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
     @_check_types.do
@@ -885,7 +886,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         """
         if self._stored_scale is DefaultStoredValue:
             if self._scale_id is None:
-                self._scale_id = str(uuid.uuid4())
+                self._scale_id = uuid.uuid4().bytes + b'3d'
 
             x = self.width
             y = self.height

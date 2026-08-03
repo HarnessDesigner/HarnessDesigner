@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -64,7 +63,7 @@ class PJTConcentricLayersTable(PJTTableBase):
         :rtype: _Iterable['PJTConcentricLayer']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTConcentricLayer(self, db_id, self.project_id)
+            yield PJTConcentricLayer(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTConcentricLayer":
@@ -79,16 +78,16 @@ class PJTConcentricLayersTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTConcentricLayer(self, item, self.project_id)
+                return PJTConcentricLayer(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
     def insert(self, idx: int, num_wires: int, num_fillers: int,
-               concentric_id: int, diameter: float) -> "PJTConcentricLayer":
+               concentric_id: bytes, diameter: float) -> "PJTConcentricLayer":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +99,7 @@ class PJTConcentricLayersTable(PJTTableBase):
         :param num_fillers: Value for ``num_fillers``.
         :type num_fillers: int
         :param concentric_id: Identifier for the concentric.
-        :type concentric_id: int
+        :type concentric_id: bytes
         :param diameter: Value for ``diameter``.
         :type diameter: float
         :returns: Return value. UNKNOWN details.
@@ -110,7 +109,7 @@ class PJTConcentricLayersTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, idx=idx, num_wires=num_wires, num_fillers=num_fillers,
                                     concentric_id=concentric_id, diameter=diameter)
 
-        return PJTConcentricLayer(self, db_id, self.project_id)
+        return PJTConcentricLayer(self, db_id)
 
 
 class PJTConcentricLayer(PJTEntryBase, NotesMixin):
@@ -183,17 +182,17 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
 
         return self._stored_concentric
 
-    _stored_concentric_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_concentric_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def concentric_id(self) -> int:
+    def concentric_id(self) -> bytes:
         """Return the concentric ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_concentric_id is DefaultStoredValue:
             self._stored_concentric_id = self._table.select('concentric_id', id=self._db_id)[0][0]
@@ -202,13 +201,13 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
 
     @concentric_id.setter
     @_check_types.do
-    def concentric_id(self, value: int):
+    def concentric_id(self, value: bytes):
         """Set the concentric ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_concentric_id = value
         self._stored_concentric = DefaultStoredValue

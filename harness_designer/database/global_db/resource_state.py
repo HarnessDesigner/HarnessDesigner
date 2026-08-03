@@ -88,11 +88,11 @@ class ResourceStateTable(TableBase):
         _resource_state.table.update_fields(self)
 
     @_check_types.do
-    def __contains__(self, item: tuple[int, int]) -> bool:
+    def __contains__(self, item: tuple[int, bytes]) -> bool:
         resource_type, resource_id = item
         field_name = _TYPE_TO_FIELD[resource_type]
 
-        self.execute(f'SELECT id FROM {self.__table_name__} WHERE {field_name}={resource_id};')
+        self.execute(f'SELECT id FROM {self.__table_name__} WHERE {field_name}=?;', (resource_id,))
         rows = self.fetchall()
         if rows:
             return True
@@ -100,11 +100,11 @@ class ResourceStateTable(TableBase):
         return False
 
     @_check_types.do
-    def __getitem__(self, item: tuple[int, int]) -> "ResourceState":
+    def __getitem__(self, item: tuple[int, bytes]) -> "ResourceState":
         resource_type, resource_id = item
         field_name = _TYPE_TO_FIELD[resource_type]
 
-        self.execute(f'SELECT id FROM {self.__table_name__} WHERE {field_name}={resource_id};')
+        self.execute(f'SELECT id FROM {self.__table_name__} WHERE {field_name}=?;', (resource_id,))
         rows = self.fetchall()
 
         if rows:
@@ -129,41 +129,41 @@ class ResourceState(EntryBase):
 
     _table: ResourceStateTable = None
 
-    _stored_image_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_image_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def image_id(self) -> int | None:
+    def image_id(self) -> bytes | None:
         if self._stored_image_id is DefaultStoredValue:
             self._stored_image_id = self._table.select('image_id', id=self._db_id)[0][0]
 
         return self._stored_image_id
 
-    _stored_datasheet_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_datasheet_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def datasheet_id(self) -> int | None:
+    def datasheet_id(self) -> bytes | None:
         if self._stored_datasheet_id is DefaultStoredValue:
             self._stored_datasheet_id = self._table.select('datasheet_id', id=self._db_id)[0][0]
 
         return self._stored_datasheet_id
 
-    _stored_cad_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_cad_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def cad_id(self) -> int | None:
+    def cad_id(self) -> bytes | None:
         if self._stored_cad_id is DefaultStoredValue:
             self._stored_cad_id = self._table.select('cad_id', id=self._db_id)[0][0]
 
         return self._stored_cad_id
 
-    _stored_model3d_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_model3d_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def model3d_id(self) -> int | None:
+    def model3d_id(self) -> bytes | None:
         if self._stored_model3d_id is DefaultStoredValue:
             self._stored_model3d_id = self._table.select('model3d_id', id=self._db_id)[0][0]
 

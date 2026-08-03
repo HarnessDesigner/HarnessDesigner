@@ -13,7 +13,7 @@ class Angle3DMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    _angle3d_db_id: str = None
+    _angle3d_db_id: bytes | None = None
     _stored_angle3d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
     # Per-instance flag: set True during bulk angle batch-writes so the individual
     # DB callback is suppressed while 3D render callbacks still fire.
@@ -57,7 +57,7 @@ class Angle3DMixin(BaseMixin):
             euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
     
             if self._angle3d_db_id is None:
-                self._angle3d_db_id = str(uuid.uuid4())
+                self._angle3d_db_id = uuid.uuid4().bytes
     
             angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
             angle.bind(self._update_angle3d)

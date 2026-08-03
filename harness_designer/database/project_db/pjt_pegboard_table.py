@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 """Excel-like data-table overlay geometry and scroll state.
 
@@ -52,7 +51,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         :rtype: _Iterable['PJTPegboardTable']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTPegboardTable(self, db_id, self.project_id)
+            yield PJTPegboardTable(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTPegboardTable":
@@ -65,19 +64,19 @@ class PJTPegboardTablesTable(PJTTableBase):
         :raises KeyError: Raised when ``item`` is not an ``int``.
         :raises IndexError: Raised when no row with that id exists.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTPegboardTable(self, item, self.project_id)
+                return PJTPegboardTable(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def get_from_point3d_id(self, point3d_id: int) -> "PJTPegboardTable":
+    def get_from_point3d_id(self, point3d_id: bytes) -> "PJTPegboardTable":
         """Return the data-table overlay row keyed by an anchor's ``point3d_id``.
 
         :param point3d_id: Identifier of the anchor's 3D point.
-        :type point3d_id: int
+        :type point3d_id: bytes
         :returns: The matching row, or ``None`` when one has not been created yet.
         :rtype: :class:`PJTPegboardTable`
         """
@@ -86,7 +85,7 @@ class PJTPegboardTablesTable(PJTTableBase):
             return self[rows[0][0]]
 
     @_check_types.do
-    def insert(self, point3d_id: int, x: float, z: float, width: float,
+    def insert(self, point3d_id: bytes, x: float, z: float, width: float,
                height: float) -> "PJTPegboardTable":
         """Create a new data-table overlay for an anchor.
 
@@ -94,7 +93,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         schema defaults (no scroll offset, not collapsed).
 
         :param point3d_id: Identifier of the anchor's 3D point.
-        :type point3d_id: int
+        :type point3d_id: bytes
         :param x: Peg-board (world) X coordinate of the table's top-left corner.
         :type x: float
         :param z: Peg-board (world) Z coordinate of the table's top-left corner.
@@ -109,7 +108,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, point3d_id=point3d_id, x=x, z=z,
                                     width=width, height=height)
 
-        return PJTPegboardTable(self, db_id, self.project_id)
+        return PJTPegboardTable(self, db_id)
 
 
 class PJTPegboardTable(PJTEntryBase):
@@ -127,15 +126,15 @@ class PJTPegboardTable(PJTEntryBase):
         """
         return self._table
 
-    _stored_point3d_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_point3d_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def point3d_id(self) -> int:
+    def point3d_id(self) -> bytes:
         """Return the id of the ``pjt_points3d`` row this row is keyed by.
 
         :returns: The referenced 3D point's row id.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_point3d_id is DefaultStoredValue:
             self._stored_point3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]

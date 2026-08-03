@@ -35,17 +35,17 @@ class PlatingMixin(BaseMixin):
 
         return self._stored_plating
 
-    _stored_plating_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_plating_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def plating_id(self) -> int:
+    def plating_id(self) -> bytes:
         """Return the plating ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_plating_id is DefaultStoredValue:
             self._stored_plating_id = self._table.select('plating_id', id=self._db_id)[0][0]
@@ -54,13 +54,13 @@ class PlatingMixin(BaseMixin):
 
     @plating_id.setter
     @_check_types.do
-    def plating_id(self, value: int):
+    def plating_id(self, value: bytes):
         """Set the plating ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_plating_id = value
         self._stored_plating = DefaultStoredValue

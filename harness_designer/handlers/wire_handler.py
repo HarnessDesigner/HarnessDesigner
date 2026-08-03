@@ -133,7 +133,7 @@ def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, othe
     ptables = project.ptables
     mainframe = project.mainframe
 
-    seam_point_id = int(wire_obj.obj3d.stop_position.db_id[:-2])
+    seam_point_id = wire_obj.obj3d.stop_position.db_id[:-2]
     own_waypoints = wire_obj.db_obj.waypoints3d
     seam_idx = len(own_waypoints)
 
@@ -148,16 +148,16 @@ def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, othe
     is_visible3d = wire_obj.db_obj.is_visible3d
     is_visible2d = wire_obj.db_obj.is_visible2d
 
-    start_id_3d = int(wire_obj.obj3d.start_position.db_id[:-2])
+    start_id_3d = wire_obj.obj3d.start_position.db_id[:-2]
     start_id_2d = wire_obj.db_obj.start_position2d_id
 
     if other_end == 'start':
-        stop_id_3d = int(other_wire.obj3d.stop_position.db_id[:-2])
+        stop_id_3d = other_wire.obj3d.stop_position.db_id[:-2]
         stop_id_2d = other_wire.db_obj.stop_position2d_id
         other_waypoints = other_wire.db_obj.waypoints3d  # already start->stop order
         other_stop_sibling = other_wire.stop_sibling
     else:
-        stop_id_3d = int(other_wire.obj3d.start_position.db_id[:-2])
+        stop_id_3d = other_wire.obj3d.start_position.db_id[:-2]
         stop_id_2d = other_wire.db_obj.start_position2d_id
         other_waypoints = list(reversed(other_wire.db_obj.waypoints3d))
         other_stop_sibling = other_wire.start_sibling
@@ -837,7 +837,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             # attach point and extends this same wire's own waypoint list
             # through its back (and, if seated in a cavity, the cavity's
             # own wire-position) point.
-            stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+            stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
             picked.add_wire(self.obj, 'stop')
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
@@ -851,14 +851,14 @@ class AddWireHandler(_handler_base.HandlerBase):
                 # so pointing this wire's own stop at it directly gives
                 # the same live sharing a .attach() delegation would, with
                 # no delegation machinery needed.
-                stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+                stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
                 self.obj.obj3d.set_stop_position(picked.obj3d.position)
                 self.obj.db_obj.stop_position3d_id = picked.db_obj.position3d_id
                 self.ptables.pjt_points3d_table[stale_stop_id].delete()
             # else: mid-wire or mismatched part — preview stop already at world pos; keep as-is
 
         elif isinstance(picked, _splice.Splice):
-            stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+            stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
             self.obj.obj3d.set_stop_position(picked.obj3d.wire_position)
             self.obj.db_obj.stop_position3d_id = picked.db_obj.branch_position3d_id
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
@@ -1005,7 +1005,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         # promote the last confirmed waypoint back to being this wire's
         # own true stop -- see WireTypeMixin._segments()/waypoints3d:
         # ordered by idx, so [-1] is the most recently committed one.
-        stale_stop_id = int(self.obj.obj3d.stop_position.db_id[:-2])
+        stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
         last_waypoint = self.obj.db_obj.waypoints3d[-1]
         last_point = last_waypoint.point
 

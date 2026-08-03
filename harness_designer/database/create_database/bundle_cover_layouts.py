@@ -12,7 +12,6 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_bundle_layouts',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.UUIDField('point3d_id', no_null=True,
                   references=_con.SQLFieldReference(_points3d.pjt_table,
                                                     _points3d.pjt_id_field,

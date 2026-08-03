@@ -13,7 +13,6 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_notes',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.UUIDField('point2d_id', default='NULL',
                   references=_con.SQLFieldReference(_points2d.pjt_table,
                                                     _points2d.pjt_id_field,

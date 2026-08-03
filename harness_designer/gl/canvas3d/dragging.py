@@ -46,8 +46,8 @@ def wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire")
     terminal case requires special handling (leaving that end fixed).
     """
     obj3d = wire_obj.obj3d
-    start_id = int(obj3d.start_position.db_id[:-2])
-    stop_id = int(obj3d.stop_position.db_id[:-2])
+    start_id = obj3d.start_position.db_id[:-2]
+    stop_id = obj3d.stop_position.db_id[:-2]
 
     start_anchored = False
     stop_anchored = False

@@ -12,7 +12,6 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_concentrics',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.UUIDField('bundle_id', no_null=True,
                   references=_con.SQLFieldReference(_bundle_covers.pjt_table,
                                                     _bundle_covers.pjt_id_field,

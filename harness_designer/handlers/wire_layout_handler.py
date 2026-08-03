@@ -120,7 +120,7 @@ def _create_wire_layout_at_endpoint(
     else:
         point = wire.obj3d.stop_position
 
-    coord_id = int(point.db_id[:-2])
+    coord_id = point.db_id[:-2]
     db_obj = project.ptables.pjt_wire_layouts_table.insert(coord_id)
     layout_obj = _wire_layout.WireLayout(project.mainframe, db_obj)
     project.add_wire_layout(layout_obj)
@@ -278,7 +278,7 @@ class AddWireLayoutHandler(_handler_base.HandlerBase):
             # id (now what self.obj.obj3d.position.db_id reports, since a
             # delegator forwards db_id to its root) so the sharing survives
             # a reload instead of only existing as a live delegation.
-            self.obj.db_obj.position3d_id = int(self.obj.obj3d.position.db_id[:-2])
+            self.obj.db_obj.position3d_id = self.obj.obj3d.position.db_id[:-2]
 
             self.obj.obj3d.is_visible = True
             self.mainframe.project.add_wire_layout(self.obj)

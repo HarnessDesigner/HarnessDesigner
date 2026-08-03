@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -124,7 +123,7 @@ class PJTBootsTable(PJTTableBase):
         :rtype: _Iterable['PJTBoot']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTBoot(self, db_id, self.project_id)
+            yield PJTBoot(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTBoot":
@@ -139,32 +138,33 @@ class PJTBootsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTBoot(self, item, self.project_id)
+                return PJTBoot(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, position3d_id: int, housing_id: int | None) -> "PJTBoot":
+    def insert(self, part_id: bytes, position3d_id: bytes, housing_id: bytes | None) -> "PJTBoot":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param position3d_id: Identifier for the position 3D.
-        :type position3d_id: int
+        :type position3d_id: bytes
         :param housing_id: Identifier for the housing.
-        :type housing_id: int | None
+        :type housing_id: bytes | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTBoot`
         """
         db_id = PJTTableBase.insert(
             self, part_id=part_id, position3d_id=position3d_id, housing_id=housing_id)
 
-        return PJTBoot(self, db_id, self.project_id)
+        return PJTBoot(self, db_id)
 
 
 class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMixin,

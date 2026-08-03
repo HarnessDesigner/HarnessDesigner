@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
-from ..bases import _as_db_value
 from .... import check_types as _check_types
 
 
@@ -39,17 +38,17 @@ class FamilyMixin(BaseMixin):
 
         return self._stored_family
 
-    _stored_family_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_family_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def family_id(self) -> int:
+    def family_id(self) -> bytes:
         """Return the family ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_family_id is DefaultStoredValue:
             self._stored_family_id = self._table.select('family_id', id=self._db_id)[0][0]
@@ -58,13 +57,13 @@ class FamilyMixin(BaseMixin):
 
     @family_id.setter
     @_check_types.do
-    def family_id(self, value: int):
+    def family_id(self, value: bytes):
         """Set the family ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_family_id = value
         self._stored_family = DefaultStoredValue
@@ -129,7 +128,7 @@ class FamilyControl(_prop_ctrls.Category):
             family = db_obj.family
             mfg_id = family.manufacturer.db_id
 
-            db_obj.table.execute('SELECT name FROM families WHERE mfg_id=?;', (_as_db_value(mfg_id),))
+            db_obj.table.execute('SELECT name FROM families WHERE mfg_id=?;', (mfg_id,))
 
             rows = db_obj.table.fetchall()
 
@@ -156,7 +155,7 @@ class FamilyControl(_prop_ctrls.Category):
         mfg_id = self.db_obj.family.mfg_id
 
         self.db_obj.table.execute(f'SELECT id, description FROM families WHERE name="{name}" AND mfg_id=?;',
-                                  (_as_db_value(mfg_id),))
+                                  (mfg_id,))
         rows = self.db_obj.table.fetchall()
 
         if rows:

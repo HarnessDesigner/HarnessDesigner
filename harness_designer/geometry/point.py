@@ -85,7 +85,7 @@ class PointMeta(type):
 
     @_check_types.do
     def __call__(cls, x: int | float | _d | np.float32, y: int | float | _d | np.float32,
-                 z: int | float | _d | np.float32 | None = None, db_id: int | str | None = None) -> "Point":
+                 z: int | float | _d | np.float32 | None = None, db_id: bytes | None = None) -> "Point":
         """
         Return a cached or newly created :class:`Point` instance.
 
@@ -96,7 +96,7 @@ class PointMeta(type):
         :param z: Optional Z coordinate.
         :type z: float | :class:`~harness_designer.geometry.decimal.Decimal` | None
         :param db_id: Optional cache key for singleton reuse.
-        :type db_id: int | str | None
+        :type db_id: bytes | None
         :returns: Shared or new point instance.
         :rtype: :class:`Point`
         """
@@ -390,7 +390,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @_check_types.do
     def __init__(self, x: float | _d | np.float32, y: float | _d | np.float32,
-                 z: float | _d | np.float32 | None = None, db_id: int | str | None = None):
+                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None):
         """
         Construct a Point.
 
@@ -401,15 +401,17 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         z : float | Decimal | None
             When None the Point is treated as 2D (is2d=True) and z is
             stored as 0.0 internally.  Passing a value makes it 3D.
-        db_id : int | str | None
+        db_id : bytes | None
             When provided, PointMeta uses this as the singleton key.
             Two calls with the same db_id return the same instance.
 
-            The db_id format used throughout the project is a string like
-            ``"1233d"`` (3D point) or ``"1232d"`` (2D point), where the
-            integer part is the row id in pjt_points3d or pjt_points2d.
-            Stripping the suffix with ``int(db_id[:-2])`` gives the raw
-            database integer used in insert / update calls.
+            The db_id format used throughout the project is the owning
+            pjt_points3d/pjt_points2d row's own 16-byte UUID id (bytes)
+            with a 2-byte ``b'3d'`` or ``b'2d'`` suffix appended -- bytes
+            concatenation and slicing both work exactly like they do on
+            str, so appending/stripping the suffix needs no encoding step.
+            Stripping the suffix with ``db_id[:-2]`` gives the raw
+            database row id used in insert / update calls.
 
             Pass None for temporary Points used in geometry calculations
             that have no database backing and should never be shared.
@@ -433,7 +435,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @property
     @_check_types.do
-    def db_id(self) -> str | int | None:
+    def db_id(self) -> bytes | None:
         """
         Return the canonical database id for this Point.
 
@@ -449,7 +451,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @db_id.setter
     @_check_types.do
-    def db_id(self, value: str | int | None) -> None:
+    def db_id(self, value: bytes | None) -> None:
         self._db_id = value
 
     @_check_types.do

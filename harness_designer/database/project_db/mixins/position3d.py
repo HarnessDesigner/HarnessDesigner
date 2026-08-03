@@ -43,17 +43,17 @@ class Position3DMixin(BaseMixin):
 
         return point
 
-    _stored_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def position3d_id(self) -> int:
+    def position3d_id(self) -> bytes:
         """Return the position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_position3d_id is DefaultStoredValue:
@@ -68,13 +68,13 @@ class Position3DMixin(BaseMixin):
 
     @position3d_id.setter
     @_check_types.do
-    def position3d_id(self, value: int):
+    def position3d_id(self, value: bytes):
         """Set the position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_position3d_id = value
         self._stored_position3d = DefaultStoredValue

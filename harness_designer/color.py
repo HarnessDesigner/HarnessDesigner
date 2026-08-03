@@ -29,7 +29,7 @@ class ColorMeta(type):
 
     @_check_types.do
     def __call__(cls, r: float | int, g: float | int, b: float | int,
-                 a: float | int = 255, db_id: str | None = None) -> "Color":
+                 a: float | int = 255, db_id: bytes | None = None) -> "Color":
         """Create or reuse a :class:`Color` for the supplied RGBA values.
 
         :param r: Red component.
@@ -41,7 +41,7 @@ class ColorMeta(type):
         :param a: Alpha component.
         :type a: float | int
         :param db_id: Optional cache key tied to database-backed colours.
-        :type db_id: str | None
+        :type db_id: bytes | None
         :returns: A colour instance, potentially reused from the cache.
         :rtype: Color
         """
@@ -92,7 +92,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     @_check_types.do
     def __init__(self, r: int | float, g: int | float,
                  b: int | float, a: int | float = 255,
-                 db_id: str | None = None):
+                 db_id: bytes | None = None):
         """Initialise a colour from integer or scalar channel values.
 
         :param r: Red channel.
@@ -104,7 +104,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         :param a: Alpha channel.
         :type a: int | float
         :param db_id: Optional database identifier used for caching.
-        :type db_id: str | None
+        :type db_id: bytes | None
         """
 
         self.db_id = db_id
@@ -442,6 +442,6 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
 
     @staticmethod
     @_check_types.do
-    def from_qcolor(qc: _QColor, db_id: str | None = None) -> "Color":
+    def from_qcolor(qc: _QColor, db_id: bytes | None = None) -> "Color":
         """Construct a Color from a PySide6 QColor."""
         return Color(qc.red(), qc.green(), qc.blue(), qc.alpha(), db_id)

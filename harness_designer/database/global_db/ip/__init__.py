@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable
 
@@ -81,9 +80,10 @@ class IPRatingsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return IPRating(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', name=item)
@@ -171,17 +171,17 @@ class IPRating(EntryBase):
 
         self._table.update(self._db_id, solid_id=value.db_id)
 
-    _stored_ip_solid_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_ip_solid_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def ip_solid_id(self) -> int:
+    def ip_solid_id(self) -> bytes:
         """Return the ip solid ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_ip_solid_id is DefaultStoredValue:
             self._stored_ip_solid_id = self._table.select('solid_id', id=self._db_id)[0][0]
@@ -190,13 +190,13 @@ class IPRating(EntryBase):
 
     @ip_solid_id.setter
     @_check_types.do
-    def ip_solid_id(self, value: int):
+    def ip_solid_id(self, value: bytes):
         """Set the ip solid ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_ip_solid_id = value
         self._stored_ip_solid = DefaultStoredValue
@@ -238,17 +238,17 @@ class IPRating(EntryBase):
 
         self._table.update(self._db_id, fluid_id=value.db_id)
 
-    _stored_ip_fluid_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_ip_fluid_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def ip_fluid_id(self) -> int:
+    def ip_fluid_id(self) -> bytes:
         """Return the ip fluid ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_ip_fluid_id is DefaultStoredValue:
             self._stored_ip_fluid_id = self._table.select('fluid_id', id=self._db_id)[0][0]
@@ -257,13 +257,13 @@ class IPRating(EntryBase):
 
     @ip_fluid_id.setter
     @_check_types.do
-    def ip_fluid_id(self, value: int):
+    def ip_fluid_id(self, value: bytes):
         """Set the ip fluid ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_ip_fluid_id = value
         self._stored_ip_fluid = DefaultStoredValue
@@ -311,17 +311,17 @@ class IPRating(EntryBase):
             self._stored_ip_supp_id = value.db_id
             self._table.update(self._db_id, supp_id=value.db_id)
 
-    _stored_ip_supp_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_ip_supp_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def ip_supp_id(self) -> int | None:
+    def ip_supp_id(self) -> bytes | None:
         """Return the ip supp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_ip_supp_id is DefaultStoredValue:
             self._stored_ip_supp_id = self._table.select('supp_id', id=self._db_id)[0][0]
@@ -330,13 +330,13 @@ class IPRating(EntryBase):
 
     @ip_supp_id.setter
     @_check_types.do
-    def ip_supp_id(self, value: int | None):
+    def ip_supp_id(self, value: bytes | None):
         """Set the ip supp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int | None
+        :type value: bytes | None
         """
         self._stored_ip_supp_id = value
         self._stored_ip_supp = DefaultStoredValue

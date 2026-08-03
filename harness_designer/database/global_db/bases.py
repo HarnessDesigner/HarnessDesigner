@@ -4,7 +4,6 @@ from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 
 import weakref
 import json
-import uuid
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -15,19 +14,6 @@ from .. import id_generator as _id_generator
 if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import splash as _splash
-
-
-@_check_types.do
-def _as_db_value(value):
-    """Convert a ``uuid.UUID`` to raw bytes for binding; pass everything else through.
-
-    :param value: The value being bound as a query parameter.
-
-    :returns: ``value.bytes`` if ``value`` is a ``uuid.UUID``, otherwise ``value`` unchanged.
-    """
-    if isinstance(value, uuid.UUID):
-        return value.bytes
-    return value
 
 
 # These next 2 classes are for cached values.
@@ -89,7 +75,7 @@ class _EntrySingleton(type):
         del cls._instances[key]
 
     @_check_types.do
-    def __call__(cls, table, db_id: int):
+    def __call__(cls, table, db_id: int | bytes):
         """Call the instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -97,7 +83,7 @@ class _EntrySingleton(type):
         :param table: Value for ``table``.
         :type table: UNKNOWN
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
@@ -121,7 +107,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
     """
 
     @_check_types.do
-    def __init__(self, table: "TableBase", db_id: int):
+    def __init__(self, table: "TableBase", db_id: int | bytes):
         """Initialise the :class:`EntryBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -129,7 +115,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         :param table: Value for ``table``.
         :type table: :class:`TableBase`
         :param db_id: Identifier for the database.
-        :type db_id: int
+        :type db_id: int | bytes
         """
         self._table = table
         self._db_id = db_id
@@ -202,9 +188,11 @@ class TableBase:
     """
     __table_name__: str = None
 
-    # True for every migrated global_db table (client-generated UUID row
-    # ids). False only for AppUsersTable, which keeps a plain AUTO_INCREMENT
-    # id -- see the migration plan for why.
+    # True for every global_db table that should use this base class's
+    # generic client-generated-id insert() path. False only for
+    # AppUsersTable, whose row ids are still 128-bit and bytes like every
+    # other table but need bespoke generation logic instead of this
+    # generic path -- see AppUsersTable.insert() for why.
     __uses_uuid_id__: bool = True
 
     @_check_types.do
@@ -275,7 +263,7 @@ class TableBase:
         :rtype: UNKNOWN
         """
         self.execute(f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id=?;',
-                    (_as_db_value(db_id),))
+                    (db_id,))
         rows = self.fetchall()
 
         if rows:
@@ -342,7 +330,7 @@ class TableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(item),))
+        self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = ?;', (item,))
 
         for line in self._con.fetchall():
             return line
@@ -374,17 +362,17 @@ class TableBase:
         return self.__table_name__
 
     @_check_types.do
-    def __contains__(self, db_id: int | bytes | uuid.UUID) -> bool:
+    def __contains__(self, db_id: int | bytes) -> bool:
         """Return whether the requested item is present.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int | bytes | uuid.UUID
+        :type db_id: int | bytes
         :returns: ``True`` when the condition is satisfied.
         :rtype: bool
         """
-        self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(db_id),))
+        self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = ?;', (db_id,))
 
         if self._con.fetchall():
             return True
@@ -392,17 +380,20 @@ class TableBase:
         return False
 
     @_check_types.do
-    def insert(self, **kwargs) -> int | uuid.UUID:
+    def insert(self, **kwargs) -> int | bytes:
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
-        :returns: The new row's id -- a ``uuid.UUID`` for every migrated
-            table, or a plain ``int`` for ``AppUsersTable`` (still
-            AUTO_INCREMENT).
-        :rtype: int | uuid.UUID
+        :returns: The new row's id -- ``bytes`` when ``__uses_uuid_id__``
+            is ``True``, otherwise a plain engine-assigned ``int``
+            (``AppUsersTable`` sets ``__uses_uuid_id__ = False`` but
+            never actually calls this method -- see its own bespoke
+            ``insert()`` -- so this branch is currently unused, kept for
+            any future table that's genuinely still int-keyed).
+        :rtype: int | bytes
         """
         fields = []
         values = []
@@ -417,7 +408,7 @@ class TableBase:
 
         for key, value in kwargs.items():
             fields.append(key)
-            args.append(_as_db_value(value))
+            args.append(value)
             values.append('?')
 
         fields = ', '.join(fields)
@@ -426,7 +417,7 @@ class TableBase:
         self._con.commit()
 
         if self.__uses_uuid_id__:
-            return new_id
+            return new_id.bytes
 
         return self._con.lastrowid
 
@@ -508,7 +499,7 @@ class TableBase:
                     clauses.append(f'{key} IS NULL')
                 else:
                     clauses.append(f'{key} = ?')
-                    params.append(_as_db_value(value))
+                    params.append(value)
 
             where = f' WHERE {" AND ".join(clauses)}'
         else:
@@ -520,25 +511,25 @@ class TableBase:
         return res
 
     @_check_types.do
-    def delete(self, db_id: int | bytes | uuid.UUID) -> None:
+    def delete(self, db_id: int | bytes) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int | bytes | uuid.UUID
+        :type db_id: int | bytes
         """
-        self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;', (_as_db_value(db_id),))
+        self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;', (db_id,))
         self._con.commit()
 
     @_check_types.do
-    def update(self, db_id: int | bytes | uuid.UUID, **kwargs):
+    def update(self, db_id: int | bytes, **kwargs):
         """Execute the update operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param db_id: Identifier for the database.
-        :type db_id: int | bytes | uuid.UUID
+        :type db_id: int | bytes
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
         """
@@ -547,10 +538,10 @@ class TableBase:
 
         for key, value in kwargs.items():
             fields.append(f'{key} = ?')
-            values.append(_as_db_value(value))
+            values.append(value)
 
         fields = ', '.join(fields)
-        values.append(_as_db_value(db_id))
+        values.append(db_id)
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = ?;', values)
         self._con.commit()
 

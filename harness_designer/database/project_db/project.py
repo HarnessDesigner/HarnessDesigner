@@ -62,7 +62,7 @@ class ProjectsTable(PJTTableBase):
         """
 
         for db_id in PJTTableBase.__iter__(self):
-            yield Project(self, db_id, db_id)
+            yield Project(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "Project":
@@ -79,7 +79,7 @@ class ProjectsTable(PJTTableBase):
         """
         if isinstance(item, int):
             if item in self:
-                return Project(self, item, item)
+                return Project(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -111,7 +111,7 @@ class ProjectsTable(PJTTableBase):
         self.update(project_id, object_count=value)
 
     @_check_types.do
-    def insert(self, name: str, description: str, creator: str, model_id: int | None, color_id: int) -> "Project":
+    def insert(self, name: str, description: str, creator: str, model_id: bytes | None, color_id: bytes) -> "Project":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -123,9 +123,9 @@ class ProjectsTable(PJTTableBase):
         :param creator: Value for ``creator``.
         :type creator: str
         :param model_id: Value for ``model_id``.
-        :type model_id: int
+        :type model_id: bytes | None
         :param color_id: Value for ``color_id``.
-        :type color_id: int
+        :type color_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`Project`
         """
@@ -134,7 +134,7 @@ class ProjectsTable(PJTTableBase):
                                     creator=creator, model_id=model_id,
                                     color_id=color_id)
 
-        return Project(self, db_id, db_id)
+        return Project(self, db_id)
 
 
 class Project(PJTEntryBase, ColorMixin):
@@ -289,11 +289,11 @@ class Project(PJTEntryBase, ColorMixin):
         self._stored_wire_stripe_max_length = value
         self._table.update(self._db_id, wire_stripe_max_length=value)
 
-    _stored_model_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_model_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def model_id(self) -> int | None:
+    def model_id(self) -> bytes | None:
         if self._stored_model_id is DefaultStoredValue:
             self._stored_model_id = self._table.select('model_id', id=self._db_id)[0][0]
 
@@ -301,7 +301,7 @@ class Project(PJTEntryBase, ColorMixin):
 
     @model_id.setter
     @_check_types.do
-    def model_id(self, value: int | None):
+    def model_id(self, value: bytes | None):
         self._stored_model_id = value
         self._stored_model = DefaultStoredValue
 

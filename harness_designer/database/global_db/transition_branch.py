@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
@@ -84,15 +83,16 @@ class TransitionBranchesTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return TransitionBranch(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, transition_id: int, idx: int, name: int, bulb_offset: _point.Point | None,
+    def insert(self, transition_id: bytes, idx: int, name: int, bulb_offset: _point.Point | None,
                bulb_length: float | None, min_dia: float, max_dia: float, length: float,
                angle: float, offset: _point.Point | None, flange_height: float | None,
                flange_width: float | None) -> "TransitionBranch":
@@ -101,7 +101,7 @@ class TransitionBranchesTable(TableBase):
         UNKNOWN details are inferred from the callable name and signature.
 
         :param transition_id: Identifier for the transition.
-        :type transition_id: int
+        :type transition_id: bytes
         :param idx: Value for ``idx``.
         :type idx: int
         :param name: Name value.
@@ -165,17 +165,17 @@ class TransitionBranch(EntryBase, NameMixin):
 
         return self._stored_transition
 
-    _stored_transition_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_transition_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def transition_id(self) -> int:
+    def transition_id(self) -> bytes:
         """Return the transition ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_transition_id is DefaultStoredValue:
             self._stored_transition_id = self._table.select('tran_id', id=self._db_id)[0][0]

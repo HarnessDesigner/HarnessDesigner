@@ -13,7 +13,6 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_concentric_wires',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.UUIDField('layer_id', no_null=True,
                   references=_con.SQLFieldReference(_concentric_layers.pjt_table,
                                                     _concentric_layers.pjt_id_field,

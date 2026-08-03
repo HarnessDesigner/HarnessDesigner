@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -109,7 +108,7 @@ class PJTWireMarkersTable(PJTTableBase):
         :rtype: _Iterable['PJTWireMarker']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTWireMarker(self, db_id, self.project_id)
+            yield PJTWireMarker(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTWireMarker":
@@ -124,28 +123,28 @@ class PJTWireMarkersTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTWireMarker(self, item, self.project_id)
+                return PJTWireMarker(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point2d_id: int, point3d_id: int,
-               wire_id: int, part_id: int, label: str) -> "PJTWireMarker":
+    def insert(self, point2d_id: bytes, point3d_id: bytes,
+               wire_id: bytes, part_id: bytes, label: str) -> "PJTWireMarker":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param point2d_id: Identifier for the point 2D.
-        :type point2d_id: int
+        :type point2d_id: bytes
         :param point3d_id: Identifier for the point 3D.
-        :type point3d_id: int
+        :type point3d_id: bytes
         :param wire_id: Identifier for the wire.
-        :type wire_id: int
+        :type wire_id: bytes
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param label: Value for ``label``.
         :type label: str
         :returns: Return value. UNKNOWN details.
@@ -155,7 +154,7 @@ class PJTWireMarkersTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, point2d_id=point2d_id, point3d_id=point3d_id,
                                     wire_id=wire_id, part_id=part_id, label=label)
 
-        return PJTWireMarker(self, db_id, self.project_id)
+        return PJTWireMarker(self, db_id)
 
 
 class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
@@ -238,17 +237,17 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
 
         return self._stored_wire
 
-    _stored_wire_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_wire_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def wire_id(self) -> int:
+    def wire_id(self) -> bytes:
         """Return the wire ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_wire_id is DefaultStoredValue:
             self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
@@ -257,13 +256,13 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
 
     @wire_id.setter
     @_check_types.do
-    def wire_id(self, value: int):
+    def wire_id(self, value: bytes):
         """Set the wire ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_wire_id = value
         self._stored_wire = DefaultStoredValue

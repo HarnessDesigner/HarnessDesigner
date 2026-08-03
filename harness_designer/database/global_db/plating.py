@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
@@ -101,9 +100,10 @@ class PlatingsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Plating(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', symbol=item)

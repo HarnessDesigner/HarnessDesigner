@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
@@ -114,7 +113,7 @@ class PJTBundlesTable(PJTTableBase):
         :rtype: _Iterable['PJTBundle']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTBundle(self, db_id, self.project_id)
+            yield PJTBundle(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTBundle":
@@ -129,21 +128,21 @@ class PJTBundlesTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTBundle(self, item, self.project_id)
+                return PJTBundle(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str) -> "PJTBundle":
+    def insert(self, part_id: bytes, name: str) -> "PJTBundle":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
 
         :param name: Name for the project part.
         :type part_id: str
@@ -153,7 +152,7 @@ class PJTBundlesTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(self, part_id=part_id, name=name)
 
-        return PJTBundle(self, db_id, self.project_id)
+        return PJTBundle(self, db_id)
 
 
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,

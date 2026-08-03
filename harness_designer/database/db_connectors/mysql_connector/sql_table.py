@@ -344,61 +344,6 @@ class UUIDField(SQLField):
                          default, references, is_primary, autoincrement=False)
 
 
-class GeneratedField(SQLField):
-
-    """Represent a virtual generated column -- one whose value is always
-    derived from an expression over other columns in the same row, never
-    stored/written directly and never supplied on INSERT.
-
-    Used for ``project_id`` on migrated ``pjt_*`` tables: rather than
-    storing it redundantly, it's derived from the leading 3 bytes of the
-    row's own ``id`` (see database/id_generator.py for the bit layout) --
-    ``GENERATED ALWAYS AS (SUBSTRING(id, 1, 3)) VIRTUAL``. Existing
-    ``WHERE project_id = ?`` call sites keep working unchanged; only the
-    Python-side value passed in needs to switch from an int to the 3-byte
-    big-endian prefix (see id_generator.pack_project_row_id).
-    """
-    @_check_types.do
-    def __init__(self, name: str, data_type: str, expression: str):
-
-        """Initialize the generated field definition.
-
-        :param name: Name associated with the object being created.
-        :type name: str
-        :param data_type: SQL data type of the derived value.
-        :type data_type: str
-        :param expression: SQL expression the column's value is derived from.
-        :type expression: str
-        """
-        super().__init__(name, data_type)
-        self.expression = expression
-
-    @_check_types.do
-    def __str__(self):
-        """Return the SQL definition fragment for the generated column.
-
-        :returns: The SQL fragment describing the field.
-        :rtype: str
-        """
-        return f'{self.name} {self.type} GENERATED ALWAYS AS ({self.expression}) VIRTUAL'
-
-
-class ProjectIdField(GeneratedField):
-
-    """Represent the derived ``project_id`` column on a migrated ``pjt_*`` table.
-
-    Zero-config, connector-agnostic wrapper around GeneratedField so
-    create_database/*.py schema files never need to know the connector-
-    specific type string -- matches how PrimaryKeyField/UUIDField etc. are
-    already used without exposing raw SQL type literals.
-    """
-    @_check_types.do
-    def __init__(self):
-        """Initialize the ``project_id`` generated-column definition.
-        """
-        super().__init__('project_id', 'BINARY(3)', 'SUBSTRING(id, 1, 3)')
-
-
 class TextField(SQLField):
 
     """Represent a text field definition.

@@ -47,7 +47,6 @@ def add_pjt_wire_layout(con, project_id, point2d_id=None, point3d_id=None, notes
 pjt_table = _con.SQLTable(
     'pjt_wire_layouts',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.UUIDField('point2d_id', default='NULL',
                   references=_con.SQLFieldReference(_points2d.pjt_table,
                                                     _points2d.pjt_id_field,

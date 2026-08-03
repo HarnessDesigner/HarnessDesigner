@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -105,7 +104,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         :rtype: _Iterable['PJTWireLayout']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTWireLayout(self, db_id, self.project_id)
+            yield PJTWireLayout(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTWireLayout":
@@ -120,26 +119,26 @@ class PJTWireLayoutsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTWireLayout(self, item, self.project_id)
+                return PJTWireLayout(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: int) -> "PJTWireLayout":
+    def insert(self, point3d_id: bytes) -> "PJTWireLayout":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param point3d_id: Identifier for the point.
-        :type point3d_id: int
+        :type point3d_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWireLayout`
         """
         db_id = PJTTableBase.insert(self, point3d_id=point3d_id)
-        return PJTWireLayout(self, db_id, self.project_id)
+        return PJTWireLayout(self, db_id)
 
 
 class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,

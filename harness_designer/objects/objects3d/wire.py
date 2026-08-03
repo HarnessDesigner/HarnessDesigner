@@ -214,8 +214,8 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         forces a wire-routing point into existence for a cavity/terminal
         that has never had one, just by asking.
         """
-        start_id = int(self._p1.db_id[:-2])
-        stop_id = int(self._p2.db_id[:-2])
+        start_id = self._p1.db_id[:-2]
+        stop_id = self._p2.db_id[:-2]
         ids = {start_id, stop_id}
 
         project = self.mainframe.project

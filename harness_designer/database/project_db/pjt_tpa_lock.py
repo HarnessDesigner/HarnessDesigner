@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -109,7 +108,7 @@ class PJTTPALocksTable(PJTTableBase):
         :rtype: _Iterable['PJTTPALock']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTTPALock(self, db_id, self.project_id)
+            yield PJTTPALock(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTTPALock":
@@ -124,32 +123,32 @@ class PJTTPALocksTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTTPALock(self, item, self.project_id)
+                return PJTTPALock(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, position3d_id: int, idx: int, housing_id: int = None) -> "PJTTPALock":
+    def insert(self, part_id: bytes, name: str, position3d_id: bytes, idx: int, housing_id: bytes = None) -> "PJTTPALock":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param position3d_id: Identifier for the position 3D.
-        :type position3d_id: int
+        :type position3d_id: bytes
         :param housing_id: Identifier for the housing.
-        :type housing_id: int
+        :type housing_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTTPALock`
         """
         db_id = PJTTableBase.insert(
             self, part_id=part_id, name=name, point3d_id=position3d_id, housing_id=housing_id, idx=idx)
 
-        return PJTTPALock(self, db_id, self.project_id)
+        return PJTTPALock(self, db_id)
 
 
 class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMixin,

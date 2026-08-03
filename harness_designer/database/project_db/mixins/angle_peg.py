@@ -16,7 +16,7 @@ class AnglePegMixin(BaseMixin):
     top-down, so the only rotation that makes sense is a single spin about
     world +Y.
     """
-    _anglepeg_db_id: str = None
+    _anglepeg_db_id: bytes | None = None
     _stored_anglepeg: "_angle.Angle | DefaultStoredValueType" = DefaultStoredValue
 
     @_check_types.do
@@ -49,7 +49,7 @@ class AnglePegMixin(BaseMixin):
             euler = eval(self._table.select('anglepeg', id=self._db_id)[0][0])
 
             if self._anglepeg_db_id is None:
-                self._anglepeg_db_id = str(uuid.uuid4())
+                self._anglepeg_db_id = uuid.uuid4().bytes
 
             angle = _angle.Angle.from_quat(quat, euler, db_id=self._anglepeg_db_id)
             angle.bind(self._update_anglepeg)

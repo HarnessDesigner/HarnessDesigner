@@ -58,6 +58,34 @@ _BUILD_ARTIFACT_EXTS = frozenset([
 # app_dir-relative paths confirmed dead by checking harness_designer's own
 # source, or redundant with something else already bundled. Each is
 # removed as a whole subtree if it's a directory, or as a single file.
+def is_protected_path(path):
+    """Return whether `path` must survive every removal step below, even
+    when it looks completely empty/dead.
+
+    Confirmed for real: numpy's __init__.py resolves numpy.testing (and,
+    transitively, numpy.testing.tests) through the standard import
+    system's filesystem-based package lookup, not only through
+    PyInstaller's embedded archive -- deleting the on-disk numpy/testing
+    directory raises ModuleNotFoundError even though numpy.testing's
+    actual bytecode is still in the archive. The directory only needs to
+    exist, empty is fine; this is why the fix is an exclusion here rather
+    than un-pruning the archive-redundant files.
+
+    Checking path components rather than a fixed path list is deliberate:
+    it protects numpy/testing itself (which the empty-dir sweep would
+    otherwise remove) and numpy/testing/tests (which the 'tests'
+    name-match removal would otherwise remove first) with one rule, and
+    keeps working if numpy ever nests something else under testing/.
+
+    :param path: Absolute or app_dir-relative filesystem path to check.
+    :returns: ``True`` if the path has both 'numpy' and 'testing' among
+        its path components (case-insensitive).
+    :rtype: bool
+    """
+    parts = {p.lower() for p in os.path.normpath(path).split(os.sep)}
+    return 'numpy' in parts and 'testing' in parts
+
+
 _EXPLICIT_PATHS = [
     # Jinja2 templates for pandas' DataFrame.style HTML/LaTeX export.
     # harness_designer only ever uses plain pd.DataFrame/pd.read_csv
@@ -125,8 +153,9 @@ def prune_dist(app_dir):
     for root, dirs, _files in os.walk(app_dir, topdown=True):
         keep = []
         for dname in dirs:
-            if dname.lower() in _TEST_DIR_NAMES:
-                shutil.rmtree(os.path.join(root, dname), ignore_errors=True)
+            dir_path = os.path.join(root, dname)
+            if dname.lower() in _TEST_DIR_NAMES and not is_protected_path(dir_path):
+                shutil.rmtree(dir_path, ignore_errors=True)
                 n_dirs += 1
             else:
                 keep.append(dname)
@@ -151,6 +180,9 @@ def prune_dist(app_dir):
                 continue
 
             dir_path = os.path.join(root, dname)
+            if is_protected_path(dir_path):
+                continue
+
             try:
                 if not os.listdir(dir_path):
                     os.rmdir(dir_path)

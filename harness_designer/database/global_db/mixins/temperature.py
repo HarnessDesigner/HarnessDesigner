@@ -38,17 +38,17 @@ class TemperatureMixin(BaseMixin):
 
         return self._stored_min_temp
 
-    _stored_min_temp_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_min_temp_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def min_temp_id(self) -> int:
+    def min_temp_id(self) -> bytes:
         """Return the min temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_min_temp_id is DefaultStoredValue:
             self._stored_min_temp_id = self._table.select('min_temp_id', id=self._db_id)[0][0]
@@ -57,13 +57,13 @@ class TemperatureMixin(BaseMixin):
 
     @min_temp_id.setter
     @_check_types.do
-    def min_temp_id(self, value: int):
+    def min_temp_id(self, value: bytes):
         """Set the min temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_min_temp_id = value
         self._stored_min_temp = DefaultStoredValue
@@ -92,17 +92,17 @@ class TemperatureMixin(BaseMixin):
 
         return self._stored_max_temp
 
-    _stored_max_temp_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_max_temp_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def max_temp_id(self) -> int:
+    def max_temp_id(self) -> bytes:
         """Return the max temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_max_temp_id is DefaultStoredValue:
             self._stored_max_temp_id = self._table.select('max_temp_id', id=self._db_id)[0][0]
@@ -111,13 +111,13 @@ class TemperatureMixin(BaseMixin):
 
     @max_temp_id.setter
     @_check_types.do
-    def max_temp_id(self, value: int):
+    def max_temp_id(self, value: bytes):
         """Set the max temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_max_temp_id = value
         self._stored_max_temp = DefaultStoredValue

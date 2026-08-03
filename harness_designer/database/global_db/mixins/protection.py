@@ -17,17 +17,17 @@ class ProtectionMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_protection_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_protection_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def protection_id(self) -> int:
+    def protection_id(self) -> bytes:
         """Return the protection ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_protection_id is DefaultStoredValue:
             self._stored_protection_id = self._table.select('protection_id', id=self._db_id)[0][0]
@@ -36,13 +36,13 @@ class ProtectionMixin(BaseMixin):
 
     @protection_id.setter
     @_check_types.do
-    def protection_id(self, value: int):
+    def protection_id(self, value: bytes):
         """Set the protection ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_protection_id = value
         self._stored_protections = DefaultStoredValue

@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from ....ui import prop_ctrls as _prop_ctrls
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
-from ..bases import _as_db_value
 from .... import check_types as _check_types
 
 
@@ -40,17 +39,17 @@ class ManufacturerMixin(BaseMixin):
 
         return self._stored_manufacturer
 
-    _stored_mfg_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_mfg_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def mfg_id(self) -> int:
+    def mfg_id(self) -> bytes:
         """Return the mfg ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_mfg_id is DefaultStoredValue:
             self._stored_mfg_id = self._table.select('mfg_id', id=self._db_id)[0][0]
@@ -59,13 +58,13 @@ class ManufacturerMixin(BaseMixin):
 
     @mfg_id.setter
     @_check_types.do
-    def mfg_id(self, value: int):
+    def mfg_id(self, value: bytes):
         """Set the mfg ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_mfg_id = value
         self._stored_manufacturer = DefaultStoredValue
@@ -160,7 +159,7 @@ class ManufacturerControl(_prop_ctrls.Category):
 
             self.db_obj.table.execute(
                 'SELECT name, description, address, contact_person, phone, ext, email, website '
-                'FROM manufacturers WHERE id=?;', (_as_db_value(mfg.db_id),))
+                'FROM manufacturers WHERE id=?;', (mfg.db_id,))
             rows = db_obj.table.fetchall()
             name, desc, addr, contact, phone, ext, email, website = rows[0]
 

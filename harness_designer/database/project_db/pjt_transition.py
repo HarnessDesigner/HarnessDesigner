@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -111,7 +110,7 @@ class PJTTransitionsTable(PJTTableBase):
         :rtype: _Iterable['PJTTransition']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTTransition(self, db_id, self.project_id)
+            yield PJTTransition(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTTransition":
@@ -126,23 +125,23 @@ class PJTTransitionsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTTransition(self, item, self.project_id)
+                return PJTTransition(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, center_id: int, angle: _angle.Angle) -> "PJTTransition":
+    def insert(self, part_id: bytes, name: str, center_id: bytes, angle: _angle.Angle) -> "PJTTransition":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param center_id: Identifier for the center.
-        :type center_id: int
+        :type center_id: bytes
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         :param name: Name value.
@@ -154,7 +153,7 @@ class PJTTransitionsTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, part_id=part_id, name=name, center_id=center_id,
                                     angle=str(list(angle.as_euler_float)))
 
-        return PJTTransition(self, db_id, self.project_id)
+        return PJTTransition(self, db_id)
 
 
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegMixin,

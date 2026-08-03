@@ -45,17 +45,17 @@ class StartStopPosition3DMixin(BaseMixin):
 
         return point
 
-    _stored_start_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_start_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def start_position3d_id(self) -> int:
+    def start_position3d_id(self) -> bytes:
         """Return the start position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
 
         if self._stored_start_position3d_id is DefaultStoredValue:
@@ -69,13 +69,13 @@ class StartStopPosition3DMixin(BaseMixin):
 
     @start_position3d_id.setter
     @_check_types.do
-    def start_position3d_id(self, value: int):
+    def start_position3d_id(self, value: bytes):
         """Set the start position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
 
         self._stored_start_position3d_id = value
@@ -115,17 +115,17 @@ class StartStopPosition3DMixin(BaseMixin):
 
         return point
 
-    _stored_stop_position3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_stop_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def stop_position3d_id(self) -> int:
+    def stop_position3d_id(self) -> bytes:
         """Return the stop position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
 
         if self._stored_stop_position3d_id is DefaultStoredValue:
@@ -140,13 +140,13 @@ class StartStopPosition3DMixin(BaseMixin):
 
     @stop_position3d_id.setter
     @_check_types.do
-    def stop_position3d_id(self, value: int):
+    def stop_position3d_id(self, value: bytes):
         """Set the stop position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
 
         self._stored_stop_position3d_id = value

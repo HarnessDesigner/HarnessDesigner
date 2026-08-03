@@ -189,6 +189,9 @@ def _clean_dist(app_dir):
             if dname.endswith('.dist-info'):
                 continue
 
+            if prune_dist.is_protected_path(dir_path):
+                continue
+
             # topdown=False means dname was already fully visited (its own
             # files removed, its own now-empty subdirs pruned) in an
             # earlier iteration of this same walk, so an empty listdir()

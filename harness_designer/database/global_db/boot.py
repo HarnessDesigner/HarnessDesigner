@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable
@@ -128,7 +127,7 @@ class BootsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Boot(self, item)
             raise IndexError(str(item))
@@ -171,9 +170,9 @@ class BootsTable(TableBase):
         return res
 
     @_check_types.do
-    def insert(self, part_number: str, mfg_id: int, description: str, family_id: int,
-               series_id: int, min_temp_id: int, max_temp_id: int, image_id: int,
-               datasheet_id: int, cad_id: int, color_id: int, weight: float) -> "Boot":
+    def insert(self, part_number: str, mfg_id: bytes, description: str, family_id: bytes,
+               series_id: bytes, min_temp_id: bytes, max_temp_id: bytes, image_id: bytes,
+               datasheet_id: bytes, cad_id: bytes, color_id: bytes, weight: float) -> "Boot":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -181,25 +180,25 @@ class BootsTable(TableBase):
         :param part_number: Value for ``part_number``.
         :type part_number: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :param family_id: Identifier for the family.
-        :type family_id: int
+        :type family_id: bytes
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param min_temp_id: Identifier for the min temp.
-        :type min_temp_id: int
+        :type min_temp_id: bytes
         :param max_temp_id: Identifier for the max temp.
-        :type max_temp_id: int
+        :type max_temp_id: bytes
         :param image_id: Identifier for the image.
-        :type image_id: int
+        :type image_id: bytes
         :param datasheet_id: Identifier for the datasheet.
-        :type datasheet_id: int
+        :type datasheet_id: bytes
         :param cad_id: Identifier for the cad.
-        :type cad_id: int
+        :type cad_id: bytes
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :param weight: Value for ``weight``.
         :type weight: float
         :returns: Return value. UNKNOWN details.

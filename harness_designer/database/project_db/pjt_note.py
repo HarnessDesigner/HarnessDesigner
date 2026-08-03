@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
@@ -110,7 +109,7 @@ class PJTNotesTable(PJTTableBase):
         :rtype: _Iterable['PJTNote']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTNote(self, db_id, self.project_id)
+            yield PJTNote(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTNote":
@@ -125,24 +124,24 @@ class PJTNotesTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTNote(self, item, self.project_id)
+                return PJTNote(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: int | None, point2d_id: int | None,
-               notes: str, size: int, align: int, style: int, color_id: int = 0) -> "PJTNote":
+    def insert(self, point3d_id: bytes | None, point2d_id: bytes | None,
+               notes: str, size: int, align: int, style: int, color_id: bytes = 0) -> "PJTNote":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param point2d_id: Identifier for the point 2D.
-        :type point2d_id: int | None
+        :type point2d_id: bytes | None
         :param point3d_id: Identifier for the point 3D.
-        :type point3d_id: int | None
+        :type point3d_id: bytes | None
         :param notes: Value for ``note``.
         :type notes: str
         :param size: Value for ``size``.
@@ -152,7 +151,7 @@ class PJTNotesTable(PJTTableBase):
         :param style: Value for ``style``.
         :type style: int
         :param color_id: Value for ``color_id``.
-        :type color_id: int
+        :type color_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTNote`
         """
@@ -169,7 +168,7 @@ class PJTNotesTable(PJTTableBase):
                                         size3d=size, h_align3d=align, style3d=style,
                                         is_visible2d=0, is_visible3d=1, color_id=color_id)
 
-        return PJTNote(self, db_id, self.project_id)
+        return PJTNote(self, db_id)
 
 
 class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,

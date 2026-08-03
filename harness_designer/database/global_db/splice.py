@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from PySide6.QtWidgets import QTabWidget
 from typing import TYPE_CHECKING, Iterable as _Iterable
@@ -133,9 +132,10 @@ class SplicesTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Splice(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', name=item)
@@ -145,9 +145,9 @@ class SplicesTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_number: str, description: str, mfg_id: int, family_id: int,
-               series_id: int, material_id: int, color_id: int, plating_id: int,
-               type_id: int, min_dia: float, max_dia: float, resistance: float,
+    def insert(self, part_number: str, description: str, mfg_id: bytes, family_id: bytes,
+               series_id: bytes, material_id: bytes, color_id: bytes, plating_id: bytes,
+               type_id: bytes, min_dia: float, max_dia: float, resistance: float,
                length: float, weight: float) -> "Splice":
         """Execute the insert operation.
 
@@ -158,19 +158,19 @@ class SplicesTable(TableBase):
         :param description: Value for ``description``.
         :type description: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param family_id: Identifier for the family.
-        :type family_id: int
+        :type family_id: bytes
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param material_id: Identifier for the material.
-        :type material_id: int
+        :type material_id: bytes
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :param plating_id: Identifier for the plating.
-        :type plating_id: int
+        :type plating_id: bytes
         :param type_id: Identifier for the type.
-        :type type_id: int
+        :type type_id: bytes
         :param min_dia: Value for ``min_dia``.
         :type min_dia: float
         :param max_dia: Value for ``max_dia``.
@@ -308,17 +308,17 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
         return self._stored_type
 
-    _stored_type_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_type_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def type_id(self) -> int:
+    def type_id(self) -> bytes:
         """Return the type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_type_id is DefaultStoredValue:
             self._stored_type_id = self._table.select('type_id', id=self._db_id)[0][0]
@@ -327,13 +327,13 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
     @type_id.setter
     @_check_types.do
-    def type_id(self, value: int):
+    def type_id(self, value: bytes):
         """Set the type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_type_id = value
         self._stored_type = DefaultStoredValue

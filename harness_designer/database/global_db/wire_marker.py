@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable
@@ -112,9 +111,10 @@ class WireMarkersTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return WireMarker(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', part_number=item)
@@ -124,8 +124,8 @@ class WireMarkersTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_number: str, mfg_id: int, description: str, image_id: int, datasheet_id: int,
-               cad_id: int, color_id: int, min_diameter: float, max_diameter: float, length: float) -> "WireMarker":
+    def insert(self, part_number: str, mfg_id: bytes, description: str, image_id: bytes, datasheet_id: bytes,
+               cad_id: bytes, color_id: bytes, min_diameter: float, max_diameter: float, length: float) -> "WireMarker":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -133,17 +133,17 @@ class WireMarkersTable(TableBase):
         :param part_number: Value for ``part_number``.
         :type part_number: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :param image_id: Identifier for the image.
-        :type image_id: int
+        :type image_id: bytes
         :param datasheet_id: Identifier for the datasheet.
-        :type datasheet_id: int
+        :type datasheet_id: bytes
         :param cad_id: Identifier for the cad.
-        :type cad_id: int
+        :type cad_id: bytes
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :param min_diameter: Value for ``min_diameter``.
         :type min_diameter: float
         :param max_diameter: Value for ``max_diameter``.

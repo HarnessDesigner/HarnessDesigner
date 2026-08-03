@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -112,7 +111,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         :rtype: _Iterable['PJTWireServiceLoop']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTWireServiceLoop(self, db_id, self.project_id)
+            yield PJTWireServiceLoop(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTWireServiceLoop":
@@ -127,28 +126,28 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTWireServiceLoop(self, item, self.project_id)
+                return PJTWireServiceLoop(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, start_point3d_id: int, stop_point3d_id: int,
-               circuit_id: int, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
+    def insert(self, part_id: bytes, name: str, start_point3d_id: bytes, stop_point3d_id: bytes,
+               circuit_id: bytes, is_visible: bool, quat: np.ndarray) -> "PJTWireServiceLoop":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param start_point3d_id: Identifier for the start point 3D.
-        :type start_point3d_id: int
+        :type start_point3d_id: bytes
         :param stop_point3d_id: Identifier for the stop point 3D.
-        :type stop_point3d_id: int
+        :type stop_point3d_id: bytes
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param circuit_id: Identifier for the circuit.
-        :type circuit_id: int
+        :type circuit_id: bytes
         :param is_visible: Boolean flag for whether visible.
         :type is_visible: bool
         :param quat: Value for ``quat``.
@@ -163,7 +162,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
                                     quat3d=str([float(str(v)) for v in quat.tolist()]),
                                     is_visible3d=int(is_visible))
 
-        return PJTWireServiceLoop(self, db_id, self.project_id)
+        return PJTWireServiceLoop(self, db_id)
 
 
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
@@ -400,17 +399,17 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
         return self._stored_circuit
 
-    _stored_circuit_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_circuit_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def circuit_id(self) -> int | None:
+    def circuit_id(self) -> bytes | None:
         """Return the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_circuit_id is DefaultStoredValue:
             self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
@@ -419,13 +418,13 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: int | None):
+    def circuit_id(self, value: bytes | None):
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int | None
+        :type value: bytes | None
         """
         self._stored_circuit_id = value
         self._stored_circuit = DefaultStoredValue

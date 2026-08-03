@@ -39,17 +39,17 @@ class ColorMixin(BaseMixin):
 
         return self._stored_color
 
-    _stored_color_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_color_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def color_id(self) -> int:
+    def color_id(self) -> bytes:
         """Return the color ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_color_id is DefaultStoredValue:
             self._stored_color_id = self._table.select('color_id', id=self._db_id)[0][0]
@@ -58,13 +58,13 @@ class ColorMixin(BaseMixin):
 
     @color_id.setter
     @_check_types.do
-    def color_id(self, value: int):
+    def color_id(self, value: bytes):
         """Set the color ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_color_id = value
         self._stored_color = DefaultStoredValue

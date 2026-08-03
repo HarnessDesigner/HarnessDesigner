@@ -192,7 +192,7 @@ class ColorCtrl(QtWidgets.QWidget):
         else:
             a = 255
 
-        return _color.Color(qc.red(), qc.green(), qc.blue(), a, db_id=str(db_id))
+        return _color.Color(qc.red(), qc.green(), qc.blue(), a, db_id=db_id)
 
     @_check_types.do
     def GetValue(self) -> str:

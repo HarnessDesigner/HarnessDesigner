@@ -47,15 +47,15 @@ class TablePositionPegMixin(BaseMixin):
 
         return point
 
-    _stored_table_position_peg_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_table_position_peg_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def table_position_peg_id(self) -> int:
+    def table_position_peg_id(self) -> bytes:
         """Return the data-table overlay's peg-board position row id.
 
         :returns: Property value.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_table_position_peg_id is DefaultStoredValue:
             point_id = self._table.select('table_point_peg_id', id=self._db_id)[0][0]
@@ -69,11 +69,11 @@ class TablePositionPegMixin(BaseMixin):
 
     @table_position_peg_id.setter
     @_check_types.do
-    def table_position_peg_id(self, value: int):
+    def table_position_peg_id(self, value: bytes):
         """Set the data-table overlay's peg-board position row id.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_table_position_peg_id = value
         self._stored_table_position_peg = DefaultStoredValue

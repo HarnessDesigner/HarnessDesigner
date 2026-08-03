@@ -38,21 +38,21 @@ class UsedPartsTable(TableBase):
             yield UsedPart(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item: int) -> "UsedPart":
+    def __getitem__(self, item: int | bytes) -> "UsedPart":
         if item in self:
             return UsedPart(self, item)
 
         raise KeyError(item)
 
     @_check_types.do
-    def for_housing(self, housing_id: int) -> list["UsedPart"]:
+    def for_housing(self, housing_id: bytes) -> list["UsedPart"]:
         """Return every recorded usage row for the given housing."""
         rows = self.select('id', housing_id=housing_id)
         return [UsedPart(self, row[0]) for row in rows]
 
     @_check_types.do
-    def insert(self, housing_id: int, tpa_lock_id: int = None, cpa_lock_id: int = None,
-               cover_id: int = None, terminal_id: int = None) -> "UsedPart":
+    def insert(self, housing_id: bytes, tpa_lock_id: bytes = None, cpa_lock_id: bytes = None,
+               cover_id: bytes = None, terminal_id: bytes = None) -> "UsedPart":
         db_id = TableBase.insert(
             self, housing_id=housing_id, tpa_lock_id=tpa_lock_id,
             cpa_lock_id=cpa_lock_id, cover_id=cover_id, terminal_id=terminal_id)
@@ -64,51 +64,51 @@ class UsedPart(EntryBase):
 
     _table: UsedPartsTable = None
 
-    _stored_housing_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_housing_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
-    def housing_id(self) -> int:
+    def housing_id(self) -> bytes:
         if self._stored_housing_id is DefaultStoredValue:
             self._stored_housing_id = self._table.select('housing_id', id=self._db_id)[0][0]
 
         return self._stored_housing_id
 
-    _stored_tpa_lock_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_tpa_lock_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def tpa_lock_id(self) -> int | None:
+    def tpa_lock_id(self) -> bytes | None:
         if self._stored_tpa_lock_id is DefaultStoredValue:
             self._stored_tpa_lock_id = self._table.select('tpa_lock_id', id=self._db_id)[0][0]
 
         return self._stored_tpa_lock_id
 
-    _stored_cpa_lock_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_cpa_lock_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def cpa_lock_id(self) -> int | None:
+    def cpa_lock_id(self) -> bytes | None:
         if self._stored_cpa_lock_id is DefaultStoredValue:
             self._stored_cpa_lock_id = self._table.select('cpa_lock_id', id=self._db_id)[0][0]
 
         return self._stored_cpa_lock_id
 
-    _stored_cover_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_cover_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def cover_id(self) -> int | None:
+    def cover_id(self) -> bytes | None:
         if self._stored_cover_id is DefaultStoredValue:
             self._stored_cover_id = self._table.select('cover_id', id=self._db_id)[0][0]
 
         return self._stored_cover_id
 
-    _stored_terminal_id: DefaultStoredValueType | int | None = DefaultStoredValue
+    _stored_terminal_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def terminal_id(self) -> int | None:
+    def terminal_id(self) -> bytes | None:
         if self._stored_terminal_id is DefaultStoredValue:
             self._stored_terminal_id = self._table.select('terminal_id', id=self._db_id)[0][0]
 

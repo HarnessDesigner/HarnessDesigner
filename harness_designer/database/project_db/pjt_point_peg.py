@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable
 
@@ -47,23 +46,23 @@ class PJTPointsPegTable(PJTTableBase):
     @_check_types.do
     def __iter__(self) -> _Iterable["PJTPointPeg"]:
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTPointPeg(self, db_id, self.project_id)
+            yield PJTPointPeg(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTPointPeg":
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTPointPeg(self, item, self.project_id)
+                return PJTPointPeg(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def for_bundle(self, bundle_id: int) -> list["PJTPointPeg"]:
+    def for_bundle(self, bundle_id: bytes) -> list["PJTPointPeg"]:
         """Return every waypoint on a bundle, ordered by ``idx`` ascending.
 
         :param bundle_id: Identifier of the bundle whose waypoints to fetch.
-        :type bundle_id: int
+        :type bundle_id: bytes
         :returns: The bundle's waypoints, in chain order.
         :rtype: list['PJTPointPeg']
         """
@@ -73,7 +72,7 @@ class PJTPointsPegTable(PJTTableBase):
         return [self[row[0]] for row in rows]
 
     @_check_types.do
-    def insert(self, x: float, z: float, bundle_id: int = None,
+    def insert(self, x: float, z: float, bundle_id: bytes = None,
                idx: int = None) -> "PJTPointPeg":
         """Create a new peg-board point row.
 
@@ -87,7 +86,7 @@ class PJTPointsPegTable(PJTTableBase):
         :type z: float
         :param bundle_id: Owning bundle, for a waypoint row -- ``None``
             for an anchor's own position row.
-        :type bundle_id: int | None
+        :type bundle_id: bytes | None
         :param idx: 0-based order along the bundle chain, for a waypoint
             row -- ``None`` for an anchor's own position row.
         :type idx: int | None
@@ -96,7 +95,7 @@ class PJTPointsPegTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(self, x=x, z=z, bundle_id=bundle_id, idx=idx)
 
-        return PJTPointPeg(self, db_id, self.project_id)
+        return PJTPointPeg(self, db_id)
 
 
 class PJTPointPeg(PJTEntryBase):
@@ -140,16 +139,16 @@ class PJTPointPeg(PJTEntryBase):
         self._stored_z = value
         self._table.update(self._db_id, z=value)
 
-    _stored_bundle_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_bundle_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def bundle_id(self) -> int | None:
+    def bundle_id(self) -> bytes | None:
         """Return the id of the bundle this waypoint belongs to, or
         ``None`` for an anchor's own position row.
 
         :returns: The referenced ``pjt_bundles`` row id, or ``None``.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_bundle_id is DefaultStoredValue:
             self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
@@ -158,7 +157,7 @@ class PJTPointPeg(PJTEntryBase):
 
     @bundle_id.setter
     @_check_types.do
-    def bundle_id(self, value: int | None):
+    def bundle_id(self, value: bytes | None):
         self._stored_bundle_id = value
         self._table.update(self._db_id, bundle_id=value)
         self._populate('bundle_id')
@@ -204,7 +203,7 @@ class PJTPointPeg(PJTEntryBase):
         """
         if self._stored_point_peg is None:
             self._stored_point_peg = _point.Point(
-                self.x, 0.0, self.z, db_id=str(self.db_id) + 'peg')
+                self.x, 0.0, self.z, db_id=self.db_id + b'peg')
             self._stored_point_peg.bind(self._update_point)
 
         return self._stored_point_peg

@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
@@ -132,9 +131,10 @@ class WiresTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Wire(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', part_number=item)
@@ -144,10 +144,10 @@ class WiresTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_number: str, mfg_id: int, description: str, family_id: int, series_id: int,
-               image_id: int, datasheet_id: int, cad_id: int, color_id: int, addl_color_ids: list,
-               material_id: int, num_conductors: int, shielded: bool, tpi: int, conductor_dia_mm: float,
-               size_mm2: float, size_awg: int, od_mm: float, max_temp_id: int, weight: float) -> "Wire":
+    def insert(self, part_number: str, mfg_id: bytes, description: str, family_id: bytes, series_id: bytes,
+               image_id: bytes, datasheet_id: bytes, cad_id: bytes, color_id: bytes, addl_color_ids: list,
+               material_id: bytes, num_conductors: int, shielded: bool, tpi: int, conductor_dia_mm: float,
+               size_mm2: float, size_awg: int, od_mm: float, max_temp_id: bytes, weight: float) -> "Wire":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -155,25 +155,25 @@ class WiresTable(TableBase):
         :param part_number: Value for ``part_number``.
         :type part_number: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :param family_id: Identifier for the family.
-        :type family_id: int
+        :type family_id: bytes
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param image_id: Identifier for the image.
-        :type image_id: int
+        :type image_id: bytes
         :param datasheet_id: Identifier for the datasheet.
-        :type datasheet_id: int
+        :type datasheet_id: bytes
         :param cad_id: Identifier for the cad.
-        :type cad_id: int
+        :type cad_id: bytes
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :param addl_color_ids: Identifier for the addl color.
         :type addl_color_ids: list
         :param material_id: Identifier for the material.
-        :type material_id: int
+        :type material_id: bytes
         :param num_conductors: Value for ``num_conductors``.
         :type num_conductors: int
         :param shielded: Value for ``shielded``.
@@ -189,7 +189,7 @@ class WiresTable(TableBase):
         :param od_mm: Value for ``od_mm``.
         :type od_mm: float
         :param max_temp_id: Identifier for the max temp.
-        :type max_temp_id: int
+        :type max_temp_id: bytes
         :param weight: Value for ``weight``.
         :type weight: float
         :returns: Return value. UNKNOWN details.
@@ -783,17 +783,17 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
         return self._stored_core_material
 
-    _stored_core_material_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_core_material_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
-    def core_material_id(self) -> int:
+    def core_material_id(self) -> bytes:
         """Return the core material ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_core_material_id is DefaultStoredValue:
             self._stored_core_material_id = self._table.select('core_material_id', id=self._db_id)[0][0]
@@ -802,13 +802,13 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @core_material_id.setter
     @_check_types.do
-    def core_material_id(self, value: int):
+    def core_material_id(self, value: bytes):
         """Set the core material ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_core_material_id = value
         self._stored_core_material = DefaultStoredValue
@@ -1051,17 +1051,17 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
         return self._stored_stripe_color
 
-    _stored_stripe_color_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_stripe_color_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def stripe_color_id(self) -> int | None:
+    def stripe_color_id(self) -> bytes | None:
         """Return the stripe color ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_stripe_color_id is DefaultStoredValue:
             self._stored_stripe_color_id = self._table.select('stripe_color_id', id=self._db_id)[0][0]
@@ -1070,13 +1070,13 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @stripe_color_id.setter
     @_check_types.do
-    def stripe_color_id(self, value: int | None):
+    def stripe_color_id(self, value: bytes | None):
         """Set the stripe color ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int | None
+        :type value: bytes | None
         """
         self._stored_stripe_color_id = value
         self._stored_stripe_color = DefaultStoredValue

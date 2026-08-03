@@ -46,7 +46,7 @@ class AngleMeta(type):
     @_check_types.do
     def __call__(cls, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: int | str | None = None):
+                 db_id: bytes | None = None):
         """
         Return a cached or new :class:`Angle` instance.
 
@@ -55,7 +55,7 @@ class AngleMeta(type):
         :param euler_angles: Optional Euler-angle cache.
         :type euler_angles: list[float, float, float] | None
         :param db_id: Optional cache key.
-        :type db_id: int | str | None
+        :type db_id: bytes | None
         :returns: Shared or new angle instance.
         :rtype: :class:`Angle`
         """
@@ -209,7 +209,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @_check_types.do
     def __init__(self, q: _quaternion.Quaternion | None = None, 
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: int | str | None = None):
+                 db_id: bytes | None = None):
         """
         Create an angle.
 
@@ -218,7 +218,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :param euler_angles: Optional cached Euler angles in degrees.
         :type euler_angles: list[float, float, float] | None
         :param db_id: Optional shared-instance identifier.
-        :type db_id: int | str | None
+        :type db_id: bytes | None
         """
 
         self.db_id = db_id
@@ -833,7 +833,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @classmethod
     @_check_types.do
-    def from_euler(cls, x: float, y: float, z: float, db_id: str | None = None) -> "Angle":
+    def from_euler(cls, x: float, y: float, z: float, db_id: bytes | None = None) -> "Angle":
         """
         Create an angle from Euler angles in degrees.
 
@@ -844,7 +844,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :param z: Rotation about the Z axis.
         :type z: float
         :param db_id: Optional shared-instance identifier.
-        :type db_id: str | None
+        :type db_id: bytes | None
         :returns: New angle instance.
         :rtype: :class:`Angle`
         """
@@ -856,7 +856,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @classmethod
     @_check_types.do
     def from_quat(cls, q: list[float, float, float, float] | np.ndarray | _quaternion.Quaternion,
-                  euler_angles: list[float, float, float] | None = None, db_id: str | None = None) -> "Angle":
+                  euler_angles: list[float, float, float] | None = None, db_id: bytes | None = None) -> "Angle":
         """
         Create an angle from quaternion data.
 
@@ -865,7 +865,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :param euler_angles: Optional cached Euler values.
         :type euler_angles: list[float, float, float] | None
         :param db_id: Optional shared-instance identifier.
-        :type db_id: str | None
+        :type db_id: bytes | None
         :returns: New angle instance.
         :rtype: :class:`Angle`
         """
@@ -877,7 +877,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @classmethod
     @_check_types.do
-    def from_matrix(cls, matrix: np.ndarray, db_id: str | None = None) -> "Angle":
+    def from_matrix(cls, matrix: np.ndarray, db_id: bytes | None = None) -> "Angle":
         """Convert a 3x3 rotation matrix to a unit quaternion (w, x, y, z)."""
 
         m00 = matrix[0, 0]
@@ -930,7 +930,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @classmethod
     @_check_types.do
     def from_points(cls, p1: _point.Point, p2: _point.Point,
-                    db_id: str | None = None) -> "Angle":  # NOQA
+                    db_id: bytes | None = None) -> "Angle":  # NOQA
         """
         Create an angle that aligns the local forward axis to the line ``p1`` → ``p2``.
 
@@ -939,7 +939,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :param p2: End point.
         :type p2: :class:`~harness_designer.geometry.point.Point`
         :param db_id: Optional shared-instance identifier.
-        :type db_id: str | None
+        :type db_id: bytes | None
         :returns: Angle derived from the two points.
         :rtype: :class:`Angle`
         :raises RuntimeError: If a valid right vector cannot be computed.
@@ -994,7 +994,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @_check_types.do
     def from_frame(cls, pos: "_point.Point", fwd_ref: "_point.Point",
                    up_ref: "_point.Point",
-                   db_id: str | None = None) -> "Angle":
+                   db_id: bytes | None = None) -> "Angle":
         """
         Create an angle from a full orientation frame (position + forward + up).
 
@@ -1034,7 +1034,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @classmethod
     @_check_types.do
-    def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: str | None = None):
+    def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: bytes | None = None):
         """
         Create an angle from an axis-angle rotation.
 
@@ -1043,7 +1043,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         :param angle: Rotation amount in radians.
         :type angle: float
         :param db_id: Optional shared-instance identifier.
-        :type db_id: str | None
+        :type db_id: bytes | None
         :returns: New angle instance.
         :rtype: :class:`Angle`
         """

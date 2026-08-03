@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
@@ -83,7 +82,7 @@ class CADsTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return CAD(self, item)
             raise IndexError(str(item))
@@ -303,17 +302,17 @@ class CAD(EntryBase):
 
         return self._stored_file_type
 
-    _stored_file_type_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_file_type_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def file_type_id(self) -> int | None:
+    def file_type_id(self) -> bytes | None:
         """Return the file type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_file_type_id is DefaultStoredValue:
             self._stored_file_type_id = self._table.select('file_type_id', id=self._db_id)[0][0]
@@ -322,13 +321,13 @@ class CAD(EntryBase):
 
     @file_type_id.setter
     @_check_types.do
-    def file_type_id(self, value: int):
+    def file_type_id(self, value: bytes):
         """Set the file type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_file_type_id = value
         self._stored_file_type = DefaultStoredValue

@@ -59,7 +59,6 @@ def add_pjt_wire_service_loop(con, project_id, part_id, name='', start_point3d_i
 pjt_table = _con.SQLTable(
     'pjt_wire_service_loops',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.UUIDField('part_id', no_null=True,
                   references=_con.SQLFieldReference(_wires.table,
                                                     _wires.id_field,

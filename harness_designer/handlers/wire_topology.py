@@ -90,8 +90,8 @@ def split_wire_at_point(
     is_visible3d = orig.is_visible3d
     is_visible2d = orig.is_visible2d
 
-    start_id_3d = int(wire.obj3d.start_position.db_id[:-2])
-    stop_id_3d = int(wire.obj3d.stop_position.db_id[:-2])
+    start_id_3d = wire.obj3d.start_position.db_id[:-2]
+    stop_id_3d = wire.obj3d.stop_position.db_id[:-2]
     start_id_2d = orig.start_position2d_id
     stop_id_2d = orig.stop_position2d_id
 
@@ -206,8 +206,8 @@ def merge_wires(
     is_visible3d = orig.is_visible3d
     is_visible2d = orig.is_visible2d
 
-    start_id_3d = int(wire_before.obj3d.start_position.db_id[:-2])
-    stop_id_3d = int(wire_after.obj3d.stop_position.db_id[:-2])
+    start_id_3d = wire_before.obj3d.start_position.db_id[:-2]
+    stop_id_3d = wire_after.obj3d.stop_position.db_id[:-2]
     start_id_2d = wire_before.db_obj.start_position2d_id
     stop_id_2d = wire_after.db_obj.stop_position2d_id
 

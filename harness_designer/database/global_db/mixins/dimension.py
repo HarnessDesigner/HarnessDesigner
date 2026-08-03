@@ -13,7 +13,7 @@ class DimensionMixin(BaseMixin):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    _scale_id: str = None
+    _scale_id: bytes | None = None
     _stored_scale3d: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
@@ -47,7 +47,7 @@ class DimensionMixin(BaseMixin):
 
         if self._stored_scale3d is DefaultStoredValue:
             if self._scale_id is None:
-                self._scale_id = str(uuid.uuid4())
+                self._scale_id = uuid.uuid4().bytes + b'3d'
 
             x = self.width
             y = self.height

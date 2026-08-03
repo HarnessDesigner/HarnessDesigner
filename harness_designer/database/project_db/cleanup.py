@@ -48,7 +48,7 @@ from typing import TYPE_CHECKING
 
 from ... import config as _config
 from ... import check_types as _check_types
-from .pjt_bases import _project_id_prefix
+from .pjt_bases import _project_id_bounds
 
 if TYPE_CHECKING:
     from . import pjt_bases as _pjt_bases
@@ -145,7 +145,7 @@ class ProjectCleanup:
         delete them.  Returns True when the end of the table is reached.
         """
         con = self.project.connector
-        project_id_prefix = _project_id_prefix(self.project.project_id)
+        project_id_low, project_id_high = _project_id_bounds(self.project.project_id)
 
         # Compare cursor against the actual highest ID in the table.
         # len(rows) < BATCH_SIZE cannot reliably signal end-of-table
@@ -154,8 +154,8 @@ class ProjectCleanup:
         # rows were returned for this range. MAX()/comparison on the id
         # BLOB column works the same way it did on integers, since ids are
         # packed big-endian -- byte-wise ordering matches numeric ordering.
-        con.execute(f'SELECT MAX(id) FROM {table_name} WHERE project_id = ?;',
-                    (project_id_prefix,))
+        con.execute(f'SELECT MAX(id) FROM {table_name} WHERE id >= ? AND id <= ?;',
+                    (project_id_low, project_id_high))
 
         result = con.fetchone()
         max_id = result[0] if result and result[0] is not None else _CURSOR_START
@@ -165,8 +165,8 @@ class ProjectCleanup:
 
         while not rows and new_cursor < max_id:
             con.execute(f'SELECT id FROM {table_name} '
-                        f'WHERE project_id = ? AND id > ? ORDER BY id LIMIT ?;',
-                        (project_id_prefix, cursor,
+                        f'WHERE id >= ? AND id <= ? AND id > ? ORDER BY id LIMIT ?;',
+                        (project_id_low, project_id_high, cursor,
                          Config.database.maintenance.point_batch_size))
 
             rows = con.fetchall()
@@ -210,9 +210,10 @@ class ProjectCleanup:
         database.
         """
         con = self.project.connector
+        project_id_low, project_id_high = _project_id_bounds(self.project.project_id)
 
         placeholders = ','.join('?' * len(orphan_ids))
-        con.execute(f'DELETE FROM {table_name} WHERE project_id = ? AND id IN ({placeholders});',
-                    [_project_id_prefix(self.project.project_id), *orphan_ids])
+        con.execute(f'DELETE FROM {table_name} WHERE id >= ? AND id <= ? AND id IN ({placeholders});',
+                    [project_id_low, project_id_high, *orphan_ids])
 
         con.commit()

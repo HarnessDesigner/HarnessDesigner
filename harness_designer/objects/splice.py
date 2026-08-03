@@ -180,7 +180,7 @@ class Splice(_ObjectBase):
         branch_pos = self.db_obj.branch_position3d
 
         for branch_wire in self.branch_wires:
-            is_start = int(branch_wire.obj3d.start_position.db_id[:-2]) == branch_point_id
+            is_start = branch_wire.obj3d.start_position.db_id[:-2] == branch_point_id
 
             new_point = ptables.pjt_points3d_table.insert(
                 branch_pos.x, branch_pos.y, branch_pos.z)

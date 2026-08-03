@@ -231,8 +231,8 @@ class AddSpliceHandler(_handler_base.HandlerBase):
         stop_p += target_stop - stop_p
         branch_p += position - branch_p
 
-        splice_start_id = int(start_p.db_id[:-2])
-        splice_stop_id = int(stop_p.db_id[:-2])
+        splice_start_id = start_p.db_id[:-2]
+        splice_stop_id = stop_p.db_id[:-2]
 
         circuit_id = wire.db_obj.circuit_id
 

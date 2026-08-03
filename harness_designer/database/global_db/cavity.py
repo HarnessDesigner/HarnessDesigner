@@ -137,7 +137,7 @@ class CavitiesTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Cavity(self, item)
             raise IndexError(str(item))
@@ -157,13 +157,13 @@ class CavitiesTable(TableBase):
             yield Cavity(self, db_id)
 
     @_check_types.do
-    def insert(self, housing_id: int, idx: int) -> "Cavity":
+    def insert(self, housing_id: bytes, idx: int) -> "Cavity":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param housing_id: Identifier for the housing.
-        :type housing_id: int
+        :type housing_id: bytes
         :param idx: Value for ``idx``.
         :type idx: int
         :returns: Return value. UNKNOWN details.
@@ -200,17 +200,17 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         return self._stored_housing
 
-    _stored_housing_id: DefaultStoredValueType | int = DefaultStoredValue
+    _stored_housing_id: DefaultStoredValueType | bytes = DefaultStoredValue
 
     @property
     @_check_types.do
-    def housing_id(self) -> int:
+    def housing_id(self) -> bytes:
         """Return the housing ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_housing_id is DefaultStoredValue:
             self._stored_housing_id = self._table.select('housing_id', id=self._db_id)[0][0]
@@ -286,7 +286,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._table.update(self._db_id, terminal_sizes=str(value)[1:-1])
         self._populate('terminal_sizes')
 
-    _position3d_id: str = None
+    _position3d_id: bytes | None = None
     _stored_position3d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
@@ -308,7 +308,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         if self._stored_position3d is DefaultStoredValue:
             if self._position3d_id is None:
-                self._position3d_id = str(uuid.uuid4())
+                self._position3d_id = uuid.uuid4().bytes + b'3d'
 
             x, y, z = eval(self._table.select('point3d', id=self._db_id)[0][0])
             point = _point.Point(x, y, z, self._position3d_id)
@@ -318,7 +318,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         return self._stored_position3d
 
-    _position2d_id: str = None
+    _position2d_id: bytes | None = None
     _stored_position2d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
@@ -340,7 +340,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         if self._stored_position2d is DefaultStoredValue:
             if self._position2d_id is None:
-                self._position2d_id = str(uuid.uuid4())
+                self._position2d_id = uuid.uuid4().bytes + b'2d'
 
             x, y = eval(self._table.select('point2d', id=self._db_id)[0][0])
             point = _point.Point(x, y, db_id=self._position2d_id)
@@ -351,7 +351,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         return self._stored_position2d
 
-    _angle3d_id: str = None
+    _angle3d_id: bytes | None = None
     _stored_angle3d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
@@ -379,7 +379,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         if self._stored_angle3d is DefaultStoredValue:
             if self._angle3d_id is None:
-                self._angle3d_id = str(uuid.uuid4())
+                self._angle3d_id = uuid.uuid4().bytes
 
             euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
             quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
@@ -391,7 +391,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         return self._stored_angle3d
 
-    _angle2d_id: str = None
+    _angle2d_id: bytes | None = None
     _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
@@ -419,7 +419,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         if self._stored_angle2d is DefaultStoredValue:
             if self._angle2d_id is None:
-                self._angle2d_id = str(uuid.uuid4())
+                self._angle2d_id = uuid.uuid4().bytes
 
             euler = eval(self._table.select('angle2d', id=self._db_id)[0][0])
             quat = eval(self._table.select('quat2d', id=self._db_id)[0][0])
@@ -769,7 +769,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
         self._populate('height')
 
-    _scale_id: str = None
+    _scale_id: bytes | None = None
     _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
 
     @_check_types.do
@@ -804,7 +804,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         if self._stored_scale is DefaultStoredValue:
             if self._scale_id is None:
-                self._scale_id = str(uuid.uuid4())
+                self._scale_id = uuid.uuid4().bytes + b'3d'
 
             x = self.width
             y = self.height

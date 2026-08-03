@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
@@ -131,7 +130,7 @@ class BundleCoversTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return BundleCover(self, item)
             raise IndexError(str(item))
@@ -143,10 +142,10 @@ class BundleCoversTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_number: str, mfg_id: int, description: str, series_id: int, image_id: int,
-               datasheet_id: int, cad_id: int, min_temp_id: int, max_temp_id: int, color_id: int,
+    def insert(self, part_number: str, mfg_id: bytes, description: str, series_id: bytes, image_id: bytes,
+               datasheet_id: bytes, cad_id: bytes, min_temp_id: bytes, max_temp_id: bytes, color_id: bytes,
                min_size: float, max_size: float, wall: str, shrink_ratio: str, protections: str,
-               material_id: int, rigidity: str, shrink_temp_id: int, adhesives: list[str],
+               material_id: bytes, rigidity: str, shrink_temp_id: bytes, adhesives: list[str],
                weight: float) -> "BundleCover":
         """Execute the insert operation.
 
@@ -155,23 +154,23 @@ class BundleCoversTable(TableBase):
         :param part_number: Value for ``part_number``.
         :type part_number: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param image_id: Identifier for the image.
-        :type image_id: int
+        :type image_id: bytes
         :param datasheet_id: Identifier for the datasheet.
-        :type datasheet_id: int
+        :type datasheet_id: bytes
         :param cad_id: Identifier for the cad.
-        :type cad_id: int
+        :type cad_id: bytes
         :param min_temp_id: Identifier for the min temp.
-        :type min_temp_id: int
+        :type min_temp_id: bytes
         :param max_temp_id: Identifier for the max temp.
-        :type max_temp_id: int
+        :type max_temp_id: bytes
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :param min_size: Value for ``min_size``.
         :type min_size: float
         :param max_size: Value for ``max_size``.
@@ -183,11 +182,11 @@ class BundleCoversTable(TableBase):
         :param protections: Value for ``protections``.
         :type protections: str
         :param material_id: Identifier for the material.
-        :type material_id: int
+        :type material_id: bytes
         :param rigidity: Value for ``rigidity``.
         :type rigidity: str
         :param shrink_temp_id: Identifier for the shrink temp.
-        :type shrink_temp_id: int
+        :type shrink_temp_id: bytes
         :param adhesives: Value for ``adhesives``.
         :type adhesives: list[str]
         :param weight: Value for ``weight``.
@@ -369,17 +368,17 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
         return self._stored_shrink_temp
 
-    _stored_shrink_temp_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_shrink_temp_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def shrink_temp_id(self) -> int:
+    def shrink_temp_id(self) -> bytes:
         """Return the shrink temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_shrink_temp_id is DefaultStoredValue:
             self._stored_shrink_temp_id = self._table.select('shrink_temp_id', id=self._db_id)[0][0]
@@ -388,13 +387,13 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @shrink_temp_id.setter
     @_check_types.do
-    def shrink_temp_id(self, value: int):
+    def shrink_temp_id(self, value: bytes):
         """Set the shrink temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_shrink_temp_id = value
         self._stored_shrink_temp = DefaultStoredValue

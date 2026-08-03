@@ -16,7 +16,7 @@ class BaseMixin:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: PJTTableBase = None
-    _db_id: int = None
+    _db_id: int | bytes | None = None
     _obj = None
 
     @property

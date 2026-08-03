@@ -10,7 +10,6 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_points3d',
     pjt_id_field,
-    _con.ProjectIdField(),
     _con.FloatField('x', no_null=True),
     _con.FloatField('y', no_null=True),
     _con.FloatField('z', no_null=True),

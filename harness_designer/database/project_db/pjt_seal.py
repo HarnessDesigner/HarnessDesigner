@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -111,7 +110,7 @@ class PJTSealsTable(PJTTableBase):
         :rtype: _Iterable['PJTSeal']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTSeal(self, db_id, self.project_id)
+            yield PJTSeal(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTSeal":
@@ -126,30 +125,30 @@ class PJTSealsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTSeal(self, item, self.project_id)
+                return PJTSeal(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, position3d_id: int, housing_id: int | None,
-               terminal_id: int | None, cavity_id: int = None) -> "PJTSeal":
+    def insert(self, part_id: bytes, name: str, position3d_id: bytes, housing_id: bytes | None,
+               terminal_id: bytes | None, cavity_id: bytes = None) -> "PJTSeal":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
         :param position3d_id: Identifier for the position 3D.
-        :type position3d_id: int
+        :type position3d_id: bytes
         :param housing_id: Identifier for the housing.
-        :type housing_id: int | None
+        :type housing_id: bytes | None
         :param terminal_id: Identifier for the terminal.
-        :type terminal_id: int | None
+        :type terminal_id: bytes | None
         :param cavity_id: Identifier for the cavity.
-        :type cavity_id: int
+        :type cavity_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTSeal`
         """
@@ -158,7 +157,7 @@ class PJTSealsTable(PJTTableBase):
                                     housing_id=housing_id, terminal_id=terminal_id,
                                     cavity_id=cavity_id)
 
-        seal = PJTSeal(self, db_id, self.project_id)
+        seal = PJTSeal(self, db_id)
 
         # PJTCavity.seal caches the reverse lookup (DefaultStoredValue
         # sentinel) — it has no way to know a new row now points at it, so
@@ -299,25 +298,25 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
 
     @property
     @_check_types.do
-    def terminal_id(self) -> int:
+    def terminal_id(self) -> bytes:
         """Return the terminal ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         return self._table.select('terminal_id', id=self._db_id)[0][0]
 
     @terminal_id.setter
     @_check_types.do
-    def terminal_id(self, value: int):
+    def terminal_id(self, value: bytes):
         """Set the terminal ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._table.update(self._db_id, terminal_id=value)
         self._populate('terminal_id')
@@ -347,25 +346,25 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMi
 
     @property
     @_check_types.do
-    def cavity_id(self) -> int:
+    def cavity_id(self) -> bytes:
         """Return the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         return self._table.select('cavity_id', id=self._db_id)[0][0]
 
     @cavity_id.setter
     @_check_types.do
-    def cavity_id(self, value: int):
+    def cavity_id(self, value: bytes):
         """Set the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         old_cavity_id = self.cavity_id
 

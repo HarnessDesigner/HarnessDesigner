@@ -66,17 +66,17 @@ class ResourceMixin(BaseMixin):
         if cad is not None and cad.data_path is not None:
             return cad.file_type.extension
 
-    _stored_cad_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_cad_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def cad_id(self) -> int:
+    def cad_id(self) -> bytes:
         """Return the cad ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_cad_id is DefaultStoredValue:
             self._stored_cad_id = self._table.select('cad_id', id=self._db_id)[0][0]
@@ -85,13 +85,13 @@ class ResourceMixin(BaseMixin):
 
     @cad_id.setter
     @_check_types.do
-    def cad_id(self, value: int):
+    def cad_id(self, value: bytes):
         """Set the cad ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_cad_id = value
         self._stored_cad_obj = DefaultStoredValue
@@ -144,17 +144,17 @@ class ResourceMixin(BaseMixin):
         if image is not None and image.data_path is not None:
             return image.file_type.extension
 
-    _stored_image_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_image_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def image_id(self) -> int:
+    def image_id(self) -> bytes:
         """Return the image ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_image_id is DefaultStoredValue:
             self._stored_image_id = self._table.select('image_id', id=self._db_id)[0][0]
@@ -163,13 +163,13 @@ class ResourceMixin(BaseMixin):
 
     @image_id.setter
     @_check_types.do
-    def image_id(self, value: int):
+    def image_id(self, value: bytes):
         """Set the image ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_image_id = value
         self._stored_image_obj = DefaultStoredValue
@@ -222,17 +222,17 @@ class ResourceMixin(BaseMixin):
         if datasheet is not None and datasheet.data_path is not None:
             return datasheet.file_type.extension
 
-    _stored_datasheet_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_datasheet_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def datasheet_id(self) -> int:
+    def datasheet_id(self) -> bytes:
         """Return the datasheet ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_datasheet_id is DefaultStoredValue:
             self._stored_datasheet_id = self._table.select('datasheet_id', id=self._db_id)[0][0]
@@ -241,13 +241,13 @@ class ResourceMixin(BaseMixin):
 
     @datasheet_id.setter
     @_check_types.do
-    def datasheet_id(self, value: int):
+    def datasheet_id(self, value: bytes):
         """Set the datasheet ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_datasheet_id = value
         self._stored_datasheet_obj = DefaultStoredValue

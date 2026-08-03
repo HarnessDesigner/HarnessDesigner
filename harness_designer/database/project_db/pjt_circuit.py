@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
 
@@ -7,7 +6,7 @@ import weakref
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType, _project_id_prefix
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType, _project_id_bounds
 from ...geometry import point as _point
 from ...geometry.decimal import Decimal as _d
 from ... import logger as _logger
@@ -73,7 +72,7 @@ class PJTCircuitsTable(PJTTableBase):
         """
 
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTCircuit(self, db_id, self.project_id)
+            yield PJTCircuit(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTCircuit":
@@ -88,9 +87,9 @@ class PJTCircuitsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTCircuit(self, item, self.project_id)
+                return PJTCircuit(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -108,7 +107,7 @@ class PJTCircuitsTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(self, circuit_num=circuit_num)
 
-        return PJTCircuit(self, db_id, self.project_id)
+        return PJTCircuit(self, db_id)
 
 
 class _Set:
@@ -975,9 +974,10 @@ class PJTCircuitControl(QTabWidget):
             self.circuit_num_ctrl.SetValue('')
             return
 
+        low, high = _project_id_bounds(self.db_obj.project_id)
         self.db_obj.table.execute(
-            f'SELECT id FROM pjt_circuits WHERE circuit_num={num} AND project_id=?;',
-            (_project_id_prefix(self.db_obj.project_id),))
+            f'SELECT id FROM pjt_circuits WHERE circuit_num={num} AND id>=? AND id<=?;',
+            (low, high))
         rows = self.db_obj.table.fetchall()
 
         if rows:
@@ -1032,9 +1032,10 @@ class PJTCircuitControl(QTabWidget):
         """
         name = evt.GetValue()
 
+        low, high = _project_id_bounds(self.db_obj.project_id)
         self.db_obj.table.execute(
-            f'SELECT id FROM pjt_circuits WHERE name="{name}" AND project_id=?;',
-            (_project_id_prefix(self.db_obj.project_id),))
+            f'SELECT id FROM pjt_circuits WHERE name="{name}" AND id>=? AND id<=?;',
+            (low, high))
         rows = self.db_obj.table.fetchall()
 
         if rows:
@@ -1042,8 +1043,8 @@ class PJTCircuitControl(QTabWidget):
 
         else:
             self.db_obj.table.execute(
-                'SELECT circuit_num FROM pjt_circuits WHERE project_id=?;',
-                (_project_id_prefix(self.db_obj.project_id),))
+                'SELECT circuit_num FROM pjt_circuits WHERE id>=? AND id<=?;',
+                (low, high))
             rows = self.db_obj.table.fetchall()
             if rows:
                 circuit_num = max([row[0] for row in rows])

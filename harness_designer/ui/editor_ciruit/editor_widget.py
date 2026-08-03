@@ -30,7 +30,7 @@ class CircuitRow:
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    circuit_db_id: int = 0
+    circuit_db_id: bytes | None = None
     circuit_num: Any = None
     net_name: str = ""
     notes: str = ""
@@ -58,9 +58,9 @@ class CircuitRow:
     issues: list[_design_rules.DRTIssue] = field(default_factory=list)
     worst_severity: _design_rules.Severity = _design_rules.Severity.OK
     suggestions: list[_design_rules.SplitSuggestion] = field(default_factory=list)
-    wire_db_ids: list[int] = field(default_factory=list)
-    start_terminal_db_id: int | None = None
-    end_terminal_db_ids: list[int] = field(default_factory=list)
+    wire_db_ids: list[bytes] = field(default_factory=list)
+    start_terminal_db_id: bytes | None = None
+    end_terminal_db_ids: list[bytes] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -1493,13 +1493,13 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._thread.start()
 
     @_check_types.do
-    def highlight_circuit(self, circuit_db_id: int):
+    def highlight_circuit(self, circuit_db_id: bytes):
         """Execute the highlight circuit operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param circuit_db_id: Identifier for the circuit database.
-        :type circuit_db_id: int
+        :type circuit_db_id: bytes
         """
         self._view.clearSelection()
         for r in range(self._model.rowCount()):
@@ -1635,13 +1635,13 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
                 wo.identify([0.2, 0.6, 1.0, 1.0])
 
     @_check_types.do
-    def _on_cell_edited(self, circuit_db_id: int, col: int, value: Any):
+    def _on_cell_edited(self, circuit_db_id: bytes, col: int, value: Any):
         """Handle the cell edited event.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param circuit_db_id: Identifier for the circuit database.
-        :type circuit_db_id: int
+        :type circuit_db_id: bytes
         :param col: Value for ``col``.
         :type col: int
         :param value: Value to store or process.
@@ -1806,7 +1806,7 @@ def _cell_tooltip(row: CircuitRow, col: int) -> str:
 
 
 @_check_types.do
-def _find_obj(project, collection: str, db_id: int):
+def _find_obj(project, collection: str, db_id: bytes):
     """Find the obj.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -1816,7 +1816,7 @@ def _find_obj(project, collection: str, db_id: int):
     :param collection: Value for ``collection``.
     :type collection: str
     :param db_id: Identifier for the database.
-    :type db_id: int
+    :type db_id: bytes
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """

@@ -1,9 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+import time
 import uuid
 
 from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
+from .. import id_generator as _id_generator
 from ... import check_types as _check_types
 
 
@@ -12,15 +14,28 @@ class AppUsersTable(TableBase):
     """Lookup table mapping a MySQL login account to a compact app-level user id.
 
     Used by the row-id generation mechanism to resolve CURRENT_USER() to the
-    32-bit author value embedded in every migrated row's id -- kept separate
-    from MySQL's own account system since the two serve different purposes
-    (authorization vs. a compact, display-friendly identity).
+    16-bit author value embedded in every migrated row's id (the trailing
+    2 bytes -- see database/id_generator.py) -- kept separate from MySQL's
+    own account system since the two serve different purposes (authorization
+    vs. a compact, display-friendly identity).
+
+    This table's own row ids follow the exact same 128-bit layout as every
+    other migrated table, with project_id fixed at 0 (an app user doesn't
+    belong to a project) -- so the row is, in effect, mostly zero bytes with
+    a real timestamp in the middle and the row's own trailing 2-byte user_id
+    being the actual user identity being defined. See insert() below for how
+    that user_id is chosen. User id 0 is reserved for rows inserted before
+    any real user identity exists (single-seat / initial setup) -- see
+    id_generator._LOCAL_USER_ID.
     """
     __table_name__ = 'app_users'
 
-    # Plain AUTO_INCREMENT id, not part of the UUID migration -- author
-    # values embedded in every migrated row need to stay a compact 32-bit
-    # int, not a full UUID.
+    # False because this table's id generation is bespoke (see insert()
+    # below), not because the id itself is still a plain AUTO_INCREMENT
+    # int -- TableBase.insert()'s generic __uses_uuid_id__ path would embed
+    # id_generator._LOCAL_USER_ID (0) as this row's own trailing user_id,
+    # which is wrong here: this row's whole purpose is to define a *new*,
+    # never-before-used user_id, not record who authored the row.
     __uses_uuid_id__ = False
 
     @_check_types.do
@@ -74,7 +89,7 @@ class AppUsersTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return AppUser(self, item)
             raise IndexError(str(item))
@@ -89,6 +104,20 @@ class AppUsersTable(TableBase):
     def insert(self, mysql_account: str, display_name: str = '') -> "AppUser":
         """Add a new app-level user identity.
 
+        Deliberately does not go through TableBase.insert()'s generic
+        __uses_uuid_id__ path -- that path embeds
+        id_generator._LOCAL_USER_ID (0) as the row's own trailing
+        user_id, meaning "authored by the local/no-identity user". This
+        row's whole point is the opposite: to mint a *new* user_id that
+        has never been used before, so it picks the next one itself by
+        scanning every existing row's trailing user_id and taking the
+        highest + 1 (starting from 0, so the first real user becomes 1
+        -- 0 stays reserved, see the class docstring). New users are only
+        ever added in multi-seat setups and very rarely, so scanning the
+        whole (small) table client-side instead of a server-side locked
+        counter is an acceptable trade for not needing MySQL-specific
+        coordination here.
+
         :param mysql_account: The MySQL login account this identity maps to.
         :type mysql_account: str
         :param display_name: Friendly name shown in the UI.
@@ -96,9 +125,18 @@ class AppUsersTable(TableBase):
         :returns: The newly created user entry.
         :rtype: :class:`AppUser`
         """
-        db_id = TableBase.insert(self, mysql_account=mysql_account, display_name=display_name)
+        max_user_id = 0
+        for row_id in TableBase.__iter__(self):
+            max_user_id = max(max_user_id, _id_generator.unpack_user_id(row_id))
 
-        return AppUser(self, db_id)
+        new_id = _id_generator.pack_global_row_id(time.time_ns(), max_user_id + 1)
+
+        self._con.execute(
+            f'INSERT INTO {self.__table_name__} (id, mysql_account, display_name) VALUES (?, ?, ?);',
+            (new_id, mysql_account, display_name))
+        self._con.commit()
+
+        return AppUser(self, new_id)
 
 
 class AppUser(EntryBase):

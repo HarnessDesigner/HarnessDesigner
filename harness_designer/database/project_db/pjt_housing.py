@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
@@ -178,7 +177,7 @@ class PJTHousingsTable(PJTTableBase):
         :rtype: _Iterable['PJTHousing']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTHousing(self, db_id, self.project_id)
+            yield PJTHousing(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTHousing":
@@ -193,31 +192,31 @@ class PJTHousingsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTHousing(self, item, self.project_id)
+                return PJTHousing(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, position3d_id: int = None,
-               position2d_id: int = None) -> "PJTHousing":
+    def insert(self, part_id: bytes, name: str, position3d_id: bytes = None,
+               position2d_id: bytes = None) -> "PJTHousing":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
 
         :param name: Name for the part.
         :type name: str
 
         :param position3d_id: 3D position id.
-        :type position3d_id: int | None
+        :type position3d_id: bytes | None
 
         :param position2d_id: 2D position id.
-        :type position2d_id: int | None
+        :type position2d_id: bytes | None
 
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTHousing`
@@ -232,7 +231,7 @@ class PJTHousingsTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, name=name, point3d_id=position3d_id,
                                     point2d_id=position2d_id, part_id=part_id)
 
-        db_obj = PJTHousing(self, db_id, self.project_id)
+        db_obj = PJTHousing(self, db_id)
 
         pos3d = db_obj.position3d
 
@@ -404,17 +403,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_cover_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    _stored_cover_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
     
     @property
     @_check_types.do
-    def cover_position3d_id(self) -> int:
+    def cover_position3d_id(self) -> bytes:
         """Return the cover position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_cover_position3d_id is DefaultStoredValue:
@@ -431,13 +430,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @cover_position3d_id.setter
     @_check_types.do
-    def cover_position3d_id(self, value: int):
+    def cover_position3d_id(self, value: bytes):
         """Set the cover position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_cover_position3d_id = value
         self._stored_cover_position3d = DefaultStoredValue
@@ -474,17 +473,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_seal_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    _stored_seal_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
     
     @property
     @_check_types.do
-    def seal_position3d_id(self) -> int:
+    def seal_position3d_id(self) -> bytes:
         """Return the seal position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_seal_position3d_id is DefaultStoredValue:
@@ -501,13 +500,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @seal_position3d_id.setter
     @_check_types.do
-    def seal_position3d_id(self, value: int):
+    def seal_position3d_id(self, value: bytes):
         """Set the seal position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_seal_position3d_id = value
         self._stored_seal_position3d = DefaultStoredValue
@@ -544,17 +543,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_boot_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    _stored_boot_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
     
     @property
     @_check_types.do
-    def boot_position3d_id(self) -> int:
+    def boot_position3d_id(self) -> bytes:
         """Return the boot position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_boot_position3d_id is DefaultStoredValue:
@@ -571,13 +570,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @boot_position3d_id.setter
     @_check_types.do
-    def boot_position3d_id(self, value: int):
+    def boot_position3d_id(self, value: bytes):
         """Set the boot position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_boot_position3d_id = value
         self._stored_boot_position3d = DefaultStoredValue
@@ -614,17 +613,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_tpa_lock_1_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    _stored_tpa_lock_1_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
     
     @property
     @_check_types.do
-    def tpa_lock_1_position3d_id(self) -> int:
+    def tpa_lock_1_position3d_id(self) -> bytes:
         """Return the tpa_lock_1 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_tpa_lock_1_position3d_id is DefaultStoredValue:
@@ -641,13 +640,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @tpa_lock_1_position3d_id.setter
     @_check_types.do
-    def tpa_lock_1_position3d_id(self, value: int):
+    def tpa_lock_1_position3d_id(self, value: bytes):
         """Set the tpa_lock_1 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_tpa_lock_1_position3d_id = value
         self._stored_tpa_lock_1_position3d = DefaultStoredValue
@@ -684,17 +683,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_tpa_lock_2_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    _stored_tpa_lock_2_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
     
     @property
     @_check_types.do
-    def tpa_lock_2_position3d_id(self) -> int:
+    def tpa_lock_2_position3d_id(self) -> bytes:
         """Return the tpa_lock_2 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_tpa_lock_2_position3d_id is DefaultStoredValue:
@@ -711,13 +710,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @tpa_lock_2_position3d_id.setter
     @_check_types.do
-    def tpa_lock_2_position3d_id(self, value: int):
+    def tpa_lock_2_position3d_id(self, value: bytes):
         """Set the tpa_lock_2 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_tpa_lock_2_position3d_id = value
         self._stored_tpa_lock_2_position3d = DefaultStoredValue
@@ -754,17 +753,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_cpa_lock_position3d_id: int | None | DefaultStoredValue = DefaultStoredValue
+    _stored_cpa_lock_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
     
     @property
     @_check_types.do
-    def cpa_lock_position3d_id(self) -> int:
+    def cpa_lock_position3d_id(self) -> bytes:
         """Return the cpa_lock position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         
         if self._stored_cpa_lock_position3d_id is DefaultStoredValue:
@@ -781,13 +780,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @cpa_lock_position3d_id.setter
     @_check_types.do
-    def cpa_lock_position3d_id(self, value: int):
+    def cpa_lock_position3d_id(self, value: bytes):
         """Set the cpa_lock position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_cpa_lock_position3d_id = value
         self._stored_cpa_lock_position3d = DefaultStoredValue
@@ -1064,14 +1063,14 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 if sp is not None:
                     wire_positions.append(sp)
 
-        skip_write_ids = {int(p.db_id[:-2])
+        skip_write_ids = {p.db_id[:-2]
                           for p in cavity_positions + accessory_positions + wire_positions}
 
         all_positions = cavity_positions + accessory_positions + terminal_positions + wire_positions
 
         seen = {}
         for pos in all_positions:
-            key = int(pos.db_id[:-2])
+            key = pos.db_id[:-2]
             if key not in seen:
                 seen[key] = pos
         all_positions = list(seen.values())
@@ -1090,7 +1089,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         new_pos_arr = all_positions_array + delta
 
         # ONE batch DB write for everything (one executemany + one commit).
-        db_ids = [int(p.db_id[:-2]) for p in all_positions]
+        db_ids = [p.db_id[:-2] for p in all_positions]
 
         # The row handling seen commented below is inefficient and would produce
         # incorrect values because of how the conversion from a numpy array to a
@@ -1129,13 +1128,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                     pos.y = f_position_array[i][1]
                     pos.z = f_position_array[i][2]
 
-                if int(pos.db_id[:-2]) in skip_write_ids:
+                if pos.db_id[:-2] in skip_write_ids:
                     pos._process_callbacks()  # NOQA
         finally:
             _pjt_point3d.PJTPoint3D._skip_db_write = False
 
         for pos in all_positions:
-            if int(pos.db_id[:-2]) not in skip_write_ids:
+            if pos.db_id[:-2] not in skip_write_ids:
                 pos._process_callbacks()  # NOQA
 
     _o_position3d: _point.Point = None
@@ -1308,13 +1307,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                                      self.tpa_lock_2_position3d, self.boot_position3d,
                                      self.cpa_lock_position3d, self.cover_position3d])
 
-        skip_write_ids = {int(p.db_id[:-2]) for p in skip_write_positions}
+        skip_write_ids = {p.db_id[:-2] for p in skip_write_positions}
 
         all_positions = skip_write_positions + normal_positions
 
         seen = {}
         for pos in all_positions:
-            key = int(pos.db_id[:-2])
+            key = pos.db_id[:-2]
             if key not in seen:
                 seen[key] = pos
 
@@ -1327,7 +1326,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
             f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-            db_ids = [int(p.db_id[:-2]) for p in all_positions]
+            db_ids = [p.db_id[:-2] for p in all_positions]
             rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
             self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
 
@@ -1339,13 +1338,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                         pos.y = f_position_array[i][1]
                         pos.z = f_position_array[i][2]
 
-                    if int(pos.db_id[:-2]) in skip_write_ids:
+                    if pos.db_id[:-2] in skip_write_ids:
                         pos._process_callbacks()  # NOQA
             finally:
                 _pjt_point3d.PJTPoint3D._skip_db_write = False
 
             for pos in all_positions:
-                if int(pos.db_id[:-2]) not in skip_write_ids:
+                if pos.db_id[:-2] not in skip_write_ids:
                     pos._process_callbacks()  # NOQA
 
         # ── Per-cavity angle computation (OBB-based) ──────────────────────────

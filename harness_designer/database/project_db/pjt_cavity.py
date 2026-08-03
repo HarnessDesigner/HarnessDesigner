@@ -189,7 +189,7 @@ class PJTCavitiesTable(PJTTableBase):
         """
 
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTCavity(self, db_id, self.project_id)
+            yield PJTCavity(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTCavity":
@@ -206,23 +206,23 @@ class PJTCavitiesTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
 
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTCavity(self, item, self.project_id)
+                return PJTCavity(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, housing_id: int, name: str = "") -> "PJTCavity":
+    def insert(self, part_id: bytes, housing_id: bytes, name: str = "") -> "PJTCavity":
         """
         Execute the insert operation.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
 
         :param housing_id: Identifier for the housing.
-        :type housing_id: int
+        :type housing_id: bytes
 
         :param name: name of the cavity
         :type name: str
@@ -294,7 +294,7 @@ class PJTCavitiesTable(PJTTableBase):
                                     point2d_id=position2d.db_id, aabb=str(aabb), obb=str(obb),
                                     is_visible3d=0)
 
-        return PJTCavity(self, db_id, self.project_id)
+        return PJTCavity(self, db_id)
 
 
 class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
@@ -452,16 +452,16 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return point
 
-    _stored_terminal_position3d_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_terminal_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def terminal_position3d_id(self) -> int:
+    def terminal_position3d_id(self) -> bytes:
         """
         Return the terminal position 3D ID.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
 
         if self._stored_terminal_position3d_id is DefaultStoredValue:
@@ -492,12 +492,12 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @terminal_position3d_id.setter
     @_check_types.do
-    def terminal_position3d_id(self, value: int):
+    def terminal_position3d_id(self, value: bytes):
         """
         Set the terminal position 3D ID.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
 
         self._stored_terminal_position3d_id = value
@@ -538,11 +538,11 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
         return point
 
-    _stored_wire_position3d_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_wire_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def wire_position3d_id(self) -> int:
+    def wire_position3d_id(self) -> bytes:
         """
         Return the ``pjt_points3d`` row id for the wire-side layout point,
         lazily creating and persisting it on first access when the
@@ -560,7 +560,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         has finished setting up its mesh picker).
 
         :returns: Property value.
-        :rtype: int
+        :rtype: bytes
         """
 
         if self._stored_wire_position3d_id is DefaultStoredValue:
@@ -592,12 +592,12 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @wire_position3d_id.setter
     @_check_types.do
-    def wire_position3d_id(self, value: int):
+    def wire_position3d_id(self, value: bytes):
         """
         Set the wire-side layout point's ``pjt_points3d`` row id.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
 
         self._stored_wire_position3d_id = value
@@ -608,7 +608,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     @_check_types.do
-    def wire_point3d_id_raw(self) -> int | None:
+    def wire_point3d_id_raw(self) -> bytes | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if a wire has
         never been routed to this cavity yet.
 
@@ -637,24 +637,24 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     @_check_types.do
-    def terminal_position2d_id(self) -> int:
+    def terminal_position2d_id(self) -> bytes:
         """
         Return the terminal position 2D ID.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
 
         return self.position2d_id
 
     @terminal_position2d_id.setter
     @_check_types.do
-    def terminal_position2d_id(self, value: int):
+    def terminal_position2d_id(self, value: bytes):
         """
         Set the terminal position 2D ID.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
 
         self.position2d_id = value
@@ -696,12 +696,12 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     @_check_types.do
-    def seal_position3d_id(self) -> int:
+    def seal_position3d_id(self) -> bytes:
         """
         Return the seal position 3D ID.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
 
         return self.terminal.position3d_id
@@ -851,7 +851,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
         if self._angle3d_db_id is None:
-            self._angle3d_db_id = str(uuid.uuid4())
+            self._angle3d_db_id = uuid.uuid4().bytes
 
         angle = _angle.Angle.from_quat(quat, euler, db_id=self._angle3d_db_id)
         angle.bind(self._update_angle3d)

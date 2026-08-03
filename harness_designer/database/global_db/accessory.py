@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable
 
@@ -97,9 +96,10 @@ class AccessoriesTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return Accessory(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', part_number=item)
@@ -109,8 +109,8 @@ class AccessoriesTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_number: str, description: str, mfg_id: int, family_id: int,
-               series_id: int, material_id: int, color_id: int) -> "Accessory":
+    def insert(self, part_number: str, description: str, mfg_id: bytes, family_id: bytes,
+               series_id: bytes, material_id: bytes, color_id: bytes) -> "Accessory":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -120,15 +120,15 @@ class AccessoriesTable(TableBase):
         :param description: Value for ``description``.
         :type description: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param family_id: Identifier for the family.
-        :type family_id: int
+        :type family_id: bytes
         :param series_id: Identifier for the series.
-        :type series_id: int
+        :type series_id: bytes
         :param material_id: Identifier for the material.
-        :type material_id: int
+        :type material_id: bytes
         :param color_id: Identifier for the color.
-        :type color_id: int
+        :type color_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`Accessory`
         """

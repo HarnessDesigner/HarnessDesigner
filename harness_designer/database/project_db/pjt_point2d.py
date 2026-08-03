@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable
 
@@ -59,7 +58,7 @@ class PJTPoints2DTable(PJTTableBase):
         """
 
         for db_id in PJTTableBase.__iter__(self):
-            point = PJTPoint2D(self, db_id, self.project_id)
+            point = PJTPoint2D(self, db_id)
             yield point
 
     @_check_types.do
@@ -75,15 +74,15 @@ class PJTPoints2DTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTPoint2D(self, item, self.project_id)
+                return PJTPoint2D(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, x: float, y: float, wire_id: int = None, idx: int = None) -> "PJTPoint2D":
+    def insert(self, x: float, y: float, wire_id: bytes = None, idx: int = None) -> "PJTPoint2D":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +93,7 @@ class PJTPoints2DTable(PJTTableBase):
         :type y: float
         :param wire_id: Owning wire, for an interior waypoint row --
             ``None`` for an anchor's own position row.
-        :type wire_id: int | None
+        :type wire_id: bytes | None
         :param idx: 0-based order along the wire's waypoint chain, for a
             waypoint row -- ``None`` for an anchor's own position row.
         :type idx: int | None
@@ -102,14 +101,14 @@ class PJTPoints2DTable(PJTTableBase):
         :rtype: :class:`PJTPoint2D`
         """
         db_id = PJTTableBase.insert(self, x=x, y=y, wire_id=wire_id, idx=idx)
-        return PJTPoint2D(self, db_id, self.project_id)
+        return PJTPoint2D(self, db_id)
 
     @_check_types.do
-    def for_wire(self, wire_id: int) -> list["PJTPoint2D"]:
+    def for_wire(self, wire_id: bytes) -> list["PJTPoint2D"]:
         """Return every interior waypoint on a wire, ordered by ``idx`` ascending.
 
         :param wire_id: Identifier of the wire whose waypoints to fetch.
-        :type wire_id: int
+        :type wire_id: bytes
         :returns: The wire's interior waypoints, in chain order.
         :rtype: list['PJTPoint2D']
         """
@@ -198,16 +197,16 @@ class PJTPoint2D(PJTEntryBase):
         self._stored_y = value
         self._table.update(self._db_id, y=value)
 
-    _stored_wire_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_wire_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def wire_id(self) -> int | None:
+    def wire_id(self) -> bytes | None:
         """Return the id of the wire this waypoint belongs to, or
         ``None`` for an anchor's own position row.
 
         :returns: The referenced ``pjt_wires`` row id, or ``None``.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_wire_id is DefaultStoredValue:
             self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
@@ -216,7 +215,7 @@ class PJTPoint2D(PJTEntryBase):
 
     @wire_id.setter
     @_check_types.do
-    def wire_id(self, value: int | None):
+    def wire_id(self, value: bytes | None):
         self._stored_wire_id = value
         self._table.update(self._db_id, wire_id=value)
 
@@ -257,7 +256,7 @@ class PJTPoint2D(PJTEntryBase):
         if self._stored_point2d is None:
             x, z = self._table.select('x', 'y', id=self._db_id)[0]
 
-            self._stored_point2d = _point.Point(x, 0.0, z, db_id=str(self.db_id) + '2d')
+            self._stored_point2d = _point.Point(x, 0.0, z, db_id=self.db_id + b'2d')
             self._stored_point2d.bind(self._update_point)
 
         return self._stored_point2d

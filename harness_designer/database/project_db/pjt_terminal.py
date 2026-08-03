@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
@@ -120,7 +119,7 @@ class PJTTerminalsTable(PJTTableBase):
         :rtype: _Iterable['PJTTerminal']
         """
         for db_id in PJTTableBase.__iter__(self):
-            yield PJTTerminal(self, db_id, self.project_id)
+            yield PJTTerminal(self, db_id)
 
     @_check_types.do
     def __getitem__(self, item) -> "PJTTerminal":
@@ -135,34 +134,34 @@ class PJTTerminalsTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTTerminal(self, item, self.project_id)
+                return PJTTerminal(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: int, name: str, position2d_id: int | None,
-               position3d_id: int | None, cavity_id: int | None) -> "PJTTerminal":
+    def insert(self, part_id: bytes, name: str, position2d_id: bytes | None,
+               position3d_id: bytes | None, cavity_id: bytes | None) -> "PJTTerminal":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
-        :type part_id: int
+        :type part_id: bytes
 
         :param name: Name for the part.
         :type name: str
 
         :param position2d_id: Identifier for the position 2D.
-        :type position2d_id: int
+        :type position2d_id: bytes
 
         :param position3d_id: Identifier for the position 3D.
-        :type position3d_id: int
+        :type position3d_id: bytes
 
         :param cavity_id: Identifier for the cavity.
-        :type cavity_id: int
+        :type cavity_id: bytes
 
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTTerminal`
@@ -171,7 +170,7 @@ class PJTTerminalsTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, part_id=part_id, name=name, cavity_id=cavity_id,
                                     point2d_id=position2d_id, point3d_id=position3d_id)
 
-        terminal = PJTTerminal(self, db_id, self.project_id)
+        terminal = PJTTerminal(self, db_id)
 
         # PJTCavity.terminal caches the reverse lookup (DefaultStoredValue
         # sentinel) — it has no way to know a new row now points at it, so
@@ -462,25 +461,25 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def cavity_id(self) -> int:
+    def cavity_id(self) -> bytes:
         """Return the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         return self._table.select('cavity_id', id=self._db_id)[0][0]
 
     @cavity_id.setter
     @_check_types.do
-    def cavity_id(self, value: int):
+    def cavity_id(self, value: bytes):
         """Set the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         old_cavity_id = self.cavity_id
 
@@ -527,25 +526,25 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def circuit_id(self) -> int:
+    def circuit_id(self) -> bytes:
         """Return the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: int):
+    def circuit_id(self, value: bytes):
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_circuit = None
 
@@ -574,7 +573,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def wire_point3d_id(self) -> int | None:
+    def wire_point3d_id(self) -> bytes | None:
         """Return the ``pjt_points3d`` row id for the wire layout point
         (see :attr:`wire_position3d`), lazily creating and persisting it on
         first access when the ``wire_point3d_id`` column is NULL.  ``None``
@@ -616,7 +615,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def wire_point3d_id_raw(self) -> int | None:
+    def wire_point3d_id_raw(self) -> bytes | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if this
         terminal's layout point has never been computed.
 
@@ -632,7 +631,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def attach_point3d_id(self) -> int | None:
+    def attach_point3d_id(self) -> bytes | None:
         """Return the ``pjt_points3d`` row id for the wire attachment/crimp
         point (see :attr:`attach_position3d`), lazily creating and
         persisting it on first access when the ``attach_point3d_id`` column
@@ -651,7 +650,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def attach_point3d_id_raw(self) -> int | None:
+    def attach_point3d_id_raw(self) -> bytes | None:
         """The raw ``attach_point3d_id`` column value, ``None`` if this
         terminal's crimp point has never been computed.
 
@@ -735,7 +734,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return length / 2.0, -length / 2.0
 
     @_check_types.do
-    def _compute_wire_position3d(self) -> int | None:
+    def _compute_wire_position3d(self) -> bytes | None:
         """Compute and persist the wire layout point.
 
         The position is this terminal's own back face center (see
@@ -763,7 +762,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         return wire_point3d_id
 
     @_check_types.do
-    def _compute_attach_position3d(self) -> int | None:
+    def _compute_attach_position3d(self) -> bytes | None:
         """Compute and persist the wire attachment/crimp point.
 
         The position is 1/3 of the terminal's length up from its back face
@@ -812,13 +811,13 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def seal_point3d_id(self) -> int | None:
+    def seal_point3d_id(self) -> bytes | None:
         """Return the DB row id of the seal position point, or ``None``."""
         return self._table.select('seal_point3d_id', id=self._db_id)[0][0]
 
     @seal_point3d_id.setter
     @_check_types.do
-    def seal_point3d_id(self, value: int):
+    def seal_point3d_id(self, value: bytes):
         """Persist *value* as the seal position point id and invalidate the cache."""
         self._stored_seal_position3d = None
         self._table.update(self._db_id, seal_point3d_id=value)

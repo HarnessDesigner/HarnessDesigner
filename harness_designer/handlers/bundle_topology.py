@@ -48,8 +48,8 @@ def merge_bundles(
     part_id = orig.part_id
     name = orig.name
 
-    start_id_3d = int(bundle_before.obj3d.start_position.db_id[:-2])
-    stop_id_3d = int(bundle_after.obj3d.stop_position.db_id[:-2])
+    start_id_3d = bundle_before.obj3d.start_position.db_id[:-2]
+    stop_id_3d = bundle_after.obj3d.stop_position.db_id[:-2]
 
     before_waypoints3d = bundle_before.db_obj.waypoints3d
     after_waypoints3d = bundle_after.db_obj.waypoints3d

@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable
 
@@ -58,7 +57,7 @@ class PJTPoints3DTable(PJTTableBase):
         :rtype: _Iterable['PJTPoint3D']
         """
         for db_id in PJTTableBase.__iter__(self):
-            point = PJTPoint3D(self, db_id, self.project_id)
+            point = PJTPoint3D(self, db_id)
             yield point
 
     @_check_types.do
@@ -74,16 +73,16 @@ class PJTPoints3DTable(PJTTableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
-                return PJTPoint3D(self, item, self.project_id)
+                return PJTPoint3D(self, item)
             raise IndexError(str(item))
 
         raise KeyError(item)
 
     @_check_types.do
     def insert(self, x: float, y: float, z: float,
-               wire_id: int = None, bundle_id: int = None, idx: int = None) -> "PJTPoint3D":
+               wire_id: bytes = None, bundle_id: bytes = None, idx: int = None) -> "PJTPoint3D":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -96,10 +95,10 @@ class PJTPoints3DTable(PJTTableBase):
         :type z: float
         :param wire_id: Owning wire, for an interior waypoint row --
             ``None`` for an anchor's own position row or a bundle waypoint.
-        :type wire_id: int | None
+        :type wire_id: bytes | None
         :param bundle_id: Owning bundle, for an interior waypoint row --
             ``None`` for an anchor's own position row or a wire waypoint.
-        :type bundle_id: int | None
+        :type bundle_id: bytes | None
         :param idx: 0-based order along the wire's/bundle's waypoint
             chain, for a waypoint row -- ``None`` for an anchor's own
             position row.
@@ -109,14 +108,14 @@ class PJTPoints3DTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(
             self, x=x, y=y, z=z, wire_id=wire_id, bundle_id=bundle_id, idx=idx)
-        return PJTPoint3D(self, db_id, self.project_id)
+        return PJTPoint3D(self, db_id)
 
     @_check_types.do
-    def for_wire(self, wire_id: int) -> list["PJTPoint3D"]:
+    def for_wire(self, wire_id: bytes) -> list["PJTPoint3D"]:
         """Return every interior waypoint on a wire, ordered by ``idx`` ascending.
 
         :param wire_id: Identifier of the wire whose waypoints to fetch.
-        :type wire_id: int
+        :type wire_id: bytes
         :returns: The wire's interior waypoints, in chain order.
         :rtype: list['PJTPoint3D']
         """
@@ -126,11 +125,11 @@ class PJTPoints3DTable(PJTTableBase):
         return [self[row[0]] for row in rows]
 
     @_check_types.do
-    def for_bundle(self, bundle_id: int) -> list["PJTPoint3D"]:
+    def for_bundle(self, bundle_id: bytes) -> list["PJTPoint3D"]:
         """Return every interior waypoint on a bundle, ordered by ``idx`` ascending.
 
         :param bundle_id: Identifier of the bundle whose waypoints to fetch.
-        :type bundle_id: int
+        :type bundle_id: bytes
         :returns: The bundle's interior waypoints, in chain order.
         :rtype: list['PJTPoint3D']
         """
@@ -145,30 +144,32 @@ class PJTPoint3D(PJTEntryBase):
 
     NORMAL LIFECYCLE
     ----------------
-    ``PJTPoint3D`` is a singleton keyed by ``(project_id, db_id)`` via
+    ``PJTPoint3D`` is a singleton keyed by ``db_id`` via
     ``_PJTEntrySingleton``.  The first call to ``.point`` creates a
     :class:`~harness_designer.geometry.point.Point` singleton (keyed on
-    ``str(db_id) + '3d'`` via ``PointMeta``) and binds ``_update_point``
+    ``db_id + b'3d'`` via ``PointMeta``) and binds ``_update_point``
     as a callback.  From that moment on, every coordinate mutation on the
     geometry Point automatically writes ``x / y / z`` back to the database
     row — no explicit save call is ever needed::
 
-        pjt = project.points3d[5]
-        pjt.point.x = 10.0   # fires _update_point → UPDATE pjt_points3d SET x=10 WHERE id=5
+        pjt = project.points3d[row_id]
+        pjt.point.x = 10.0   # fires _update_point → UPDATE pjt_points3d SET x=10 WHERE id=row_id
 
     ATTACH / CLONE LIFECYCLE (the voodoo part)
     -------------------------------------------
-    The wire handler creates a *preview* ``PJTPoint3D`` row (e.g. db_id=99)
-    so the user can drag a stop position before committing.  When the user
-    drops the wire onto an existing terminal, the preview geometry Point must
-    be merged with the terminal's real Point (e.g. ``"53d"``).  That merge is
-    done via :meth:`~harness_designer.geometry.point.Point.attach`::
+    The wire handler creates a *preview* ``PJTPoint3D`` row (its own row id,
+    call it ``preview_id``) so the user can drag a stop position before
+    committing.  When the user drops the wire onto an existing terminal, the
+    preview geometry Point must be merged with the terminal's real Point
+    (row id ``real_id``).  That merge is done via
+    :meth:`~harness_designer.geometry.point.Point.attach`::
 
         terminal_point.attach(pjt_preview.point)
 
-    From that moment ``pjt_preview.point.db_id`` returns ``"53d"`` — the root's
-    id — because all ``db_id`` lookups on a delegating Point forward to the
-    root.  ``pjt_preview._db_id`` is still ``99`` at this point.
+    From that moment ``pjt_preview.point.db_id`` returns ``real_id + b'3d'``
+    — the root's id — because all ``db_id`` lookups on a delegating Point
+    forward to the root.  ``pjt_preview._db_id`` is still ``preview_id`` at
+    this point.
 
     SELF-HEALING VIA _update_point
     --------------------------------
@@ -176,22 +177,22 @@ class PJTPoint3D(PJTEntryBase):
     through the delegation chain), ``_update_point`` fires on the preview
     instance.  At that point it compares::
 
-        db_id = int(point.db_id[:-2])   # → 5  (root's row id)
-        if db_id != self._db_id:        # 5 != 99  → mismatch
+        db_id = point.db_id[:-2]        # → real_id  (root's row id)
+        if db_id != self._db_id:        # real_id != preview_id  → mismatch
 
     The mismatch branch runs exactly once:
 
     1. ``point.unbind(self._update_point)`` — removes this callback from the
        shared root's callback list so it never fires again.
     2. ``self._stored_point3d = None`` — invalidates the cached geometry Point.
-    3. ``self._db_id = db_id`` — updates this instance's row id to 5.
+    3. ``self._db_id = db_id`` — updates this instance's row id to ``real_id``.
     4. ``self._is_clone = True`` — marks this instance permanently as a clone.
 
-    After this, ``pjt_preview`` is effectively an alias for row 5.  Any code
-    that still holds a reference to ``pjt_preview`` (e.g. a wire's cached
-    endpoint entry) will now get the real shared Point on the next ``.point``
-    access, because ``str(self.db_id) + '3d'`` resolves to ``"53d"`` and
-    ``PointMeta`` returns the live root instance.
+    After this, ``pjt_preview`` is effectively an alias for ``real_id``. Any
+    code that still holds a reference to ``pjt_preview`` (e.g. a wire's
+    cached endpoint entry) will now get the real shared Point on the next
+    ``.point`` access, because ``self.db_id + b'3d'`` resolves to
+    ``real_id + b'3d'`` and ``PointMeta`` returns the live root instance.
 
     CLONE GUARD IN .point
     ----------------------
@@ -202,19 +203,20 @@ class PJTPoint3D(PJTEntryBase):
             self._stored_point3d.bind(self._update_point)
 
     This prevents a second DB-write callback from being registered on the
-    real shared Point — the row-5 ``PJTPoint3D`` already has its own
+    real shared Point — the ``real_id`` ``PJTPoint3D`` already has its own
     ``_update_point`` bound and is the sole writer for that row.
 
     SINGLETON CACHE CLEANUP
     ------------------------
     After the self-heal, ``_PJTEntrySingleton._instances`` still holds a
-    stale entry ``(project_id, 99)`` → ``weakref(pjt_preview)``.  This is
-    harmless: ``pjt_preview`` now reports db_id=5 and ``_is_clone=True``, so
-    everything it exposes is correct.  When the preview DB row is eventually
-    deleted and the last Python reference to ``pjt_preview`` is dropped, the
-    garbage collector collects the instance and the weakref finalizer
-    registered by ``_PJTEntrySingleton.__call__`` removes the stale cache
-    entry automatically.  No manual cache surgery is required.
+    stale entry ``preview_id`` → ``weakref(pjt_preview)``.  This is
+    harmless: ``pjt_preview`` now reports ``db_id=real_id`` and
+    ``_is_clone=True``, so everything it exposes is correct.  When the
+    preview DB row is eventually deleted and the last Python reference to
+    ``pjt_preview`` is dropped, the garbage collector collects the instance
+    and the weakref finalizer registered by ``_PJTEntrySingleton.__call__``
+    removes the stale cache entry automatically.  No manual cache surgery
+    is required.
     """
     _table: PJTPoints3DTable = None
 
@@ -333,7 +335,7 @@ class PJTPoint3D(PJTEntryBase):
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        db_id = int(point.db_id[:-2])
+        db_id = point.db_id[:-2]
         if db_id != self._db_id:
             point.unbind(self._update_point)
             self._stored_point3d = None
@@ -351,16 +353,16 @@ class PJTPoint3D(PJTEntryBase):
         self._stored_z = z
         self._table.update(self._db_id, x=x, y=y, z=z)
 
-    _stored_wire_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_wire_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def wire_id(self) -> int | None:
+    def wire_id(self) -> bytes | None:
         """Return the id of the wire this waypoint belongs to, or
         ``None`` for an anchor's own position row.
 
         :returns: The referenced ``pjt_wires`` row id, or ``None``.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_wire_id is DefaultStoredValue:
             self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
@@ -369,20 +371,20 @@ class PJTPoint3D(PJTEntryBase):
 
     @wire_id.setter
     @_check_types.do
-    def wire_id(self, value: int | None):
+    def wire_id(self, value: bytes | None):
         self._stored_wire_id = value
         self._table.update(self._db_id, wire_id=value)
 
-    _stored_bundle_id: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_bundle_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def bundle_id(self) -> int | None:
+    def bundle_id(self) -> bytes | None:
         """Return the id of the bundle this waypoint belongs to, or
         ``None`` for an anchor's own position row or a wire waypoint.
 
         :returns: The referenced ``pjt_bundles`` row id, or ``None``.
-        :rtype: int | None
+        :rtype: bytes | None
         """
         if self._stored_bundle_id is DefaultStoredValue:
             self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
@@ -391,7 +393,7 @@ class PJTPoint3D(PJTEntryBase):
 
     @bundle_id.setter
     @_check_types.do
-    def bundle_id(self, value: int | None):
+    def bundle_id(self, value: bytes | None):
         self._stored_bundle_id = value
         self._table.update(self._db_id, bundle_id=value)
 
@@ -431,7 +433,7 @@ class PJTPoint3D(PJTEntryBase):
         :rtype: :class:`_point.Point`
         """
         if self._stored_point3d is None:
-            self._stored_point3d = _point.Point(self.x, self.y, self.z, db_id=str(self.db_id) + '3d')
+            self._stored_point3d = _point.Point(self.x, self.y, self.z, db_id=self.db_id + b'3d')
             if not self._is_clone:
                 self._stored_point3d.bind(self._update_point)
 

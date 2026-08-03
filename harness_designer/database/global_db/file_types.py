@@ -1,5 +1,4 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import uuid
 
 from typing import Iterable as _Iterable
 
@@ -78,9 +77,10 @@ class FileTypesTable(TableBase):
         :raises KeyError: Raised when the operation cannot be completed.
         :raises IndexError: Raised when the operation cannot be completed.
         """
-        if isinstance(item, (int, bytes, uuid.UUID)):
+        if isinstance(item, (int, bytes)):
             if item in self:
                 return FileType(self, item)
+
             raise IndexError(str(item))
 
         db_id = self.select('id', name=item)
@@ -102,7 +102,7 @@ class FileTypesTable(TableBase):
         return [row[0] for row in self.execute(f'SELECT DISTINCT name FROM {self.__table_name__};')]
 
     @_check_types.do
-    def insert(self, name: str, mfg_id: int, description: str) -> "FileType":
+    def insert(self, name: str, mfg_id: bytes, description: str) -> "FileType":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -110,7 +110,7 @@ class FileTypesTable(TableBase):
         :param name: Name value.
         :type name: str
         :param mfg_id: Identifier for the mfg.
-        :type mfg_id: int
+        :type mfg_id: bytes
         :param description: Value for ``description``.
         :type description: str
         :returns: Return value. UNKNOWN details.

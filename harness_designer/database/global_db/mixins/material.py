@@ -36,17 +36,17 @@ class MaterialMixin(BaseMixin):
 
         return self._stored_material
 
-    _stored_material_id: int | DefaultStoredValueType = DefaultStoredValue
+    _stored_material_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def material_id(self) -> int:
+    def material_id(self) -> bytes:
         """Return the material ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_material_id is DefaultStoredValue:
             self._stored_material_id = self._table.select('material_id', id=self._db_id)[0][0]
@@ -55,13 +55,13 @@ class MaterialMixin(BaseMixin):
 
     @material_id.setter
     @_check_types.do
-    def material_id(self, value: int):
+    def material_id(self, value: bytes):
         """Set the material ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_material_id = value
         self._stored_material = DefaultStoredValue

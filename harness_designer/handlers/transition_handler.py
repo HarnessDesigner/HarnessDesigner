@@ -452,7 +452,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
         if is_at_endpoint:
             ep_pt = (bundle.obj3d.start_position if endpoint == 'start'
                      else bundle.obj3d.stop_position)
-            trunk_point_id = int(ep_pt.db_id[:-2])
+            trunk_point_id = ep_pt.db_id[:-2]
         else:
             pt_db = ptables.pjt_points3d_table.insert(
                 float(snap_pos.x), float(snap_pos.y), float(snap_pos.z))
@@ -624,7 +624,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
         old_point_id = (self.target.db_obj.start_position3d_id if self.is_start
                         else self.target.db_obj.stop_position3d_id)
-        branch_p_id = int(selected.db_obj.position3d.db_id[:-2])
+        branch_p_id = selected.db_obj.position3d.db_id[:-2]
         if old_point_id == branch_p_id:
             return
 
@@ -699,8 +699,8 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
         d_start = float(np.linalg.norm(wire_np - start_np))
         d_stop = float(np.linalg.norm(wire_np - stop_np))
 
-        bundle_start_id = int(selected.obj3d.start_position.db_id[:-2])
-        bundle_stop_id = int(selected.obj3d.stop_position.db_id[:-2])
+        bundle_start_id = selected.obj3d.start_position.db_id[:-2]
+        bundle_stop_id = selected.obj3d.stop_position.db_id[:-2]
         bundle_p_id = bundle_start_id if d_start <= d_stop else bundle_stop_id
 
         if old_point_id == bundle_p_id:
@@ -873,7 +873,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             if not self._fits(diameter, selected):
                 return
 
-            entry_p_id = int(selected.db_obj.position3d.db_id[:-2])
+            entry_p_id = selected.db_obj.position3d.db_id[:-2]
             self._segments.append((self._seg_start_id, entry_p_id, True))
             self._seg_start_id = entry_p_id
             self._delete_preview()
@@ -899,7 +899,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             return
 
         self._clear_highlights()
-        exit_p_id = int(selected.db_obj.position3d.db_id[:-2])
+        exit_p_id = selected.db_obj.position3d.db_id[:-2]
         self._segments.append((self._seg_start_id, exit_p_id, False))
         self._seg_start_id = exit_p_id
         self._entry_branch = None

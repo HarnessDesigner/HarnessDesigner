@@ -44,17 +44,17 @@ class Position2DMixin(BaseMixin):
        
         return point
 
-    _stored_position2d_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_position2d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def position2d_id(self) -> int:
+    def position2d_id(self) -> bytes:
         """Return the position 2D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_position2d_id is DefaultStoredValue:
             point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
@@ -68,13 +68,13 @@ class Position2DMixin(BaseMixin):
 
     @position2d_id.setter
     @_check_types.do
-    def position2d_id(self, value: int):
+    def position2d_id(self, value: bytes):
         """Set the position 2D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         
         self._stored_position2d_id = value
