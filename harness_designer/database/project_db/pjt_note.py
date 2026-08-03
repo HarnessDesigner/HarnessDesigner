@@ -133,7 +133,8 @@ class PJTNotesTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, point3d_id: bytes | None, point2d_id: bytes | None,
-               notes: str, size: int, align: int, style: int, color_id: bytes = 0) -> "PJTNote":
+               notes: str, size: int, align: int, style: int,
+               color_id: bytes | DefaultStoredValueType = DefaultStoredValue) -> "PJTNote":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
