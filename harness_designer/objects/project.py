@@ -637,6 +637,7 @@ class Project:
 
         project_name, project_id = resolved
 
+        mainframe.project_db.projects_table.set_project(project_id)
         db_obj = mainframe.project_db.projects_table[project_id]
 
         Config.last_project = project_name

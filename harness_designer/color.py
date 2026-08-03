@@ -29,7 +29,7 @@ class ColorMeta(type):
 
     @_check_types.do
     def __call__(cls, r: float | int, g: float | int, b: float | int,
-                 a: float | int = 255, db_id: bytes | None = None) -> "Color":
+                 a: float | int = 255, db_id: bytes | int | None = None) -> "Color":
         """Create or reuse a :class:`Color` for the supplied RGBA values.
 
         :param r: Red component.
@@ -92,7 +92,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     @_check_types.do
     def __init__(self, r: int | float, g: int | float,
                  b: int | float, a: int | float = 255,
-                 db_id: bytes | None = None):
+                 db_id: bytes | int | None = None):
         """Initialise a colour from integer or scalar channel values.
 
         :param r: Red channel.

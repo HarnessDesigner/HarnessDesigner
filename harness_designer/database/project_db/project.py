@@ -18,6 +18,10 @@ class ProjectsTable(PJTTableBase):
     """
     __table_name__ = 'projects'
 
+    # Projects keep a plain AUTO_INCREMENT id, not a client-generated UUID
+    # like every other pjt_* table -- see PJTTableBase.__uses_uuid_id__.
+    __uses_uuid_id__ = False
+
     @_check_types.do
     def _table_needs_update(self) -> bool:
         """Execute the table needs update operation.

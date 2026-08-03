@@ -222,8 +222,6 @@ def _check_type(type_, value, arg_name, func, no_print=False, self_arg=_NO_SELF)
 
 
 def do(func):
-    return func
-
     if _FROZEN:
         return func
 

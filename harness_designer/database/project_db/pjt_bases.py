@@ -37,6 +37,7 @@ def _project_id_bounds(project_id: int) -> tuple[bytes, bytes]:
         bind directly in a ``WHERE id >= ? AND id <= ?`` clause.
     :rtype: tuple[bytes, bytes]
     """
+
     prefix = project_id.to_bytes(_id_generator.PROJECT_ID_BYTES, byteorder='big')
     padding = b'\x00' * (16 - _id_generator.PROJECT_ID_BYTES)
     return prefix + padding, prefix + (b'\xff' * len(padding))
