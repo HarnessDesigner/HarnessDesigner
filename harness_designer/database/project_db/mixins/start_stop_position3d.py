@@ -61,8 +61,9 @@ class StartStopPosition3DMixin(BaseMixin):
         if self._stored_start_position3d_id is DefaultStoredValue:
             point_id = self._table.select('start_point3d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0)
-                self.start_position3d_id = point_id
+                point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, start_point3d_id=point_id)
             self._stored_start_position3d_id = point_id
 
         return self._stored_start_position3d_id
@@ -131,8 +132,9 @@ class StartStopPosition3DMixin(BaseMixin):
         if self._stored_stop_position3d_id is DefaultStoredValue:
             point_id = self._table.select('stop_point3d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0)
-                self.stop_position3d_id = point_id
+                point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, stop_point3d_id=point_id)
 
             self._stored_stop_position3d_id = point_id
 

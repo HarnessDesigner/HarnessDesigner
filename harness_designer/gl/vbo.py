@@ -588,7 +588,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 
         block_size = count * 3 * _FLOAT_SIZE
 
-        return buffer_id, base, base + block_size, base + 2 * block_size
+        return int(buffer_id), int(base), int(base + block_size), int(base + 2 * block_size)
 
     @_check_types.do
     def acquire(self):

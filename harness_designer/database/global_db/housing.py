@@ -737,13 +737,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     @_check_types.do
-    def ip_rating_id(self):
+    def ip_rating_id(self) -> bytes:
         """Return the ip rating ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: bytes
         """
         if self._stored_ip_rating_id is DefaultStoredValue:
             self._stored_ip_rating_id = self._table.select('ip_rating_id', id=self._db_id)[0][0]
@@ -752,13 +752,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @ip_rating_id.setter
     @_check_types.do
-    def ip_rating_id(self, value):
+    def ip_rating_id(self, value: bytes):
         """Set the ip rating ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: UNKNOWN
+        :type value: bytes
         """
         self._stored_ip_rating_id = value
         self._stored_ip_rating = DefaultStoredValue
@@ -787,13 +787,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     @_check_types.do
-    def cavity_lock_id(self):
+    def cavity_lock_id(self) -> bytes:
         """Return the cavity lock ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: bytes
         """
         if self._stored_cavity_lock_id is DefaultStoredValue:
             self._stored_cavity_lock_id = self._table.select('cavity_lock_id', id=self._db_id)[0][0]
@@ -802,13 +802,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @cavity_lock_id.setter
     @_check_types.do
-    def cavity_lock_id(self, value):
+    def cavity_lock_id(self, value: bytes):
         """Set the cavity lock ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: UNKNOWN
+        :type value: bytes
         """
         self._stored_cavity_lock_id = value
         self._stored_cavity_lock = DefaultStoredValue
@@ -837,13 +837,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     @_check_types.do
-    def seal_type_id(self):
+    def seal_type_id(self) -> bytes:
         """Return the seal type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: bytes
         """
         if self._stored_seal_type_id is DefaultStoredValue:
             self._stored_seal_type_id = self._table.select('seal_type_id', id=self._db_id)[0][0]
@@ -852,13 +852,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @seal_type_id.setter
     @_check_types.do
-    def seal_type_id(self, value):
+    def seal_type_id(self, value: bytes):
         """Set the seal type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: UNKNOWN
+        :type value: bytes
         """
         self._stored_seal_type_id = value
         self._stored_seal_type = DefaultStoredValue
@@ -887,13 +887,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     @_check_types.do
-    def cpa_lock_type_id(self):
+    def cpa_lock_type_id(self) -> bytes:
         """Return the CPA lock type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: bytes
         """
         if self._stored_cpa_lock_type_id is DefaultStoredValue:
             self._stored_cpa_lock_type_id = self._table.select('cpa_lock_type_id', id=self._db_id)[0][0]
@@ -902,13 +902,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @cpa_lock_type_id.setter
     @_check_types.do
-    def cpa_lock_type_id(self, value):
+    def cpa_lock_type_id(self, value: bytes):
         """Set the CPA lock type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: UNKNOWN
+        :type value: bytes
         """
         self._stored_cpa_lock_type_id = value
         self._stored_cpa_lock_type = DefaultStoredValue

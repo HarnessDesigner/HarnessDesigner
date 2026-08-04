@@ -168,7 +168,7 @@ def run_attached_handler(handler_factory):
 
 @_check_types.do
 def get_part_id(mainframe, page_name: str, table, title: str,
-                initial_results=None):
+                initial_results=None) -> bytes | None:
     """Resolve a part id from the database editor's current selection or a
     part search dialog.
 

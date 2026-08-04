@@ -483,7 +483,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @x.setter
     @_check_types.do
-    def x(self, value: float | _d):
+    def x(self, value: float | int | _d):
         """
         Set the X component
 
@@ -494,7 +494,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             self._root.x = value
             return
 
-        self._data[0] = value
+        self._data[0] = float(value)
         self._process_callbacks()
 
     @property
@@ -511,7 +511,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @y.setter
     @_check_types.do
-    def y(self, value: float | _d):
+    def y(self, value: float | int | _d):
         """
         Set the Y component
 
@@ -522,7 +522,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             self._root.y = value
             return
 
-        self._data[1] = value
+        self._data[1] = float(value)
         self._process_callbacks()
 
     @property
@@ -539,7 +539,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @z.setter
     @_check_types.do
-    def z(self, value: float | _d):
+    def z(self, value: float | int | _d):
         """
         Set the Z component
 
@@ -550,7 +550,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             self._root.z = value
             return
 
-        self._data[2] = value
+        self._data[2] = float(value)
         self._process_callbacks()
 
     @_check_types.do

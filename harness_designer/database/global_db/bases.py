@@ -162,13 +162,13 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
 
     @property
     @_check_types.do
-    def db_id(self):
+    def db_id(self) -> int | bytes:
         """Return the database ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :rtype: int | bytes
         """
         return self._db_id
 

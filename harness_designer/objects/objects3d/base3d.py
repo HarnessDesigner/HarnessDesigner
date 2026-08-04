@@ -65,7 +65,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
-                 vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
+                 vbo: _vbo.PooledVBOHandler | _vbo.NonPooledVBOHandler, angle: _angle.Angle,
                  position: _point.Point, scale: _point.Point,
                  material: _materials.GLMaterial):
 

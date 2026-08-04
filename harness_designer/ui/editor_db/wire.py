@@ -2,7 +2,12 @@
 
 from typing import TYPE_CHECKING
 
+from PySide6.QtGui import QIcon
+
 from . import base as _base
+from ... import image as _image
+from ... import check_types as _check_types
+from ...database import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
@@ -42,3 +47,70 @@ class WiresPage(_base.EditorList):
     }
 
     table: "_wire.WiresTable" = None
+
+    @_check_types.do
+    def _get_icon(self, row_id):
+        """Return the wire-insulation swatch icon for *row_id*.
+
+        Wires have no real stored photo (``_has_image`` is False), so this
+        overrides the base class's ``images_table`` lookup with a swatch
+        generated on demand via ``image.images.build_wire`` -- same
+        ``bitmap_indexes`` cache, keyed by ``db_id``, that every other
+        part type's real image already uses (see
+        :meth:`EditorList._get_icon`), so it's invalidated the same way on
+        filter/search changes and a row never scrolled into view never
+        pays for image generation.
+
+        ``build_wire`` only supports a single, unshielded conductor -- any
+        other wire falls back to the ordinary "no image" placeholder.
+
+        :param row_id: Identifier for the row.
+        :type row_id: int
+        :returns: Return value.
+        :rtype: :class:`PySide6.QtGui.QIcon`
+        """
+        if row_id < 0:
+            return None
+
+        row = self.get_row(row_id)
+        if row is None:
+            return None
+
+        db_id = row[1]
+
+        if db_id in self.bitmap_indexes:
+            return self.bitmap_indexes[db_id]
+
+        # column_mapping 12/13 == num_conductors/shielded -> row[13]/row[14]
+        num_conductors = row[13]
+        shielded = row[14]
+
+        if num_conductors != 1 or shielded:
+            self.bitmap_indexes[db_id] = _base.EditorList._no_image
+            return _base.EditorList._no_image
+
+        color_id, stripe_color_id, core_material_id = self.table.select(
+            'color_id', 'stripe_color_id', 'core_material_id', id=db_id)[0]
+
+        nil_uuid = _id_generator.NIL_UUID.bytes
+        colors_table = self.table.db.colors_table
+
+        primary_color = None if color_id is None or color_id == nil_uuid else colors_table[color_id]
+        stripe_color = None if stripe_color_id is None or stripe_color_id == nil_uuid else colors_table[stripe_color_id]
+
+        if core_material_id is None or core_material_id == nil_uuid:
+            conductor_color = None
+        else:
+            conductor_color = self.table.db.platings_table[core_material_id].color
+
+        if primary_color is None or conductor_color is None:
+            self.bitmap_indexes[db_id] = _base.EditorList._no_image
+            return _base.EditorList._no_image
+
+        image = _image.images.build_wire(primary_color, stripe_color, conductor_color)
+        image = image.resize_keep_aspect(64, 64)
+
+        icon = QIcon(image.pixmap)
+        self.bitmap_indexes[db_id] = icon
+
+        return icon

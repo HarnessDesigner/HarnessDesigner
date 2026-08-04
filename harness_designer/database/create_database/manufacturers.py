@@ -102,6 +102,12 @@ def add_records(con, splash, data_path):
 
         for i, item in enumerate(data):
             splash.SetText(f'Adding manufacturer to db [{i + 1} | {data_len}]...', log=False)
+
+            # manufacturers.json is a pre-UUID-migration seed file and still
+            # carries a leftover integer "id" per entry -- discard it so
+            # every row gets a freshly generated UUID id instead of
+            # colliding integers.
+            item.pop('id', None)
             add_manufacturer(con, commit=False, **item)
 
     con.commit()
@@ -109,7 +115,7 @@ def add_records(con, splash, data_path):
 
 @_check_types.do
 def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
-                     ext='', email='', website='', id=None, commit=True):  # NOQA
+                     ext='', email='', website='', commit=True):  # NOQA
     """
     Add a manufacturer.
 
@@ -140,9 +146,6 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
     :param website: Value for ``website``.
     :type website: UNKNOWN
 
-    :param id: Identifier for the ID.
-    :type id: UNKNOWN
-
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
 
@@ -150,8 +153,7 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
     :rtype: UNKNOWN
     """
 
-    if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+    id = _id_generator.generate_global_row_id(con).bytes
 
     con.execute(
         'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '

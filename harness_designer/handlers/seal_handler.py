@@ -263,7 +263,7 @@ class AddSealHandler(_handler_base.HandlerBase):
         return [row[0] for row in self.mainframe.global_db.seals_table.fetchall()]
 
     @_check_types.do
-    def set_part(self, part_id: int):
+    def set_part(self, part_id: bytes):
         if self.obj is not None:
             self.obj.delete()
 

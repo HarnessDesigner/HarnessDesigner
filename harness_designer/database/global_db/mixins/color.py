@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 
 from PySide6.QtGui import QColor
@@ -20,21 +20,25 @@ class ColorMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
+    _stored_color: _Union[DefaultStoredValueType, "_color.Color", None] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def color(self) -> "_color.Color":
+    def color(self) -> _Union["_color.Color", None]:
         """Return the color.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_color.Color`
+        :rtype: :class:`_color.Color` | None
         """
         if self._stored_color is DefaultStoredValue:
-            color_id = self._table.select('color_id', id=self._db_id)
-            self._stored_color = self._table.db.colors_table[color_id[0][0]]
+            color_id = self.color_id
+
+            if color_id == b'\x00' * 16:
+                self._stored_color = None
+            else:
+                self._stored_color = self._table.db.colors_table[color_id]
 
         return self._stored_color
 

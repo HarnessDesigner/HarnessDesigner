@@ -21,16 +21,21 @@ class BaseConnector:
         self._connection = con
         self._cursor = cur
 
-    def execute(self, cmd):
+    def execute(self, cmd, params=None):
         """Execute a SQL statement with the wrapped cursor.
 
         :param cmd: SQL command string to execute.
         :type cmd: UNKNOWN
+        :param params: Bound parameters for ``cmd``, if any.
+        :type params: UNKNOWN
 
         :returns: The connector-specific cursor result, if one is returned.
         :rtype: UNKNOWN
         """
-        self._cursor.execute(cmd)
+        if params is None:
+            self._cursor.execute(cmd)
+        else:
+            self._cursor.execute(cmd, params)
 
     def fetchall(self):
         """Fetch all rows from the wrapped cursor.

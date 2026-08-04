@@ -800,7 +800,12 @@ class EditorList(QTableView):
         # row[0] is RowNum (the window-function prefix);
         # actual data starts at row[1]. col_id is already offset by 1 for
         # the icon column, so net index is col_id.
-        return str(row[col_id])
+        value = row[col_id]
+
+        if isinstance(value, bytes):
+            return value.hex()
+
+        return str(value)
 
     @_check_types.do
     def _update_progress(self, image, step):

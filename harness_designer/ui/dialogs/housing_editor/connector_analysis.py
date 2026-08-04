@@ -3,21 +3,13 @@ connector_analysis.py
 Pure-numpy geometry analysis for connector housing inspection.
 No Qt or OpenGL dependencies.
 """
-from __future__ import annotations
 
 import math
 import numpy as np
 from collections import defaultdict
-from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 from .... import check_types as _check_types
-
-
-@dataclass
-class Surface:
-    tri_indices: List[int]   # 0-based indices into triangle soup
-    normal: np.ndarray  # unit normal, float32, canonical direction
-    plane_dist:  float       # dot(centroid, normal) — signed dist from origin
+from ....utils import mesh_surface as _mesh_surface
 
 
 # ── 1.  Surface grouping ──────────────────────────────────────────────────────
@@ -28,7 +20,7 @@ def compute_surfaces(
     face_normals: np.ndarray,   # (3N, 3) float32 — face normal repeated per vertex
     normal_tol: float = 0.02,
     dist_tol: float = 0.5,
-) -> List[Surface]:
+) -> List[_mesh_surface.Surface]:
 
     """Group triangle indices into coplanar surface groups."""
     n_tris = len(vertices) // 3
@@ -57,13 +49,13 @@ def compute_surfaces(
         groups[(tuple(qn[i]), int(qd[i]))].append(i)
 
     return [
-        Surface(lst, normals[lst[0]].astype(np.float32), float(dists[lst[0]]))
+        _mesh_surface.Surface(lst, normals[lst[0]].astype(np.float32), float(dists[lst[0]]))
         for lst in groups.values()
     ]
 
 
 @_check_types.do
-def split_into_components(surface: Surface, vertices: np.ndarray) -> List[Surface]:
+def split_into_components(surface: _mesh_surface.Surface, vertices: np.ndarray) -> List[_mesh_surface.Surface]:
     """
     Split a surface group into topologically connected triangle islands.
     Two triangles are neighbours if they share an edge (two matching vertex positions).
@@ -114,7 +106,7 @@ def split_into_components(surface: Surface, vertices: np.ndarray) -> List[Surfac
     if len(components) == 1:
         return [surface]
 
-    return [Surface(comp, surface.normal.copy(), surface.plane_dist)
+    return [_mesh_surface.Surface(comp, surface.normal.copy(), surface.plane_dist)
             for comp in components]
 
 
@@ -499,7 +491,7 @@ def filter_by_size_consensus(
 
 
 @_check_types.do
-def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
+def _coplanar(s: _mesh_surface.Surface, ref: _mesh_surface.Surface, normal_tol: float, dist_tol: float) -> bool:
     return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
             abs(s.plane_dist - ref.plane_dist) < dist_tol)
 
@@ -508,11 +500,11 @@ def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> b
 
 @_check_types.do
 def find_coplanar_surfaces(
-    reference: Surface,
-    all_surfaces: List[Surface],
+    reference: _mesh_surface.Surface,
+    all_surfaces: List[_mesh_surface.Surface],
     normal_tol: float = 0.02,
     dist_tol: float = 0.5,
-) -> List[Surface]:
+) -> List[_mesh_surface.Surface]:
     """
     Return every surface in all_surfaces that lies on the same world plane as
     reference (same normal direction within normal_tol, same plane distance
@@ -526,7 +518,7 @@ def find_coplanar_surfaces(
 
 @_check_types.do
 def get_surface_shape(
-    surface: Surface,
+    surface: _mesh_surface.Surface,
     vertices: np.ndarray,   # (3N, 3) float32
 ) -> Tuple[str, dict]:
     """
@@ -543,7 +535,7 @@ def get_surface_shape(
 
 
 @_check_types.do
-def surface_centroid(surface: Surface, vertices: np.ndarray) -> np.ndarray:
+def surface_centroid(surface: _mesh_surface.Surface, vertices: np.ndarray) -> np.ndarray:
     verts = vertices.reshape(-1, 3)
     idxs = [3 * ti + j for ti in surface.tri_indices for j in range(3)]
 
@@ -551,7 +543,7 @@ def surface_centroid(surface: Surface, vertices: np.ndarray) -> np.ndarray:
 
 
 @_check_types.do
-def surface_area(surface: Surface, vertices: np.ndarray) -> float:
+def surface_area(surface: _mesh_surface.Surface, vertices: np.ndarray) -> float:
     """Total triangle area of a surface, in mesh units squared."""
     verts = vertices.reshape(-1, 3)
     tri_idx = np.asarray(surface.tri_indices, dtype=np.int64)
@@ -564,7 +556,7 @@ def surface_area(surface: Surface, vertices: np.ndarray) -> float:
 
 @_check_types.do
 def surface_contains_points(
-    surface: Surface, points: np.ndarray, vertices: np.ndarray,
+    surface: _mesh_surface.Surface, points: np.ndarray, vertices: np.ndarray,
 ) -> bool:
     """Return True iff every point in ``points`` (N, 3) -- already lying on
     (or projected onto) surface's own plane -- falls inside at least one of
@@ -590,8 +582,8 @@ def surface_contains_points(
 
 @_check_types.do
 def generate_terminal_geometry(
-    terminal: Surface,
-    wire: Surface,
+    terminal: _mesh_surface.Surface,
+    wire: _mesh_surface.Surface,
     vertices: np.ndarray,
     kind_override: Optional[str] = None,
     length_factor: float = 1.0,
@@ -632,9 +624,9 @@ def generate_terminal_geometry(
 def run_analysis(
     vertices: np.ndarray,
     face_normals: np.ndarray,  # NOQA
-    pin_surface: Surface,
-    wire_surface: Surface,
-    all_surfaces: List[Surface],
+    pin_surface: _mesh_surface.Surface,
+    wire_surface: _mesh_surface.Surface,
+    all_surfaces: List[_mesh_surface.Surface],
     normal_tol: float = 0.02,
     dist_tol: float = 0.5,
     pos_tol: float = 2.0,

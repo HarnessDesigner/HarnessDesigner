@@ -81,7 +81,7 @@ class PJTPoints3DTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, x: float, y: float, z: float,
+    def insert(self, x: float | int, y: float | int, z: float | int,
                wire_id: bytes = None, bundle_id: bytes = None, idx: int = None) -> "PJTPoint3D":
         """Execute the insert operation.
 
@@ -107,7 +107,7 @@ class PJTPoints3DTable(PJTTableBase):
         :rtype: :class:`PJTPoint3D`
         """
         db_id = PJTTableBase.insert(
-            self, x=x, y=y, z=z, wire_id=wire_id, bundle_id=bundle_id, idx=idx)
+            self, x=float(x), y=float(y), z=float(z), wire_id=wire_id, bundle_id=bundle_id, idx=idx)
         return PJTPoint3D(self, db_id)
 
     @_check_types.do

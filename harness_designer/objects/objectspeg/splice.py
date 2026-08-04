@@ -82,7 +82,7 @@ class Splice(_basepeg.BasePeg):
         return flatten_quat.as_euler
 
     @_check_types.do
-    def build_table_rows(self, project, point3d_id: int) -> list:
+    def build_table_rows(self, project, point3d_id: bytes) -> list:
         """Start-side, then stop-side, then branch-side wires -- see
         ``table_rows.build_rows_for_splice``.
         """

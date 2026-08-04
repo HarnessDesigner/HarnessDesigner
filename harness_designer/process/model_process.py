@@ -318,7 +318,7 @@ class ThreadWorker(threading.Thread):
 
             connector.execute(f'SELECT target_count, aggressiveness, '
                               f'update_rate, iterations, simplify, '
-                              f'path FROM models3d WHERE id={model_id};')
+                              f'path FROM models3d WHERE id=?;', (model_id,))
 
             model_data = connector.fetchall()
 
@@ -400,7 +400,7 @@ class ThreadWorker(threading.Thread):
             model_path, file_type_id = file_path
 
             connector.execute(
-                f'SELECT extension FROM file_types WHERE id={file_type_id};')
+                f'SELECT extension FROM file_types WHERE id=?;', (file_type_id,))
 
             rows = connector.fetchall()
 
@@ -468,12 +468,9 @@ class ThreadWorker(threading.Thread):
 
             # Only DB writes permitted from child: uuid, file_type_id and
             # the model metadata (vertex_count, aabb, obb).
-            connector.execute(f'UPDATE models3d SET file_type_id={file_type_id}, '
-                              f'uuid="{uuid}", '
-                              f'vertex_count={vertex_count}, '
-                              f"aabb='{str(aabb)}', "
-                              f"obb='{str(obb)}' "
-                              f'WHERE id={model_id};')
+            connector.execute('UPDATE models3d SET file_type_id=?, uuid=?, '
+                              'vertex_count=?, aabb=?, obb=? WHERE id=?;',
+                              (file_type_id, uuid, vertex_count, str(aabb), str(obb), model_id))
 
             connector.commit()
 

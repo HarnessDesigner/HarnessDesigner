@@ -68,8 +68,8 @@ class AddWireHandler2D(_handler_base.HandlerBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                terminal: _terminal.Terminal = None,
-                splice: _splice.Splice = None):
+                 terminal: _terminal.Terminal = None,
+                 splice: _splice.Splice = None):
         super().__init__(mainframe, None)
 
         # HandlerBase.__init__ defaults self.camera to the 3D camera --

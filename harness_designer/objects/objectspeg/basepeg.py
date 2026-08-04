@@ -350,7 +350,7 @@ class BasePeg(_objectsvar.BaseVar):
                  self._table_label())]
 
     @_check_types.do
-    def table_anchor_live_position(self, point3d_id: int) -> _point.Point:
+    def table_anchor_live_position(self, point3d_id: bytes) -> _point.Point:
         """Return the live, bound ``Point`` backing *point3d_id* -- one of
         this anchor's own :attr:`table_anchor_points` ids.
 
@@ -380,7 +380,7 @@ class BasePeg(_objectsvar.BaseVar):
         return self.position
 
     @_check_types.do
-    def build_table_rows(self, project, point3d_id: int) -> list:
+    def build_table_rows(self, project, point3d_id: bytes) -> list:
         """Return this anchor's wire rows for the table anchored at
         *point3d_id* -- one of the id(s) :attr:`table_anchor_points`
         returned.

@@ -574,8 +574,15 @@ class _SurfaceSelectFilter(QtCore.QObject):
 
     # ── event filter ─────────────────────────────────────────────────────────
 
+    _QtEvents = (QtGui.QMouseEvent | QtCore.QChildEvent | QtCore.QEvent |
+                 QtCore.QDynamicPropertyChangeEvent | QtGui.QMoveEvent |
+                 QtGui.QResizeEvent | QtGui.QPaintEvent | QtGui.QShowEvent |
+                 QtGui.QEnterEvent | QtGui.QHoverEvent | QtGui.QInputMethodQueryEvent |
+                 QtGui.QFocusEvent | QtGui.QContextMenuEvent | QtGui.QWheelEvent |
+                 QtGui.QKeyEvent | QtGui.QHideEvent)
+
     @_check_types.do
-    def eventFilter(self, obj, event: QtGui.QMouseEvent):
+    def eventFilter(self, obj, event: QtCore.QEvent | QtGui.QMouseEvent):
         dlg = self._dialog
         t = event.type()
 

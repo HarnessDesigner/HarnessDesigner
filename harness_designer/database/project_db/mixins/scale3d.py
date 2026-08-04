@@ -45,38 +45,39 @@ class Scale3DMixin(BaseMixin):
 
         return point
 
-    _stored_scale3d_id: int | DefaultStoredValueType | None = DefaultStoredValue
+    _stored_scale3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def scale3d_id(self) -> int:
+    def scale3d_id(self) -> bytes:
         """
         Return the scale 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: int
+        :rtype: bytes
         """
         if self._stored_scale3d_id is DefaultStoredValue:
             point_id = self._table.select('scale3d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(x=1.0, y=1.0, z=1.0)
-                self.scale3d_id = point_id
-            
+                point = self._table.db.pjt_points3d_table.insert(x=1.0, y=1.0, z=1.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, scale3d_id=point_id)
+
             self._stored_scale3d_id = point_id
 
         return self._stored_scale3d_id
 
     @scale3d_id.setter
     @_check_types.do
-    def scale3d_id(self, value: int):
+    def scale3d_id(self, value: bytes):
         """Set the position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param value: Value to store or process.
-        :type value: int
+        :type value: bytes
         """
         self._stored_scale3d_id = value
         self._stored_scale3d = DefaultStoredValue

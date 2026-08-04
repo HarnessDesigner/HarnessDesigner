@@ -315,8 +315,9 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         if self._stored_branch_position3d_id is DefaultStoredValue:
             point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
-                self.branch_position3d_id = point_id
+                point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, branch_point3d_id=point_id)
 
             self._stored_branch_position3d_id = point_id
 

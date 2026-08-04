@@ -481,8 +481,9 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
                 x, y, z = (position + ((ref - position) / 2.0)).as_float
 
-                point_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
-                self.terminal_position3d_id = point_id
+                point = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
+                point_id = point.db_id
+                self._table.update(self._db_id, terminal_point3d_id=point_id)
 
                 self._stored_terminal_position3d_id = point_id
             else:
@@ -581,8 +582,9 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
                 x, y, z = center.as_float
 
-                point_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
-                self.wire_position3d_id = point_id
+                point = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
+                point_id = point.db_id
+                self._table.update(self._db_id, wire_point3d_id=point_id)
 
                 self._stored_wire_position3d_id = point_id
             else:

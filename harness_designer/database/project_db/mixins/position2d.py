@@ -59,9 +59,10 @@ class Position2DMixin(BaseMixin):
         if self._stored_position2d_id is DefaultStoredValue:
             point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point_id = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0)
-                self.position2d_id = point_id
-            
+                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, point2d_id=point_id)
+
             self._stored_position2d_id = point_id
 
         return self._stored_position2d_id

@@ -47,13 +47,19 @@ def add_records(con, splash, data_path):
 
         for i, item in enumerate(data):
             splash.SetText(f'Adding temperature to db [{i + 1} | {data_len}]...', log=False)
+
+            # temperatures.json is a pre-UUID-migration seed file and still
+            # carries a leftover integer "id" per entry -- discard it so
+            # every row gets a freshly generated UUID id instead of
+            # colliding integers.
+            item.pop('id', None)
             add_temperature(con, commit=False, **item)
 
     con.commit()
 
 
 @_check_types.do
-def add_temperature(con, name, id=None, commit=True):  # NOQA
+def add_temperature(con, name, commit=True):  # NOQA
     """Add a temperature.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -62,16 +68,13 @@ def add_temperature(con, name, id=None, commit=True):  # NOQA
     :type con: UNKNOWN
     :param name: Name value.
     :type name: UNKNOWN
-    :param id: Identifier for the ID.
-    :type id: UNKNOWN
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
 
-    if id is None:
-        id = _id_generator.generate_global_row_id(con).bytes
+    id = _id_generator.generate_global_row_id(con).bytes
 
     con.execute(
         'INSERT INTO temperatures (id, name) '

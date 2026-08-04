@@ -32,9 +32,9 @@ class BaseVar:
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
-                 vbo: _vbo.PooledVBOHandler | None, angle: _angle.Angle | None,
-                 position: _point.Point | None, scale: _point.Point | None,
-                 material: _materials.GLMaterial | None):
+                 vbo: _vbo.PooledVBOHandler | _vbo.NonPooledVBOHandler | None,
+                 angle: _angle.Angle | None, position: _point.Point | None,
+                 scale: _point.Point | None, material: _materials.GLMaterial | None):
 
         self._is_selected = False
         self._is_visible = False

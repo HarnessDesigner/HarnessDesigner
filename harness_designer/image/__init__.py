@@ -158,6 +158,47 @@ class Image:
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     @_check_types.do
+    def resize_keep_aspect(self, w: int, h: int) -> "Image":
+        """Return a copy scaled to fit within ``(w, h)``, aspect ratio
+        preserved, centered on a transparent ``(w, h)`` canvas.
+
+        Unlike :meth:`resize`, which stretches to the exact target size
+        (distorting anything not already ``w:h``), this scales down (or
+        up) uniformly so the whole image fits inside the box without
+        distortion, then pastes it centered both horizontally and
+        vertically -- e.g. a 400x100 image resized to ``(64, 64)``
+        becomes 64x16, centered vertically within a 64x64 transparent
+        canvas.
+
+        :param w: Target canvas width in pixels.
+        :type w: int
+        :param h: Target canvas height in pixels.
+        :type h: int
+        :returns: New image, exactly ``(w, h)`` in size.
+        :rtype: :class:`Image`
+        """
+        img = self.pil
+        src_w, src_h = img.size
+
+        scale = min(w / src_w, h / src_h)
+        new_w = max(1, round(src_w * scale))
+        new_h = max(1, round(src_h * scale))
+
+        resized = img.resize((new_w, new_h), resample=_Image.Resampling.LANCZOS)
+
+        canvas = _Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        x = (w - new_w) // 2
+        y = (h - new_h) // 2
+        canvas.paste(resized, (x, y), mask=resized)
+
+        data = utils.pil_image_2_png_bytes(canvas)
+        img.close()
+        resized.close()
+        canvas.close()
+
+        return Image(self.name, png_data=data)
+
+    @_check_types.do
     def rotate(self, angle: int | float) -> "Image":
         """Return a rotated copy of the image.
 

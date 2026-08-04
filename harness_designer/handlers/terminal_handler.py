@@ -393,7 +393,7 @@ class AddTerminalHandler(_handler_base.HandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def set_part(self, part_id: int):
+    def set_part(self, part_id: bytes):
         if self.obj is not None:
             self.obj.delete()
 

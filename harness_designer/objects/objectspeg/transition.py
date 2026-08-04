@@ -93,7 +93,7 @@ class Transition(_basepeg.BasePeg):
         return points
 
     @_check_types.do
-    def table_anchor_live_position(self, point3d_id: int) -> "_point.Point":
+    def table_anchor_live_position(self, point3d_id: bytes) -> "_point.Point":
         """One branch's live ``position3d`` -- *point3d_id* must be one of
         this transition's own branches' ``position3d_id`` (see
         :attr:`table_anchor_points`), not the transition's own anchor
@@ -109,7 +109,7 @@ class Transition(_basepeg.BasePeg):
         return self.position
 
     @_check_types.do
-    def build_table_rows(self, project, point3d_id: int) -> list:
+    def build_table_rows(self, project, point3d_id: bytes) -> list:
         """One branch's non-filler wires -- see
         ``table_rows.build_rows_for_transition_branch``. *point3d_id* must
         be one of this transition's own branches' ``position3d_id`` (see

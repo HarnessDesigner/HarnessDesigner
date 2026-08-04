@@ -22,7 +22,7 @@ class HandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int | None):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None):
         """
         Initialize the object and capture the state required for later interaction.
 

@@ -165,7 +165,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", point3d_id: int, label: str):
+    def __init__(self, canvas: "_canvas.Canvas", point3d_id: bytes, label: str):
         super().__init__(canvas)
 
         # Without this, QSizeGrip climbs up to the real top-level widget
@@ -367,7 +367,7 @@ class TablesOverlay:
 
     @_check_types.do
     def ensure_table(
-        self, point3d_id: int, world_x: float, world_z: float, label: str,
+        self, point3d_id: bytes, world_x: float, world_z: float, label: str,
         rows: list, include_cavity_columns: bool, anchor_live_position: _point.Point,
     ) -> None:
         """Create (or refresh) the table overlay for *point3d_id*.

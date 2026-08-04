@@ -81,14 +81,14 @@ def _delete_point_if_orphaned(ptables, point_id: int) -> None:
 
 
 @_check_types.do
-def _insert_wire(ptables, part_id, name, circuit_id, start_id, stop_id, visible: bool):
+def _insert_wire(ptables, part_id: bytes, name, circuit_id, start_id, stop_id, visible: bool):
     return ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, start_id, stop_id,
         None, None, visible, False, None, None, False)
 
 
 @_check_types.do
-def _insert_bundle(ptables, part_id, start_id, stop_id):
+def _insert_bundle(ptables, part_id: bytes, start_id, stop_id):
     db = ptables.pjt_bundles_table.insert(part_id)
     db.start_position3d_id = start_id
     db.stop_position3d_id = stop_id
@@ -328,7 +328,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
     obj: _transition.Transition = None
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id=None):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None = None):
         if part_id is None:
             part_id = mainframe.editor_db.editor.transitions.GetSelection()
 
@@ -731,7 +731,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
     _IN_TRANS = 'in_transition'
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes):
         super().__init__(mainframe, part_id)
         self._state = self._IDLE
         self._segments = []

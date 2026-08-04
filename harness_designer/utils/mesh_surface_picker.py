@@ -40,8 +40,9 @@ Call picker.cleanup() when the object is deleted.
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 from collections import defaultdict
-from dataclasses import dataclass
 import numpy as np
+
+from . import mesh_surface as _mesh_surface
 from .. import check_types as _check_types
 
 
@@ -49,13 +50,6 @@ if TYPE_CHECKING:
     from ..gl.canvas3d import Canvas3D as _Canvas3D
     from ..geometry import angle as _angle
     from ..geometry import point as _point
-
-
-@dataclass
-class Surface:
-    tri_indices: list   # 0-based indices into triangle soup
-    normal: np.ndarray  # unit normal, float32, canonical direction
-    plane_dist: float   # dot(centroid, normal) — signed dist from origin
 
 
 @_check_types.do
@@ -192,7 +186,7 @@ class MeshSurfacePicker:
         self._verticesf32 = self.vertices.astype(np.float32)
         self._normalsf32 = self.normals.astype(np.float32)
 
-        self._surfaces: list[Surface] = []
+        self._surfaces: list[_mesh_surface.Surface] = []
         self._build_surfaces()
 
     @_check_types.do
@@ -366,11 +360,11 @@ class MeshSurfacePicker:
         tri_order = np.argsort(remapped_group_id, kind='stable')
         tri_groups = np.split(tri_order, np.cumsum(sorted_counts)[:-1])
 
-        return [Surface(grp.tolist(), normals[grp[0]].astype(np.float32), float(dists[grp[0]]))
+        return [_mesh_surface.Surface(grp.tolist(), normals[grp[0]].astype(np.float32), float(dists[grp[0]]))
                 for grp in tri_groups]
 
     @_check_types.do
-    def split_into_components(self, surface: Surface) -> list:
+    def split_into_components(self, surface: _mesh_surface.Surface) -> list:
         """
         Split a surface into topologically connected triangle islands.
 
@@ -430,19 +424,19 @@ class MeshSurfacePicker:
         if len(components) == 1:
             return [surface]
 
-        return [Surface(comp, surface.normal.copy(), surface.plane_dist)
+        return [_mesh_surface.Surface(comp, surface.normal.copy(), surface.plane_dist)
                 for comp in components]
 
     @staticmethod
     @_check_types.do
-    def _coplanar(s: Surface, ref: Surface, normal_tol: float, dist_tol: float) -> bool:
+    def _coplanar(s: _mesh_surface.Surface, ref: _mesh_surface.Surface, normal_tol: float, dist_tol: float) -> bool:
         return (float(np.dot(s.normal, ref.normal)) > 1.0 - normal_tol and
                 abs(s.plane_dist - ref.plane_dist) < dist_tol)
 
     @staticmethod
     @_check_types.do
     def find_coplanar_surfaces(
-        reference: Surface,
+        reference: _mesh_surface.Surface,
         all_surfaces: list,
         normal_tol: float = 0.02,
         dist_tol: float = 0.5,
@@ -455,7 +449,7 @@ class MeshSurfacePicker:
                 if MeshSurfacePicker._coplanar(s, reference, normal_tol, dist_tol)]
 
     @_check_types.do
-    def surface_centroid(self, surface: Surface) -> np.ndarray:
+    def surface_centroid(self, surface: _mesh_surface.Surface) -> np.ndarray:
         """
         Return the mean world-space position of all vertices belonging to surface.
         """
@@ -504,7 +498,7 @@ class MeshSurfacePicker:
 
     @property
     @_check_types.do
-    def surfaces(self) -> list[Surface]:
+    def surfaces(self) -> list[_mesh_surface.Surface]:
         """
         Read-only view of the computed surface list.
         """

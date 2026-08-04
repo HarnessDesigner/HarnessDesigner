@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 
 from ... import utils as _utils
@@ -766,20 +766,25 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, num_conductors=value)
         self._populate('num_conductors')
 
-    _stored_core_material: "DefaultStoredValueType | _plating.Plating" = DefaultStoredValue
+    _stored_core_material: _Union[DefaultStoredValueType, "_plating.Plating", None] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def core_material(self) -> "_plating.Plating":
+    def core_material(self) -> _Union["_plating.Plating", None]:
         """Return the core material.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_plating.Plating`
+        :rtype: :class:`_plating.Plating` | None
         """
         if self._stored_core_material is DefaultStoredValue:
-            self._stored_core_material = self._table.db.platings_table[self.core_material_id]
+            core_material_id = self.core_material_id
+
+            if core_material_id == b'\x00' * 16:
+                self._stored_core_material = None
+            else:
+                self._stored_core_material = self._table.db.platings_table[core_material_id]
 
         return self._stored_core_material
 
@@ -1034,20 +1039,25 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         """
         return 'mm²'
 
-    _stored_stripe_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
+    _stored_stripe_color: _Union[DefaultStoredValueType, "_color.Color", None] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def stripe_color(self) -> "_color.Color":
+    def stripe_color(self) -> _Union["_color.Color", None]:
         """Return the stripe color.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_color.Color`
+        :rtype: :class:`_color.Color` | None
         """
         if self._stored_stripe_color is DefaultStoredValue:
-            self._stored_stripe_color = self._table.db.colors_table[self.stripe_color_id]
+            stripe_color_id = self.stripe_color_id
+
+            if stripe_color_id == b'\x00' * 16:
+                self._stored_stripe_color = None
+            else:
+                self._stored_stripe_color = self._table.db.colors_table[stripe_color_id]
 
         return self._stored_stripe_color
 

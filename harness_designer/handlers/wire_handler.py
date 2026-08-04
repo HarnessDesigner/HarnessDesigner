@@ -83,7 +83,7 @@ class _IncompatOverlay(QLabel):
 
 
 @_check_types.do
-def _wire_layout_end_wire(wire_layout_obj, project, part_id):
+def _wire_layout_end_wire(wire_layout_obj, project, part_id: bytes):
     """Return (wire, endpoint) if the layout sits at one endpoint of a wire with matching part_id.
 
     Returns (None, None) when the layout is mid-wire (split point, two wires share it)
@@ -293,7 +293,7 @@ class AddWireHandler(_handler_base.HandlerBase):
     obj: _wire.Wire = None
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: int = None,
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None = None,
                  terminal: _terminal.Terminal = None):
         if terminal is not None:
             compat_pns = _get_terminal_compat_pns(mainframe, terminal)
@@ -369,7 +369,7 @@ class AddWireHandler(_handler_base.HandlerBase):
                 self._start_from_terminal(terminal, part_id)
 
     @_check_types.do
-    def _start_from_terminal(self, terminal: _terminal.Terminal, part_id: int):
+    def _start_from_terminal(self, terminal: _terminal.Terminal, part_id: bytes):
         """Pin the preview wire's start to *terminal* and enter phase 1 directly."""
         self.part = self.mainframe.global_db.wires_table[part_id]
 

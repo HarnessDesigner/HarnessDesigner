@@ -65,7 +65,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
             self.set_part(part_id)
 
     @_check_types.do
-    def set_part(self, part_id):
+    def set_part(self, part_id: bytes):
         if self._finalized:
             return
 

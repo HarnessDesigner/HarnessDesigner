@@ -97,7 +97,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
             out_queue.put(out_message)
             continue
 
-        connector.execute(f'SELECT uuid, path FROM {table_name} WHERE id={db_id};')
+        connector.execute(f'SELECT uuid, path FROM {table_name} WHERE id=?;', (db_id,))
         image = connector.fetchall()
 
         if not image:
@@ -159,8 +159,8 @@ def _process_worker(in_queue: multiprocessing.Queue,
 
         # Only DB write permitted from child: uuid and file_type_id.
         connector.execute(
-            f'UPDATE {table_name} SET file_type_id={file_type_id}, uuid="{file_id}" '
-            f'WHERE id={db_id};')
+            f'UPDATE {table_name} SET file_type_id=?, uuid=? '
+            f'WHERE id=?;', (file_type_id, file_id, db_id))
         connector.commit()
 
         out_message['step'] = 5

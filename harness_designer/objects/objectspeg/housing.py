@@ -86,7 +86,7 @@ class Housing(_basepeg.BasePeg):
         return flatten_quat.as_euler
 
     @_check_types.do
-    def build_table_rows(self, project, point3d_id: int) -> list:
+    def build_table_rows(self, project, point3d_id: bytes) -> list:
         """Every seated cavity's wire, cavity-index order -- see
         ``table_rows.build_rows_for_housing``.
         """

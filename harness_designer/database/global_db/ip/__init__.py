@@ -93,7 +93,7 @@ class IPRatingsTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, name: str, solid_id: int, fluid_id: int, supp_id: int) -> "IPRating":
+    def insert(self, name: str, solid_id: bytes, fluid_id: bytes, supp_id: bytes | None) -> "IPRating":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -101,11 +101,11 @@ class IPRatingsTable(TableBase):
         :param name: Name value.
         :type name: str
         :param solid_id: Identifier for the solid.
-        :type solid_id: int
+        :type solid_id: bytes
         :param fluid_id: Identifier for the fluid.
-        :type fluid_id: int
+        :type fluid_id: bytes
         :param supp_id: Identifier for the supp.
-        :type supp_id: int
+        :type supp_id: bytes | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`IPRating`
         """
