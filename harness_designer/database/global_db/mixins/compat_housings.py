@@ -108,13 +108,13 @@ class CompatHousingsControl(_prop_ctrls.ArrayStringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: CompatHousingsMixin = None
+        self.db_obj: CompatHousingsMixin | None = None
         super().__init__(parent, 'Compatible Housings')
 
         self.propertyChanged.connect(self._on_compat_housings)
 
     @_check_types.do
-    def set_obj(self, db_obj: CompatHousingsMixin):
+    def set_obj(self, db_obj: CompatHousingsMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -58,7 +58,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: NotesMixin = None
+        self.db_obj: NotesMixin | None = None
 
         super().__init__(parent, 'Notes')
 
@@ -77,7 +77,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
         self.db_obj.notes = value
 
     @_check_types.do
-    def set_obj(self, db_obj: NotesMixin):
+    def set_obj(self, db_obj: NotesMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -536,7 +536,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: TransitionBranch):
+    def set_obj(self, db_obj: TransitionBranch | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -693,7 +693,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: TransitionBranch = None
+        self.db_obj: TransitionBranch | None = None
         super().__init__(parent, 'Branch')
 
         self.name_ctrl = NameControl(self)

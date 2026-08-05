@@ -80,11 +80,11 @@ class BasePeg(_objectsvar.BaseVar):
         self,
         parent: "_ObjectBase",
         db_obj: "_project_db.PJTEntryBase",
-        vbo: "_vbo.VBOHandlerBase" = None,
-        angle: _angle.Angle = None,
-        position: _point.Point = None,
-        scale: _point.Point = None,
-        material: _materials.GLMaterial = None
+        vbo: _vbo.VBOHandlerBase | None = None,
+        angle: _angle.Angle | None = None,
+        position: _point.Point | None = None,
+        scale: _point.Point | None = None,
+        material: _materials.GLMaterial | None = None
     ):
         """
         Initialise the :class:`BasePeg` instance.

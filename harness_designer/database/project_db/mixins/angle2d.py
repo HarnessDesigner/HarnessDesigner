@@ -76,7 +76,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Angle2DMixin = None
+        self.db_obj: Angle2DMixin | None = None
 
         super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=90.0, units='°')
 
@@ -106,7 +106,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         self.db_obj.angle2d.y = y
 
     @_check_types.do
-    def set_obj(self, db_obj: Angle2DMixin):
+    def set_obj(self, db_obj: Angle2DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -226,7 +226,7 @@ class DimensionControl(_prop_ctrls.Category):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: DimensionMixin = None
+        self.db_obj: DimensionMixin | None = None
 
         super().__init__(parent, 'Dimensions')
 
@@ -248,7 +248,7 @@ class DimensionControl(_prop_ctrls.Category):
         self.height_ctrl.propertyChanged.connect(self._on_height)
 
     @_check_types.do
-    def set_obj(self, db_obj: DimensionMixin):
+    def set_obj(self, db_obj: DimensionMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

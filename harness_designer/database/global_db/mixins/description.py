@@ -59,14 +59,14 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: DescriptionMixin = None
+        self.db_obj: DescriptionMixin | None = None
 
         super().__init__(parent, 'Description')
 
         self.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: DescriptionMixin):
+    def set_obj(self, db_obj: DescriptionMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

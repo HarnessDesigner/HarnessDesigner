@@ -90,7 +90,7 @@ class FamilyControl(_prop_ctrls.Category):
         super().__init__(parent, 'Family')
 
         self.choices: list[str] = []
-        self.db_obj: FamilyMixin = None
+        self.db_obj: FamilyMixin | None = None
 
         self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
@@ -104,7 +104,7 @@ class FamilyControl(_prop_ctrls.Category):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: FamilyMixin):
+    def set_obj(self, db_obj: FamilyMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

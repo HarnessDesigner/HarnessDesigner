@@ -388,7 +388,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTSeal):
+    def set_obj(self, db_obj: PJTSeal | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -424,7 +424,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PJTSeal = None
+        self.db_obj: PJTSeal | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

@@ -1073,7 +1073,7 @@ class PJTCircuitControl(QTabWidget):
         self._parent.set_circuit(db_id)
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTCircuit):
+    def set_obj(self, db_obj: PJTCircuit | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1141,7 +1141,7 @@ class PJTCircuitControl(QTabWidget):
         :type parent: UNKNOWN
         """
         self._parent = parent
-        self.db_obj: PJTCircuit = None
+        self.db_obj: PJTCircuit | None = None
         self.name_choices: list[str] = []
         self.circuit_choices: list[str] = []
 

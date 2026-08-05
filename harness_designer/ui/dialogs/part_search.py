@@ -341,10 +341,19 @@ class FKFilterPanel(_FilterPanelBase):
         self._available = available
         normal = self.palette().color(self.foregroundRole())
 
-        for i in range(self.list.count()):
-            item = self.list.item(i)
-            ok = available is None or item.text() in available
-            item.setForeground(normal if ok else DISABLED_COLOUR)
+        # setForeground() emits itemChanged the same as a checkbox toggle
+        # does (Qt fires it for any data-role change, not just check
+        # state) -- without blocking signals here, every repaint below
+        # re-triggers _on_check, which re-triggers this same availability
+        # refresh, forever. populate()/clear() already guard the same way.
+        self.list.blockSignals(True)
+        try:
+            for i in range(self.list.count()):
+                item = self.list.item(i)
+                ok = available is None or item.text() in available
+                item.setForeground(normal if ok else DISABLED_COLOUR)
+        finally:
+            self.list.blockSignals(False)
 
     @_check_types.do
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
@@ -493,15 +502,24 @@ class EnumFilterPanel(_FilterPanelBase):
         self._available = available
         normal = self.palette().color(self.foregroundRole())
 
-        for i in range(self.list.count()):
-            item = self.list.item(i)
-            try:
-                v = int(item.text())
-            except ValueError:
-                continue
+        # setForeground() emits itemChanged the same as a checkbox toggle
+        # does (Qt fires it for any data-role change, not just check
+        # state) -- without blocking signals here, every repaint below
+        # re-triggers _on_check, which re-triggers this same availability
+        # refresh, forever. populate()/clear() already guard the same way.
+        self.list.blockSignals(True)
+        try:
+            for i in range(self.list.count()):
+                item = self.list.item(i)
+                try:
+                    v = int(item.text())
+                except ValueError:
+                    continue
 
-            ok = available is None or v in available
-            item.setForeground(normal if ok else DISABLED_COLOUR)
+                ok = available is None or v in available
+                item.setForeground(normal if ok else DISABLED_COLOUR)
+        finally:
+            self.list.blockSignals(False)
 
     @_check_types.do
     def get_predicate(self) -> Optional[Tuple[str, List[Any]]]:
@@ -945,7 +963,6 @@ class SearchDialog(_dialog_base.BaseDialog):
             QtWidgets.QApplication.restoreOverrideCursor()
             self.progress.setVisible(False)
 
-    @_check_types.do
     def _populate(self) -> None:
         """Run the filter/result queries that fill in the dialog's
         already-visible, still-empty areas.
@@ -978,12 +995,12 @@ class SearchDialog(_dialog_base.BaseDialog):
         except Exception:  # NOQA
             return None
 
-    @_check_types.do
     def _build_ui(self) -> None:
         """Build the UI.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
+
         outer = QtWidgets.QVBoxLayout(self.panel)
 
         top = QtWidgets.QHBoxLayout()
@@ -1057,6 +1074,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         # which every caller already treats identically to a cancel.
         ok_btn = self.button_box.button(
             QtWidgets.QDialogButtonBox.StandardButton.Ok)
+
         ok_btn.setEnabled(False)
         self.results.itemSelected.connect(lambda _row: ok_btn.setEnabled(True))
         self.results.itemUnselected.connect(lambda: ok_btn.setEnabled(False))
@@ -1075,6 +1093,7 @@ class SearchDialog(_dialog_base.BaseDialog):
         :param table: Value for ``table``.
         :type table: str
         """
+
         for panel in self.filters.values():
             panel.deleteLater()
 

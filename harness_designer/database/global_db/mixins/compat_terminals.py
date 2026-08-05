@@ -108,13 +108,13 @@ class CompatTerminalsControl(_prop_ctrls.ArrayStringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: CompatTerminalsMixin = None
+        self.db_obj: CompatTerminalsMixin | None = None
         super().__init__(parent, 'Compatible Terminals')
 
         self.propertyChanged.connect(self._on_compat_housings)
 
     @_check_types.do
-    def set_obj(self, db_obj: CompatTerminalsMixin):
+    def set_obj(self, db_obj: CompatTerminalsMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -88,7 +88,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: ManufacturerMixin = None
+        self.db_obj: ManufacturerMixin | None = None
         self.choices: list[str] = []
         
         super().__init__(parent, 'Manufacturer')
@@ -121,7 +121,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.name_ctrl.propertyChanged.connect(self._on_name_change)
 
     @_check_types.do
-    def set_obj(self, db_obj: ManufacturerMixin):
+    def set_obj(self, db_obj: ManufacturerMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -444,7 +444,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
     # TODO: Add splice types
 
     @_check_types.do
-    def set_obj(self, db_obj: Splice):
+    def set_obj(self, db_obj: Splice | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -584,7 +584,7 @@ class SpliceControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Splice = None
+        self.db_obj: Splice | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

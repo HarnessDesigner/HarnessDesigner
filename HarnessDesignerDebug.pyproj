@@ -1,0 +1,72 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{7b1d9e3a-4c2f-4a6b-9e11-2d6c8f1a5b30}</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>run.py</StartupFile>
+    <SearchPath>.</SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>MSBuild|harnessdesigner311|$(MSBuildProjectFullPath)</InterpreterId>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <!--
+      Left off deliberately: checking this makes F5/Start Debugging
+      substitute python_d.exe (the debug-build interpreter) for the
+      launch, which requires a Py_DEBUG-ABI build of every C extension in
+      the process. numpy and PySide6 are ordinary release wheels with no
+      debug variant, so python_d.exe crashes importing them before the
+      app ever starts (confirmed: it died loading numpy's compiled core,
+      never got as far as PySide6). Mixed native+Python debugging still
+      works fine here, just via Debug > Attach to Process against the
+      normal python.exe once it's running (see README note below), which
+      doesn't touch which interpreter binary runs at all.
+    -->
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
+    <!--
+      Lets the VS debugger pull PDBs for Windows system DLLs (ntdll,
+      KernelBase, ucrtbase, ...) that show up in the native call stack
+      around the actual crash frame. PySide6/Qt6 ship release builds with
+      no embedded PDBs, so Qt6*.dll frames will still show as raw
+      module+offset rather than symbol names, that's an upstream
+      limitation, not something this symbol path can fix, but the
+      repeating pattern of those addresses is still exactly what shows a
+      recursive native call chain.
+    -->
+    <Environment>_NT_SYMBOL_PATH=srv*C:\symbols*https://msdl.microsoft.com/download/symbols</Environment>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <ItemGroup>
+    <Compile Include="run.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <!--
+      Points straight at the exact interpreter that actually produced the
+      crash.log entry (c:\python3.11.14\python.exe) instead of relying on
+      whichever environment happens to be registered/selected globally in
+      VS. If VS doesn't auto-resolve this on first open, right-click
+      "Python Environments" in Solution Explorer > Add Existing
+      Interpreter... and point it at the same path, a normal one-time
+      step, nothing PTVS-specific.
+    -->
+    <Interpreter Include="c:\python3.11.14\">
+      <Id>harnessdesigner311</Id>
+      <Version>3.11</Version>
+      <Description>Harness Designer (c:\python3.11.14)</Description>
+      <InterpreterPath>python.exe</InterpreterPath>
+      <WindowsInterpreterPath>python.exe</WindowsInterpreterPath>
+      <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
+      <Architecture>X64</Architecture>
+    </Interpreter>
+  </ItemGroup>
+  <!--
+    If VS reports this Import missing on open, the "Python Development"
+    workload isn't installed yet, add it (with the "Python native
+    development tools" optional component) via the Visual Studio
+    Installer, then reopen this solution.
+  -->
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

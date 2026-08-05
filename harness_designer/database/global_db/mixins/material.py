@@ -85,14 +85,14 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: MaterialMixin = None
+        self.db_obj: MaterialMixin | None = None
         self.choices: list[str] = []
 
         super().__init__(parent, 'Material')
         self.propertyChanged.connect(self._on_material)
 
     @_check_types.do
-    def set_obj(self, db_obj: MaterialMixin):
+    def set_obj(self, db_obj: MaterialMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

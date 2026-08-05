@@ -173,7 +173,7 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: StartStopPosition2DMixin = None
+        self.db_obj: StartStopPosition2DMixin | None = None
 
         super().__init__(parent, '2D Positions', orientation='vertical')
 
@@ -184,7 +184,7 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
         self.addWidget(self.stop_ctrl)
 
     @_check_types.do
-    def set_obj(self, db_obj: StartStopPosition2DMixin):
+    def set_obj(self, db_obj: StartStopPosition2DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

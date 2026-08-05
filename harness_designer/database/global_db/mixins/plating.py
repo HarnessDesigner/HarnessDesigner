@@ -88,7 +88,7 @@ class PlatingControl(_prop_ctrls.Category):
         self.attribute_name = 'plating'
 
         self.choices: list[str] = []
-        self.db_obj: PlatingMixin = None
+        self.db_obj: PlatingMixin | None = None
 
         self.symbol_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Symbol')
         self.desc_ctrl = _prop_ctrls.LongStringProperty(self, 'Description')
@@ -100,7 +100,7 @@ class PlatingControl(_prop_ctrls.Category):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: PlatingMixin):
+    def set_obj(self, db_obj: PlatingMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

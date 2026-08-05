@@ -913,7 +913,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.SetLabel(f'Cavity {index}')
 
     @_check_types.do
-    def set_obj(self, db_obj: Cavity):
+    def set_obj(self, db_obj: Cavity | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1000,7 +1000,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Cavity = None
+        self.db_obj: Cavity | None = None
         self._label = 'Cavity'
 
         QTabWidget.__init__(self, parent)

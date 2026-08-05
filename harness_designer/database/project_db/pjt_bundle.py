@@ -386,7 +386,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTBundle):
+    def set_obj(self, db_obj: PJTBundle | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -420,7 +420,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PJTBundle = None
+        self.db_obj: PJTBundle | None = None
         super().__init__(parent)
         self.setTabPosition(QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)

@@ -78,9 +78,9 @@ class Base2D(_objectsvar.BaseVar):
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
-                 vbo: _vbo.PooledVBOHandler, angle: _angle.Angle,
-                 position: _point.Point, scale: _point.Point,
-                 material: _materials.GLMaterial):
+                 vbo: _vbo.VBOHandlerBase | None, angle: _angle.Angle | None,
+                 position: _point.Point | None, scale: _point.Point | None,
+                 material: _materials.GLMaterial | None):
         """Initialise the :class:`Base2D` instance.
 
         :param parent: Parent object.

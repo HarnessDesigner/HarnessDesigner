@@ -58,7 +58,7 @@ class NameControl(_prop_ctrls.StringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: NameMixin = None
+        self.db_obj: NameMixin | None = None
 
         super().__init__(parent, 'Name')
 
@@ -77,7 +77,7 @@ class NameControl(_prop_ctrls.StringProperty):
         self.db_obj.name = value
 
     @_check_types.do
-    def set_obj(self, db_obj: NameMixin):
+    def set_obj(self, db_obj: NameMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

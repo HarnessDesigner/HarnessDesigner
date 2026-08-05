@@ -424,7 +424,7 @@ class TablesOverlay:
         widget.show()
 
     @_check_types.do
-    def remove_table(self, point3d_id: int) -> None:
+    def remove_table(self, point3d_id: bytes) -> None:
         """Tear down the table overlay for *point3d_id*, if one exists."""
         widget = self._widgets.pop(point3d_id, None)
         if widget is not None:
@@ -439,7 +439,7 @@ class TablesOverlay:
             self.remove_table(point3d_id)
 
     @_check_types.do
-    def toggle_visibility(self, point3d_id: int) -> None:
+    def toggle_visibility(self, point3d_id: bytes) -> None:
         """Flip the shown/hidden state for *point3d_id*'s table, if one
         exists -- called from the peg board's right-click context menu."""
         project = self.canvas.project
@@ -457,7 +457,7 @@ class TablesOverlay:
             widget.setVisible(not table_row.is_collapsed)
 
     @_check_types.do
-    def is_visible(self, point3d_id: int) -> bool:
+    def is_visible(self, point3d_id: bytes) -> bool:
         """Whether *point3d_id*'s table is currently shown (for the
         right-click menu's Show/Hide label)."""
         project = self.canvas.project

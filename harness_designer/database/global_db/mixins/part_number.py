@@ -59,14 +59,14 @@ class PartNumberControl(_prop_ctrls.StringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PartNumberMixin = None
+        self.db_obj: PartNumberMixin | None = None
 
         super().__init__(parent, 'Part Number')
 
         self.propertyChanged.connect(self._on_part_number)
 
     @_check_types.do
-    def set_obj(self, db_obj: PartNumberMixin):
+    def set_obj(self, db_obj: PartNumberMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

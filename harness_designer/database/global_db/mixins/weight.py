@@ -59,14 +59,14 @@ class WeightControl(_prop_ctrls.FloatProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: WeightMixin = None
+        self.db_obj: WeightMixin | None = None
 
         super().__init__(parent, 'Weight', min_value=0.01, max_value=999.99, increment=0.01, units='g')
 
         self.propertyChanged.connect(self._on_weight)
 
     @_check_types.do
-    def set_obj(self, db_obj: WeightMixin):
+    def set_obj(self, db_obj: WeightMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

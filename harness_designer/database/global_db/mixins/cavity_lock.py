@@ -86,7 +86,7 @@ class CavityLockControl(_prop_ctrls.Property):
         :type parent: UNKNOWN
         """
         super().__init__(parent, 'Cavity Lock', orientation='vertical')
-        self.db_obj: CavityLockMixin = None
+        self.db_obj: CavityLockMixin | None = None
         self.choices: list[str] = []
 
         self.name_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Name')
@@ -98,7 +98,7 @@ class CavityLockControl(_prop_ctrls.Property):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: CavityLockMixin):
+    def set_obj(self, db_obj: CavityLockMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -92,7 +92,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
         :type parent: UNKNOWN
         """
         self.choices: list[list[str, int]] = None
-        self.db_obj: ColorMixin = None
+        self.db_obj: ColorMixin | None = None
         self.attribute_name = 'color'
 
         super().__init__(parent, 'Color')
@@ -111,7 +111,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
         self.attribute_name = name
 
     @_check_types.do
-    def set_obj(self, db_obj: ColorMixin):
+    def set_obj(self, db_obj: ColorMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

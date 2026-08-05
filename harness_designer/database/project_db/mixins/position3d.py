@@ -99,12 +99,12 @@ class Position3DControl(_prop_ctrls.Position3DProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Position3DMixin = None
+        self.db_obj: Position3DMixin | None = None
 
         super().__init__(parent, '3D Position')
 
     @_check_types.do
-    def set_obj(self, db_obj: Position3DMixin):
+    def set_obj(self, db_obj: Position3DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

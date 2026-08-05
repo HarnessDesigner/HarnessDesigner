@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -137,7 +137,7 @@ class PJTWiresTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: bytes, name: str, circuit_id: bytes, start_point3d_id: bytes | None, stop_point3d_id: bytes | None,
+    def insert(self, part_id: bytes, name: str, circuit_id: bytes | None, start_point3d_id: bytes | None, stop_point3d_id: bytes | None,
                start_point2d_id: bytes | None, stop_point2d_id: bytes | None, is_visible3d: bool, is_visible2d: bool,
                layer_view_point_id: bytes | None, layer_id: bytes | None, is_filler_wire: bool) -> "PJTWire":
         """Execute the insert operation.
@@ -583,11 +583,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """
         return self._table
 
-    _stored_circuit: "_pjt_circuit.PJTCircuit | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_circuit: Union["_pjt_circuit.PJTCircuit", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def circuit(self) -> "_pjt_circuit.PJTCircuit":
+    def circuit(self) -> Union["_pjt_circuit.PJTCircuit", None]:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -613,7 +613,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
     @property
     @_check_types.do
-    def circuit_id(self) -> bytes:
+    def circuit_id(self) -> bytes | None:
         """Return the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -628,7 +628,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes):
+    def circuit_id(self, value: bytes | None):
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -692,7 +692,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         self.resistance_ctrl.SetValue(str(self.db_obj.resistance))
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTWire):
+    def set_obj(self, db_obj: PJTWire | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -757,7 +757,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PJTWire = None
+        self.db_obj: PJTWire | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

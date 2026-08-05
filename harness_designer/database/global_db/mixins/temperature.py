@@ -144,7 +144,7 @@ class TemperatureControl(_prop_ctrls.Category):
         super().__init__(parent, 'Temperatures')
 
         self.choices: list[str] = []
-        self.db_obj: TemperatureMixin = None
+        self.db_obj: TemperatureMixin | None = None
 
         self.min_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Minimum')
         self.max_temp_ctrl = _prop_ctrls.ComboBoxProperty(self, 'Maximum')
@@ -156,7 +156,7 @@ class TemperatureControl(_prop_ctrls.Category):
         self.max_temp_ctrl.propertyChanged.connect(self._on_max_temp)
 
     @_check_types.do
-    def set_obj(self, db_obj: TemperatureMixin):
+    def set_obj(self, db_obj: TemperatureMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

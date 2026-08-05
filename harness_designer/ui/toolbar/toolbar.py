@@ -1003,7 +1003,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         return _make_icon(icons.camera + (icons.lock if enable else icons.unlock))
 
     @_check_types.do
-    def on_wireframe(self, _: bool):
+    def on_wireframe(self, *_: bool):
         """
         Handle the show wireframe toggle.
         """
@@ -1018,7 +1018,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_reflections(self, _: bool):
+    def on_reflections(self, *_: bool):
         """
         Handle the show reflections toggle.
         """
@@ -1033,7 +1033,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_spotlight(self, _: bool):
+    def on_spotlight(self, *_: bool):
         """
         Handle the show spotlight toggle.
         """
@@ -1048,7 +1048,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_lock_top_view(self, _: bool = False):
+    def on_lock_top_view(self, *_: bool):
         """
         Handle the locked top-down view toggle.
         """
@@ -1061,7 +1061,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_normals(self, _: bool):
+    def on_normals(self, *_: bool):
         """
         Handle the show normals toggle.
         """
@@ -1077,7 +1077,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_vertices(self, _: bool):
+    def on_vertices(self, *_: bool):
         """
         Handle the show vertices toggle.
         """
@@ -1092,7 +1092,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_aabb(self, _: bool):
+    def on_aabb(self, *_: bool):
         """
         Handle the show aabb toggle.
         """
@@ -1108,7 +1108,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_faces(self, _: bool):
+    def on_faces(self, *_: bool):
         """
         Handle the show faces toggle.
         """
@@ -1124,7 +1124,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_obb(self, _: bool):
+    def on_obb(self, *_: bool):
         """
         Handle the show obb toggle.
         """

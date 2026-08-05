@@ -60,7 +60,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Visible2DMixin = None
+        self.db_obj: Visible2DMixin | None = None
 
         super().__init__(parent, 'Is Visible 2D')
 
@@ -79,7 +79,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
         self.db_obj.is_visible2d = value
 
     @_check_types.do
-    def set_obj(self, db_obj: Visible2DMixin):
+    def set_obj(self, db_obj: Visible2DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

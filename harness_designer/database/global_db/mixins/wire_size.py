@@ -237,7 +237,7 @@ class WireSizeControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: WireSizeMixin):
+    def set_obj(self, db_obj: WireSizeMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -384,7 +384,7 @@ class WireSizeControl(_prop_ctrls.Category):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: WireSizeMixin = None
+        self.db_obj: WireSizeMixin | None = None
 
         super().__init__(parent, 'Wire Sizes')
 

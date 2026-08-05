@@ -81,12 +81,12 @@ class Angle3DControl(_prop_ctrls.Angle3DProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Angle3DMixin = None
+        self.db_obj: Angle3DMixin | None = None
 
         super().__init__(parent, '3D Angle')
 
     @_check_types.do
-    def set_obj(self, db_obj: Angle3DMixin):
+    def set_obj(self, db_obj: Angle3DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

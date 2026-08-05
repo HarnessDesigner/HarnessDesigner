@@ -405,7 +405,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Transition):
+    def set_obj(self, db_obj: Transition | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -508,7 +508,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Transition = None
+        self.db_obj: Transition | None = None
         self.branches = []
 
         QTabWidget.__init__(self, parent)

@@ -82,7 +82,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: ProtectionMixin = None
+        self.db_obj: ProtectionMixin | None = None
         self.choices: list[str] = []
 
         super().__init__(parent, 'Protections')
@@ -90,7 +90,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
         self.propertyChanged.connect(self._on_protection)
 
     @_check_types.do
-    def set_obj(self, db_obj: ProtectionMixin):
+    def set_obj(self, db_obj: ProtectionMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

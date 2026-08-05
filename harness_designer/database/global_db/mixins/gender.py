@@ -89,13 +89,13 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
         """
 
         self.choices: list[str] = []
-        self.db_obj: GenderMixin = None
+        self.db_obj: GenderMixin | None = None
 
         super().__init__(parent, 'Gender')
         self.propertyChanged.connect(self._on_gender)
 
     @_check_types.do
-    def set_obj(self, db_obj: GenderMixin):
+    def set_obj(self, db_obj: GenderMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -1453,7 +1453,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Housing):
+    def set_obj(self, db_obj: Housing | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1697,7 +1697,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Housing = None
+        self.db_obj: Housing | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

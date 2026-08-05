@@ -59,7 +59,7 @@ class Visible3DControl(_prop_ctrls.BoolProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Visible3DMixin = None
+        self.db_obj: Visible3DMixin | None = None
 
         super().__init__(parent, 'Is Visible 3D')
 
@@ -78,7 +78,7 @@ class Visible3DControl(_prop_ctrls.BoolProperty):
         self.db_obj.is_visible3d = value
 
     @_check_types.do
-    def set_obj(self, db_obj: Visible3DMixin):
+    def set_obj(self, db_obj: Visible3DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

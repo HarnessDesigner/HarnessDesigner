@@ -65,7 +65,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: SmoothMixin = None
+        self.db_obj: SmoothMixin | None = None
 
         super().__init__(parent, 'Smooth')
 
@@ -85,7 +85,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
         self.db_obj.smooth = value
 
     @_check_types.do
-    def set_obj(self, db_obj: SmoothMixin):
+    def set_obj(self, db_obj: SmoothMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

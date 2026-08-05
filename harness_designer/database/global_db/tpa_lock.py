@@ -385,7 +385,7 @@ class TPALockControl(QTabWidget, LazyTabMixin):
     # TODO: Add lock type and pins
 
     @_check_types.do
-    def set_obj(self, db_obj: TPALock):
+    def set_obj(self, db_obj: TPALock | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -430,7 +430,7 @@ class TPALockControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: TPALock = None
+        self.db_obj: TPALock | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

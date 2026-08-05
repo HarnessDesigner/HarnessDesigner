@@ -103,12 +103,12 @@ class Scale3DControl(_prop_ctrls.Scale3DProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Scale3DMixin = None
+        self.db_obj: Scale3DMixin | None = None
 
         super().__init__(parent, '3D Scale')
 
     @_check_types.do
-    def set_obj(self, db_obj: Scale3DMixin):
+    def set_obj(self, db_obj: Scale3DMixin | None):
         """
         Set the obj.
 

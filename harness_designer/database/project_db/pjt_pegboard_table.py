@@ -7,7 +7,7 @@ Keyed purely by ``point3d_id`` -- this table has no knowledge of what kind
 of anchor owns that 3D point.
 """
 
-from typing import Iterable as _Iterable
+from typing import Iterable as _Iterable, Union
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ... import check_types as _check_types
@@ -72,7 +72,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_from_point3d_id(self, point3d_id: bytes) -> "PJTPegboardTable":
+    def get_from_point3d_id(self, point3d_id: bytes) -> Union["PJTPegboardTable", None]:
         """Return the data-table overlay row keyed by an anchor's ``point3d_id``.
 
         :param point3d_id: Identifier of the anchor's 3D point.

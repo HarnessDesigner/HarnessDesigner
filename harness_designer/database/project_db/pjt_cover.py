@@ -244,7 +244,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTCover):
+    def set_obj(self, db_obj: PJTCover | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -281,7 +281,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
         :type parent: UNKNOWN
         """
 
-        self.db_obj: PJTCover = None
+        self.db_obj: PJTCover | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

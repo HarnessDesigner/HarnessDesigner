@@ -100,12 +100,12 @@ class Position2DControl(_prop_ctrls.Position2DProperty):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: Position2DMixin = None
+        self.db_obj: Position2DMixin | None = None
 
         super().__init__(parent, '2D Position')
 
     @_check_types.do
-    def set_obj(self, db_obj: Position2DMixin):
+    def set_obj(self, db_obj: Position2DMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

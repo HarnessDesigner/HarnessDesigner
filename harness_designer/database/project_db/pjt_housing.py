@@ -1566,7 +1566,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTHousing):
+    def set_obj(self, db_obj: PJTHousing | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1663,7 +1663,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PJTHousing = None
+        self.db_obj: PJTHousing | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)

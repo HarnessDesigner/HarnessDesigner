@@ -895,7 +895,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         self.SetLabel(f'Cavity {index}')
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTCavity):
+    def set_obj(self, db_obj: PJTCavity | None):
         """
         Set the obj.
 
@@ -938,7 +938,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PJTCavity = None
+        self.db_obj: PJTCavity | None = None
         self._label = 'Cavity'
 
         QTabWidget.__init__(self, parent)

@@ -90,13 +90,13 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
         """
 
         self.choices: list[str] = []
-        self.db_obj: DirectionMixin = None
+        self.db_obj: DirectionMixin | None = None
 
         super().__init__(parent, 'Direction')
         self.propertyChanged.connect(self._on_direction)
 
     @_check_types.do
-    def set_obj(self, db_obj: DirectionMixin):
+    def set_obj(self, db_obj: DirectionMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

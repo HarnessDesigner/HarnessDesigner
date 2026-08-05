@@ -271,7 +271,7 @@ class ResourcesControl(_prop_ctrls.Category):
         :type parent: UNKNOWN
         """
         super().__init__(parent, 'Resources')
-        self.db_obj: ResourceMixin = None
+        self.db_obj: ResourceMixin | None = None
         self.file_types: dict = None
 
         self.image_ctrl = _prop_ctrls.ImageProperty(self, 'Image')
@@ -287,7 +287,7 @@ class ResourcesControl(_prop_ctrls.Category):
         self.cad_ctrl.propertyChanged.connect(self._on_cad)
 
     @_check_types.do
-    def set_obj(self, db_obj: ResourceMixin):
+    def set_obj(self, db_obj: ResourceMixin | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

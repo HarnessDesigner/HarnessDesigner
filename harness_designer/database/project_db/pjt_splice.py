@@ -33,7 +33,6 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from . import pjt_point3d as _pjt_point3d
     from . import pjt_wire as _pjt_wire
     from ...objects import splice as _splice_obj
 
@@ -432,7 +431,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTSplice):
+    def set_obj(self, db_obj: PJTSplice | None):
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -474,7 +473,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
         :param parent: Parent object.
         :type parent: UNKNOWN
         """
-        self.db_obj: PJTSplice = None
+        self.db_obj: PJTSplice | None = None
 
         QTabWidget.__init__(self, parent)
         self.setTabPosition(QTabWidget.TabPosition.North)
