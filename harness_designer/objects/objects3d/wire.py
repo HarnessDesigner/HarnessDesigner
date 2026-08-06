@@ -744,27 +744,43 @@ class WireStripe(_base3d.Base3D):
         stripeClipStart/stripeClipStop uniforms for what they mean to the
         shader; nothing else about the windowing mechanism changes.
 
-        Resets the uniforms to 0.0 right after, same as the single-shot
+        Set on all three programs (faces/edges/vertices), not just
+        faces_program -- edges.py/vertices.py declare and honor the exact
+        same uniforms now, specifically so debug edge/vertex rendering
+        (Base3D.render()'s _debug_config.draw_edges/draw_vertices passes,
+        both reachable from the single super().render() call below) windows
+        to this segment too instead of drawing the whole shared helix
+        mesh with a naive, non-rebased transform -- confirmed 2026-08-05 as
+        the actual source of stray/misplaced vertices and edges showing up
+        under debug rendering.
+
+        Resets every uniform to 0.0 right after, same as the single-shot
         render() this replaces -- only WireStripe ever touches them, and
-        GL uniform state persists on the program across draw calls, so a
+        GL uniform state persists on each program across draw calls, so a
         nonzero value left behind would otherwise leak into whatever
-        renders next on the same faces_program.
+        renders next on that program.
         """
         if not self.is_visible:
             return
 
-        start_loc = GL.glGetUniformLocation(faces_program, "stripeClipStart")
-        stop_loc = GL.glGetUniformLocation(faces_program, "stripeClipStop")
+        programs = (faces_program, edges_program, vertices_program)
+        locs = [
+            (GL.glGetUniformLocation(program, "stripeClipStart"),
+             GL.glGetUniformLocation(program, "stripeClipStop"))
+            for program in programs
+        ]
 
-        GL.glUseProgram(faces_program)
-        GL.glUniform1f(start_loc, clip_start)
-        GL.glUniform1f(stop_loc, clip_stop)
+        for program, (start_loc, stop_loc) in zip(programs, locs):
+            GL.glUseProgram(program)
+            GL.glUniform1f(start_loc, clip_start)
+            GL.glUniform1f(stop_loc, clip_stop)
 
         super().render(faces_program, edges_program, vertices_program)
 
-        GL.glUseProgram(faces_program)
-        GL.glUniform1f(start_loc, 0.0)
-        GL.glUniform1f(stop_loc, 0.0)
+        for program, (start_loc, stop_loc) in zip(programs, locs):
+            GL.glUseProgram(program)
+            GL.glUniform1f(start_loc, 0.0)
+            GL.glUniform1f(stop_loc, 0.0)
 
     @_check_types.do
     def _compute_obb(self):
@@ -901,6 +917,22 @@ class WireMenu(QMenu):
         action.triggered.connect(self.on_add_wire_service_loop)
 
         self.addSeparator()
+
+        from ...handlers import wire_handler as _wire_handler  # NOQA -- avoid a cycle at import time
+
+        wire = selected.parent
+        click_pos = selected._context_menu_click_pos  # NOQA
+        free_end = _wire_handler._pick_free_end(selected.mainframe, wire, click_pos)
+
+        action = self.addAction('Extend Wire')
+        action.setEnabled(free_end is not None)
+        action.triggered.connect(self.on_extend_wire)
+
+        action = self.addAction('Add to Wire')
+        action.setEnabled(free_end is not None)
+        action.triggered.connect(self.on_add_to_wire)
+
+        self.addSeparator()
         action = self.addAction('Add to Bundle')
         action.triggered.connect(self.on_add_to_bundle)
 
@@ -1019,6 +1051,44 @@ class WireMenu(QMenu):
 
         _menu_ops.start_handler(
             mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
+
+    @_check_types.do
+    def on_extend_wire(self):
+        """Grow this wire's free end in its current direction, with no
+        waypoint/layout added -- see AddWireHandler._start_extend_from_wire."""
+        from ... import handlers as _handlers
+        from ...handlers import wire_handler as _wire_handler
+
+        mainframe = self.selected.mainframe
+        wire = self.selected.parent
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+
+        end = _wire_handler._pick_free_end(mainframe, wire, click_pos)
+        if end is None:
+            return
+
+        _menu_ops.start_handler(
+            mainframe,
+            lambda: _handlers.AddWireHandler(mainframe, extend_wire=(wire, end)))
+
+    @_check_types.do
+    def on_add_to_wire(self):
+        """Drop a waypoint + layout at this wire's free end and continue
+        it from there, freely -- see AddWireHandler._start_add_to_wire."""
+        from ... import handlers as _handlers
+        from ...handlers import wire_handler as _wire_handler
+
+        mainframe = self.selected.mainframe
+        wire = self.selected.parent
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+
+        end = _wire_handler._pick_free_end(mainframe, wire, click_pos)
+        if end is None:
+            return
+
+        _menu_ops.start_handler(
+            mainframe,
+            lambda: _handlers.AddWireHandler(mainframe, add_to_wire=(wire, end)))
 
     @_check_types.do
     def on_add_wire_service_loop(self):

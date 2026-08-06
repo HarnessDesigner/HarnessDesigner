@@ -52,5 +52,10 @@ pjt_table = _con.SQLTable(
                                                     _bundle_covers.pjt_id_field,
                                                     on_delete=_con.REFERENCE_CASCADE,
                                                     on_update=_con.REFERENCE_CASCADE)),
-    _con.IntField('idx', default='NULL')
+    _con.IntField('idx', default='NULL'),
+    # See pjt_points3d's identical column -- kept structurally identical
+    # across every pjt_point* table even though only points3d uses this
+    # today (see database.project_db.pjt_terminal/objects.terminal.Terminal.
+    # _own_or_cloned_point_id).
+    _con.UUIDField('parent_point_id', default='NULL')
 )

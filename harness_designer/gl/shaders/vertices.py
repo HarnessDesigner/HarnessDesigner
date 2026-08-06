@@ -17,7 +17,17 @@ uniform vec3 objectPosition;
 uniform vec4 objectRotation;
 uniform vec3 objectScale;
 
+// See gl.shaders.faces' identical uniforms -- WireStripe.render_segment
+// (objects.objects3d.wire) sets these on this program too (not just
+// faces_program) so the shared stripe helix mesh's debug vertex
+// rendering windows to the same [stripeClipStart, stripeClipStop]
+// segment instead of drawing the whole shared mesh with a naive,
+// non-rebased transform.
+uniform float stripeClipStop;
+uniform float stripeClipStart;
+
 out vec3 fragPositionWorld;
+out float fragLocalZ;
 
 mat3 quaternionToMatrix(vec4 q) {
     float w = q.x;
@@ -43,13 +53,20 @@ mat3 quaternionToMatrix(vec4 q) {
 }
 
 void main() {
-    vec3 scaledVertex = in_vertexLocal * objectScale;
+    // See gl.shaders.faces' identical vertex shader for the full
+    // explanation -- same stripe-geometry special case duplicated here.
+    vec3 effectiveScale = stripeClipStop > 0.0 ? vec3(objectScale.xy, 1.0) : objectScale;
+
+    vec3 scaledVertex = stripeClipStop > 0.0
+        ? vec3(in_vertexLocal.xy * objectScale.xy, in_vertexLocal.z - stripeClipStart)
+        : in_vertexLocal * effectiveScale;
     mat3 rotationMatrix = quaternionToMatrix(objectRotation);
     vec3 rotatedVertex = rotationMatrix * scaledVertex;
     vec3 worldPosition = rotatedVertex + objectPosition;
 
     gl_Position = projection * view * vec4(worldPosition, 1.0);
     fragPositionWorld = worldPosition;
+    fragLocalZ = in_vertexLocal.z;
 }
 """
 
@@ -60,13 +77,26 @@ layout(triangles) in;
 layout(points, max_vertices = 3) out;
 
 in vec3 fragPositionWorld[];
+in float fragLocalZ[];
 
 out vec3 pointColor;
 
 uniform vec3 vertexColor;
+uniform float stripeClipStop;
+uniform float stripeClipStart;
 
 void main() {
     for (int i = 0; i < 3; i++) {
+        // Points have no fragment-level interpolation to discard against
+        // (unlike faces/edges), so this culls the vertex outright instead
+        // -- skip emitting it at all when it falls outside the stripe's
+        // own visible window. See gl.shaders.faces for the full
+        // explanation of stripeClipStart/stripeClipStop.
+        if (stripeClipStop > 0.0 &&
+            (fragLocalZ[i] > stripeClipStop || fragLocalZ[i] < stripeClipStart)) {
+            continue;
+        }
+
         pointColor = vertexColor;
         gl_Position = gl_in[i].gl_Position;
         gl_PointSize = 6.0;

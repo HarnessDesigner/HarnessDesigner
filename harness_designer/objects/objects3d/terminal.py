@@ -272,6 +272,27 @@ class Terminal(_base3d.Base3D):
     def render(self, faces_program, edges_program, vertices_program):
         super().render(faces_program, edges_program, vertices_program)
 
+    @_check_types.do
+    def render_cavity_overlay(self) -> None:
+        """Draw this terminal's cavity wire-side/pin-side overlay onto the
+        owning housing's mesh.
+
+        Called from ``Housing3D.render()`` immediately after the housing's
+        own base mesh -- NOT from this terminal's own ``render()`` -- because
+        the per-frame object draw order (``gl.canvas3d.culling``) sorts
+        opaque objects by camera distance, not by any housing/terminal
+        relationship. Drawing the overlay from this terminal's own render()
+        call left it just as likely to land BEFORE the housing's own opaque
+        mesh renders in a given frame as after, and ``_draw_overlay_triangles``
+        draws with depth writes off (so it never protects itself once drawn)
+        -- whenever the housing rendered second it silently painted over the
+        overlay, producing exactly the hit-or-miss visibility this fixes.
+        Confirmed by the housing always showing every cavity's overlay
+        correctly once selected -- a selected translucent object is deferred
+        to render after every opaque object in the scene (see
+        gl.canvas3d.canvas._on_draw), which incidentally forced the housing
+        to always draw last too.
+        """
         self._refresh_overlay_state()
 
         housing_3d = self._overlay_housing_3d
@@ -503,23 +524,18 @@ class TerminalMenu(QMenu):
 
     @_check_types.do
     def on_add_wire(self):
-        """Start the interactive wire placement flow from this terminal."""
+        """Start the interactive wire placement flow, pinned to this
+        terminal's own attach point -- the part-search dialog (pre-filtered
+        to wires whose diameter fits) opens immediately, straight into
+        phase 1, same as a cavity's/splice's own pinned Add Wire."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
+        terminal_obj = self.selected.parent
 
-        @_check_types.do
-        def _factory():
-            part_id = _menu_ops.get_part_id(
-                mainframe, 'wires', mainframe.global_db.wires_table,
-                'Add Wire')
-
-            if part_id is None:
-                return None
-
-            return _handlers.AddWireHandler(mainframe, part_id)
-
-        _menu_ops.start_handler(mainframe, _factory)
+        _menu_ops.start_handler(
+            mainframe,
+            lambda: _handlers.AddWireHandler(mainframe, terminal=terminal_obj))
 
     @_check_types.do
     def on_add_seal(self):

@@ -109,26 +109,24 @@ class Terminal(_ObjectBase):
         splice's branch wires need on removal (see ``objects.splice.
         Splice.delete``'s TODO).
 
-        :returns: False (adding nothing) if the combined cross-section of
-            every wire already on this terminal plus *wire* would exceed
-            the terminal's own ``wire_size_cross_max``.
+        Never refuses based on combined cross-section exceeding the
+        terminal's own ``wire_size_cross_max`` -- confirmed 2026-08-06:
+        only the upper bound is ever a concern, and even that should never
+        actually block the connection (there's no way to know whether more
+        wires are still going to be attached later; a future design-rules
+        checker is the right place to flag it, not here). See
+        ``handlers.wire_snap.check_terminal_compat``, which the interactive
+        placement/drag code already calls before this to show a
+        non-blocking capacity warning -- this method itself always
+        performs the attachment.
+
+        :returns: Always ``True`` -- kept as a return value (rather than
+            ``None``) since existing callers already check it.
         """
         if end not in ('start', 'stop'):
             raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
 
         existing_wires = self.wires
-
-        term_part = self.db_obj.part
-        wire_part = wire.db_obj.part
-        if term_part is not None and wire_part is not None and wire_part.size_mm2 is not None:
-            cross_max = term_part.wire_size_cross_max
-            if cross_max is not None:
-                existing_cross = sum(
-                    w.db_obj.part.size_mm2 for w in existing_wires
-                    if w.db_obj.part is not None and w.db_obj.part.size_mm2 is not None)
-
-                if existing_cross + wire_part.size_mm2 > cross_max:
-                    return False
 
         ptables = self.mainframe.project.ptables
         project = self.mainframe.project
@@ -195,12 +193,21 @@ class Terminal(_ObjectBase):
         point row directly (so it keeps tracking the terminal/cavity if
         the housing moves); every subsequent wire gets its own fresh point
         cloned at the same location, since a point row can only carry one
-        wire's own wire_id/idx tag at a time."""
+        wire's own wire_id/idx tag at a time.
+
+        The clone's own ``parent_point_id`` is set to *shared_point_id* --
+        the real, canonical point -- so it still tracks that point's own
+        future movement instead of being left behind: see
+        ``pjt_housing.PJTHousing._update_position3d``/``_update_angle3d``,
+        which look up every clone of a terminal's/cavity's own wire-side
+        points by this column and move them along with their parent.
+        """
         if is_first_wire:
             return shared_point_id
 
         shared = ptables.pjt_points3d_table[shared_point_id]
         cloned = ptables.pjt_points3d_table.insert(shared.x, shared.y, shared.z)
+        cloned.parent_point_id = shared_point_id
         return cloned.db_id
 
     @_check_types.do

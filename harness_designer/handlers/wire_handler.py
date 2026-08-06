@@ -28,11 +28,11 @@ End-click variants (phase 1, non-extension):
 """
 
 import numpy as np
-from PySide6.QtWidgets import QLabel, QDialog, QMessageBox
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog, QMessageBox
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
+from . import wire_snap as _wire_snap
 from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import wire_layout as _wire_layout
@@ -56,32 +56,6 @@ Config = _config.Config.colors
 _SNAP_THRESHOLD = 5.0
 
 
-class _IncompatOverlay(QLabel):
-    """Floating label shown near the cursor when a terminal is incompatible."""
-
-    @_check_types.do
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setStyleSheet(
-            'background-color: rgba(180,0,0,200); color: white;'
-            ' padding: 4px 6px; border-radius: 3px;')
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        self.hide()
-
-    @_check_types.do
-    def show_message(self, mouse_pos, text):
-        self.setText(text)
-        self.adjustSize()
-        self.move(int(mouse_pos.x) + 14, int(mouse_pos.y) + 14)
-        self.show()
-        self.raise_()
-
-    @_check_types.do
-    def hide_message(self):
-        if self.isVisible():
-            self.hide()
-
-
 @_check_types.do
 def _wire_layout_end_wire(wire_layout_obj, project, part_id: bytes):
     """Return (wire, endpoint) if the layout sits at one endpoint of a wire with matching part_id.
@@ -101,10 +75,10 @@ def _wire_layout_end_wire(wire_layout_obj, project, part_id: bytes):
 
         start_str = w.obj3d.start_position.db_id
         stop_str = w.obj3d.stop_position.db_id
-        if start_str and int(start_str[:-2]) == layout_pos_id:
+        if start_str and start_str[:-2] == layout_pos_id:
             matching.append((w, 'start'))
 
-        elif stop_str and int(stop_str[:-2]) == layout_pos_id:
+        elif stop_str and stop_str[:-2] == layout_pos_id:
             matching.append((w, 'stop'))
 
     if len(matching) == 1:
@@ -116,12 +90,18 @@ def _wire_layout_end_wire(wire_layout_obj, project, part_id: bytes):
 
 
 @_check_types.do
-def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, other_end: str):
-    """Join *wire_obj*'s own (dangling) stop end to *other_wire*'s
-    dangling *other_end* ('start' or 'stop'), merging them into a single
-    row -- part_id must already match (checked by the caller).
+def merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, other_end: str,
+                     own_end: str = 'stop'):
+    """Join *wire_obj*'s own dangling *own_end* ('start' or 'stop';
+    default 'stop' -- the two-click preview flow's own always-growing end,
+    the only case that existed before this took an own_end parameter) to
+    *other_wire*'s dangling *other_end*, merging them into a single row --
+    part_id must already match (checked by the caller). Also the commit
+    path for a snapped wire-to-wire endpoint drag (see
+    handlers.wire_snap.commit_snap) -- own_end there is whichever end was
+    actually dragged, which can be either one.
 
-    *wire_obj*'s own current stop point becomes a permanent interior
+    *wire_obj*'s own current *own_end* point becomes a permanent interior
     waypoint marking the seam (a WireLayout is dropped there), same as an
     ordinary bend; *other_wire*'s own waypoints follow, reversed first if
     joining to its start (so the merged chain still reads start->stop in
@@ -133,23 +113,37 @@ def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, othe
     ptables = project.ptables
     mainframe = project.mainframe
 
-    seam_point_id = wire_obj.obj3d.stop_position.db_id[:-2]
-    own_waypoints = wire_obj.db_obj.waypoints3d
+    if own_end == 'start':
+        # Mirror image of the 'stop' case below: wire_obj's own far/outer
+        # end is now its stop (own_end is the seam), so its own waypoints
+        # need reversing to still walk outer-end-toward-seam in the
+        # merged wire's own start->stop order.
+        seam_point_id = wire_obj.obj3d.start_position.db_id[:-2]
+        own_waypoints = list(reversed(wire_obj.db_obj.waypoints3d))
+        start_id_3d = wire_obj.obj3d.stop_position.db_id[:-2]
+        start_id_2d = wire_obj.db_obj.stop_position2d_id
+        orig_start_sibling = wire_obj.stop_sibling
+    else:
+        seam_point_id = wire_obj.obj3d.stop_position.db_id[:-2]
+        own_waypoints = wire_obj.db_obj.waypoints3d
+        start_id_3d = wire_obj.obj3d.start_position.db_id[:-2]
+        start_id_2d = wire_obj.db_obj.start_position2d_id
+        orig_start_sibling = wire_obj.start_sibling
+
     seam_idx = len(own_waypoints)
 
     part_id = wire_obj.db_obj.part_id
     name = wire_obj.db_obj.name
+
     circuit_id = wire_obj.db_obj.circuit_id
     if circuit_id is None:
         circuit_id = other_wire.db_obj.circuit_id
+
     layer_id = wire_obj.db_obj.layer_id
     layer_view_point_id = wire_obj.db_obj.layer_view_position_id
     is_filler_wire = wire_obj.db_obj.is_filler_wire
     is_visible3d = wire_obj.db_obj.is_visible3d
     is_visible2d = wire_obj.db_obj.is_visible2d
-
-    start_id_3d = wire_obj.obj3d.start_position.db_id[:-2]
-    start_id_2d = wire_obj.db_obj.start_position2d_id
 
     if other_end == 'start':
         stop_id_3d = other_wire.obj3d.stop_position.db_id[:-2]
@@ -161,8 +155,6 @@ def _merge_wire_into(project, wire_obj: _wire.Wire, other_wire: _wire.Wire, othe
         stop_id_2d = other_wire.db_obj.start_position2d_id
         other_waypoints = list(reversed(other_wire.db_obj.waypoints3d))
         other_stop_sibling = other_wire.start_sibling
-
-    orig_start_sibling = wire_obj.start_sibling
 
     merged_db = ptables.pjt_wires_table.insert(
         part_id, name, circuit_id,
@@ -242,49 +234,74 @@ def _get_terminal_compat_pns(mainframe, terminal_obj):
 
 
 @_check_types.do
-def _check_terminal_compat(terminal_obj, wire_part):
-    """Return (is_compatible, message_or_None).
+def _get_splice_compat_pns(mainframe, splice_obj):
+    """Return wire part numbers whose outer diameter fits *splice_obj*'s crimp range."""
+    splice_part = splice_obj.db_obj.part
+    if splice_part is None:
+        return []
 
-    Checks:
-      1. Wire outer diameter is within the terminal's min/max range.
-      2. The combined cross-section of all wires already at that terminal plus
-         the new wire does not exceed the terminal's maximum.
+    dia_min = splice_part.wire_size_dia_min
+    dia_max = splice_part.wire_size_dia_max
+
+    if dia_min is None and dia_max is None:
+        return []
+
+    table = mainframe.global_db.wires_table
+
+    if dia_min is not None and dia_max is not None:
+        table.execute(
+            'SELECT part_number FROM wires WHERE od_mm>=? AND od_mm<=?;',
+            (dia_min, dia_max))
+    elif dia_min is not None:
+        table.execute(
+            'SELECT part_number FROM wires WHERE od_mm>=?;', (dia_min,))
+    else:
+        table.execute(
+            'SELECT part_number FROM wires WHERE od_mm<=?;', (dia_max,))
+
+    return [row[0] for row in table.fetchall()]
+
+
+@_check_types.do
+def _pick_free_end(mainframe, wire_obj: _wire.Wire, click_pos: _point.Point = None) -> str | None:
+    """Return ``'start'``/``'stop'`` -- whichever end of *wire_obj* is free
+    to extend/add onto (see ``objects.objects3d.wire.WireMenu``'s Extend
+    Wire/Add to Wire actions) -- or ``None`` if both ends are anchored to a
+    terminal/cavity (those menu actions are disabled in that case).
+
+    Exactly one free end wins outright; with both free, whichever is
+    closer to *click_pos* (where the context menu was opened) wins, using
+    the same closest-point-on-path technique
+    ``gl.canvas3d.dragging.plan_wire_drag``/``PathDragObject`` already use
+    to decide "which end did the user mean" elsewhere.
     """
-    term_part = terminal_obj.db_obj.part
-    if term_part is None:
-        return True, None
+    from ..gl.canvas3d import dragging as _dragging  # NOQA -- avoid a cycle at import time
 
-    awg_min = term_part.wire_size_awg_min
-    awg_max = term_part.wire_size_awg_max
+    project = mainframe.project
+    start_anchored, stop_anchored = _dragging.wire_end_anchors(project, wire_obj)
 
-    wire_awg = wire_part.size_awg
+    if start_anchored and stop_anchored:
+        return None
 
-    cross_max = term_part.wire_size_cross_max
-    wire_cross = wire_part.size_mm2
+    if start_anchored:
+        return 'stop'
 
-    if awg_min is not None and wire_awg < awg_min:
-        return False, f'Wire {wire_awg} AWG — terminal min is {awg_min} AWG'
+    if stop_anchored:
+        return 'start'
 
-    if awg_max is not None and wire_awg > awg_max:
-        return False, f'Wire {wire_awg} AWG — terminal max is {wire_awg} AWG'
+    obj3d = wire_obj.obj3d
 
-    if cross_max is not None and wire_cross is not None:
-        # For the hover-preview message only -- terminal_obj.add_wire
-        # (called once the attach is actually committed) makes this exact
-        # same check itself against its own .wires list, which is the
-        # real enforcement; this is purely so the incompatibility overlay
-        # can show a number before the user commits to anything.
-        existing = sum(
-            w.db_obj.part.size_mm2 for w in terminal_obj.wires
-            if w.db_obj.part is not None and w.db_obj.part.size_mm2 is not None)
+    if click_pos is None:
+        return 'stop'
 
-        total = existing + wire_cross
+    closest_point, _angle, _seg_idx = obj3d.get_closest_point(click_pos)
+    if closest_point is None:
+        return 'stop'
 
-        if total > cross_max:
-            return False, (f'Combined cross-section {total:.1f} mm²'
-                           f' — terminal max is {cross_max:.1f} mm²')
+    start_dist = float(np.linalg.norm(closest_point.as_numpy - obj3d.start_position.as_numpy))
+    stop_dist = float(np.linalg.norm(closest_point.as_numpy - obj3d.stop_position.as_numpy))
 
-    return True, None
+    return 'start' if start_dist <= stop_dist else 'stop'
 
 
 class AddWireHandler(_handler_base.HandlerBase):
@@ -294,9 +311,25 @@ class AddWireHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None = None,
-                 terminal: _terminal.Terminal = None):
+                 terminal: _terminal.Terminal = None, splice: _splice.Splice = None,
+                 extend_wire: tuple = None, add_to_wire: tuple = None):
         if terminal is not None:
             compat_pns = _get_terminal_compat_pns(mainframe, terminal)
+
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.WiresPage, title='Add Wire',
+                table=mainframe.global_db.wires_table,
+                initial_results=compat_pns)
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
+            dlg.deleteLater()
+
+        elif splice is not None:
+            compat_pns = _get_splice_compat_pns(mainframe, splice)
 
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.WiresPage, title='Add Wire',
@@ -359,14 +392,111 @@ class AddWireHandler(_handler_base.HandlerBase):
         # committed" and "the user never confirmed anything, cancel it all".
         self._has_committed_waypoint = False
 
-        # Incompatibility overlay widget (child of the 3D canvas)
-        self._overlay = _IncompatOverlay(mainframe.editor3d.editor)
+        # Incompatibility/capacity-warning overlay widget (child of the 3D canvas)
+        self._overlay = _wire_snap.SnapOverlay(mainframe.editor3d.editor)
+
+        # Invisible snap-sphere probes (see handlers.wire_snap) -- built
+        # lazily by _ensure_snap_probes() once the wire part is known
+        # (rebuilt if it later changes), torn down by _cleanup().
+        self._snap_probes: _wire_snap.SnapProbeSet | None = None
+        self._snap_probes_part_id: bytes | None = None
+
+        # Extension-mode snap state (see _hover_phase1/_handle_second_click's
+        # own extension-mode branches) -- mirrors dragging.WireDragObject's
+        # snapped_kind/snapped_target shape, just for the source wire's own
+        # endpoint instead of a drag object's moving point.
+        self._extension_snap_kind: str | None = None
+        self._extension_snap_target = None
+
+        # Which end of self.obj the live preview grows from -- every entry
+        # point except _start_add_to_wire leaves this at the long-standing
+        # 'stop' default (matches every phase-1 method's own historical
+        # stop-only assumption exactly). Only _start_add_to_wire (continuing
+        # an already-placed wire from its own free end, which may be
+        # 'start') ever sets this to 'start'.
+        self._growing_end: str = 'stop'
+
+        # True only for _start_add_to_wire -- self.obj there is a real,
+        # already-registered, already-placed wire being continued, not a
+        # fresh throwaway preview row. Guards two things that assume the
+        # opposite everywhere else: project.add_wire(self.obj) on a
+        # successful finalize (would double-count project.obj_count for an
+        # already-registered wire) and cancel()'s self.obj.delete() (would
+        # destroy the real pre-existing wire instead of just undoing this
+        # session's own additions).
+        self._preexisting_wire: bool = False
+
+        # How many waypoints _commit_growing_point_as_waypoint() has tagged
+        # this session (including _start_add_to_wire's own initial one) --
+        # an independent counter rather than len(self._committed_layouts),
+        # since a committed layout that ends up with 2+ attached wires is
+        # deliberately NOT popped from that list (see
+        # _promote_last_committed) and would otherwise make a "loop until
+        # _committed_layouts is empty" cancel() rollback loop forever.
+        self._session_waypoint_count: int = 0
 
         if terminal is not None:
             if part_id is None:
                 self._finalized = True
             else:
                 self._start_from_terminal(terminal, part_id)
+        elif splice is not None:
+            if part_id is None:
+                self._finalized = True
+            else:
+                self._start_from_splice(splice, part_id)
+        elif extend_wire is not None:
+            self._start_extend_from_wire(*extend_wire)
+        elif add_to_wire is not None:
+            self._start_add_to_wire(*add_to_wire)
+
+    @_check_types.do
+    def _start_from_splice(self, splice: _splice.Splice, part_id: bytes):
+        """Pin the preview wire's start to *splice*'s own branch point and
+        enter phase 1 directly."""
+        self.part = self.mainframe.global_db.wires_table[part_id]
+
+        # Same reasoning as _start_from_terminal: the part-search dialog
+        # above is pre-filtered by diameter but doesn't enforce it, and
+        # diameter compatibility doesn't imply cross-section compatibility.
+        ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(splice, self.part)
+        if not ok:
+            block_msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+            if button == QMessageBox.StandardButton.No:
+                self._finalized = True
+                return
+
+        self._start_circuit_id = None
+
+        # The splice's own branch point is reused directly as this wire's
+        # start -- never cloned (see handlers.wire_snap.commit_snap's
+        # splice branch: every branch wire on a splice shares the exact
+        # same branch_position3d_id, unlike a terminal's own back-routing
+        # point). No WireLayout at start either -- the splice's own mesh
+        # already marks the junction, matching objects.splice.Splice.
+        # add_wire's own docstring.
+        start_point_id = splice.db_obj.branch_position3d_id
+        initial_pos = splice.obj3d.wire_position
+
+        stop_db = self.ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        self._preview_stop_point_id = stop_db.db_id
+
+        name = f'{self.part.manufacturer.name} {self.part.part_number}'
+
+        wire_db = self.ptables.pjt_wires_table.insert(
+            part_id, name, self._start_circuit_id,
+            start_point_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
+
+        self.obj = _wire.Wire(self.mainframe, wire_db)
+
+        splice.add_wire(self.obj)
+        self.obj.set_sibling(splice, 'start')
+
+        self._phase = 1
 
     @_check_types.do
     def _start_from_terminal(self, terminal: _terminal.Terminal, part_id: bytes):
@@ -378,10 +508,10 @@ class AddWireHandler(_handler_base.HandlerBase):
         # the part-search dialog above is pre-filtered by diameter but does
         # not enforce it, and diameter compatibility doesn't imply
         # cross-section compatibility. Check before creating anything.
-        ok, msg = _check_terminal_compat(terminal, self.part)
+        ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, self.part)
         if not ok:
-            msg += '\n\nDo you want to use this wire?'
-            button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+            block_msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
             if button == QMessageBox.StandardButton.No:
                 self._finalized = True
                 return
@@ -412,27 +542,87 @@ class AddWireHandler(_handler_base.HandlerBase):
         self.obj = _wire.Wire(self.mainframe, wire_db)
         # self.obj.identify(self._preview_material)
 
-        if not terminal.add_wire(self.obj, 'start'):
-            # Belt-and-suspenders: the compat check above should already
-            # prevent this, but never leave a wire row with its start still
-            # pointing at the placeholder about to be deleted -- that's
-            # exactly what produced a wire rendering at world origin (and
-            # crashing on the next project reload with an orphaned FK)
-            # before this check existed. PJTWire.delete() never touches
-            # start/stop points (they're owned by whatever they're attached
-            # to, not the wire), so the placeholder and preview stop point
-            # need cleaning up explicitly.
-            self.obj.delete()
-            self.obj = None
-            self.ptables.pjt_points3d_table[placeholder_id].delete()
-            self.ptables.pjt_points3d_table[stop_db.db_id].delete()
-            QMessageBox.warning(
-                self.mainframe, 'Incompatible Wire',
-                'This wire is no longer compatible with the terminal.')
+        # Terminal.add_wire always performs the attachment now -- it never
+        # refuses based on combined cross-section (see its own docstring),
+        # the only thing that used to make this return False.
+        terminal.add_wire(self.obj, 'start')
+        self.ptables.pjt_points3d_table[placeholder_id].delete()
+
+        self._phase = 1
+
+    @_check_types.do
+    def _start_extend_from_wire(self, wire_obj: _wire.Wire, end: str):
+        """Enter extension mode directly on *wire_obj*'s own *end* -- the
+        same mechanic _handle_first_click's own Wire-branch already builds
+        when the user clicks near an existing wire's end during free-draw,
+        just entered straight from the wire's own context menu instead of
+        requiring a fresh click to find it. No preview wire is created --
+        hover moves wire_obj's own real endpoint directly, same as the
+        free-draw path (see _hover_phase1/_handle_second_click's own
+        ``if self._extension_mode:`` branches).
+        """
+        obj3d = wire_obj.obj3d
+        start_np = obj3d.start_position.as_numpy
+        stop_np = obj3d.stop_position.as_numpy
+
+        self._extension_mode = True
+        self._source_wire = wire_obj
+        self.part_id = wire_obj.db_obj.part_id
+        self._start_circuit_id = wire_obj.db_obj.circuit_id
+
+        if end == 'stop':
+            self._source_endpoint = 'stop'
+            endpoint_np = stop_np
+            seg = stop_np - start_np
+        else:
+            self._source_endpoint = 'start'
+            endpoint_np = start_np
+            seg = start_np - stop_np
+
+        seg_len = float(np.linalg.norm(seg))
+        if seg_len < 1e-8:
+            # Degenerate (zero-length) wire -- nothing to extend in any
+            # meaningful direction; matches the free-draw path's own guard.
+            self._extension_mode = False
             self._finalized = True
             return
 
-        self.ptables.pjt_points3d_table[placeholder_id].delete()
+        self._extension_dir = seg / seg_len
+        self._extension_origin = endpoint_np.copy()
+        self._extension_original_pos = endpoint_np.copy()
+
+        self._phase = 1
+
+    @_check_types.do
+    def _start_add_to_wire(self, wire_obj: _wire.Wire, end: str):
+        """Continue *wire_obj* from its own free *end* -- tags that end as
+        a permanent interior waypoint (own WireLayout) via
+        _commit_growing_point_as_waypoint, then continues the live preview
+        from a fresh point there, exactly like a free-space click
+        mid-placement (_commit_waypoint) except entered directly from the
+        wire's own context menu instead of requiring an active placement
+        session already in progress.
+
+        Unlike every other entry point, self.obj here is a real,
+        already-placed, already-registered wire -- see self._preexisting_wire
+        (guards project.add_wire double-registration on finalize and
+        self.obj.delete() on cancel) and self._growing_end (may be 'start',
+        unlike every other entry point's fixed 'stop').
+        """
+        self.part_id = wire_obj.db_obj.part_id
+        self.part = self.mainframe.global_db.wires_table[self.part_id]
+
+        self.obj = wire_obj
+        self._start_circuit_id = wire_obj.db_obj.circuit_id
+        self._growing_end = end
+        self._preexisting_wire = True
+
+        if end == 'stop':
+            self._preview_stop_point_id = wire_obj.db_obj.stop_position3d_id
+        else:
+            self._preview_stop_point_id = wire_obj.db_obj.start_position3d_id
+
+        self._commit_growing_point_as_waypoint()
 
         self._phase = 1
 
@@ -450,6 +640,38 @@ class AddWireHandler(_handler_base.HandlerBase):
             return self.mainframe.global_db.wires_table[self.part_id]
         except (IndexError, KeyError):
             return None
+
+    @_check_types.do
+    def _ensure_snap_probes(self) -> None:
+        """(Re)build this session's invisible snap probes once the wire
+        part is known -- a probe at every terminal's own attach point and
+        every other open, same-part wire end (see handlers.wire_snap) --
+        so hover picking finds a generous sphere instead of needing an
+        exact hit on a terminal's tiny mesh or a marker-less dangling end.
+        Rebuilt if the part changes; no-op otherwise.
+        """
+        wire_part = self._get_wire_part()
+        if wire_part is None:
+            return
+
+        if self._snap_probes is not None and self._snap_probes_part_id == wire_part.db_id:
+            return
+
+        if self._snap_probes is not None:
+            self._snap_probes.close()
+
+        # Extension mode has no preview wire (self.obj stays None for its
+        # entire lifetime) -- the wire actually being drawn/extended right
+        # now is self._source_wire instead. Excluding whichever one is
+        # live is essential, not just tidy: without it, the wire's own
+        # other (still-dangling) end -- or even the very end being
+        # dragged, at its pre-drag position -- gets its own probe, and
+        # snapping onto it would try to merge the wire into itself.
+        exclude_wire = self.obj if self.obj is not None else self._source_wire
+
+        self._snap_probes = _wire_snap.SnapProbeSet(
+            self.mainframe, wire_part, exclude_wire=exclude_wire)
+        self._snap_probes_part_id = wire_part.db_id
 
     @_check_types.do
     def _set_hover_obj(self, obj, material):
@@ -475,17 +697,59 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         return self._extension_origin + max(0.0, t) * self._extension_dir
 
+    @property
+    @_check_types.do
+    def _growing_point(self) -> _point.Point:
+        """The live Point self.obj's preview is currently growing from --
+        stop_position for every entry point except _start_add_to_wire,
+        which may set self._growing_end to 'start' instead (continuing an
+        already-placed wire from its own free start end)."""
+        if self._growing_end == 'stop':
+            return self.obj.obj3d.stop_position
+
+        return self.obj.obj3d.start_position
+
+    @_check_types.do
+    def _set_growing_position3d_id(self, point_id) -> None:
+        if self._growing_end == 'stop':
+            self.obj.db_obj.stop_position3d_id = point_id
+        else:
+            self.obj.db_obj.start_position3d_id = point_id
+
+    @_check_types.do
+    def _set_growing_position2d_id(self, point_id) -> None:
+        if self._growing_end == 'stop':
+            self.obj.db_obj.stop_position2d_id = point_id
+        else:
+            self.obj.db_obj.start_position2d_id = point_id
+
+    @_check_types.do
+    def _set_growing_obj3d_position(self, point: _point.Point) -> None:
+        if self._growing_end == 'stop':
+            self.obj.obj3d.set_stop_position(point)
+        else:
+            self.obj.obj3d.set_start_position(point)
+
+    @_check_types.do
+    def _set_growing_obj2d_position(self, point: _point.Point) -> None:
+        if self._growing_end == 'stop':
+            self.obj.obj2d.set_stop_position(point)
+        else:
+            self.obj.obj2d.set_start_position(point)
+
     @_check_types.do
     def _update_preview_stop(self, world_pos):
-        """Move the preview wire's stop position to world_pos."""
+        """Move the preview wire's growing end to world_pos (stop_position
+        for every entry point except _start_add_to_wire -- see
+        self._growing_end/_growing_point)."""
         if self.obj is None:
             return
 
         if not isinstance(world_pos, _point.Point):
             world_pos = _point.Point(*world_pos)
 
-        stop = self.obj.obj3d.stop_position
-        stop += world_pos - stop
+        growing = self._growing_point
+        growing += world_pos - growing
 
         # Wire._update_position (bound to this point) only marks the
         # wire's geometry stale for the next render -- unlike most other
@@ -512,10 +776,17 @@ class AddWireHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def _cleanup(self):
-        """Hide the overlay and unhighlight the last hovered object."""
+        """Hide the overlay, unhighlight the last hovered object, and tear
+        down this session's snap probes -- called on every cancel/finalize
+        path (see _ensure_snap_probes)."""
         self._clear_hover()
         if self._overlay is not None:
             self._overlay.hide_message()
+
+        if self._snap_probes is not None:
+            self._snap_probes.close()
+            self._snap_probes = None
+            self._snap_probes_part_id = None
 
     @_check_types.do
     def _destroy_overlay(self):
@@ -532,10 +803,13 @@ class AddWireHandler(_handler_base.HandlerBase):
         if self._finalized:
             return
 
-        if self._phase == 0:
-            self._hover_phase0(mouse_pos)
-        else:
-            self._hover_phase1(mouse_pos)
+        self._ensure_snap_probes()
+
+        with self.mainframe.editor3d.context:
+            if self._phase == 0:
+                self._hover_phase0(mouse_pos)
+            else:
+                self._hover_phase1(mouse_pos)
 
     @_check_types.do
     def _hover_phase0(self, mouse_pos):
@@ -544,25 +818,42 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         picked = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
+        picked = _wire_snap.resolve_picked(picked)
 
         if isinstance(picked, _terminal.Terminal):
+            warning_msg = None
             if wire_part is not None:
-                ok, msg = _check_terminal_compat(picked, wire_part)
+                ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
                 if not ok:
-                    self._overlay.show_message(mouse_pos, msg)
+                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
                     self._clear_hover()
                     return
 
-            self._overlay.hide_message()
+            if warning_msg:
+                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+            else:
+                self._overlay.hide_message()
+
             self._set_hover_obj(picked, self._terminal_highlight)
+
+        elif isinstance(picked, _splice.Splice):
+            ok, block_msg, warning_msg = _wire_snap.check_splice_compat(picked, wire_part) \
+                if wire_part is not None else (True, None, None)
+            if not ok:
+                self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                self._clear_hover()
+                return
+
+            if warning_msg:
+                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+            else:
+                self._overlay.hide_message()
+
+            self._set_hover_obj(picked, self._splice_highlight)
 
         elif isinstance(picked, _wire_layout.WireLayout):
             self._overlay.hide_message()
             self._set_hover_obj(picked, self._wire_layout_highlight)
-
-        elif isinstance(picked, _splice.Splice):
-            self._overlay.hide_message()
-            self._set_hover_obj(picked, self._splice_highlight)
 
         elif isinstance(picked, _wire.Wire):
             self._overlay.hide_message()
@@ -588,26 +879,70 @@ class AddWireHandler(_handler_base.HandlerBase):
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
         if self._extension_mode:
-            self._update_source_endpoint(world_pos_pt.as_numpy)
+            picked = _object_picker.find_object(
+                mouse_pos, self.camera.objects_in_view, self.camera)
+            kind, target = _wire_snap.get_snap_info(picked)
+
+            if kind is not None:
+                # Purely informational -- never gates the snap/commit, same
+                # "always allow, just flag it" philosophy every other snap
+                # path in this handler and dragging.WireDragObject already
+                # follows.
+                if kind == 'terminal':
+                    _ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(target, wire_part)
+                elif kind == 'splice':
+                    _ok, block_msg, warning_msg = _wire_snap.check_splice_compat(target, wire_part)
+                else:
+                    block_msg, warning_msg = None, None
+
+                if block_msg:
+                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                elif warning_msg:
+                    self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                else:
+                    self._overlay.hide_message()
+
+                target_point = _wire_snap.snap_point(kind, target)
+                ep = (self._source_wire.obj3d.stop_position
+                      if self._source_endpoint == 'stop'
+                      else self._source_wire.obj3d.start_position)
+                ep += target_point - ep
+
+                self._extension_snap_kind = kind
+                self._extension_snap_target = target
+
+                self.mainframe.editor3d.Refresh(False)
+                return
+
+            self._extension_snap_kind = None
+            self._extension_snap_target = None
             self._overlay.hide_message()
+
+            self._update_source_endpoint(world_pos_pt.as_numpy)
             return
 
         picked = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
+        picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.obj:
             picked = None
 
         if isinstance(picked, _terminal.Terminal):
+            warning_msg = None
             if wire_part is not None:
-                ok, msg = _check_terminal_compat(picked, wire_part)
+                ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
                 if not ok:
-                    self._overlay.show_message(mouse_pos, msg)
+                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
                     self._clear_hover()
                     self._update_preview_stop(picked.obj3d.position)
                     return
 
-            self._overlay.hide_message()
+            if warning_msg:
+                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+            else:
+                self._overlay.hide_message()
+
             self._set_hover_obj(picked, self._terminal_highlight)
             self._update_preview_stop(picked.obj3d.position)
 
@@ -622,7 +957,20 @@ class AddWireHandler(_handler_base.HandlerBase):
             self._update_preview_stop(picked.obj3d.position)
 
         elif isinstance(picked, _splice.Splice):
-            self._overlay.hide_message()
+            warning_msg = None
+            if wire_part is not None:
+                ok, block_msg, warning_msg = _wire_snap.check_splice_compat(picked, wire_part)
+                if not ok:
+                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                    self._clear_hover()
+                    self._update_preview_stop(picked.obj3d.wire_position)
+                    return
+
+            if warning_msg:
+                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+            else:
+                self._overlay.hide_message()
+
             self._set_hover_obj(picked, self._splice_highlight)
             self._update_preview_stop(picked.obj3d.wire_position)
 
@@ -655,6 +1003,7 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         picked = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
+        picked = _wire_snap.resolve_picked(picked)
 
         # Set below only when picked is a Terminal -- terminal.add_wire is
         # called on it once self.obj exists, at the end of this method,
@@ -681,10 +1030,10 @@ class AddWireHandler(_handler_base.HandlerBase):
             if wire_part is None:
                 return
 
-            ok, msg = _check_terminal_compat(picked, wire_part)
+            ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
             if not ok:
-                msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+                block_msg += '\n\nDo you want to use this wire?'
+                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
                 if button == QMessageBox.StandardButton.No:
                     return
 
@@ -806,7 +1155,18 @@ class AddWireHandler(_handler_base.HandlerBase):
         wire_part = self._get_wire_part()
 
         if self._extension_mode:
-            # The source wire's endpoint has already been moved by hover(); just commit.
+            # The source wire's endpoint has already been moved by hover();
+            # if hover last left it snapped onto something, commit that
+            # connection now -- same commit_snap the drag flow uses,
+            # generalized here to whichever end this extension is growing
+            # (handles terminal/splice/wire-end-merge uniformly). Otherwise
+            # the endpoint is already exactly where hover left it -- just
+            # commit as-is, same as before extension mode could snap.
+            if self._extension_snap_kind is not None:
+                _wire_snap.commit_snap(
+                    self.mainframe, self._source_wire, self._source_endpoint,
+                    self._extension_snap_kind, self._extension_snap_target)
+
             self._cleanup()
             self._destroy_overlay()
             self._finalized = True
@@ -814,6 +1174,7 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         picked = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view, self.camera)
+        picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.obj:
             picked = None
@@ -822,59 +1183,91 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         if isinstance(picked, _terminal.Terminal):
             if wire_part is not None:
-                ok, msg = _check_terminal_compat(picked, wire_part)
+                ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
                 if not ok:
-                    msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+                    block_msg += '\n\nDo you want to use this wire?'
+                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
                     if button == QMessageBox.StandardButton.No:
                         return
 
             if circuit_id is None:
                 circuit_id = picked.db_obj.circuit_id
 
-            # Discard the temporary preview stop point -- terminal.add_wire
-            # overwrites stop_position3d_id with the terminal's own true
-            # attach point and extends this same wire's own waypoint list
-            # through its back (and, if seated in a cavity, the cavity's
-            # own wire-position) point.
-            stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
-            picked.add_wire(self.obj, 'stop')
+            # Discard the temporary preview growing point -- terminal.add_wire
+            # overwrites the growing end's own position3d_id with the
+            # terminal's own true attach point and extends this same
+            # wire's own waypoint list through its back (and, if seated in
+            # a cavity, the cavity's own wire-position) point.
+            stale_stop_id = self._growing_point.db_id[:-2]
+            picked.add_wire(self.obj, self._growing_end)
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
         elif isinstance(picked, _wire_layout.WireLayout):
-            end_wire, _ = _wire_layout_end_wire(picked, project, self.part_id)
+            # _wire_layout_end_wire only ever matches a WireLayout sitting
+            # at exactly ONE wire's own true end (never an interior bend
+            # or a genuine multi-wire seam -- see its own docstring), so
+            # this is always "join two separately-drawn wires into one
+            # continuous physical wire", exactly the isinstance(Wire) case
+            # below, just reached via a marker (real or one of
+            # handlers.wire_snap's own probes standing in for an
+            # otherwise marker-less dangling end) instead of a raw hit on
+            # the wire body itself -- merge_wire_into needed here for the
+            # same reason, not just a shared Point between two rows that
+            # stay separate. Confirmed 2026-08-06: the old share-a-point
+            # version left two separate database rows with no seam
+            # waypoint/WireLayout, which is wrong for this case.
+            end_wire, other_end = _wire_layout_end_wire(picked, project, self.part_id)
             if end_wire is not None:
-                # picked.obj3d.position is the same live, singleton Point
-                # object end_wire's own endpoint already uses (Point
-                # instances are singletons keyed by db_id -- see
-                # database.project_db.pjt_point3d.PJTPoint3D's docstring),
-                # so pointing this wire's own stop at it directly gives
-                # the same live sharing a .attach() delegation would, with
-                # no delegation machinery needed.
-                stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
-                self.obj.obj3d.set_stop_position(picked.obj3d.position)
-                self.obj.db_obj.stop_position3d_id = picked.db_obj.position3d_id
-                self.ptables.pjt_points3d_table[stale_stop_id].delete()
+                merged = merge_wire_into(
+                    project, self.obj, end_wire, other_end, own_end=self._growing_end)
+                self.obj = merged
+                self.obj.identify(None)
+                self._cleanup()
+                self._destroy_overlay()
+                self._finalized = True
+                return
             # else: mid-wire or mismatched part — preview stop already at world pos; keep as-is
 
         elif isinstance(picked, _splice.Splice):
-            stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
-            self.obj.obj3d.set_stop_position(picked.obj3d.wire_position)
-            self.obj.db_obj.stop_position3d_id = picked.db_obj.branch_position3d_id
+            if wire_part is not None:
+                ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(picked, wire_part)
+                if not ok:
+                    block_msg += '\n\nDo you want to use this wire?'
+                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                    if button == QMessageBox.StandardButton.No:
+                        return
+
+            stale_stop_id = self._growing_point.db_id[:-2]
+            self._set_growing_obj3d_position(picked.obj3d.wire_position)
+            self._set_growing_position3d_id(picked.db_obj.branch_position3d_id)
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
-            self.obj.db_obj.stop_position2d_id = picked.db_obj.position2d_id
-            self.obj.obj2d.set_stop_position(picked.db_obj.position2d)
+            self._set_growing_position2d_id(picked.db_obj.position2d_id)
+            self._set_growing_obj2d_position(picked.db_obj.position2d)
 
             picked.add_wire(self.obj)
-            self.obj.set_sibling(picked, 'stop')
+            self.obj.set_sibling(picked, self._growing_end)
+
+            # A layout at the wire's own true end -- purely a visual cap
+            # showing it properly seated into the splice, matching
+            # handlers.wire_snap.commit_snap's own splice branch. Every
+            # branch wire on this splice shares the exact same
+            # branch_position3d_id (never cloned), so a 2nd/3rd wire
+            # snapping here must not create a duplicate layout.
+            branch_id = picked.db_obj.branch_position3d_id
+            existing_layout = self.ptables.pjt_wire_layouts_table.select(
+                'id', position3d_id=branch_id)
+            if not existing_layout:
+                layout_db = self.ptables.pjt_wire_layouts_table.insert(branch_id)
+                layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
+                project.add_wire_layout(layout_obj)
 
         elif isinstance(picked, _wire.Wire):
             # Joining this (still-dangling) wire's stop to another,
             # separately-drawn dangling wire's endpoint -- they're the
             # same physical wire once connected, so they merge into one
             # row (with a WireLayout at the seam) rather than staying
-            # linked; see _merge_wire_into.
+            # linked; see merge_wire_into.
             world_np = self.camera.get_position_on_focal_plane(mouse_pos).as_numpy
             start_np = picked.obj3d.start_position.as_numpy
             stop_np = picked.obj3d.stop_position.as_numpy
@@ -891,7 +1284,8 @@ class AddWireHandler(_handler_base.HandlerBase):
                 return
 
             other_end = 'start' if near_start else 'stop'
-            merged = _merge_wire_into(project, self.obj, picked, other_end)
+            merged = merge_wire_into(
+                project, self.obj, picked, other_end, own_end=self._growing_end)
             self.obj = merged
 
             self.obj.identify(None)
@@ -913,54 +1307,86 @@ class AddWireHandler(_handler_base.HandlerBase):
             self.obj.db_obj.circuit_id = circuit_id
 
         self.obj.identify(None)
-        project.add_wire(self.obj)
+
+        # self.obj is already registered when continuing a pre-existing
+        # wire (_start_add_to_wire) -- re-adding it would double-count
+        # project.obj_count for the same wire.
+        if not self._preexisting_wire:
+            project.add_wire(self.obj)
 
         self._cleanup()
         self._destroy_overlay()
         self._finalized = True
 
     @_check_types.do
-    def _commit_waypoint(self) -> None:
+    def _commit_growing_point_as_waypoint(self) -> None:
         """
-        Commit the current live preview stop position as a permanent
-        interior waypoint on this *same* wire (no new ``pjt_wires`` row --
-        see handlers.wire_layout_handler._create_wire_layout_on_wire, the
-        same operation performed inline here since the wire is still
-        being drawn), drop a :class:`WireLayout` there, and continue the
-        preview from a fresh stop point past it.  Called when a mid-
-        placement click lands in free space instead of on an attachable
-        target; stays in phase 1 (loops back for the next click) rather
-        than finalizing.
+        Tag the current live preview growing point as a permanent interior
+        waypoint on this *same* wire (no new ``pjt_wires`` row -- see
+        handlers.wire_layout_handler._create_wire_layout_on_wire, the same
+        operation performed inline here since the wire is still being
+        drawn), drop a :class:`WireLayout` there, and continue the preview
+        from a fresh point past it -- same wire object and row throughout.
+
+        Growing from ``'stop'`` (every entry point except
+        ``_start_add_to_wire``'s ``'start'`` case) appends at the end of
+        the existing waypoint order, matching the original, long-standing
+        shape; growing from ``'start'`` inserts at index 0 and shifts every
+        existing waypoint's ``idx`` up by one first, mirroring
+        ``Terminal.add_wire``'s own symmetric start/stop handling.
+
+        The shared core both ``_commit_waypoint`` (a free-space click
+        mid-placement) and ``_start_add_to_wire`` (the initial tag, before
+        any further mouse input) use -- see ``_promote_last_committed`` for
+        the inverse operation.
         """
         project = self.mainframe.project
 
         self._has_committed_waypoint = True
 
-        stop_point_id = self._preview_stop_point_id
-        stop_pos = self.obj.obj3d.stop_position
+        growing_point_id = self._preview_stop_point_id
+        growing_pos = self._growing_point
 
         existing = self.obj.db_obj.waypoints3d
-        new_idx = len(existing)
 
-        point = self.ptables.pjt_points3d_table[stop_point_id]
+        if self._growing_end == 'stop':
+            new_idx = len(existing)
+        else:
+            for wp in existing:
+                wp.idx = wp.idx + 1
+            new_idx = 0
+
+        point = self.ptables.pjt_points3d_table[growing_point_id]
         point.wire_id = self.obj.db_obj.db_id
         point.idx = new_idx
 
-        layout_db = self.ptables.pjt_wire_layouts_table.insert(stop_point_id)
+        layout_db = self.ptables.pjt_wire_layouts_table.insert(growing_point_id)
         layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
         project.add_wire_layout(layout_obj)
         self._committed_layouts.append(layout_obj)
+        self._session_waypoint_count += 1
 
-        new_stop_db = self.ptables.pjt_points3d_table.insert(
-            float(stop_pos.x), float(stop_pos.y), float(stop_pos.z))
-        self._preview_stop_point_id = new_stop_db.db_id
+        new_point_db = self.ptables.pjt_points3d_table.insert(
+            float(growing_pos.x), float(growing_pos.y), float(growing_pos.z))
+        self._preview_stop_point_id = new_point_db.db_id
 
         # The just-committed point becomes a permanent interior waypoint;
-        # the wire's own stop moves on to the fresh point, continuing the
-        # live preview -- same wire object and row throughout.
-        self.obj.db_obj.stop_position3d_id = new_stop_db.db_id
-        self.obj.obj3d.set_stop_position(new_stop_db.point)
+        # the wire's own growing end moves on to the fresh point,
+        # continuing the live preview.
+        self._set_growing_position3d_id(new_point_db.db_id)
+        self._set_growing_obj3d_position(new_point_db.point)
         self.obj.obj3d.refresh_waypoints()
+
+    @_check_types.do
+    def _commit_waypoint(self) -> None:
+        """
+        Commit the current live preview growing point as a permanent
+        interior waypoint on this *same* wire and continue the preview
+        from a fresh point past it. Called when a mid-placement click
+        lands in free space instead of on an attachable target; stays in
+        phase 1 (loops back for the next click) rather than finalizing.
+        """
+        self._commit_growing_point_as_waypoint()
 
     # ------------------------------------------------------------------
     # Finishing early / cancellation
@@ -1001,29 +1427,59 @@ class AddWireHandler(_handler_base.HandlerBase):
             self._finalized = True
             return
 
-        # Discard the in-progress (never-confirmed) stop point and
-        # promote the last confirmed waypoint back to being this wire's
-        # own true stop -- see WireTypeMixin._segments()/waypoints3d:
-        # ordered by idx, so [-1] is the most recently committed one.
-        stale_stop_id = self.obj.obj3d.stop_position.db_id[:-2]
-        last_waypoint = self.obj.db_obj.waypoints3d[-1]
+        self._promote_last_committed()
+
+        if not self._preexisting_wire:
+            self.mainframe.project.add_wire(self.obj)
+
+        self._cleanup()
+        self._destroy_overlay()
+        self._finalized = True
+
+    @_check_types.do
+    def _promote_last_committed(self) -> None:
+        """
+        Discard the current in-progress (never-confirmed) growing point
+        and promote the last waypoint committed this session back to
+        being this wire's own true growing end -- see
+        WireTypeMixin._segments()/waypoints3d: ordered by idx, so
+        ``[-1]``/``[0]`` is the most recently committed one when growing
+        from ``'stop'``/``'start'`` respectively.
+
+        The shared undo-one-step both ``finalize_at_last_point`` (once,
+        right-click) and ``cancel()``'s ``_preexisting_wire`` rollback
+        (repeatedly, undoing the whole "Add to Wire" session) use.
+        """
+        stale_id = self._growing_point.db_id[:-2]
+
+        if self._growing_end == 'stop':
+            last_waypoint = self.obj.db_obj.waypoints3d[-1]
+        else:
+            last_waypoint = self.obj.db_obj.waypoints3d[0]
+
         last_point = last_waypoint.point
 
         last_waypoint.wire_id = None
         last_waypoint.idx = None
 
-        self.obj.db_obj.stop_position3d_id = last_waypoint.db_id
-        self.obj.obj3d.set_stop_position(last_point)
+        if self._growing_end == 'start':
+            for wp in self.obj.db_obj.waypoints3d:
+                wp.idx = wp.idx - 1
 
-        self.ptables.pjt_points3d_table[stale_stop_id].delete()
+        self._set_growing_position3d_id(last_waypoint.db_id)
+        self._set_growing_obj3d_position(last_point)
 
-        # _commit_waypoint() eagerly drops a WireLayout at every free-space
-        # click, on the assumption the run continues past it. Discarding
-        # the in-progress segment above can leave the very last one of
-        # those marking what's now this wire's own terminus instead of a
-        # joint between two sections -- remove it in that case; the wire
-        # still ends at the exact same point, just without a layout
-        # marker rendered there.
+        self.ptables.pjt_points3d_table[stale_id].delete()
+
+        self._session_waypoint_count -= 1
+
+        # _commit_growing_point_as_waypoint() eagerly drops a WireLayout at
+        # every free-space click, on the assumption the run continues past
+        # it. Discarding the in-progress segment above can leave the very
+        # last one of those marking what's now this wire's own terminus
+        # instead of a joint between two sections -- remove it in that
+        # case; the wire still ends at the exact same point, just without
+        # a layout marker rendered there.
         if self._committed_layouts:
             last_layout = self._committed_layouts[-1]
             if len(last_layout.db_obj.attached_wires) < 2:
@@ -1031,11 +1487,6 @@ class AddWireHandler(_handler_base.HandlerBase):
                 self._committed_layouts.pop()
 
         self.obj.obj3d.refresh_waypoints()
-        self.mainframe.project.add_wire(self.obj)
-
-        self._cleanup()
-        self._destroy_overlay()
-        self._finalized = True
 
     @_check_types.do
     def cancel(self):
@@ -1048,6 +1499,20 @@ class AddWireHandler(_handler_base.HandlerBase):
                   else self._source_wire.obj3d.start_position)
 
             ep += orig_pt - ep
+
+        if self._preexisting_wire:
+            # self.obj is a real, already-placed wire being continued
+            # (_start_add_to_wire), not a throwaway preview -- deleting it
+            # below would destroy the user's actual wire. Undo everything
+            # committed this session instead (repeat the same undo-one-step
+            # finalize_at_last_point uses, once per waypoint this session
+            # added), restoring it to exactly its pre-session shape.
+            while self._session_waypoint_count > 0:
+                self._promote_last_committed()
+
+            self._cleanup()
+            self._destroy_overlay()
+            return
 
         # Every committed WireLayout sits on one of self.obj's own
         # waypoints, so deleting the wire below would clean these up too

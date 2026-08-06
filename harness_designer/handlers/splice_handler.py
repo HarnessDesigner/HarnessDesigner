@@ -42,13 +42,17 @@ def _wire_fits(splice_part, wire) -> bool:
 
     awg_min = splice_part.wire_size_awg_min
     awg_max = splice_part.wire_size_awg_max
-    # AWG is inverse: higher number = smaller wire.
-    # awg_min is the MINIMUM awg number the splice accepts (largest wire).
-    # awg_max is the MAXIMUM awg number the splice accepts (smallest wire).
-    if awg_min is not None and wire_awg < awg_min:
+    # AWG is inverse: higher number = smaller wire. awg_min is derived from
+    # the splice's MINIMUM (thinnest) accepted wire diameter -- see
+    # database.global_db.mixins.wire_size.WireSizeMixin's wire_size_dia_min
+    # setter, which always derives _awg_min from dia_min via d_mm_to_awg --
+    # so it is numerically the LARGER awg number (smallest wire); awg_max
+    # (from the thickest accepted diameter) is numerically the smaller one
+    # (largest wire).
+    if awg_min is not None and wire_awg > awg_min:
         return False
 
-    if awg_max is not None and wire_awg > awg_max:
+    if awg_max is not None and wire_awg < awg_max:
         return False
 
     return True

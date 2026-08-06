@@ -24,5 +24,10 @@ pjt_table = _con.SQLTable(
     # still holds a real pjt_wires row id, just without a DB-enforced
     # constraint. Cleanup on wire deletion is explicit (see PJTWire.delete).
     _con.UUIDField('wire_id', default='NULL'),
-    _con.IntField('idx', default='NULL')
+    _con.IntField('idx', default='NULL'),
+    # See pjt_points3d's identical column -- kept structurally identical
+    # across every pjt_point* table even though only points3d uses this
+    # today (see database.project_db.pjt_terminal/objects.terminal.Terminal.
+    # _own_or_cloned_point_id).
+    _con.UUIDField('parent_point_id', default='NULL')
 )

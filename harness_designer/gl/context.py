@@ -89,7 +89,15 @@ class GLContext:
         current_ctx = QOpenGLContext.currentContext()
         widget_ctx = QtOpenGLWidgets.QOpenGLWidget.context(self.canvas)
 
-        if current_ctx != widget_ctx:
+        # current_ctx is None whenever nothing is current on this thread
+        # yet (e.g. a DB-callback cascade running before this canvas has
+        # ever been shown/painted, so widget_ctx is also still None) --
+        # None == None would otherwise read as "already current" and skip
+        # makeCurrent() entirely, leaving nothing current and every GL
+        # call after this made downstream raising "context has not been
+        # acquired". Only treat it as already-current when there IS a
+        # real current context that matches this widget's own.
+        if current_ctx is None or current_ctx != widget_ctx:
             self.canvas.makeCurrent()
             if self.ref == 0:
                 self._made_current = True

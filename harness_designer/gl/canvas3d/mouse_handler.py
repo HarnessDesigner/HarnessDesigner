@@ -526,6 +526,16 @@ class MouseHandler:
                 refresh = True
 
             if self._drag_obj is not None:
+                if (
+                    isinstance(self._drag_obj, (_dragging.WireDragObject, _dragging.PathDragObject)) and
+                    self._drag_obj.snapped_kind is not None
+                ):
+                    from ...handlers import wire_snap as _wire_snap
+
+                    _wire_snap.commit_snap(
+                        self.canvas.mainframe, self._drag_obj.selected, self._drag_obj.end,
+                        self._drag_obj.snapped_kind, self._drag_obj.snapped_target)
+
                 self._drag_obj.delete()
                 self._drag_obj = None
 
@@ -891,25 +901,19 @@ class MouseHandler:
                             selected == cur_selected
                         ):
                             if isinstance(selected, _wire.Wire):
-                                start_anchored, stop_anchored = _dragging.wire_end_anchors(
-                                    self.canvas.mainframe.project, selected)
+                                plan = _dragging.plan_wire_drag(
+                                    self.canvas.mainframe.project, selected, mouse_pos)
 
-                                if start_anchored and stop_anchored:
-                                    # Both ends derived from a cavity/
-                                    # terminal -- nothing on this wire is
-                                    # freely draggable. Pan the camera
-                                    # instead of starting a no-op drag.
+                                if plan is None:
+                                    # Nothing bounding the clicked segment is
+                                    # freely draggable (both anchored, or a
+                                    # single anchored true end) -- pan the
+                                    # camera instead of starting a no-op drag.
                                     self._process_mouse(MOUSE_LEFT)(*list(delta)[:-1])
                                     refresh = True
-                                elif start_anchored:
-                                    self._drag_obj = _dragging.EndpointDragObject(
-                                        self.canvas, selected, 'stop')
-                                elif stop_anchored:
-                                    self._drag_obj = _dragging.EndpointDragObject(
-                                        self.canvas, selected, 'start')
                                 else:
-                                    self._drag_obj = _dragging.PathDragObject(
-                                        self.canvas, selected, mouse_pos)
+                                    self._drag_obj = _dragging.WireDragObject(
+                                        self.canvas, selected, plan)
                             elif isinstance(selected, _bundle.Bundle):
                                 self._drag_obj = _dragging.PathDragObject(
                                     self.canvas, selected, mouse_pos)

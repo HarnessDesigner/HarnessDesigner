@@ -85,6 +85,22 @@ be intentional/non-issue.
 - Add TE Terminals to the database. Also find out why the solid deutsch 
     terminals are missing from the JSON file.  
 
+- **2D camera doesn't emit `GLCameraEvent` at all yet, unlike 3D**
+  (`gl/canvas2d/camera.py`'s `Zoom`/`Pan`). `gl/canvas3d/camera.py`'s
+  `Camera._send_event` is called at the end of every 3D camera-movement
+  method and (as of 2026-08-05) also drives `_refresh_active_hover()` —
+  re-running the active wire-placement handler's `hover()` or the active
+  drag's pick-test after a camera move that happened with the mouse held
+  still (mouse-wheel zoom, keyboard camera controls), so a preview/snap
+  never reflects a stale pre-move camera framing. `GLCameraEvent.from_canvas`
+  (`gl/events.py`) is already canvas-generic — nothing 3D-specific about it —
+  but `canvas2d.Camera` never calls it, so 2D has neither the event
+  notification nor the hover-refresh fix. Bring 2D up to parity: add
+  `_send_event` calls to `Zoom`/`Pan` (matching the 3D pattern) and the same
+  `_refresh_active_hover` hook, so `wire_handler_2d.py`'s preview gets the
+  same fix. Confirmed with the user (2026-08-05) this is a real gap, deferred
+  to this list rather than fixed immediately.
+
 ## Resolved (kept briefly for context, safe to delete)
 
 - Terminal never actually got added to the project after part-search

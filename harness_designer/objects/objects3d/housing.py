@@ -663,6 +663,7 @@ class Housing(_base3d.Base3D):
         super().render(faces_program, edges_program, vertices_program)
 
         self._render_cavity_markers()
+        self._render_terminal_overlays()
 
         picker = self._picker
         if picker is None or picker.selected_surf_idx is None:
@@ -671,6 +672,25 @@ class Housing(_base3d.Base3D):
         r, g, b, a = picker.overlay_color
         self.render_surface_overlay(
             picker.selected_surf_idx, (r / 255.0, g / 255.0, b / 255.0, a / 255.0))
+
+    @_check_types.do
+    def _render_terminal_overlays(self) -> None:
+        """Draw every seated terminal's cavity wire-side/pin-side overlay,
+        immediately after this housing's own base mesh (just above) so the
+        draw order between the two is always deterministic -- see
+        ``Terminal.render_cavity_overlay`` for why this can't be left to
+        each terminal's own render() call instead.
+        """
+        for cavity in self.db_obj.cavities:
+            terminal_db = cavity.terminal
+            if terminal_db is None:
+                continue
+
+            terminal_obj = terminal_db.get_object()
+            if terminal_obj is None or terminal_obj.obj3d is None:
+                continue
+
+            terminal_obj.obj3d.render_cavity_overlay()
 
     @_check_types.do
     def _delete(self):

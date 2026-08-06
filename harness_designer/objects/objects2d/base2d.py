@@ -110,8 +110,8 @@ class Base2D(_objectsvar.BaseVar):
         super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         try:
-            self._is_visible = db_obj.is_visible3d  # NOQA
-            self.db_obj.bind(self._is_visible_callback, 'is_visible3d')
+            self._is_visible = db_obj.is_visible2d  # NOQA
+            self.db_obj.bind(self._is_visible_callback, 'is_visible2d')
         except AttributeError:
             self._is_visible = False
 
@@ -181,8 +181,20 @@ class Base2D(_objectsvar.BaseVar):
         ``objects2d/housing_layout.py``) is responsible for writing a
         rotation that's actually correct for a Y=0-flat 2D primitive
         (about world Y) -- see ``angle2d.y``, not ``.z``.
+
+        Checks ``is_visible`` before doing any GL work -- ``Base3D.render()``
+        already does this (``if not self.is_visible: return``), but this
+        VBO-backed 2D path never had the matching guard (canvas2d.py's own
+        ``_render_vbo_objects`` calls straight into this with no visibility
+        filtering of its own either). Confirmed 2026-08-05 as a real gap:
+        an invisible object (``is_visible2d`` False, e.g. a wire-snap probe
+        -- see ``handlers.wire_snap``) reached all the way into
+        ``GL.glUniform3f`` on whatever ``self._position`` happens to be.
         """
         if self._vbo is None:
+            return
+
+        if not self._is_visible:
             return
 
         if normal_loc is not None:

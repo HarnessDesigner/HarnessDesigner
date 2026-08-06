@@ -998,6 +998,40 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._stored_part
 
     @_check_types.do
+    def _find_child_points(self, canonical_positions: list) -> list:
+        """Return the live ``Point`` for every clone of any point in
+        *canonical_positions* -- see ``objects.terminal.Terminal.
+        _own_or_cloned_point_id``/``PJTPoint3D.parent_point_id``.
+
+        A second-or-later wire attached to the same terminal/cavity gets
+        its own cloned point (a ``pjt_points3d`` row's own ``wire_id``/
+        ``idx`` can only belong to one wire's own waypoint list at a
+        time, so the canonical row itself can't be shared directly) --
+        without this, a housing move/rotate would carry the canonical
+        point along (it's already in *canonical_positions*) while leaving
+        every clone of it behind. Called by ``_update_position3d``/
+        ``_update_angle3d`` with whatever they already collected, so the
+        clones just fold into the same batch move/rotate those methods
+        already do for everything else -- no other change needed there.
+
+        One batched query for the whole set of canonical ids passed in,
+        not one query per point -- this runs on every housing move/rotate
+        frame during a drag.
+        """
+        if not canonical_positions:
+            return []
+
+        parent_ids = [pos.db_id[:-2] for pos in canonical_positions]
+        table = self._table.db.pjt_points3d_table
+        placeholders = ','.join('?' * len(parent_ids))
+
+        table.execute(
+            f'SELECT id FROM pjt_points3d WHERE parent_point_id IN ({placeholders});',
+            parent_ids)
+
+        return [table[row[0]].point for row in table.fetchall()]
+
+    @_check_types.do
     def _update_position3d(self, point: _point.Point):
         """Update the position 3D.
 
@@ -1062,6 +1096,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 sp = seal.position3d
                 if sp is not None:
                     wire_positions.append(sp)
+
+        wire_positions.extend(self._find_child_points(wire_positions))
 
         skip_write_ids = {p.db_id[:-2]
                           for p in cavity_positions + accessory_positions + wire_positions}
@@ -1306,6 +1342,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         skip_write_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
                                      self.tpa_lock_2_position3d, self.boot_position3d,
                                      self.cpa_lock_position3d, self.cover_position3d])
+
+        skip_write_positions.extend(self._find_child_points(skip_write_positions))
 
         skip_write_ids = {p.db_id[:-2] for p in skip_write_positions}
 

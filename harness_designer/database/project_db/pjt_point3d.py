@@ -419,6 +419,42 @@ class PJTPoint3D(PJTEntryBase):
         self._stored_idx = value
         self._table.update(self._db_id, idx=value)
 
+    _stored_parent_point_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def parent_point_id(self) -> bytes | None:
+        """Return the id of the "real"/canonical point this one was cloned
+        from, or ``None`` for a canonical point (or any point that was
+        never cloned at all).
+
+        Set only by ``objects.terminal.Terminal._own_or_cloned_point_id``
+        when a second-or-later wire attaching to the same terminal/cavity
+        needs its own tagged waypoint row (a ``pjt_points3d`` row's
+        ``wire_id``/``idx`` can only belong to one wire's own ordered
+        waypoint list at a time, so it can't literally share the
+        canonical row -- this is how the clone still tracks that
+        canonical point's own movement instead of being left behind: see
+        ``pjt_housing.PJTHousing._update_position3d``/``_update_angle3d``,
+        which look up every clone of a terminal's/cavity's own wire-side
+        points by this column and move them along with their parent in
+        the same batch).
+
+        :returns: The referenced ``pjt_points3d`` row id, or ``None``.
+        :rtype: bytes | None
+        """
+        if self._stored_parent_point_id is DefaultStoredValue:
+            self._stored_parent_point_id = self._table.select(
+                'parent_point_id', id=self._db_id)[0][0]
+
+        return self._stored_parent_point_id
+
+    @parent_point_id.setter
+    @_check_types.do
+    def parent_point_id(self, value: bytes | None):
+        self._stored_parent_point_id = value
+        self._table.update(self._db_id, parent_point_id=value)
+
     _stored_point3d: _point.Point = None
     _is_clone: bool = False
 
@@ -437,4 +473,49 @@ class PJTPoint3D(PJTEntryBase):
             if not self._is_clone:
                 self._stored_point3d.bind(self._update_point)
 
+            # Child-point tracking (see parent_point_id/_sync_from_parent) --
+            # distinct from the _is_clone/.attach() alias mechanism above:
+            # this row is a real, independently-written row (tagged with its
+            # own wire's wire_id/idx, e.g. a second/third/fourth wire
+            # attached to the same terminal -- see objects.terminal.
+            # Terminal._own_or_cloned_point_id), not a dead alias forwarding
+            # entirely to another row. It keeps its own _update_point
+            # binding (so it still persists its own x/y/z when moved
+            # directly); it just also follows its parent's own position
+            # whenever THAT moves outside of a housing move/rotate, via a
+            # second, one-directional binding on the parent's own Point.
+            #
+            # Deliberately NOT relied on for a whole-housing move/rotate --
+            # PJTHousing._update_position3d/_update_angle3d instead collect
+            # every child directly (_find_child_points) and fold them into
+            # the same single vectorized numpy delta + one batch_update
+            # call everything else in that cascade already goes through,
+            # to avoid one individual UPDATE per child point on every drag
+            # frame when a housing has many terminals/wires. This binding
+            # covers every OTHER way a parent point can move instead (a
+            # terminal repositioned within its cavity, wherever in the code
+            # that happens) -- confirmed acceptable to leave both active
+            # simultaneously (a housing move may redundantly re-fire this
+            # for children it already just batch-moved, a harmless no-op
+            # delta) since a parent realistically only ever has a handful
+            # of children (e.g. 3-4 ground wires tied into one ring
+            # terminal), never housing-cascade-scale numbers.
+            parent_id = self.parent_point_id
+            if parent_id is not None:
+                parent_point = self._table.db.pjt_points3d_table[parent_id].point
+                parent_point.bind(self._sync_from_parent)
+
         return self._stored_point3d
+
+    @_check_types.do
+    def _sync_from_parent(self, parent_point: _point.Point) -> None:
+        """Follow *parent_point*'s own movement -- bound (see ``.point``
+        above) on the canonical point this row was created as a child of
+        (``parent_point_id``). Applying the delta via ``+=`` (rather than
+        assigning x/y/z directly) fires this row's own already-bound
+        ``_update_point`` the exact same way any other direct move would,
+        so it persists to this row's own database entry normally -- no
+        special-cased write path needed here.
+        """
+        delta = parent_point - self._stored_point3d
+        self._stored_point3d += delta

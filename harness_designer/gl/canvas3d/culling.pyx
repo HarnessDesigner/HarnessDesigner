@@ -264,16 +264,23 @@ class CullingThreadPool:
         self._num_threads = num_threads
 
     def cull(self, object_data_lists, normals, distances, camera_pos):
-        # Dispatch work to worker threads
-        num_jobs = 0
+        # Dispatch work to worker threads -- track which worker INDICES
+        # actually got a job, not just a count. Containers empty out
+        # unevenly as objects are added/removed (add_object/remove_object
+        # pick whichever container is currently smallest/holds the match),
+        # so the non-empty containers are not always a contiguous run
+        # starting at index 0. Gathering from range(num_jobs) instead of
+        # the real dispatched indices would call finish() on a worker that
+        # was never given work, blocking forever on its result_queue.get().
+        dispatched = []
         for i, worker in enumerate(self.workers):
             if i < len(object_data_lists) and object_data_lists[i]:
                 worker.cull(object_data_lists[i], normals, distances, camera_pos)
-                num_jobs += 1
+                dispatched.append(i)
 
         # Gather results
         all_visible_rows = []
-        for i in range(num_jobs):
+        for i in dispatched:
             visible_rows = self.workers[i].finish()
             all_visible_rows.extend(visible_rows)
 

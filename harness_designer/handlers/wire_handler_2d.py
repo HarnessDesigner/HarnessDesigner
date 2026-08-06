@@ -26,7 +26,8 @@ from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from . import handler_base as _handler_base
-from .wire_handler import _get_terminal_compat_pns, _check_terminal_compat
+from .wire_handler import _get_terminal_compat_pns
+from . import wire_snap as _wire_snap
 from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import terminal as _terminal
@@ -97,10 +98,10 @@ class AddWireHandler2D(_handler_base.HandlerBase):
 
         start_circuit_id = None
         if terminal is not None:
-            ok, msg = _check_terminal_compat(terminal, self.part)
+            ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, self.part)
             if not ok:
-                msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(mainframe, 'Incompatible Wire', msg)
+                block_msg += '\n\nDo you want to use this wire?'
+                button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
                 if button == QMessageBox.StandardButton.No:
                     self._finalized = True
                     return
@@ -140,27 +141,19 @@ class AddWireHandler2D(_handler_base.HandlerBase):
         self.obj = _wire.Wire(mainframe, wire_db)
 
         if terminal is not None:
-            attached = terminal.add_wire(self.obj, 'start')
-            # terminal.add_wire (unlike _attach_splice below) leaves the
-            # stale placeholder for the caller to clean up -- matches
-            # handlers/wire_handler.py's own _start_from_terminal.
-            if attached:
-                ptables.pjt_points3d_table[start3d.db_id].delete()
+            # terminal.add_wire always performs the attachment now -- it
+            # never refuses based on combined cross-section (see its own
+            # docstring), the only thing that used to make this return
+            # False. Leaves the stale placeholder for the caller to clean
+            # up -- matches handlers/wire_handler.py's own
+            # _start_from_terminal.
+            terminal.add_wire(self.obj, 'start')
+            ptables.pjt_points3d_table[start3d.db_id].delete()
         else:
             # _attach_splice always succeeds (no compatibility check for
             # splices, same as the 3D handler) and deletes the stale
             # placeholder itself.
-            attached = self._attach_splice(splice, 'start')
-
-        if not attached:
-            self.obj.delete()
-            self.obj = None
-            ptables.pjt_points3d_table[start3d.db_id].delete()
-            QMessageBox.warning(
-                mainframe, 'Incompatible Wire',
-                'This wire is no longer compatible with the terminal.')
-            self._finalized = True
-            return
+            self._attach_splice(splice, 'start')
 
         self._start_obj = start
 
@@ -224,10 +217,10 @@ class AddWireHandler2D(_handler_base.HandlerBase):
             if picked is self._start_obj:
                 return
 
-            ok, msg = _check_terminal_compat(picked, self.part)
+            ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(picked, self.part)
             if not ok:
-                msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', msg)
+                block_msg += '\n\nDo you want to use this wire?'
+                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
                 if button == QMessageBox.StandardButton.No:
                     return
 

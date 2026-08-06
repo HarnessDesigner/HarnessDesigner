@@ -453,6 +453,45 @@ class Camera:
 
         getattr(self.canvas, event.GetType()).emit(event)
 
+        self._refresh_active_hover()
+
+    @_check_types.do
+    def _refresh_active_hover(self) -> None:
+        """Re-run the active wire-placement handler's hover(), or the
+        active drag's own pick-test, using the current mouse position --
+        called every time this camera's own state changes (see
+        _send_event, the one place every movement method -- Reset,
+        Rotate, PanTilt, Zoom, Walk, TruckPedestal -- already funnels
+        through, so hooking it here covers all of them from one spot).
+
+        A camera move can happen with the mouse held perfectly still --
+        the mouse wheel's zoom (plus its own auto-reorient-toward-mouse
+        turn) and every keyboard-driven camera control in key_handler.py
+        both change the camera without ever going through
+        on_mouse_motion. Without this, an active AddWireHandler's preview
+        wire, or a snapped EndpointDragObject, would keep reflecting
+        wherever the mouse last actually moved under the OLD camera
+        framing until the next real pixel of mouse movement -- stale and
+        potentially misleading about what's actually under the cursor
+        now. QCursor.pos() (mapped to widget-local coordinates, the same
+        way key_handler.py's own _send_event already derives a position
+        for key events, which don't carry one) gives the current mouse
+        position without needing to cache the last real motion event.
+        """
+        from PySide6.QtGui import QCursor
+
+        local_pos = self.canvas.mapFromGlobal(QCursor.pos())
+        mouse_pos = _point.Point(float(local_pos.x()), float(local_pos.y()))
+
+        drag_obj = self.canvas._mouse_handler._drag_obj  # NOQA
+        if drag_obj is not None:
+            drag_obj(_point.Point(0.0, 0.0))
+            return
+
+        obj_handler = self.canvas.mainframe._obj_handler  # NOQA
+        if obj_handler is not None:
+            obj_handler.hover(mouse_pos)
+
     # @property
     # def horizontal_field_of_view(self) -> float:
     #     if self._projection is None:

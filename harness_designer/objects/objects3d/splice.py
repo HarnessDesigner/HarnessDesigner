@@ -226,23 +226,18 @@ class SpliceMenu(QMenu):
 
     @_check_types.do
     def on_add_wire(self):
-        """Start the interactive wire placement flow from this splice."""
+        """Start the interactive wire placement flow, pinned to this
+        splice's own branch point -- the part-search dialog (pre-filtered
+        to wires whose diameter fits) opens immediately, straight into
+        phase 1, same as a terminal's/cavity's own pinned Add Wire."""
         from ... import handlers as _handlers
 
         mainframe = self.selected.mainframe
+        splice_obj = self.selected.parent
 
-        @_check_types.do
-        def _factory():
-            part_id = _menu_ops.get_part_id(
-                mainframe, 'wires', mainframe.global_db.wires_table,
-                'Add Wire')
-
-            if part_id is None:
-                return None
-
-            return _handlers.AddWireHandler(mainframe, part_id)
-
-        _menu_ops.start_handler(mainframe, _factory)
+        _menu_ops.start_handler(
+            mainframe,
+            lambda: _handlers.AddWireHandler(mainframe, splice=splice_obj))
 
     @_check_types.do
     def on_trace_circuit(self):
