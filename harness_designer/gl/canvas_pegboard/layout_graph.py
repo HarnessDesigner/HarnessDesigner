@@ -9,19 +9,19 @@ to live in this module (``PegboardAnchor``/``build_anchors``/the per-type
 ``_housing_anchors``/``_splice_anchors``/``_transition_anchors``/
 ``_bare_terminal_anchors`` builders, plus the ``_pegboard_xz``/
 ``_pegboard_rotation``/``_apply_user_spin``/``_footprint`` helpers they used)
--- that has moved to :mod:`harness_designer.objects.objectspeg`
-(``basepeg.py``'s ``BasePeg`` base class -- live ``position``/``angle``/
+-- that has moved to :mod:`harness_designer.objects.objects_pegboard`
+(``base_pegboard.py``'s ``BasePegboard`` base class -- live ``position``/``angle``/
 ``aabb`` properties, immediate DB writes via bound ``Point``/``Angle`` --
 plus each anchor type's own dedicated ``housing.py``/``splice.py``/
 ``transition.py``/``terminal.py`` subclass, constructed directly in that
 type's ``ObjectBase`` subclass ``__init__`` -- e.g. ``objects.housing.
-Housing.__init__``'s ``self.objpeg = ...`` -- alongside ``obj2d``/``obj3d``,
+Housing.__init__``'s ``self.objpegboard = ...`` -- alongside ``objschematic``/``obj3d``,
 not via a separate factory function), as part of folding peg-board anchors
-into ``ObjectBase`` as a real ``objpeg`` sibling to ``obj2d``/``obj3d``
+into ``ObjectBase`` as a real ``objpegboard`` sibling to ``objschematic``/``obj3d``
 (replacing the throwaway ``PegboardAnchor`` dataclass/bulk-rebuild model
 with a persistent per-object wrapper). Every other ``ObjectBase`` subclass
-gets its own dedicated do-nothing ``objectspeg`` class too (never a single
-shared stub) -- see ``objects.objectspeg.basepeg.BasePeg``'s docstring.
+gets its own dedicated do-nothing ``objects_pegboard`` class too (never a single
+shared stub) -- see ``objects.objects_pegboard.base_pegboard.BasePegboard``'s docstring.
 Everything below this module's
 scope -- the bundle-graph/waypoint/drag-clamp/pull-mode system -- is
 unchanged by that refactor: a rendered strand spans a graph edge between two
@@ -92,7 +92,7 @@ class PegboardNode:
     """One point in a bundle's peg-board path (Phase 3).
 
     Either an anchor (housing/splice/transition/bare-terminal, has a real
-    ``point3d_id`` via its own ``objects.objectspeg.basepeg.BasePeg``
+    ``point3d_id`` via its own ``objects.objects_pegboard.base_pegboard.BasePegboard``
     subclass) or a peg-board-only waypoint (no 3D counterpart, backed by a
     ``pjt_points_peg`` row with a non-``NULL`` ``bundle_id``) -- exactly
     one of ``anchor``/``waypoint_id`` is set, the other is ``None``.
@@ -223,7 +223,7 @@ def _resolve_chain_endpoint(
     :param anchors_by_point3d_id: Every currently live anchor, keyed by its
         own ``point3d_id`` -- see
         ``gl.canvas_pegboard.canvas.Canvas._anchors``.
-    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`]
+    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
     :param project: The currently open project (``mainframe.project``).
     :type project: :class:`harness_designer.objects.project.Project`
     :returns: The resolved endpoint node.
@@ -259,7 +259,7 @@ def build_bundle_chain(
     :param anchors_by_point3d_id: Every currently live anchor, keyed by its
         own ``point3d_id`` (see
         ``gl.canvas_pegboard.canvas.Canvas._anchors``).
-    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`]
+    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
     :param project: The currently open project (``mainframe.project``).
     :type project: :class:`harness_designer.objects.project.Project`
     :returns: The bundle's full ordered node chain.
@@ -368,7 +368,7 @@ def build_bundle_graph(
         before this refactor, since there is no longer a
         ``build_anchors()`` this function can fall back to building
         internally).
-    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`]
+    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
     :returns: ``(all_nodes, all_edges)`` across every bundle.
     :rtype: tuple[list[:class:`PegboardNode`], list[:class:`PegboardEdge`]]
     """
@@ -408,7 +408,7 @@ def build_bundle_strands(
     :param anchors_by_point3d_id: Every currently live anchor, keyed by its
         own ``point3d_id`` (see
         ``gl.canvas_pegboard.canvas.Canvas._anchors``).
-    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`]
+    :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
     :returns: One :class:`BundleStrand` per edge, across every bundle.
     :rtype: list[:class:`BundleStrand`]
     """

@@ -104,7 +104,7 @@ class Models3DTable(TableBase):
         never relocated, later and on demand by
         :func:`harness_designer.resources.collect_resource` when the
         model actually gets processed/converted -- see
-        ``objects.objects3d.terminal.Terminal.__init__``'s generic-model
+        ``objects.objects_3d.terminal.Terminal.__init__``'s generic-model
         fallback, the caller this exists for, which needs to be able to
         point many different parts at the very same shared source file
         without that file disappearing out from under it on first use.

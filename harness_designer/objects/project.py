@@ -21,7 +21,7 @@ from . import terminal as _terminal
 from . import tpa_lock as _tpa_lock
 from . import transition as _transition
 from . import wire as _wire
-from .objects3d.wire import _HELIX_OVERSHOOT_MM  # NOQA
+from .objects_3d.wire import _HELIX_OVERSHOOT_MM  # NOQA
 from . import wire_layout as _wire_layout
 from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
@@ -261,7 +261,7 @@ class Project:
         # known max wire-segment length *before* any Wire loads, so it
         # never needs to grow (and re-upload its VBO) more than once per
         # session even if this project has hundreds of wires -- see
-        # shapes.helix.create_vbo and objects3d.wire.WireStripe. Padded by
+        # shapes.helix.create_vbo and objects_3d.wire.WireStripe. Padded by
         # the same _HELIX_OVERSHOOT_MM headroom WireStripe._ensure_stripe_capacity
         # builds in when it grows the mesh mid-session -- otherwise the
         # very first live drag/preview after loading would immediately
@@ -467,7 +467,7 @@ class Project:
     def delete(self):
         """Delete every object in the project, then the project's own row.
 
-        Project has no objschematic/obj3d/objpeg of its own, so unlike a normal
+        Project has no objschematic/obj3d/objpegboard of its own, so unlike a normal
         ObjectBase there is no single view-teardown hook to lean on --
         this walks every part-type registry directly instead, calling
         each object's own ``delete()`` (the object is the entry point for

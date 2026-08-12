@@ -28,7 +28,7 @@ class Wire(_base_schematic.BaseSchematic):
     2D representation of a wire for schematic view
 
     Renders as a cylinder between its two endpoints -- the *same* shared
-    ``shapes/cylinder.py`` mesh ``objects3d/wire.py``'s ``Wire`` uses,
+    ``shapes/cylinder.py`` mesh ``objects_3d/wire.py``'s ``Wire`` uses,
     positioned at the start point and scaled/rotated to reach the stop
     point, plus (if the part has a stripe color) the *same* shared
     growable helix stripe mesh (``shapes/helix.py``) that wire uses too
@@ -44,7 +44,7 @@ class Wire(_base_schematic.BaseSchematic):
     text are, since a cylinder viewed edge-on from directly above already
     reads as a plain rectangle.
 
-    Renders at the part's real ``od_mm`` -- same value ``objects3d/wire.py``'s
+    Renders at the part's real ``od_mm`` -- same value ``objects_3d/wire.py``'s
     ``Wire`` uses -- so gauge is visually distinguishable in the schematic
     too; unlike 3D's ``stripe_clip_start``/``stripe_clip_stop`` (calibrated
     to real 3D
@@ -127,7 +127,7 @@ class Wire(_base_schematic.BaseSchematic):
     def _calc_length(self) -> float:
         """Straight-line seed length used only to size this wire's
         initial scale before BaseSchematic.__init__ runs (self.db_obj isn't set
-        yet) -- see objects3d/wire.py's Wire._calc_length for the same
+        yet) -- see objects_3d/wire.py's Wire._calc_length for the same
         reasoning. _recalculate_geometry replaces this with the true,
         possibly multi-segment length once db_obj is valid."""
         a = self._p1.as_numpy
@@ -199,7 +199,7 @@ class Wire(_base_schematic.BaseSchematic):
     @_check_types.do
     def _segment_world_corners(self):
         """World-space AABB corners (8 per segment) for every sub-segment,
-        stacked into one array -- mirrors objects3d/wire.py's Wire of
+        stacked into one array -- mirrors objects_3d/wire.py's Wire of
         the same name, the shared building block for _compute_obb/
         _compute_aabb's union-of-segments envelope."""
         local_min = self._vbo.local_aabb[0]
@@ -222,7 +222,7 @@ class Wire(_base_schematic.BaseSchematic):
             all_corners.append(corners)
 
         if not all_corners:
-            # See objects3d/wire.py's Wire._segment_world_corners -- same
+            # See objects_3d/wire.py's Wire._segment_world_corners -- same
             # degenerate (all-zero-length) fallback.
             point = self._p1.as_numpy
             return np.tile(point, (8, 1)).astype(np.float32)
@@ -231,7 +231,7 @@ class Wire(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def _compute_obb(self):
-        """Union AABB across every sub-segment -- see objects3d/wire.py's
+        """Union AABB across every sub-segment -- see objects_3d/wire.py's
         Wire._compute_obb for why this degenerates to the same envelope
         as _compute_aabb rather than a single tight rotated box."""
         if self._vbo is None:
@@ -271,7 +271,7 @@ class Wire(_base_schematic.BaseSchematic):
     def _update_position(self, _position: _point.Point):
         """Recompute geometry immediately whenever any endpoint or
         interior waypoint moves -- mirrors
-        ``objects3d/wire.py``'s ``Wire._update_position`` exactly (this
+        ``objects_3d/wire.py``'s ``Wire._update_position`` exactly (this
         wire's own ``numpy_position`` cache is never read; every point is
         read fresh from its live Point object every time, so there's
         nothing for the inherited ``BaseVar`` implementation to usefully
@@ -282,7 +282,7 @@ class Wire(_base_schematic.BaseSchematic):
     @_check_types.do
     def set_start_position(self, point: _point.Point) -> None:
         """Repoint this wire's own 2D start end to *point* entirely --
-        mirrors ``objects3d/wire.py``'s ``Wire.set_start_position`` (same
+        mirrors ``objects_3d/wire.py``'s ``Wire.set_start_position`` (same
         "caller already computed where this should be, nothing here
         moves it" contract; the old start point is left alone as an
         independent point). Also updates ``self._position`` --
@@ -308,7 +308,7 @@ class Wire(_base_schematic.BaseSchematic):
     def _bind_waypoints(self):
         """(Re)bind every current interior 2D waypoint's own Point to
         :meth:`_update_position`, so dragging one recomputes this wire's
-        geometry live -- mirrors ``objects3d/wire.py``'s
+        geometry live -- mirrors ``objects_3d/wire.py``'s
         ``Wire._bind_waypoints``.
         """
         for point in self._waypoint_points:
@@ -324,7 +324,7 @@ class Wire(_base_schematic.BaseSchematic):
         """Public entry point for handlers: call after this wire's own
         2D waypoint rows change (added, removed, or reordered) so live
         callbacks and geometry all catch up -- mirrors
-        ``objects3d/wire.py``'s ``Wire.refresh_waypoints``.
+        ``objects_3d/wire.py``'s ``Wire.refresh_waypoints``.
         """
         self._bind_waypoints()
         self._recalculate_geometry()
@@ -453,7 +453,7 @@ class Wire(_base_schematic.BaseSchematic):
     @_check_types.do
     def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
         """Render every sub-segment of the wire's current 2D path,
-        mirroring ``objects3d/wire.py``'s ``Wire.render`` -- temporarily
+        mirroring ``objects_3d/wire.py``'s ``Wire.render`` -- temporarily
         points this object at each segment's own position/angle/scale
         before delegating to the base class's single-transform draw call,
         once per segment.
@@ -471,7 +471,7 @@ class Wire(_base_schematic.BaseSchematic):
         """Render this wire's stripe (if its part has a stripe color) as
         a clipped window into the shared helix mesh, once per sub-segment
         -- see the class docstring. Piggybacks on this wire's own render
-        pass, same as ``objects3d/wire.py``'s ``WireStripe`` (not a
+        pass, same as ``objects_3d/wire.py``'s ``WireStripe`` (not a
         separately-registered scene object; nothing else ever calls this
         for it).
         """

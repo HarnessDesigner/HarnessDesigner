@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import cavity as _cavity_schematic
-from .objects3d import cavity as _cavity_3d
-from .objectspeg import cavity as _cavity_peg
+from .objects_3d import cavity as _cavity_3d
+from .objects_pegboard import cavity as _cavity_pegboard
 from .. import check_types as _check_types
 
 
@@ -24,7 +24,7 @@ class Cavity(_ObjectBase):
     """
     objschematic: _cavity_schematic.Cavity = None
     obj3d: _cavity_3d.Cavity = None
-    objpeg: _cavity_peg.Cavity = None
+    objpegboard: _cavity_pegboard.Cavity = None
     db_obj: "_pjt_cavity.PJTCavity" = None
 
     @_check_types.do
@@ -47,7 +47,7 @@ class Cavity(_ObjectBase):
 
         self.objschematic = _cavity_schematic.Cavity(self, db_obj)
         self.obj3d = _cavity_3d.Cavity(self, db_obj)
-        self.objpeg = _cavity_peg.Cavity(self, db_obj)
+        self.objpegboard = _cavity_pegboard.Cavity(self, db_obj)
 
         self.mainframe.add_object(self)
 

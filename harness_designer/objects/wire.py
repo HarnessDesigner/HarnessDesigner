@@ -7,8 +7,8 @@ from . import ObjectBase as _ObjectBase
 from . import terminal as _terminal
 from . import splice as _splice
 from .objects_schematic import wire as _wire_schematic
-from .objects3d import wire as _wire_3d
-from .objectspeg import wire as _wire_peg
+from .objects_3d import wire as _wire_3d
+from .objects_pegboard import wire as _wire_pegboard
 from .. import check_types as _check_types
 
 
@@ -25,7 +25,7 @@ class Wire(_ObjectBase):
     """
     objschematic: _wire_schematic.Wire = None
     obj3d: _wire_3d.Wire = None
-    objpeg: _wire_peg.Wire = None
+    objpegboard: _wire_pegboard.Wire = None
     db_obj: "_pjt_wire.PJTWire" = None
 
     @_check_types.do
@@ -48,7 +48,7 @@ class Wire(_ObjectBase):
 
         self.objschematic = _wire_schematic.Wire(self, db_obj)
         self.obj3d = _wire_3d.Wire(self, db_obj)
-        self.objpeg = _wire_peg.Wire(self, db_obj)
+        self.objpegboard = _wire_pegboard.Wire(self, db_obj)
 
         # Sibling graph: whatever this wire's own start/stop end attaches to
         # -- a Terminal, Splice, or WireServiceLoop, never another Wire (two

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .... import objects as _objects
-from ....objects.objects3d import base3d as _base3d
+from ....objects.objects_3d import base_3d as _base_3d
 from ....geometry import point as _point
 from ....shapes import box as _box
 from ....gl import materials as _materials
@@ -48,7 +48,7 @@ class Cavity(_objects.ObjectBase):
         parent.add_object(self)
 
 
-class Cavity3D(_base3d.Base3D):
+class Cavity3D(_base_3d.Base3D):
     """Represent a cavity 3D in :mod:`harness_designer.ui.dialogs.housing_editor.cavity_obj`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -80,9 +80,8 @@ class Cavity3D(_base3d.Base3D):
         with parent.dialog.mainframe.editor3d.context:
             vbo = self.build()
 
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo,
-                                    self._angle, self._position, self._scale,
-                                    material)
+            super().__init__(parent, db_obj, vbo,
+                             self._angle, self._position, self._scale, material)
 
             self._selected_material = _materials.Plastic(
                 _color.Color(0.3, 1.0, 0.3, 1.0))
@@ -112,7 +111,7 @@ class Cavity3D(_base3d.Base3D):
         # try_pick_cavity) hijacks the next drag from camera-orbit into
         # object dragging. See Housing.set_selected for the same guard.
         if self.dialog.can_select:
-            _base3d.Base3D.set_selected(self, flag)
+            super().set_selected(flag)
 
     @property
     @_check_types.do

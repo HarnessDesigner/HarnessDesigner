@@ -11,7 +11,7 @@ from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
-    from ...objects.objects3d import transition as _objects3d_transition
+    from ...objects.objects_3d import transition as _transition_3d
 
 
 # ---------------------------------------------------------------------------
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 def _color_name(color_obj) -> str:
     if color_obj is None:
         return 'None'
+
     return str(color_obj.name)
 
 
@@ -194,14 +195,14 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
     """Show one list per output branch; allow drag-and-drop wire reassignment."""
 
     @_check_types.do
-    def __init__(self, parent, transition_3d: "_objects3d_transition.Transition"):
+    def __init__(self, parent, transition_3d: "_transition_3d.Transition"):
         super().__init__(parent, 'Route Wires', size=(780, 520))
         self._transition_3d = transition_3d
         self._branch_groups: list[_BranchGroup] = []
         self._build_ui(transition_3d)
 
     @_check_types.do
-    def _build_ui(self, transition_3d: "_objects3d_transition.Transition"):
+    def _build_ui(self, transition_3d: "_transition_3d.Transition"):
         transition_db = transition_3d.db_obj
         g_transition = transition_db.part
         g_branches = g_transition.branches  # list, index 0 = trunk (branch_id 1)

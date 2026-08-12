@@ -3,7 +3,7 @@
 """Floating, draggable/resizable data-table overlays for the Peg Board
 Editor -- one per anchor point3d_id (or, for a transition, one per
 populated branch's own ``position3d_id`` -- see
-``objectspeg.transition.Transition.table_anchor_points``).
+``objects_pegboard.transition.Transition.table_anchor_points``).
 
 Structurally the closest existing precedent is
 ``gl.canvas3d.axis_overlay.Overlay`` (a plain ``QWidget`` child of a GL
@@ -194,7 +194,7 @@ class PegboardTableWidget(QtWidgets.QWidget):
 
         # This table's owning anchor point's live, bound position Point --
         # the actual object the anchor's own position mutates in place on
-        # every drag (see objectspeg.basepeg.BasePeg.table_anchor_live_
+        # every drag (see objects_pegboard.base_pegboard.BasePegboard.table_anchor_live_
         # position), NOT a detached copy of its x/z. Only used for the
         # drag leader-line's anchor-side endpoint, but it must be the live
         # reference: a one-time float snapshot goes stale (and the line's
@@ -393,7 +393,7 @@ class TablesOverlay:
         :param include_cavity_columns: Forwarded to :class:`table_model.PegboardTableModel`.
         :type include_cavity_columns: bool
         :param anchor_live_position: The owning anchor's own live, bound
-            position Point (``objectspeg.basepeg.BasePeg.
+            position Point (``objects_pegboard.base_pegboard.BasePegboard.
             table_anchor_live_position``) -- stored by reference, not
             copied, so the table-drag leader line always tracks the
             anchor's current position (see
@@ -433,8 +433,8 @@ class TablesOverlay:
     @_check_types.do
     def remove_tables_for_points(self, point3d_ids) -> None:
         """Tear down every table overlay in *point3d_ids* -- called on
-        anchor removal, once per that anchor's own :attr:`~objectspeg.
-        basepeg.BasePeg.table_anchor_points`."""
+        anchor removal, once per that anchor's own :attr:`~objects_pegboard.
+        base_pegboard.BasePegboard.table_anchor_points`."""
         for point3d_id in point3d_ids:
             self.remove_table(point3d_id)
 

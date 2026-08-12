@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from .... import objects as _objects
-from ....objects.objects3d import base3d as _base3d
+from ....objects.objects_3d import base_3d as _base_3d
 from ....geometry import point as _point
 from ....geometry import angle as _angle
 from ....shapes import box as _box
@@ -53,7 +53,7 @@ class Housing(_objects.ObjectBase):
         #     super().set_selected(flag)
 
 
-class Housing3D(_base3d.Base3D):
+class Housing3D(_base_3d.Base3D):
     """Represent a housing 3D in :mod:`harness_designer.ui.dialogs.housing_editor.housing_obj`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -119,8 +119,7 @@ class Housing3D(_base3d.Base3D):
             material = _materials.Plastic(
                 _color.Color(0.6, 0.6, 0.8, 0.6))
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle3d, position3d, scale3d, material)
+            super().__init__(parent, db_obj, vbo, angle3d, position3d, scale3d, material)
 
             self._selected_material = _materials.Plastic(
                 _color.Color(0.3, 0.8, 0.3, 1.0))

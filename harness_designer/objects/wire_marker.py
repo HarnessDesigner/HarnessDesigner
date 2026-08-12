@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import wire_marker as _wire_marker_3d
+from .objects_3d import wire_marker as _wire_marker_3d
 from .objects_schematic import wire_marker as _wire_marker_schematic
-from .objectspeg import wire_marker as _wire_marker_peg
+from .objects_pegboard import wire_marker as _wire_marker_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class WireMarker(_ObjectBase):
     """
     objschematic: _wire_marker_schematic.WireMarker = None
     obj3d: _wire_marker_3d.WireMarker = None
-    objpeg: _wire_marker_peg.WireMarker = None
+    objpegboard: _wire_marker_pegboard.WireMarker = None
     db_obj: "_wire_marker.PJTWireMarker" = None
 
     @_check_types.do
@@ -44,7 +44,7 @@ class WireMarker(_ObjectBase):
 
         self.objschematic = _wire_marker_schematic.WireMarker(self, db_obj)
         self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)
-        self.objpeg = _wire_marker_peg.WireMarker(self, db_obj)
+        self.objpegboard = _wire_marker_pegboard.WireMarker(self, db_obj)
 
         self.mainframe.add_object(self)
 

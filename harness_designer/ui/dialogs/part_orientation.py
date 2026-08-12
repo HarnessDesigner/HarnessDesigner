@@ -14,7 +14,7 @@ from ...gl import canvas3d as _canvas3d
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ...objects import ObjectBase as _ObjectBase
-from ...objects.objects3d import base3d as _base3d
+from ...objects.objects_3d import base_3d as _base_3d
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry.angle import quaternion as _quaternion
@@ -148,7 +148,7 @@ class PartModel(_ObjectBase):
         pass
 
 
-class PartModel3D(_base3d.Base3D):
+class PartModel3D(_base_3d.Base3D):
     """3D representation of the part model being oriented.
 
     Uses working copies of angle and position — changes are only written
@@ -196,7 +196,7 @@ class PartModel3D(_base3d.Base3D):
             scale = model_db.scale
             material = _materials.Plastic(_color.Color(0.6, 0.6, 0.8, 1.0))
 
-            _base3d.Base3D.__init__(self, parent, model_db, vbo, angle, pos, scale, material)
+            super().__init__(parent, model_db, vbo, angle, pos, scale, material)
             self._is_visible = True
 
     @_check_types.do
@@ -233,7 +233,7 @@ class AxisLabel(_ObjectBase):
         pass
 
 
-class AxisLabel3D(_base3d.Base3D):
+class AxisLabel3D(_base_3d.Base3D):
     """3D extruded text label indicating a canonical axis direction."""
 
     @_check_types.do
@@ -254,7 +254,7 @@ class AxisLabel3D(_base3d.Base3D):
             scale = _point.Point(1.0, 1.0, 1.0)
             material = _materials.Plastic(_color.Color(1.0, 0.85, 0.0, 1.0))
 
-            _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
+            super().__init__(parent, None, vbo, angle, position, scale, material)
             self._is_visible = True
 
     @_check_types.do

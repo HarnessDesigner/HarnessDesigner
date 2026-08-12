@@ -5,8 +5,8 @@ import weakref
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import bundle as _bundle_schematic
-from .objects3d import bundle as _bundle_3d
-from .objectspeg import bundle as _bundle_peg
+from .objects_3d import bundle as _bundle_3d
+from .objects_pegboard import bundle as _bundle_pegboard
 from .. import check_types as _check_types
 
 
@@ -23,7 +23,7 @@ class Bundle(_ObjectBase):
     """
     objschematic: _bundle_schematic.Bundle = None
     obj3d: _bundle_3d.Bundle = None
-    objpeg: _bundle_peg.Bundle = None
+    objpegboard: _bundle_pegboard.Bundle = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 
     @_check_types.do
@@ -45,7 +45,7 @@ class Bundle(_ObjectBase):
 
         self.objschematic = _bundle_schematic.Bundle(self, db_obj)
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
-        self.objpeg = _bundle_peg.Bundle(self, db_obj)
+        self.objpegboard = _bundle_pegboard.Bundle(self, db_obj)
 
         # Sibling graph: whatever this bundle's own start/stop end attaches
         # to -- always a Transition (a bundle's trunk end can only ever

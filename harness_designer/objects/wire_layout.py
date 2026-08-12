@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import wire_layout as _wire3d_layout
+from .objects_3d import wire_layout as _wire3d_layout
 from .objects_schematic import wire_layout as _wire_layout_schematic
-from .objectspeg import wire_layout as _wirepeg_layout
+from .objects_pegboard import wire_layout as _wire_layout_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class WireLayout(_ObjectBase):
     """
     objschematic: _wire_layout_schematic.WireLayout = None
     obj3d: _wire3d_layout.WireLayout = None
-    objpeg: _wirepeg_layout.WireLayout = None
+    objpegboard: _wire_layout_pegboard.WireLayout = None
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
     @_check_types.do
@@ -44,7 +44,7 @@ class WireLayout(_ObjectBase):
 
         self.objschematic = _wire_layout_schematic.WireLayout(self, db_obj)
         self.obj3d = _wire3d_layout.WireLayout(self, db_obj)
-        self.objpeg = _wirepeg_layout.WireLayout(self, db_obj)
+        self.objpegboard = _wire_layout_pegboard.WireLayout(self, db_obj)
 
         self.mainframe.add_object(self)
 

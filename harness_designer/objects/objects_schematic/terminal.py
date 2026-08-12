@@ -81,13 +81,13 @@ class Terminal(_base_schematic.BaseSchematic):
         self._part = db_obj.part
 
         # _mesh_args()/_build() (below) read self.db_obj -- set it before
-        # that first call, same as objects3d/note.py's Note.__init__ does
+        # that first call, same as objects_3d/note.py's Note.__init__ does
         # (BaseSchematic.__init__, which normally sets this, doesn't run until
         # after _build() since the VBO it builds is one of its own args).
         self.db_obj = db_obj
 
         # This terminal's own id into shapes.text's VBO registry --
-        # generated and owned here, exactly like objects3d/note.py's
+        # generated and owned here, exactly like objects_3d/note.py's
         # Note._text_uuid.
         self._text_uuid = str(_uuid_module.uuid4())
 
@@ -286,7 +286,7 @@ class TerminalMenu(QMenu):
         ``handlers/wire_handler_2d.py``), pinned to this terminal as the
         start end.
         """
-        from ..objects3d import menu_ops as _menu_ops
+        from ..objects_3d import menu_ops as _menu_ops
         from ...handlers import wire_handler_2d as _wire_handler_2d
 
         mainframe = self.selected.mainframe

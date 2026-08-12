@@ -62,13 +62,13 @@ class Cavity(_base_schematic.BaseSchematic):
         """
 
         # _mesh_args()/_build() (below) read self.db_obj -- set it before
-        # that first call, same as objects3d/note.py's Note.__init__ does
+        # that first call, same as objects_3d/note.py's Note.__init__ does
         # (BaseSchematic.__init__, which normally sets this, doesn't run until
         # after _build() since the VBO it builds is one of its own args).
         self.db_obj = db_obj
 
         # This cavity's own id into shapes.text's VBO registry -- generated
-        # and owned here, exactly like objects3d/note.py's Note._text_uuid.
+        # and owned here, exactly like objects_3d/note.py's Note._text_uuid.
         self._text_uuid = str(_uuid_module.uuid4())
 
         position = db_obj.position2d

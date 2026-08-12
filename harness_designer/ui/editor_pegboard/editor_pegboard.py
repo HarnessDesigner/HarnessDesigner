@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6 import QtCore
 
 from ...gl import canvas_pegboard as _canvas_pegboard
-from ...objects.objectspeg import basepeg as _basepeg
+from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 from ... import config as _config
 from .. import dock_base as _dock_base
 from ... import check_types as _check_types
@@ -51,7 +51,7 @@ class EditorPegBoard(_dock_base.DockBase):
         """Return the GL context manager owned by the inner canvas.
 
         Mirrors ``ui.editor_3d.editor3d.Editor3D.context`` -- needed by
-        ``objects.objectspeg.basepeg.BasePeg._set_model``'s
+        ``objects.objects_pegboard.base_pegboard.BasePegboard._set_model``'s
         ``self.pegboard.context.acquire()``/``.release()`` calls, which
         otherwise have nowhere to resolve to.
 
@@ -93,7 +93,7 @@ class EditorPegBoard(_dock_base.DockBase):
         Add an object.
 
         Incremental now -- forwards to :class:`EditorPegBoardPanel`, which
-        registers ``obj.objpeg`` with the inner ``Canvas`` (skipping every
+        registers ``obj.objpegboard`` with the inner ``Canvas`` (skipping every
         type that isn't a real, active anchor).
 
         :param obj: Object instance to operate on.
@@ -108,7 +108,7 @@ class EditorPegBoard(_dock_base.DockBase):
         Remove the object.
 
         Incremental now -- forwards to :class:`EditorPegBoardPanel`, which
-        unregisters ``obj.objpeg`` from the inner ``Canvas`` (skipping every
+        unregisters ``obj.objpegboard`` from the inner ``Canvas`` (skipping every
         type that isn't a real, active anchor).
 
         :param obj: Object instance to operate on.
@@ -246,7 +246,7 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
 
         Every :class:`~harness_designer.objects.object_base.ObjectBase`
         subclass has its own dedicated
-        :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`
+        :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`
         subclass (never a shared stub), but most construct it with
         ``vbo=None`` -- inert, ``is_active`` is ``False`` -- so this just
         skips those, matching
@@ -256,11 +256,11 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        objpeg = getattr(obj, 'objpeg', None)
-        if objpeg is None or not isinstance(objpeg, _basepeg.BasePeg) or not objpeg.is_active:
+        objpegboard = getattr(obj, 'objpegboard', None)
+        if objpegboard is None or not isinstance(objpegboard, _base_pegboard.BasePegboard) or not objpegboard.is_active:
             return
 
-        self._canvas.add_anchor(objpeg)
+        self._canvas.add_anchor(objpegboard)
 
     @_check_types.do
     def remove_object(self, obj):
@@ -273,11 +273,11 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        objpeg = getattr(obj, 'objpeg', None)
-        if objpeg is None or not isinstance(objpeg, _basepeg.BasePeg) or not objpeg.is_active:
+        objpegboard = getattr(obj, 'objpegboard', None)
+        if objpegboard is None or not isinstance(objpegboard, _base_pegboard.BasePegboard) or not objpegboard.is_active:
             return
 
-        self._canvas.remove_anchor(objpeg)
+        self._canvas.remove_anchor(objpegboard)
 
     @_check_types.do
     def set_clone_obj(self, obj):

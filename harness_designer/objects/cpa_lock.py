@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import cpa_lock as _cpa_lock_schematic
-from .objects3d import cpa_lock as _cpa_lock_3d
-from .objectspeg import cpa_lock as _cpa_lock_peg
+from .objects_3d import cpa_lock as _cpa_lock_3d
+from .objects_pegboard import cpa_lock as _cpa_lock_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class CPALock(_ObjectBase):
     """
     objschematic: _cpa_lock_schematic.CPALock = None
     obj3d: _cpa_lock_3d.CPALock = None
-    objpeg: _cpa_lock_peg.CPALock = None
+    objpegboard: _cpa_lock_pegboard.CPALock = None
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
 
     @_check_types.do
@@ -44,7 +44,7 @@ class CPALock(_ObjectBase):
 
         self.objschematic = _cpa_lock_schematic.CPALock(self, db_obj)
         self.obj3d = _cpa_lock_3d.CPALock(self, db_obj)
-        self.objpeg = _cpa_lock_peg.CPALock(self, db_obj)
+        self.objpegboard = _cpa_lock_pegboard.CPALock(self, db_obj)
 
         self.mainframe.add_object(self)
 

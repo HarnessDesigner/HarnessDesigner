@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects3d import generic as _generic3d
+from .objects_3d import generic as _generic3d
 from .objects_schematic import generic as _generic_schematic
-from .objectspeg import generic as _genericpeg
+from .objects_pegboard import generic as _generic_pegboard
 from .. import check_types as _check_types
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ class Generic(_ObjectBase):
     """
     objschematic: _generic_schematic.Generic
     obj3d: _generic3d.Generic
-    objpeg: _genericpeg.Generic
+    objpegboard: _generic_pegboard.Generic
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame"):
@@ -35,4 +35,4 @@ class Generic(_ObjectBase):
 
         self.objschematic = _generic_schematic.Generic(self)
         self.obj3d = _generic3d.Generic(self)
-        self.objpeg = _genericpeg.Generic(self)
+        self.objpegboard = _generic_pegboard.Generic(self)

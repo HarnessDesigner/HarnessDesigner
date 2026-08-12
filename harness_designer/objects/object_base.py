@@ -8,9 +8,9 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import ui as _ui
-    from .objects3d import base3d as _base3d
+    from .objects_3d import base_3d as _base_3d
     from .objects_schematic import base_schematic as _base_schematic
-    from .objectspeg import basepeg as _basepeg
+    from .objects_pegboard import base_pegboard as _base_pegboard
     from ..database import project_db as _project_db
 
 
@@ -20,8 +20,8 @@ class ObjectBase:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     objschematic: "_base_schematic.BaseSchematic" = None
-    obj3d: "_base3d.Base3D" = None
-    objpeg: "_basepeg.BasePeg" = None
+    obj3d: "_base_3d.Base3D" = None
+    objpegboard: "_base_pegboard.BasePegboard" = None
     db_obj: "_project_db.PJTEntryBase" = None
 
     @_check_types.do
@@ -57,8 +57,8 @@ class ObjectBase:
         if self.obj3d is not None:
             self.obj3d.identify(material)
 
-        if self.objpeg is not None:
-            self.objpeg.identify(material)
+        if self.objpegboard is not None:
+            self.objpegboard.identify(material)
 
     @_check_types.do
     def set_treeitem(self, treeitem) -> None:
@@ -99,8 +99,8 @@ class ObjectBase:
         if self.obj3d is not None:
             self.obj3d._delete()  # NOQA
 
-        if self.objpeg is not None:
-            self.objpeg._delete()  # NOQA
+        if self.objpegboard is not None:
+            self.objpegboard._delete()  # NOQA
 
         self.mainframe.remove_object(self)
 
@@ -135,8 +135,8 @@ class ObjectBase:
         if self.obj3d is not None:
             self.obj3d.set_selected(flag)
 
-        if self.objpeg is not None:
-            self.objpeg.set_selected(flag)
+        if self.objpegboard is not None:
+            self.objpegboard.set_selected(flag)
 
         if flag:
             self.mainframe._set_selected(self)  # NOQA
@@ -173,8 +173,8 @@ class ObjectBase:
         if self.obj3d is not None and self.obj3d.is_selected != value:
             self.obj3d.set_selected(value)
 
-        if self.objpeg is not None and self.objpeg.is_selected != value:
-            self.objpeg.set_selected(value)
+        if self.objpegboard is not None and self.objpegboard.is_selected != value:
+            self.objpegboard.set_selected(value)
 
     @property
     @_check_types.do

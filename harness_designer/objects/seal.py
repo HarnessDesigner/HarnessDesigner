@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import seal as _seal_schematic
-from .objects3d import seal as _seal_3d
-from .objectspeg import seal as _seal_peg
+from .objects_3d import seal as _seal_3d
+from .objects_pegboard import seal as _seal_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class Seal(_ObjectBase):
     """
     objschematic: _seal_schematic.Seal = None
     obj3d: _seal_3d.Seal = None
-    objpeg: _seal_peg.Seal = None
+    objpegboard: _seal_pegboard.Seal = None
     db_obj: "_pjt_seal.PJTSeal" = None
 
     @_check_types.do
@@ -44,7 +44,7 @@ class Seal(_ObjectBase):
 
         self.objschematic = _seal_schematic.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
-        self.objpeg = _seal_peg.Seal(self, db_obj)
+        self.objpegboard = _seal_pegboard.Seal(self, db_obj)
 
         self.mainframe.add_object(self)
 

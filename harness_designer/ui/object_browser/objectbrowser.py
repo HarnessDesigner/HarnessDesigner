@@ -1277,7 +1277,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         if obj is self.mainframe.get_selected():
             return
 
-        from ...objects.objects3d import menu_ops as _menu_ops
+        from ...objects.objects_3d import menu_ops as _menu_ops
 
         self.mainframe._selection_source_editor = 'object_browser'  # NOQA
         _menu_ops.select_object_for_object(self.mainframe, obj)
@@ -1298,7 +1298,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         if obj is None:
             return
 
-        from ...objects.objects3d import menu_ops as _menu_ops
+        from ...objects.objects_3d import menu_ops as _menu_ops
 
         _menu_ops.show_properties_for_object(self.mainframe, obj)
 

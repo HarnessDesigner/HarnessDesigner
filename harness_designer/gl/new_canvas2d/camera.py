@@ -131,23 +131,17 @@ if TYPE_CHECKING:
 ZERO_POINT = _point.ZERO_POINT
 
 
-# Pre-allocated world-up constant — avoids repeated array allocation in
-# _calculate_camera() and _rotate_about() which are called on every frame
-# and every mouse-drag event respectively.
-_WORLD_UP = np.array([0.0, 1.0, 0.0], dtype=np.float32)
-
-# Fixed camera basis used while config.edit2d.enable is True (locked
-# straight-down "bird's-eye" view). The generic cross-product derivation in
-# _calculate_camera() is degenerate exactly at straight-down (forward
-# parallel to world-up) — these are hardcoded instead of derived so that
-# degenerate case is never evaluated. Chosen so world X maps to screen X and
-# world Z maps to screen Y, using the same
+# Fixed camera basis -- this camera is permanently locked looking straight
+# down the world Y axis (new_canvas2d is dedicated to the flat schematic/
+# pegboard views, never a freely-orientable 3D camera), so there is no
+# per-frame cross-product basis derivation needed at all. Chosen so world
+# X maps to screen X and world Z maps to screen Y, using the same
 # right = cross(world_up, forward) / up = cross(forward, right) convention
-# as the unlocked branch below (verified: cross(_LOCKED_FORWARD,
-# _LOCKED_RIGHT) == _LOCKED_UP).
-_LOCKED_FORWARD = np.array([0.0, -1.0, 0.0], dtype=np.float32)
-_LOCKED_RIGHT = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-_LOCKED_UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+# gl.canvas3d.camera.Camera's own locked top-down mode uses (verified:
+# cross(_FORWARD, _RIGHT) == _UP).
+_FORWARD = np.array([0.0, -1.0, 0.0], dtype=np.float32)
+_RIGHT = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+_UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
 
 class Camera:
@@ -425,7 +419,9 @@ class Camera:
     @_check_types.do
     def Reset(self):
         """
-        Reset the camers back to its home position.
+        Reset the camera back to its home position -- directly above the
+        origin, looking straight down (this camera is permanently locked
+        to that pose, see _FORWARD/_RIGHT/_UP above).
         """
         with self._position and self._focal_position:
             self._focal_position.x = 0.0
@@ -434,13 +430,7 @@ class Camera:
 
             self._position.x = 0.0
             self._position.y = self.canvas.config.floor.ground_height + 100.0
-
-            if self.canvas.config.edit2d.enable:
-                # Keep the reset pose inside the locked straight-down view
-                # instead of jumping to the perspective default.
-                self._position.z = 0.0
-            else:
-                self._position.z = 75.0
+            self._position.z = 0.0
 
         self._update_camera(None)
         self._send_event(_events.EVT_GL_CAMERA_RESET)
@@ -535,84 +525,27 @@ class Camera:
     def _calculate_camera(self):
         """
         Calculate the camera.
+
+        This camera's orientation is permanently fixed (see _FORWARD/
+        _RIGHT/_UP above), unlike gl.canvas3d.camera.Camera's freely-
+        orientable version this class was originally derived from -- so
+        there is no per-frame cross-product basis derivation to run. The
+        only thing that actually changes frame to frame is
+        focal_distance, which drives the orthographic projection's zoom
+        level (see Canvas._ortho_bounds).
         """
 
         pos = self._position.as_numpy
         fp = self._focal_position.as_numpy
 
-        forward = fp - pos
-
-        focal_distance = np.linalg.norm(forward)
+        focal_distance = np.linalg.norm(fp - pos)
         if focal_distance < 1e-6:
             return
 
-        if self.canvas.config.edit2d.enable:
-            self._forward = _LOCKED_FORWARD.copy()
-            self._right = _LOCKED_RIGHT.copy()
-            self._up = _LOCKED_UP.copy()
-            self._focal_distance = float(focal_distance)
-            return
-
-        forward = forward / focal_distance
-
-        world_up = _WORLD_UP.copy()
-        dot = float(np.dot(forward, world_up))
-
-        # When the view direction gets too close to the world-up vector the
-        # look-at basis becomes ill-conditioned. Preserve the previous camera up
-        # vector in that case so zooming through very small focal distances does
-        # not cause a sudden 90° roll.
-        if abs(dot) > 0.9999 and self._up is not None:
-            up = np.array(self._up, dtype=np.float32)
-            un = np.linalg.norm(up)
-            if un < 1e-6:
-                up = world_up.copy()
-                # un = 1.0
-            else:
-                up = up / un
-
-            right = np.cross(forward, up)  # NOQA
-            rn = np.linalg.norm(right)
-            if rn < 1e-6:
-                fallback_axis = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-                if abs(float(np.dot(forward, fallback_axis))) > 0.9999:
-                    fallback_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
-
-                right = np.cross(fallback_axis, forward)  # NOQA
-                rn = np.linalg.norm(right)
-
-            right = right / rn
-            up = np.cross(right, forward)  # NOQA
-            un = np.linalg.norm(up)
-            up = up / (un if un >= 1e-6 else 1.0)
-        else:
-            right = np.cross(world_up, forward)  # NOQA
-
-            rn = np.linalg.norm(right)
-            if rn < 1e-6:
-                right = np.array([1.0, 0.0, 0.0], dtype=np.float32)
-                # rn = 1.0
-            else:
-                right = right / rn
-
-            up = np.cross(forward, right)  # NOQA
-
-            un = np.linalg.norm(up)
-            if un < 1e-6:
-                up = world_up.copy()
-                # un = 1.0
-            else:
-                up = up / un
-
-        # self._forward_norm = focal_distance
-        # self._right_norm = rn
-        # self._up_norm = un
-
-        self._up = up
-        self._right = right
-        self._forward = forward
-
-        self._focal_distance = focal_distance
+        self._forward = _FORWARD.copy()
+        self._right = _RIGHT.copy()
+        self._up = _UP.copy()
+        self._focal_distance = float(focal_distance)
 
     @_debug.logfunc
     @_check_types.do

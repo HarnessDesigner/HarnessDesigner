@@ -6,7 +6,7 @@ import numpy as np
 from OpenGL import GL
 
 from ...shapes import arrow as _arrow
-from ...objects.objects3d import base3d as _base3d
+from ...objects.objects_3d import base_3d as _base_3d
 from ...objects.objects_schematic import base_schematic as _base_schematic
 from ...objects import object_base as _object_base
 from ...geometry import point as _point
@@ -196,7 +196,7 @@ class Arrows2D(_base_schematic.BaseSchematic):
         return False
 
 
-class Arrows3D(_base3d.Base3D):
+class Arrows3D(_base_3d.Base3D):
     """Represent an arrows 3D in :mod:`harness_designer.gl.canvas3d.move_arrows`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -273,8 +273,8 @@ class Arrows3D(_base3d.Base3D):
 
         with mainframe.editor3d.context:
             vbo = _arrow.create_vbo()
-            _base3d.Base3D.__init__(self, parent, None, vbo,
-                                    arrow_angle, position, scale, material)
+            super().__init__(parent, None, vbo,
+                             arrow_angle, position, scale, material)
 
         self._floor_guard = False
         self._compute_aabb()

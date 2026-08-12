@@ -90,7 +90,7 @@ def wire_image_pixmap(wire: "_pjt_wire.PJTWire") -> QtGui.QPixmap:
     same :class:`~harness_designer.database.global_db.plating.Plating`
     class a terminal's own ``.plating`` is, and the same ``.color``
     property (plating-symbol-to-color-name, resolved against
-    ``colors_table``) ``objects.objects3d.terminal.Terminal`` uses for its
+    ``colors_table``) ``objects.objects_3d.terminal.Terminal`` uses for its
     own material.
 
     ``part.stripe_color`` raises ``KeyError`` (pre-existing, unrelated bug

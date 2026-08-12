@@ -32,12 +32,12 @@ class WireMarker(_base_schematic.BaseSchematic):
 
     Renders as a small colored cylinder band along the wire -- the same
     shared ``shapes/cylinder.py`` mesh ``objects_schematic/wire.py``'s ``Wire``
-    (and ``objects3d/wire_marker.py``'s ``WireMarker``) use, since the
+    (and ``objects_3d/wire_marker.py``'s ``WireMarker``) use, since the
     ``schematic2d`` shader already does the full 3D transform before
     projecting to 2D -- sitting at a percentage along the wire's length,
     tracked and re-clamped as either the marker or the wire's own
     endpoints move. Structurally mirrors
-    ``objects3d/wire_marker.py``'s ``WireMarker`` (percent-of-buffered-
+    ``objects_3d/wire_marker.py``'s ``WireMarker`` (percent-of-buffered-
     range tracking, wire-too-short guard, ``rebind_wire`` for a split
     wire), with one 2D-specific difference: its rotation is computed directly
     (``atan2(dx, dz)`` about world Y, same formula ``objects_schematic/wire.py``
@@ -234,7 +234,7 @@ class WireMarker(_base_schematic.BaseSchematic):
         row's endpoints) would otherwise be silently orphaned. The
         caller is responsible for picking the correct new wire and
         persisting ``db_obj.wire_id`` -- mirrors
-        ``objects3d/wire_marker.py``'s ``WireMarker.rebind_wire`` exactly,
+        ``objects_3d/wire_marker.py``'s ``WireMarker.rebind_wire`` exactly,
         though nothing calls this one yet (only the 3D side is wired
         into ``handlers/wire_layout_handler.py``/
         ``handlers/wire_service_loop_handler.py`` currently).

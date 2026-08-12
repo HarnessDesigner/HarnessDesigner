@@ -15,7 +15,7 @@ snapping feel "hit or miss".
 The fix: reuse ``objects.wire_layout.WireLayout`` itself as the pickable
 hit-test target instead of inventing a new pickable object type. A real
 ``WireLayout`` already renders as a sphere sized to its wire's own
-``od_mm`` (see ``objects.objects3d.wire_layout.WireLayout.__init__``), and
+``od_mm`` (see ``objects.objects_3d.wire_layout.WireLayout.__init__``), and
 is already recognized by every hover/click branch that places or drags a
 wire. Handlers.wire_snap.SnapProbeSet builds one of these invisible
 probes at every location a wire is allowed to snap onto -- every
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 
 class _PseudoAttachedWire:
     """Stand-in for a ``PJTWire`` row, exposing only what a caller of
-    ``attached_wires()[0]`` actually reads: ``.part`` (objects3d/objects_schematic's
+    ``attached_wires()[0]`` actually reads: ``.part`` (objects_3d/objects_schematic's
     WireLayout constructors use ``.part.od_mm``/``.part.color.ui`` to size
     and color the marker sphere) and ``.part_id`` (wire_handler.py's
     ``_handle_first_click`` reads it to inherit the part being started from

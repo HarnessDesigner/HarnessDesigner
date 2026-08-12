@@ -11,7 +11,7 @@ from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
-    from ...objects.objects3d import bundle as _objects3d_bundle
+    from ...objects.objects_3d import bundle as _bundle_3d
 
 
 # ---------------------------------------------------------------------------
@@ -67,12 +67,12 @@ class BundleWiresDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent, bundle_3d: "_objects3d_bundle.Bundle"):
+    def __init__(self, parent, bundle_3d: "_bundle_3d.Bundle"):
         super().__init__(parent, 'Bundle Wire Contents', size=(620, 420))
         self._build_ui(bundle_3d)
 
     @_check_types.do
-    def _build_ui(self, bundle_3d: "_objects3d_bundle.Bundle"):
+    def _build_ui(self, bundle_3d: "_bundle_3d.Bundle"):
         bundle_db = bundle_3d.db_obj
         g_part = bundle_db.part  # BundleCover global part
 

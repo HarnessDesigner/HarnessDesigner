@@ -10,7 +10,7 @@ Terminal-attached start (*terminal* argument given):
   Phase 0 is skipped — a part-search dialog (pre-filtered to wires whose
   diameter fits the terminal's crimp range) opens immediately, and the
   preview wire starts pinned to the terminal, straight into phase 1.
-  Invoke via :func:`objects.objects3d.menu_ops.start_handler`.
+  Invoke via :func:`objects.objects_3d.menu_ops.start_handler`.
 
 Start-click variants:
   WireLayout  → part_id inherited from the attached wire; start at layout position.
@@ -265,7 +265,7 @@ def _get_splice_compat_pns(mainframe, splice_obj):
 @_check_types.do
 def _pick_free_end(mainframe, wire_obj: _wire.Wire, click_pos: _point.Point = None) -> str | None:
     """Return ``'start'``/``'stop'`` -- whichever end of *wire_obj* is free
-    to extend/add onto (see ``objects.objects3d.wire.WireMenu``'s Extend
+    to extend/add onto (see ``objects.objects_3d.wire.WireMenu``'s Extend
     Wire/Add to Wire actions) -- or ``None`` if both ends are anchored to a
     terminal/cavity (those menu actions are disabled in that case).
 
@@ -754,7 +754,7 @@ class AddWireHandler(_handler_base.HandlerBase):
         # Wire._update_position (bound to this point) only marks the
         # wire's geometry stale for the next render -- unlike most other
         # objects' _update_position, it doesn't request a repaint itself
-        # (see objects.objects3d.wire.Wire._update_position), so without
+        # (see objects.objects_3d.wire.Wire._update_position), so without
         # this the preview only catches up whenever something else
         # happens to trigger a repaint (zoom, camera move).
         self.mainframe.editor3d.Refresh(False)

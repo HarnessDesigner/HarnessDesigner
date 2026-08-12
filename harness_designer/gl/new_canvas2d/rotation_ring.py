@@ -10,7 +10,7 @@ Euler-axis ``gl.canvas3d.rotation_rings.RotationRings``, every 2D-plane
 editor only ever needs a single-axis ring, so this one class covers all of
 them. *target* only needs to duck-type ``.position`` (``.x``/``.y``/``.z``),
 ``.angle.y``, and ``.aabb`` -- both ``objects.objects_schematic.base_schematic.BaseSchematic``
-(schematic) and ``objects.objectspeg.basepeg.BasePeg`` (peg board) already
+(schematic) and ``objects.objects_pegboard.base_pegboard.BasePegboard`` (peg board) already
 satisfy that shape, so nothing here is specific to either. The one place
 2D editors *do* differ -- the schematic forces a hard 90-degree detent
 while the peg board's detent is optional/user-configurable -- is a
@@ -40,7 +40,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects.objects_schematic import base_schematic as _base_schematic
-    from ...objects.objectspeg import basepeg as _basepeg
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 
 
 # Ring radius as a multiple of the target's own largest in-plane half-extent
@@ -71,7 +71,7 @@ class RotationRing:
     Built for one *target* -- any object exposing ``.position`` (``.x``/
     ``.y``/``.z``), ``.angle.y``, and ``.aabb``, which both
     ``objects.objects_schematic.base_schematic.BaseSchematic`` (schematic) and
-    ``objects.objectspeg.basepeg.BasePeg`` (peg board) already satisfy --
+    ``objects.objects_pegboard.base_pegboard.BasePegboard`` (peg board) already satisfy --
     sized from the target's own live ``aabb`` footprint, centered on its
     current ``position`` (``.x``/``.z``, every 2D-plane editor's usual
     convention). The gizmo carries no rotation state of its own -- every
@@ -90,12 +90,12 @@ class RotationRing:
     """
 
     @_check_types.do
-    def __init__(self, target: Union["_base_schematic.BaseSchematic", "_basepeg.BasePeg"]):
+    def __init__(self, target: Union["_base_schematic.BaseSchematic", "_base_pegboard.BasePegboard"]):
         """Initialise the :class:`RotationRing` instance.
 
         :param target: The object/anchor this gizmo surrounds.
         :type target: :class:`~harness_designer.objects.objects_schematic.base_schematic.BaseSchematic` |
-            :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`
+            :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`
         """
         self._target = target
 

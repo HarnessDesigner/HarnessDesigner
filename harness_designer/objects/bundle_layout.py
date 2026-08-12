@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import bundle_layout as _bundle_layout_schematic
-from .objects3d import bundle_layout as _bundle_layout_3d
-from .objectspeg import bundle_layout as _bundle_layout_peg
+from .objects_3d import bundle_layout as _bundle_layout_3d
+from .objects_pegboard import bundle_layout as _bundle_layout_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class BundleLayout(_ObjectBase):
     """
     objschematic: _bundle_layout_schematic.BundleLayout = None
     obj3d: _bundle_layout_3d.BundleLayout = None
-    objpeg: _bundle_layout_peg.BundleLayout = None
+    objpegboard: _bundle_layout_pegboard.BundleLayout = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 
     @_check_types.do
@@ -43,7 +43,7 @@ class BundleLayout(_ObjectBase):
 
         self.objschematic = _bundle_layout_schematic.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
-        self.objpeg = _bundle_layout_peg.BundleLayout(self, db_obj)
+        self.objpegboard = _bundle_layout_pegboard.BundleLayout(self, db_obj)
 
     @_check_types.do
     def delete(self):

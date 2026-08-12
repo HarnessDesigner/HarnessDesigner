@@ -597,7 +597,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         face in the housing editor, or ``[]`` if never assigned.
 
         Indices are into ``MeshSurfacePicker.surfaces`` for this part's mesh
-        (see ``objects3d/housing.py`` ``match_cavity_surfaces``) — stable as
+        (see ``objects_3d/housing.py`` ``match_cavity_surfaces``) — stable as
         long as the underlying model isn't re-simplified/re-imported.
         """
         if self._stored_terminal_surf_indices is DefaultStoredValue:

@@ -21,7 +21,7 @@ uniform vec3 objectScale;
 uniform int normalMode;
 
 // See gl.shaders.faces' identical uniforms -- WireStripe.render_segment
-// (objects.objects3d.wire) sets these on this program too (not just
+// (objects.objects_3d.wire) sets these on this program too (not just
 // faces_program) so the shared stripe helix mesh's debug edge rendering
 // windows to the same [stripeClipStart, stripeClipStop] segment instead
 // of drawing the whole shared mesh with a naive, non-rebased transform.

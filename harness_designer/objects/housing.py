@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import housing as _housing_schematic
-from .objects3d import housing as _housing_3d
-from .objectspeg import housing as _housing_peg
+from .objects_3d import housing as _housing_3d
+from .objects_pegboard import housing as _housing_pegboard
 
 from . import cavity as _cavity
 from .. import debug as _debug
@@ -24,7 +24,7 @@ class Housing(_ObjectBase):
     """
     objschematic: _housing_schematic.Housing = None
     obj3d: _housing_3d.Housing = None
-    objpeg: _housing_peg.Housing = None
+    objpegboard: _housing_pegboard.Housing = None
     db_obj: "_pjt_housing.PJTHousing" = None
 
     @_debug.logfunc
@@ -65,7 +65,7 @@ class Housing(_ObjectBase):
 
         self.objschematic = _housing_schematic.Housing(self, db_obj)
         self.obj3d = _housing_3d.Housing(self, db_obj)
-        self.objpeg = _housing_peg.Housing(self, db_obj)
+        self.objpegboard = _housing_pegboard.Housing(self, db_obj)
 
         self.seals = []
         self.tpa_locks = []

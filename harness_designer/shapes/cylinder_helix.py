@@ -260,7 +260,7 @@ def create_stripe_vbo():
     """Create or return the cached cylinder-helix stripe VBO -- the
     decorative twist stripe rendered as its own mesh, overlaid on top of
     the plain body from :func:`create_vbo` (see
-    ``objects3d.wire_service_loop.WireServiceLoopStripe``).
+    ``objects_3d.wire_service_loop.WireServiceLoopStripe``).
 
     :returns: Cached VBO for the stripe part.
     :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`

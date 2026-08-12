@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Self
 
 import numpy as np
 from OpenGL import GL
-from OpenGL import GLU
 import math
 import ctypes
 import weakref
@@ -548,6 +547,37 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
+    def _ortho_bounds(self) -> tuple[float, float, float, float]:
+        """Return ``(left, right, bottom, top)`` for this frame's
+        ``glOrtho`` call, sized from the camera's current zoom level
+        (``camera.focal_distance``) and the current viewport pixel size
+        (``self.size``).
+
+        ``camera.Set()``'s ``gluLookAt`` (MODELVIEW) already centers the
+        view on the camera's own ``focal_position``, so these bounds are
+        always symmetric around 0 -- unlike
+        ``gl.canvas2d.canvas.Canvas._setup_projection``'s older,
+        no-MODELVIEW convention, which baked the focal position directly
+        into the ``glOrtho`` bounds instead.
+
+        Same ``distance / 1000.0`` world-per-pixel convention
+        ``gl.canvas2d.camera.Camera`` uses, so mouse-wheel zoom feels the
+        same across both the old and new 2D canvases.
+
+        :returns: ``(left, right, bottom, top)``.
+        """
+        if self.size:
+            width, height = self.size
+        else:
+            width, height = self.width(), self.height()
+
+        world_per_pixel = self.camera.focal_distance / 1000.0
+        half_width = (width / 2.0) * world_per_pixel
+        half_height = (height / 2.0) * world_per_pixel
+
+        return -half_width, half_width, -half_height, half_height
+
+    @_check_types.do
     def initializeGL(self):
         """Called once by Qt after the GL context is created.
         Qt guarantees the context is already current here — no makeCurrent needed."""
@@ -584,11 +614,11 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
             GL.glViewport(0, 0, vw, vh)
             self.size = (vw, vh)
-            aspect = vw / float(vh) if vh else 1.0
 
             GL.glMatrixMode(GL.GL_PROJECTION)
             GL.glLoadIdentity()
-            GLU.gluPerspective(65, aspect, 0.1, 1000.0)
+            left, right, bottom, top = self._ortho_bounds()
+            GL.glOrtho(left, right, bottom, top, 0.1, 1000.0)
             GL.glMatrixMode(GL.GL_MODELVIEW)
             GL.glLoadIdentity()
 
@@ -837,17 +867,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         _draw_scene function to be handled by the subclass.
         """
 
-        # Use the virtual canvas size for the aspect ratio, not the widget
-        # geometry.  This prevents distortion when the surrounding panel is
-        # resized (mirrors the wx SetVirtualSize behaviour).
-        if self.size:
-            w, h = self.size
-        else:
-            w = self.width()
-            h = self.height()
-
-        aspect = w / float(h) if h else 1.0
-
         f_size = self.config.floor.grid.size ** 2
 
         GL.glEnable(GL.GL_DEPTH_TEST)
@@ -858,7 +877,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         GL.glMatrixMode(GL.GL_PROJECTION)
         GL.glLoadIdentity()
 
-        GLU.gluPerspective(65, aspect, 0.1, float(math.sqrt(f_size * f_size)))
+        left, right, bottom, top = self._ortho_bounds()
+        GL.glOrtho(left, right, bottom, top, 0.1, float(math.sqrt(f_size * f_size)))
 
         GL.glMatrixMode(GL.GL_MODELVIEW)
         GL.glLoadIdentity()

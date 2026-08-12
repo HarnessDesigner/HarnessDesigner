@@ -237,7 +237,7 @@ class MeshSurfacePicker:
             refreshed as usual (every placement needs its own local copy
             for ray-casting), only the surface computation is skipped. For
             callers that reuse the same mesh across many placements of the
-            same catalog part -- see ``objects.objects3d.housing.Housing.
+            same catalog part -- see ``objects.objects_3d.housing.Housing.
             match_cavity_surfaces``, which caches this on the shared global
             part object since the surface list is purely a function of
             mesh geometry, identical for every placement.

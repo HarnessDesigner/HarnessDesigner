@@ -5,8 +5,8 @@ import weakref
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import terminal as _terminal_schematic
-from .objects3d import terminal as _terminal_3d
-from .objectspeg import terminal as _terminal_peg
+from .objects_3d import terminal as _terminal_3d
+from .objects_pegboard import terminal as _terminal_pegboard
 from . import wire_layout as _wire_layout
 from ..geometry import point as _point
 from .. import check_types as _check_types
@@ -25,7 +25,7 @@ class Terminal(_ObjectBase):
     """
     objschematic: _terminal_schematic.Terminal = None
     obj3d: _terminal_3d.Terminal = None
-    objpeg: _terminal_peg.Terminal = None
+    objpegboard: _terminal_pegboard.Terminal = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
     @_check_types.do
@@ -48,7 +48,7 @@ class Terminal(_ObjectBase):
 
         self.objschematic = _terminal_schematic.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
-        self.objpeg = _terminal_peg.Terminal(self, db_obj)
+        self.objpegboard = _terminal_pegboard.Terminal(self, db_obj)
 
         # Sibling graph: every Wire currently crimped into this terminal
         # (open-ended -- a terminal has no fixed start/stop shape, any

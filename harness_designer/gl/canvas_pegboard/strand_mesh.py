@@ -118,7 +118,7 @@ def cylinder_placement(p1_xz: tuple, p2_xz: tuple) -> tuple:
     ``0.5``) from *p1_xz* to *p2_xz*, confined to the peg board's XZ
     plane (world Y always ``0``).
 
-    Mirrors ``objects.objects3d.bundle.Bundle._update_position``/
+    Mirrors ``objects.objects_3d.bundle.Bundle._update_position``/
     ``_rotation_from_direction`` exactly -- same ``wire_vector = p1 - p2``
     direction convention, same axis-angle derivation -- this is the
     identical, already-visually-verified cylinder placement the 3D

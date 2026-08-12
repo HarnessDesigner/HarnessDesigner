@@ -58,7 +58,7 @@ def create_vbo_based() -> _vbo_handler.PooledVBOHandler:
     based-at-origin convention (a unit cylinder spans local Z ``[0,
     length]``, not centered either), so ``objects_schematic/wire.py``'s ``Wire``
     can use ``position = start point`` exactly like
-    ``objects3d/wire.py``'s ``Wire`` does.
+    ``objects_3d/wire.py``'s ``Wire`` does.
 
     :returns: Cached VBO data for a rectangle with dimensions ``1 x 0 x 1``.
     :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`

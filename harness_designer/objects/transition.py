@@ -5,8 +5,8 @@ import weakref
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import transition as _transition_schematic
-from .objects3d import transition as _transition_3d
-from .objectspeg import transition as _transition_peg
+from .objects_3d import transition as _transition_3d
+from .objects_pegboard import transition as _transition_pegboard
 from .. import check_types as _check_types
 
 
@@ -23,7 +23,7 @@ class Transition(_ObjectBase):
     """
     objschematic: _transition_schematic.Transition = None
     obj3d: _transition_3d.Transition = None
-    objpeg: _transition_peg.Transition = None
+    objpegboard: _transition_pegboard.Transition = None
     db_obj: "_pjt_transition.PJTTransition" = None
 
     @_check_types.do
@@ -46,7 +46,7 @@ class Transition(_ObjectBase):
 
         self.objschematic = _transition_schematic.Transition(self, db_obj)
         self.obj3d = _transition_3d.Transition(self, db_obj)
-        self.objpeg = _transition_peg.Transition(self, db_obj)
+        self.objpegboard = _transition_pegboard.Transition(self, db_obj)
 
         # Sibling graph: at most one Bundle per branch slot (1-6), keyed by
         # branch_id -- mirrors PJTTransitionBranch.bundle's own point-id

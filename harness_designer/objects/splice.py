@@ -5,8 +5,8 @@ import weakref
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import splice as _splice_schematic
-from .objects3d import splice as _splice_3d
-from .objectspeg import splice as _splice_peg
+from .objects_3d import splice as _splice_3d
+from .objects_pegboard import splice as _splice_pegboard
 from .. import check_types as _check_types
 
 
@@ -23,7 +23,7 @@ class Splice(_ObjectBase):
     """
     objschematic: _splice_schematic.Splice = None
     obj3d: _splice_3d.Splice = None
-    objpeg: _splice_peg.Splice = None
+    objpegboard: _splice_pegboard.Splice = None
     db_obj: "_pjt_splice.PJTSplice" = None
 
     @_check_types.do
@@ -46,7 +46,7 @@ class Splice(_ObjectBase):
 
         self.objschematic = _splice_schematic.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
-        self.objpeg = _splice_peg.Splice(self, db_obj)
+        self.objpegboard = _splice_pegboard.Splice(self, db_obj)
 
         # Sibling graph: the fixed through-pair (start/stop -- exactly one
         # wire each, set together via set_siblings when this splice is

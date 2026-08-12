@@ -403,6 +403,21 @@ Full plan (locked in via plan mode) at `C:\Users\drsch\.claude\plans\tranquil-or
 
 **How to apply:** When resuming, read the plan file first, check task tracking for what's done, don't re-ask the two locked-in architecture questions.
 
+### new_canvas2d: unifying schematic + pegboard canvases, retiring the 2D shader (in progress, 2026-08-12)
+`gl/new_canvas2d/` is a new module the user is actively building to merge the code that's duplicated between `gl/canvas2d` (schematic editor) and `gl/canvas_pegboard` (Peg Board Editor, see above) — the two canvases operate in a very closely matching way, so a shared base class is needed to remove the repeated code between them.
+
+**Bigger architectural shift alongside this:** the 2D shader code is going away entirely (except the grid). The schematic 2D view will actually be rendered via the real 3D pipeline, with the camera/view locked looking straight down the world Y axis under an orthographic projection — so it still *looks* like a flat 2D view but is backed by the same 3D rendering machinery as the pegboard and 3D editor, not a separate 2D shader path.
+
+**VBO reuse differs by editor even after unification:** the pegboard will use the 3D view's own VBOs directly (already the existing pattern — Housing/Splice/Terminal pegboard wrappers already reuse `obj3d`'s vbo/material/scale, see `objects/objects_pegboard/`). The schematic view will do the same for *some* things, but will still create its own new VBO objects for others (implying schematic keeps some simplified/custom flat primitives — e.g. corner-label text, cavity-slot rectangles — rather than reusing the real 3D part mesh everywhere).
+
+**How to apply:** `gl/new_canvas2d/` currently duplicates content from `gl/canvas2d` as a working area for this merge (e.g. `rotation_ring.py`/`drag_handler.py` were near-identical copies as of the pegboard-object-naming rename pass on 2026-08-12) — don't treat that duplication as a mistake or try to de-duplicate it prematurely; it's mid-refactor scaffolding. When asked to touch schematic or pegboard canvas code, check whether `new_canvas2d` is the intended target instead of the old `canvas2d`/`canvas_pegboard` modules, since those may be getting folded into it. Don't assume the 2D shader (`gl/shaders/schematic2d.py`) has a long future — expect it to shrink to grid-only rendering as this work lands.
+
+**Explicit goal (stated 2026-08-12):** the 2D-family canvases' public API should end up *almost identical* to `gl/canvas3d/canvas.py`'s, specifically to make the code easier to manage/maintain across all three canvases (schematic, pegboard, 3D) — this is the design target `new_canvas2d/canvas.py` is being built toward, not just "remove duplication between the two 2D-ish canvases."
+
+**Culling already consolidated to one shared instance (done):** `gl/culling/` (moved out from under `gl/canvas3d/`, no longer 3D-specific — supersedes the old `gl/canvas3d/culling.pyx` described in the CullingThreadPool architecture note below) uses a `sys.modules[__name__] = self` module-replacement trick so `gl.culling.cull(...)` reads as a plain module-level call but is backed by exactly one `CullingThreadPool()` instance, constructed once at import time (`gl/culling/__init__.py`'s `__CullingLoader`). Confirmed both `gl/canvas3d/canvas.py` and `gl/new_canvas2d/canvas.py` already call this same shared `_culling.cull(...)`. Reasoning given: canvas updates can only ever happen serially anyway, since everything has to run on the main thread — so per-canvas culling-pool instances (each spinning up its own 10 persistent worker threads) were unnecessary duplication, not a real parallelism win.
+
+**How to apply:** Don't reintroduce a per-canvas `CullingThreadPool()` instantiation — always go through the shared `gl.culling.cull(...)`/`gl.culling.shutdown()` singleton. If touching culling internals, the CullingThreadPool index-mismatch deadlock fix documented below (under Architecture notes) still applies to this relocated module — same class, same worker-dispatch invariant, just moved to `gl/culling/`.
+
 ### Wire bundle packing requirements
 Requirements/architecture gathered (2026-07-14) for a concentric-twist wire bundle packing feature, building on Peg Board Editor above.
 

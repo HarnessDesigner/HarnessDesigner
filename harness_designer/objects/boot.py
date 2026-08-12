@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import boot as _boot_schematic
-from .objects3d import boot as _boot_3d
-from .objectspeg import boot as _boot_peg
+from .objects_3d import boot as _boot_3d
+from .objects_pegboard import boot as _boot_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class Boot(_ObjectBase):
     """
     objschematic: _boot_schematic.Boot = None
     obj3d: _boot_3d.Boot = None
-    objpeg: _boot_peg.Boot = None
+    objpegboard: _boot_pegboard.Boot = None
     db_obj: "_pjt_boot.PJTBoot" = None
 
     @_check_types.do
@@ -44,7 +44,7 @@ class Boot(_ObjectBase):
 
         self.objschematic = _boot_schematic.Boot(self, db_obj)
         self.obj3d = _boot_3d.Boot(self, db_obj)
-        self.objpeg = _boot_peg.Boot(self, db_obj)
+        self.objpegboard = _boot_pegboard.Boot(self, db_obj)
 
         self.mainframe.add_object(self)
 

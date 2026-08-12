@@ -16,7 +16,7 @@ from .. import check_types as _check_types
 
 # Real-world mm per full helix turn. Fixed regardless of wire diameter or
 # segment length -- this is the whole point of the shared, fixed-pitch
-# canonical mesh + per-instance GPU clip (see objects3d.wire.WireStripe):
+# canonical mesh + per-instance GPU clip (see objects_3d.wire.WireStripe):
 # every wire segment shows the same turn spacing no matter how long or
 # short it is. Purely a visual-tuning constant -- adjust to taste.
 PITCH_MM = 60.0
@@ -41,7 +41,7 @@ _ANG_DEFLECTION_RAD = 0.15
 # 0.5 here (create_vbo always calls create(0.5, ...); larger diameters are a
 # GPU-side scale, see create_vbo), so that remap always produced the same
 # constant anyway. Bleed-through is now handled by rendering the stripe with
-# a polygon offset (see objects3d.wire.WireStripe.render), so this only
+# a polygon offset (see objects_3d.wire.WireStripe.render), so this only
 # needs to be large enough for OCCT to build a non-degenerate solid -- kept
 # small to keep the stripe visually flush with the wire.
 _STRIPE_THICKNESS_MM = 0.01
@@ -55,7 +55,7 @@ def create_vbo(min_length: float | int) -> _vbo_handler.PooledVBOHandler:
     """Return the shared helix stripe VBO, growing it in place (never
     shrinking) so its mesh covers at least ``min_length`` mm.
 
-    Every :class:`~harness_designer.objects.objects3d.wire.WireStripe`
+    Every :class:`~harness_designer.objects.objects_3d.wire.WireStripe`
     instance shares this single mesh and shows only the portion of it up to
     its own wire segment's length -- clipped per-instance in the shader --
     instead of stretching a fixed-turn-count mesh to fit, which is what

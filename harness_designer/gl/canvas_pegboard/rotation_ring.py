@@ -4,7 +4,7 @@
 
 Right-clicking the already-selected anchor shows one ring + grab handle,
 fixed flat in the board plane (normal = world +Y) and spun by the anchor's
-live in-plane rotation (see ``objects.objectspeg.basepeg.BasePeg.angle``,
+live in-plane rotation (see ``objects.objects_pegboard.base_pegboard.BasePegboard.angle``,
 the anchor's own bound, DB-backed Y rotation). Unlike the 3D
 editor's ``gl.canvas3d.rotation_rings.RotationRings``/``Rings3D`` (three
 Euler-axis rings, tightly bound to ``Base3D``, the 3D editor's own
@@ -35,7 +35,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ...objects.objectspeg import basepeg as _basepeg
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 
 
 # Ring radius as a multiple of the anchor's own largest in-plane half-extent
@@ -69,8 +69,8 @@ _RING_COLOR_RGB = (90, 160, 230)
 class PegboardRotationRing:
     """A single, board-plane-only rotation ring + grab handle gizmo.
 
-    Built for one target :class:`~harness_designer.objects.objectspeg.
-    basepeg.BasePeg` -- sized from that anchor's own live ``aabb``
+    Built for one target :class:`~harness_designer.objects.objects_pegboard.
+    base_pegboard.BasePegboard` -- sized from that anchor's own live ``aabb``
     footprint, centered on the anchor's current ``position`` (``.x``/``.y``
     standing in for world X/Z, this canvas's usual convention). The gizmo
     carries no rotation state of its own -- every call that needs "the
@@ -88,11 +88,11 @@ class PegboardRotationRing:
     """
 
     @_check_types.do
-    def __init__(self, anchor: "_basepeg.BasePeg"):
+    def __init__(self, anchor: "_base_pegboard.BasePegboard"):
         """Initialise the :class:`PegboardRotationRing` instance.
 
         :param anchor: The anchor this gizmo surrounds.
-        :type anchor: :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`
+        :type anchor: :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`
         """
         self._anchor = anchor
 

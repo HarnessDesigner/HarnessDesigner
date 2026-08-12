@@ -29,7 +29,7 @@ class WireLayout(_base_schematic.BaseSchematic):
     2D representation of a wire layout (drag handle) for schematic view
 
     Renders as the same shared ``shapes/sphere.py`` mesh
-    ``objects3d/wire_layout.py``'s ``WireLayout`` uses -- the
+    ``objects_3d/wire_layout.py``'s ``WireLayout`` uses -- the
     ``schematic2d`` shader already does the full 3D lighting/transform
     before projecting to 2D, so there's no need for a flat-only mesh
     here -- on the VBO/shader pipeline (see ``objects_schematic/base_schematic.py``'s

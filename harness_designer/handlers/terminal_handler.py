@@ -50,7 +50,7 @@ Config = _config.Config.colors
 # Module-level geometry helpers -- pure functions of a terminal's own
 # global part + the cavity it's going into, no handler/mainframe state
 # needed. Shared between AddTerminalHandler (initial placement, below)
-# and objects.objects3d.terminal.Terminal._set_model (repositioning once
+# and objects.objects_3d.terminal.Terminal._set_model (repositioning once
 # a first-time model download completes -- see reposition_from_model at
 # the bottom of this module).
 # ----------------------------------------------------------------------
@@ -198,7 +198,7 @@ def reposition_from_model(pjt_terminal) -> None:
     Terminal.effective_size / the terminal's own catalog dimensions
     since no model was available yet, which can be a meaningfully
     different size than the real, converted model -- see
-    objects.objects3d.terminal.Terminal._set_model, which calls this
+    objects.objects_3d.terminal.Terminal._set_model, which calls this
     only the first time a given terminal's model finishes downloading
     (never on a later reload, where the model is already cached and the
     position is already correct/possibly user-adjusted since).

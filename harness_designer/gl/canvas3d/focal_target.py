@@ -2,9 +2,9 @@
 
 from typing import TYPE_CHECKING
 
-from ...objects.objects3d import generic as _generic_3d
+from ...objects.objects_3d import generic as _generic_3d
 from ...objects.objects_schematic import generic as _generic_schematic
-from ...objects.objectspeg import generic as _generic_peg
+from ...objects.objects_pegboard import generic as _generic_pegboard
 from ...objects import generic as _generic
 
 from ...gl import materials as _materials
@@ -37,15 +37,15 @@ class FocalPoint(_generic.Generic):
         :param canvas: Canvas instance.
         :type canvas: :class:`_canvas.Canvas`
         """
-        _generic.Generic.__init__(self, canvas)
+        super().__init__(canvas)
 
         self.canvas = canvas
         self.objschematic = FocalPoint2D(self)
         self.obj3d = FocalPoint3D(self)
-        self.objpeg = FocalPointPeg(self)
+        self.objpegboard = FocalPointPeg(self)
 
 
-class FocalPointPeg(_generic_peg.Generic):
+class FocalPointPeg(_generic_pegboard.Generic):
     pass
 
 

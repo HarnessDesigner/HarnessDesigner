@@ -279,7 +279,7 @@ class Project(PJTEntryBase, ColorMixin):
     def wire_stripe_max_length(self) -> float:
         """Length (mm) the shared wire-stripe helix VBO is currently built
         at. Grows (never shrinks) to the longest wire segment ever created
-        in this project -- see handlers.wire_handler / objects3d.wire.
+        in this project -- see handlers.wire_handler / objects_3d.wire.
         """
         if self._stored_wire_stripe_max_length is DefaultStoredValue:
             self._stored_wire_stripe_max_length = self._table.select(

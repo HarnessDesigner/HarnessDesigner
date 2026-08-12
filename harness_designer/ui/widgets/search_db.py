@@ -9,7 +9,7 @@ from ... import check_types as _check_types
 
 # from ... import config as _config
 # from ...gl import canvas3d
-# from ...objects.objects3d import base3d as _base3d
+# from ...objects.objects_3d import base_3d as _base_3d
 # from ... import objects as _objects
 # from ...gl import materials as _materials
 # from ...geometry import angle as _angle

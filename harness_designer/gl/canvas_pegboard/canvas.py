@@ -51,7 +51,7 @@ _TABLE_DRAG_LINE_COLOR_RGB = (90, 160, 230)
 if TYPE_CHECKING:
     from . import layout_graph as _layout_graph
     from . import rotation_ring as _rotation_ring
-    from ...objects.objectspeg import basepeg as _basepeg
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 
 
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
@@ -170,14 +170,14 @@ class Canvas(QOpenGLWidget):
         # remove_anchor() and _render_objects() below. self._pegboard_program
         # is compiled once the GL context exists (initializeGL);
         # self._anchors is now an incrementally-maintained live list of
-        # objects.objectspeg.basepeg.BasePeg instances (one
+        # objects.objects_pegboard.base_pegboard.BasePegboard instances (one
         # per placed housing/splice/transition/bare-terminal) -- populated by
         # a full walk in load_project() (initial project-open) and kept
         # current afterward via add_anchor()/remove_anchor() (called from
         # ui.editor_pegboard.editor_pegboard.EditorPegBoardPanel.add_object/
         # remove_object), never by re-deriving the whole list from the DB.
         self._pegboard_program = None
-        self._anchors: list["_basepeg.BasePeg"] = []
+        self._anchors: list["_base_pegboard.BasePegboard"] = []
 
         # The project load_project() was last called with -- needed by the
         # Phase 3 drag-commit methods (commit_anchor_drag/
@@ -250,14 +250,14 @@ class Canvas(QOpenGLWidget):
         # commit_anchor_rotation() persists it on release, mirroring
         # drag_update_anchor()/commit_anchor_drag()'s "mutate in memory
         # during drag, commit once on release" discipline exactly.
-        self._rotation_gizmo_anchor: "_basepeg.BasePeg | None" = None
+        self._rotation_gizmo_anchor: "_base_pegboard.BasePegboard | None" = None
         self._rotation_gizmo: "_rotation_ring.PegboardRotationRing | None" = None
         self._rotation_gizmo_dirty = False
         self._rotation_gizmo_degrees = 0.0
 
         # Phase 4 data-table overlays -- one PegboardTableWidget per anchor
         # point3d_id (or, for a transition, per populated branch's own
-        # position3d_id -- see objectspeg.transition.Transition.
+        # position3d_id -- see objects_pegboard.transition.Transition.
         # table_anchor_points). Repositioned/rescaled on every camera
         # change via Refresh() (see below); populated by load_project()/
         # add_anchor()/remove_anchor().
@@ -449,16 +449,16 @@ class Canvas(QOpenGLWidget):
     @_check_types.do
     def _collect_anchors(project) -> list:
         """Walk every already-constructed housing/splice/transition/terminal
-        row and collect its real, active ``objpeg``.
+        row and collect its real, active ``objpegboard``.
 
         Replaces the former ``layout_graph.build_anchors(project)`` bulk
         DB-driven rebuild: anchors are no longer independently derived here
         at all -- each placed part's ``ObjectBase`` subclass already built
-        its own ``objpeg`` (a dedicated per-type
-        ``objects.objectspeg.basepeg.BasePeg`` subclass instance for the 4
-        anchor types, or a dedicated per-type ``objects.objectspeg.basepeg.
-        BasePeg`` subclass instance for every other type -- never a single
-        shared stub class) at construction time, exactly like ``obj2d``/
+        its own ``objpegboard`` (a dedicated per-type
+        ``objects.objects_pegboard.base_pegboard.BasePegboard`` subclass instance for the 4
+        anchor types, or a dedicated per-type ``objects.objects_pegboard.base_pegboard.
+        BasePegboard`` subclass instance for every other type -- never a single
+        shared stub class) at construction time, exactly like ``objschematic``/
         ``obj3d``. This still needs a full walk at initial project-open
         time -- there is no other way to enumerate "everything already
         placed" at that moment -- but every subsequent add/remove goes
@@ -468,8 +468,8 @@ class Canvas(QOpenGLWidget):
         :param project: The currently open project (``mainframe.project``).
         :type project: :class:`harness_designer.objects.project.Project`
         :returns: One anchor per placed housing/splice/transition/bare
-            terminal that currently has a real, active ``objpeg``.
-        :rtype: list[:class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`]
+            terminal that currently has a real, active ``objpegboard``.
+        :rtype: list[:class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
         """
         anchors = []
         tables = (
@@ -485,11 +485,11 @@ class Canvas(QOpenGLWidget):
                 if obj is None:
                     continue
 
-                objpeg = getattr(obj, 'objpeg', None)
-                if objpeg is None or not objpeg.is_active:
+                objpegboard = getattr(obj, 'objpegboard', None)
+                if objpegboard is None or not objpegboard.is_active:
                     continue
 
-                anchors.append(objpeg)
+                anchors.append(objpegboard)
 
         return anchors
 
@@ -583,7 +583,7 @@ class Canvas(QOpenGLWidget):
         self.update()
 
     @_check_types.do
-    def add_anchor(self, obj_pegboard: "_basepeg.BasePeg") -> None:
+    def add_anchor(self, obj_pegboard: "_base_pegboard.BasePegboard") -> None:
         """Incrementally register one anchor, without a full rebuild.
 
         Called by ``ui.editor_pegboard.editor_pegboard.EditorPegBoardPanel.add_object``
@@ -594,7 +594,7 @@ class Canvas(QOpenGLWidget):
         ``mainframe.add_object`` call.
 
         :param obj_pegboard: The anchor to register.
-        :type obj_pegboard: :class:`_basepeg.BasePeg`
+        :type obj_pegboard: :class:`_base_pegboard.BasePegboard`
         """
         if obj_pegboard is None or obj_pegboard in self._anchors:
             return
@@ -604,14 +604,14 @@ class Canvas(QOpenGLWidget):
         self.update()
 
     @_check_types.do
-    def remove_anchor(self, obj_pegboard: "_basepeg.BasePeg") -> None:
+    def remove_anchor(self, obj_pegboard: "_base_pegboard.BasePegboard") -> None:
         """Incrementally unregister one anchor, without a full rebuild.
 
         Mirrors :meth:`add_anchor` -- called by
         ``ui.editor_pegboard.editor_pegboard.EditorPegBoardPanel.remove_object``.
 
         :param obj_pegboard: The anchor to unregister.
-        :type obj_pegboard: :class:`_basepeg.BasePeg`
+        :type obj_pegboard: :class:`_base_pegboard.BasePegboard`
         """
         if obj_pegboard is None or obj_pegboard not in self._anchors:
             return
@@ -627,17 +627,17 @@ class Canvas(QOpenGLWidget):
         self.update()
 
     @_check_types.do
-    def _ensure_tables_for_anchor(self, anchor: "_basepeg.BasePeg") -> None:
+    def _ensure_tables_for_anchor(self, anchor: "_base_pegboard.BasePegboard") -> None:
         """Create/refresh every data-table overlay *anchor* needs.
 
         Most anchor types need exactly one (their own point3d_id) --
-        ``objectspeg.transition.Transition`` needs one per populated
-        branch (see :attr:`~objectspeg.basepeg.BasePeg.table_anchor_points`).
+        ``objects_pegboard.transition.Transition`` needs one per populated
+        branch (see :attr:`~objects_pegboard.base_pegboard.BasePegboard.table_anchor_points`).
         No-op if no project is loaded yet (mirrors ``tables_overlay.
         TablesOverlay``'s own guards).
 
         :param anchor: The anchor to build table(s) for.
-        :type anchor: :class:`_basepeg.BasePeg`
+        :type anchor: :class:`_base_pegboard.BasePegboard`
         """
         if self._project is None:
             return
@@ -686,7 +686,7 @@ class Canvas(QOpenGLWidget):
         ``tables_overlay._TitleStrip.mousePressEvent``.
 
         :param anchor_world_pos: The dragged table's owning anchor's own
-            live, bound position ``Point`` (``objectspeg.basepeg.BasePeg.
+            live, bound position ``Point`` (``objects_pegboard.base_pegboard.BasePegboard.
             table_anchor_live_position``) -- the same object the anchor's
             position mutates in place on every drag, not a one-time
             snapshot, so the line's anchor-side endpoint stays correct
@@ -761,7 +761,7 @@ class Canvas(QOpenGLWidget):
 
     @property
     @_check_types.do
-    def anchors(self) -> list["_basepeg.BasePeg"]:
+    def anchors(self) -> list["_base_pegboard.BasePegboard"]:
         """Return the current Phase 1 static anchor list.
 
         Public read accessor for :attr:`_anchors` -- mirrors
@@ -770,7 +770,7 @@ class Canvas(QOpenGLWidget):
         a private attribute across module boundaries.
 
         :returns: Property value.
-        :rtype: list[:class:`_basepeg.BasePeg`]
+        :rtype: list[:class:`_base_pegboard.BasePegboard`]
         """
         return self._anchors
 
@@ -820,7 +820,7 @@ class Canvas(QOpenGLWidget):
         node" means here). An anchor shared by more than one bundle chain
         gets one distinct :class:`PegboardNode` instance per chain (see
         ``layout_graph._resolve_chain_endpoint``), all wrapping the exact
-        same :class:`_basepeg.BasePeg` object -- so matching by ``node.anchor
+        same :class:`_base_pegboard.BasePegboard` object -- so matching by ``node.anchor
         is anchor`` (rather than trying to track a single canonical node
         per anchor) is what makes dragging a multi-bundle anchor correctly
         pick up every chain it participates in.
@@ -831,7 +831,7 @@ class Canvas(QOpenGLWidget):
 
         :param anchor: The dragged anchor, or ``None`` when dragging a
             waypoint instead.
-        :type anchor: :class:`_basepeg.BasePeg` | None
+        :type anchor: :class:`_base_pegboard.BasePegboard` | None
         :param waypoint_id: The dragged waypoint's row id, or ``None``
             when dragging an anchor instead.
         :type waypoint_id: int | None
@@ -906,7 +906,7 @@ class Canvas(QOpenGLWidget):
         (see :meth:`edges_touching_node`'s docstring), so *node* identity is
         not what "one draggable thing" means. The entity is instead
         ``('anchor', anchor)`` (matched by ``is``, since
-        :class:`~_basepeg.BasePeg` is a plain, non-frozen
+        :class:`~_base_pegboard.BasePegboard` is a plain, non-frozen
         dataclass and therefore unhashable/unsafe to `==`-compare for this
         purpose) or ``('waypoint', waypoint_id)`` (matched by value -- a
         waypoint's id is already a stable, hashable identity).
@@ -1077,7 +1077,7 @@ class Canvas(QOpenGLWidget):
                 self._drag_dirty_waypoint_ids.append(waypoint_id)
 
     @_check_types.do
-    def drag_update_anchor(self, anchor: "_basepeg.BasePeg",
+    def drag_update_anchor(self, anchor: "_base_pegboard.BasePegboard",
                            cand_x: float, cand_z: float,
                            touching: list) -> None:
         """Move *anchor* to ``(cand_x, cand_z)`` during a live drag.
@@ -1101,7 +1101,7 @@ class Canvas(QOpenGLWidget):
         frame (see :meth:`_render_bundle_strands`).
 
         :param anchor: The anchor being dragged.
-        :type anchor: :class:`_basepeg.BasePeg`
+        :type anchor: :class:`_base_pegboard.BasePegboard`
         :param cand_x: Unclamped candidate world X (already grid-snapped
             by the caller if applicable).
         :type cand_x: float
@@ -1238,7 +1238,7 @@ class Canvas(QOpenGLWidget):
 
         :param primary_anchor: The anchor directly armed for drag, if
             any -- accepted for call-shape parity, otherwise unused.
-        :type primary_anchor: :class:`_basepeg.BasePeg` | None
+        :type primary_anchor: :class:`_base_pegboard.BasePegboard` | None
         :param primary_node: The waypoint node directly armed for drag, if any.
         :type primary_node: :class:`_layout_graph.PegboardNode` | None
         """
@@ -1385,7 +1385,7 @@ class Canvas(QOpenGLWidget):
 
     @property
     @_check_types.do
-    def rotation_gizmo_anchor(self) -> "_basepeg.BasePeg | None":
+    def rotation_gizmo_anchor(self) -> "_base_pegboard.BasePegboard | None":
         """Return the anchor currently showing its rotate ring, or ``None``.
 
         Public read accessor for :attr:`_rotation_gizmo_anchor` so
@@ -1393,7 +1393,7 @@ class Canvas(QOpenGLWidget):
         without reaching into a private attribute.
 
         :returns: Property value.
-        :rtype: :class:`_basepeg.BasePeg` | None
+        :rtype: :class:`_base_pegboard.BasePegboard` | None
         """
         return self._rotation_gizmo_anchor
 
@@ -1414,7 +1414,7 @@ class Canvas(QOpenGLWidget):
         return self._rotation_gizmo_degrees
 
     @_check_types.do
-    def enter_rotation_mode(self, anchor: "_basepeg.BasePeg") -> None:
+    def enter_rotation_mode(self, anchor: "_base_pegboard.BasePegboard") -> None:
         """Show the rotate-ring gizmo for *anchor*.
 
         Seeds :attr:`_rotation_gizmo_degrees` from *anchor*'s live
@@ -1427,7 +1427,7 @@ class Canvas(QOpenGLWidget):
         previously active gizmo (for a different anchor) is exited first.
 
         :param anchor: The anchor to show the rotate ring for.
-        :type anchor: :class:`_basepeg.BasePeg`
+        :type anchor: :class:`_base_pegboard.BasePegboard`
         """
         if self._rotation_gizmo_anchor is anchor:
             return
@@ -1472,7 +1472,7 @@ class Canvas(QOpenGLWidget):
         discipline ``angle3d``/``angle2d`` already use for live rotation
         dragging (a real SQLite write on every mouse-move, exactly like
         those). This alone is enough to make the anchor's mesh visibly
-        spin along with the gizmo every frame -- ``BasePeg._update_angle``
+        spin along with the gizmo every frame -- ``BasePegboard._update_angle``
         (bound to the same ``Angle``) recomputes the OBB/AABB and repaints
         on every mutation.
 
@@ -1731,10 +1731,10 @@ class Canvas(QOpenGLWidget):
 
         A read-only top-down render of every anchor in ``self._anchors``
         (see :meth:`load_project`/:meth:`add_anchor`/:meth:`remove_anchor`
-        and ``objects.objectspeg.basepeg.BasePeg``), reusing
+        and ``objects.objects_pegboard.base_pegboard.BasePegboard``), reusing
         the exact same VBOs/materials the 3D editor renders with under the
         schematic2d shader -- mirroring the uniform-setting contract of
-        ``objects.objects3d.base3d.Base3D._render_geometry``/``render``.
+        ``objects.objects_3d.base_3d.Base3D._render_geometry``/``render``.
 
         Bundle strands (see :meth:`_render_bundle_strands`) and bare-wire
         strands (``gl.canvas_pegboard.layout_graph.build_bare_wire_strands``,

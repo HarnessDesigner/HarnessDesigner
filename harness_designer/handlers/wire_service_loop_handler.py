@@ -3,7 +3,7 @@
 """Interactive handler logic for inserting wire service loops.
 
 Started only from a wire segment's own context menu
-(``objects.objects3d.wire.WireMenu.on_add_wire_service_loop``) -- the wire
+(``objects.objects_3d.wire.WireMenu.on_add_wire_service_loop``) -- the wire
 is fixed at construction and never changes; there is no toolbar tool for
 this and no way to jump to a different wire mid-placement. The wire is cut
 live at construction time to make room for the loop (see
@@ -11,7 +11,7 @@ live at construction time to make room for the loop (see
 fixed line, and clicking finalises the placement in place.
 
 Collision avoidance is not this handler's concern -- it lives entirely on
-``objects.objects3d.wire_service_loop.WireServiceLoop`` (roll then slide,
+``objects.objects_3d.wire_service_loop.WireServiceLoop`` (roll then slide,
 mesh-accurate, bounded by the wire's own endpoints and any wire markers on
 it) and runs automatically any time the loop's start point moves, which is
 all this handler ever does (see ``_update_preview``).
@@ -47,7 +47,7 @@ def _wire_segments(wire: _wire.Wire):
     arrays -- start, through each interior waypoint in idx order, to
     stop. Mirrors handlers.wire_layout_handler's own _wire_segments (kept
     as a small local helper here rather than reaching into
-    objects.objects3d.mixins.wire_type.WireTypeMixin._segments directly,
+    objects.objects_3d.mixins.wire_type.WireTypeMixin._segments directly,
     matching this codebase's existing style for this exact duplication --
     see handlers.wire_topology._segment_index)."""
     points = [wire.obj3d.start_position.as_numpy]

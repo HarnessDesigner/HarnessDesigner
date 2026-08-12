@@ -33,7 +33,7 @@ rather than carried over unused.
 
 Not keyed to any specific object type -- *target* is whatever the
 concrete ``MouseHandler``'s ``_get_view_object`` already resolved
-(``objschematic``, ``objpeg``, ...), duck-typed on nothing more than what this
+(``objschematic``, ``objpegboard``, ...), duck-typed on nothing more than what this
 class itself needs (see :meth:`DragHandler._screen_delta_to_world`).
 """
 

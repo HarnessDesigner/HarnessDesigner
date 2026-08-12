@@ -680,7 +680,7 @@ class Config(metaclass=ConfigDB):
         class splice(metaclass=ConfigDB):
             """Fixed splice sizing for the 2D schematic editor -- a
             splice renders as the same shared sphere mesh
-            objects3d/splice.py's Splice uses (schematic2d's shader
+            objects_3d/splice.py's Splice uses (schematic2d's shader
             already does the full 3D lighting/transform before
             projecting to 2D, so there's no need for a flat-only mesh
             here)."""
@@ -689,7 +689,7 @@ class Config(metaclass=ConfigDB):
         class wire_layout(metaclass=ConfigDB):
             """Fixed wire-layout (drag handle) sizing for the 2D
             schematic editor -- renders as the same shared sphere mesh
-            objects3d/wire_layout.py's WireLayout uses, but at a fixed
+            objects_3d/wire_layout.py's WireLayout uses, but at a fixed
             size rather than the attached wire's real od_mm (matching
             wire/splice's own fixed-size-in-2D convention), since it
             needs to stay comfortably larger than the fixed 1mm wire for
@@ -839,7 +839,7 @@ class Config(metaclass=ConfigDB):
             are read by the 3D editor's own three-ring Euler gizmo
             (``gl.canvas3d.rotation_rings``); the peg board only ever shows
             one ring (a board-plane-only spin, unrelated to a part's real 3D
-            angle -- see ``objects.objectspeg.basepeg.BasePeg.angle``), so it gets its
+            angle -- see ``objects.objects_pegboard.base_pegboard.BasePegboard.angle``), so it gets its
             own independent snap settings rather than sharing/coupling to
             the 3D editor's.
             """

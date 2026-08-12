@@ -611,7 +611,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         if self._finalized or self._captured_position is None:
             return
 
-        from ..objects.objects3d.transition import Branch as _Branch3D
+        from ..objects.objects_3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
             self._captured_position, self.camera.objects_in_view,
@@ -848,7 +848,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def _handle_routing_click(self, mouse_pos: _point.Point):
-        from ..objects.objects3d.transition import Branch as _Branch3D
+        from ..objects.objects_3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view,
@@ -896,7 +896,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def _handle_exit_click(self, mouse_pos: _point.Point):
-        from ..objects.objects3d.transition import Branch as _Branch3D
+        from ..objects.objects_3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
             mouse_pos, self.camera.objects_in_view,

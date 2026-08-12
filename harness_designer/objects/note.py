@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import note as _note_schematic
-from .objects3d import note as _note_3d
-from .objectspeg import note as _note_peg
+from .objects_3d import note as _note_3d
+from .objects_pegboard import note as _note_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class Note(_ObjectBase):
     """
     objschematic: _note_schematic.Note = None
     obj3d: _note_3d.Note = None
-    objpeg: _note_peg.Note = None
+    objpegboard: _note_pegboard.Note = None
     db_obj: "_pjt_note.PJTNote" = None
 
     @_check_types.do
@@ -43,7 +43,7 @@ class Note(_ObjectBase):
 
         self.objschematic = _note_schematic.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)
-        self.objpeg = _note_peg.Note(self, db_obj)
+        self.objpegboard = _note_pegboard.Note(self, db_obj)
         self.mainframe.add_object(self)
 
     @_check_types.do

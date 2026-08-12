@@ -31,7 +31,7 @@ _SNAP_THRESHOLD = 5.0
 def _wire_segments(wire: _wire.Wire):
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
-    stop. Mirrors objects.objects3d.mixins.wire_type.WireTypeMixin's own
+    stop. Mirrors objects.objects_3d.mixins.wire_type.WireTypeMixin's own
     _segments (kept as a small local helper here rather than reaching
     into that mixin, matching this file's existing style of self-
     contained module-level helpers)."""

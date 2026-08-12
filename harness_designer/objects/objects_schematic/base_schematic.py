@@ -67,7 +67,7 @@ class BaseSchematic(_objectsvar.BaseVar):
     Uses OpenGL for rendering in the 2D schematic editor. Objects that
     render via a shared primitive VBO (see ``shapes/``) pass ``vbo``/
     ``scale``/``material`` and get the same lifecycle
-    ``objects.objects3d.base3d.Base3D`` uses (``_compute_obb``/
+    ``objects.objects_3d.base_3d.Base3D`` uses (``_compute_obb``/
     ``_compute_aabb``, bound position/angle/scale updates, selection
     material swap, ``_render_geometry``) -- see ``objects_schematic/housing.py``
     for the first (and so far only) real user of this path. Object types

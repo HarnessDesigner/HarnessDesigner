@@ -7,7 +7,7 @@ peg-board view. Stores the table's geometry (in world units, not pixels --
 ``x``/``z``, matching ``pjt_points3d``'s own axis names, since this is a
 real world position with Y pinned to 0, not a generic 2D x/y pair) and its
 scroll/collapse state. Keyed purely by ``point3d_id`` -- the same identity
-key an anchor's own ``objects.objectspeg.basepeg.BasePeg.point3d_id`` uses.
+key an anchor's own ``objects.objects_pegboard.base_pegboard.BasePegboard.point3d_id`` uses.
 """
 
 from . import projects as _projects

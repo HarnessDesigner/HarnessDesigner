@@ -23,7 +23,7 @@ pjt_table = _con.SQLTable(
     _con.IntField('object_count', default='0', no_null=True),
     # Length (mm) actually *required* to cover every wire's stripe_clip_stop
     # in this project -- NOT the size the shared helix VBO (shapes/helix.py)
-    # gets built at. objects3d.wire.WireStripe._ensure_stripe_capacity pads this
+    # gets built at. objects_3d.wire.WireStripe._ensure_stripe_capacity pads this
     # by _HELIX_OVERSHOOT_MM whenever it actually rebuilds the VBO, so a
     # live drag/preview has headroom to grow without triggering a GPU
     # reallocation on every frame. See Project.wire_stripe_max_length.

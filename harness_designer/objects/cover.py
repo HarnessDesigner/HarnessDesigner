@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import cover as _cover_schematic
-from .objects3d import cover as _cover_3d
-from .objectspeg import cover as _cover_peg
+from .objects_3d import cover as _cover_3d
+from .objects_pegboard import cover as _cover_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class Cover(_ObjectBase):
     """
     objschematic: _cover_schematic.Cover = None
     obj3d: _cover_3d.Cover = None
-    objpeg: _cover_peg.Cover = None
+    objpegboard: _cover_pegboard.Cover = None
     db_obj: "_pjt_cover.PJTCover" = None
 
     @_check_types.do
@@ -44,7 +44,7 @@ class Cover(_ObjectBase):
 
         self.objschematic = _cover_schematic.Cover(self, db_obj)
         self.obj3d = _cover_3d.Cover(self, db_obj)
-        self.objpeg = _cover_peg.Cover(self, db_obj)
+        self.objpegboard = _cover_pegboard.Cover(self, db_obj)
         self.mainframe.add_object(self)
 
     @_check_types.do

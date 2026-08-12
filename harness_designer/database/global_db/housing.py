@@ -1159,7 +1159,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
         Purely an in-memory cache slot -- this class has no idea what a
         Surface even is, and doesn't compute anything itself.
-        ``objects.objects3d.housing.Housing.match_cavity_surfaces`` owns
+        ``objects.objects_3d.housing.Housing.match_cavity_surfaces`` owns
         the compute-once/reuse logic; this property just gives it
         somewhere to put the result that's naturally shared across every
         placement of this same catalog part, since ``Housing`` instances

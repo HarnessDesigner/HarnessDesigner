@@ -12,8 +12,8 @@ specific.
 Object hit-testing / selection (`_find_anchor_at_point`,
 `_find_selected_anchor`, `on_left_down`) now mirrors MouseHandler2D's
 click-to-select behavior: a click hit-tests `Canvas.anchors` (the
-incrementally-maintained live list of `objects.objectspeg.
-basepeg.BasePeg` anchors) and drives selection
+incrementally-maintained live list of `objects.objects_pegboard.
+base_pegboard.BasePegboard` anchors) and drives selection
 through `objects.object_base.ObjectBase.set_selected()` exactly like every
 other editor, so `mainframe._set_selected()` picks it up and syncs the
 2D/3D editors automatically. Unlike MouseHandler2D, there is no separate
@@ -56,7 +56,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import canvas as _canvas
     from . import layout_graph as _layout_graph
-    from ...objects.objectspeg import basepeg as _basepeg
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -117,19 +117,19 @@ def _find_anchor_at_point(anchors: list, world_pos: _point.Point):
     ``reversed(self.canvas.objects)`` iteration.
 
     Hit-tests against ``anchor.aabb`` (the live world-space AABB
-    ``BasePeg._compute_aabb`` maintains -- recomputed on every position/
+    ``BasePegboard._compute_aabb`` maintains -- recomputed on every position/
     angle/scale mutation, and once a real mesh replaces an anchor's
-    placeholder-box VBO via ``BasePeg._set_model``) rather than a
+    placeholder-box VBO via ``BasePegboard._set_model``) rather than a
     separately cached half-width/half-depth pair, so hit-testing is never
     stale relative to what's actually rendered.
 
     :param anchors: The canvas's current anchor list.
-    :type anchors: list[:class:`_basepeg.BasePeg`]
+    :type anchors: list[:class:`_base_pegboard.BasePegboard`]
     :param world_pos: Click position in world coordinates.
     :type world_pos: :class:`_point.Point`
     :returns: The topmost anchor whose axis-aligned XZ footprint contains
         *world_pos*, or ``None``.
-    :rtype: :class:`_basepeg.BasePeg` | None
+    :rtype: :class:`_base_pegboard.BasePegboard` | None
     """
     click_x = world_pos.x
     click_z = world_pos.y
@@ -148,7 +148,7 @@ def _find_anchor_at_point(anchors: list, world_pos: _point.Point):
 # Fixed world-space (mm) hit-test radius for waypoints. Waypoints have no
 # rendered mesh/footprint of their own (unlike anchors, which hit-test
 # against a real axis-aligned XZ footprint derived from their mesh's live
-# AABB -- see objects.objectspeg.basepeg.BasePeg.aabb) -- they are purely
+# AABB -- see objects.objects_pegboard.base_pegboard.BasePegboard.aabb) -- they are purely
 # peg-board-only bend points, so a small fixed radius stands in for
 # "footprint". World-space (not screen-space/pixels) was chosen to match
 # how anchor hit-testing already works (_find_anchor_at_point's aabb is
@@ -214,9 +214,9 @@ def _find_selected_anchor(anchors: list):
     bookkeeping required when selection changes from elsewhere.
 
     :param anchors: The canvas's current anchor list.
-    :type anchors: list[:class:`_basepeg.BasePeg`]
+    :type anchors: list[:class:`_base_pegboard.BasePegboard`]
     :returns: The selected anchor, or ``None``.
-    :rtype: :class:`_basepeg.BasePeg` | None
+    :rtype: :class:`_base_pegboard.BasePegboard` | None
     """
     for anchor in anchors:
         if anchor.obj.is_selected:
@@ -232,12 +232,12 @@ def _find_table_point_at(anchors: list, world_pos: _point.Point):
     Hit-tests against ``anchor.aabb`` first (same as
     :func:`_find_anchor_at_point`) to find which anchor's mesh was
     clicked, then -- since most anchor types have exactly one table point
-    but a :class:`~harness_designer.objects.objectspeg.transition.Transition`
+    but a :class:`~harness_designer.objects.objects_pegboard.transition.Transition`
     has one per populated branch -- picks whichever of that anchor's own
     ``table_anchor_points`` lands nearest the click.
 
     :param anchors: The canvas's current anchor list.
-    :type anchors: list[:class:`_basepeg.BasePeg`]
+    :type anchors: list[:class:`_base_pegboard.BasePegboard`]
     :param world_pos: Click position in world coordinates.
     :type world_pos: :class:`_point.Point`
     :returns: ``(point3d_id, world_x, world_z, label)`` for the closest
@@ -421,7 +421,7 @@ class MouseHandlerPegBoard(QtCore.QObject):
         """Return the active gizmo's target *anchor*'s screen-space center.
 
         :param anchor: The anchor currently in rotation mode.
-        :type anchor: :class:`_basepeg.BasePeg`
+        :type anchor: :class:`_base_pegboard.BasePegboard`
         :returns: ``(screen_x, screen_y)``.
         :rtype: tuple[float, float]
         """

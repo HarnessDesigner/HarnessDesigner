@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import project_model as _project_model_schematic
-from .objects3d import project_model as _project_model_3d
-from .objectspeg import project_model as _project_model_peg
+from .objects_3d import project_model as _project_model_3d
+from .objects_pegboard import project_model as _project_model_pegboard
 from .. import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class ProjectModel(_ObjectBase):
     """
     objschematic: _project_model_schematic.ProjectModel = None
     obj3d: _project_model_3d.ProjectModel = None
-    objpeg: _project_model_peg.ProjectModel = None
+    objpegboard: _project_model_pegboard.ProjectModel = None
     db_obj: "_project.Project" = None
 
     @_check_types.do
@@ -32,7 +32,7 @@ class ProjectModel(_ObjectBase):
 
         self.objschematic = _project_model_schematic.ProjectModel(self, db_obj)
         self.obj3d = _project_model_3d.ProjectModel(self, db_obj, vbo)
-        self.objpeg = _project_model_peg.ProjectModel(self, db_obj)
+        self.objpegboard = _project_model_pegboard.ProjectModel(self, db_obj)
         self.mainframe.add_object(self)
 
     @_check_types.do

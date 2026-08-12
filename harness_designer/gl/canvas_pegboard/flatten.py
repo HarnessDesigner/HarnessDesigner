@@ -133,7 +133,7 @@ def flatten_quaternion_for_transition(local_obb: np.ndarray) -> _quaternion.Quat
     """Return the flatten quaternion for a transition.
 
     Transitions have no ``Model3D``/``forward_up`` at all, but
-    ``objects.objects3d.transition._build_model`` confines every branch to
+    ``objects.objects_3d.transition._build_model`` confines every branch to
     the local XY plane (every branch point's local Z is forced to 0, and
     the extrusion planes are only ever rotated about local Z) -- so local
     Z is the transition's inherent thickness axis by construction. Local

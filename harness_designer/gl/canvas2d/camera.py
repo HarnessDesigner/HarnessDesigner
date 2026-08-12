@@ -341,7 +341,7 @@ class Camera:
         subclassed per Phase 1 of the peg board editor), and those two
         canvases hold their scene contents in different shapes -- real
         ``ObjectBase`` wrappers with ``objschematic.get_bounds()`` for the
-        schematic canvas, ``objects.objectspeg.basepeg.BasePeg``
+        schematic canvas, ``objects.objects_pegboard.base_pegboard.BasePegboard``
         (``.obj``/``.position.x``/``.position.z``) for the peg board -- so this duck-types on
         which shape ``self.canvas``
         actually exposes rather than assuming one. Computed fresh on each
@@ -370,7 +370,7 @@ class Camera:
 
         result = []
 
-        # 2D schematic canvas: real ObjectBase wrappers, bounds via obj2d.
+        # 2D schematic canvas: real ObjectBase wrappers, bounds via objschematic.
         if hasattr(self.canvas, 'objects'):
             for obj in self.canvas.objects:
                 if not hasattr(obj, 'objschematic') or not hasattr(obj.objschematic, 'get_bounds'):
@@ -388,7 +388,7 @@ class Camera:
 
             return result
 
-        # Peg board canvas: BasePeg anchor point-containment (x/z world position).
+        # Peg board canvas: BasePegboard anchor point-containment (x/z world position).
         anchors = getattr(self.canvas, '_anchors', None)
         if anchors:
             for anchor in anchors:

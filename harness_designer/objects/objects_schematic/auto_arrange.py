@@ -350,5 +350,5 @@ def auto_arrange(project: "_project.Project") -> None:
 
     for wire in sorted(
             (w for w in project.wires if w.is_connected),
-            key=lambda w: float(w.obj2d._part.od_mm), reverse=True):  # NOQA
+            key=lambda w: float(w.objschematic._part.od_mm), reverse=True):  # NOQA
         _wire_reroute.reroute_wire(project, wire)

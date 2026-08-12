@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from .... import objects as _objects
-from ....objects.objects3d import base3d as _base3d
+from ....objects.objects_3d import base_3d as _base_3d
 from ....geometry import point as _point
 from ....geometry import angle as _angle
 from ....gl import materials as _materials
@@ -47,7 +47,7 @@ class HousingAccessory(_objects.ObjectBase):
         parent.add_object(self)
 
 
-class HousingAccessory3D(_base3d.Base3D):
+class HousingAccessory3D(_base_3d.Base3D):
     """Represent a housing accessory 3D in :mod:`harness_designer.ui.dialogs.housing_editor.accessory_obj`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -79,8 +79,8 @@ class HousingAccessory3D(_base3d.Base3D):
 
             material = _materials.Plastic(color)
 
-            _base3d.Base3D.__init__(self, parent, None, vbo, angle,
-                                    position, scale, material)
+            super().__init__(parent, None, vbo, angle,
+                             position, scale, material)
 
             self._selected_material = _materials.Plastic(
                 _color.Color(0.8, 0.8, 0.2, 0.99))

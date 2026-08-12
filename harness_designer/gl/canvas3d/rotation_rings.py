@@ -25,7 +25,7 @@ from OpenGL import GL
 
 from ...shapes import torus as _torus
 from ...shapes import sphere as _sphere
-from ...objects.objects3d import base3d as _base3d
+from ...objects.objects_3d import base_3d as _base_3d
 from ...objects.objects_schematic import base_schematic as _base_schematic
 from ...objects import object_base as _object_base
 from ...geometry import point as _point
@@ -341,7 +341,7 @@ class Rings2D(_base_schematic.BaseSchematic):
         return False
 
 
-class Rings3D(_base3d.Base3D):
+class Rings3D(_base_3d.Base3D):
     """Render three Euler-axis rings with grab handles around an object."""
 
     @_check_types.do
@@ -415,8 +415,8 @@ class Rings3D(_base3d.Base3D):
             self._handle_buf.acquire()
 
             # vbo=None: Rings3D overrides render()/_compute_aabb()/_compute_obb()
-            _base3d.Base3D.__init__(self, parent, None, None,
-                                    angle, obj3d.position, scale, material)
+            super().__init__(parent, None, None,
+                             angle, obj3d.position, scale, material)
 
         self._floor_guard = False
         self._is_visible = True

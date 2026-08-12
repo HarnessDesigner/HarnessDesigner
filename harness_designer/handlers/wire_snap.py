@@ -12,7 +12,7 @@ before this.
 The fix reuses ``objects.wire_layout.WireLayout`` itself as the hit-test
 target instead of inventing a new pickable object type: a real
 ``WireLayout`` already renders as a sphere sized to its wire's own
-``od_mm`` (see ``objects.objects3d.wire_layout.WireLayout.__init__``) and
+``od_mm`` (see ``objects.objects_3d.wire_layout.WireLayout.__init__``) and
 is already recognized by every hover/click branch in ``wire_handler.py``.
 One is placed at every location a wire is allowed to snap to (every
 terminal's own attach point, every splice's own branch point, every
