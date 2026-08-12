@@ -1,0 +1,563 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+import threading
+
+from PySide6.QtCore import Qt, QTimer, QEvent, QObject
+from PySide6.QtGui import QCursor
+
+from . import canvas as _canvas
+from ... import debug as _debug
+from .. import events as _events
+from ...geometry import point as _point
+from ... import app as _app
+from ... import check_types as _check_types
+
+
+# wx key code → Qt.Key mapping for the numpad-equivalence groups.
+# Keys that have direct Qt equivalents use Qt.Key values.
+# Printable ASCII keys (32-126) are handled by ord() / Qt.Key_* directly.
+#
+# The KEY_MULTIPLES dict maps a canonical key to the set of Qt key codes
+# that should all trigger the same action.  Config values stored as wx key
+# codes will have been migrated to Qt.Key ints; if they are still old wx
+# ints they will fall through to the ord()-range fallback in
+# _process_key_event, which is fine for ASCII keys.
+
+_Q = Qt.Key  # shorthand
+
+KEY_MULTIPLES = {
+    _Q.Key_Up:       [_Q.Key_Up],
+    _Q.Key_Down:     [_Q.Key_Down],
+    _Q.Key_Left:     [_Q.Key_Left],
+    _Q.Key_Right:    [_Q.Key_Right],
+
+    ord('-'): [ord('-'), _Q.Key_Minus],
+    _Q.Key_Minus: [ord('-'), _Q.Key_Minus],
+
+    ord('+'): [ord('+'), _Q.Key_Plus],
+    _Q.Key_Plus: [ord('+'), _Q.Key_Plus],
+
+    ord('/'): [ord('/'), _Q.Key_Slash],
+    _Q.Key_Slash: [ord('/'), _Q.Key_Slash],
+
+    ord('*'): [ord('*'), _Q.Key_Asterisk],
+    _Q.Key_Asterisk: [ord('*'), _Q.Key_Asterisk],
+
+    ord('.'): [ord('.'), _Q.Key_Period],
+    _Q.Key_Period: [ord('.'), _Q.Key_Period],
+
+    ord('|'): [ord('|'), _Q.Key_Bar],
+    _Q.Key_Bar: [ord('|'), _Q.Key_Bar],
+
+    ord(' '): [ord(' '), _Q.Key_Space],
+    _Q.Key_Space: [ord(' '), _Q.Key_Space],
+
+    ord('='): [ord('='), _Q.Key_Equal],
+    _Q.Key_Equal: [ord('='), _Q.Key_Equal],
+
+    _Q.Key_Home:     [_Q.Key_Home],
+    _Q.Key_End:      [_Q.Key_End],
+    _Q.Key_PageUp:   [_Q.Key_PageUp],
+    _Q.Key_PageDown: [_Q.Key_PageDown],
+    _Q.Key_Return:   [_Q.Key_Return, _Q.Key_Enter],
+    _Q.Key_Enter:    [_Q.Key_Return, _Q.Key_Enter],
+    _Q.Key_Insert:   [_Q.Key_Insert],
+    _Q.Key_Tab:      [_Q.Key_Tab],
+    _Q.Key_Delete:   [_Q.Key_Delete],
+
+    ord('0'): [ord('0'), _Q.Key_0],
+    ord('1'): [ord('1'), _Q.Key_1],
+    ord('2'): [ord('2'), _Q.Key_2],
+    ord('3'): [ord('3'), _Q.Key_3],
+    ord('4'): [ord('4'), _Q.Key_4],
+    ord('5'): [ord('5'), _Q.Key_5],
+    ord('6'): [ord('6'), _Q.Key_6],
+    ord('7'): [ord('7'), _Q.Key_7],
+    ord('8'): [ord('8'), _Q.Key_8],
+    ord('9'): [ord('9'), _Q.Key_9],
+}
+
+
+@_check_types.do
+def _process_key_event(keycode: int, *keys):
+    """Execute the process key event operation.
+
+    UNKNOWN details are inferred from the callable name and signature.
+
+    :param keycode: Value for ``keycode``.
+    :type keycode: int
+    :param keys: Lookup keys.
+    :type keys: UNKNOWN
+    :returns: Return value. UNKNOWN details.
+    :rtype: UNKNOWN
+    """
+    for expected_keycode in keys:
+        if expected_keycode is None:
+            continue
+
+        expected_keycodes = KEY_MULTIPLES.get(
+            expected_keycode,
+            [expected_keycode, ord(chr(expected_keycode).upper())]
+            if 32 <= expected_keycode <= 126 else
+            [expected_keycode]
+        )
+
+        if keycode in expected_keycodes:
+            return expected_keycode
+
+
+class KeyHandler:
+    """Represent a key handler in :mod:`harness_designer.gl.canvas3d.key_handler`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+
+    @_check_types.do
+    def __init__(self, canvas: _canvas.Canvas):
+        """Initialise the :class:`KeyHandler` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
+        self.canvas = canvas
+
+        self._running_keycodes = {}
+        self._key_event = threading.Event()
+        self._key_queue_lock = threading.Lock()
+        self._keycode_thread = threading.Thread(target=self._key_loop)
+        self._keycode_thread.daemon = True
+        self._keycode_thread.start()
+
+    @_check_types.do
+    def clear_keys(self) -> None:
+        """Drop every currently-tracked held key immediately.
+
+        Called when the canvas loses keyboard focus -- see
+        ``canvas3d/canvas.py``'s ``CanvasEventFilter``.
+        """
+        with self._key_queue_lock:
+            self._running_keycodes.clear()
+
+    @_check_types.do
+    def _binding(self, name: str):
+        """Return the active binding class for ``name``.
+
+        Returns ``None`` when ``name`` has no counterpart under
+        ``config.edit2d`` (``rotate``/``pan_tilt``) while locked-2D mode is
+        active, so those keys resolve to nothing instead of falling back to
+        the normal-mode bindings.
+
+        :param name: Binding class name, e.g. ``'rotate'``.
+        :type name: str
+        """
+        if self.canvas.config.edit2d.enable:
+            return getattr(self.canvas.config.edit2d, name, None)
+
+        return getattr(self.canvas.config, name)
+
+    @_check_types.do
+    def handle_event(self, event):
+        """Handle the event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event: Event object.
+        :type event: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: UNKNOWN
+        """
+        t = event.type()
+
+        if event.isAutoRepeat():  # ← ignore auto-repeats
+            return False
+
+        if t == QEvent.Type.KeyPress:
+            self.on_key_down(event)
+        elif t == QEvent.Type.KeyRelease:
+            self.on_key_up(event)
+
+        return False
+
+    @_check_types.do
+    def _key_loop(self):
+        """Execute the key loop operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
+        while not self._key_event.is_set():
+            with self._key_queue_lock:
+                temp_queue = [[func, items['keys'], items['factor']]
+                              for func, items in self._running_keycodes.items()]
+
+            for func, keys, factor in temp_queue:
+                _keys = list(keys)
+                _factor = factor
+                _app.CallAfter(func, _factor, *_keys)
+
+                if factor < self.canvas.config.keyboard_settings.max_speed_factor:
+                    factor += self.canvas.config.keyboard_settings.speed_factor_increment
+
+                    with self._key_queue_lock:
+                        try:
+                            self._running_keycodes[func]['factor'] = factor
+                        except KeyError:
+                            pass
+
+            self._key_event.wait(0.05)
+
+    @_debug.logfunc
+    @_check_types.do
+    def on_key_up(self, evt):
+        """Handle the key up event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
+        keycode = evt.key()
+
+        if not self._send_event(_events.EVT_GL_KEY_UP, evt):
+            return
+
+        @_check_types.do
+        def remove_from_queue(func, k):
+            """Remove the from queue.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param func: Value for ``func``.
+            :type func: UNKNOWN
+            :param k: Value for ``k``.
+            :type k: UNKNOWN
+            """
+            with self._key_queue_lock:
+                if func in self._running_keycodes:
+                    items = self._running_keycodes.pop(func)
+                    keys = list(items['keys'])
+                    if k in keys:
+                        keys.remove(k)
+
+                    if keys:
+                        items['keys'] = set(keys)
+                        self._running_keycodes[func] = items
+
+        rot = self._binding('rotate')
+        if rot is not None:
+            key = _process_key_event(keycode, rot.up_key, rot.down_key,
+                                     rot.left_key, rot.right_key)
+            if key is not None:
+                remove_from_queue(self._process_rotate_key, key)
+                return
+
+        pan_tilt = self._binding('pan_tilt')
+        if pan_tilt is not None:
+            key = _process_key_event(keycode, pan_tilt.up_key, pan_tilt.down_key,
+                                     pan_tilt.left_key, pan_tilt.right_key)
+            if key is not None:
+                remove_from_queue(self._process_pan_tilt_key, key)
+                return
+
+        truck_pedestal = self._binding('truck_pedestal')
+        key = _process_key_event(keycode, truck_pedestal.up_key,
+                                 truck_pedestal.down_key, truck_pedestal.left_key,
+                                 truck_pedestal.right_key)
+        if key is not None:
+            remove_from_queue(self._process_truck_pedestal_key, key)
+            return
+
+        walk = self._binding('walk')
+        key = _process_key_event(keycode, walk.forward_key, walk.backward_key,
+                                 walk.left_key, walk.right_key)
+        if key is not None:
+            remove_from_queue(self._process_walk_key, key)
+            return
+
+        zoom = self._binding('zoom')
+        key = _process_key_event(keycode, zoom.in_key, zoom.out_key)
+        if key is not None:
+            remove_from_queue(self._process_zoom_key, key)
+            return
+
+    @_check_types.do
+    def _send_event(self, event_type, qt_evt) -> bool:
+        """Execute the send event operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param event_type: Value for ``event_type``.
+        :type event_type: UNKNOWN
+        :param qt_evt: Value for ``qt_evt``.
+        :type qt_evt: UNKNOWN
+        :returns: Return value. UNKNOWN details.
+        :rtype: bool
+        """
+
+        # Screen position under the cursor — Qt key events don't carry a
+        # position, so we use the current cursor position mapped to the widget.
+
+        local_pos = self.canvas.mapFromGlobal(QCursor.pos())
+        position = _point.Point(local_pos.x(), local_pos.y())
+        world_position = self.canvas.camera.UnprojectPoint(position)
+
+        event = _events.GLKeyEvent(event_type)
+
+        mouse_event = self.canvas._mouse_handler.active_event  # NOQA
+
+        event.SetMouseEvent(mouse_event)
+
+        event.SetKeyCode(qt_evt.key())
+        event.SetRawKeyCode(qt_evt.nativeVirtualKey())
+        event.SetRawKeyFlags(qt_evt.nativeScanCode())
+        # UnicodeKey: first character of text(), or 0
+        text = qt_evt.text()
+        event.SetUnicodeKey(ord(text[0]) if text else 0)
+
+        mods = qt_evt.modifiers()
+        event.SetAltDown(bool(mods & Qt.AltModifier))  # NOQA
+        event.SetControlDown(bool(mods & Qt.ControlModifier))  # NOQA
+        event.SetCmdDown(bool(mods & Qt.ControlModifier))   # NOQA
+        event.SetModifiers(int(mods.value))
+        event.SetMetaDown(bool(mods & Qt.MetaModifier))  # NOQA
+        event.SetRawControlDown(bool(mods & Qt.ControlModifier))  # NOQA
+        event.SetShiftDown(bool(mods & Qt.ShiftModifier))  # NOQA
+
+        event.SetId(id(self.canvas))
+        event.SetEventObject(self.canvas)
+        event.SetPosition(position)
+        event.SetWorldPosition(world_position)
+
+        # Emit the signal on the canvas — connected handlers in mainframe.py
+        # receive the event object.
+        if event_type is _events.EVT_GL_KEY_DOWN:
+            self.canvas.gl_key_down.emit(event)
+        else:
+            self.canvas.gl_key_up.emit(event)
+
+        return event.ShouldPropagate()
+
+    @_debug.logfunc
+    @_check_types.do
+    def on_key_down(self, evt):
+        """Handle the key down event.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param evt: Event object.
+        :type evt: UNKNOWN
+        """
+        keycode = evt.key()
+
+        if not self._send_event(_events.EVT_GL_KEY_DOWN, evt):
+            return
+
+        @_check_types.do
+        def add_to_queue(func, k):
+            """Add a to queue.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param func: Value for ``func``.
+            :type func: UNKNOWN
+            :param k: Value for ``k``.
+            :type k: UNKNOWN
+            """
+            with self._key_queue_lock:
+                if func not in self._running_keycodes:
+                    self._running_keycodes[func] = dict(
+                        keys=set(),
+                        factor=self.canvas.config.keyboard_settings.start_speed_factor)
+
+                self._running_keycodes[func]['keys'].add(k)
+
+        rot = self._binding('rotate')
+        if rot is not None:
+            key = _process_key_event(keycode, rot.up_key, rot.down_key,
+                                     rot.left_key, rot.right_key)
+            if key is not None:
+                add_to_queue(self._process_rotate_key, key)
+                return
+
+        pan_tilt = self._binding('pan_tilt')
+        if pan_tilt is not None:
+            key = _process_key_event(keycode, pan_tilt.up_key, pan_tilt.down_key,
+                                     pan_tilt.left_key, pan_tilt.right_key)
+            if key is not None:
+                add_to_queue(self._process_pan_tilt_key, key)
+                return
+
+        truck_pedestal = self._binding('truck_pedestal')
+        key = _process_key_event(keycode, truck_pedestal.up_key,
+                                 truck_pedestal.down_key, truck_pedestal.left_key,
+                                 truck_pedestal.right_key)
+        if key is not None:
+            add_to_queue(self._process_truck_pedestal_key, key)
+            return
+
+        walk = self._binding('walk')
+        key = _process_key_event(keycode, walk.forward_key, walk.backward_key,
+                                 walk.left_key, walk.right_key)
+        if key is not None:
+            add_to_queue(self._process_walk_key, key)
+            return
+
+        zoom = self._binding('zoom')
+        key = _process_key_event(keycode, zoom.in_key, zoom.out_key)
+        if key is not None:
+            add_to_queue(self._process_zoom_key, key)
+            return
+
+        key = _process_key_event(keycode, self._binding('reset').key)
+        if key is not None:
+            self._process_reset_key(key)
+            return
+
+    @_debug.logfunc
+    @_check_types.do
+    def _process_rotate_key(self, factor, *keys):
+        """Execute the process rotate key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
+        dx = 0.0
+        dy = 0.0
+
+        for key in keys:
+            if key == self.canvas.config.rotate.up_key:
+                dy += 1.0
+            elif key == self.canvas.config.rotate.down_key:
+                dy -= 1.0
+            elif key == self.canvas.config.rotate.left_key:
+                dx -= 1.0
+            elif key == self.canvas.config.rotate.right_key:
+                dx += 1.0
+
+        self.canvas.Rotate(dx * factor, dy * factor)
+
+    @_debug.logfunc
+    @_check_types.do
+    def _process_pan_tilt_key(self, factor, *keys):
+        """Execute the process pan tilt key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
+        dx = 0.0
+        dy = 0.0
+
+        for key in keys:
+            if key == self.canvas.config.pan_tilt.up_key:
+                dy += 1.0
+            elif key == self.canvas.config.pan_tilt.down_key:
+                dy -= 1.0
+            elif key == self.canvas.config.pan_tilt.left_key:
+                dx -= 1.0
+            elif key == self.canvas.config.pan_tilt.right_key:
+                dx += 1.0
+
+        self.canvas.PanTilt(dx * factor, dy * factor)
+
+    @_debug.logfunc
+    @_check_types.do
+    def _process_truck_pedestal_key(self, factor, *keys):
+        """Execute the process truck pedestal key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
+        dx = 0.0
+        dy = 0.0
+
+        truck_pedestal = self._binding('truck_pedestal')
+
+        for key in keys:
+            if key == truck_pedestal.up_key:
+                dy -= 3.0
+            elif key == truck_pedestal.down_key:
+                dy += 3.0
+            elif key == truck_pedestal.left_key:
+                dx -= 3.0
+            elif key == truck_pedestal.right_key:
+                dx += 3.0
+
+        self.canvas.TruckPedestal(dx * factor, dy * factor)
+
+    @_debug.logfunc
+    @_check_types.do
+    def _process_walk_key(self, factor, *keys):
+        """Execute the process walk key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
+        dx = 0.0
+        dy = 0.0
+
+        walk = self._binding('walk')
+
+        for key in keys:
+            if key == walk.forward_key:
+                dy += 2.0
+            elif key == walk.backward_key:
+                dy -= 2.0
+            elif key == walk.left_key:
+                dx += 1.0
+            elif key == walk.right_key:
+                dx -= 1.0
+
+        self.canvas.Walk(dx * factor, dy * factor)
+
+    @_debug.logfunc
+    @_check_types.do
+    def _process_zoom_key(self, factor, *keys):
+        """Execute the process zoom key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param factor: Value for ``factor``.
+        :type factor: UNKNOWN
+        :param keys: Lookup keys.
+        :type keys: UNKNOWN
+        """
+        delta = 0.0
+
+        zoom = self._binding('zoom')
+
+        for key in keys:
+            if key == zoom.in_key:
+                delta += 1.0
+            elif key == zoom.out_key:
+                delta -= 1.0
+
+        self.canvas.Zoom(delta * factor, None)
+
+    @_debug.logfunc
+    @_check_types.do
+    def _process_reset_key(self, *_):
+        """Execute the process reset key operation.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param _: Value for ``_``.
+        :type _: UNKNOWN
+        """
+        self.canvas.camera.Reset()

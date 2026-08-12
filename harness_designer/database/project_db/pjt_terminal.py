@@ -641,8 +641,8 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         Unlike :attr:`position2d_id` (this terminal's own name anchor,
         inside the housing body), this is the far end of the wire-stub
         line drawn past every cavity name in the housing -- see
-        ``objects2d/housing.py``'s ``Housing._layout_children`` (which
-        positions it) and ``objects2d/terminal.py``'s ``Terminal.
+        ``objects_schematic/housing.py``'s ``Housing._layout_children`` (which
+        positions it) and ``objects_schematic/terminal.py``'s ``Terminal.
         render_extras`` (which draws the line up to it) -- and it's where
         a wire actually connects in the 2D schematic, not
         :attr:`position2d`.

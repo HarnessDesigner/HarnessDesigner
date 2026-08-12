@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import weakref
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import bundle as _bundle_2d
+from .objects_schematic import bundle as _bundle_schematic
 from .objects3d import bundle as _bundle_3d
 from .objectspeg import bundle as _bundle_peg
 from .. import check_types as _check_types
@@ -21,7 +21,7 @@ class Bundle(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _bundle_2d.Bundle = None
+    objschematic: _bundle_schematic.Bundle = None
     obj3d: _bundle_3d.Bundle = None
     objpeg: _bundle_peg.Bundle = None
     db_obj: "_pjt_bundle.PJTBundle" = None
@@ -43,7 +43,7 @@ class Bundle(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _bundle_2d.Bundle(self, db_obj)
+        self.objschematic = _bundle_schematic.Bundle(self, db_obj)
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
         self.objpeg = _bundle_peg.Bundle(self, db_obj)
 

@@ -88,8 +88,8 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         """Handle the angle event.
 
         Rotation in the 2D editor is about world Y (see ``angle2d.y``'s
-        axis convention, used everywhere in ``objects2d/``), and locked
-        to 90° increments (matches ``objects2d/housing.py``'s ``# TODO:
+        axis convention, used everywhere in ``objects_schematic/``), and locked
+        to 90° increments (matches ``objects_schematic/housing.py``'s ``# TODO:
         Lock a housing to only be able to be rotated in 90° increments``
         note) -- round the typed/spun value to the nearest multiple of
         90 rather than writing it verbatim, so this free-text field can't

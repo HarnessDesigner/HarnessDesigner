@@ -51,7 +51,7 @@ class Editor2D(_dock_base.DockBase):
         Mirrors ``ui.editor_3d.editor3d.Editor3D.context``/
         ``ui.editor_pegboard.editor_pegboard.EditorPegBoard.context`` --
         needed by ``objects.objectsvar.base_var.BaseVar``'s
-        ``self.editor.context.acquire()``/``.release()`` calls (``Base2D.
+        ``self.editor.context.acquire()``/``.release()`` calls (``BaseSchematic.
         editor`` resolves to ``mainframe.editor2d``), which otherwise have
         nowhere to resolve to.
 

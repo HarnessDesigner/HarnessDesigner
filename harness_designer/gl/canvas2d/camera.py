@@ -340,7 +340,7 @@ class Camera:
         schematic canvas and the peg board canvas (deliberately not
         subclassed per Phase 1 of the peg board editor), and those two
         canvases hold their scene contents in different shapes -- real
-        ``ObjectBase`` wrappers with ``obj2d.get_bounds()`` for the
+        ``ObjectBase`` wrappers with ``objschematic.get_bounds()`` for the
         schematic canvas, ``objects.objectspeg.basepeg.BasePeg``
         (``.obj``/``.position.x``/``.position.z``) for the peg board -- so this duck-types on
         which shape ``self.canvas``
@@ -373,10 +373,10 @@ class Camera:
         # 2D schematic canvas: real ObjectBase wrappers, bounds via obj2d.
         if hasattr(self.canvas, 'objects'):
             for obj in self.canvas.objects:
-                if not hasattr(obj, 'obj2d') or not hasattr(obj.obj2d, 'get_bounds'):
+                if not hasattr(obj, 'objschematic') or not hasattr(obj.objschematic, 'get_bounds'):
                     continue
 
-                bounds = obj.obj2d.get_bounds()
+                bounds = obj.objschematic.get_bounds()
                 if bounds is None:
                     continue
 
@@ -427,8 +427,8 @@ class Camera:
         max_y = float('-inf')
 
         for obj in objects:
-            if hasattr(obj, 'obj2d') and hasattr(obj.obj2d, 'get_bounds'):
-                bounds = obj.obj2d.get_bounds()
+            if hasattr(obj, 'objschematic') and hasattr(obj.objschematic, 'get_bounds'):
+                bounds = obj.objschematic.get_bounds()
                 if bounds is not None:
                     min_x = min(min_x, bounds[0])
                     min_y = min(min_y, bounds[1])

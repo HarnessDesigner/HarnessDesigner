@@ -467,7 +467,7 @@ class Project:
     def delete(self):
         """Delete every object in the project, then the project's own row.
 
-        Project has no obj2d/obj3d/objpeg of its own, so unlike a normal
+        Project has no objschematic/obj3d/objpeg of its own, so unlike a normal
         ObjectBase there is no single view-teardown hook to lean on --
         this walks every part-type registry directly instead, calling
         each object's own ``delete()`` (the object is the entry point for

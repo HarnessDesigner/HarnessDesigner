@@ -499,12 +499,12 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
             wire_obj.obj3d.set_start_position(target_point)
             wire_obj.db_obj.start_position3d_id = branch_id
             wire_obj.db_obj.start_position2d_id = target.db_obj.position2d_id
-            wire_obj.obj2d.set_start_position(target.db_obj.position2d)
+            wire_obj.objschematic.set_start_position(target.db_obj.position2d)
         else:
             wire_obj.obj3d.set_stop_position(target_point)
             wire_obj.db_obj.stop_position3d_id = branch_id
             wire_obj.db_obj.stop_position2d_id = target.db_obj.position2d_id
-            wire_obj.obj2d.set_stop_position(target.db_obj.position2d)
+            wire_obj.objschematic.set_stop_position(target.db_obj.position2d)
 
         target.add_wire(wire_obj)
         wire_obj.set_sibling(target, end)

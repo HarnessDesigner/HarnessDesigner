@@ -3,12 +3,12 @@
 """Interactive handler for drawing a wire from the 2D schematic editor.
 
 Started from a Terminal's or Splice's own "Add Wire" context-menu action
-(see ``objects2d/terminal.py``'s ``TerminalMenu.on_add_wire``) -- pinned
+(see ``objects_schematic/terminal.py``'s ``TerminalMenu.on_add_wire``) -- pinned
 to that terminal/splice immediately, so unlike ``handlers/wire_handler.py``'s
 3D ``AddWireHandler`` there's no free first-click phase: the schematic
 editor doesn't have a free-space wire-drawing tool, only Terminal/Splice
 targets, since the path between them is always auto-routed (see
-``objects2d/wire_routing.py``), never hand-drawn.
+``objects_schematic/wire_routing.py``), never hand-drawn.
 
 A live straight-line preview tracks the mouse (mirrors ``AddWireHandler``'s
 own preview, which is likewise a straight line during the drag -- the
@@ -33,7 +33,7 @@ from ..gl import object_picker as _object_picker
 from ..objects import terminal as _terminal
 from ..objects import splice as _splice
 from ..objects import wire as _wire
-from ..objects.objects2d import wire_routing as _wire_routing
+from ..objects.objects_schematic import wire_routing as _wire_routing
 from ..ui.dialogs import part_search as _part_search
 from ..ui import editor_db as _editor_db
 from .. import check_types as _check_types
@@ -172,13 +172,13 @@ class AddWireHandler2D(_handler_base.HandlerBase):
             self.obj.obj3d.set_start_position(splice_obj.obj3d.wire_position)
             self.obj.db_obj.start_position3d_id = splice_obj.db_obj.branch_position3d_id
             self.obj.db_obj.start_position2d_id = splice_obj.db_obj.position2d_id
-            self.obj.obj2d.set_start_position(splice_obj.db_obj.position2d)
+            self.obj.objschematic.set_start_position(splice_obj.db_obj.position2d)
         else:
             stale3d_id = self.obj.obj3d.stop_position.db_id[:-2]
             self.obj.obj3d.set_stop_position(splice_obj.obj3d.wire_position)
             self.obj.db_obj.stop_position3d_id = splice_obj.db_obj.branch_position3d_id
             self.obj.db_obj.stop_position2d_id = splice_obj.db_obj.position2d_id
-            self.obj.obj2d.set_stop_position(splice_obj.db_obj.position2d)
+            self.obj.objschematic.set_stop_position(splice_obj.db_obj.position2d)
 
         self.ptables.pjt_points3d_table[stale3d_id].delete()
 
@@ -203,7 +203,7 @@ class AddWireHandler2D(_handler_base.HandlerBase):
 
     @staticmethod
     def _get_view_object(obj):
-        return obj.obj2d
+        return obj.objschematic
 
     @_check_types.do
     def release_capture(self):
@@ -258,7 +258,7 @@ class AddWireHandler2D(_handler_base.HandlerBase):
     @_check_types.do
     def _route(self):
         """Auto-route this now-fully-connected wire's 2D path -- see
-        ``objects2d/wire_routing.py``.
+        ``objects_schematic/wire_routing.py``.
         """
         start = self.obj.db_obj.start_position2d
         stop = self.obj.db_obj.stop_position2d
@@ -272,7 +272,7 @@ class AddWireHandler2D(_handler_base.HandlerBase):
                 x, z, wire_id=self.obj.db_obj.db_id, idx=i)
 
         if waypoints:
-            self.obj.obj2d.refresh_waypoints()
+            self.obj.objschematic.refresh_waypoints()
 
     @_check_types.do
     def cancel(self):

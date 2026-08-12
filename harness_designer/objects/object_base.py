@@ -9,7 +9,7 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from .. import ui as _ui
     from .objects3d import base3d as _base3d
-    from .objects2d import base2d as _base2d
+    from .objects_schematic import base_schematic as _base_schematic
     from .objectspeg import basepeg as _basepeg
     from ..database import project_db as _project_db
 
@@ -19,7 +19,7 @@ class ObjectBase:
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: "_base2d.Base2D" = None
+    objschematic: "_base_schematic.BaseSchematic" = None
     obj3d: "_base3d.Base3D" = None
     objpeg: "_basepeg.BasePeg" = None
     db_obj: "_project_db.PJTEntryBase" = None
@@ -51,8 +51,8 @@ class ObjectBase:
         :param material: Value for ``color``.
         :type material: list[float] | None
         """
-        if self.obj2d is not None:
-            self.obj2d.identify(material)
+        if self.objschematic is not None:
+            self.objschematic.identify(material)
 
         if self.obj3d is not None:
             self.obj3d.identify(material)
@@ -93,8 +93,8 @@ class ObjectBase:
 
         self._deleted = True
 
-        if self.obj2d is not None:
-            self.obj2d._delete()  # NOQA
+        if self.objschematic is not None:
+            self.objschematic._delete()  # NOQA
 
         if self.obj3d is not None:
             self.obj3d._delete()  # NOQA
@@ -129,8 +129,8 @@ class ObjectBase:
         """
         self._is_selected = flag
 
-        if self.obj2d is not None:
-            self.obj2d.set_selected(flag)
+        if self.objschematic is not None:
+            self.objschematic.set_selected(flag)
 
         if self.obj3d is not None:
             self.obj3d.set_selected(flag)
@@ -167,8 +167,8 @@ class ObjectBase:
         """
         self._is_selected = value
 
-        if self.obj2d is not None and self.obj2d.is_selected != value:
-            self.obj2d.set_selected(value)
+        if self.objschematic is not None and self.objschematic.is_selected != value:
+            self.objschematic.set_selected(value)
 
         if self.obj3d is not None and self.obj3d.is_selected != value:
             self.obj3d.set_selected(value)
@@ -323,5 +323,3 @@ class ObjectBase:
         from . import wire_service_loop as _wire_service_loop
 
         return isinstance(self, _wire_service_loop.WireServiceLoop)
-
-

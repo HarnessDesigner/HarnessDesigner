@@ -26,7 +26,7 @@ from OpenGL import GL
 from ...shapes import torus as _torus
 from ...shapes import sphere as _sphere
 from ...objects.objects3d import base3d as _base3d
-from ...objects.objects2d import base2d as _base2d
+from ...objects.objects_schematic import base_schematic as _base_schematic
 from ...objects import object_base as _object_base
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -197,7 +197,7 @@ class RotationRings(_object_base.ObjectBase):
 
         _object_base.ObjectBase.__init__(self, mainframe, None)
         self.selected = selected
-        self.obj2d = Rings2D(self)
+        self.objschematic = Rings2D(self)
         self.obj3d = Rings3D(self, selected, mainframe, locked)
         self._treeitem = None
         self.mainframe.add_object(self)
@@ -304,7 +304,7 @@ class RotationRings(_object_base.ObjectBase):
         pass
 
 
-class Rings2D(_base2d.Base2D):
+class Rings2D(_base_schematic.BaseSchematic):
     """2D placeholder for the rotation ring gizmo (3D editor only)."""
 
     @_check_types.do
@@ -319,7 +319,7 @@ class Rings2D(_base2d.Base2D):
 
         # Purely a dummy 2D presence -- see move_arrows.py's Arrows2D
         # for the same pattern/reasoning.
-        _base2d.Base2D.__init__(self, parent, None, None, angle, position, None, None)
+        super().__init__(parent, None, None, angle, position, None, None)
 
     @_check_types.do
     def set_selected(self, flag: bool):

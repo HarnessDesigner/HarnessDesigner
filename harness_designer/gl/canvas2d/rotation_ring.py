@@ -9,7 +9,7 @@ the target's live ``angle.y`` -- as opposed to the 3D editor's three-
 Euler-axis ``gl.canvas3d.rotation_rings.RotationRings``, every 2D-plane
 editor only ever needs a single-axis ring, so this one class covers all of
 them. *target* only needs to duck-type ``.position`` (``.x``/``.y``/``.z``),
-``.angle.y``, and ``.aabb`` -- both ``objects.objects2d.base2d.Base2D``
+``.angle.y``, and ``.aabb`` -- both ``objects.objects_schematic.base_schematic.BaseSchematic``
 (schematic) and ``objects.objectspeg.basepeg.BasePeg`` (peg board) already
 satisfy that shape, so nothing here is specific to either. The one place
 2D editors *do* differ -- the schematic forces a hard 90-degree detent
@@ -25,7 +25,7 @@ have no ``Base3D``/3D-camera dependency of their own, just pure mesh
 builders and orientation math.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 from OpenGL import GL
@@ -39,7 +39,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ...objects.objects2d import base2d as _base2d
+    from ...objects.objects_schematic import base_schematic as _base_schematic
     from ...objects.objectspeg import basepeg as _basepeg
 
 
@@ -70,7 +70,7 @@ class RotationRing:
 
     Built for one *target* -- any object exposing ``.position`` (``.x``/
     ``.y``/``.z``), ``.angle.y``, and ``.aabb``, which both
-    ``objects.objects2d.base2d.Base2D`` (schematic) and
+    ``objects.objects_schematic.base_schematic.BaseSchematic`` (schematic) and
     ``objects.objectspeg.basepeg.BasePeg`` (peg board) already satisfy --
     sized from the target's own live ``aabb`` footprint, centered on its
     current ``position`` (``.x``/``.z``, every 2D-plane editor's usual
@@ -90,11 +90,11 @@ class RotationRing:
     """
 
     @_check_types.do
-    def __init__(self, target: "_base2d.Base2D | _basepeg.BasePeg"):
+    def __init__(self, target: Union["_base_schematic.BaseSchematic", "_basepeg.BasePeg"]):
         """Initialise the :class:`RotationRing` instance.
 
         :param target: The object/anchor this gizmo surrounds.
-        :type target: :class:`~harness_designer.objects.objects2d.base2d.Base2D` |
+        :type target: :class:`~harness_designer.objects.objects_schematic.base_schematic.BaseSchematic` |
             :class:`~harness_designer.objects.objectspeg.basepeg.BasePeg`
         """
         self._target = target

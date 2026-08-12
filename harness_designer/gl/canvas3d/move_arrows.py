@@ -7,7 +7,7 @@ from OpenGL import GL
 
 from ...shapes import arrow as _arrow
 from ...objects.objects3d import base3d as _base3d
-from ...objects.objects2d import base2d as _base2d
+from ...objects.objects_schematic import base_schematic as _base_schematic
 from ...objects import object_base as _object_base
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -50,7 +50,7 @@ class MoveArrows(_object_base.ObjectBase):
         :type aabb: :class:`np.ndarray`
         """
         _object_base.ObjectBase.__init__(self, mainframe, None)
-        self.obj2d = Arrows2D(self)
+        self.objschematic = Arrows2D(self)
         self.obj3d = Arrows3D(self, obj_position, axis, mainframe, aabb)
         self._treeitem = None
         self.mainframe.add_object(self)
@@ -148,7 +148,7 @@ class MoveArrows(_object_base.ObjectBase):
         pass
 
 
-class Arrows2D(_base2d.Base2D):
+class Arrows2D(_base_schematic.BaseSchematic):
     """Represent an arrows 2D in :mod:`harness_designer.gl.canvas3d.move_arrows`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -168,9 +168,9 @@ class Arrows2D(_base2d.Base2D):
 
         # Purely a dummy 2D presence -- MoveArrows is a 3D-editor-only
         # gizmo, this has no VBO/rendering role of its own (see
-        # objects2d/base2d.py's Base2D.__init__: vbo=None keeps it on
+        # objects_schematic/base_schematic.py's BaseSchematic.__init__: vbo=None keeps it on
         # the inert legacy-contract branch, same as boot.py/cover.py/etc).
-        _base2d.Base2D.__init__(self, parent, None, None, angle, position, None, None)
+        super().__init__(parent, None, None, angle, position, None, None)
 
     @_check_types.do
     def set_selected(self, flag: bool):

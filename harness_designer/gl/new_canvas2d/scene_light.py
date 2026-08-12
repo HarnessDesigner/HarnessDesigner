@@ -1,0 +1,46 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from typing import TYPE_CHECKING
+
+import numpy as np
+from OpenGL import GL
+from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from . import canvas as _canvas
+
+
+class SceneLight:
+    """Manages the main scene lighting uniforms"""
+    
+    @_check_types.do
+    def __init__(self, canvas: "_canvas.Canvas"):
+        """Initialise the :class:`SceneLight` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param canvas: Canvas instance.
+        :type canvas: :class:`_canvas.Canvas`
+        """
+        self.canvas = canvas
+        self.config = self.canvas.config.lighting
+
+    @_check_types.do
+    def set(self, shader_program):
+        """Set the light uniforms in the shader"""
+
+        position = self.canvas.camera.position.as_numpy
+        ambient = np.array(self.config.ambient, dtype=np.float32)
+        diffuse = np.array(self.config.diffuse, dtype=np.float32)
+        specular = np.array(self.config.specular, dtype=np.float32)
+
+        lightPosition = GL.glGetUniformLocation(shader_program, "lightPosition")
+        lightAmbient = GL.glGetUniformLocation(shader_program, "lightAmbient")
+        lightDiffuse = GL.glGetUniformLocation(shader_program, "lightDiffuse")
+        lightSpecular = GL.glGetUniformLocation(shader_program, "lightSpecular")
+        
+        GL.glUniform3fv(lightPosition, 1, position)
+        GL.glUniform4fv(lightAmbient, 1, ambient)
+        GL.glUniform4fv(lightDiffuse, 1, diffuse)
+        GL.glUniform4fv(lightSpecular, 1, specular)

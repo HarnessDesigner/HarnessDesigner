@@ -208,9 +208,9 @@ class MouseHandler2D(QtCore.QObject):
         """Return the object under *mouse_pos* (screen-pixel coordinates).
 
         Ray-vs-OBB/AABB picking via ``gl.object_picker.find_object``
-        (``attr='obj2d'``) against ``self.canvas.camera``'s ``.modelview``/
+        (``attr='objschematic'``) against ``self.canvas.camera``'s ``.modelview``/
         ``.projection``/``.viewport`` -- see ``gl.canvas2d.camera.Camera.
-        _update_views``. Replaces the previous per-object ``obj2d.hit_test()``
+        _update_views``. Replaces the previous per-object ``objschematic.hit_test()``
         loop.
 
         A ``Wire`` without a completed connection at both ends (see
@@ -231,7 +231,7 @@ class MouseHandler2D(QtCore.QObject):
 
     @staticmethod
     def _get_view_object(obj):
-        return obj.obj2d
+        return obj.objschematic
 
     @_check_types.do
     def _process_mouse(self, code):
@@ -647,22 +647,22 @@ class MouseHandler2D(QtCore.QObject):
                         if self.canvas.config.angle.lock and self._drag_offset is not None:
                             world_pos = self.canvas.apply_angle_lock(self._drag_offset, world_pos)
 
-                        obj2d = self._drag_obj.obj2d
-                        if hasattr(obj2d, 'begin_segment_drag'):
+                        objschematic = self._drag_obj.objschematic
+                        if hasattr(objschematic, 'begin_segment_drag'):
                             # A wire's own position is just its start
                             # endpoint -- dragging that would stretch/
                             # re-angle it rather than move a section of
                             # its path, so it gets its own interaction
-                            # (see objects2d/wire.py's begin_segment_drag/
+                            # (see objects_schematic/wire.py's begin_segment_drag/
                             # update_segment_drag) instead of the generic
                             # "set .position" path below.
                             if self._wire_drag_session is None:
-                                self._wire_drag_session = obj2d.begin_segment_drag(world_pos)
+                                self._wire_drag_session = objschematic.begin_segment_drag(world_pos)
 
                             if self._wire_drag_session is not None:
-                                obj2d.update_segment_drag(self._wire_drag_session, world_pos)
+                                objschematic.update_segment_drag(self._wire_drag_session, world_pos)
                         else:
-                            position = obj2d.position
+                            position = objschematic.position
                             position += world_pos - position
 
                         drag_event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_DRAG)

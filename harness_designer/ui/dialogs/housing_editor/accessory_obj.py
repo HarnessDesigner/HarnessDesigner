@@ -42,7 +42,7 @@ class HousingAccessory(_objects.ObjectBase):
         super().__init__(parent, None)
         self.dialog = parent
         self.obj3d = HousingAccessory3D(self, position, color)
-        self.obj2d = None
+        self.objschematic = None
 
         parent.add_object(self)
 

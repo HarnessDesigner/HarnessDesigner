@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import note as _note_2d
+from .objects_schematic import note as _note_schematic
 from .objects3d import note as _note_3d
 from .objectspeg import note as _note_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class Note(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _note_2d.Note = None
+    objschematic: _note_schematic.Note = None
     obj3d: _note_3d.Note = None
     objpeg: _note_peg.Note = None
     db_obj: "_pjt_note.PJTNote" = None
@@ -41,7 +41,7 @@ class Note(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _note_2d.Note(self, db_obj)
+        self.objschematic = _note_schematic.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)
         self.objpeg = _note_peg.Note(self, db_obj)
         self.mainframe.add_object(self)

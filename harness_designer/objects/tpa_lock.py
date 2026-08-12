@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import tpa_lock as _tpa_lock_2d
+from .objects_schematic import tpa_lock as _tpa_lock_schematic
 from .objects3d import tpa_lock as _tpa_lock_3d
 from .objectspeg import tpa_lock as _tpa_lock_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class TPALock(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _tpa_lock_2d.TPALock = None
+    objschematic: _tpa_lock_schematic.TPALock = None
     obj3d: _tpa_lock_3d.TPALock = None
     objpeg: _tpa_lock_peg.TPALock = None
     db_obj: "_pjt_tpa_lock.PJTTPALock" = None
@@ -42,7 +42,7 @@ class TPALock(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _tpa_lock_2d.TPALock(self, db_obj)
+        self.objschematic = _tpa_lock_schematic.TPALock(self, db_obj)
         self.obj3d = _tpa_lock_3d.TPALock(self, db_obj)
         self.objpeg = _tpa_lock_peg.TPALock(self, db_obj)
 

@@ -6,7 +6,7 @@ import weakref
 from . import ObjectBase as _ObjectBase
 from . import terminal as _terminal
 from . import splice as _splice
-from .objects2d import wire as _wire_2d
+from .objects_schematic import wire as _wire_schematic
 from .objects3d import wire as _wire_3d
 from .objectspeg import wire as _wire_peg
 from .. import check_types as _check_types
@@ -23,7 +23,7 @@ class Wire(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _wire_2d.Wire = None
+    objschematic: _wire_schematic.Wire = None
     obj3d: _wire_3d.Wire = None
     objpeg: _wire_peg.Wire = None
     db_obj: "_pjt_wire.PJTWire" = None
@@ -46,7 +46,7 @@ class Wire(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _wire_2d.Wire(self, db_obj)
+        self.objschematic = _wire_schematic.Wire(self, db_obj)
         self.obj3d = _wire_3d.Wire(self, db_obj)
         self.objpeg = _wire_peg.Wire(self, db_obj)
 
@@ -108,8 +108,8 @@ class Wire(_ObjectBase):
         shows/picks a wire meeting this (see ``gl/canvas2d/canvas.py``'s
         ``_render_vbo_objects``/``gl/canvas2d/mouse_handler.py``'s
         ``_get_object_at_point``), and it's also what the auto-layout
-        (``objects2d/housing_layout.py``) and auto-router
-        (``objects2d/wire_routing.py``) treat as a real obstacle to route
+        (``objects_schematic/housing_layout.py``) and auto-router
+        (``objects_schematic/wire_routing.py``) treat as a real obstacle to route
         around -- an in-progress wire isn't really "there" yet.
         """
         return (isinstance(self.start_sibling, (_terminal.Terminal, _splice.Splice))
@@ -140,8 +140,8 @@ class Wire(_ObjectBase):
         for layout in self.layouts:
             if layout.obj3d is not None:
                 layout.obj3d.identify(layout.obj3d.selected_material if flag else None)
-            if layout.obj2d is not None:
-                layout.obj2d.identify(layout.obj2d.selected_material if flag else None)
+            if layout.objschematic is not None:
+                layout.objschematic.identify(layout.objschematic.selected_material if flag else None)
 
     @_check_types.do
     def trace_run(self) -> tuple[float, float]:

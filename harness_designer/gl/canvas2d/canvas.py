@@ -434,8 +434,8 @@ class Canvas(QOpenGLWidget):
 
         Two rendering paths coexist while object types migrate from the
         legacy immediate-mode path one piece at a time (see
-        objects.objects2d.base2d.Base2D): objects with a VBO
-        (obj.obj2d.vbo is not None) render via _render_vbo_objects()'s
+        objects.objects_schematic.base_schematic.BaseSchematic): objects with a VBO
+        (obj.objschematic.vbo is not None) render via _render_vbo_objects()'s
         schematic2d-shader pass; everything else still renders through its
         own render_gl() below, unchanged.
         """
@@ -445,9 +445,9 @@ class Canvas(QOpenGLWidget):
         self._floor.render(self._floor_program)
 
         for obj in self._objects:
-            if obj.obj2d.vbo is not None:
+            if obj.objschematic.vbo is not None:
                 continue
-            obj.obj2d.render_gl()
+            obj.objschematic.render_gl()
 
         self._render_vbo_objects()
         # Qt handles SwapBuffers automatically.
@@ -480,7 +480,7 @@ class Canvas(QOpenGLWidget):
 
     @_check_types.do
     def _render_vbo_objects(self):
-        """Render every VBO-backed object (``obj.obj2d.vbo is not None``)
+        """Render every VBO-backed object (``obj.objschematic.vbo is not None``)
         under the schematic2d shader -- mirrors
         ``gl.canvas_pegboard.canvas.Canvas._render_objects``' uniform-
         setting contract exactly (``objectPosition``/``objectRotation``/
@@ -499,7 +499,7 @@ class Canvas(QOpenGLWidget):
 
         vbo_objects = [
             obj for obj in self._objects
-            if obj.obj2d.vbo is not None and getattr(obj, 'is_connected', True)
+            if obj.objschematic.vbo is not None and getattr(obj, 'is_connected', True)
         ]
         if not vbo_objects:
             return
@@ -541,14 +541,14 @@ class Canvas(QOpenGLWidget):
         normal_loc = GL.glGetUniformLocation(self._program, "normalMode")
 
         for obj in vbo_objects:
-            obj2d = obj.obj2d
-            obj2d.material.set(self._program)
-            obj2d._render_geometry(self._program, pos_loc, rot_loc, scale_loc, normal_loc)  # NOQA
+            objschematic = obj.objschematic
+            objschematic.material.set(self._program)
+            objschematic._render_geometry(self._program, pos_loc, rot_loc, scale_loc, normal_loc)  # NOQA
 
             # Object-owned extras (e.g. Housing2D's pin markers/terminal-
             # name rows/corner label) drawn under this same bound program/
             # uniform contract, right after the object's own primitive.
-            render_extras = getattr(obj2d, 'render_extras', None)
+            render_extras = getattr(objschematic, 'render_extras', None)
             if render_extras is not None:
                 render_extras(self._program, pos_loc, rot_loc, scale_loc, normal_loc)
 

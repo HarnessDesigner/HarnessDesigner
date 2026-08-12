@@ -39,11 +39,11 @@ def delete_layouts_at(layouts_table: "_pjt_wire_layout.PJTWireLayoutsTable",
                       id_field: str, point_id: bytes) -> None:
     """Delete every WireLayout referencing *point_id* via *id_field*
     (``point3d_id`` or ``point2d_id``) -- through its own live
-    object if one exists (so obj3d/obj2d teardown and the project's own
+    object if one exists (so obj3d/objschematic teardown and the project's own
     wire_layouts list stay consistent), falling back to a raw row delete
     otherwise. Module-level (not a ``PJTWire`` method) so it's reusable
     anywhere a waypoint row is being removed without also deleting the
-    owning wire -- see ``objects/objects2d/wire_reroute.py``.
+    owning wire -- see ``objects/objects_schematic/wire_reroute.py``.
     """
     for row in layouts_table.select('id', **{id_field: point_id}):
         layout_db = layouts_table[row[0]]

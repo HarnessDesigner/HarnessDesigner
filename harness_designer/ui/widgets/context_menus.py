@@ -37,7 +37,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
 
     @_check_types.do
     def on_pos_90(self):
-        """Rotate clockwise 90 degrees -- see ``objects2d/housing.py``'s
+        """Rotate clockwise 90 degrees -- see ``objects_schematic/housing.py``'s
         ``# TODO: Lock a housing to only be able to be rotated in 90°
         increments`` note; every write to a housing's ``angle2d.y`` stays
         on a multiple of 90 by construction here.

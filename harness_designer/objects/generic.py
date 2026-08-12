@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects3d import generic as _generic3d
-from .objects2d import generic as _generic2d
+from .objects_schematic import generic as _generic_schematic
 from .objectspeg import generic as _genericpeg
 from .. import check_types as _check_types
 
@@ -17,7 +17,7 @@ class Generic(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _generic2d.Generic
+    objschematic: _generic_schematic.Generic
     obj3d: _generic3d.Generic
     objpeg: _genericpeg.Generic
 
@@ -33,6 +33,6 @@ class Generic(_ObjectBase):
 
         super().__init__(mainframe, None)
 
-        self.obj2d = _generic2d.Generic(self)
+        self.objschematic = _generic_schematic.Generic(self)
         self.obj3d = _generic3d.Generic(self)
         self.objpeg = _genericpeg.Generic(self)

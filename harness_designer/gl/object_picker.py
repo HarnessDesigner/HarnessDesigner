@@ -199,7 +199,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
     """
     scene_objects: iterable of objects exposing a wrapper view object,
         collected via *get_view* -- e.g. ``lambda obj: obj.obj3d`` for the
-        3D editor, ``lambda obj: obj.obj2d`` for the 2D schematic editor
+        3D editor, ``lambda obj: obj.objschematic`` for the 2D schematic editor
         (both objects.objectsvar.BaseVar subclasses) -- with ``.obb``/
         ``.aabb``.
 
@@ -245,8 +245,8 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     overlapping objects).
 
     Shared between the 3D editor (``get_view=lambda obj: obj.obj3d``) and
-    every 2D-plane editor (e.g. ``get_view=lambda obj: obj.obj2d``) --
-    every wrapper class collected by *get_view* (``Base3D``/``Base2D``/...,
+    every 2D-plane editor (e.g. ``get_view=lambda obj: obj.objschematic``) --
+    every wrapper class collected by *get_view* (``Base3D``/``BaseSchematic``/...,
     all ``objects.objectsvar.BaseVar`` subclasses) needs to expose the
     same ``.obb``/``.aabb``/``._pick_priority`` contract this function
     relies on, and *camera* only needs ``.modelview``/``.projection``/
@@ -257,7 +257,7 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     :param camera: Camera providing ``.modelview``/``.projection``/``.viewport``.
     :param get_view: Callable that collects the wrapper view object to pick
         against, given a scene object -- e.g. ``lambda obj: obj.obj3d`` or
-        ``lambda obj: obj.obj2d``. Required, deliberately with no default
+        ``lambda obj: obj.objschematic``. Required, deliberately with no default
         -- every caller must state explicitly which view object it means
         to pick against, so a caller can never silently collect the wrong
         one (e.g. a 2D-plane editor accidentally picking against ``obj3d``).

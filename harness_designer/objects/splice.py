@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import weakref
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import splice as _splice_2d
+from .objects_schematic import splice as _splice_schematic
 from .objects3d import splice as _splice_3d
 from .objectspeg import splice as _splice_peg
 from .. import check_types as _check_types
@@ -21,7 +21,7 @@ class Splice(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _splice_2d.Splice = None
+    objschematic: _splice_schematic.Splice = None
     obj3d: _splice_3d.Splice = None
     objpeg: _splice_peg.Splice = None
     db_obj: "_pjt_splice.PJTSplice" = None
@@ -44,7 +44,7 @@ class Splice(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _splice_2d.Splice(self, db_obj)
+        self.objschematic = _splice_schematic.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
         self.objpeg = _splice_peg.Splice(self, db_obj)
 

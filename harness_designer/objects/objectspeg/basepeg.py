@@ -47,7 +47,7 @@ class BasePeg(_objectsvar.BaseVar):
     across unrelated types, even for object types that have no rendering
     presence on the board. A dedicated concrete class per type keeps type
     hints precise (and lets Cython type each attribute exactly) the same
-    way ``obj2d``/``obj3d`` already do.
+    way ``objschematic``/``obj3d`` already do.
 
     Mirrors ``objects.objects3d.base3d.Base3D``'s API and internals as
     closely as possible (same ``position``/``angle``/``scale``/``material``/

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import boot as _boot_2d
+from .objects_schematic import boot as _boot_schematic
 from .objects3d import boot as _boot_3d
 from .objectspeg import boot as _boot_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class Boot(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _boot_2d.Boot = None
+    objschematic: _boot_schematic.Boot = None
     obj3d: _boot_3d.Boot = None
     objpeg: _boot_peg.Boot = None
     db_obj: "_pjt_boot.PJTBoot" = None
@@ -42,7 +42,7 @@ class Boot(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _boot_2d.Boot(self, db_obj)
+        self.objschematic = _boot_schematic.Boot(self, db_obj)
         self.obj3d = _boot_3d.Boot(self, db_obj)
         self.objpeg = _boot_peg.Boot(self, db_obj)
 

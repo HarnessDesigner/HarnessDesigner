@@ -43,7 +43,7 @@ class Cavity(_objects.ObjectBase):
         super().__init__(parent, cavity)
         self.dialog = parent
         self.obj3d = Cavity3D(self, cavity)
-        self.obj2d = None
+        self.objschematic = None
 
         parent.add_object(self)
 

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import project_model as _project_model_2d
+from .objects_schematic import project_model as _project_model_schematic
 from .objects3d import project_model as _project_model_3d
 from .objectspeg import project_model as _project_model_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class ProjectModel(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _project_model_2d.ProjectModel = None
+    objschematic: _project_model_schematic.ProjectModel = None
     obj3d: _project_model_3d.ProjectModel = None
     objpeg: _project_model_peg.ProjectModel = None
     db_obj: "_project.Project" = None
@@ -30,7 +30,7 @@ class ProjectModel(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _project_model_2d.ProjectModel(self, db_obj)
+        self.objschematic = _project_model_schematic.ProjectModel(self, db_obj)
         self.obj3d = _project_model_3d.ProjectModel(self, db_obj, vbo)
         self.objpeg = _project_model_peg.ProjectModel(self, db_obj)
         self.mainframe.add_object(self)

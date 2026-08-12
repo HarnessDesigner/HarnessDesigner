@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import weakref
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import transition as _transition_2d
+from .objects_schematic import transition as _transition_schematic
 from .objects3d import transition as _transition_3d
 from .objectspeg import transition as _transition_peg
 from .. import check_types as _check_types
@@ -21,7 +21,7 @@ class Transition(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _transition_2d.Transition = None
+    objschematic: _transition_schematic.Transition = None
     obj3d: _transition_3d.Transition = None
     objpeg: _transition_peg.Transition = None
     db_obj: "_pjt_transition.PJTTransition" = None
@@ -44,7 +44,7 @@ class Transition(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _transition_2d.Transition(self, db_obj)
+        self.objschematic = _transition_schematic.Transition(self, db_obj)
         self.obj3d = _transition_3d.Transition(self, db_obj)
         self.objpeg = _transition_peg.Transition(self, db_obj)
 

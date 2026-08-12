@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
 from .objects3d import wire_marker as _wire_marker_3d
-from .objects2d import wire_marker as _wire_marker_2d
+from .objects_schematic import wire_marker as _wire_marker_schematic
 from .objectspeg import wire_marker as _wire_marker_peg
 from .. import check_types as _check_types
 
@@ -19,7 +19,7 @@ class WireMarker(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _wire_marker_2d.WireMarker = None
+    objschematic: _wire_marker_schematic.WireMarker = None
     obj3d: _wire_marker_3d.WireMarker = None
     objpeg: _wire_marker_peg.WireMarker = None
     db_obj: "_wire_marker.PJTWireMarker" = None
@@ -42,7 +42,7 @@ class WireMarker(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _wire_marker_2d.WireMarker(self, db_obj)
+        self.objschematic = _wire_marker_schematic.WireMarker(self, db_obj)
         self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)
         self.objpeg = _wire_marker_peg.WireMarker(self, db_obj)
 

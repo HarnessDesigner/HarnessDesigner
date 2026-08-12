@@ -731,11 +731,11 @@ class AddWireHandler(_handler_base.HandlerBase):
             self.obj.obj3d.set_start_position(point)
 
     @_check_types.do
-    def _set_growing_obj2d_position(self, point: _point.Point) -> None:
+    def _set_growing_objschematic_position(self, point: _point.Point) -> None:
         if self._growing_end == 'stop':
-            self.obj.obj2d.set_stop_position(point)
+            self.obj.objschematic.set_stop_position(point)
         else:
-            self.obj.obj2d.set_start_position(point)
+            self.obj.objschematic.set_start_position(point)
 
     @_check_types.do
     def _update_preview_stop(self, world_pos):
@@ -1253,7 +1253,7 @@ class AddWireHandler(_handler_base.HandlerBase):
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
             self._set_growing_position2d_id(picked.db_obj.position2d_id)
-            self._set_growing_obj2d_position(picked.db_obj.position2d)
+            self._set_growing_objschematic_position(picked.db_obj.position2d)
 
             picked.add_wire(self.obj)
             self.obj.set_sibling(picked, self._growing_end)

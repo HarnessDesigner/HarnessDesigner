@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from ...objects.objects3d import generic as _generic_3d
-from ...objects.objects2d import generic as _generic_2d
+from ...objects.objects_schematic import generic as _generic_schematic
 from ...objects.objectspeg import generic as _generic_peg
 from ...objects import generic as _generic
 
@@ -40,7 +40,7 @@ class FocalPoint(_generic.Generic):
         _generic.Generic.__init__(self, canvas)
 
         self.canvas = canvas
-        self.obj2d = FocalPoint2D(self)
+        self.objschematic = FocalPoint2D(self)
         self.obj3d = FocalPoint3D(self)
         self.objpeg = FocalPointPeg(self)
 
@@ -49,7 +49,7 @@ class FocalPointPeg(_generic_peg.Generic):
     pass
 
 
-class FocalPoint2D(_generic_2d.Generic):
+class FocalPoint2D(_generic_schematic.Generic):
     pass
 
 
@@ -81,4 +81,3 @@ class FocalPoint3D(_generic_3d.Generic):
         vbo = _sphere.create_vbo()
 
         super().__init__(parent.canvas, vbo, angle, position, scale, material)
-

@@ -5,7 +5,7 @@ import weakref
 
 from . import ObjectBase as _ObjectBase
 from .objects3d import wire_service_loop as _wire_service_loop_3d
-from .objects2d import wire_service_loop as _wire_service_loop_2d
+from .objects_schematic import wire_service_loop as _wire_service_loop_schematic
 from .objectspeg import wire_service_loop as _wire_service_loop_peg
 from .. import check_types as _check_types
 
@@ -21,7 +21,7 @@ class WireServiceLoop(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _wire_service_loop_2d.WireServiceLoop = None
+    objschematic: _wire_service_loop_schematic.WireServiceLoop = None
     obj3d: _wire_service_loop_3d.WireServiceLoop = None
     objpeg: _wire_service_loop_peg.WireServiceLoop = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
@@ -44,7 +44,7 @@ class WireServiceLoop(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _wire_service_loop_2d.WireServiceLoop(self, db_obj)
+        self.objschematic = _wire_service_loop_schematic.WireServiceLoop(self, db_obj)
         self.obj3d = _wire_service_loop_3d.WireServiceLoop(self, db_obj)
         self.objpeg = _wire_service_loop_peg.WireServiceLoop(self, db_obj)
 

@@ -24,7 +24,7 @@ uniform int flipY;  // 1 = flip Y-axis (screen coords), 0 = keep Y-up
 
 // <= 0.0 means "not a stripe, no clipping" -- same contract as
 // gl.shaders.faces's stripeClipStop/stripeClipStart: only a wire's own
-// stripe draw (objects2d/wire.py's Wire.render_extras) ever sets these
+// stripe draw (objects_schematic/wire.py's Wire.render_extras) ever sets these
 // (to a nonzero value for that one draw, then back to 0.0 right after),
 // so every other object's draw call defaults to unclipped. When active,
 // the shared helix mesh (shapes/helix.py) already has real-world units

@@ -1,0 +1,36 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
+from typing import TYPE_CHECKING
+
+from . import base_schematic as _base_schematic
+from ...geometry import point as _point
+from ...geometry import angle as _angle
+from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ...database.project_db import pjt_cover as _pjt_cover
+    from .. import cover as _cover
+
+
+class Cover(_base_schematic.BaseSchematic):
+    """Represent a cover in :mod:`harness_designer.objects.objects_schematic.cover`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+    _parent: "_cover.Cover" = None
+    db_obj: "_pjt_cover.PJTCover"
+
+    @_check_types.do
+    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
+        """Initialise the :class:`Cover` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_cover.Cover`
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`_pjt_cover.PJTCover`
+        """
+
+        super().__init__(parent, db_obj, None, None, None, None, None)

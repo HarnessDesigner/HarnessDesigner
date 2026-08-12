@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import weakref
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import terminal as _terminal_2d
+from .objects_schematic import terminal as _terminal_schematic
 from .objects3d import terminal as _terminal_3d
 from .objectspeg import terminal as _terminal_peg
 from . import wire_layout as _wire_layout
@@ -23,7 +23,7 @@ class Terminal(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _terminal_2d.Terminal = None
+    objschematic: _terminal_schematic.Terminal = None
     obj3d: _terminal_3d.Terminal = None
     objpeg: _terminal_peg.Terminal = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
@@ -46,7 +46,7 @@ class Terminal(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _terminal_2d.Terminal(self, db_obj)
+        self.objschematic = _terminal_schematic.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
         self.objpeg = _terminal_peg.Terminal(self, db_obj)
 
@@ -101,8 +101,8 @@ class Terminal(_ObjectBase):
         waypoints are added -- the wire's 2D endpoint is simply this
         terminal's own ``wire_position2d_id`` (the far end of its
         wire-stub line, past every cavity name in the housing -- see
-        ``objects2d/housing.py``'s ``Housing._layout_children``/
-        ``objects2d/terminal.py``'s ``Terminal.render_extras`` --
+        ``objects_schematic/housing.py``'s ``Housing._layout_children``/
+        ``objects_schematic/terminal.py``'s ``Terminal.render_extras`` --
         distinct from ``position2d_id``, this terminal's own name
         anchor).
 
@@ -142,12 +142,12 @@ class Terminal(_ObjectBase):
             wire.db_obj.start_position3d_id = attach_point.db_id
             wire.db_obj.start_position2d_id = self.db_obj.wire_position2d_id
             wire.obj3d.set_start_position(attach_point.point)
-            wire.obj2d.set_start_position(self.db_obj.wire_position2d)
+            wire.objschematic.set_start_position(self.db_obj.wire_position2d)
         else:
             wire.db_obj.stop_position3d_id = attach_point.db_id
             wire.db_obj.stop_position2d_id = self.db_obj.wire_position2d_id
             wire.obj3d.set_stop_position(attach_point.point)
-            wire.obj2d.set_stop_position(self.db_obj.wire_position2d)
+            wire.objschematic.set_stop_position(self.db_obj.wire_position2d)
 
         new_point_ids = [self._own_or_cloned_point_id(
             ptables, self.db_obj.wire_position3d_id, is_first_wire)]

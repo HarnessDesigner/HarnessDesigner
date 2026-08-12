@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import cover as _cover_2d
+from .objects_schematic import cover as _cover_schematic
 from .objects3d import cover as _cover_3d
 from .objectspeg import cover as _cover_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class Cover(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _cover_2d.Cover = None
+    objschematic: _cover_schematic.Cover = None
     obj3d: _cover_3d.Cover = None
     objpeg: _cover_peg.Cover = None
     db_obj: "_pjt_cover.PJTCover" = None
@@ -42,7 +42,7 @@ class Cover(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _cover_2d.Cover(self, db_obj)
+        self.objschematic = _cover_schematic.Cover(self, db_obj)
         self.obj3d = _cover_3d.Cover(self, db_obj)
         self.objpeg = _cover_peg.Cover(self, db_obj)
         self.mainframe.add_object(self)

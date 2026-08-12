@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from . import handler_base as _handler_base
 from ..geometry import point as _point
 from ..objects import housing as _housing
-from ..objects.objects2d import housing_layout as _housing_layout
+from ..objects.objects_schematic import housing_layout as _housing_layout
 from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import part_search as _part_search

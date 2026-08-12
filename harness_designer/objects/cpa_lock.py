@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import cpa_lock as _cpa_lock_2d
+from .objects_schematic import cpa_lock as _cpa_lock_schematic
 from .objects3d import cpa_lock as _cpa_lock_3d
 from .objectspeg import cpa_lock as _cpa_lock_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class CPALock(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _cpa_lock_2d.CPALock = None
+    objschematic: _cpa_lock_schematic.CPALock = None
     obj3d: _cpa_lock_3d.CPALock = None
     objpeg: _cpa_lock_peg.CPALock = None
     db_obj: "_pjt_cpa_lock.PJTCPALock" = None
@@ -42,7 +42,7 @@ class CPALock(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _cpa_lock_2d.CPALock(self, db_obj)
+        self.objschematic = _cpa_lock_schematic.CPALock(self, db_obj)
         self.obj3d = _cpa_lock_3d.CPALock(self, db_obj)
         self.objpeg = _cpa_lock_peg.CPALock(self, db_obj)
 

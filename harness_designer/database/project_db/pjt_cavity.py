@@ -308,7 +308,7 @@ class PJTCavitiesTable(PJTTableBase):
         (itself a full query), and one more for that terminal's own
         ``name`` -- up to 3 queries x however many cavities a housing
         has (some run into the hundreds). See
-        ``objects2d/housing.py``'s ``Housing._collect_names``.
+        ``objects_schematic/housing.py``'s ``Housing._collect_names``.
         """
         self._con.execute(
             'SELECT cavity.id, cavity.name, terminal.id, terminal.name '

@@ -56,7 +56,7 @@ def create_vbo_based() -> _vbo_handler.PooledVBOHandler:
     whose ``position`` is one endpoint (not a center) and whose length
     is applied via ``scale.x`` -- mirrors ``shapes/cylinder.py``'s own
     based-at-origin convention (a unit cylinder spans local Z ``[0,
-    length]``, not centered either), so ``objects2d/wire.py``'s ``Wire``
+    length]``, not centered either), so ``objects_schematic/wire.py``'s ``Wire``
     can use ``position = start point`` exactly like
     ``objects3d/wire.py``'s ``Wire`` does.
 

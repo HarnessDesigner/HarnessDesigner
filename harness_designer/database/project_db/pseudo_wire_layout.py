@@ -62,7 +62,7 @@ if TYPE_CHECKING:
 
 class _PseudoAttachedWire:
     """Stand-in for a ``PJTWire`` row, exposing only what a caller of
-    ``attached_wires()[0]`` actually reads: ``.part`` (objects3d/objects2d's
+    ``attached_wires()[0]`` actually reads: ``.part`` (objects3d/objects_schematic's
     WireLayout constructors use ``.part.od_mm``/``.part.color.ui`` to size
     and color the marker sphere) and ``.part_id`` (wire_handler.py's
     ``_handle_first_click`` reads it to inherit the part being started from
@@ -192,15 +192,15 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     @property
     def position2d(self) -> "_point.Point":
-        # A real Point, never None -- objects2d.wire_layout.WireLayout's
+        # A real Point, never None -- objects_schematic.wire_layout.WireLayout's
         # constructor unconditionally passes this straight into
-        # Base2D.__init__ (this probe never actually renders in the 2D
-        # view -- is_visible2d is always False above -- but Base2D itself
+        # BaseSchematic.__init__ (this probe never actually renders in the 2D
+        # view -- is_visible2d is always False above -- but BaseSchematic itself
         # doesn't tolerate a None position; every other real WireLayout's
         # own position2d getter lazily creates a real row rather than ever
         # returning None, so this matches that same invariant). Fresh,
         # unbound, never persisted -- created once and cached, same
-        # "unbound identity" pattern objects2d/splice.py's Splice uses for
+        # "unbound identity" pattern objects_schematic/splice.py's Splice uses for
         # its own angle.
         if self._position2d is None:
             self._position2d = _point.Point(0.0, 0.0)

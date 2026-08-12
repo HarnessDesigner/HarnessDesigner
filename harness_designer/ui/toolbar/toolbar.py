@@ -362,8 +362,8 @@ class NoteToolbar(QtWidgets.QToolBar):
 
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
-        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj2d_selected)
-        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj2d_unselected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_objschematic_selected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_objschematic_unselected)
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj3d_selected)
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj3d_unselected)
 
@@ -419,7 +419,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         return _make_icon(icon)
 
     @_check_types.do
-    def on_obj2d_selected(self, evt: _gl.GLObjectEvent):
+    def on_objschematic_selected(self, evt: _gl.GLObjectEvent):
         """
         Handle the obj 2D selected event.
 
@@ -433,14 +433,14 @@ class NoteToolbar(QtWidgets.QToolBar):
             return
 
         if isinstance(obj, _note.Note):
-            self._obj = obj.obj2d
+            self._obj = obj.objschematic
             self.set_buttons(obj.db_obj.h_align2d)
         else:
             self._obj = None
             self.set_buttons(-1)
 
     @_check_types.do
-    def on_obj2d_unselected(self, _: _gl.GLObjectEvent):
+    def on_objschematic_unselected(self, _: _gl.GLObjectEvent):
         """
         Handle the obj 2D unselected event.
 
@@ -1260,7 +1260,7 @@ class Editor2DToolbar(QtWidgets.QToolBar):
     than folded into ``EditorToolbar`` (that one is specifically the
     object-placement mode radio group) or ``GeneralToolbar`` (app-level
     dialogs). Holds only the auto-layout toggle for now -- see
-    ``objects.objects2d.housing_layout.recompute_layout``.
+    ``objects.objects_schematic.housing_layout.recompute_layout``.
     """
 
     @_check_types.do

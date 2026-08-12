@@ -712,13 +712,13 @@ class Config(metaclass=ConfigDB):
 
             # mm, minimum clearance kept between a newly auto-placed
             # housing's own footprint and every other housing's/connected
-            # wire's -- see objects2d/housing_layout.py's place_housing.
-            # Also used by objects2d/wire_routing.py as the routing
+            # wire's -- see objects_schematic/housing_layout.py's place_housing.
+            # Also used by objects_schematic/wire_routing.py as the routing
             # grid's own clearance around housings and its bounding-box
             # margin around a wire's two endpoints.
             housing_spacing = 10.0
 
-            # mm, uniform routing-grid resolution objects2d/wire_routing.py's
+            # mm, uniform routing-grid resolution objects_schematic/wire_routing.py's
             # auto-router adds between a wire's two endpoints (on top of
             # exact lines through the endpoints and every nearby housing
             # edge) -- finer than housing_spacing so a route has room to

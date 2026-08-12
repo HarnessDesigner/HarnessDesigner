@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import housing as _housing_2d
+from .objects_schematic import housing as _housing_schematic
 from .objects3d import housing as _housing_3d
 from .objectspeg import housing as _housing_peg
 
@@ -22,7 +22,7 @@ class Housing(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _housing_2d.Housing = None
+    objschematic: _housing_schematic.Housing = None
     obj3d: _housing_3d.Housing = None
     objpeg: _housing_peg.Housing = None
     db_obj: "_pjt_housing.PJTHousing" = None
@@ -45,8 +45,8 @@ class Housing(_ObjectBase):
             # Deferred one Qt event-loop iteration past this housing's
             # own construction (see _construct_cavities) -- Cavity2D
             # looks up its owning Housing2D at its own construction time
-            # (via db_obj.housing.get_object().obj2d, see
-            # objects2d/cavity.py) to register for batched cavity/
+            # (via db_obj.housing.get_object().objschematic, see
+            # objects_schematic/cavity.py) to register for batched cavity/
             # terminal name updates, which needs this housing already
             # fully constructed and registered (db_obj.set_object/
             # mainframe.add_object, below) by the time it runs -- not
@@ -63,7 +63,7 @@ class Housing(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _housing_2d.Housing(self, db_obj)
+        self.objschematic = _housing_schematic.Housing(self, db_obj)
         self.obj3d = _housing_3d.Housing(self, db_obj)
         self.objpeg = _housing_peg.Housing(self, db_obj)
 

@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import bundle_layout as _bundle_layout_2d
+from .objects_schematic import bundle_layout as _bundle_layout_schematic
 from .objects3d import bundle_layout as _bundle_layout_3d
 from .objectspeg import bundle_layout as _bundle_layout_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class BundleLayout(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _bundle_layout_2d.BundleLayout = None
+    objschematic: _bundle_layout_schematic.BundleLayout = None
     obj3d: _bundle_layout_3d.BundleLayout = None
     objpeg: _bundle_layout_peg.BundleLayout = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
@@ -41,7 +41,7 @@ class BundleLayout(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _bundle_layout_2d.BundleLayout(self, db_obj)
+        self.objschematic = _bundle_layout_schematic.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
         self.objpeg = _bundle_layout_peg.BundleLayout(self, db_obj)
 

@@ -1579,7 +1579,7 @@ class MainFrame(QtWidgets.QMainWindow):
             evt.Skip()
             obj = evt.GetGLObject()
 
-            context_menu = obj.obj2d.get_context_menu()
+            context_menu = obj.objschematic.get_context_menu()
             if context_menu is not None:
                 x, y, _ = evt.GetPosition().as_int
                 canvas_widget = self.editor2d.editor
@@ -2752,7 +2752,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         if (
             source_editor != 'editor2d' and
-            obj.obj2d is not None and not obj.is_in_2dview
+            obj.objschematic is not None and not obj.is_in_2dview
         ):
             # Editor2D (unlike Editor3D) has no .camera of its own --
             # go through .editor (the Canvas2D panel), which does.

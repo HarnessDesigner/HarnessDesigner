@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects2d import seal as _seal_2d
+from .objects_schematic import seal as _seal_schematic
 from .objects3d import seal as _seal_3d
 from .objectspeg import seal as _seal_peg
 from .. import check_types as _check_types
@@ -19,7 +19,7 @@ class Seal(_ObjectBase):
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
-    obj2d: _seal_2d.Seal = None
+    objschematic: _seal_schematic.Seal = None
     obj3d: _seal_3d.Seal = None
     objpeg: _seal_peg.Seal = None
     db_obj: "_pjt_seal.PJTSeal" = None
@@ -42,7 +42,7 @@ class Seal(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj2d = _seal_2d.Seal(self, db_obj)
+        self.objschematic = _seal_schematic.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
         self.objpeg = _seal_peg.Seal(self, db_obj)
 
