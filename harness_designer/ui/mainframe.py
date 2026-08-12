@@ -891,10 +891,35 @@ class MainFrame(QtWidgets.QMainWindow):
             self._splash.Destroy()
             self._splash = None
 
+            # Destroy() only schedules deferred deletion of the underlying
+            # Qt widget (self._window.deleteLater(), see splash.py) -- the
+            # actual C++ QLabel is freed on the next return to the event
+            # loop, the same turn _open_project below gets dispatched on
+            # (queued via the same QTimer.singleShot(0, ...) mechanism).
+            # Nothing ever cleared the two OTHER references to this same
+            # Splash instance -- harness_designer.splash and App.splash
+            # (see app.py's _init, where both get set alongside this
+            # MainFrame's own self._splash) -- so a fully reachable Python
+            # object with an already-deleted C++ backing sat in the object
+            # graph indefinitely, crashing the first time anything (e.g.
+            # gc.collect()'s tp_traverse walk) touched it. See the crash
+            # investigation.
+            import harness_designer as _hd
+            _hd.splash = None
+            if _hd._app is not None:
+                _hd._app.splash = None
+
         QtCore.QTimer.singleShot(0, self._open_project)
 
     @_check_types.do
     def _open_project(self):
+        # The per-object referents scan that used to run right here has
+        # been superseded by the gc.callbacks hook registered in
+        # harness_designer/__init__.py, which does the same scan
+        # automatically, right before the first *real* gen2 collection --
+        # wherever in the app that naturally ends up happening -- instead
+        # of only at this one manually-chosen point. See that module for
+        # the crash investigation this all traces back to.
         from .. import shapes
 
         shapes.cache_primitives(self)

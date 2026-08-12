@@ -62,6 +62,29 @@ class Cavity(_ObjectBase):
 
     @property
     @_check_types.do
+    def housing(self):
+        """This cavity's owning ``Housing`` wrapper -- lets a terminal
+        reach its housing via ``db_obj.cavity.get_object().housing``
+        (see ``objects2d/terminal.py``'s ``Terminal``), and a cavity
+        reach it directly via ``self.parent.housing`` (see
+        ``objects2d/cavity.py``'s ``Cavity``).
+
+        Resolved on demand from ``PJTCavity.housing`` (a real
+        ``housing_id`` column, via ``HousingMixin``), not cached -- by
+        the time anything calls this (a name/terminal_id callback
+        firing, never at construction time), this cavity's housing is
+        guaranteed to already exist and be registered (see
+        ``objects/housing.py``'s ``Housing.__init__``/
+        ``_construct_cavities``).
+        """
+        housing_db = self.db_obj.housing
+        if housing_db is None:
+            return None
+
+        return housing_db.get_object()
+
+    @property
+    @_check_types.do
     def seal(self):
         seal = self.db_obj.seal
         if seal is None:

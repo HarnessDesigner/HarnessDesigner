@@ -9,6 +9,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_point3d as _pjt_point3d
+from . import pjt_point2d as _pjt_point2d
 from . import pjt_seal as _pjt_seal
 from ...geometry import point as _point
 from . import pjt_circuit as _pjt_circuit
@@ -27,7 +28,6 @@ from .mixins import (
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
-    HousingMixin,
     Scale3DMixin, Scale3DControl
 )
 from ... import check_types as _check_types
@@ -193,7 +193,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
                   Position3DMixin, NotesMixin,
                   Position2DMixin, PositionPegMixin, PartMixin, Visible3DMixin,
                   Visible2DMixin, NameMixin,
-                  HousingMixin, SmoothMixin, Scale3DMixin):
+                  SmoothMixin, Scale3DMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -573,7 +573,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def wire_point3d_id(self) -> bytes | None:
+    def wire_position3d_id(self) -> bytes | None:
         """Return the ``pjt_points3d`` row id for the wire layout point
         (see :attr:`wire_position3d`), lazily creating and persisting it on
         first access when the ``wire_point3d_id`` column is NULL.  ``None``
@@ -605,7 +605,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         terminal's part or 3-D model has no geometry available.
         """
         if self._stored_wire_position3d is None:
-            wire_point3d_id = self.wire_point3d_id
+            wire_point3d_id = self.wire_position3d_id
             if wire_point3d_id is None:
                 return None
 
@@ -615,7 +615,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def wire_point3d_id_raw(self) -> bytes | None:
+    def wire_position3d_id_raw(self) -> bytes | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if this
         terminal's layout point has never been computed.
 
@@ -631,7 +631,66 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def attach_point3d_id(self) -> bytes | None:
+    def wire_position2d_id(self) -> bytes:
+        """Return the ``pjt_points2d`` row id for this terminal's 2D wire
+        attachment point (see :attr:`wire_position2d`), lazily creating and
+        persisting it (at the origin -- the caller repositions it
+        immediately) on first access when the ``wire_point2d_id`` column
+        is NULL.
+
+        Unlike :attr:`position2d_id` (this terminal's own name anchor,
+        inside the housing body), this is the far end of the wire-stub
+        line drawn past every cavity name in the housing -- see
+        ``objects2d/housing.py``'s ``Housing._layout_children`` (which
+        positions it) and ``objects2d/terminal.py``'s ``Terminal.
+        render_extras`` (which draws the line up to it) -- and it's where
+        a wire actually connects in the 2D schematic, not
+        :attr:`position2d`.
+        """
+        if self._stored_wire_position2d is not None:
+            return self._stored_wire_position2d.db_id
+
+        wire_point2d_id = self._table.select('wire_point2d_id', id=self._db_id)[0][0]
+
+        if wire_point2d_id is None:
+            wire_point2d_id = self._table.db.pjt_points2d_table.insert(0.0, 0.0).db_id
+            self._table.update(self._db_id, wire_point2d_id=wire_point2d_id)
+
+        return wire_point2d_id
+
+    _stored_wire_position2d: "_pjt_point2d.PJTPoint2D" = None
+
+    @property
+    @_check_types.do
+    def wire_position2d(self) -> _point.Point:
+        """Return this terminal's 2D wire attachment point -- see
+        :attr:`wire_position2d_id`.
+        """
+        if self._stored_wire_position2d is None:
+            wire_point2d_id = self.wire_position2d_id
+            self._stored_wire_position2d = self._table.db.pjt_points2d_table[wire_point2d_id]
+
+        return self._stored_wire_position2d.point
+
+    @property
+    @_check_types.do
+    def wire_position2d_id_raw(self) -> bytes | None:
+        """The raw ``wire_point2d_id`` column value, ``None`` if this
+        terminal's wire-stub attachment point has never been placed.
+
+        Unlike :attr:`wire_position2d_id`, this never lazily creates and
+        persists a point -- use it for "has a wire stub point ever been
+        placed here" checks that must not force a point into existence
+        for every terminal in the project just by asking.
+        """
+        if self._stored_wire_position2d is not None:
+            return self._stored_wire_position2d.db_id
+
+        return self._table.select('wire_point2d_id', id=self._db_id)[0][0]
+
+    @property
+    @_check_types.do
+    def attach_position3d_id(self) -> bytes | None:
         """Return the ``pjt_points3d`` row id for the wire attachment/crimp
         point (see :attr:`attach_position3d`), lazily creating and
         persisting it on first access when the ``attach_point3d_id`` column
@@ -650,7 +709,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
     @property
     @_check_types.do
-    def attach_point3d_id_raw(self) -> bytes | None:
+    def attach_position3d_id_raw(self) -> bytes | None:
         """The raw ``attach_point3d_id`` column value, ``None`` if this
         terminal's crimp point has never been computed.
 
@@ -675,7 +734,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         the terminal's part or 3-D model has no geometry available.
         """
         if self._stored_attach_position3d is None:
-            attach_point3d_id = self.attach_point3d_id
+            attach_point3d_id = self.attach_position3d_id
             if attach_point3d_id is None:
                 return None
 
@@ -790,6 +849,40 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
 
         return attach_point3d_id
 
+    @_check_types.do
+    def _compute_seal_position3d(self) -> bytes | None:
+        """Compute and persist the wire layout point.
+
+        The position is this terminal's own back face center (see
+        _wire_side_extent) rotated into world space by the terminal's
+        current angle and offset by its current position.
+
+        Returns the new ``pjt_points3d`` row id, or ``None`` when the
+        terminal has no part assigned.
+        """
+        extent = self._wire_side_extent()
+        if extent is None:
+            return None
+
+        _, back_z = extent
+
+        length = self.part.length
+        if length <= 0.0:
+            back_z += 3
+        else:
+            back_z += length * 0.10
+
+        back_pt = _point.Point(0.0, 0.0, back_z)
+        back_pt @= self.angle3d
+        back_pt += self.position3d
+
+        x, y, z = back_pt.as_float
+
+        seal_point3d_id = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z).db_id
+        self._table.update(self._db_id, seal_point3d_id=seal_point3d_id)
+
+        return seal_point3d_id
+
     _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
 
     @property
@@ -800,24 +893,33 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
         Returns ``None`` until the seal is created and ``seal_point3d_id``
         is set via the :attr:`seal_point3d_id` setter.
         """
+
         if self._stored_seal_position3d is None:
-            seal_point3d_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
-            if seal_point3d_id is None:
+            seal_position3d_id = self.seal_position3d_id
+            if seal_position3d_id is None:
                 return None
 
-            self._stored_seal_position3d = self._table.db.pjt_points3d_table[seal_point3d_id]
+            self._stored_seal_position3d = self._table.db.pjt_points3d_table[seal_position3d_id]
 
         return self._stored_seal_position3d.point
 
     @property
     @_check_types.do
-    def seal_point3d_id(self) -> bytes | None:
-        """Return the DB row id of the seal position point, or ``None``."""
-        return self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+    def seal_position3d_id(self) -> bytes | None:
 
-    @seal_point3d_id.setter
+        if self._stored_seal_position3d is not None:
+            return self._stored_seal_position3d.db_id
+
+        seal_position3d_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+
+        if seal_position3d_id is None:
+            seal_position3d_id = self._compute_seal_position3d()
+
+        return seal_position3d_id
+
+    @seal_position3d_id.setter
     @_check_types.do
-    def seal_point3d_id(self, value: bytes):
+    def seal_position3d_id(self, value: bytes):
         """Persist *value* as the seal position point id and invalidate the cache."""
         self._stored_seal_position3d = None
         self._table.update(self._db_id, seal_point3d_id=value)

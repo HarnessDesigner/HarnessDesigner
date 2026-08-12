@@ -208,7 +208,7 @@ class MouseHandler:
 
         return _object_picker.find_object(
             mouse_pos, objects, self.canvas.camera,
-            current_selection=current_selection)
+            self._get_view_object, current_selection=current_selection)
 
     @_check_types.do
     def _exit_angle_mode(self):
@@ -561,7 +561,8 @@ class MouseHandler:
         event = _events.GLEvent(_events.EVT_GL_LEFT_DCLICK)
         if self._send_event(event, evt):
             selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                mouse_pos, self.canvas.objects_in_view,
+                self.canvas.camera, self._get_view_object)
 
             with self.canvas:
                 if selected:
@@ -586,7 +587,8 @@ class MouseHandler:
                 with self.canvas:
                     mouse_pos = _qt_pos(evt)
                     selected = _object_picker.find_object(
-                        mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                        mouse_pos, self.canvas.objects_in_view,
+                        self.canvas.camera, self._get_view_object)
 
                     if selected:
                         event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_MIDDLE_CLICK)
@@ -631,7 +633,8 @@ class MouseHandler:
         if self._send_event(event, evt):
 
             selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                mouse_pos, self.canvas.objects_in_view,
+                self.canvas.camera, self._get_view_object)
 
             with self.canvas:
                 if selected:
@@ -761,7 +764,8 @@ class MouseHandler:
         if self._send_event(event, evt):
 
             selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                mouse_pos, self.canvas.objects_in_view,
+                self.canvas.camera, self._get_view_object)
 
             with self.canvas:
                 if selected:
@@ -964,7 +968,8 @@ class MouseHandler:
             with self.canvas:
                 mouse_pos = _qt_pos(evt)
                 selected = _object_picker.find_object(
-                    mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                    mouse_pos, self.canvas.objects_in_view,
+                    self.canvas.camera, self._get_view_object)
 
                 if selected:
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX1_CLICK)
@@ -997,7 +1002,8 @@ class MouseHandler:
         """
         mouse_pos = _qt_pos(evt)
         selected = _object_picker.find_object(
-            mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+            mouse_pos, self.canvas.objects_in_view,
+            self.canvas.camera, self._get_view_object)
 
         with self.canvas:
             if selected:
@@ -1018,7 +1024,8 @@ class MouseHandler:
             with self.canvas:
                 mouse_pos = _qt_pos(evt)
                 selected = _object_picker.find_object(
-                    mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+                    mouse_pos, self.canvas.objects_in_view,
+                    self.canvas.camera, self._get_view_object)
 
                 if selected:
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX2_CLICK)
@@ -1051,10 +1058,14 @@ class MouseHandler:
         """
         mouse_pos = _qt_pos(evt)
         selected = _object_picker.find_object(
-            mouse_pos, self.canvas.objects_in_view, self.canvas.camera)
+            mouse_pos, self.canvas.objects_in_view,
+            self.canvas.camera, self._get_view_object)
 
         with self.canvas:
             if selected:
                 event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX2_DCLICK)
                 event.SetGLObject(selected)
                 self._send_event(event, evt)
+
+    def _get_view_object(self, obj):  # NOQA
+        return obj.obj3d

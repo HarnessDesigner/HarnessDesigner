@@ -3,6 +3,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
+import threading
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -83,6 +84,16 @@ class _PJTEntrySingleton(type):
         super().__init__(name, bases, dct)
         setattr(cls, '_instances', {})
         cls._instances = {}
+        # See _EntrySingleton (global_db/bases.py) for why this needs a
+        # lock: _instances is read/written from __call__ (any thread that
+        # looks up or constructs an entry) and mutated from
+        # __remove_instance_ref, which runs as a weakref callback on
+        # whatever thread happens to drop the last reference -- unrelated
+        # to whichever thread is concurrently in __call__. Unsynchronized
+        # concurrent mutation was corrupting this dict's internal
+        # structure (see the crash investigation).
+        setattr(cls, '_instances_lock', threading.RLock())
+        cls._instances_lock = threading.RLock()
 
     @classmethod
     @_check_types.do
@@ -94,13 +105,14 @@ class _PJTEntrySingleton(type):
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
-        for key, value in cls._instances.items():
-            if value == ref:
-                break
-        else:
-            return
+        with cls._instances_lock:
+            for key, value in cls._instances.items():
+                if value == ref:
+                    break
+            else:
+                return
 
-        del cls._instances[key]
+            del cls._instances[key]
 
     @_check_types.do
     def __call__(cls, table, db_id: int | bytes):
@@ -120,17 +132,18 @@ class _PJTEntrySingleton(type):
         # Project's own int id is unique within ProjectsTable), so there's
         # no need for a separate project_id component the way a
         # pre-migration per-table AUTO_INCREMENT id would have required.
-        if db_id in cls._instances:
-            ref = cls._instances[db_id]
-            instance = ref()
-        else:
-            instance = None
+        with cls._instances_lock:
+            if db_id in cls._instances:
+                ref = cls._instances[db_id]
+                instance = ref()
+            else:
+                instance = None
 
-        if instance is None:
-            instance = super().__call__(table, db_id)
-            cls._instances[db_id] = weakref.ref(instance, cls.__remove_instance_ref)
+            if instance is None:
+                instance = super().__call__(table, db_id)
+                cls._instances[db_id] = weakref.ref(instance, cls.__remove_instance_ref)
 
-        return instance
+            return instance
 
 
 class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
@@ -300,8 +313,9 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
 
         key = self.db_id
 
-        if key in self.__class__._instances:  # NOQA
-            del self.__class__._instances[key]  # NOQA
+        with self.__class__._instances_lock:  # NOQA
+            if key in self.__class__._instances:  # NOQA
+                del self.__class__._instances[key]  # NOQA
 
 
 class PJTTableBase:

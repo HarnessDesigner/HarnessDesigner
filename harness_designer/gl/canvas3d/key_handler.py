@@ -131,6 +131,16 @@ class KeyHandler:
         self._keycode_thread.start()
 
     @_check_types.do
+    def clear_keys(self) -> None:
+        """Drop every currently-tracked held key immediately.
+
+        Called when the canvas loses keyboard focus -- see
+        ``canvas3d/canvas.py``'s ``CanvasEventFilter``.
+        """
+        with self._key_queue_lock:
+            self._running_keycodes.clear()
+
+    @_check_types.do
     def _binding(self, name: str):
         """Return the active binding class for ``name``.
 

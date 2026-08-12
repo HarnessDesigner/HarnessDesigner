@@ -817,7 +817,9 @@ class AddWireHandler(_handler_base.HandlerBase):
         wire_part = self._get_wire_part()
 
         picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
+
         picked = _wire_snap.resolve_picked(picked)
 
         if isinstance(picked, _terminal.Terminal):
@@ -880,7 +882,9 @@ class AddWireHandler(_handler_base.HandlerBase):
 
         if self._extension_mode:
             picked = _object_picker.find_object(
-                mouse_pos, self.camera.objects_in_view, self.camera)
+                mouse_pos, self.camera.objects_in_view,
+                self.camera, self._get_view_object)
+
             kind, target = _wire_snap.get_snap_info(picked)
 
             if kind is not None:
@@ -922,7 +926,9 @@ class AddWireHandler(_handler_base.HandlerBase):
             return
 
         picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
+
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.obj:
@@ -1002,7 +1008,9 @@ class AddWireHandler(_handler_base.HandlerBase):
         wire_part = self._get_wire_part()
 
         picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
+
         picked = _wire_snap.resolve_picked(picked)
 
         # Set below only when picked is a Terminal -- terminal.add_wire is
@@ -1173,7 +1181,9 @@ class AddWireHandler(_handler_base.HandlerBase):
             return
 
         picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
+
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.obj:

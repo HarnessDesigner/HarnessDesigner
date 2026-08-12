@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from . import ui as _ui
 
 
-# we are going to set up the logging before anything else hets done.
+# we are going to set up the logging before anything else gets done.
 from . import logger as _logger
 
 
@@ -27,7 +27,6 @@ def __main__(args=None):
     :param args: Optional command-line arguments excluding the executable name.
     :type args: list[str] | None
     """
-    from . import monkey_patch  # no-op stub; import kept for compatibility  # NOQA
     import sys
 
     from . import app

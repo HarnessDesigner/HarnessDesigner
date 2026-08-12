@@ -225,9 +225,9 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         Repaint so the peg board's selection highlight picks up a
         cross-editor selection change.
 
-        The inner ``Canvas``'s ``_render_objects`` derives highlight state
+        The inner ``Canvas``'s ``_render_scene`` derives highlight state
         live from each anchor's ``anchor.obj.is_selected`` on every frame
-        (see ``gl.canvas_pegboard.canvas.Canvas._render_objects`` and
+        (see ``gl.canvas_pegboard.canvas.Canvas._render_scene`` and
         ``gl.canvas_pegboard.mouse_handler._find_selected_anchor``), so no
         bookkeeping is needed here -- just a repaint, since Qt won't
         repaint on its own just because some unrelated Python attribute

@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
+# TODO: add render function
+
 class Splice(_base2d.Base2D):
     """
     2D representation of a splice for schematic view

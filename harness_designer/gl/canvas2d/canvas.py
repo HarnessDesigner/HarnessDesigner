@@ -26,7 +26,7 @@ from .. import context as _context
 from .. import shaders as _shaders
 from ... import config as _config
 from ...geometry import point as _point
-from . import grid as _grid
+from . import floor as _floor
 
 from .. import events as _events
 from ... import check_types as _check_types
@@ -131,7 +131,8 @@ class Canvas(QOpenGLWidget):
         font.setPointSize(12)
         self.setFont(font)
 
-        self._grid = _grid.Grid(self)
+        self._floor: _floor.Floor = None
+        self._floor_program = None
 
         if size is not None:
             self.resize(size)
@@ -262,7 +263,7 @@ class Canvas(QOpenGLWidget):
         :type value: UNKNOWN
         """
         self.config.grid.enabled = bool(value)
-        self._grid.set(self.config.grid.enabled)
+        self._floor.set(self.config.grid.enabled)
         self.update()
 
     # ------------------------------------------------------------------
@@ -411,8 +412,11 @@ class Canvas(QOpenGLWidget):
             GL.glViewport(0, 0, self.size[0], self.size[1])
 
         self._setup_projection()
-        self._grid.set(self.config.grid.enabled)
         self._program = _shaders.compile_schematic2d_program()
+        self._floor_program = _shaders.compile_grid2d_program()
+        self._floor = _floor.Floor(self, self._floor_program)
+        self._floor.set(self.config.grid.enabled)
+
 
     @_check_types.do
     def resizeGL(self, width: int, height: int):
@@ -438,7 +442,7 @@ class Canvas(QOpenGLWidget):
         GL.glClear(GL.GL_COLOR_BUFFER_BIT)
         self._setup_projection()
         self.camera._update_views()  # NOQA -- picks up glOrtho bounds set above
-        self._grid.render(self.camera.distance)
+        self._floor.render(self._floor_program)
 
         for obj in self._objects:
             if obj.obj2d.vbo is not None:

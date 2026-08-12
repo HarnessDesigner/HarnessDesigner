@@ -197,12 +197,23 @@ void main() {
     // Only apply lighting to non-emissive materials
     if (!isEmissive) {
         vec3 effectiveLightPos = lightPosition;
+
+        // The floor-side gate below only makes sense for mirrored reflection
+        // duplicates (it stops a reflection from being lit as if the light
+        // were shining through the floor from the wrong side). Real,
+        // non-reflected geometry must always be lit normally -- gating it
+        // the same way incorrectly strips diffuse/specular from any actual
+        // geometry sitting below floorY whenever the light (camera position)
+        // is on the opposite side, which is exactly the case above the floor.
+        bool applyLight = true;
+
         if (isReflection > 0.5) {
             effectiveLightPos.y = 2.0 * floorY - lightPosition.y;
+            bool lightAboveFloor = (effectiveLightPos.y > floorY);
+            applyLight = (fragAboveFloor == lightAboveFloor);
         }
 
-        bool lightAboveFloor = (effectiveLightPos.y > floorY);
-        if (fragAboveFloor == lightAboveFloor) {
+        if (applyLight) {
             vec3 lightDir = normalize(effectiveLightPos - fragPositionGeom);
 
             float diffuseStrength = max(dot(normal, lightDir), 0.0);

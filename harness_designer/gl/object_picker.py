@@ -195,12 +195,18 @@ def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera3d.Camera | _camera2d.Ca
 @_check_types.do
 def _pick_candidates_at_mouse(mx, my, scene_objects,
                               camera: "_camera3d.Camera | _camera2d.Camera",
-                              tol_pixels=3.0, attr='obj3d'):  # NOQA
+                              get_view, tol_pixels=3.0):  # NOQA
     """
-    scene_objects: iterable of objects exposing a wrapper attribute (named
-        by *attr* -- ``'obj3d'`` for the 3D editor, ``'obj2d'`` for the
-        2D schematic editor, both objects.objectsvar.BaseVar subclasses)
-        with ``.obb``/``.aabb``.
+    scene_objects: iterable of objects exposing a wrapper view object,
+        collected via *get_view* -- e.g. ``lambda obj: obj.obj3d`` for the
+        3D editor, ``lambda obj: obj.obj2d`` for the 2D schematic editor
+        (both objects.objectsvar.BaseVar subclasses) -- with ``.obb``/
+        ``.aabb``.
+
+    *get_view* is required, deliberately with no default -- every caller
+    must state explicitly which view object it means to pick against, so
+    a caller can never silently collect the wrong one (e.g. a 2D-plane
+    editor accidentally picking against ``obj3d``).
     Returns list of (depth_metric, object, bbox2d) sorted by depth (closest first)
     """
 
@@ -209,7 +215,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
     candidates = []
     for obj in scene_objects:
-        wrapped = getattr(obj, attr)
+        wrapped = get_view(obj)
         if wrapped.obb is None:
             continue
 
@@ -232,27 +238,31 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 @_debug.logfunc
 @_check_types.do
 def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.Camera",
-                current_selection=None, attr='obj3d'):
+                get_view, current_selection=None):
     """Ray-cast from *mouse_pos* against every object in *scene_objects*
     and return the closest hit (or the next-closest, if the closest is
     *current_selection* -- lets repeated clicks cycle through a stack of
     overlapping objects).
 
-    Shared between the 3D editor (``attr='obj3d'``, the default) and the
-    2D schematic editor (``attr='obj2d'``) -- both wrapper classes
-    (``Base3D``/``Base2D``, both ``objects.objectsvar.BaseVar``
-    subclasses) expose the same ``.obb``/``.aabb``/``._pick_priority``
-    contract this function relies on, and *camera* only needs
-    ``.modelview``/``.projection``/``.viewport`` (see
-    ``gl.canvas2d.camera.Camera._update_views``).
+    Shared between the 3D editor (``get_view=lambda obj: obj.obj3d``) and
+    every 2D-plane editor (e.g. ``get_view=lambda obj: obj.obj2d``) --
+    every wrapper class collected by *get_view* (``Base3D``/``Base2D``/...,
+    all ``objects.objectsvar.BaseVar`` subclasses) needs to expose the
+    same ``.obb``/``.aabb``/``._pick_priority`` contract this function
+    relies on, and *camera* only needs ``.modelview``/``.projection``/
+    ``.viewport`` (see ``gl.canvas2d.camera.Camera._update_views``).
 
     :param mouse_pos: Mouse position in window/viewport pixel coordinates.
-    :param scene_objects: Objects to test, each exposing *attr*.
+    :param scene_objects: Objects to test, each resolvable via *get_view*.
     :param camera: Camera providing ``.modelview``/``.projection``/``.viewport``.
+    :param get_view: Callable that collects the wrapper view object to pick
+        against, given a scene object -- e.g. ``lambda obj: obj.obj3d`` or
+        ``lambda obj: obj.obj2d``. Required, deliberately with no default
+        -- every caller must state explicitly which view object it means
+        to pick against, so a caller can never silently collect the wrong
+        one (e.g. a 2D-plane editor accidentally picking against ``obj3d``).
     :param current_selection: Currently selected object, used to cycle to the
         next closest overlapping object when the closest hit matches it.
-    :param attr: Name of the wrapper attribute to pick against --
-        ``'obj3d'`` or ``'obj2d'``.
     :returns: The picked object, or ``None`` if nothing was hit.
     """
     mx, my = mouse_pos.as_float[:-1]
@@ -261,7 +271,7 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     mv = camera.modelview
     viewport = camera.viewport
 
-    candidates = _pick_candidates_at_mouse(mx, my, scene_objects, camera, attr=attr)
+    candidates = _pick_candidates_at_mouse(mx, my, scene_objects, camera, get_view=get_view)
 
     if not candidates:
         return None
@@ -315,7 +325,7 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     hits = []
     fallback_hits = []
     for _, obj in candidates:
-        wrapped = getattr(obj, attr)
+        wrapped = get_view(obj)
         obb = wrapped.obb
         hit, t_hit = _ray_intersect_obb(origin, direc, obb) if obb is not None else (False, None)
         if hit:
@@ -342,7 +352,7 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     # WireLayout/BundleLayout) breaks that tie explicitly: higher
     # priority wins outright, nearest-hit only tie-breaks within the same
     # priority tier.
-    hits.sort(key=lambda k: (-getattr(k[1], attr)._pick_priority, k[0]))
+    hits.sort(key=lambda k: (-get_view(k[1])._pick_priority, k[0]))
 
     if current_selection is None or len(hits) == 1:
         return hits[0][1]

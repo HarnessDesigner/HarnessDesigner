@@ -14,6 +14,7 @@ from ...gl import materials as _materials
 from ... import config as _config
 from ...shapes import cylinder_helix as _cylinder_helix
 from ... import check_types as _check_types
+from ... import color as _color
 
 
 if TYPE_CHECKING:
@@ -373,6 +374,19 @@ class WireServiceLoop(_base3d.Base3D):
             self._resolve_collision()
             self._sync_stop_position()
             self._last_centroid = self._world_centroid()
+
+            stripe_color = self._part.stripe_color
+
+            if stripe_color is not None:
+                self._stripe = WireServiceLoopStripe(parent, self, stripe_color.ui, scale, angle, position)
+                # WireStripe's db_obj is always None (it's not its own DB row --
+                # see WireStripe.__init__), so Base3D.__init__ hits the
+                # `except AttributeError: self._is_visible = False` branch and
+                # the stripe is built permanently invisible. Sync it to the
+                # wire's own just-computed visibility here.
+                self._stripe.is_visible = self._is_visible
+
+                self.editor3d.Refresh()
 
     @_check_types.do
     def _world_centroid(self) -> np.ndarray:
@@ -840,6 +854,151 @@ class WireServiceLoop(_base3d.Base3D):
     def stop_position(self):
         """Wire stop position (Point instance)"""
         return self._p2
+
+
+class WireServiceLoopStripe(_base3d.Base3D):
+    """Represent a wire stripe in :mod:`harness_designer.objects.objects3d.wire`.
+
+    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+
+    @_check_types.do
+    def __init__(self, parent: "_wire.Wire", wireserviceloop: WireServiceLoop, color: _color.Color, scale: _point.Point,
+                 angle: _angle.Angle, position: _point.Point):
+        """Initialise the :class:`WireStripe` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: :class:`_wire.Wire`
+        :param wire: Value for ``wire``.
+        :type wire: :class:`Wire`
+        :param color: Value for ``color``.
+        :type color: :class:`_color.Color`
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
+
+        # Already big enough after _ensure_stripe_capacity -- this just
+        # fetches the resulting handle (a cheap no-op fast path, see
+        # create_vbo).
+        vbo = _cylinder_helix.create_stripe_vbo()
+        material = _materials.Plastic(color)
+        self._wireserviceloop = wireserviceloop
+
+        stripe_scale = _point.Point(scale.x, scale.y, scale.z)
+        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        """Always smooth-shaded -- the helix is a swept curved surface with
+        no flat faces, so there's no reason for this to ever be flat (see
+        Base3D._render_geometry, which defaults to flat shading when a
+        subclass doesn't define this)."""
+        return True
+
+    @_check_types.do
+    def _compute_obb(self):
+        """No-op: the stripe has no independent geometry of its own. See
+        the _obb property below."""
+
+    @_check_types.do
+    def _compute_aabb(self):
+        """See _compute_obb."""
+
+    @property
+    @_check_types.do
+    def _obb(self):
+        """Always the wire's current OBB array -- read-only everywhere
+        obb/aabb are used (hit-testing, debug overlay boxes), so there's
+        never a need for the stripe to hold its own copy."""
+        return self._wireserviceloop.obb
+
+    @_obb.setter
+    @_check_types.do
+    def _obb(self, value):
+        # Base3D.__init__ assigns this once before calling _compute_obb();
+        # the wire is the source of truth, so the write is discarded.
+        pass
+
+    @property
+    @_check_types.do
+    def _aabb(self):
+        """See _obb."""
+        return self._wireserviceloop.aabb
+
+    @_aabb.setter
+    @_check_types.do
+    def _aabb(self, value):
+        pass
+
+    @_check_types.do
+    def _update_position(self, position: _point.Point):
+        """Recompute (copy) OBB/AABB from the wire; the wire's own
+        _update_position already triggers a repaint, so this doesn't need
+        its own Refresh() call.
+
+        :param position: Position value.
+        :type position: :class:`_point.Point`
+        """
+        # self._compute_obb()
+        # self._compute_aabb()
+
+        pass
+
+    @_check_types.do
+    def _update_angle(self, angle: _angle.Angle):
+        """See _update_position.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
+        # self._compute_obb()
+        # self._compute_aabb()
+
+        pass
+
+    @_check_types.do
+    def _update_scale(self, scale: _point.Point):
+        """See _update_position.
+
+        :param scale: Value for ``scale``.
+        :type scale: :class:`_point.Point`
+        """
+        # self._compute_obb()
+        # self._compute_aabb()
+
+        pass
+
+    @property
+    @_check_types.do
+    def is_visible(self) -> bool:
+        """Return the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: bool
+        """
+        return self._is_visible
+
+    @is_visible.setter
+    @_check_types.do
+    def is_visible(self, value: bool):
+        """Set the is visible.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param value: Value to store or process.
+        :type value: bool
+        """
+        self._is_visible = value
+
 
 
 class WireServiceLoopMenu(QMenu):

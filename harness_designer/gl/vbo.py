@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import ctypes
+import threading
 import weakref
 from dataclasses import dataclass
 
@@ -268,26 +269,39 @@ VBO_TYPE_MODEL = 1
 class VBOSingleton(type):
     _instances = {}
     _primitives = {}
+    # _instances/_primitives are shared across every class using this
+    # metaclass (not reset per-subclass) and are touched both from here and
+    # from external call sites (PooledVBOHandler._clear_model_vaos_for_arena/
+    # evict, part_orientation.py) plus _remove_ref firing as a weakref
+    # callback on whatever thread drops the last reference. See
+    # _EntrySingleton (global_db/bases.py) for why unsynchronized concurrent
+    # mutation of a dict like this corrupts its internal structure -- same
+    # fix applied here for consistency/defense-in-depth. RLock so a call
+    # already holding it (e.g. __call__ triggering _remove_ref indirectly)
+    # can safely re-enter.
+    _instances_lock = threading.RLock()
 
     @classmethod
     @_check_types.do
     def _remove_ref(cls, ref):
-        for key, value in cls._instances.items():
-            if value == ref:
-                break
-        else:
-            return
+        with cls._instances_lock:
+            for key, value in cls._instances.items():
+                if value == ref:
+                    break
+            else:
+                return
 
-        PooledVBOHandler.release_model_allocation(key)
+            PooledVBOHandler.release_model_allocation(key)
 
-        del cls._instances[key]
+            del cls._instances[key]
 
     @_check_types.do
     def __contains__(cls, item):
-        if item in cls._instances:
-            return True
+        with cls._instances_lock:
+            if item in cls._instances:
+                return True
 
-        return item in cls._primitives
+            return item in cls._primitives
 
     @_check_types.do
     def __call__(cls, id_: str, data: np.ndarray | None = None,
@@ -297,27 +311,28 @@ class VBOSingleton(type):
                  *, endpoint: _point.Point | None = None,
                  arena_kind: int = VBO_TYPE_MODEL) -> "PooledVBOHandler":
 
-        if arena_kind == VBO_TYPE_PRIMITIVE:
-            if id_ not in cls._primitives:
+        with cls._instances_lock:
+            if arena_kind == VBO_TYPE_PRIMITIVE:
+                if id_ not in cls._primitives:
+                    instance = super().__call__(
+                        id_, data, count, aabb, obb,
+                        endpoint=endpoint, arena_kind=arena_kind)
+
+                    cls._primitives[id_] = instance
+                else:
+                    instance = cls._primitives[id_]
+
+            elif id_ not in cls._instances or cls._instances[id_]() is None:
                 instance = super().__call__(
-                    id_, data, count, aabb, obb,
-                    endpoint=endpoint, arena_kind=arena_kind)
+                        id_, data, count, aabb, obb,
+                        endpoint=endpoint, arena_kind=arena_kind)
 
-                cls._primitives[id_] = instance
+                cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
+
             else:
-                instance = cls._primitives[id_]
+                instance = cls._instances[id_]()
 
-        elif id_ not in cls._instances or cls._instances[id_]() is None:
-            instance = super().__call__(
-                    id_, data, count, aabb, obb,
-                    endpoint=endpoint, arena_kind=arena_kind)
-
-            cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
-
-        else:
-            instance = cls._instances[id_]()
-
-        return instance
+            return instance
 
 
 class VBOHandlerBase:
@@ -810,7 +825,8 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
     @classmethod
     @_check_types.do
     def _clear_model_vaos_for_arena(cls, arena: _MeshArena):
-        refs = list(VBOSingleton._instances.values())  # NOQA
+        with VBOSingleton._instances_lock:  # NOQA
+            refs = list(VBOSingleton._instances.values())  # NOQA
         for ref in refs:
             instance = ref()
             if instance is None or instance._arena_kind != VBO_TYPE_MODEL:  # NOQA
@@ -940,7 +956,8 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         Safe to call even if the key is not present.
         """
         cls.release_model_allocation(key)
-        ref = VBOSingleton._instances.pop(key, None)  # NOQA
+        with VBOSingleton._instances_lock:  # NOQA
+            ref = VBOSingleton._instances.pop(key, None)  # NOQA
         if ref is not None:
             instance = ref()
             if instance is not None:

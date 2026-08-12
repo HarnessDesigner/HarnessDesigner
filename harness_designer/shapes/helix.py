@@ -65,6 +65,7 @@ def create_vbo(min_length: float | int) -> _vbo_handler.PooledVBOHandler:
     :returns: The shared stripe VBO.
     :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
     """
+
     global _vbo, _current_length
 
     if _vbo is not None and min_length <= _current_length:

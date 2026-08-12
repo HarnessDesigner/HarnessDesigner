@@ -647,6 +647,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         w = Config.editor3d.virtual_canvas.width
         h = Config.editor3d.virtual_canvas.height
 
+        self._obj_handler = None
+
         self.canvas = _canvas3d.Canvas3D(
             self.panel, Config.editor3d, size=(w, h))
 

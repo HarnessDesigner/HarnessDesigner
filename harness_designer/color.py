@@ -2,6 +2,7 @@
 
 """Colour helpers shared by the :mod:`harness_designer` UI and data model."""
 
+import threading
 import weakref
 import colorsys
 from PySide6.QtGui import QColor as _QColor
@@ -13,6 +14,11 @@ from . import check_types as _check_types
 class ColorMeta(type):
     """Metaclass that caches :class:`Color` instances by database identifier."""
     _instances = {}
+    # Guards `_instances` against concurrent mutation from multiple threads
+    # and from weakref callbacks that CPython can fire on an arbitrary
+    # thread. See the same fix in geometry/point.py, geometry/angle/angle.py
+    # and database/global_db/bases.py.
+    _instances_lock = threading.RLock()
 
     @classmethod
     @_check_types.do
@@ -22,10 +28,11 @@ class ColorMeta(type):
         :param ref: Weak reference previously stored in ``_instances``.
         :type ref: weakref.ReferenceType
         """
-        for key, value in list(cls._instances.items()):
-            if value == ref:
-                del cls._instances[key]
-                return
+        with cls._instances_lock:
+            for key, value in list(cls._instances.items()):
+                if value == ref:
+                    del cls._instances[key]
+                    return
 
     @_check_types.do
     def __call__(cls, r: float | int, g: float | int, b: float | int,
@@ -47,25 +54,26 @@ class ColorMeta(type):
         """
 
         if db_id is not None:
-            if db_id not in cls._instances:
-                instance = type.__call__(cls, r, g, b, a, db_id)
-                cls._instances[db_id] = weakref.ref(
-                    instance, cls._remove_ref
-                )
-            elif cls._instances[db_id]() is None:
-                # Handle edge case where a reference has been removed
-                # but the reference object has not yet been removed from
-                # the dict. We have to make sure that we delete the key
-                # before adding the object again because of the internal
-                # mechanics in weakref and not wanting it to remove
-                # the newly added reference
-                del cls._instances[db_id]
-                instance = type.__call__(cls, r, g, b, a, db_id)
-                cls._instances[db_id] = weakref.ref(
-                    instance, cls._remove_ref
-                )
-            else:
-                instance = cls._instances[db_id]()
+            with cls._instances_lock:
+                if db_id not in cls._instances:
+                    instance = type.__call__(cls, r, g, b, a, db_id)
+                    cls._instances[db_id] = weakref.ref(
+                        instance, cls._remove_ref
+                    )
+                elif cls._instances[db_id]() is None:
+                    # Handle edge case where a reference has been removed
+                    # but the reference object has not yet been removed from
+                    # the dict. We have to make sure that we delete the key
+                    # before adding the object again because of the internal
+                    # mechanics in weakref and not wanting it to remove
+                    # the newly added reference
+                    del cls._instances[db_id]
+                    instance = type.__call__(cls, r, g, b, a, db_id)
+                    cls._instances[db_id] = weakref.ref(
+                        instance, cls._remove_ref
+                    )
+                else:
+                    instance = cls._instances[db_id]()
         else:
             instance = type.__call__(cls, r, g, b, a, db_id)
 

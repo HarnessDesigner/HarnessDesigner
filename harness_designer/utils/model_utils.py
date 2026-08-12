@@ -1,6 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import collections
+import gc
+import sys
+import threading
+import traceback
+
 import numpy as np
+from PySide6 import QtWidgets
 
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
@@ -50,7 +57,7 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
 
 
 @_check_types.do
-def convert_model_to_mesh(model, lin_deflection=0.001, ang_deflection=0.1, is_relative=True):
+def convert_model_to_mesh(model, lin_deflection=0.001, ang_deflection=0.5, is_relative=True):
     """
     Triangulate a CAD model into vertex and face arrays.
 
@@ -74,39 +81,73 @@ def convert_model_to_mesh(model, lin_deflection=0.001, ang_deflection=0.1, is_re
     :rtype: tuple[numpy.ndarray, numpy.ndarray]
     """
 
-    loc = TopLoc_Location()
-    BRepMesh_IncrementalMesh(theShape=model.wrapped, theLinDeflection=lin_deflection,
-                             isRelative=is_relative, theAngDeflection=ang_deflection, isInParallel=True)
+    # Working around a confirmed native heap-corruption bug in OCCT/OCP's
+    # meshing code (PDB-symbolized ProcDump analysis, 2026-08-11): a
+    # fixed-size out-of-bounds write during triangulation of large meshes
+    # occasionally lands on an unrelated, live dict's ob_type/ma_used
+    # fields. It's silent until CPython's cyclic GC later walks that dict
+    # and dereferences the corrupted type pointer -- crashing here, inside
+    # this function, purely because this is where a big enough allocation
+    # happens to cross a GC threshold first. Disabling GC for the
+    # extraction below does not fix the corruption, it only keeps the
+    # collector from touching the bad object *during this window*. If the
+    # corrupted object isn't part of a reference cycle, ordinary
+    # refcounting frees it once it goes out of scope and that's the end of
+    # it; if it's kept alive by a cycle, the same crash can still resurface
+    # later, elsewhere, once GC is back on and eventually walks it.
+    gc_was_enabled = gc.isenabled()
+    gc.disable()
 
-    vertices = []
-    faces = []
-    offset = 0
-    for facet in model.faces():
-        if not facet:
-            continue
+    try:
+        loc = TopLoc_Location()
+        BRepMesh_IncrementalMesh(theShape=model.wrapped, theLinDeflection=lin_deflection,
+                                 isRelative=is_relative, theAngDeflection=ang_deflection, isInParallel=False)
 
-        poly_triangulation = BRep_Tool.Triangulation_s(facet.wrapped, loc)  # NOQA
+        vertices = []
+        faces = []
+        offset = 0
+        for face_idx, facet in enumerate(model.faces()):
 
-        if not poly_triangulation:
-            continue
+            if not facet:
+                continue
 
-        trsf = loc.Transformation()
+            poly_triangulation = BRep_Tool.Triangulation_s(facet.wrapped, loc)  # NOQA
 
-        node_count = poly_triangulation.NbNodes()
-        for i in range(1, node_count + 1):
-            gp_pnt = poly_triangulation.Node(i).Transformed(trsf)
-            pnt = (gp_pnt.X(), gp_pnt.Y(), gp_pnt.Z())
-            vertices.append(pnt)
+            if not poly_triangulation:
+                continue
 
-        facet_reversed = facet.wrapped.Orientation() == TopAbs_REVERSED
+            trsf = loc.Transformation()
 
-        order = [1, 3, 2] if facet_reversed else [1, 2, 3]
-        for tri in poly_triangulation.Triangles():
-            faces.append([tri.Value(i) + offset - 1 for i in order])
+            node_count = poly_triangulation.NbNodes()
+            for i in range(1, node_count + 1):
+                gp_pnt = poly_triangulation.Node(i).Transformed(trsf)
+                pnt = (gp_pnt.X(), gp_pnt.Y(), gp_pnt.Z())
+                vertices.append(pnt)
 
-        offset += node_count
+            facet_reversed = facet.wrapped.Orientation() == TopAbs_REVERSED
 
-    vertices = np.array(vertices, dtype=np.float32)
-    faces = np.array(faces, dtype=np.int32)
+            order = [1, 3, 2] if facet_reversed else [1, 2, 3]
+
+            for tri in poly_triangulation.Triangles():
+                # Expanded out of the list comprehension that used to be here
+                # (a single line in every crash traceback so far, regardless of
+                # which of these three sub-steps was actually executing) --
+                # each is now its own statement, so the next crash pinpoints
+                # exactly one of: tri.Value(order[0]), tri.Value(order[1]), or
+                # tri.Value(order[2]).
+                idx0 = tri.Value(order[0]) + offset - 1
+                idx1 = tri.Value(order[1]) + offset - 1
+                idx2 = tri.Value(order[2]) + offset - 1
+                face_row = [idx0, idx1, idx2]
+
+                faces.append(face_row)
+
+            offset += node_count
+
+        vertices = np.array(vertices, dtype=np.float32)
+        faces = np.array(faces, dtype=np.int32)
+    finally:
+        if gc_was_enabled:
+            gc.enable()
 
     return vertices, faces

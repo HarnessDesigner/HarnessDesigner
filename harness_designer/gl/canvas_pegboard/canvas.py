@@ -35,7 +35,7 @@ from .. import materials as _materials
 from ... import config as _config
 from ... import color as _color
 from ...geometry import point as _point
-from ..canvas2d import grid as _grid
+from ..canvas2d import floor as _floor
 from . import tables_overlay as _tables_overlay
 from ... import check_types as _check_types
 
@@ -163,7 +163,8 @@ class Canvas(QOpenGLWidget):
         font.setPointSize(12)
         self.setFont(font)
 
-        self._grid = _grid.Grid(self)
+        self._floor: _floor.Floor = None
+        self._floor_program = None
 
         # Peg-board scene state -- see load_project()/add_anchor()/
         # remove_anchor() and _render_objects() below. self._pegboard_program
@@ -326,11 +327,11 @@ class Canvas(QOpenGLWidget):
         :returns: Snapped position (unchanged if grid snap is disabled).
         :rtype: :class:`_point.Point`
         """
-        if not self.config.grid.snap:
+        if not self.config.floor.snap:
             return world_pos
 
-        manual_spacing = self.config.grid.manual_snap_spacing
-        spacing = self._grid.grid_spacing if manual_spacing is None else manual_spacing
+        manual_spacing = self.config.floor.manual_snap_spacing
+        spacing = self._floor.grid_spacing if manual_spacing is None else manual_spacing
 
         return _point.Point(
             round(world_pos.x / spacing) * spacing,
@@ -344,7 +345,7 @@ class Canvas(QOpenGLWidget):
         :param value: New snap-to-grid state.
         :type value: UNKNOWN
         """
-        self.config.grid.snap = bool(value)
+        self.config.floor.snap = bool(value)
 
     @_check_types.do
     def set_grid_display(self, value) -> None:
@@ -353,8 +354,8 @@ class Canvas(QOpenGLWidget):
         :param value: New grid-visibility state.
         :type value: UNKNOWN
         """
-        self.config.grid.enabled = bool(value)
-        self._grid.set(self.config.grid.enabled)
+        self.config.floor.enable = bool(value)
+        self._floor.set(self.config.floor.enable)
         self.update()
 
     # ------------------------------------------------------------------
@@ -421,9 +422,12 @@ class Canvas(QOpenGLWidget):
             GL.glViewport(0, 0, self.size[0], self.size[1])
 
         self._setup_projection()
-        self._grid.set(self.config.grid.enabled)
 
         self._pegboard_program = _shaders.compile_schematic2d_program()
+        self._floor_program = _shaders.compile_grid2d_program()
+
+        self._floor = _floor.Floor(self, self._floor_program)
+        self._floor.set(self.config.floor.enable)
 
     @_check_types.do
     def resizeGL(self, width: int, height: int):
@@ -437,7 +441,7 @@ class Canvas(QOpenGLWidget):
         """Render one frame. Context is already current here."""
         GL.glClear(GL.GL_COLOR_BUFFER_BIT)
         self._setup_projection()
-        self._grid.render(self.camera.distance)
+        self._floor.render(self._floor_program)
         self._render_objects()
         # Qt handles SwapBuffers automatically.
 

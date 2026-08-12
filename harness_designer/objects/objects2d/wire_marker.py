@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
 
 
+# TODO: add render function
+
+
 class WireMarker(_base2d.Base2D):
     """
     2D representation of a wire marker for schematic view

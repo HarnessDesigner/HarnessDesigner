@@ -629,19 +629,18 @@ class Config(metaclass=ConfigDB):
             lock = False
             lock_increment = 90.0
 
-        class grid(metaclass=ConfigDB):
+        class floor(metaclass=ConfigDB):
             """Grid display and snapping settings for the 2D editor."""
-            enabled = True
-            size = 8000
+            enable = True
+            ground_height = 0.0
+            enable_floor_lock = True
+
             snap = False
-            # Target ratio of camera distance to the displayed grid spacing
-            # (e.g. 10 means "aim for dots roughly distance/10 apart"). The
-            # raw target is snapped to the nearest "nice" 1/2/5 x 10^n value
-            # (the standard tick-spacing scheme used by most CAD/graphing
-            # tools), so displayed spacing is always a round number and
-            # steps in gentle ~2-2.5x increments as you zoom, not a single
-            # large jump.
-            zoom_ratio = 10.0
+
+            target_dot_pixel_spacing = 40.0
+            dot_color = [0.45, 0.45, 0.45, 1.0]
+
+            manual_snap_spacing = None
 
         class zoom(metaclass=ConfigDB):
             """2D editor zoom control bindings."""
@@ -771,18 +770,17 @@ class Config(metaclass=ConfigDB):
             width = 1920
             height = 1080
 
-        class grid(metaclass=ConfigDB):
-            """Grid display and snapping settings for the peg board editor."""
-            enabled = True
-            size = 8000
+        class floor(metaclass=ConfigDB):
+            """Grid display and snapping settings for the 2D editor."""
+            enable = True
+            ground_height = 0.0
+            enable_floor_lock = True
+
             snap = False
-            # See Config.editor2d.grid's matching field -- gl.canvas2d.grid.Grid
-            # is shared code, reused unchanged by the peg board canvas.
-            zoom_ratio = 10.0
-            # Manual snap-spacing override (world units, mm). None means
-            # "auto" -- snap to whatever Grid.grid_spacing currently is
-            # (the live LOD tier). Set via the peg board toolbar's
-            # snap-to-grid button's right-click popup.
+
+            target_dot_pixel_spacing = 40.0
+            dot_color = [0.45, 0.45, 0.45, 1.0]
+
             manual_snap_spacing = None
 
         class zoom(metaclass=ConfigDB):
@@ -1118,6 +1116,17 @@ class Config(metaclass=ConfigDB):
 
     class resources(metaclass=ConfigDB):
         model_watchdog_timeout = 120
+
+        # Child-process liveness heartbeat (image_process.py/model_process.py).
+        # Each worker pings the parent this often while idle, then waits the
+        # same span for a reply; no reply and it self-terminates immediately,
+        # no retries -- daemon=True only cleans up children on a clean
+        # interpreter shutdown (a hard crash skips that entirely), so without
+        # this a dead parent would leave it orphaned. The parent thread just
+        # forwards messages to the main thread -- no real work of its own --
+        # so a live parent should never take anywhere near this long to
+        # answer a ping.
+        heartbeat_interval = 5.0
 
     class database(metaclass=ConfigDB):
         """Database backend selection and connection defaults."""

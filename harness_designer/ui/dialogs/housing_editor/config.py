@@ -46,7 +46,7 @@ class Config:
 
         class floor:
             """Floor plane, grid, and reflection settings for the 3D editor."""
-            enable = True
+            enable = False
             ground_height = 0.0
             size = 2000
             enable_floor_lock = False

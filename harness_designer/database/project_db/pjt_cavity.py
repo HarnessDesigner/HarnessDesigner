@@ -296,6 +296,29 @@ class PJTCavitiesTable(PJTTableBase):
 
         return PJTCavity(self, db_id)
 
+    @_check_types.do
+    def names_with_terminals(self, housing_id: bytes) -> list[tuple]:
+        """Return ``(cavity_id, cavity_name, terminal_id, terminal_name)``
+        for every cavity under *housing_id*, in a single query --
+        ``terminal_id``/``terminal_name`` are ``NULL`` for a cavity with
+        no seated terminal.
+
+        Batches what would otherwise be, per cavity: one query for its
+        own ``name``, one for the ``cavity.terminal`` reverse-lookup
+        (itself a full query), and one more for that terminal's own
+        ``name`` -- up to 3 queries x however many cavities a housing
+        has (some run into the hundreds). See
+        ``objects2d/housing.py``'s ``Housing._collect_names``.
+        """
+        self._con.execute(
+            'SELECT cavity.id, cavity.name, terminal.id, terminal.name '
+            'FROM pjt_cavities AS cavity '
+            'LEFT JOIN pjt_terminals AS terminal ON terminal.cavity_id = cavity.id '
+            'WHERE cavity.housing_id = ?;',
+            (housing_id,))
+
+        return self._con.fetchall()
+
 
 class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
                 PartMixin, NameMixin, NotesMixin, Visible2DMixin, Visible3DMixin,
@@ -610,7 +633,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
 
     @property
     @_check_types.do
-    def wire_point3d_id_raw(self) -> bytes | None:
+    def wire_position3d_id_raw(self) -> bytes | None:
         """The raw ``wire_point3d_id`` column value, ``None`` if a wire has
         never been routed to this cavity yet.
 

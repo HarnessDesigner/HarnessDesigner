@@ -29,8 +29,29 @@ if TYPE_CHECKING:
     from . import pjt_point3d as _pjt_point3d
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire_marker as _pjt_wire_marker
+    from . import pjt_wire_layout as _pjt_wire_layout
     from ...geometry import point as _point
     from ...objects import wire as _wire_obj
+
+
+@_check_types.do
+def delete_layouts_at(layouts_table: "_pjt_wire_layout.PJTWireLayoutsTable",
+                      id_field: str, point_id: bytes) -> None:
+    """Delete every WireLayout referencing *point_id* via *id_field*
+    (``point3d_id`` or ``point2d_id``) -- through its own live
+    object if one exists (so obj3d/obj2d teardown and the project's own
+    wire_layouts list stay consistent), falling back to a raw row delete
+    otherwise. Module-level (not a ``PJTWire`` method) so it's reusable
+    anywhere a waypoint row is being removed without also deleting the
+    owning wire -- see ``objects/objects2d/wire_reroute.py``.
+    """
+    for row in layouts_table.select('id', **{id_field: point_id}):
+        layout_db = layouts_table[row[0]]
+        layout_obj = layout_db.get_object()
+        if layout_obj is not None:
+            layout_obj.delete()
+        else:
+            layout_db.delete()
 
 
 class PJTWiresTable(PJTTableBase):
@@ -278,31 +299,15 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """
         layouts_table = self._table.db.pjt_wire_layouts_table
 
-        for point, id_field in ((p, 'position3d_id') for p in self.waypoints3d):
-            self._delete_layouts_at(layouts_table, id_field, point.db_id)
+        for point in self.waypoints3d:
+            delete_layouts_at(layouts_table, 'point3d_id', point.db_id)
             point.delete()
 
         for point in self.waypoints2d:
-            self._delete_layouts_at(layouts_table, 'position2d_id', point.db_id)
+            delete_layouts_at(layouts_table, 'point2d_id', point.db_id)
             point.delete()
 
         super().delete()
-
-    @staticmethod
-    @_check_types.do
-    def _delete_layouts_at(layouts_table, id_field: str, point_id: bytes) -> None:
-        """Delete every WireLayout referencing *point_id* via *id_field*
-        (``position3d_id`` or ``position2d_id``) -- through its own live
-        object if one exists (so obj3d/obj2d teardown and the project's
-        own wire_layouts list stay consistent), falling back to a raw row
-        delete otherwise."""
-        for row in layouts_table.select('id', **{id_field: point_id}):
-            layout_db = layouts_table[row[0]]
-            layout_obj = layout_db.get_object()
-            if layout_obj is not None:
-                layout_obj.delete()
-            else:
-                layout_db.delete()
 
     @property
     @_check_types.do

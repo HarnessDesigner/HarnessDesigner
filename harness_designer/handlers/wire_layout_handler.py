@@ -51,7 +51,7 @@ def _find_wire(
 ) -> _wire.Wire | None:
     """Return the wire under the mouse, or the closest one within the snap threshold."""
     selected = _object_picker.find_object(
-        mouse_pos, camera.objects_in_view, camera)
+        mouse_pos, camera.objects_in_view, camera, _handler_base.HandlerBase._get_view_object)
 
     if isinstance(selected, _wire.Wire):
         return selected

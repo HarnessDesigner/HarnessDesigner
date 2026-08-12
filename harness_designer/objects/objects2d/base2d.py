@@ -172,7 +172,7 @@ class Base2D(_objectsvar.BaseVar):
         self.mainframe.editor2d.Refresh()
 
     @_check_types.do
-    def _render_geometry(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
+    def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
         """Render this object's VBO using the already-bound *program*.
 
         Mirrors ``Base3D._render_geometry`` exactly -- ``self._angle``'s
@@ -211,15 +211,6 @@ class Base2D(_objectsvar.BaseVar):
     # against the OBB/AABB computed above; legacy subclasses override them
     # against their own manual geometry as before.
     # ------------------------------------------------------------------
-
-    @_check_types.do
-    def render_gl(self) -> None:
-        """
-        Legacy immediate-mode render hook -- unused by VBO-backed objects
-        (rendered instead by ``gl.canvas2d.canvas.Canvas.paintGL``'s VBO
-        pass). Override in legacy subclasses.
-        """
-        pass
 
     @_check_types.do
     def render_selection(self, program: int, proj, view) -> None:

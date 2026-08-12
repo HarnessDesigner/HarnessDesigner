@@ -31,6 +31,9 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
+# TODO: add render function
+
+
 class Housing(_base2d.Base2D):
     """
     2D representation of a housing for schematic view

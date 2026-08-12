@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from .. import note as _note
 
 
+# TODO: add render function
+
 class Note(_base2d.Base2D):
     """Represent a note in :mod:`harness_designer.objects.objects2d.note`.
 

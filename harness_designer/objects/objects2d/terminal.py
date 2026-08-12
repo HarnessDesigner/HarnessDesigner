@@ -48,6 +48,8 @@ def _bracket_vbo():
                             text_align=_ALIGN_BOTTOM_RIGHT)
 
 
+# TODO add render function
+
 class Terminal(_base2d.Base2D):
     """
     2D representation of a terminal for schematic view

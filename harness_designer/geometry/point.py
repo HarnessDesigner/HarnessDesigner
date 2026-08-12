@@ -4,6 +4,7 @@
 
 from typing import Self, Iterable, Union
 
+import threading
 import weakref
 import numpy as np
 
@@ -62,6 +63,14 @@ class PointMeta(type):
     """
 
     _instances = {}
+    # _instances is touched from __call__, _remove_ref (a weakref callback
+    # that fires on whatever thread drops the last reference, unrelated to
+    # whichever thread is concurrently in __call__), and external sites in
+    # Point.merge_into/detach below. See _EntrySingleton (global_db/bases.py)
+    # for why unsynchronized concurrent mutation of a dict like this
+    # corrupts its internal structure -- same fix applied here. RLock so a
+    # call already holding it can safely re-enter.
+    _instances_lock = threading.RLock()
 
     @classmethod
     @_check_types.do
@@ -75,13 +84,14 @@ class PointMeta(type):
         :rtype: None
         """
 
-        for key, value in cls._instances.items():
-            if value == ref:
-                break
-        else:
-            return
+        with cls._instances_lock:
+            for key, value in cls._instances.items():
+                if value == ref:
+                    break
+            else:
+                return
 
-        del cls._instances[key]
+            del cls._instances[key]
 
     @_check_types.do
     def __call__(cls, x: int | float | _d | np.float32, y: int | float | _d | np.float32,
@@ -107,22 +117,23 @@ class PointMeta(type):
             z = float(str(z))
 
         if db_id is not None:
-            if db_id not in cls._instances:
-                instance = super().__call__(x, y, z, db_id)
-                cls._instances[db_id] = weakref.ref(instance)
+            with cls._instances_lock:
+                if db_id not in cls._instances:
+                    instance = super().__call__(x, y, z, db_id)
+                    cls._instances[db_id] = weakref.ref(instance)
 
-            elif cls._instances[db_id]() is None:
-                # Handle edge case where a reference has been removed
-                # but the reference object has not yet been removed from
-                # the dict. We have to make sure that we delete the key
-                # before adding the object again because of the internal
-                # mechanics in weakref and not wanting it to remove
-                # the newly added reference
-                del cls._instances[db_id]
-                instance = super().__call__(x, y, z, db_id)
-                cls._instances[db_id] = weakref.ref(instance)
-            else:
-                instance = cls._instances[db_id]()
+                elif cls._instances[db_id]() is None:
+                    # Handle edge case where a reference has been removed
+                    # but the reference object has not yet been removed from
+                    # the dict. We have to make sure that we delete the key
+                    # before adding the object again because of the internal
+                    # mechanics in weakref and not wanting it to remove
+                    # the newly added reference
+                    del cls._instances[db_id]
+                    instance = super().__call__(x, y, z, db_id)
+                    cls._instances[db_id] = weakref.ref(instance)
+                else:
+                    instance = cls._instances[db_id]()
         else:
             instance = super().__call__(x, y, z, db_id)
 
@@ -927,7 +938,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         # Remove other from the PointMeta singleton registry.  actual_root
         # now owns the canonical entry for this db_id.
         if other._db_id is not None:
-            PointMeta._instances.pop(other._db_id, None)
+            with PointMeta._instances_lock:
+                PointMeta._instances.pop(other._db_id, None)
 
         other._root = actual_root
         np.copyto(other._data, actual_root._data)
@@ -949,7 +961,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             root._delegators = [r for r in root._delegators if r() is not self]
             self._root = None
             if self._db_id is not None:
-                PointMeta._instances[self._db_id] = weakref.ref(self)
+                with PointMeta._instances_lock:
+                    PointMeta._instances[self._db_id] = weakref.ref(self)
 
     @_check_types.do
     def get_angle(self, origin: "Point") -> "_angle.Angle":

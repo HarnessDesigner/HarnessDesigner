@@ -97,10 +97,14 @@ class Terminal(_ObjectBase):
         (``wire_point3d_id``) and, when seated in a cavity, on through the
         cavity's own wire-position point -- as interior waypoints on this
         *same* wire (no new ``pjt_wires`` rows), each marked with its own
-        :class:`~harness_designer.objects.wire_layout.WireLayout`. The
-        terminal has only one 2D anchor (``position2d_id`` -- no separate
-        attach/back distinction in the schematic view), so no 2D waypoints
-        are added; the wire's 2D endpoint is simply ``position2d_id``.
+        :class:`~harness_designer.objects.wire_layout.WireLayout`. No 2D
+        waypoints are added -- the wire's 2D endpoint is simply this
+        terminal's own ``wire_position2d_id`` (the far end of its
+        wire-stub line, past every cavity name in the housing -- see
+        ``objects2d/housing.py``'s ``Housing._layout_children``/
+        ``objects2d/terminal.py``'s ``Terminal.render_extras`` --
+        distinct from ``position2d_id``, this terminal's own name
+        anchor).
 
         When this is not the first wire on the terminal, the back/cavity
         points can't be shared directly (one point row can only carry one
@@ -132,21 +136,21 @@ class Terminal(_ObjectBase):
         project = self.mainframe.project
         is_first_wire = not existing_wires
 
-        attach_point = ptables.pjt_points3d_table[self.db_obj.attach_point3d_id]
+        attach_point = ptables.pjt_points3d_table[self.db_obj.attach_position3d_id]
 
         if end == 'start':
             wire.db_obj.start_position3d_id = attach_point.db_id
-            wire.db_obj.start_position2d_id = self.db_obj.position2d_id
+            wire.db_obj.start_position2d_id = self.db_obj.wire_position2d_id
             wire.obj3d.set_start_position(attach_point.point)
-            wire.obj2d.set_start_position(self.db_obj.position2d)
+            wire.obj2d.set_start_position(self.db_obj.wire_position2d)
         else:
             wire.db_obj.stop_position3d_id = attach_point.db_id
-            wire.db_obj.stop_position2d_id = self.db_obj.position2d_id
+            wire.db_obj.stop_position2d_id = self.db_obj.wire_position2d_id
             wire.obj3d.set_stop_position(attach_point.point)
-            wire.obj2d.set_stop_position(self.db_obj.position2d)
+            wire.obj2d.set_stop_position(self.db_obj.wire_position2d)
 
         new_point_ids = [self._own_or_cloned_point_id(
-            ptables, self.db_obj.wire_point3d_id, is_first_wire)]
+            ptables, self.db_obj.wire_position3d_id, is_first_wire)]
 
         pjt_cavity = self.db_obj.cavity
         if pjt_cavity is not None:

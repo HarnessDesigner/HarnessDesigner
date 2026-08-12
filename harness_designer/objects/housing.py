@@ -42,12 +42,21 @@ class Housing(_ObjectBase):
         """
 
         if not project_load:
-            for cavity in db_obj.cavities:
-                if cavity is None:
-                    continue
+            # Deferred one Qt event-loop iteration past this housing's
+            # own construction (see _construct_cavities) -- Cavity2D
+            # looks up its owning Housing2D at its own construction time
+            # (via db_obj.housing.get_object().obj2d, see
+            # objects2d/cavity.py) to register for batched cavity/
+            # terminal name updates, which needs this housing already
+            # fully constructed and registered (db_obj.set_object/
+            # mainframe.add_object, below) by the time it runs -- not
+            # guaranteed yet at this point, this line included. Must be
+            # CallLater, not CallAfter -- CallAfter runs immediately
+            # (no deferral at all) when called from the main thread,
+            # which this always is, defeating the purpose entirely.
+            from .. import app as _app
 
-                cavity = _cavity.Cavity(mainframe, cavity)
-                mainframe.project.add_cavity(cavity)
+            _app.CallLater(self._construct_cavities)
 
         db_obj.set_object(self)
         db_obj.add_object(self)
@@ -63,6 +72,20 @@ class Housing(_ObjectBase):
         self.cpa_locks = []
 
         self.mainframe.add_object(self)
+
+    @_check_types.do
+    def _construct_cavities(self) -> None:
+        """Construct every ``Cavity`` wrapper for this housing's own
+        existing cavity rows -- see the ``CallAfter`` call in
+        :meth:`__init__` for why this is deferred rather than run
+        directly there.
+        """
+        for cavity in self.db_obj.cavities:
+            if cavity is None:
+                continue
+
+            cavity_obj = _cavity.Cavity(self.mainframe, cavity)
+            self.mainframe.project.add_cavity(cavity_obj)
 
     @property
     @_check_types.do

@@ -164,7 +164,8 @@ class AddBundleHandler(_handler_base.HandlerBase):
             return
 
         selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         if isinstance(selected, _wire.Wire):
             wire = selected

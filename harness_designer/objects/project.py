@@ -67,7 +67,7 @@ def _reconcile_wire_sibling_graph(project: "Project") -> None:
         stop_id = wire.db_obj.stop_position3d_id
 
         for terminal in project.terminals:
-            attach_id = terminal.db_obj.attach_point3d_id_raw
+            attach_id = terminal.db_obj.attach_position3d_id_raw
             if attach_id is None:
                 continue
             if attach_id == start_id:
@@ -267,11 +267,11 @@ class Project:
         # very first live drag/preview after loading would immediately
         # trigger a regrow. VBO creation requires an acquired GL context,
         # same as every other VBO-creating call site (e.g. Wire.__init__).
-        with mainframe.editor3d.context:
-            # we have to store the VBO in a variable this way it doesn't get GC'd
-            # If we store it as a variable name that goes unusedCython may throw a
-            # a warning for it.
-            _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
+        # with mainframe.editor3d.context:
+        #     # we have to store the VBO in a variable this way it doesn't get GC'd
+        #     # If we store it as a variable name that goes unusedCython may throw a
+        #     # a warning for it.
+        #     _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
         @_check_types.do
         def _load_objects(table_, label, obj_cls, container,

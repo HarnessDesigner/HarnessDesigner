@@ -227,7 +227,11 @@ class MouseHandler2D(QtCore.QObject):
             obj for obj in self.canvas.objects if getattr(obj, 'is_connected', True)]
 
         return _object_picker.find_object(
-            mouse_pos, candidates, self.canvas.camera, attr='obj2d')
+            mouse_pos, candidates, self.canvas.camera, self._get_view_object)
+
+    @staticmethod
+    def _get_view_object(obj):
+        return obj.obj2d
 
     @_check_types.do
     def _process_mouse(self, code):

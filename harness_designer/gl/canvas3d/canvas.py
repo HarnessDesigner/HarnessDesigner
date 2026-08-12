@@ -21,7 +21,7 @@ from .. import shaders as _shaders
 from ... import debug as _debug
 from ... import config as _config
 from . import floor as _floor
-from . import culling as _culling
+from .. import culling as _culling
 from .. import events as _events
 from ... import logger as _logger
 from ... import check_types as _check_types
@@ -241,6 +241,15 @@ class CanvasEventFilter(QtCore.QObject):
         ):
             self.canvas._key_handler.handle_event(event)  # NOQA
 
+        elif t == QtCore.QEvent.Type.FocusOut:
+            # The canvas loses keyboard focus while a movement key is held
+            # (a context menu or modal dialog opens, another dock gets
+            # clicked, etc.) -- the KeyRelease that would normally clear
+            # that key goes to whichever widget has focus now, never to
+            # this filter, so without this the key stays "down" forever
+            # and the camera keeps moving on its own after it's released.
+            self.canvas._key_handler.clear_keys()  # NOQA
+
         # Mouse capture lost: Qt sends QEvent.Type.MouseButtonRelease with no
         # button held when the grab is broken externally.  For explicit
         # capture-lost notification we use QWidget.mouseGrabber() == None
@@ -388,7 +397,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self._floor_program = None
 
         self.floor: _floor.Floor = None
-        self._view_culling = _culling.CullingThreadPool()
         self._last_culled = []
         self._object_refs = []
         self._objects_in_view = []
@@ -1144,7 +1152,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             _logger.traceback(err, 'camera set error')
 
         try:
-            objs = self._view_culling.cull(
+            objs = _culling.cull(
                 self._object_data, self.camera.frustum_normals,
                 self.camera.frustum_distances, self.camera.position.as_numpy)
         except Exception as err:  # NOQA

@@ -21,6 +21,7 @@ import hmac
 import hashlib
 import secrets
 import uuid
+from copy import deepcopy as dc
 
 from .. import config as _config
 from .. import logger as _logger

@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 Config = _config.Config.editor2d
 
 
+# TODo: add render function
+
 class WireLayout(_base2d.Base2D):
     """
     2D representation of a wire layout (drag handle) for schematic view

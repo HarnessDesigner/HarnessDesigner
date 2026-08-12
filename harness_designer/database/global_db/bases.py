@@ -4,6 +4,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 
 import weakref
 import json
+import threading
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -38,6 +39,7 @@ class _EntrySingleton(type):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _instances = {}
+    _instances_lock = threading.RLock()
 
     @_check_types.do
     def __init__(cls, name, bases, dct):
@@ -55,6 +57,18 @@ class _EntrySingleton(type):
         super().__init__(name, bases, dct)
         setattr(cls, '_instances', {})
         cls._instances = {}
+        # _instances is read/written from __call__ (main thread and every
+        # ProcessManager/worker-message thread that looks up or constructs
+        # an entry) and mutated from __remove_ref, which runs as a weakref
+        # callback -- fired on whatever thread happens to drop the last
+        # reference or whose GC pass collects it, with no relation to
+        # whichever thread is concurrently in __call__. Unsynchronized
+        # concurrent dict mutation from those threads was corrupting this
+        # dict's internal structure (see the crash investigation). RLock
+        # (not Lock) in case anything indirectly re-enters __call__ for the
+        # same class while the lock is already held.
+        setattr(cls, '_instances_lock', threading.RLock())
+        cls._instances_lock = threading.RLock()
 
     @classmethod
     @_check_types.do
@@ -66,13 +80,14 @@ class _EntrySingleton(type):
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
-        for key, value in cls._instances.items():
-            if value == ref:
-                break
-        else:
-            return
+        with cls._instances_lock:
+            for key, value in cls._instances.items():
+                if value == ref:
+                    break
+            else:
+                return
 
-        del cls._instances[key]
+            del cls._instances[key]
 
     @_check_types.do
     def __call__(cls, table, db_id: int | bytes):
@@ -87,17 +102,18 @@ class _EntrySingleton(type):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        if db_id in cls._instances:
-            ref = cls._instances[db_id]
-            instance = ref()
-        else:
-            instance = None
+        with cls._instances_lock:
+            if db_id in cls._instances:
+                ref = cls._instances[db_id]
+                instance = ref()
+            else:
+                instance = None
 
-        if instance is None:
-            instance = super().__call__(table, db_id)
-            cls._instances[db_id] = weakref.ref(instance, cls.__remove_ref)
+            if instance is None:
+                instance = super().__call__(table, db_id)
+                cls._instances[db_id] = weakref.ref(instance, cls.__remove_ref)
 
-        return instance
+            return instance
 
 
 class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):

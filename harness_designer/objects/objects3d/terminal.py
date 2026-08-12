@@ -328,11 +328,15 @@ class Terminal(_base3d.Base3D):
         :param position: Position value.
         :type position: :class:`_point.Point`
         """
-        seal = self.db_obj.seal
-        if seal is not None:
-            delta = position - self._o_position
-            t_position = seal.position3d
-            t_position += delta
+
+        delta = position - self._o_position
+
+        for point in (
+            self.db_obj.wire_position3d,
+            self.db_obj.attach_position3d,
+            self.db_obj.seal_position3d
+        ):
+            point += delta
 
         _base3d.Base3D._update_position(self, position)
 
@@ -346,10 +350,22 @@ class Terminal(_base3d.Base3D):
         :type angle: :class:`_angle.Angle`
         """
         seal = self.db_obj.seal
+        delta = angle - self._o_angle
+        inverse = self._o_angle.inverse
+
         if seal is not None:
-            delta = angle - self._o_angle
             t_angle = seal.angle3d
             t_angle += delta
+
+        for point in (
+            self.db_obj.wire_position3d,
+            self.db_obj.attach_position3d,
+            self.db_obj.seal_position3d
+        ):
+            point -= self._o_position
+            point @= inverse
+            point @= angle
+            point += self._o_position
 
         _base3d.Base3D._update_angle(self, angle)
 
@@ -414,9 +430,9 @@ class Terminal(_base3d.Base3D):
         ptables = self.mainframe.project.ptables
         db_obj = self.db_obj
 
-        back_id = db_obj.wire_point3d_id_raw
+        back_id = db_obj.wire_position3d_id_raw
         cavity = db_obj.cavity
-        cav_back_id = cavity.wire_point3d_id_raw if cavity is not None else None
+        cav_back_id = cavity.wire_position3d_id_raw if cavity is not None else None
         routing_ids = {i for i in (back_id, cav_back_id) if i is not None}
 
         if not routing_ids:

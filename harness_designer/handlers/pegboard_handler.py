@@ -19,9 +19,9 @@ peg-board equivalent of that dispatch table yet, since the peg board
 editor's dock/toolbar wiring is explicitly out-of-scope "later task" work
 throughout this feature's plan (``tranquil-orbiting-spindle.md``). Instead
 it is driven directly by
-:class:`~harness_designer.gl.canvas_pegboard.mouse_handler.MouseHandlerPegBoard`,
+:class:`~harness_designer.gl.canvas_pegboard.mouse_handler.MouseHandler`,
 which is the concrete, testable entry point today
-(:meth:`~harness_designer.gl.canvas_pegboard.mouse_handler.MouseHandlerPegBoard.start_add_waypoint`).
+(:meth:`~harness_designer.gl.canvas_pegboard.mouse_handler.MouseHandler.start_add_waypoint`).
 A future peg-board toolbar action can activate this exactly the way
 ``mainframe._on_tool_mode_change`` instantiates every other ``Add*Handler``
 on a toolbar id -- the handler class itself doesn't need to change either
@@ -167,7 +167,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
     release -- exactly like
     ``handlers.bundle_layout_handler.AddBundleLayoutHandler`` does for 3D
     bundle layouts. See :meth:`gl.canvas_pegboard.mouse_handler.
-    MouseHandlerPegBoard.on_left_down` for the exact call sequence
+    MouseHandler.on_left_down` for the exact call sequence
     (``hover`` -> ``capture_position`` -> ``release_capture``, all within
     one mouse-down).
     """

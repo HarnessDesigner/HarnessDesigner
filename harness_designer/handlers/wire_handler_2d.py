@@ -201,6 +201,10 @@ class AddWireHandler2D(_handler_base.HandlerBase):
 
         self.mainframe.editor2d.Refresh(False)
 
+    @staticmethod
+    def _get_view_object(obj):
+        return obj.obj2d
+
     @_check_types.do
     def release_capture(self):
         if self._finalized or self._captured_position is None:
@@ -208,7 +212,8 @@ class AddWireHandler2D(_handler_base.HandlerBase):
 
         mouse_pos = self._captured_position
         picked = _object_picker.find_object(
-            mouse_pos, self.mainframe.editor2d.editor.objects, self.camera, attr='obj2d')
+            mouse_pos, self.mainframe.editor2d.editor.objects,
+            self.camera, self._get_view_object)
 
         if picked is self.obj or picked is None:
             return

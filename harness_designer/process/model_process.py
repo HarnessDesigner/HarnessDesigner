@@ -536,17 +536,58 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
     from . import db_broker
     from .. import config as _config
 
+    heartbeat_interval = _config.Config.resources.heartbeat_interval
+    secondary_idle_deadline = time.time() + 120
+
+    # Ping/pong ride the same queue as real job data (both flow parent ->
+    # child on in_queue here), so a job can genuinely overtake a pong
+    # that's already in flight -- waiting_for_pong + exit_deadline track a
+    # single outstanding ping across that race instead of assuming the
+    # very next message read is necessarily the reply to it.
+    waiting_for_pong = False
+    exit_deadline = None
+
     while not exit_event.is_set():
-        if is_primary:
-            message = in_queue.get()
-        else:
-            try:
-                message = in_queue.get(120)
-            except queue.Empty:
-                break
+        # Heartbeat only applies here, while idle waiting for the next job --
+        # a job actually running is proof enough the process isn't stuck, so
+        # it's never pinged/timed-out mid-job (see ThreadWorker below).
+        try:
+            message = in_queue.get(timeout=heartbeat_interval)
+        except queue.Empty:
+            message = None
 
         if message is None:
+            if waiting_for_pong and time.time() >= exit_deadline:
+                # No reply within one heartbeat window of the ping going
+                # out -- the parent crashed or was killed without a chance
+                # to clean up daemonic children (daemon=True only helps on
+                # a clean interpreter shutdown, see ProcessWorker.__init__).
+                # No retries -- self-terminate now rather than being left
+                # orphaned.
+                os._exit(1)
+
+            if not waiting_for_pong:
+                out_queue.put({'ping': True})
+                waiting_for_pong = True
+                exit_deadline = time.time() + heartbeat_interval
+
+            if not is_primary and time.time() >= secondary_idle_deadline:
+                # No real job in 120s -- same self-exit policy as before.
+                break
+
             continue
+
+        if 'pong' in message:
+            waiting_for_pong = False
+            continue
+
+        # Real job data -- busy processing is exempt from the heartbeat.
+        # Receiving it at all is proof the parent is alive (whether or not
+        # this cycle's pong has separately shown up yet), so treat it the
+        # same as a pong: the next Empty timeout starts a fresh ping cycle
+        # instead of judging this one against the old deadline.
+        waiting_for_pong = False
+        secondary_idle_deadline = time.time() + 120
 
         timeout = _config.Config.resources.model_watchdog_timeout
 
@@ -641,6 +682,14 @@ class ProcessWorker:
     def recv(self):  # NOQA
         if not self.in_queue.empty():
             message = self.in_queue.get_nowait()
+
+            if message is not None and 'ping' in message:
+                # Heartbeat keep-alive -- see _process_worker. The parent's
+                # only job here is to echo it back immediately; it never
+                # initiates one itself.
+                self.out_queue.put({'pong': True})
+                return None
+
             return message
 
     def reset(self):

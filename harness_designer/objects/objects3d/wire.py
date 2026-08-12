@@ -221,13 +221,13 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         project = self.mainframe.project
 
         for cavity in project.cavities:
-            if cavity.db_obj.wire_point3d_id_raw in ids:
+            if cavity.db_obj.wire_position3d_id_raw in ids:
                 return True
 
         for terminal in project.terminals:
-            if terminal.db_obj.wire_point3d_id_raw in ids:
+            if terminal.db_obj.wire_position3d_id_raw in ids:
                 return True
-            if terminal.db_obj.attach_point3d_id_raw in ids:
+            if terminal.db_obj.attach_position3d_id_raw in ids:
                 return True
 
         return False

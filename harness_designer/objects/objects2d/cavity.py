@@ -26,6 +26,8 @@ Config = _config.Config.editor2d
 _ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
 
 
+# TODO: add render function
+
 class Cavity(_base2d.Base2D):
     """
     2D representation of a cavity for schematic view
@@ -36,9 +38,14 @@ class Cavity(_base2d.Base2D):
     pipeline (see ``objects2d/base2d.py``'s ``Base2D``), matching how
     ``Base3D`` subclasses render. ``position2d``/``angle2d`` are computed
     and persisted by the owning ``objects2d/housing.py``'s ``Housing``
-    whenever its layout changes (see ``Housing._layout_children``) --
-    this class only reacts to its own name changing, to rebuild its text
-    mesh in place.
+    whenever its layout changes (see ``Housing._layout_children``).
+
+    Owns two DB binds on itself: its own ``'name'`` (rebuilds this
+    cavity's own text mesh, and tells the housing to update its cached
+    copy -- see :meth:`_on_name_changed`) and the synthetic
+    ``'terminal_id'`` tag (tells the housing to reposition this
+    cavity's seated terminal -- see :meth:`_on_terminal_changed`). The
+    housing itself binds to neither; both flow from here instead.
     """
     _parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity"
@@ -73,9 +80,66 @@ class Cavity(_base2d.Base2D):
             vbo, _width, _height = self._build()
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
-        self._housing = None  # Reference to parent housing
+        self._name_cb = self.db_obj.bind(self._on_name_changed, 'name')
 
-        self._name_cb = self.db_obj.bind(self._rebuild, 'name')
+        # Fires whenever a terminal is attached, detached, or moved
+        # to/from this cavity -- see database/project_db/pjt_terminal.py's
+        # PJTTerminal.cavity_id setter, which is what actually calls
+        # _populate('terminal_id') on this cavity's own db_obj (there's
+        # no real terminal_id column on pjt_cavities to bind to
+        # directly, so the terminal's own setter fires it by hand).
+        self._terminal_cb = self.db_obj.bind(self._on_terminal_changed, 'terminal_id')
+
+    @property
+    @_check_types.do
+    def housing(self):
+        """This cavity's owning ``Housing2D``, or ``None``.
+
+        Resolved on demand via ``self.parent.housing`` (see
+        ``objects/cavity.py``'s ``Cavity``) rather than cached -- by the
+        time either bound callback below fires, this cavity's housing
+        is guaranteed to already exist (never at this object's own
+        construction time).
+        """
+        housing_obj = self.parent.housing
+        if housing_obj is None:
+            return None
+
+        return housing_obj.obj2d
+
+    @_check_types.do
+    def _on_name_changed(self, _entry=None):
+        """Rebuild this cavity's own name mesh (see :meth:`_rebuild`)
+        and tell the owning housing to update its cached copy -- a
+        cavity rename can reorder its own slot and change the
+        housing-wide max-cavity-name-width, so the housing does a full
+        rebuild (see ``objects2d/housing.py``'s ``Housing.
+        update_cavity_name``).
+        """
+        self._rebuild()
+
+        housing = self.housing
+        if housing is not None:
+            housing.update_cavity_name(self.db_obj.db_id, self.db_obj.name)
+
+    @_check_types.do
+    def _on_terminal_changed(self, _entry=None):
+        """Tell the owning housing to (re)position this cavity's own
+        seated terminal -- see ``objects2d/housing.py``'s ``Housing.
+        update_terminal_name``. Never a full housing rebuild -- seating
+        a terminal doesn't affect sort order or the housing's own
+        layout constants, only whether this one row shows a bracket and
+        wire-stub line at all.
+        """
+        housing = self.housing
+        if housing is None:
+            return
+
+        terminal = self.db_obj.terminal
+        if terminal is None:
+            housing.update_terminal_name(self.db_obj.db_id, None, None)
+        else:
+            housing.update_terminal_name(self.db_obj.db_id, terminal.db_id, terminal.name)
 
     @_check_types.do
     def _mesh_args(self) -> dict:
@@ -112,4 +176,5 @@ class Cavity(_base2d.Base2D):
     @_check_types.do
     def _delete(self):
         self._name_cb.unbind()
+        self._terminal_cb.unbind()
         super()._delete()

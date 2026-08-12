@@ -1,5 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import math
 import uuid
 
 from ....ui import prop_ctrls as _prop_ctrls

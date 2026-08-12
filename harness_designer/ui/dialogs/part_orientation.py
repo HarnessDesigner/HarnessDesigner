@@ -86,8 +86,8 @@ class _Config:
         enable_floor_lock = False
 
         class grid:
-            primary_color = [0.3039, 0.3549, 0.3902, 0.7]
-            secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
+            primary_color = [0.3039, 0.3549, 0.3902, 0.0]
+            secondary_color = [0.2925, 0.3430, 0.3430, 0.0]
             primary_line_color = [0.87, 0.88, 0.92, 1.0]
             secondary_line_color = [0.57, 0.59, 0.65, 1.0]
             primary_line_width = 0.8
@@ -288,6 +288,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._selected_obj = None
         self.o_angle: _angle.Angle = None
         self.o_position: _point.Point = None
+        self._obj_handler = None
 
         self.canvas = _canvas3d.Canvas3D(
             self.panel, _Config, size=(1600, 900))
@@ -381,10 +382,17 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             self.o_angle = self._model_db.angle3d.copy()
             self.o_position = self._model_db.position3d.copy()
 
-            # Point the ctrl at the working position so slider changes go to the
-            # 3D model directly; the DB write happens only on accept().
-            working_pos = self._part_model.obj3d.position
-            self.position_ctrl.set_obj(working_pos)
+            # The position slider drives a standalone offset, NOT the model's
+            # position directly -- _recenter_model() owns obj3d.position (it
+            # re-derives it from the current rotation on every spin/flip/roll),
+            # so binding the slider straight to obj3d.position would fight
+            # that recompute. This offset is purely the user's own additional
+            # nudge on top of the auto-recentered placement.
+            self._position_offset = _point.Point(0.0, 0.0, 0.0)
+            self._position_offset.bind(self._on_offset_changed)
+            self.position_ctrl.set_obj(self._position_offset)
+
+            self._recenter_model()
 
             # Compute label placement from model AABB
             aabb = self._part_model.obj3d.aabb
@@ -414,6 +422,49 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
+    def _on_offset_changed(self, _offset: _point.Point):
+        self._recenter_model()
+
+    @_check_types.do
+    def _recenter_model(self):
+        """Re-center the model on the origin, then reapply the user's offset.
+
+        Runs after every rotation (and after every user offset edit): the
+        model's own local origin isn't guaranteed to sit at its geometric
+        center (wherever the source CAD file's author put it), so spinning
+        it about that off-center local origin visibly drags the whole model
+        away from the pivot the user is looking at.
+
+        obj3d.aabb is already world-space (local AABB run through the
+        current scale/angle/position -- see BaseVar._compute_aabb) and is
+        recomputed synchronously by the angle setters above, before this
+        runs. Moving obj3d.position by (target - current world centroid)
+        therefore re-centers the model exactly, using whatever scale is
+        actually in effect instead of duplicating that transform here.
+        """
+        if self._part_model is None:
+            return
+
+        obj3d = self._part_model.obj3d
+        aabb = obj3d.aabb
+        if aabb is None:
+            return
+
+        current_centroid = _point.Point(
+            float((aabb[0][0] + aabb[1][0]) / 2.0),
+            float((aabb[0][1] + aabb[1][1]) / 2.0),
+            float((aabb[0][2] + aabb[1][2]) / 2.0),
+        )
+
+        delta = self._position_offset - current_centroid
+
+        position = obj3d.position
+        with position:
+            position.x += delta.x
+            position.y += delta.y
+        position.z += delta.z
+
+    @_check_types.do
     def _on_rotate_left(self):
         angle = self._part_model.obj3d.angle.y + 90.0
 
@@ -423,6 +474,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._part_model.obj3d.angle.y = angle
         self._model_db.angle3d.y = angle
 
+        self._recenter_model()
         self._update_forward_up()
 
     @_check_types.do
@@ -434,6 +486,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._part_model.obj3d.angle.y = angle
         self._model_db.angle3d.y = angle
+        self._recenter_model()
         self._update_forward_up()
 
     @_check_types.do
@@ -446,6 +499,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._part_model.obj3d.angle.x = angle
         self._model_db.angle3d.x = angle
 
+        self._recenter_model()
         self._update_forward_up()
 
     @_check_types.do
@@ -457,6 +511,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._part_model.obj3d.angle.x = angle
         self._model_db.angle3d.x = angle
+        self._recenter_model()
         self._update_forward_up()
 
     @_check_types.do
@@ -468,6 +523,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
         self._part_model.obj3d.angle.z = angle
         self._model_db.angle3d.z = angle
+        self._recenter_model()
         self._update_forward_up()
 
     @_check_types.do
@@ -480,6 +536,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._part_model.obj3d.angle.z = angle
         self._model_db.angle3d.z = angle
 
+        self._recenter_model()
         self._update_forward_up()
 
     @_check_types.do
@@ -529,10 +586,11 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
             if vbo is not None and hasattr(vbo, 'id'):
                 uuid = vbo.id
-                if uuid in _vbo.VBOSingleton._instances:  # NOQA
-                    vbo.release()
-                    _vbo.PooledVBOHandler.release_model_allocation(uuid)
-                    del _vbo.VBOSingleton._instances[uuid]  # NOQA
+                with _vbo.VBOSingleton._instances_lock:  # NOQA
+                    if uuid in _vbo.VBOSingleton._instances:  # NOQA
+                        vbo.release()
+                        _vbo.PooledVBOHandler.release_model_allocation(uuid)
+                        del _vbo.VBOSingleton._instances[uuid]  # NOQA
 
         self._part_model = None
 

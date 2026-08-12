@@ -7,6 +7,7 @@ import queue
 import os
 import json
 import threading
+import time
 import traceback
 
 from .. import resources as _resources
@@ -39,6 +40,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
     :rtype: None
     """
     from . import manager
+    from .. import config as _config
 
     exit_event.set()  # signal parent: alive
 
@@ -66,14 +68,49 @@ def _process_worker(in_queue: multiprocessing.Queue,
         out_queue.put(json.dumps({'log': 'IMAGE DOWNLOADER: unknown database type'}))
         return
 
+    heartbeat_interval = _config.Config.resources.heartbeat_interval
+
+    # Ping/pong ride the same queue as real job data (both flow parent ->
+    # child on in_queue here), so a job can genuinely overtake a pong
+    # that's already in flight -- waiting_for_pong + exit_deadline track
+    # a single outstanding ping across that race instead of assuming the
+    # very next message read is necessarily the reply to it.
+    waiting_for_pong = False
+    exit_deadline = None
+
     while not exit_event.is_set():
         try:
-            in_message = in_queue.get()
+            in_message = in_queue.get(timeout=heartbeat_interval)
         except queue.Empty:
-            continue
+            in_message = None
 
         if in_message is None:
+            if waiting_for_pong and time.time() >= exit_deadline:
+                # No reply within one heartbeat window of the ping going
+                # out -- the parent crashed or was killed without a chance
+                # to clean up daemonic children (daemon=True only helps on
+                # a clean interpreter shutdown, see ProcessWorker.__init__).
+                # No retries -- self-terminate now rather than being left
+                # orphaned.
+                os._exit(1)
+
+            if not waiting_for_pong:
+                out_queue.put({'ping': True})
+                waiting_for_pong = True
+                exit_deadline = time.time() + heartbeat_interval
+
             continue
+
+        if 'pong' in in_message:
+            waiting_for_pong = False
+            continue
+
+        # Real job data -- busy processing is exempt from the heartbeat.
+        # Receiving it at all is proof the parent is alive (whether or not
+        # this cycle's pong has separately shown up yet), so treat it the
+        # same as a pong: the next Empty timeout starts a fresh ping cycle
+        # instead of judging this one against the old deadline.
+        waiting_for_pong = False
 
         db_id = in_message['id']
         type_ = in_message['type']
@@ -307,6 +344,13 @@ class ProcessWorker:
 
         if not self.in_queue.empty():
             message = self.in_queue.get_nowait()
+
+            if 'ping' in message:
+                # Heartbeat keep-alive -- see _process_worker. Answered
+                # unconditionally, whether or not a job is running.
+                self.out_queue.put({'pong': True})
+                return
+
             resource_state = self.running['resource_obj']
 
             if 'err_no' in message:

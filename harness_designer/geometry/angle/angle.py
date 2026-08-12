@@ -4,6 +4,7 @@
 
 import math
 from typing import Self, Callable, Iterable, Union
+import threading
 import weakref
 import numpy as np
 
@@ -22,6 +23,11 @@ class AngleMeta(type):
     """Metaclass that reuses :class:`Angle` instances keyed by ``db_id``."""
 
     _instances = {}
+    # Guards `_instances` against concurrent mutation from multiple threads
+    # (main thread, ProcessManager background thread) and from weakref
+    # callbacks that CPython can fire on an arbitrary thread. See the same
+    # fix in geometry/point.py and database/global_db/bases.py.
+    _instances_lock = threading.RLock()
 
     @classmethod
     @_check_types.do
@@ -35,13 +41,14 @@ class AngleMeta(type):
         :rtype: None
         """
 
-        for key, value in cls._instances.items():
-            if ref == value:
-                break
-        else:
-            return
+        with cls._instances_lock:
+            for key, value in cls._instances.items():
+                if ref == value:
+                    break
+            else:
+                return
 
-        del cls._instances[key]
+            del cls._instances[key]
 
     @_check_types.do
     def __call__(cls, q: _quaternion.Quaternion | None = None,
@@ -61,14 +68,15 @@ class AngleMeta(type):
         """
 
         if db_id is not None:
-            if db_id in cls._instances:
-                instance = cls._instances[db_id]()
-            else:
-                instance = None
+            with cls._instances_lock:
+                if db_id in cls._instances:
+                    instance = cls._instances[db_id]()
+                else:
+                    instance = None
 
-            if instance is None:
-                instance = super().__call__(q, euler_angles, db_id)
-                cls._instances[db_id] = weakref.ref(instance, cls._remove_instance)
+                if instance is None:
+                    instance = super().__call__(q, euler_angles, db_id)
+                    cls._instances[db_id] = weakref.ref(instance, cls._remove_instance)
         else:
             instance = super().__call__(q, euler_angles, db_id)
 

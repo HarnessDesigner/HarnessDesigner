@@ -36,11 +36,11 @@ def is_anchor_point(project: "_project.Project", point_id: bytes) -> bool:
     check_id = parent_id if parent_id is not None else point_id
 
     for cavity in project.cavities:
-        if cavity.db_obj.wire_point3d_id_raw == check_id:
+        if cavity.db_obj.wire_position3d_id_raw == check_id:
             return True
 
     for terminal in project.terminals:
-        if check_id in (terminal.db_obj.wire_point3d_id_raw, terminal.db_obj.attach_point3d_id_raw):
+        if check_id in (terminal.db_obj.wire_position3d_id_raw, terminal.db_obj.attach_position3d_id_raw):
             return True
 
     return False
@@ -230,6 +230,9 @@ class WireDragObject(_base.DragObjectBase):
 
         super().delete()
 
+    def _get_view_object(self, obj):  # NOQA
+        return obj.obj3d
+
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta):
@@ -243,7 +246,9 @@ class WireDragObject(_base.DragObjectBase):
             screen_new.z = depth
 
             picked = _object_picker.find_object(
-                screen_new, self.canvas.camera.objects_in_view, self.canvas.camera)
+                screen_new, self.canvas.camera.objects_in_view,
+                self.canvas.camera, self._get_view_object)
+
             kind, target = _wire_snap.get_snap_info(picked)
 
             if kind is not None:

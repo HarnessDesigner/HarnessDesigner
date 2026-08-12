@@ -53,7 +53,8 @@ def _find_bundle(
     """
 
     selected = _object_picker.find_object(
-        mouse_pos, camera.objects_in_view, camera)
+        mouse_pos, camera.objects_in_view, camera,
+        _handler_base.HandlerBase._get_view_object)
 
     if isinstance(selected, _bundle.Bundle):
         return selected

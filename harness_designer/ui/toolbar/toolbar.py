@@ -1192,7 +1192,7 @@ class PegBoardToolbar(QtWidgets.QToolBar):
         # Grid snap: left click toggles (checkbox overlay shows the state),
         # right click opens the manual-spacing popup. Always enabled -- it
         # is a mode setting, not an object property.
-        grid_config = _config.Config.editor_pegboard.grid
+        grid_config = _config.Config.editor_pegboard.floor
 
         icons = _image.icons
         self.pegboard_snap = _psb.PegboardSnapButton(
@@ -1223,12 +1223,12 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     @staticmethod
     @_check_types.do
     def _on_snap_enabled(enabled: bool) -> None:
-        _config.Config.editor_pegboard.grid.snap = bool(enabled)
+        _config.Config.editor_pegboard.floor.snap = bool(enabled)
 
     @staticmethod
     @_check_types.do
     def _on_manual_spacing(value) -> None:
-        _config.Config.editor_pegboard.grid.manual_snap_spacing = (
+        _config.Config.editor_pegboard.floor.manual_snap_spacing = (
             None if value is None else float(value))
 
     @staticmethod

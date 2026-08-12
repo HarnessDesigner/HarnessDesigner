@@ -288,7 +288,10 @@ def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
 
 @_check_types.do
 def _find_bundle(mouse_pos, camera, project) -> _bundle.Bundle | None:
-    selected = _object_picker.find_object(mouse_pos, camera.objects_in_view, camera)
+    selected = _object_picker.find_object(
+        mouse_pos, camera.objects_in_view,
+        camera, _handler_base.HandlerBase._get_view_object)
+
     if isinstance(selected, _bundle.Bundle):
         return selected
 
@@ -611,7 +614,8 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
-            self._captured_position, self.camera.objects_in_view, self.camera)
+            self._captured_position, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         self._clear_highlights()
         self._finalized = True
@@ -654,7 +658,8 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
     @_check_types.do
     def hover(self, mouse_pos: _point.Point):
         selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         if not isinstance(selected, _bundle.Bundle):
             if self._hovered_bundle is not None:
@@ -680,7 +685,8 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
             self._hovered_bundle = None
 
         selected = _object_picker.find_object(
-            self._captured_position, self.camera.objects_in_view, self.camera)
+            self._captured_position, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         self._finalized = True
 
@@ -811,7 +817,9 @@ class RoutedWireHandler(_handler_base.HandlerBase):
     @_check_types.do
     def _update_preview(self, mouse_pos: _point.Point):
         target = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
+
         if isinstance(target, (_wire.Wire, _bundle.Bundle)):
             pos, _ = (_utils.get_closest_point_on_wire_endpoint(
                 mouse_pos, self.camera, target)[:2])
@@ -843,7 +851,8 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         diameter = self._wire_od()
 
@@ -890,7 +899,8 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         from ..objects.objects3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         if not isinstance(selected, _Branch3D):
             return
@@ -911,7 +921,8 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._clear_highlights()
 
         target = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera)
+            mouse_pos, self.camera.objects_in_view,
+            self.camera, self._get_view_object)
 
         if isinstance(target, (_wire.Wire, _bundle.Bundle)):
             pos, _ = (_utils.get_closest_point_on_wire_endpoint(

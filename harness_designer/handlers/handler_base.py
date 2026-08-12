@@ -42,6 +42,10 @@ class HandlerBase:
         self._finalized = False
 
     @staticmethod
+    def _get_view_object(obj):
+        return obj.obj3d
+
+    @staticmethod
     @_check_types.do
     def obb_face_direction(
         current_obb: np.ndarray,
