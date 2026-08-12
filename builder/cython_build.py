@@ -13,7 +13,7 @@ _SKIP_STEMS = frozenset(['__init__', '__main__'])
 # auto-discovered from plain .py files.
 _HAND_WRITTEN_EXTENSIONS = (
     'ray_tracing/bvh.pyx',
-    'gl/canvas3d/culling.pyx',
+    'gl/culling/culling.pyx',
 )
 
 
