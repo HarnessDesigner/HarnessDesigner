@@ -93,8 +93,8 @@ class MouseHandler:
         # NOTE: the previous arcball rotation (arcball.py) is no longer wired
         # up — pending a decision to either expose it as a user choice or
         # remove it entirely.
-        self._rotation_rings: _rotation_rings.RotationRings = None
-        self._rotate_drag: _rotation_rings.DragRotate = None
+        self._rotation_ring: _rotation_ring.RotationRings = None
+        self._rotate_drag: _rotation_ring.DragRotate = None
 
         self._gl_mouse_event: _events.GLEvent | _events.GLObjectEvent = None
 
@@ -398,7 +398,7 @@ class MouseHandler:
             else:
                 axis = self._rotation_rings.pick_handle(mouse_pos, self.canvas.camera)
                 if axis is not None:
-                    self._rotate_drag = _rotation_rings.DragRotate(
+                    self._rotate_drag = _rotation_ring.DragRotate(
                         self.canvas, selected, axis, self._rotation_rings)
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_DOWN)
@@ -743,7 +743,7 @@ class MouseHandler:
                 )
                 if not skip_angle and self._rotation_rings is None:
                     self._rotation_rings = (
-                        _rotation_rings.RotationRings(self.canvas, selected))
+                        _rotation_ring.RotationRings(self.canvas, selected))
 
                     self.canvas.repaint()
 
