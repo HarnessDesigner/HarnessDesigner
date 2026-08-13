@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Self
+from typing import Self, TYPE_CHECKING
 
 import numpy as np
 from OpenGL import GL
@@ -15,17 +15,21 @@ from PySide6 import QtOpenGLWidgets
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QOpenGLContext
 
-from . import headlight as _headlight
-from . import focal_target as _focal_target
 from .. import shaders as _shaders
 from ... import debug as _debug
 from ... import config as _config
-from . import floor as _floor
 from .. import culling as _culling
 from .. import events as _events
 from ... import logger as _logger
 from ... import check_types as _check_types
+from . import camera_base as _camera_base
+from . import floor_base as _floor_base
+from . import key_handler_base as _key_handler_base
+from . import mouse_handler_base as _mouse_handler_base
+from . import scene_light_base as _scene_light_base
 
+if TYPE_CHECKING:
+    from ... import ui as _ui
 
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
@@ -40,7 +44,7 @@ class CanvasEventFilter(QtCore.QObject):
     """
 
     @_check_types.do
-    def __init__(self, canvas):
+    def __init__(self, canvas: "CanvasBase"):
         """Initialise the :class:`CanvasEventFilter` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -258,7 +262,7 @@ class CanvasEventFilter(QtCore.QObject):
         return super().eventFilter(obj, event)
 
 
-class Canvas(QtOpenGLWidgets.QOpenGLWidget):
+class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     """
     3D GL Engine — wx.glcanvas.GLCanvas → QOpenGLWidget
 
@@ -330,24 +334,31 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     gl_camera_rotate = Signal(object)
     gl_camera_reset = Signal(object)
 
+    camera: _camera_base.CameraBase = None
+    floor: _floor_base.FloorBase = None
+
+    _key_handler: _key_handler_base.KeyHandlerBase
+    _mouse_handler: _mouse_handler_base.MouseHandlerBase
+    _scene_light: _scene_light_base.SceneLightBase
+
     @_check_types.do
-    def __init__(self, parent, config: _config.Config.editor3d,
-                 size: QtCore.QSize = None, axis_overlay: bool = False):
-        """Initialise the :class:`Canvas` instance.
+    def __init__(self, mainframe: "_ui.MainFrame", config, size: QtCore.QSize = None):
+        """
+        Initialise the :class:`CanvasBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
 
-        :param parent: Parent object.
-        :type parent: UNKNOWN
+        :param mainframe: Parent object.
+        :type mainframe: :class:`_ui.MainFrame`
+
         :param config: Value for ``config``.
-        :type config: :class:`_config.Config.editor3d`
+        :type config: UNKNOWN
+
         :param size: Value for ``size``.
         :type size: :class:`QtCore.QSize`
-        :param axis_overlay: Value for ``axis_overlay``.
-        :type axis_overlay: bool
         """
 
-        QtOpenGLWidgets.QOpenGLWidget.__init__(self, parent)
+        super().__init__(None)
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
@@ -359,44 +370,25 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         # fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
         # self.setFormat(fmt)
 
-        # Walk up to the QMainWindow (replaces aui.AuiManager.GetManager().GetManagedWindow())
-        w = parent
-        mainframe = None
-
-        while w is not None and not hasattr(w, 'editor3d'):
-            w = w.parent()
-            if w is not None:
-                mainframe = w
-
         self.mainframe = mainframe
 
         self.config = config
         self._mode = None
 
         from .. import context as _context
-        from . import camera as _camera
-        from . import axis_overlay as _axis_overlay
 
         # Create the GLContext wrapper for this widget.
         # Use it ONLY outside of initializeGL / resizeGL / paintGL —
         # Qt already makes the context current before calling those.
         self.context = _context.GLContext(self)
 
-        if axis_overlay:
-            self._axis_overlay = _axis_overlay.Overlay(parent, config.axis_overlay)
-        else:
-            self._axis_overlay = None
-
         self._init = False
-        self.camera = _camera.Camera(self)
-        self._angle_overlay = None
 
         self._faces_program = None
         self._edges_program = None
         self._vertices_program = None
         self._floor_program = None
 
-        self.floor: _floor.Floor = None
         self._last_culled = []
         self._object_refs = []
         self._objects_in_view = []
@@ -410,19 +402,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         self._objects = []
         self._ref_count = 0
 
-        # angle-view overlay — now stored as a QImage instead of wx.Bitmap
-        self._angle_view_image: QtGui.QImage | None = None
-
-        from . import key_handler as _key_handler
-        from . import mouse_handler as _mouse_handler
-        from . import scene_light as _scene_light
-
-        self._key_handler = _key_handler.KeyHandler(self)
-        self._mouse_handler = _mouse_handler.MouseHandler(self)
-        self._headlight = _headlight.Headlight(self)
-        self._scene_light = _scene_light.SceneLight(self)
-        self._focal_target: _focal_target.FocalPoint = None
-
         self._event_filter = CanvasEventFilter(self)
 
         if size is not None:
@@ -435,18 +414,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
     # Properties / mode
     # -----------------------------------------------------------------
-
-    @property
-    @_check_types.do
-    def axis_overlay(self):
-        """Return the axis overlay.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
-        return self._axis_overlay
 
     @property
     @_check_types.do
@@ -470,47 +437,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         :type mode: int
         """
         self._mode = mode
-
-    # ------------------------------------------------------------------
-    # Angle-view overlay
-    # wx: wx.Bitmap built via wx.MemoryDC + wx.GCDC
-    # Qt: QImage built via QPainter
-    # ------------------------------------------------------------------
-
-    @_debug.logfunc
-    @_check_types.do
-    def set_angle_view(self, x, y, z):
-        """Set the angle view.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param x: X-coordinate value.
-        :type x: UNKNOWN
-        :param y: Y-coordinate value.
-        :type y: UNKNOWN
-        :param z: Z-coordinate value.
-        :type z: UNKNOWN
-        """
-        if None in (x, y, z):
-            self._angle_view_image = None
-            return
-
-        text = f'X: {round(x, 6)}  Y: {round(y, 6)}  Z: {round(z, 6)}'
-
-        fm = self.fontMetrics()
-        w = fm.horizontalAdvance(text) + 14
-        h = fm.height() + 4
-
-        img = QtGui.QImage(w, h, QtGui.QImage.Format.Format_RGBA8888)
-        img.fill(QtCore.Qt.GlobalColor.transparent)
-
-        painter = QtGui.QPainter(img)
-        painter.setFont(self.font())
-        painter.setPen(QtGui.QColor(255, 255, 255, 255))
-        painter.drawText(2, fm.ascent() + 2, text)
-        painter.end()
-
-        self._angle_view_image = img
 
     # ------------------------------------------------------------------
     # Object management (unchanged from wx version)
@@ -540,15 +466,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def add_object(self, obj):
-        """Add an object.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Add an object.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        if isinstance(obj, _focal_target.FocalPoint):
-            return
 
         found_container = self._object_data[0]
         container_len = 9999999999
@@ -573,13 +496,13 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def __remove_obj_ref(self, ref):
-        """Remove the obj ref.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Remove the obj ref.
 
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
+
         try:
             self._object_refs.remove(ref)
         except ValueError:
@@ -587,17 +510,18 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def remove_object(self, obj):
-        """Remove the object.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Remove the object.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
+
         try:
             self._objects.remove(obj)
         except ValueError:
             pass
+
         try:
             self._objects_in_view.remove(obj)
         except ValueError:
@@ -618,7 +542,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def clear(self) -> None:
-        """Drop every scene object in bulk, without touching the database.
+        """
+        Drop every scene object in bulk, without touching the database.
 
         Used when tearing down the current project so a different one can
         load in its place (see ``ui.mainframe.MainFrame.unload``) --
@@ -626,6 +551,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         but in one shot instead of one O(n) scan per object, since a
         project can hold thousands of objects.
         """
+
         self._object_refs = []
         self._objects_in_view = []
         self._object_addr_mapping = {}
@@ -640,31 +566,19 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def __enter__(self) -> Self:
-        """Enter the managed context.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
         self._ref_count += 1
         return self
 
     @_check_types.do
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Exit the managed context.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param exc_type: Value for ``exc_type``.
-        :type exc_type: UNKNOWN
-        :param exc_val: Value for ``exc_val``.
-        :type exc_val: UNKNOWN
-        :param exc_tb: Value for ``exc_tb``.
-        :type exc_tb: UNKNOWN
-        """
         self._ref_count -= 1
 
     @_check_types.do
-    def Refresh(self, *args, **kwargs):
-        """wx-compatible name; delegates to Qt update()."""
+    def Refresh(self, *_, **__):
+        """
+        wx-compatible name; delegates to Qt update().
+        """
+
         if self._ref_count:
             return
 
@@ -677,38 +591,44 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     @_debug.logfunc
     @_check_types.do
     def TruckPedestal(self, dx: float, dy: float) -> None:
-        """Execute the truck pedestal operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the truck pedestal operation.
 
         :param dx: Value for ``dx``.
         :type dx: float
+
         :param dy: Value for ``dy``.
         :type dy: float
         """
 
-        if self.config.truck_pedestal.mouse & MOUSE_REVERSE_X_AXIS:
+        if self.config.input.truck_pedestal.mouse is None:
+            return
+
+        if self.config.input.truck_pedestal.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
 
-        if self.config.truck_pedestal.mouse & MOUSE_REVERSE_Y_AXIS:
+        if self.config.input.truck_pedestal.mouse & MOUSE_REVERSE_Y_AXIS:
             dy = -dy
 
-        sens = self.config.truck_pedestal.sensitivity
+        sens = self.config.input.truck_pedestal.sensitivity
         self.camera.TruckPedestal(dx * sens, dy * sens, self.config.truck_pedestal.speed)
 
     @_debug.logfunc
     @_check_types.do
     def Zoom(self, dx: float, _=None):
-        """Execute the zoom operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the zoom operation.
 
         :param dx: Value for ``dx``.
         :type dx: float
+
         :param _: Value for ``_``.
         :type _: UNKNOWN
         """
-        dx *= self.config.zoom.sensitivity
+        if self.config.input.zoom.sensitivity is None:
+            return
+
+        dx *= self.config.input.zoom.sensitivity
         self.camera.Zoom(dx)
 
     @_check_types.do
@@ -722,35 +642,48 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         :param dy: Value for ``dy``.
         :type dy: float
         """
-        if self.config.rotate.mouse & MOUSE_REVERSE_X_AXIS:
+
+        if self.config.input.rotate.mouse is None:
+            return
+
+        if self.config.input.rotate.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
-        if self.config.rotate.mouse & MOUSE_REVERSE_Y_AXIS:
+
+        if self.config.input.rotate.mouse & MOUSE_REVERSE_Y_AXIS:
             dy = -dy
-        sens = self.config.rotate.sensitivity
+
+        sens = self.config.input.rotate.sensitivity
         self.camera.Rotate(dx * sens, dy * sens)
 
     @_debug.logfunc
     @_check_types.do
     def Walk(self, dx: float, dy: float) -> None:
-        """Execute the walk operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the walk operation.
 
         :param dx: Value for ``dx``.
         :type dx: float
+
         :param dy: Value for ``dy``.
         :type dy: float
         """
+
         if dy == 0.0:
             self.PanTilt(dx * 6.0, 0.0)
             return
+
+        if self.config.input.walk.mouse is None:
+            return
+
         look_dx = dx
-        if self.config.walk.mouse & MOUSE_REVERSE_X_AXIS:
+        if self.config.input.walk.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
-        if self.config.walk.mouse & MOUSE_REVERSE_Y_AXIS:
+
+        if self.config.input.walk.mouse & MOUSE_REVERSE_Y_AXIS:
             dy = -dy
-        sens = self.config.walk.sensitivity
-        self.camera.Walk(dx * sens, dy * sens, self.config.walk.speed)
+
+        sens = self.config.input.walk.sensitivity
+        self.camera.Walk(dx * sens, dy * sens, self.config.input.walk.speed)
         self.PanTilt(look_dx * 2.0, 0.0)
 
     @_debug.logfunc
@@ -765,11 +698,16 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         :param dy: Value for ``dy``.
         :type dy: float
         """
-        if self.config.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
+        if self.config.input.pan_tilt.mouse is None:
+            return
+
+        if self.config.input.pan_tilt.mouse & MOUSE_REVERSE_X_AXIS:
             dx = -dx
-        if self.config.pan_tilt.mouse & MOUSE_REVERSE_Y_AXIS:
+
+        if self.config.input.pan_tilt.mouse & MOUSE_REVERSE_Y_AXIS:
             dy = -dy
-        sens = self.config.pan_tilt.sensitivity
+
+        sens = self.config.input.pan_tilt.sensitivity
         self.camera.PanTilt(dx * sens, dy * sens)
 
     # ------------------------------------------------------------------
@@ -786,11 +724,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         try:
             GL.glEnable(GL.GL_DEPTH_TEST)
             GL.glClearColor(*self.config.background_color)
-
-            self._faces_program = _shaders.compile_faces_program()
-            self._edges_program = _shaders.compile_edges_program()
-            self._vertices_program = _shaders.compile_vertices_program()
-            self._floor_program = _shaders.compile_floor_program()
 
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
@@ -826,10 +759,8 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
             self.camera.Set()
 
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
-            self.floor = _floor.Floor(self, self._floor_program)
 
-            self.set_draw_grid(self.config.floor.enable)
-            self.set_focal_target(self.config.focal_target.enable)
+            self.set_draw_floor(self.config.floor.enable)
 
             self.update()
             self.repaint()
@@ -897,49 +828,6 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         self._on_draw()
 
-        # Angle-view overlay — rendered via OpenGL pixel blit (same algorithm).
-        # Context is already current inside paintGL — no with self.context needed.
-        if self._angle_view_image is not None:
-            img = self._angle_view_image
-            w, h = img.width(), img.height()
-
-            pw, ph = self.parentWidget().width(), self.parentWidget().height()
-            sw, sh = self.width(), self.height()
-
-            x = (sw - pw) // 2 + 30
-            y = (sh - ph) // 2 + 20
-            gl_y = sh - y
-
-            GL.glReadBuffer(GL.GL_FRONT)
-            pixel_data = GL.glReadPixels(x, gl_y, w, h, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE)
-
-            # Invert colours to contrast with background (same logic as wx version)
-            from PIL import Image as _PIL
-            pil = _PIL.frombytes('RGBA', (w, h), bytes(pixel_data))
-            # QImage → PIL for the overlay text
-            img_bytes = img.bits().tobytes() if hasattr(img.bits(), 'tobytes') else bytes(img.bits())
-            overlay = _PIL.frombytes('RGBA', (w, h), img_bytes)
-
-            for y_ in range(h):
-                corrected_y = h - 1 - y_
-                row = corrected_y * w
-                for x_ in range(w):
-                    r, g, b, a = overlay.getpixel((x_, y_))
-                    if a == 0:
-                        continue
-
-                    i = (row + x_) * 4
-                    nr = 255 - pixel_data[i]
-                    ng = 255 - pixel_data[i + 1]
-                    nb = 255 - pixel_data[i + 2]
-                    overlay.putpixel((x_, y_), (nr, ng, nb, a))
-
-            # Upload the composited overlay as an OpenGL texture quad
-            # (simpler than the wx GCDC path; functionally equivalent)
-            rgba = overlay.tobytes('raw', 'RGBA', 0, -1)
-            GL.glWindowPos2i(x + 5, sh - (y - 35) - h)
-            GL.glDrawPixels(w, h, GL.GL_RGBA, GL.GL_UNSIGNED_BYTE, rgba)
-
         # Qt handles buffer swap automatically — no SwapBuffers() call needed.
 
     # ------------------------------------------------------------------
@@ -947,25 +835,14 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def set_focal_target(self, flag):
-        """Set the focal target.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def set_draw_floor(self, flag: bool):
+        """
+        Set the draw grid.
 
         :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
+        :type flag: bool
         """
-        return
 
-    @_check_types.do
-    def set_draw_grid(self, flag):
-        """Set the draw grid.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
-        """
         try:
             self.floor.set(flag)
         except Exception as err:  # NOQA
@@ -1059,14 +936,9 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
         # ---------- Faces program set lighting
         try:
-            self._scene_light.set(self._faces_program)
+            self._scene_light.render(self._faces_program)
         except Exception as err:  # NOQA
             _logger.traceback(err, 'scene light error')
-
-        try:
-            self._headlight(self._faces_program)
-        except Exception as err:  # NOQA
-            _logger.traceback(err, 'headlight error')
 
         removed_objects = []
         objects_in_view = []
@@ -1095,10 +967,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 # a housing's own interior terminals/wires) happen to be
                 # drawn after it here would get fully overwritten instead
                 # of showing through it.
-                if obj is self._selected and not obj.obj3d.is_opaque:
+                view_obj = self._get_view_object(obj)
+                if obj is self._selected and not view_obj.is_opaque:
                     continue
 
-                obj.obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+                view_obj.render(self._faces_program, self._edges_program, self._vertices_program)
+
             except Exception as err:  # NOQA
                 _logger.traceback(err, 'object render error')
 
@@ -1115,6 +989,10 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                         continue
             except Exception as err:  # NOQA
                 _logger.traceback(err, 'object render removal error')
+
+    @staticmethod
+    def _get_view_object(obj):
+        raise NotImplementedError
 
     @_debug.logfunc
     @_check_types.do
@@ -1176,34 +1054,37 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
         # and blends its own color on top of whatever's already there
         # (a housing's own interior terminals/wires, for instance)
         # instead of unconditionally overwriting them.
-        if self._selected is not None and hasattr(self._selected, 'obj3d'):
-            obj3d = self._selected.obj3d
-            if not obj3d.is_opaque:
+
+        # TODO: Move this code to a function in the object view base classes.
+        #       the function will be a noop for the schematic and pegboard
+        #       and the 3d will have the code below.
+        if self._selected is not None:
+
+            view_obj = self._get_view_object(self._selected)
+
+            if not view_obj.is_opaque:
                 GL.glDepthMask(GL.GL_FALSE)
 
                 try:
-                    obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+                    view_obj.render(self._faces_program, self._edges_program, self._vertices_program)
                 except Exception as err:  # NOQA
                     _logger.traceback(err, 'selected object deferred render error')
 
                 GL.glDepthMask(GL.GL_TRUE)
 
-        # Supplemental depth-only pass for selected (semi-transparent) objects.
-        #
-        # Transparent outer shells render with glDepthMask(FALSE) so interior
-        # opaque parts remain visible through them.  That leaves 1.0 (background)
-        # in the depth buffer at the shell's screen position, which lets the floor
-        # pass the depth test and draw over the selected object.
-        #
-        # Fix: before the floor renders, write the outer-shell depth for each
-        # selected object using GL_LESS with no colour output.  The floor then
-        # fails the depth test at those positions and does not occlude the object.
-        # Reflections are disabled for this pass so only above-floor geometry
-        # contributes depth (reflections are deeper than the floor anyway, but
-        # excluding them keeps the depth buffer clean).
-        if self._selected is not None and hasattr(self._selected, 'obj3d'):
-            obj3d = self._selected.obj3d
-            if not obj3d.is_opaque:
+                # Supplemental depth-only pass for selected (semi-transparent) objects.
+                #
+                # Transparent outer shells render with glDepthMask(FALSE) so interior
+                # opaque parts remain visible through them.  That leaves 1.0 (background)
+                # in the depth buffer at the shell's screen position, which lets the floor
+                # pass the depth test and draw over the selected object.
+                #
+                # Fix: before the floor renders, write the outer-shell depth for each
+                # selected object using GL_LESS with no colour output.  The floor then
+                # fails the depth test at those positions and does not occlude the object.
+                # Reflections are disabled for this pass so only above-floor geometry
+                # contributes depth (reflections are deeper than the floor anyway, but
+                # excluding them keeps the depth buffer clean).
                 GL.glColorMask(GL.GL_FALSE, GL.GL_FALSE, GL.GL_FALSE, GL.GL_FALSE)
                 GL.glDepthMask(GL.GL_TRUE)
                 GL.glDepthFunc(GL.GL_LESS)
@@ -1213,7 +1094,7 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
                 GL.glUniform1i(_no_refl, 0)
 
                 try:
-                    obj3d.render(self._faces_program, self._edges_program, self._vertices_program)
+                    view_obj.render(self._faces_program, self._edges_program, self._vertices_program)
                 except Exception as err:  # NOQA
                     _logger.traceback(err, 'selected object render error')
 
@@ -1227,26 +1108,12 @@ class Canvas(QtOpenGLWidgets.QOpenGLWidget):
 
                 GL.glColorMask(GL.GL_TRUE, GL.GL_TRUE, GL.GL_TRUE, GL.GL_TRUE)
 
-        if self.config.focal_target.enable and self._focal_target is not None:
-            GL.glUseProgram(self._faces_program)
-            try:
-                self._focal_target.obj3d.render(
-                    self._faces_program, self._edges_program, self._vertices_program)
-            except Exception as err:  # NOQA
-                _logger.traceback(err, 'focal target error')
-
-            GL.glUseProgram(0)
-
         try:
             self.floor.render(self._floor_program)
         except:  # NOQA
             import traceback
             traceback.print_exc()
             raise
-
-        if self._axis_overlay is not None:
-            self._axis_overlay.set_angle(
-                (self.camera.position - self.camera.focal_position).inverse)
 
         # Qt handles SwapBuffers automatically — removed.
 

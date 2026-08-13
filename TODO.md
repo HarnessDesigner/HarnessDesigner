@@ -85,6 +85,44 @@ be intentional/non-issue.
 - Add TE Terminals to the database. Also find out why the solid deutsch 
     terminals are missing from the JSON file.  
 
+- **Wire fully hidden when placed in a bundle, even the parts outside the
+  bundle's own start/stop waypoints** (`objects/wire.py`,
+  `database/project_db/pjt_wire.py`, `gl/canvas_pegboard` rendering). When a
+  wire is placed into a bundle, the bundle's own start/stop points get
+  married to waypoints *on* the wire (existing, or added at that time) — not
+  the wire's own true start/stop. The wire's whole visibility flag is set to
+  hidden as a result, but a wire can extend beyond the bundle's own waypoint
+  boundaries (bare sections before/after where the bundle actually
+  starts/stops), and those exposed sections should still render. Needs logic
+  to determine at which waypoint a wire exits the bundle and render just the
+  non-bundled sections instead of hiding the whole wire. Noted 2026-08-13,
+  explicitly deferred by the user — fix later.
+
+- **Rename `position2d`/`position3d` (and `angle2d`/`angle3d`) to
+  `position_schematic`/`position_3d` (`angle_schematic`/`angle_3d`)**
+  (`database/project_db/mixins/position2d.py`, `position3d.py`,
+  `angle2d.py`, `angle3d.py`, and every column/property name derived from
+  them across every `project_db` class that uses them). Continues the same
+  renaming direction as `objects2d`→`objects_schematic` / `objpeg`→
+  `objpegboard` done earlier (2026-08-12) — the database layer's column and
+  property names should match that convention too. Update the underlying
+  SQL column names in the `database/create_database/` schema files as well,
+  not just the Python property/attribute names. Noted 2026-08-13 by the
+  user, explicitly deferred — large, mechanical, cross-cutting rename, not
+  part of the current pegboard database work.
+
+- **No orphaned-point cleanup for `pjt_points3d`/`pjt_points2d`/
+  `pjt_points_pegboard`** (`database/project_db/`). Deleting a row that
+  references a point (a wire, a housing, a layout, etc.) deliberately does
+  NOT delete the point row it referenced — this is intentional, not an
+  oversight, to avoid an extra DELETE query on every referencing-row
+  deletion. Instead, orphaned points (rows in a points table no longer
+  referenced by anything) are meant to be cleaned up in a batch sweep when a
+  project closes — scan all three points tables, scoped by project id, for
+  rows nothing currently references, and delete them in bulk. This sweep
+  has not been written yet. Noted 2026-08-13 by the user — future work, not
+  part of the current pegboard database work.
+
 - **2D camera doesn't emit `GLCameraEvent` at all yet, unlike 3D**
   (`gl/canvas2d/camera.py`'s `Zoom`/`Pan`). `gl/canvas3d/camera.py`'s
   `Camera._send_event` is called at the end of every 3D camera-movement
