@@ -15,14 +15,17 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .mixins import (
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
+    PositionPegboardMixin,
     HousingMixin,
     PartMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     Visible2DMixin, Visible2DControl,
     Visible3DMixin, Visible3DControl,
+    VisiblePegboardMixin,
     Angle2DMixin, Angle2DControl,
-    Angle3DMixin, Angle3DControl
+    Angle3DMixin, Angle3DControl,
+    AnglePegboardMixin
 )
 from ... import check_types as _check_types
 
@@ -320,9 +323,10 @@ class PJTCavitiesTable(PJTTableBase):
         return self._con.fetchall()
 
 
-class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
-                PartMixin, NameMixin, NotesMixin, Visible2DMixin, Visible3DMixin,
-                Angle2DMixin, Angle3DMixin):
+class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboardMixin,
+                HousingMixin, PartMixin, NameMixin, NotesMixin, Visible2DMixin,
+                Visible3DMixin, VisiblePegboardMixin,
+                Angle2DMixin, Angle3DMixin, AnglePegboardMixin):
     """
     Represent a PJT cavity in :mod:`harness_designer.database.project_db.pjt_cavity`.
     """
@@ -861,6 +865,68 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, HousingMixin,
         self.obb = obb
 
         self._populate('angle3d')
+
+    @_check_types.do
+    def _update_angle_pegboard(self, angle: _angle.Angle):
+        """
+        Update the peg-board angle.
+
+        Mirrors :meth:`_update_angle3d`, minus the aabb/obb rotation
+        (peg-board cavities have no such 3D-mesh geometry) and minus the
+        ``or self.seal`` accessory fallback -- seal is not viewable in
+        the peg-board editor, so only a seated terminal's position/angle
+        rides along with this cavity's own rotation.
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
+
+        quat = eval(self._table.select('quat_pegboard', id=self._db_id)[0][0])
+        euler = eval(self._table.select('angle_pegboard', id=self._db_id)[0][0])
+
+        o_angle = _angle.Angle.from_quat(quat, euler)
+        inverse_angle = o_angle.inverse
+        position = self.position_pegboard
+
+        quat = str(list(angle.as_quat_float))
+        euler = str(list(angle.as_euler_float))
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._table.update(self._db_id, quat_pegboard=quat)
+        self._table.update(self._db_id, angle_pegboard=euler)
+
+        terminal = self.terminal
+        if terminal is not None:
+            t_position = terminal.position_pegboard
+            pos = t_position.copy()
+            pos -= position
+            pos @= inverse_angle
+            pos @= angle
+            pos += position
+
+            delta = pos - t_position
+            t_position += delta
+
+            old_angle = terminal.angle_pegboard
+            quat_arr = angle.as_quat_numpy
+
+            with old_angle:
+                old_angle._q.w = quat_arr[0]  # NOQA
+                old_angle._q.x = quat_arr[1]  # NOQA
+                old_angle._q.y = quat_arr[2]  # NOQA
+                old_angle._q.z = quat_arr[3]  # NOQA
+
+                old_angle.x = angle.x
+                old_angle.y = angle.y
+                old_angle.z = angle.z
+
+                old_angle._matrix[:] = angle.as_matrix_numpy.copy()  # NOQA
+
+            old_angle._process_callbacks()  # NOQA
+
+        self._populate('angle_pegboard')
 
     @property
     @_check_types.do

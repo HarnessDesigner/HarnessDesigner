@@ -298,7 +298,7 @@ class Camera:
         world_per_pixel = self._distance / 1000.0
 
         # World coordinates -- world_y lands in the returned Point's .z
-        # (schematic-plane vertical axis, matching position2d/position_peg).
+        # (schematic-plane vertical axis, matching position2d/position_pegboard).
         world_x = self._focal_position.x + (offset_x * world_per_pixel)
         world_y = self._focal_position.z + (offset_y * world_per_pixel)
 

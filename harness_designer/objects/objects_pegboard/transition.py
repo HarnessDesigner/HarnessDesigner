@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING
 from . import base_pegboard as _base_pegboard
 from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
+from ...gl import materials as _materials
+from ...geometry import point as _point
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_transition as _pjt_transition
     from .. import transition as _transition
-    from ...geometry import point as _point
 
 
 class Transition(_base_pegboard.BasePegboard):
@@ -40,19 +41,31 @@ class Transition(_base_pegboard.BasePegboard):
         :type db_obj: :class:`_pjt_transition.PJTTransition`
         """
         obj3d = parent.obj3d
+        self._part = db_obj.part
 
-        _base_pegboard.BasePegboard.__init__(
-            self, parent, db_obj,
+        # scale/material are built fresh here, never borrowed from
+        # obj3d -- see objects_pegboard.housing.Housing.__init__'s own
+        # comment on why. A transition has no Scale3DMixin (no single
+        # physical size stored for it), so scale falls back to identity;
+        # material is rebuilt from the catalog part's own color, mirroring
+        # objects_3d.transition.Transition.__init__'s own construction.
+        # The mesh itself (vbo) is still reused -- that's the shared VBO/
+        # arena system this whole feature is built on, not a per-view
+        # mutable object.
+        super().__init__(
+            parent, db_obj,
             vbo=obj3d._vbo,  # NOQA
-            angle=db_obj.anglepeg,
-            position=db_obj.position_peg,
-            scale=obj3d.scale,
-            material=obj3d.material,
+            angle=db_obj.angle_pegboard,
+            position=db_obj.position_pegboard,
+            scale=_point.Point(1.0, 1.0, 1.0),
+            material=_materials.Rubber(self._part.color.ui),
         )
-        self.smooth = getattr(obj3d, 'smooth', False)
+        self.smooth = db_obj.smooth
 
-        # Identity key for gl.canvas_pegboard's bundle-graph matching.
-        self.point3d_id = db_obj.position3d_id
+        # Identity key for gl.canvas_pegboard's bundle-graph matching --
+        # keyed by this transition's own peg-board point, not its 3D one
+        # (see housing.py's own comment on why).
+        self.point3d_id = db_obj.position_pegboard_id
 
         if self._position.x == 0.0 and self._position.z == 0.0:
             pos3d = db_obj.position3d

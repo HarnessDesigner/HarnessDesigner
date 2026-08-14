@@ -954,7 +954,7 @@ class Canvas(QOpenGLWidget):
 
         For an anchor, this writes straight to the live, bindable
         ``anchor.position`` -- which persists immediately via its own
-        bound DB-layer callback (``PositionPegMixin``), same "no batching"
+        bound DB-layer callback (``PositionPegboardMixin``), same "no batching"
         discipline ``position3d``/``position2d`` already use. There is no
         separate commit step for anchors anymore (see
         :meth:`drag_update_anchor`/:meth:`commit_drag`).
@@ -1062,7 +1062,7 @@ class Canvas(QOpenGLWidget):
         once.
 
         Anchors are NOT tracked here anymore: an anchor's position is a
-        live, DB-backed ``Point`` (``PositionPegMixin``) that persists
+        live, DB-backed ``Point`` (``PositionPegboardMixin``) that persists
         immediately on every mutation (see :meth:`_entity_set_pos`), same
         "no batching" discipline ``position3d``/``position2d`` already use
         for live dragging -- there is nothing left to commit for an
@@ -1091,7 +1091,7 @@ class Canvas(QOpenGLWidget):
 
         Writes straight to ``anchor.position`` -- a live, DB-backed
         ``Point`` that persists immediately via its own bound callback
-        (``PositionPegMixin``), same as every other live 3D/2D drag in
+        (``PositionPegboardMixin``), same as every other live 3D/2D drag in
         this codebase already does (no deferred commit for anchors, see
         :meth:`_record_drag_dirty`'s docstring). Also keeps every
         :class:`PegboardNode` wrapping any moved anchor in sync and
@@ -1171,7 +1171,7 @@ class Canvas(QOpenGLWidget):
     @_check_types.do
     def commit_waypoint_drag(self, node: "_layout_graph.PegboardNode") -> None:
         """Persist a waypoint *node*'s current position to its existing
-        ``pjt_points_peg`` row.
+        ``pjt_points_pegboard`` row.
 
         The row already exists by the time this is called -- either from
         a previous drag or from ``handlers.pegboard_handler`` creating it
@@ -1183,7 +1183,7 @@ class Canvas(QOpenGLWidget):
         if self._project is None or node.waypoint_id is None:
             return
 
-        row = self._project.ptables.pjt_points_peg_table[node.waypoint_id]
+        row = self._project.ptables.pjt_points_pegboard_table[node.waypoint_id]
         row.x = node.x
         row.z = node.z
 
@@ -1202,7 +1202,7 @@ class Canvas(QOpenGLWidget):
 
         for node in self._nodes:
             if node.waypoint_id == waypoint_id:
-                row = self._project.ptables.pjt_points_peg_table[waypoint_id]
+                row = self._project.ptables.pjt_points_pegboard_table[waypoint_id]
                 row.x = node.x
                 row.z = node.z
                 return
@@ -1332,7 +1332,7 @@ class Canvas(QOpenGLWidget):
         if not to_remove:
             return
 
-        points_table = self._project.ptables.pjt_points_peg_table
+        points_table = self._project.ptables.pjt_points_pegboard_table
 
         for waypoint_id in to_remove:
             row = points_table[waypoint_id]
@@ -1467,7 +1467,7 @@ class Canvas(QOpenGLWidget):
         Updates :attr:`_rotation_gizmo_degrees` (read by
         :meth:`_render_objects` to orient the gizmo itself) and writes
         straight to the target anchor's live ``anchor.angle.y`` -- a
-        live, DB-backed ``Angle`` (``AnglePegMixin``) that persists
+        live, DB-backed ``Angle`` (``AnglePegboardMixin``) that persists
         immediately via its own bound callback, same "no batching"
         discipline ``angle3d``/``angle2d`` already use for live rotation
         dragging (a real SQLite write on every mouse-move, exactly like

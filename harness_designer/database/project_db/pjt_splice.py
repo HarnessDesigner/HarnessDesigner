@@ -19,8 +19,8 @@ from ...geometry import point as _point
 from .mixins import (
     PartMixin,
     Position2DMixin, Position2DControl,
-    PositionPegMixin,
-    AnglePegMixin,
+    PositionPegboardMixin,
+    AnglePegboardMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
@@ -171,7 +171,7 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
-                PositionPegMixin, AnglePegMixin,
+                PositionPegboardMixin, AnglePegboardMixin,
                 Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin, Scale3DMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 

@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..gl.canvas_pegboard import canvas as _canvas
     from ..gl.canvas_pegboard import layout_graph as _layout_graph
-    from ..database.project_db.pjt_point_peg import PJTPointPeg
+    from ..database.project_db.pjt_point_pegboard import PJTPointPegboard
 
 
 # Snap threshold for "close enough to a strand" hit-testing, world units
@@ -102,8 +102,8 @@ def _insert_waypoint_on_edge(
     edge: "_layout_graph.PegboardEdge",
     x: float,
     z: float,
-) -> "PJTPointPeg":
-    """Insert a new ``pjt_points_peg`` bundle-waypoint row splitting *edge*.
+) -> "PJTPointPegboard":
+    """Insert a new ``pjt_points_pegboard`` bundle-waypoint row splitting *edge*.
 
     No length-budget bookkeeping happens here at all: each edge's
     ``max_length_mm`` is computed live, proportionally, the next time the
@@ -120,9 +120,9 @@ def _insert_waypoint_on_edge(
     waypoint from the insertion point onward has its ``idx`` incremented
     by 1 to make room, walked in *reverse* order (highest ``idx`` first)
     purely so no two rows are ever briefly holding the same ``idx`` value
-    mid-loop, even though ``pjt_points_peg`` has no uniqueness constraint
-    on it today -- cheap insurance against a future schema change adding
-    one.
+    mid-loop, even though ``pjt_points_pegboard`` has no uniqueness
+    constraint on it today -- cheap insurance against a future schema
+    change adding one.
 
     :param project: The currently open project (``mainframe.project``).
     :type project: :class:`harness_designer.objects.project.Project`
@@ -131,12 +131,14 @@ def _insert_waypoint_on_edge(
     :param x: Peg-board X coordinate for the new waypoint.
     :type x: float
     :param z: Peg-board Z coordinate for the new waypoint (stored as the
-        row's ``y`` field -- see ``pjt_point_peg.py``).
+        row's ``z`` field -- ``y`` is passed explicitly as ``0.0`` below,
+        matching this handler's current 2D-locked (no independent Y drag)
+        behavior -- see ``pjt_point_pegboard.py``).
     :type z: float
     :returns: The newly created waypoint row.
-    :rtype: :class:`PJTPointPeg`
+    :rtype: :class:`PJTPointPegboard`
     """
-    points_table = project.ptables.pjt_points_peg_table
+    points_table = project.ptables.pjt_points_pegboard_table
     bundle_id = edge.bundle_id
     existing = points_table.for_bundle(bundle_id)
 
@@ -152,7 +154,7 @@ def _insert_waypoint_on_edge(
     for row in reversed(existing[insert_index:]):
         row.idx = row.idx + 1
 
-    return points_table.insert(x, z, bundle_id=bundle_id, idx=insert_index)
+    return points_table.insert(x, 0.0, z, bundle_id=bundle_id, idx=insert_index)
 
 
 class AddWaypointHandler(_handler_base.HandlerBase):
@@ -160,7 +162,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
     along an existing bundle strand.
 
     A single click (mouse-down) both creates the new
-    ``pjt_points_peg`` bundle-waypoint row (:meth:`release_capture`) and hands off
+    ``pjt_points_pegboard`` bundle-waypoint row (:meth:`release_capture`) and hands off
     directly into the peg board's own continuous-drag mechanism (via
     ``Canvas.arm_waypoint_drag``), so the same press-drag-release gesture
     that placed the waypoint can also fine-tune its position before

@@ -7,6 +7,7 @@ from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import box as _box
 from ...shapes import cylinder as _cylinder
+from ...gl import materials as _materials
 from ... import check_types as _check_types
 
 
@@ -48,7 +49,7 @@ class Terminal(_base_pegboard.BasePegboard):
         """
         if db_obj.cavity_id is not None:
             # Seated -- no independent peg-board presence.
-            _base_pegboard.BasePegboard.__init__(self, parent, db_obj)
+            super().__init__(parent, db_obj)
             return
 
         obj3d = parent.obj3d
@@ -58,27 +59,35 @@ class Terminal(_base_pegboard.BasePegboard):
         # Placeholder-then-real-model lifecycle, same as Base3D itself
         # (objects.objects_3d.terminal.Terminal.__init__): a unit box or
         # cylinder (matching the catalog part's own round_terminal flag),
-        # scaled to obj3d's own already-computed width/height/length Scale
-        # point -- never vbo=None (see housing.py's own comment on this).
+        # scaled to this terminal's own real width/height/length -- never
+        # vbo=None (see housing.py's own comment on this).
+        #
+        # scale/material are built fresh here, never borrowed from
+        # obj3d -- see housing.py's own comment on why. scale comes from
+        # the database (db_obj.scale3d); material is rebuilt from the
+        # catalog part's own plating color, mirroring
+        # objects_3d.terminal.Terminal.__init__'s own construction.
         with parent.mainframe.editor_pegboard.context:
             if self._part.round_terminal:
                 vbo = _cylinder.create_vbo()
             else:
                 vbo = _box.create_vbo()
 
-            _base_pegboard.BasePegboard.__init__(
-                self, parent, db_obj,
+            super().__init__(
+                parent, db_obj,
                 vbo=vbo,
-                angle=db_obj.anglepeg,
-                position=db_obj.position_peg,
-                scale=obj3d.scale,
-                material=obj3d.material,
+                angle=db_obj.angle_pegboard,
+                position=db_obj.position_pegboard,
+                scale=db_obj.scale3d,
+                material=_materials.Polished(self._part.plating.color.ui),
             )
 
-        self.smooth = getattr(obj3d, 'smooth', False)
+        self.smooth = db_obj.smooth
 
-        # Identity key for gl.canvas_pegboard's bundle-graph matching.
-        self.point3d_id = db_obj.position3d_id
+        # Identity key for gl.canvas_pegboard's bundle-graph matching --
+        # keyed by this terminal's own peg-board point, not its 3D one
+        # (see housing.py's own comment on why).
+        self.point3d_id = db_obj.position_pegboard_id
 
         if self._position.x == 0.0 and self._position.z == 0.0:
             pos3d = db_obj.position3d

@@ -4,7 +4,7 @@ from . import transitions as _transitions
 
 from . import projects as _projects
 from . import points3d as _points3d
-from . import points_peg as _points_peg
+from . import points_pegboard as _points_pegboard
 
 from .. import db_connectors as _con
 from ... import logger as _logger
@@ -132,26 +132,31 @@ pjt_table = _con.SQLTable(
     'pjt_transition_branches',
     pjt_id_field,
     _con.UUIDField('part_id', no_null=True,
-                  references=_con.SQLFieldReference(table,
-                                                    id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(table,
+                                                     id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.UUIDField('transition_id', no_null=True,
-                  references=_con.SQLFieldReference(_transitions.pjt_table,
-                                                    _transitions.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(_transitions.pjt_table,
+                                                     _transitions.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.UUIDField('point3d_id', no_null=True,
-                  references=_con.SQLFieldReference(_points3d.pjt_table,
-                                                    _points3d.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                     _points3d.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.FloatField('diameter', no_null=True),
     _con.IntField('branch_id', no_null=True),
+    _con.UUIDField('point_pegboard_id', default="NULL",
+                   references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                     _points_pegboard.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.UUIDField('table_point_peg_id', default="NULL",
-                  references=_con.SQLFieldReference(_points_peg.pjt_table,
-                                                    _points_peg.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                     _points_pegboard.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.IntField('table_hidden', default='0', no_null=True)
 )

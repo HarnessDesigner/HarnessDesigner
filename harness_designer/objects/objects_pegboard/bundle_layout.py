@@ -34,4 +34,4 @@ class BundleLayout(_base_pegboard.BasePegboard):
         :type db_obj: :class:`_pjt_bundle_layout.PJTBundleLayout`
         """
 
-        _base_pegboard.BasePegboard.__init__(self, parent, db_obj, None, None)
+        super().__init__(parent, db_obj, None, None)

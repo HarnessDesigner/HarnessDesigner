@@ -7,12 +7,14 @@ from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from ...geometry import point as _point
 from .mixins import (
-    Position3DMixin, Position3DControl,
-    Position2DMixin, Position2DControl,
+    Position3DControl,
+    Position2DControl,
     Visible3DMixin, Visible2DControl,
     Visible2DMixin, Visible3DControl,
+    VisiblePegboardMixin,
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
@@ -20,6 +22,9 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
+    from . import pjt_point3d as _pjt_point3d
+    from . import pjt_point2d as _pjt_point2d
+    from . import pjt_point_pegboard as _pjt_point_pegboard
     from ...objects import wire_layout as _wire_layout_obj
 
 
@@ -141,14 +146,201 @@ class PJTWireLayoutsTable(PJTTableBase):
         return PJTWireLayout(self, db_id)
 
 
-class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
-                    Visible3DMixin, Visible2DMixin, SmoothMixin):
+class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, SmoothMixin):
     """Represent a PJT wire layout in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    Exactly one of :attr:`position3d`/:attr:`position2d`/
+    :attr:`position_pegboard` is ever non-``NULL`` per row -- a waypoint's
+    layout is keyed to the specific view it was placed in, since a wire's
+    waypoint count differs per view (e.g. 30 waypoints in 3D, 2 in
+    peg-board, 0 in schematic -- see ``PJTWire.waypoints3d``/
+    ``waypoints2d``/``waypoints_pegboard``). This deliberately does NOT
+    use ``Position3DMixin``/``Position2DMixin``/``PositionPegboardMixin``
+    -- their shared blind "auto-create a default row if NULL" getter
+    behavior is wrong here (asking for the wrong view's position must
+    return ``None``, not silently create and return a stray point), so
+    all three positions are hand-written below instead, with every
+    setter clearing the other two columns to enforce the exclusivity.
     """
 
     _table: PJTWireLayoutsTable = None
+
+    _stored_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position3d(self) -> _point.Point | None:
+        """Return this waypoint's 3D position, or ``None`` if this
+        layout marks a waypoint placed in a different view. Never
+        auto-creates -- see the class docstring.
+        """
+        if self._stored_position3d is DefaultStoredValue:
+            point_id = self.position3d_id
+
+            if point_id is None:
+                self._stored_position3d = None
+            else:
+                self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+
+        if self._stored_position3d is not None:
+            if self._obj is not None:
+                self._stored_position3d.add_object(self._obj())
+
+            point = self._stored_position3d.point
+        else:
+            point = None
+
+        return point
+
+    _stored_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position3d_id(self) -> bytes | None:
+        """Return this waypoint's ``pjt_points3d`` row id, or ``None``.
+        Never auto-creates -- see the class docstring.
+        """
+        if self._stored_position3d_id is DefaultStoredValue:
+            self._stored_position3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
+
+        return self._stored_position3d_id
+
+    @position3d_id.setter
+    @_check_types.do
+    def position3d_id(self, value: bytes | None):
+        """Set this waypoint's 3D point row id -- clears
+        ``position2d_id``/``position_pegboard_id`` to ``NULL`` so exactly
+        one view stays populated.
+        """
+        self._stored_position3d_id = value
+        self._stored_position3d = DefaultStoredValue
+        self._stored_position2d_id = None
+        self._stored_position2d = None
+        self._stored_position_pegboard_id = None
+        self._stored_position_pegboard = None
+
+        self._table.update(self._db_id, point3d_id=value, point2d_id=None, point_pegboard_id=None)
+        self._populate('position3d_id')
+        self._populate('position2d_id')
+        self._populate('position_pegboard_id')
+
+    _stored_position2d: "_pjt_point2d.PJTPoint2D | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position2d(self) -> _point.Point | None:
+        """Return this waypoint's schematic position, or ``None`` if
+        this layout marks a waypoint placed in a different view. Never
+        auto-creates -- see the class docstring.
+        """
+        if self._stored_position2d is DefaultStoredValue:
+            point_id = self.position2d_id
+
+            if point_id is None:
+                self._stored_position2d = None
+            else:
+                self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+
+        if self._stored_position2d is not None:
+            if self._obj is not None:
+                self._stored_position2d.add_object(self._obj())
+
+            point = self._stored_position2d.point
+        else:
+            point = None
+
+        return point
+
+    _stored_position2d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position2d_id(self) -> bytes | None:
+        """Return this waypoint's ``pjt_points2d`` row id, or ``None``.
+        Never auto-creates -- see the class docstring.
+        """
+        if self._stored_position2d_id is DefaultStoredValue:
+            self._stored_position2d_id = self._table.select('point2d_id', id=self._db_id)[0][0]
+
+        return self._stored_position2d_id
+
+    @position2d_id.setter
+    @_check_types.do
+    def position2d_id(self, value: bytes | None):
+        """Set this waypoint's schematic point row id -- clears
+        ``position3d_id``/``position_pegboard_id`` to ``NULL`` so exactly
+        one view stays populated.
+        """
+        self._stored_position2d_id = value
+        self._stored_position2d = DefaultStoredValue
+        self._stored_position3d_id = None
+        self._stored_position3d = None
+        self._stored_position_pegboard_id = None
+        self._stored_position_pegboard = None
+
+        self._table.update(self._db_id, point2d_id=value, point3d_id=None, point_pegboard_id=None)
+        self._populate('position2d_id')
+        self._populate('position3d_id')
+        self._populate('position_pegboard_id')
+
+    _stored_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position_pegboard(self) -> _point.Point | None:
+        """Return this waypoint's peg-board position, or ``None`` if
+        this layout marks a waypoint placed in a different view. Never
+        auto-creates -- see the class docstring.
+        """
+        if self._stored_position_pegboard is DefaultStoredValue:
+            point_id = self.position_pegboard_id
+
+            if point_id is None:
+                self._stored_position_pegboard = None
+            else:
+                self._stored_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+        if self._stored_position_pegboard is not None:
+            if self._obj is not None:
+                self._stored_position_pegboard.add_object(self._obj())
+
+            point = self._stored_position_pegboard.point
+        else:
+            point = None
+
+        return point
+
+    _stored_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position_pegboard_id(self) -> bytes | None:
+        """Return this waypoint's ``pjt_points_pegboard`` row id, or
+        ``None``. Never auto-creates -- see the class docstring.
+        """
+        if self._stored_position_pegboard_id is DefaultStoredValue:
+            self._stored_position_pegboard_id = self._table.select('point_pegboard_id', id=self._db_id)[0][0]
+
+        return self._stored_position_pegboard_id
+
+    @position_pegboard_id.setter
+    @_check_types.do
+    def position_pegboard_id(self, value: bytes | None):
+        """Set this waypoint's peg-board point row id -- clears
+        ``position3d_id``/``position2d_id`` to ``NULL`` so exactly one
+        view stays populated.
+        """
+        self._stored_position_pegboard_id = value
+        self._stored_position_pegboard = DefaultStoredValue
+        self._stored_position3d_id = None
+        self._stored_position3d = None
+        self._stored_position2d_id = None
+        self._stored_position2d = None
+
+        self._table.update(self._db_id, point_pegboard_id=value, point3d_id=None, point2d_id=None)
+        self._populate('position_pegboard_id')
+        self._populate('position3d_id')
+        self._populate('position2d_id')
 
     @_check_types.do
     def get_object(self) -> "_wire_layout_obj.WireLayout":
@@ -207,15 +399,35 @@ class PJTWireLayout(PJTEntryBase, Position3DMixin, Position2DMixin,
         :returns: Property value.
         :rtype: list['_pjt_wire.PJTWire']
         """
-        point_id = self.position3d_id
+        point3d_id = self.position3d_id
+        if point3d_id is not None:
+            start_col, stop_col, points_table = (
+                'start_point3d_id', 'stop_point3d_id', self._table.db.pjt_points3d_table)
+            point_id = point3d_id
+        else:
+            point2d_id = self.position2d_id
+            if point2d_id is not None:
+                start_col, stop_col, points_table = (
+                    'start_point2d_id', 'stop_point2d_id', self._table.db.pjt_points2d_table)
+                point_id = point2d_id
+            else:
+                point_pegboard_id = self.position_pegboard_id
+                if point_pegboard_id is None:
+                    return []
+
+                start_col, stop_col, points_table = (
+                    'start_point_pegboard_id', 'stop_point_pegboard_id',
+                    self._table.db.pjt_points_pegboard_table)
+                point_id = point_pegboard_id
+
         db_ids = self._table.db.pjt_wires_table.select(
-            "id", OR=True, start_point3d_id=point_id, stop_point3d_id=point_id)
+            "id", OR=True, **{start_col: point_id, stop_col: point_id})
 
         res = [self._table.db.pjt_wires_table[db_id[0]] for db_id in db_ids]
         if res:
             return res
 
-        point = self._table.db.pjt_points3d_table[point_id]
+        point = points_table[point_id]
         wire_id = point.wire_id
         if wire_id is not None:
             return [self._table.db.pjt_wires_table[wire_id]]

@@ -150,43 +150,83 @@ Contents/structure of the `harness_designer/` package.
     - solid
     - supp
 - `project_db/`: per-project tables, all prefixed `pjt_`
-  - pjt_housing
-  - pjt_terminal
+  - pjt_housing — has `position_pegboard`/`angle_pegboard` (`PositionPegboardMixin`/
+    `AnglePegboardMixin`, own property overrides binding `_update_position_pegboard`/
+    `_update_angle_pegboard`) — batch-cascades to every cavity's/terminal's peg-board
+    position/angle (+ clones via `parent_point_id`), mirroring `_update_position3d`/
+    `_update_angle3d` minus the housing-accessory (cover/seal/boot/tpa-lock/cpa-lock) groups,
+    which aren't viewable in the peg-board editor. Y axis always honored/stored here — locking
+    is object-level only (`objects/objects_pegboard/`)
+  - pjt_terminal — `PositionPegboardMixin`/`AnglePegboardMixin`/`VisiblePegboardMixin`, leaf
+    (no cascade of its own, matches 3D)
   - pjt_seal
-  - pjt_boot
+  - pjt_boot — peg-board support deferred (not yet added)
   - pjt_cover
   - pjt_cpa_lock
   - pjt_tpa_lock
-  - pjt_cavity
-  - pjt_splice
-  - pjt_transition (+_branch)
-  - pjt_wire
+  - pjt_cavity — `PositionPegboardMixin`/`AnglePegboardMixin`/`VisiblePegboardMixin`; own
+    `_update_angle_pegboard` mirrors `_update_angle3d` minus aabb/obb rotation (no peg-board
+    mesh geometry) and minus the `or self.seal` fallback (seal not viewable in peg-board)
+  - pjt_splice — excluded from peg-board entirely (not shown in that view); mechanical
+    rename-breakage fixes only (`PositionPegMixin`/`AnglePegMixin` → `...Pegboard...`), no new
+    capability
+  - pjt_transition (+_branch) — transition has `PositionPegboardMixin`/`AnglePegboardMixin`/
+    `VisiblePegboardMixin` (leaf, no cascade); transition_branch has `PositionPegboardMixin`
+    only (no angle, matches its 3D shape) + `VisiblePegboardMixin`
+  - pjt_wire — `StartStopPositionPegboardMixin`/`VisiblePegboardMixin`; `waypoints_pegboard`
+    property (own independent waypoint set via `pjt_points_pegboard_table.for_wire`, separate
+    from `waypoints3d`/`waypoints2d` — counts differ per view)
   - pjt_wire_marker
-  - pjt_wire_service_loop
-  - pjt_wire_layout
-  - pjt_bundle (`length_mm`/`length_m` properties added — mirrors `pjt_wire`'s, via `geometry.line.Line.length()`)
-  - pjt_bundle_layout
+  - pjt_wire_service_loop — `AnglePegboardMixin`/`StartStopPositionPegboardMixin`/
+    `VisiblePegboardMixin`, leaf
+  - pjt_wire_layout — hand-written (NOT mixin-based) exclusive position handling: exactly one
+    of `position3d`/`position2d`/`position_pegboard` (`point3d_id`/`point2d_id`/
+    `point_pegboard_id` columns) is ever non-NULL per row, each setter clears the other two.
+    Deliberately doesn't use `Position3DMixin`/`Position2DMixin`/`PositionPegboardMixin` — their
+    shared blind auto-create-on-NULL getter is wrong here. `VisiblePegboardMixin` added
+  - pjt_bundle (`length_mm`/`length_m` properties added — mirrors `pjt_wire`'s, via
+    `geometry.line.Line.length()`) — `StartStopPositionPegboardMixin`/`VisiblePegboardMixin`;
+    `waypoints_pegboard` property (no schematic equivalent — bundles never shown in schematic)
+  - pjt_bundle_layout — same hand-written exclusive-position pattern as `pjt_wire_layout`, but
+    only `position3d`/`position_pegboard` (no schematic variant). `VisiblePegboardMixin` added
   - pjt_concentric*
   - pjt_point2d
   - pjt_point3d
+  - pjt_point_pegboard — `PJTPointPegboard`/`PJTPointsPegboardTable`, structurally identical to
+    `pjt_point3d.PJTPoint3D` (same singleton/attach/clone/self-heal lifecycle, `wire_id`/
+    `bundle_id`/`idx`/`parent_point_id` waypoint columns, `_skip_db_write` batch flag) against
+    `pjt_points_pegboard` instead — uses an 8-byte `b'pegboard'` `Point.db_id` suffix for
+    clone-detection (`pjt_point3d`/`pjt_point2d` use 2-byte `b'3d'`/`b'2d'` suffixes)
   - pjt_circuit
   - pjt_note
-  - pjt_pegboard_point / pjt_pegboard_waypoint / pjt_pegboard_table: Peg Board Editor's own layout
-    tables — `pjt_pegboard_points`/`pjt_pegboard_tables` are thin overlays keyed by an existing
-    `point3d_id` (same "second independent coordinate system" pattern `pjt_housing`/`pjt_terminal`
-    use for `point3d_id`+`point2d_id`); `pjt_pegboard_waypoints` are bend points with no 3D
-    counterpart at all, ordered per `bundle_id` by `sequence`. All three are looked up directly by
-    `gl/canvas_pegboard/` — deliberately NOT added as mixins on existing part-type classes (isolated,
-    zero-blast-radius design choice for this feature)
+  - **Peg Board Editor DB support (2026-08-13)**: every peg-board-viewable object (housing,
+    terminal, cavity, wire, wire layout, bundle, bundle layout, transition, transition branch,
+    wire service loop — boot deferred) gets its own `position_pegboard`/`angle_pegboard`
+    (or `start_position_pegboard`/`stop_position_pegboard` for wire/bundle) backed by a shared
+    `pjt_points_pegboard` table, plus a `visible_pegboard` column/`VisiblePegboardMixin`. Wire/
+    bundle waypoints are independent rows in `pjt_points_pegboard` (own set per view, not shared
+    with the 3D/schematic point tables), each requiring a `pjt_wire_layouts`/`pjt_bundle_layouts`
+    row referencing it. Orphaned-point batch cleanup on project close is planned but not yet
+    implemented (`TODO.md`). The OLD isolated `pjt_pegboard_points`/`pjt_pegboard_waypoints`/
+    `pjt_pegboard_tables` overlay-table design (previously described here) has been fully
+    superseded by this mixin-based approach — those old tables are gone. `pjt_pegboard_tables`
+    (the *data-table-overlay* position feature — unrelated to an anchor's own position) is a
+    separate surviving concept, still keyed by `TablePositionPegMixin`/`table_point_peg_id`
   - pjt_bases.py (~1100 lines): base class
   - `project.py`: project table
   - `cleanup.py`
   - `mixins/`:
     - base
     - position2d/3d
+    - position_pegboard (mirrors `position3d`, no default `.bind()` — subclasses needing a
+      cascade override the property itself, e.g. `PJTHousing.position_pegboard`)
     - angle2d/3d
+    - angle_pegboard (mirrors `angle3d`, binds `self._update_angle_pegboard` by default —
+      subclasses needing a cascade only need to override that method, not the property)
     - scale3d
     - visible2d/3d
+    - visible_pegboard (`is_visible_pegboard` column, mirrors `visible3d`'s `is_visible3d`
+      naming convention)
     - color
     - name
     - notes
@@ -195,8 +235,15 @@ Contents/structure of the `harness_designer/` package.
     - smooth
     - start_stop_position2d
     - start_stop_position3d
+    - start_stop_position_pegboard (mirrors `start_stop_position3d`)
+    - table_position_peg (the data-table-overlay position — deliberately NOT renamed to
+      "pegboard", a distinct feature from an anchor's own `position_pegboard`)
 - `create_database/`: one file per table containing seed/creation 
                       logic (mirrors global_db naming)
+  - `points_pegboard.py`: schema for `pjt_points_pegboard` — same shape as `points3d.py`/
+    `points2d.py` (real x/y/z, `wire_id`/`bundle_id`/`idx`/`parent_point_id`); deliberately no
+    real `SQLFieldReference` on `wire_id`/`bundle_id` (avoids circular import with
+    `wires.py`/`bundle_covers.py`, which import this module for their own start/stop FK columns)
 - `common_db/`
   - `callback.py`: DB callback plumbing
   - `lazy_tab_mixin.py`: lazy per-tab DB table loading

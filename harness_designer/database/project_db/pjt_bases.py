@@ -903,7 +903,7 @@ from .pjt_concentric import PJTConcentricsTable  # NOQA
 from .pjt_concentric_layer import PJTConcentricLayersTable  # NOQA
 from .pjt_concentric_wire import PJTConcentricWiresTable  # NOQA
 from .pjt_transition_branch import PJTTransitionBranchesTable  # NOQA
-from .pjt_point_peg import PJTPointsPegTable  # NOQA
+from .pjt_point_pegboard import PJTPointsPegboardTable  # NOQA
 from .pjt_pegboard_table import PJTPegboardTablesTable  # NOQA
 
 from .project import ProjectsTable  # NOQA
@@ -957,7 +957,7 @@ class PJTTables:
         self._pjt_concentric_layers_table = None
         self._pjt_concentric_wires_table = None
         self._pjt_transition_branches_table = None
-        self._pjt_points_peg_table = None
+        self._pjt_points_pegboard_table = None
         self._pjt_pegboard_tables_table = None
 
         self._points2d = []
@@ -1036,7 +1036,7 @@ class PJTTables:
         self._pjt_concentric_layers_table = PJTConcentricLayersTable(self, project_id, tables, Splash)
         self._pjt_concentric_wires_table = PJTConcentricWiresTable(self, project_id, tables, Splash)
         self._pjt_transition_branches_table = PJTTransitionBranchesTable(self, project_id, tables, Splash)
-        self._pjt_points_peg_table = PJTPointsPegTable(self, project_id, tables, Splash)
+        self._pjt_points_pegboard_table = PJTPointsPegboardTable(self, project_id, tables, Splash)
         self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
 
     @property
@@ -1341,13 +1341,13 @@ class PJTTables:
 
     @property
     @_check_types.do
-    def pjt_points_peg_table(self) -> PJTPointsPegTable:
+    def pjt_points_pegboard_table(self) -> PJTPointsPegboardTable:
         """Return the peg-board points table.
 
         :returns: The peg-board points table for the loaded project.
-        :rtype: :class:`PJTPointsPegTable`
+        :rtype: :class:`PJTPointsPegboardTable`
         """
-        return self._pjt_points_peg_table
+        return self._pjt_points_pegboard_table
 
     @property
     @_check_types.do

@@ -14,9 +14,12 @@ from . import pjt_circuit as _pjt_circuit
 from ..global_db import wire as _wire
 from .mixins import (
     Angle3DMixin, Angle3DControl,
+    AnglePegboardMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
+    StartStopPositionPegboardMixin, StartStopPositionPegboardControl,
     PartMixin,
     Visible3DMixin, Visible3DControl,
+    VisiblePegboardMixin,
     NameMixin, NameControl,
     NotesMixin,  NotesControl,
     SmoothMixin, SmoothControl
@@ -165,8 +168,9 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         return PJTWireServiceLoop(self, db_id)
 
 
-class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, StartStopPosition3DMixin,
-                         PartMixin, Visible3DMixin, NotesMixin, NameMixin, SmoothMixin):
+class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartStopPosition3DMixin,
+                         StartStopPositionPegboardMixin,
+                         PartMixin, Visible3DMixin, VisiblePegboardMixin, NotesMixin, NameMixin, SmoothMixin):
     """Represent a PJT wire service loop in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

@@ -17,6 +17,7 @@ from . import temperatures as _temperatures
 
 from . import projects as _projects
 from . import points3d as _points3d
+from . import points_pegboard as _points_pegboard
 
 from .. import db_connectors as _con
 from ... import logger as _logger
@@ -293,31 +294,39 @@ pjt_table = _con.SQLTable(
     'pjt_bundles',
     pjt_id_field,
     _con.UUIDField('part_id', no_null=True,
-                  references=_con.SQLFieldReference(table,
-                                                    id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(table,
+                                                     id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.UUIDField('start_point3d_id', no_null=True,
-                  references=_con.SQLFieldReference(_points3d.pjt_table,
-                                                    _points3d.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                     _points3d.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.UUIDField('stop_point3d_id', no_null=True,
-                  references=_con.SQLFieldReference(_points3d.pjt_table,
-                                                    _points3d.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                   references=_con.SQLFieldReference(_points3d.pjt_table,
+                                                     _points3d.pjt_id_field,
+                                                     on_delete=_con.REFERENCE_CASCADE,
+                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.UUIDField('start_point_pegboard_id', default="NULL",
+                   references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                     _points_pegboard.pjt_id_field,
+                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.UUIDField('stop_point_pegboard_id', default="NULL",
+                   references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                     _points_pegboard.pjt_id_field,
+                                                     on_update=_con.REFERENCE_CASCADE)),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL'),
-    # No SQLFieldReference to pjt_points_peg here (unlike the same column on
-    # pjt_housings/pjt_transition_branches) -- pjt_points_peg's own schema
-    # already references pjt_bundles (its bundle_id waypoint column), and
-    # SQLFieldReference requires the real target SQLTable object at
-    # construction time, not a lazy/string reference, so a real FK back the
-    # other way here would be a circular module import. Still holds a
-    # pjt_points_peg row id -- just without a DB-enforced constraint.
+    # No SQLFieldReference to pjt_points_pegboard here (unlike the same
+    # column on pjt_housings/pjt_transition_branches) -- pjt_points_pegboard
+    # does not reference pjt_bundles either (see points_pegboard.py's own
+    # comment: no real FK on wire_id/bundle_id there, to avoid a circular
+    # module import with wires.py/bundle_covers.py). Still holds a
+    # pjt_points_pegboard row id -- just without a DB-enforced constraint.
     _con.UUIDField('table_point_peg_id', default="NULL"),
     _con.IntField('table_hidden', default='0', no_null=True)
 )

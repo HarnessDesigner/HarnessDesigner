@@ -20,6 +20,7 @@ from . import pjt_seal as _pjt_seal
 from . import pjt_boot as _pjt_boot
 from . import pjt_cavity as _pjt_cavity
 from . import pjt_point3d as _pjt_point3d
+from . import pjt_point_pegboard as _pjt_point_pegboard
 
 from ..global_db import housing as _housing
 from .mixins import (
@@ -27,15 +28,16 @@ from .mixins import (
     PartMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
+    VisiblePegboardMixin,
     NotesMixin, NotesControl,
     Position2DMixin, Position2DControl,
     Position3DMixin, Position3DControl,
-    PositionPegMixin,
+    PositionPegboardMixin,
     TablePositionPegMixin,
     TableHiddenMixin,
     Angle2DMixin, Angle2DControl,
     Angle3DMixin, Angle3DControl,
-    AnglePegMixin,
+    AnglePegboardMixin,
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl
 )
@@ -264,9 +266,9 @@ class PJTHousingsTable(PJTTableBase):
 
 
 class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
-                 PositionPegMixin, TablePositionPegMixin, TableHiddenMixin,
-                 Visible3DMixin, Visible2DMixin, NotesMixin,
-                 Angle2DMixin, Angle3DMixin, AnglePegMixin,
+                 PositionPegboardMixin, TablePositionPegMixin, TableHiddenMixin,
+                 Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NotesMixin,
+                 Angle2DMixin, Angle3DMixin, AnglePegboardMixin,
                  SmoothMixin, Scale3DMixin):
     """Represent a PJT housing in :mod:`harness_designer.database.project_db.pjt_housing`.
 
@@ -1032,6 +1034,134 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return [table[row[0]].point for row in table.fetchall()]
 
     @_check_types.do
+    def _find_child_points_pegboard(self, canonical_positions: list) -> list:
+        """Peg-board equivalent of :meth:`_find_child_points` -- returns
+        the live ``Point`` for every clone of any point in
+        *canonical_positions*, using ``pjt_points_pegboard``/
+        ``PJTPointPegboard``'s own 8-byte ``b'pegboard'`` db_id suffix
+        instead of ``PJTPoint3D``'s 2-byte ``b'3d'`` suffix. See
+        :meth:`_find_child_points` for the full rationale.
+        """
+        if not canonical_positions:
+            return []
+
+        parent_ids = [pos.db_id[:-8] for pos in canonical_positions]
+        table = self._table.db.pjt_points_pegboard_table
+        placeholders = ','.join('?' * len(parent_ids))
+
+        table.execute(
+            f'SELECT id FROM pjt_points_pegboard WHERE parent_point_id IN ({placeholders});',
+            parent_ids)
+
+        return [table[row[0]].point for row in table.fetchall()]
+
+    @_check_types.do
+    def _update_position_pegboard(self, point: _point.Point):
+        """Update the peg-board position.
+
+        Batch-cascades to every cavity's/terminal's ``position_pegboard``
+        (plus any clones tracked via ``parent_point_id`` -- e.g. a wire
+        attached directly to a terminal's peg-board point) -- mirrors
+        :meth:`_update_position3d` exactly, minus the housing-accessory
+        (cover/seal/boot/tpa-lock/cpa-lock) groups, since none of those
+        object types are viewable in the peg-board editor and so have no
+        ``position_pegboard`` of their own. The Y axis is always
+        honored/stored here -- locking Y to 0.0 for a housing (or
+        leaving it free for a cavity/terminal) is handled at the object
+        level, not here (see ``objects.objects_pegboard.base_pegboard``).
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
+        delta = point - self._o_position_pegboard
+        self._o_position_pegboard = point.copy()
+
+        cavities = [c for c in self.cavities if c is not None]
+
+        cavity_positions = [cavity.position_pegboard for cavity in cavities]
+
+        terminal_positions = []
+        for cavity in cavities:
+            terminal = cavity.terminal
+
+            if terminal is None:
+                continue
+
+            terminal_positions.append(terminal.position_pegboard)
+
+        child_positions = self._find_child_points_pegboard(cavity_positions + terminal_positions)
+
+        all_positions = cavity_positions + terminal_positions + child_positions
+
+        seen = {}
+        for pos in all_positions:
+            key = pos.db_id[:-8]
+            if key not in seen:
+                seen[key] = pos
+        all_positions = list(seen.values())
+
+        if not all_positions:
+            return
+
+        all_positions_array = np.array([pos.as_float for pos in all_positions], dtype=np.float32)
+        new_pos_arr = all_positions_array + delta
+
+        db_ids = [p.db_id[:-8] for p in all_positions]
+        f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
+        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+
+        self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
+
+        # No seal (or any other accessory) cascade exists in the
+        # peg-board scope, unlike _update_position3d's terminal_positions
+        # group -- so every position here can uniformly skip the
+        # individual per-point DB write, the batch call above already
+        # persisted all of them.
+        _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
+        try:
+            for i, pos in enumerate(all_positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+
+    _o_position_pegboard: _point.Point = None
+
+    @property
+    @_check_types.do
+    def position_pegboard(self) -> _point.Point:
+        """Return the peg-board position.
+
+        :returns: Property value. UNKNOWN details.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_position_pegboard is DefaultStoredValue:
+            point_id = self.position_pegboard_id
+
+            if point_id is None:
+                self._stored_position_pegboard = None
+            else:
+                self._stored_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+                point = self._stored_position_pegboard.point
+                point.bind(self._update_position_pegboard)
+                self._o_position_pegboard = point.copy()
+
+        if self._stored_position_pegboard is not None:
+            if self._obj is not None:
+                self._stored_position_pegboard.add_object(self._obj())
+
+            point = self._stored_position_pegboard.point
+        else:
+            point = None
+
+        return point
+
+    @_check_types.do
     def _update_position3d(self, point: _point.Point):
         """Update the position 3D.
 
@@ -1576,6 +1706,161 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 table.batch_update(['quat3d', 'angle3d'], rows)
 
         self._populate('angle3d')
+
+    _o_quat_pegboard: list = None
+    _o_euler_pegboard: list = None
+
+    @_check_types.do
+    def _update_angle_pegboard(self, angle: _angle.Angle):
+        """Update the peg-board angle.
+
+        Mirrors :meth:`_update_angle3d`'s vectorized batch rotation of
+        every cavity/terminal position (plus clones) around the
+        housing's own :attr:`position_pegboard`, minus the housing-
+        accessory groups (out of peg-board scope, see
+        :meth:`_update_position_pegboard`) and minus the 3D-mesh
+        OBB-based face-alignment refinement used to reorient a cavity
+        within a real 3D part mesh -- the peg board has no such mesh
+        geometry, so each cavity's accumulated quaternion delta is
+        applied directly (``_euler_from_matrix_continuous`` on the raw
+        accumulated quaternion, same as ``_update_angle3d``'s own
+        fallback path for when no OBB face alignment is available).
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
+
+        if self._o_quat_pegboard is None:
+            self._o_quat_pegboard = eval(self._table.select('quat_pegboard', id=self._db_id)[0][0])
+            self._o_euler_pegboard = eval(self._table.select('angle_pegboard', id=self._db_id)[0][0])
+
+        o_angle = _angle.Angle.from_quat(self._o_quat_pegboard, self._o_euler_pegboard)
+
+        new_quat = list(angle.as_quat_float)
+        new_euler = list(angle.as_euler_float)
+        quat = str(new_quat)
+        euler = str(new_euler)
+
+        self._table.update(self._db_id, quat_pegboard=quat, angle_pegboard=euler)
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._o_quat_pegboard = new_quat
+        self._o_euler_pegboard = new_euler
+
+        actual_delta_q = angle._q - o_angle._q  # NOQA
+        position = self.position_pegboard
+        cavities = [c for c in self.cavities if c is not None]
+
+        w_d, x_d, y_d, z_d = actual_delta_q.as_float
+        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
+        center = position.as_numpy.copy()
+
+        cavity_positions = [cavity.position_pegboard for cavity in cavities]
+
+        terminal_positions = []
+        for cavity in cavities:
+            terminal = cavity.terminal
+            if terminal is not None:
+                terminal_positions.append(terminal.position_pegboard)
+
+        child_positions = self._find_child_points_pegboard(cavity_positions + terminal_positions)
+
+        all_positions = cavity_positions + terminal_positions + child_positions
+
+        seen = {}
+        for pos in all_positions:
+            key = pos.db_id[:-8]
+            if key not in seen:
+                seen[key] = pos
+
+        all_positions = list(seen.values())
+
+        if all_positions:
+            pos_arr = np.array([list(p.as_float) for p in all_positions], dtype=np.float32)
+            rel = pos_arr - center
+            t_vec = np.cross(qvec_d, rel)
+            new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
+
+            f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
+            db_ids = [p.db_id[:-8] for p in all_positions]
+            rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+            self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
+
+            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
+            try:
+                for i, pos in enumerate(all_positions):
+                    with pos:
+                        pos.x = f_position_array[i][0]
+                        pos.y = f_position_array[i][1]
+                        pos.z = f_position_array[i][2]
+
+                    pos._process_callbacks()  # NOQA
+            finally:
+                _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+
+        # ── Per-cavity angle: no OBB face-alignment (no peg-board mesh
+        # geometry exists to align against) -- the accumulated
+        # quaternion delta is applied directly.
+        angle_results = []  # [(cavity, q_acc_new, new_euler), ...]
+
+        for cavity in cavities:
+            cavity_angle = cavity.angle_pegboard
+            old_euler = cavity_angle.as_euler_float
+            q_acc_new = cavity_angle._q + actual_delta_q  # NOQA
+            new_euler = _euler_from_matrix_continuous(q_acc_new.as_matrix, old_euler)
+
+            angle_results.append((cavity, q_acc_new, new_euler))
+
+        for cav, q_acc_new, new_euler in angle_results:
+            cav_angle = cav.angle_pegboard
+            with cav_angle:
+                cav_angle.x = new_euler[0]
+                cav_angle.y = new_euler[1]
+                cav_angle.z = new_euler[2]
+                cav_angle._q.w = q_acc_new.w  # NOQA
+                cav_angle._q.x = q_acc_new.x  # NOQA
+                cav_angle._q.y = q_acc_new.y  # NOQA
+                cav_angle._q.z = q_acc_new.z  # NOQA
+                cav_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+        if angle_results:
+            angle_rows = [(str(list(q.as_float)), str(eu), cav._db_id)
+                          for cav, q, eu in angle_results]
+
+            angle_results[0][0].table.batch_update(['quat_pegboard', 'angle_pegboard'], angle_rows)
+
+        # ── Terminal angle mirrors its cavity's angle exactly -- no seal
+        # exists in peg-board scope, so unlike _update_angle3d there is
+        # no separate seal_angle_results group here.
+        terminal_angle_results = []  # [(terminal, q_acc_new, new_euler), ...]
+
+        for cav, q_acc_new, new_euler in angle_results:
+            terminal = cav.terminal
+            if terminal is not None:
+                terminal_angle_results.append((terminal, q_acc_new, new_euler))
+
+        for term, q_acc_new, new_euler in terminal_angle_results:
+            term_angle = term.angle_pegboard
+            with term_angle:
+                term_angle.x = new_euler[0]
+                term_angle.y = new_euler[1]
+                term_angle.z = new_euler[2]
+                term_angle._q.w = q_acc_new.w  # NOQA
+                term_angle._q.x = q_acc_new.x  # NOQA
+                term_angle._q.y = q_acc_new.y  # NOQA
+                term_angle._q.z = q_acc_new.z  # NOQA
+                term_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+        if terminal_angle_results:
+            terminal_angle_rows = [(str(list(q.as_float)), str(eu), term._db_id)
+                                   for term, q, eu in terminal_angle_results]
+
+            terminal_angle_results[0][0].table.batch_update(
+                ['quat_pegboard', 'angle_pegboard'], terminal_angle_rows)
+
+        self._populate('angle_pegboard')
 
     @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle):

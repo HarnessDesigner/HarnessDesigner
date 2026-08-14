@@ -14,9 +14,11 @@ from ...geometry import line as _line
 from .mixins import (
     StartStopPosition3DMixin, StartStopPosition3DControl,
     StartStopPosition2DMixin, StartStopPosition2DControl,
+    StartStopPositionPegboardMixin, StartStopPositionPegboardControl,
     PartMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
+    VisiblePegboardMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl
@@ -27,6 +29,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
     from . import pjt_point3d as _pjt_point3d
+    from . import pjt_point_pegboard as _pjt_point_pegboard
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire_marker as _pjt_wire_marker
     from . import pjt_wire_layout as _pjt_wire_layout
@@ -234,7 +237,8 @@ class PJTWiresTable(PJTTableBase):
 
 
 class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosition2DMixin,
-              Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
+              StartStopPositionPegboardMixin,
+              Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT wire in :mod:`harness_designer.database.project_db.pjt_wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -305,6 +309,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         for point in self.waypoints2d:
             delete_layouts_at(layouts_table, 'point2d_id', point.db_id)
+            point.delete()
+
+        for point in self.waypoints_pegboard:
+            delete_layouts_at(layouts_table, 'point_pegboard_id', point.db_id)
             point.delete()
 
         super().delete()
@@ -492,6 +500,16 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         and stop themselves are not included -- see start_position2d/
         stop_position2d)."""
         return self._table.db.pjt_points2d_table.for_wire(self.db_id)
+
+    @property
+    @_check_types.do
+    def waypoints_pegboard(self) -> list["_pjt_point_pegboard.PJTPointPegboard"]:
+        """Every interior peg-board waypoint on this wire, in chain order
+        (start and stop themselves are not included -- see
+        start_position_pegboard/stop_position_pegboard). Its own
+        independent set of waypoints, not shared with waypoints3d/
+        waypoints2d -- each view's waypoint count can differ."""
+        return self._table.db.pjt_points_pegboard_table.for_wire(self.db_id)
 
     @property
     @_check_types.do

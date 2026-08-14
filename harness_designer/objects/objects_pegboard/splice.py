@@ -6,6 +6,7 @@ from . import base_pegboard as _base_pegboard
 from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import cylinder as _cylinder
+from ...gl import materials as _materials
 from ... import check_types as _check_types
 
 
@@ -38,28 +39,32 @@ class Splice(_base_pegboard.BasePegboard):
 
         # Placeholder-then-real-model lifecycle, same as Base3D itself
         # (objects.objects_3d.splice.Splice.__init__): a unit cylinder,
-        # scaled to obj3d's own already-computed diameter/length Scale
-        # point (derived there from summed wire cross-sectional area, not
-        # recomputed here) -- never vbo=None (see housing.py's own
-        # comment on this for why).
+        # scaled to this splice's own real diameter/length -- never
+        # vbo=None (see housing.py's own comment on this for why).
+        #
+        # scale/material are built fresh here, never borrowed from
+        # obj3d -- see housing.py's own comment on why. scale comes from
+        # the database (db_obj.scale3d); material is rebuilt from the
+        # catalog part's own color, mirroring
+        # objects_3d.splice.Splice.__init__'s own construction.
         with parent.mainframe.editor_pegboard.context:
             vbo = _cylinder.create_vbo()
 
-            _base_pegboard.BasePegboard.__init__(
-                self, parent, db_obj,
+            super().__init__(
+                parent, db_obj,
                 vbo=vbo,
-                angle=db_obj.anglepeg,
-                position=db_obj.position_peg,
-                scale=obj3d.scale,
-                material=obj3d.material,
+                angle=db_obj.angle_pegboard,
+                position=db_obj.position_pegboard,
+                scale=db_obj.scale3d,
+                material=_materials.Rubber(self._part.color.ui),
             )
 
-        self.smooth = getattr(obj3d, 'smooth', False)
+        self.smooth = db_obj.smooth
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
-        # a splice has no single position3d, so (matching the "pick one"
-        # simplification already used elsewhere) key off the start point.
-        self.point3d_id = db_obj.start_position3d_id
+        # a splice has one single peg-board position (PositionPegboardMixin,
+        # not start/stop), unlike its 3D one.
+        self.point3d_id = db_obj.position_pegboard_id
 
         # Seed a sensible initial peg-board position -- a splice has no
         # single position3d, so use the start/stop midpoint (same "pick

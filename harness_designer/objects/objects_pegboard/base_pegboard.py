@@ -25,17 +25,6 @@ if TYPE_CHECKING:
 
 Config = _config.Config.editor_pegboard
 
-# A freshly-created ``anglepeg``/``quatpeg`` row always starts at this exact
-# identity quaternion (see database.create_database.housings/splices/
-# transitions/terminals' column defaults) -- used as the "has the user (or a
-# prior flatten pass) ever actually set this anchor's rotation" sentinel by
-# :meth:`BasePegboard._apply_flatten_if_untouched`. A user who deliberately spins
-# an anchor back to exactly this orientation is an accepted, harmless edge
-# case (re-applying the flatten default would be a no-op-equivalent visually
-# in that exact case, not a correctness bug).
-_IDENTITY_QUAT = (1.0, 0.0, 0.0, 0.0)
-_IDENTITY_TOLERANCE = 1e-6
-
 
 class BasePegboard(_objectsvar.BaseVar):
     """
@@ -65,10 +54,11 @@ class BasePegboard(_objectsvar.BaseVar):
 
     Position/rotation are real, independent, DB-backed values -- not split
     apart into separate x/z floats or a separately-recombined quaternion --
-    read straight from ``db_obj.position_peg``/``db_obj.anglepeg`` (see
-    ``database.project_db.mixins.position_peg.PositionPegMixin``/
-    ``mixins.angle_peg.AnglePegMixin``, which mirror ``position2d``/
-    ``angle2d`` exactly: a shared ``pjt_points_peg`` table + FK column, and
+    read straight from ``db_obj.position_pegboard``/``db_obj.angle_pegboard``
+    (see ``database.project_db.mixins.position_pegboard.
+    PositionPegboardMixin``/``mixins.angle_pegboard.AnglePegboardMixin``,
+    which mirror ``position3d``/``angle3d`` exactly: a shared
+    ``pjt_points_pegboard`` table + FK column, and
     redundant quat/Euler TEXT columns, respectively). Every mutation writes
     to the database immediately via the mixin's own bound callback -- same
     "no batching, no deferred commit" discipline ``position3d``/``angle3d``
@@ -105,13 +95,19 @@ class BasePegboard(_objectsvar.BaseVar):
             ``scale``/``material`` entirely unset, regardless of what's
             passed for them, so real anchor types must never do this.
         :type vbo: :class:`_vbo.VBOHandlerBase` | None
-        :param angle: Live, bindable peg-board rotation (``db_obj.anglepeg``).
+        :param angle: Live, bindable peg-board rotation (``db_obj.angle_pegboard``).
         :type angle: :class:`_angle.Angle` | None
-        :param position: Live, bindable peg-board position (``db_obj.position_peg``).
+        :param position: Live, bindable peg-board position (``db_obj.position_pegboard``).
         :type position: :class:`_point.Point` | None
-        :param scale: The real 3D scale to reuse.
+        :param scale: A freshly-built scale, never borrowed from ``obj3d``
+            (another view's own live, mutable instance) -- either read
+            straight from the database (``db_obj.scale3d``, when that
+            mixin is present) or computed fresh from the catalog part's
+            own dimensions, matching how ``objects_3d`` builds its own.
         :type scale: :class:`_point.Point` | None
-        :param material: The real 3D material to reuse.
+        :param material: A freshly-built material, never borrowed from
+            ``obj3d`` -- rebuilt from the catalog part's own color, same
+            construction ``objects_3d`` uses for its own material.
         :type material: :class:`_materials.GLMaterial` | None
         """
 
@@ -182,9 +178,9 @@ class BasePegboard(_objectsvar.BaseVar):
         if self._angle is None:
             return
 
-        current_quat = tuple(float(v) for v in self._angle.as_quat_float)
-        if not all(abs(a - b) < _IDENTITY_TOLERANCE
-                   for a, b in zip(current_quat, _IDENTITY_QUAT)):
+        current_quat = self._angle.as_quat_float
+        if not all(abs(a - b) < 1e-6
+                   for a, b in zip(current_quat, (1.0, 0.0, 0.0, 0.0))):
             return
 
         ex, ey, ez = euler
@@ -357,7 +353,7 @@ class BasePegboard(_objectsvar.BaseVar):
         Unlike the plain floats :attr:`table_anchor_points` returns (a
         one-time snapshot), this is the very same ``Point`` object this
         anchor's own position mutates in place on every drag (see
-        :meth:`_update_position`/``PositionPegMixin``). Callers that need
+        :meth:`_update_position`/``PositionPegboardMixin``). Callers that need
         to keep tracking a moving anchor after the snapshot was taken --
         the table-drag leader line,
         ``gl.canvas_pegboard.tables_overlay.PegboardTableWidget`` -- must

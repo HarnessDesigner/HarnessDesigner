@@ -2,10 +2,10 @@
 
 from . import angle3d as _angle3d
 from . import angle2d as _angle2d
-from . import angle_peg as _angle_peg
+from . import angle_pegboard as _angle_pegboard
 from . import position2d as _position2d
 from . import position3d as _position3d
-from . import position_peg as _position_peg
+from . import position_pegboard as _position_pegboard
 from . import table_position_peg as _table_position_peg
 from . import table_hidden as _table_hidden
 from . import part as _part
@@ -13,8 +13,10 @@ from . import housing as _housing
 from . import name as _name
 from . import start_stop_position2d as _start_stop_position2d
 from . import start_stop_position3d as _start_stop_position3d
+from . import start_stop_position_pegboard as _start_stop_position_pegboard
 from . import visible2d as _visible2d
 from . import visible3d as _visible3d
+from . import visible_pegboard as _visible_pegboard
 from . import notes as _notes
 from . import smooth as _smooth
 from . import scale3d as _scale3d
@@ -27,7 +29,7 @@ Angle3DControl = _angle3d.Angle3DControl
 Angle2DMixin = _angle2d.Angle2DMixin
 Angle2DControl = _angle2d.Angle2DControl
 
-AnglePegMixin = _angle_peg.AnglePegMixin
+AnglePegboardMixin = _angle_pegboard.AnglePegboardMixin
 
 Position2DMixin = _position2d.Position2DMixin
 Position2DControl = _position2d.Position2DControl
@@ -35,7 +37,7 @@ Position2DControl = _position2d.Position2DControl
 Position3DMixin = _position3d.Position3DMixin
 Position3DControl = _position3d.Position3DControl
 
-PositionPegMixin = _position_peg.PositionPegMixin
+PositionPegboardMixin = _position_pegboard.PositionPegboardMixin
 
 TablePositionPegMixin = _table_position_peg.TablePositionPegMixin
 
@@ -53,11 +55,17 @@ StartStopPosition2DControl = _start_stop_position2d.StartStopPosition2DControl
 StartStopPosition3DMixin = _start_stop_position3d.StartStopPosition3DMixin
 StartStopPosition3DControl = _start_stop_position3d.StartStopPosition3DControl
 
+StartStopPositionPegboardMixin = _start_stop_position_pegboard.StartStopPositionPegboardMixin
+StartStopPositionPegboardControl = _start_stop_position_pegboard.StartStopPositionPegboardControl
+
 Visible2DMixin = _visible2d.Visible2DMixin
 Visible2DControl = _visible2d.Visible2DControl
 
 Visible3DMixin = _visible3d.Visible3DMixin
 Visible3DControl = _visible3d.Visible3DControl
+
+VisiblePegboardMixin = _visible_pegboard.VisiblePegboardMixin
+VisiblePegboardControl = _visible_pegboard.VisiblePegboardControl
 
 NotesMixin = _notes.NotesMixin
 NotesControl = _notes.NotesControl
@@ -74,10 +82,10 @@ ColorControl = _color.ColorControl
 
 del _angle3d
 del _angle2d
-del _angle_peg
+del _angle_pegboard
 del _position3d
 del _position2d
-del _position_peg
+del _position_pegboard
 del _table_position_peg
 del _table_hidden
 del _part
@@ -85,8 +93,10 @@ del _housing
 del _name
 del _start_stop_position2d
 del _start_stop_position3d
+del _start_stop_position_pegboard
 del _visible3d
 del _visible2d
+del _visible_pegboard
 del _notes
 del _smooth
 del _scale3d

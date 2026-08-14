@@ -15,7 +15,7 @@ pjt_table = _con.SQLTable(
     # Wire-waypoint-only columns -- NULL for every other point2d row (an
     # anchor referenced FROM its owning row's own position2d_id/*_point2d_id
     # FK, same as always). Self-identifying via wire_id/idx instead of being
-    # referenced from elsewhere, mirroring pjt_points_peg's bundle_id/idx.
+    # referenced from elsewhere, mirroring pjt_points_pegboard's bundle_id/idx.
     #
     # No SQLFieldReference to pjt_wires here -- wires.py already imports
     # this module for pjt_wires' own start/stop point2d FK columns, so a

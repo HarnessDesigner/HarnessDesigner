@@ -17,7 +17,7 @@ pjt_table = _con.SQLTable(
     # (an anchor referenced FROM its owning row's own position3d_id/
     # *_point3d_id FK, same as always). Self-identifying via wire_id/
     # bundle_id + idx instead of being referenced from elsewhere, mirroring
-    # pjt_points_peg's bundle_id/idx. A single row is only ever one or the
+    # pjt_points_pegboard's bundle_id/idx. A single row is only ever one or the
     # other (or neither) -- never both -- so idx is shared between the two
     # rather than needing its own bundle_idx column.
     #
@@ -39,7 +39,7 @@ pjt_table = _con.SQLTable(
     # leaving it behind. No SQLFieldReference for the same reason wire_id/
     # bundle_id above have none -- this table can't reference its own
     # not-yet-fully-defined pjt_table from within its own definition.
-    # Present on every pjt_point* table (points2d/points_peg included) even
+    # Present on every pjt_point* table (points2d/points_pegboard included) even
     # though only points3d needs it today, so all three stay structurally
     # identical for whatever future use needs it on the others.
     _con.UUIDField('parent_point_id', default='NULL')

@@ -18,13 +18,14 @@ from ... import logger as _logger
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
-    AnglePegMixin,
+    AnglePegboardMixin,
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
-    PositionPegMixin,
+    PositionPegboardMixin,
     PartMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
+    VisiblePegboardMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
@@ -189,10 +190,10 @@ class PJTTerminalsTable(PJTTableBase):
         return terminal
 
 
-class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegMixin,
+class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
                   Position3DMixin, NotesMixin,
-                  Position2DMixin, PositionPegMixin, PartMixin, Visible3DMixin,
-                  Visible2DMixin, NameMixin,
+                  Position2DMixin, PositionPegboardMixin, PartMixin, Visible3DMixin,
+                  Visible2DMixin, VisiblePegboardMixin, NameMixin,
                   SmoothMixin, Scale3DMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 

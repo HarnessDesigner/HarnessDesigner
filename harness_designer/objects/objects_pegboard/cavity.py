@@ -29,4 +29,4 @@ class Cavity(_base_pegboard.BasePegboard):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_cavity.PJTCavity`
         """
-        _base_pegboard.BasePegboard.__init__(self, parent, db_obj, position=None, angle=None)
+        super().__init__(parent, db_obj, position=None, angle=None)

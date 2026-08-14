@@ -158,7 +158,7 @@ def cylinder_placement(p1_xz: tuple, p2_xz: tuple) -> tuple:
     angle_rad = math.acos(max(-1.0, min(1.0, dot)))
 
     quat_angle = _angle.Angle.from_axis_angle(axis, angle_rad)
-    qw, qx, qy, qz = [float(v) for v in quat_angle.as_quat_float]
+    qw, qx, qy, qz = quat_angle.as_quat_float
 
     return length, (qw, qx, qy, qz)
 

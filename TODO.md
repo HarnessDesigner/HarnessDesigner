@@ -123,6 +123,19 @@ be intentional/non-issue.
   has not been written yet. Noted 2026-08-13 by the user — future work, not
   part of the current pegboard database work.
 
+- **`PJTBundle.delete()`'s BundleLayout cleanup queries the wrong column
+  name** (`database/project_db/pjt_bundle.py`). The 3D branch does
+  `layouts_table.select('id', position3d_id=point.db_id)`, but
+  `pjt_bundle_layouts`'s actual column is `point3d_id` (see
+  `database/create_database/bundle_cover_layouts.py`) — `position3d_id`
+  isn't a real column on that table, so this lookup never matches
+  anything and every BundleLayout row referencing a deleted bundle's
+  waypoint is silently left behind (orphaned) instead of being cleaned
+  up. Noticed 2026-08-13 while adding the equivalent peg-board waypoint
+  cleanup (which correctly uses `point_pegboard_id`) alongside it — left
+  the existing 3D line as-is since fixing pre-existing bugs is out of
+  scope for the current pegboard database work.
+
 - **2D camera doesn't emit `GLCameraEvent` at all yet, unlike 3D**
   (`gl/canvas2d/camera.py`'s `Zoom`/`Pan`). `gl/canvas3d/camera.py`'s
   `Camera._send_event` is called at the end of every 3D camera-movement

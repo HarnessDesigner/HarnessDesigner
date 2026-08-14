@@ -17,4 +17,4 @@ class ProjectModel(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project"):
-        _base_pegboard.BasePegboard.__init__(self, parent, db_obj, None, None)
+        super().__init__(parent, db_obj, None, None)

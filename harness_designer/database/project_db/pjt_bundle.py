@@ -13,7 +13,9 @@ from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultSt
 from .mixins import (
     PartMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
+    StartStopPositionPegboardMixin, StartStopPositionPegboardControl,
     Visible3DMixin, Visible3DControl,
+    VisiblePegboardMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
     from . import pjt_bundle_layout as _pjt_bundle_layout
     from . import pjt_wire as _pjt_wire
     from . import pjt_point3d as _pjt_point3d
+    from . import pjt_point_pegboard as _pjt_point_pegboard
 
     from ...objects import bundle as _bundle_obj
 
@@ -156,7 +159,8 @@ class PJTBundlesTable(PJTTableBase):
 
 
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
-                Visible3DMixin, NameMixin, NotesMixin, SmoothMixin,
+                StartStopPositionPegboardMixin,
+                Visible3DMixin, VisiblePegboardMixin, NameMixin, NotesMixin, SmoothMixin,
                 TablePositionPegMixin, TableHiddenMixin):
     """Represent a PJT bundle in :mod:`harness_designer.database.project_db.pjt_bundle`.
 
@@ -245,6 +249,17 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
             point.delete()
 
+        for point in self.waypoints_pegboard:
+            for row in layouts_table.select('id', point_pegboard_id=point.db_id):
+                layout_db = layouts_table[row[0]]
+                layout_obj = layout_db.get_object()
+                if layout_obj is not None:
+                    layout_obj.delete()
+                else:
+                    layout_db.delete()
+
+            point.delete()
+
         super().delete()
 
     @property
@@ -254,6 +269,16 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         (start and stop themselves are not included -- see
         start_position3d/stop_position3d)."""
         return self._table.db.pjt_points3d_table.for_bundle(self.db_id)
+
+    @property
+    @_check_types.do
+    def waypoints_pegboard(self) -> list["_pjt_point_pegboard.PJTPointPegboard"]:
+        """Every interior peg-board waypoint on this bundle, in chain
+        order (start and stop themselves are not included -- see
+        start_position_pegboard/stop_position_pegboard). No schematic
+        equivalent exists -- bundles are never shown in the schematic
+        view."""
+        return self._table.db.pjt_points_pegboard_table.for_bundle(self.db_id)
 
     @property
     @_check_types.do

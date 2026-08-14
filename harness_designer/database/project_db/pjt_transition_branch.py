@@ -3,7 +3,10 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
-from .mixins import Position3DMixin, PartMixin, TablePositionPegMixin, TableHiddenMixin
+from .mixins import (
+    Position3DMixin, PositionPegboardMixin, VisiblePegboardMixin,
+    PartMixin, TablePositionPegMixin, TableHiddenMixin
+)
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
 from ... import check_types as _check_types
@@ -117,8 +120,8 @@ class PJTTransitionBranchesTable(PJTTableBase):
         return PJTTransitionBranch(self, db_id)
 
 
-class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PartMixin,
-                          TablePositionPegMixin, TableHiddenMixin):
+class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, PartMixin,
+                          VisiblePegboardMixin, TablePositionPegMixin, TableHiddenMixin):
     """Represent a PJT transition branch in :mod:`harness_designer.database.project_db.pjt_transition_branch`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

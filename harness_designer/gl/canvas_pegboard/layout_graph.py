@@ -94,7 +94,7 @@ class PegboardNode:
     Either an anchor (housing/splice/transition/bare-terminal, has a real
     ``point3d_id`` via its own ``objects.objects_pegboard.base_pegboard.BasePegboard``
     subclass) or a peg-board-only waypoint (no 3D counterpart, backed by a
-    ``pjt_points_peg`` row with a non-``NULL`` ``bundle_id``) -- exactly
+    ``pjt_points_pegboard`` row with a non-``NULL`` ``bundle_id``) -- exactly
     one of ``anchor``/``waypoint_id`` is set, the other is ``None``.
     """
 
@@ -203,39 +203,40 @@ def _bundle_strand_color(bundle) -> _color.Color:
 
 @_check_types.do
 def _resolve_chain_endpoint(
-    point3d_id: int,
+    point_pegboard_id: int,
     anchors_by_point3d_id: dict,
     project: "_project.Project",
 ) -> PegboardNode:
-    """Resolve one bundle endpoint (``start_position3d_id``/
-    ``stop_position3d_id``) to a :class:`PegboardNode`.
+    """Resolve one bundle endpoint (``start_position_pegboard_id``/
+    ``stop_position_pegboard_id``) to a :class:`PegboardNode`.
 
-    If an already-built anchor claims this ``point3d_id`` (the endpoint is
-    a housing/splice/transition/bare-terminal), the node wraps that anchor
-    and reuses its (already persistence-aware) ``.x``/``.z`` position.
-    Otherwise this is a plain inline point with nothing else referencing it
-    (e.g. a mid-chain ``PJTBundle`` split with no ``PJTBundleLayout``/anchor
-    at the shared point) -- fall back to the raw ``pjt_points3d`` row's own
-    ``.x``/``.z`` directly; no anchor, no waypoint.
+    If an already-built anchor claims this ``point_pegboard_id`` (the
+    endpoint is a housing/splice/transition/bare-terminal), the node wraps
+    that anchor and reuses its (already persistence-aware) ``.x``/``.z``
+    position. Otherwise this is a plain inline point with nothing else
+    referencing it (e.g. a mid-chain ``PJTBundle`` split with no
+    ``PJTBundleLayout``/anchor at the shared point) -- fall back to the raw
+    ``pjt_points_pegboard`` row's own ``.x``/``.z`` directly; no anchor, no
+    waypoint.
 
-    :param point3d_id: The endpoint's ``pjt_points3d`` row id.
-    :type point3d_id: int
+    :param point_pegboard_id: The endpoint's ``pjt_points_pegboard`` row id.
+    :type point_pegboard_id: int
     :param anchors_by_point3d_id: Every currently live anchor, keyed by its
-        own ``point3d_id`` -- see
-        ``gl.canvas_pegboard.canvas.Canvas._anchors``.
+        own peg-board point id (``anchor.point3d_id``, despite the name --
+        see ``gl.canvas_pegboard.canvas.Canvas._anchors``).
     :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
     :param project: The currently open project (``mainframe.project``).
     :type project: :class:`harness_designer.objects.project.Project`
     :returns: The resolved endpoint node.
     :rtype: :class:`PegboardNode`
     """
-    anchor = anchors_by_point3d_id.get(point3d_id)
+    anchor = anchors_by_point3d_id.get(point_pegboard_id)
     if anchor is not None:
         return PegboardNode(
             x=float(anchor.position.x), z=float(anchor.position.z),
             anchor=anchor, waypoint_id=None)
 
-    point_row = project.ptables.pjt_points3d_table[point3d_id]
+    point_row = project.ptables.pjt_points_pegboard_table[point_pegboard_id]
     return PegboardNode(x=float(point_row.x), z=float(point_row.z),
                         anchor=None, waypoint_id=None)
 
@@ -249,15 +250,16 @@ def build_bundle_chain(
     """Build the ordered node chain for one :class:`PJTBundle` row.
 
     ``[start_node, *waypoint_nodes_in_sequence_order, stop_node]`` --
-    start/stop resolved via :func:`_resolve_chain_endpoint`; waypoints
-    from ``pjt_points_peg_table.for_bundle()`` (already sorted by
+    start/stop resolved via :func:`_resolve_chain_endpoint` against this
+    bundle's own peg-board start/stop points (not its 3D ones); waypoints
+    from ``pjt_points_pegboard_table.for_bundle()`` (already sorted by
     ``.idx``), one :class:`PegboardNode` each (``anchor=None``, since a
-    waypoint has no 3D counterpart by definition).
+    waypoint has no anchor counterpart by definition).
 
     :param bundle: The bundle row whose chain to build.
     :type bundle: :class:`~harness_designer.database.project_db.pjt_bundle.PJTBundle`
     :param anchors_by_point3d_id: Every currently live anchor, keyed by its
-        own ``point3d_id`` (see
+        own peg-board point id (see
         ``gl.canvas_pegboard.canvas.Canvas._anchors``).
     :type anchors_by_point3d_id: dict[int, :class:`~harness_designer.objects.objects_pegboard.base_pegboard.BasePegboard`]
     :param project: The currently open project (``mainframe.project``).
@@ -266,11 +268,11 @@ def build_bundle_chain(
     :rtype: list[:class:`PegboardNode`]
     """
     start_node = _resolve_chain_endpoint(
-        bundle.start_position3d_id, anchors_by_point3d_id, project)
+        bundle.start_position_pegboard_id, anchors_by_point3d_id, project)
     stop_node = _resolve_chain_endpoint(
-        bundle.stop_position3d_id, anchors_by_point3d_id, project)
+        bundle.stop_position_pegboard_id, anchors_by_point3d_id, project)
 
-    waypoint_rows = project.ptables.pjt_points_peg_table.for_bundle(bundle.db_id)
+    waypoint_rows = project.ptables.pjt_points_pegboard_table.for_bundle(bundle.db_id)
     waypoint_nodes = [
         PegboardNode(x=float(row.x), z=float(row.z), anchor=None, waypoint_id=row.db_id)
         for row in waypoint_rows
@@ -376,7 +378,7 @@ def build_bundle_graph(
     all_edges = []
 
     for bundle in project.ptables.pjt_bundles_table:
-        if bundle.start_position3d is None or bundle.stop_position3d is None:
+        if bundle.start_position_pegboard is None or bundle.stop_position_pegboard is None:
             continue
 
         nodes = build_bundle_chain(bundle, anchors_by_point3d_id, project)
@@ -415,7 +417,7 @@ def build_bundle_strands(
     strands = []
 
     for bundle in project.ptables.pjt_bundles_table:
-        if bundle.start_position3d is None or bundle.stop_position3d is None:
+        if bundle.start_position_pegboard is None or bundle.stop_position_pegboard is None:
             continue
 
         width = _safe_bundle_width(bundle)

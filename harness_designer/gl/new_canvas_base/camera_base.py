@@ -670,7 +670,28 @@ class CameraBase:
     @_debug.logfunc
     @_check_types.do
     def Rotate(self, dx: int | float, dy: int | float):
-        raise NotImplementedError
+        """
+        Moves the camera position keeping the focused point locked.
+
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
+        """
+
+        if self.canvas.config.edit2d.enable:
+            # Orbit is unreachable through the mouse/key dispatch layer
+            # while locked (no rotate/pan_tilt binding class exists under
+            # edit2d) — this guard is for direct callers.
+            return
+
+        self._is_dirty = True
+        position = self._rotate_about(
+            dx, dy, self._position, self._focal_position)
+
+        self._position += position - self._position
+        self._send_event(_events.EVT_GL_CAMERA_ORBIT)
 
     @staticmethod
     @_debug.logfunc
@@ -763,7 +784,30 @@ class CameraBase:
     @_debug.logfunc
     @_check_types.do
     def PanTilt(self, dx: int | float, dy: int | float):
-        raise NotImplementedError
+        """
+        Pan and Tilt camera movements.
+
+        Moves the camera center keeping the camera eye locked in place.
+
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
+        """
+
+        if self.canvas.config.edit2d.enable:
+            # Unreachable through normal dispatch while locked; guards the
+            # direct call from _orient_to_mouse_on_focal_plane() (mouse
+            # wheel cursor-reorientation), which bypasses _process_mouse.
+            return
+
+        self._is_dirty = True
+        focal_point = self._rotate_about(
+            dx, dy, self._focal_position, self._position)
+
+        self._focal_position += focal_point - self._focal_position
+        self._send_event(_events.EVT_GL_CAMERA_ROTATE)
 
     @_debug.logfunc
     @_check_types.do
@@ -807,7 +851,54 @@ class CameraBase:
     @_debug.logfunc
     @_check_types.do
     def Walk(self, dx: int | float, dy: int | float, speed: float):
-        raise NotImplementedError
+        """
+        This movement is a bit tricky to explain in terms of camera movement.
+        If you think about what you do as a person when you walk this will
+        mimick as close as I could get to that movement. so basically if you
+        want to walk straight forward and back you get that from this function.
+        That is the same as a Dolly camera movement.
+
+        if you go left and right the movement you get is as if you are turning
+        on the ball of your foot. This is comparable to the "Pan" movement of a
+        camera.
+
+        If you hold left or right and press up or down at the same time you get
+        a combination of the 2 above movements. kind of like what it would be
+        like when you walk in an arc to either left or right.
+
+        :param dx: Mouse delta X coordinate.
+        :type dx: int
+
+        :param dy: Mouse delta Y coordinate.
+        :type dy: int
+
+        :param speed: Speed to move.
+        :type speed: float
+        """
+
+        # Build desired move from input
+        # input_mag = math.sqrt((dx * dx) + (dy * dy))
+        input_mag = math.hypot(dx, dy)
+
+        if input_mag == 0:
+            return
+
+        move_dir = self._right * float(dx) + self._forward * float(dy)
+
+        mdn = np.linalg.norm(move_dir)
+
+        if mdn < 1e-6:
+            return
+
+        move_dir = move_dir / mdn
+        move = move_dir * (input_mag * speed)
+
+        self._is_dirty = True
+        with self._focal_position and self._position:
+            self._focal_position += move
+            self._position += move
+
+        self._send_event(_events.EVT_GL_CAMERA_WALK)
 
     @_debug.logfunc
     @_check_types.do

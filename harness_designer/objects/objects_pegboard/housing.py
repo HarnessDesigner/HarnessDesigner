@@ -6,6 +6,7 @@ from . import base_pegboard as _base_pegboard
 from ...gl.canvas_pegboard import flatten as _flatten
 from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import box as _box
+from ...gl import materials as _materials
 from ... import check_types as _check_types
 
 
@@ -38,33 +39,44 @@ class Housing(_base_pegboard.BasePegboard):
 
         # Placeholder-then-real-model lifecycle, same as Base3D itself
         # (objects.objects_3d.housing.Housing.__init__): a unit box, scaled
-        # to the housing's real width/height/length (reusing obj3d's own
-        # already-computed Scale point, not recomputed here), swapped for
-        # the real mesh once model.load()'s callback fires (_set_model) --
+        # to the housing's own real width/height/length -- swapped for the
+        # real mesh once model.load()'s callback fires (_set_model) --
         # never vbo=None, which would leave position/angle/scale/material
         # unset entirely (see BasePegboard.__init__'s vbo-is-None branch).
+        #
+        # scale/material are built fresh here, never borrowed from
+        # obj3d -- obj3d's own Scale/GLMaterial instances are that OTHER
+        # view's own live, mutable objects; sharing them would silently
+        # couple this view's rendering to whatever the 3D editor happens
+        # to do to its own copies. scale comes straight from the database
+        # (db_obj.scale3d, the one shared physical size -- there is no
+        # separate scale_pegboard, unlike position/angle); material is
+        # rebuilt from the catalog part's own color, mirroring
+        # objects_3d.housing.Housing.__init__'s own construction exactly.
         with parent.mainframe.editor_pegboard.context:
             vbo = _box.create_vbo()
 
-            _base_pegboard.BasePegboard.__init__(
-                self, parent, db_obj,
+            super().__init__(
+                parent, db_obj,
                 vbo=vbo,
-                angle=db_obj.anglepeg,
-                position=db_obj.position_peg,
-                scale=obj3d.scale,
-                material=obj3d.material,
+                angle=db_obj.angle_pegboard,
+                position=db_obj.position_pegboard,
+                scale=db_obj.scale3d,
+                material=_materials.Plastic(self._part.color.ui),
             )
 
-        self.smooth = getattr(obj3d, 'smooth', False)
+        self.smooth = db_obj.smooth
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching
         # (Canvas builds {anchor.point3d_id: anchor} to resolve which live
-        # anchor a bundle chain's start/stop point3d_id claims) -- the
-        # REAL 3D point identity, unrelated to the new position_peg row.
-        self.point3d_id = db_obj.position3d_id
+        # anchor a bundle chain's start/stop point3d_id claims) -- keyed
+        # by this housing's own peg-board point, not its 3D one, so it
+        # actually matches what PJTBundle/PJTWire's own
+        # start_position_pegboard_id/stop_position_pegboard_id reference.
+        self.point3d_id = db_obj.position_pegboard_id
 
         # Seed a sensible initial peg-board position from the real 3D
-        # position -- only the first time ever (position_peg starts at the
+        # position -- only the first time ever (position_pegboard starts at the
         # (0.0, 0.0) fresh-row default, same sentinel convention
         # _apply_flatten_if_untouched uses for rotation).
         if self._position.x == 0.0 and self._position.z == 0.0:
