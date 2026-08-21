@@ -8,6 +8,7 @@ from . import paths as _paths
 from . import mesh_normals as _mn
 from . import bounding_boxes as _bb
 from . import model_utils as _mu
+from . import window_geometry as _wg
 
 
 mm2_to_awg = _wc.mm2_to_awg
@@ -46,6 +47,8 @@ compute_obb = _bb.compute_obb
 compute_edges = _mu.compute_edges
 convert_model_to_mesh = _mu.convert_model_to_mesh
 
+safe_center = _wg.safe_center
+
 
 del _wc
 del _remap
@@ -55,3 +58,4 @@ del _paths
 del _mn
 del _bb
 del _mu
+del _wg

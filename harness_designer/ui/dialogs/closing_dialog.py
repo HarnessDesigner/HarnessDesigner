@@ -73,23 +73,24 @@ class ClosingDialog(QtWidgets.QDialog):
     def _center_on_parent(self) -> None:
         """Center this dialog over its parent window.
 
-        If that would place any part of the dialog outside the visible
-        area of the screen the parent is mostly displayed on, center on
-        that screen instead -- see dialog_base.BaseDialog._center_on_parent
-        for why (mostly-off-screen parent windows).
+        Multi-monitor-safe -- see
+        ``dialog_base.BaseDialog._center_on_parent`` for why (mostly-off-
+        screen parent windows) and ``utils/window_geometry.py``'s
+        ``safe_center`` for the shared logic.
         """
         parent = self.parent()
 
         if parent is None:
             return
 
+        from ... import utils as _utils
+
         parent_geo = parent.frameGeometry()
         geo = self.frameGeometry()
-        geo.moveCenter(parent_geo.center())
 
-        screen = parent.screen()
-        if screen is not None and not screen.availableGeometry().contains(geo):
-            geo.moveCenter(screen.availableGeometry().center())
+        center = _utils.safe_center(
+            parent_geo, (geo.width(), geo.height()))
+        geo.moveCenter(center)
 
         self.move(geo.topLeft())
 

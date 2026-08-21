@@ -94,25 +94,31 @@ class BaseDialog(QtWidgets.QDialog):
     def _center_on_parent(self):
         """Center this dialog on its parent window.
 
-        If the parent is positioned such that centering on it would push
-        any part of the dialog outside the visible area of the screen the
-        parent is mostly displayed on (e.g. the main window was dragged
-        mostly off-screen before the app was closed), center on that
-        screen instead -- otherwise the dialog itself would open
-        off-screen, and since it's modal there would be no way to move it
-        or the parent back into view without editing the saved window
-        position directly in the database.
+        Multi-monitor-safe: if centering on the parent would push any
+        part of the dialog outside the union of every connected display's
+        own available area (e.g. the main window was dragged mostly
+        off-screen, or moved to a monitor since disconnected, before the
+        app was closed), centers on whichever single display holds the
+        most of the parent's own rectangle instead -- otherwise the
+        dialog itself would open off-screen, and since it's modal there
+        would be no way to move it or the parent back into view without
+        editing the saved window position directly in the database. See
+        ``utils/window_geometry.py``'s ``safe_center`` (shared with
+        :class:`~harness_designer.ui.dialogs.closing_dialog.ClosingDialog`
+        and the startup splash screen, which all center themselves the
+        same way).
         """
         if self.parent() is None:
             return
 
+        from ... import utils as _utils
+
         parent_geo = self.parent().frameGeometry()
         geo = self.frameGeometry()
-        geo.moveCenter(parent_geo.center())
 
-        screen = self.parent().screen()
-        if screen is not None and not screen.availableGeometry().contains(geo):
-            geo.moveCenter(screen.availableGeometry().center())
+        center = _utils.safe_center(
+            parent_geo, (geo.width(), geo.height()))
+        geo.moveCenter(center)
 
         self.move(geo.topLeft())
 

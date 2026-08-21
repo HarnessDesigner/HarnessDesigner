@@ -265,16 +265,16 @@ class Splash:
         Falls back to centering on the primary display outright when
         ``position``/``size`` aren't set yet (first-ever launch -- the
         mainframe's own default-geometry logic, in MainFrame.__init__,
-        hasn't run yet the first time this is called), and again when the
-        remembered rectangle would put the splash even partially off of
-        every display at once (e.g. an external monitor that held the
-        mainframe last session is no longer connected) -- in that case,
-        centers on whichever display holds the most of the mainframe's
-        own remembered rectangle instead of the (now meaningless) exact
-        remembered position.
+        hasn't run yet the first time this is called). The remaining
+        multi-monitor safety (falling back to whichever display holds the
+        most of the mainframe's own remembered rectangle when the exact
+        remembered position is no longer fully on-screen) is shared with
+        every other borderless window that centers itself the same way --
+        see ``utils/window_geometry.py``'s ``safe_center``.
         """
 
         from . import config as _config
+        from . import utils as _utils
 
         mf_config = _config.Config.mainframe
         position = mf_config.position
@@ -285,38 +285,11 @@ class Splash:
 
         if position is None or size is None or not screens:
             center = primary.availableGeometry().center()
-            self._window.move(center - self._window.rect().center())
-            return
-
-        mf_rect = QtCore.QRect(
-            int(position[0]), int(position[1]), int(size[0]), int(size[1]))
-
-        win_w, win_h = self._size
-        candidate = QtCore.QRect(0, 0, win_w, win_h)
-        candidate.moveCenter(mf_rect.center())
-
-        # Union of every display's own available area -- if *candidate*
-        # isn't fully contained in it, some part of the splash would
-        # render off of every display at once.
-        union = QtGui.QRegion()
-        for screen in screens:
-            union += QtGui.QRegion(screen.availableGeometry())
-
-        if QtGui.QRegion(candidate).subtracted(union).isEmpty():
-            center = mf_rect.center()
         else:
-            target_screen = primary
-            best_area = -1
+            mf_rect = QtCore.QRect(
+                int(position[0]), int(position[1]), int(size[0]), int(size[1]))
 
-            for screen in screens:
-                overlap = screen.availableGeometry().intersected(mf_rect)
-                area = overlap.width() * overlap.height()
-
-                if area > best_area:
-                    best_area = area
-                    target_screen = screen
-
-            center = target_screen.availableGeometry().center()
+            center = _utils.safe_center(mf_rect, self._size)
 
         self._window.move(center - self._window.rect().center())
 

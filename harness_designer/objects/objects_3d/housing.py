@@ -152,11 +152,32 @@ class Housing(_base_3d.Base3D):
         self._surf_to_cavity: dict = {}
         self._cavity_markers: list = []
         self._selected_marker_idx: int = -1
-        # Reused scratch VBO for every decal drawn by _draw_overlay_faces
-        # (surface pick highlight, cavity markers, terminal overlays) --
-        # one draw at a time, re-uploaded per call, never more than one
-        # decal's worth of geometry live in it at once.
-        self._overlay_vbo: "_vbo.NonPooledVBOHandler | None" = None
+        # One persistent VBO per decal drawn by _draw_overlay_faces (keyed
+        # by ('surf', surf_idx) / ('marker', marker_idx)) -- these decals
+        # redraw every single frame (persistent cavity markers, every
+        # seated terminal's overlay), and this housing's own render() runs
+        # more than once per frame while selected (see
+        # canvas_base.CanvasBase._draw_scene's deferred color + depth-only
+        # passes for a selected translucent object), so a naive
+        # recompute-and-reupload on every call made camera movement
+        # visibly stutter with any cavities/terminals selected. Two
+        # caches keep repeat calls (same frame's extra render() pass, or a
+        # later frame where only the camera -- not this housing -- moved)
+        # cheap:
+        # - _overlay_positions[key]: the exact positions_world array
+        #   object last drawn for this key, kept alive so an `is` check
+        #   in _draw_overlay_faces can skip the normal/pack/GPU-upload
+        #   work entirely when the caller hands back the same object.
+        # - _overlay_geom_cache[key]: (transform_stamp, positions_world) --
+        #   lets render_surface_overlay/render_marker_overlay/
+        #   _render_cavity_markers skip re-gathering + re-transforming a
+        #   decal's own local vertices (an indexed-array times a matrix,
+        #   done fresh every call previously) whenever this housing's own
+        #   rotation/scale/position haven't changed since. See
+        #   _overlay_transform_stamp.
+        self._overlay_vbos: dict = {}
+        self._overlay_positions: dict = {}
+        self._overlay_geom_cache: dict = {}
 
         if model is not None:
             model.load(self._part.manufacturer.name,
@@ -577,7 +598,8 @@ class Housing(_base_3d.Base3D):
         self._picker.clear_selection()
 
     @_check_types.do
-    def _draw_overlay_faces(self, faces_program, positions_world: np.ndarray, color) -> None:
+    def _draw_overlay_faces(self, faces_program, key,
+                            positions_world: np.ndarray, color) -> None:
         """Draw a translucent decal directly on top of already-rendered
         geometry, through the same modern faces_program shader pipeline
         every other mesh face in the scene renders through.
@@ -594,27 +616,58 @@ class Housing(_base_3d.Base3D):
         fly since a decal has no real surface curvature of its own to
         shade smoothly. *color* is an RGBA sequence with components in
         the 0.0-1.0 range (matches ``GLMaterial.diffuse``).
+
+        *key* identifies this decal's own persistent VBO (e.g.
+        ``('surf', surf_idx)``/``('marker', marker_idx)`` -- the same
+        underlying mesh surface/marker always reuses the same key
+        regardless of which caller is currently coloring it) --
+        re-uploaded to the GPU only when *positions_world* actually
+        differs from what's already there, not on every call. These
+        decals are redrawn every single frame (persistent cavity markers,
+        every seated terminal's overlay) and this housing's own render()
+        already runs more than once per frame while selected (see
+        ``CanvasBase._draw_scene``'s deferred color + depth-only passes
+        for a selected translucent object) -- reallocating a fresh GL
+        buffer on every one of those calls made camera movement visibly
+        stutter whenever a housing with any cavities/terminals was
+        selected.
         """
         vert_count = len(positions_world)
         if vert_count == 0 or vert_count % 3 != 0:
             return
 
-        tris = positions_world.reshape(-1, 3, 3).astype(np.float64)
-        normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
-        lengths = np.linalg.norm(normals, axis=1, keepdims=True)
-        lengths[lengths < 1e-12] = 1.0
-        normals = np.repeat((normals / lengths).astype(np.float32), 3, axis=0)
+        vbo = self._overlay_vbos.get(key)
 
-        packed = np.concatenate([
-            positions_world.astype(np.float32).reshape(-1),
-            normals.reshape(-1),
-            normals.reshape(-1),
-        ])
-
-        if self._overlay_vbo is None:
-            self._overlay_vbo = _vbo.NonPooledVBOHandler(packed, vert_count)
+        # positions_world is itself cache-returned unchanged by the caller
+        # (see _overlay_geom_cache/_overlay_transform_stamp) whenever this
+        # housing's transform hasn't moved since it was last computed --
+        # an identity match here means the normal/pack/upload work below
+        # would only reproduce what's already on the GPU, so skip all of
+        # it (kept alive in self._overlay_positions specifically so this
+        # `is` check can never accidentally match a *different*, GC'd-and-
+        # reused array at the same address).
+        if vbo is not None and self._overlay_positions.get(key) is positions_world:
+            pass
         else:
-            self._overlay_vbo.update(packed, vert_count)
+            tris = positions_world.reshape(-1, 3, 3).astype(np.float64)
+            normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+            lengths = np.linalg.norm(normals, axis=1, keepdims=True)
+            lengths[lengths < 1e-12] = 1.0
+            normals = np.repeat((normals / lengths).astype(np.float32), 3, axis=0)
+
+            packed = np.concatenate([
+                positions_world.astype(np.float32).reshape(-1),
+                normals.reshape(-1),
+                normals.reshape(-1),
+            ])
+
+            if vbo is None:
+                vbo = _vbo.NonPooledVBOHandler(packed, vert_count)
+                self._overlay_vbos[key] = vbo
+            else:
+                vbo.update(packed, vert_count)
+
+            self._overlay_positions[key] = positions_world
 
         # Color() treats a float channel as already 0.0-1.0 and scales it
         # to 0-255 itself (see color.py's __init__) -- color's components
@@ -639,7 +692,7 @@ class Housing(_base_3d.Base3D):
         GL.glEnable(GL.GL_POLYGON_OFFSET_FILL)
         GL.glPolygonOffset(-1.0, -1.0)
 
-        self._overlay_vbo.render()
+        vbo.render()
 
         GL.glDisable(GL.GL_POLYGON_OFFSET_FILL)
         GL.glPolygonOffset(0.0, 0.0)
@@ -676,7 +729,7 @@ class Housing(_base_3d.Base3D):
         idx = (tri_arr[:, None] * 3 + np.arange(3, dtype=np.int64)).ravel()
         positions = ((verts[idx] * scale) @ rot + pos).astype(np.float32)
 
-        self._draw_overlay_faces(faces_program, positions, color)
+        self._draw_overlay_faces(faces_program, ('surf', surf_idx), positions, color)
 
     @_check_types.do
     def render_marker_overlay(self, faces_program, marker_idx: int, color) -> None:
@@ -701,7 +754,7 @@ class Housing(_base_3d.Base3D):
         positions = ((marker.local_verts.astype(np.float64) * scale) @
                      rot + pos).astype(np.float32)
 
-        self._draw_overlay_faces(faces_program, positions, color)
+        self._draw_overlay_faces(faces_program, ('marker', marker_idx), positions, color)
 
     @_check_types.do
     def _render_cavity_markers(self, faces_program) -> None:
@@ -725,11 +778,30 @@ class Housing(_base_3d.Base3D):
                          rot + pos).astype(np.float32)
 
             color = selected_color if i == self._selected_marker_idx else default_color
-            self._draw_overlay_faces(faces_program, positions, color)
+            self._draw_overlay_faces(faces_program, ('marker', i), positions, color)
 
     @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         super().render(faces_program, edges_program, vertices_program)
+
+        # CanvasBase._draw_scene runs a selected translucent object's own
+        # render() a *second* time per frame -- a depth-only "supplemental"
+        # pass (glColorMask all-FALSE) purely so this housing's own depth
+        # gets written before the floor draws, since the first (color)
+        # pass deliberately left depth writes off. None of the overlay
+        # decals below are visible with color masked off, and none of
+        # them ever write depth themselves either (each disables its own
+        # GL_DEPTH_WRITEMASK) -- so on that pass they're pure wasted work:
+        # every decal still re-toggles GL_POLYGON_OFFSET_FILL/depth-mask
+        # state and rebinds/unbinds faces_program around itself, on top
+        # of whatever state churn the outer depth-only pass already set
+        # up. This is what actually made camera movement stutter with a
+        # housing selected -- not simply "more draw calls" (200 unselected
+        # housings with terminals, each drawing these same overlays once,
+        # cause no stutter at all; selecting even one does) -- skip it
+        # entirely rather than doing it twice every frame.
+        if not any(GL.glGetBooleanv(GL.GL_COLOR_WRITEMASK)):
+            return
 
         self._render_cavity_markers(faces_program)
         self._render_terminal_overlays(faces_program)
@@ -764,9 +836,19 @@ class Housing(_base_3d.Base3D):
 
     @_check_types.do
     def _delete(self):
-        """Clean up the picker before delegating to Base3D."""
+        """Clean up the picker and every overlay-decal VBO before
+        delegating to Base3D."""
         self._picker.cleanup()
         self._picker = None
+
+        if self._overlay_vbos:
+            with self.mainframe.editor3d.context:
+                for vbo in self._overlay_vbos.values():
+                    vbo.release()
+
+            self._overlay_vbos = {}
+            self._overlay_cache = {}
+
         super()._delete()
 
     @_check_types.do
