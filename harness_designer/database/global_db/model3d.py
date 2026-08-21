@@ -82,7 +82,7 @@ class Models3DTable(TableBase):
         """
 
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Model3D or item in self:
                 return Model3D(self, item)
 
             raise IndexError(str(item))

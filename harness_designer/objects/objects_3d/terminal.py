@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QMenu
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
@@ -23,13 +23,13 @@ if TYPE_CHECKING:
     from .. import terminal as _terminal
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 _BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 _GENERIC_MODEL_PATH = os.path.join(_BASE_PATH, 'models')
 
 
-class Terminal(_base3d.Base3D):
+class Terminal(_base_3d.Base3D):
     """Represent a terminal in :mod:`harness_designer.objects.objects_3d.terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -133,9 +133,7 @@ class Terminal(_base3d.Base3D):
             scale = _point.Point(width, height, length)
             angle = db_obj.angle3d
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, db_obj.position3d,
-                scale, material)
+            super().__init__(parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
             # Cavity surface overlay (wire-side always, pin-side for
             # female/undetermined-gender terminals) — resolved lazily in
@@ -165,6 +163,24 @@ class Terminal(_base3d.Base3D):
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_terminals
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def _set_model(self, model):
@@ -338,7 +354,7 @@ class Terminal(_base3d.Base3D):
         ):
             point += delta
 
-        _base3d.Base3D._update_position(self, position)
+        super()._update_position(position)
 
     @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
@@ -367,7 +383,7 @@ class Terminal(_base3d.Base3D):
             point @= angle
             point += self._o_position
 
-        _base3d.Base3D._update_angle(self, angle)
+        super()._update_angle(angle)
 
     @property
     @_check_types.do

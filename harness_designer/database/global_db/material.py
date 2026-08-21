@@ -78,7 +78,7 @@ class MaterialsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Material or item in self:
                 return Material(self, item)
 
             raise IndexError(str(item))

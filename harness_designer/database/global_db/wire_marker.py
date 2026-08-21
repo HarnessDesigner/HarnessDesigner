@@ -112,7 +112,7 @@ class WireMarkersTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in WireMarker or item in self:
                 return WireMarker(self, item)
 
             raise IndexError(str(item))

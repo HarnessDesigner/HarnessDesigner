@@ -7,11 +7,15 @@ from ...gl import materials as _materials
 from ...shapes import cylinder_helix as _cylinder_helix
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ... import config as _config
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
     from .. import wire_service_loop as _wire_service_loop
+
+
+Config = _config.Config.editor_pegboard
 
 
 # First-pass, fixed placement margin (mm) -- how far off a housing's own
@@ -52,6 +56,23 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire_service_loop.PJTWireServiceLoop`
         """
+
+        # Y axis is honored -- start_position_pegboard already stores a
+        # real x/y/z (pjt_points_pegboard has all 3 columns, see
+        # PJTPointPegboard.point), no separate handling needed here.
+        #
+        # angle_pegboard starts at identity (fresh-row default), same as
+        # housing/terminal's own -- unlike transition's fixed local mesh
+        # convention (always confined to Z=0, so a single corrective
+        # rotation is always correct), this mesh's "natural" coil
+        # orientation isn't a simple fixed offset the way a straight
+        # part's is (see shapes/cylinder_helix.py's own path-following
+        # construction), so no seed rotation is applied here -- the user
+        # rotates it to taste once, same as housing/terminal, rather
+        # than this guessing at a default that might read backwards.
+        #
+        # The only time the wire service loops will be rendered is if
+        # there is no boot or if the boot is not visible.
         self._part = db_obj.part
 
         # scale/material built fresh from the catalog part's own data,
@@ -74,8 +95,6 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
                 material=material,
             )
 
-        self.smooth = db_obj.smooth
-
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
         # a service loop has no single position_pegboard the way housing/
         # terminal/transition/splice do (StartStopPositionPegboardMixin,
@@ -91,6 +110,24 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         # uses -- see housing.py's own comment on this).
         if self._position.x == 0.0 and self._position.z == 0.0:
             self._seed_position_near_housing()
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wires
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def _seed_position_near_housing(self) -> None:

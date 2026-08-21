@@ -78,7 +78,7 @@ class SeriesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Series or item in self:
                 return Series(self, item)
 
             raise IndexError(str(item))

@@ -19,10 +19,8 @@ if TYPE_CHECKING:
     from .. import wire_layout as _wire_layout
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
-
-# TODo: add render function
 
 class WireLayout(_base_schematic.BaseSchematic):
     """
@@ -33,10 +31,12 @@ class WireLayout(_base_schematic.BaseSchematic):
     ``schematic2d`` shader already does the full 3D lighting/transform
     before projecting to 2D, so there's no need for a flat-only mesh
     here -- on the VBO/shader pipeline (see ``objects_schematic/base_schematic.py``'s
-    ``BaseSchematic``). Colored to match its attached wire, sized at a fixed
-    ``Config.editor2d.wire_layout.diameter`` (rather than the wire's
-    real ``od_mm`` like the 3D editor) so it stays comfortably larger
-    than the fixed-width 2D wire regardless of gauge.
+    ``BaseSchematic``). Colored to match its attached wire (falls back to
+    a fixed gray in the shouldn't-normally-happen case of no attached
+    wires), sized at the SAME fixed ``Config.editor_schematic.wire.diameter``
+    ``objects_schematic/wire.py``'s ``Wire`` itself renders at (not the
+    wire's real ``od_mm``) -- deliberately never a different size from
+    the wire it sits on.
     """
     _parent: "_wire_layout.WireLayout" = None
     db_obj: "_pjt_wire_layout.PJTWireLayout"
@@ -71,12 +71,33 @@ class WireLayout(_base_schematic.BaseSchematic):
         color = wires[0].part.color.ui if wires else _color.Color(0.5, 0.5, 0.5, 1.0)
         material = _materials.Generic(color)
 
-        diameter = Config.wire_layout.diameter
+        # Same fixed value objects_schematic/wire.py's Wire itself uses --
+        # deliberately never a different size from the wire it sits on,
+        # not the wire's real od_mm.
+        diameter = Config.object_sizes.wire.diameter
         scale = _point.Point(diameter, diameter, diameter)
 
         with parent.mainframe.editor2d.editor.context:
             vbo = _sphere.create_vbo()
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wires
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
 
 class WireLayoutMenu(QMenu):

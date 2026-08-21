@@ -386,5 +386,6 @@ pjt_table = _con.SQLTable(
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL')
 )

@@ -19,10 +19,8 @@ if TYPE_CHECKING:
     from .. import splice as _splice
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
-
-# TODO: add render function
 
 class Splice(_base_schematic.BaseSchematic):
     """
@@ -60,13 +58,31 @@ class Splice(_base_schematic.BaseSchematic):
         # WireLayout already uses for the same reason.
         angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
-        diameter = Config.splice.diameter
+        diameter = Config.object_sizes.splice.diameter
         scale = _point.Point(diameter, diameter, diameter)
         material = _materials.Generic(_color.Color(*Config.colors.splice))
 
         with parent.mainframe.editor2d.editor.context:
             vbo = _sphere.create_vbo()
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_splices
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
 
 class SpliceMenu(QMenu):

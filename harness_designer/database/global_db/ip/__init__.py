@@ -81,7 +81,7 @@ class IPRatingsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in IPRating or item in self:
                 return IPRating(self, item)
 
             raise IndexError(str(item))

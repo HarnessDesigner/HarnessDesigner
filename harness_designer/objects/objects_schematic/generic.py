@@ -34,4 +34,8 @@ class Generic(_base_schematic.BaseSchematic):
         :type parent: :class:`_generic.Generic`
         """
 
-        super().__init__(parent, None, None, None, None, None, None)
+        super().__init__(parent, None, None, None,
+                         None, None, None)
+
+    def render(self, _, __, ___):
+        pass

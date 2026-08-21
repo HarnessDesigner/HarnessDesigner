@@ -11,19 +11,20 @@ from . import base_schematic as _base_schematic
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
+from ... import config as _config
 from ...gl import materials as _materials
 from ...shapes import cylinder as _cylinder
 from ... import logger as _logger
 from ... import check_types as _check_types
 
 
+Config = _config.Config.editor_schematic
+
+
 if TYPE_CHECKING:
     from .. import wire_marker as _wire_marker
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
     from ...database.project_db import pjt_wire as _pjt_wire
-
-
-# TODO: add render function
 
 
 class WireMarker(_base_schematic.BaseSchematic):
@@ -96,13 +97,15 @@ class WireMarker(_base_schematic.BaseSchematic):
 
             material = _materials.Generic(self._part.color.ui)
 
-            diameter = wire.part.od_mm
+            # Same fixed value objects_schematic/wire.py's Wire itself
+            # renders at (not the wire's real od_mm) -- bumped up by a
+            # small, fixed amount (not stripe-dependent) purely so the
+            # marker band's own surface renders just outside the wire's,
+            # avoiding z-fighting between the two coincident cylinders.
+            diameter = Config.object_sizes.wire.diameter + 0.02
             length = self._marker_length
 
-            if wire.has_stripe:
-                scale = _point.Point(diameter + 0.22, diameter + 0.22, length)
-            else:
-                scale = _point.Point(diameter + 0.05, diameter + 0.05, length)
+            scale = _point.Point(diameter, diameter, length)
 
             vbo = _cylinder.create_vbo()
 
@@ -117,6 +120,24 @@ class WireMarker(_base_schematic.BaseSchematic):
             wire_p2.bind(self._update_position)
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wire_markers
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def _wire_too_short(self, length: float) -> bool:

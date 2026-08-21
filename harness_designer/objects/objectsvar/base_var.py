@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Union
 
 import numpy as np
+from OpenGL import GL
 
 from ... import color as _color
 from ...geometry import point as _point
@@ -13,13 +14,13 @@ from ... import utils as _utils
 from ...gl import vbo as _vbo
 from ... import check_types as _check_types
 
-
-Config = _config.Config.colors
-
-
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
     from .. import ObjectBase as _ObjectBase
+
+
+Config = _config.Config.colors
+_debug_config = _config.Config.debug.rendering3d
 
 
 class BaseVar:
@@ -84,6 +85,35 @@ class BaseVar:
 
         self._compute_obb()
         self._compute_aabb()
+
+        if db_obj is not None:
+            try:
+                self._smooth = db_obj.smooth  # NOQA
+
+                db_obj.bind(self.__update_smooth, 'smooth')
+            except AttributeError:
+                self._smooth = True
+        else:
+            self._smooth = True
+
+    def __update_smooth(self, *_, **__):
+        self._smooth = self.db_obj.smooth  # NOQA
+
+    @property
+    def smooth(self) -> bool:
+        if self._smooth is None:
+            return True
+
+        return self._smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @property
     @_check_types.do
@@ -619,3 +649,375 @@ class BaseVar:
         """
 
         raise NotImplementedError
+
+    @_check_types.do
+    def touching_budgets(self) -> list:
+        """
+        Return every ``(neighbor_x, neighbor_z, max_length_mm)`` length
+        budget constraining how far this object can move, in whichever
+        view enforces such a thing (currently only the peg-board view --
+        see ``objects.objects_pegboard.chain_edges``).
+
+        Default: no constraints. Overridden by whichever peg-board object
+        types actually sit on a wire/bundle chain (anchors touching one
+        end, wire-layout/bundle-layout waypoints touching two) -- a
+        drag handler clamps its candidate position against every entry
+        this returns, independently, never moving anything else (see
+        ``drag_handlers.editor_pegboard``'s "it will not pull the things
+        that are at the other ends" rule).
+
+        Guaranteed to exist on every object in every view.
+
+        :rtype: list[tuple[float, float, float]]
+        """
+        return []
+
+    @_check_types.do
+    def can_drag(self) -> bool:
+        """
+        Return whether this object can currently be dragged via the mouse
+        in this view.
+
+        Default: True whenever this object has a real position (a
+        rendering-presence-only object with ``position is None`` can
+        never be dragged). Override to reject dragging outright for a
+        specific object type/view (return False -- e.g. a seal, which
+        can never be moved by mouse in any view), or to gate on runtime
+        state (e.g. a terminal currently seated in a cavity).
+
+        Guaranteed to exist on every object in every view -- canvas-level
+        drag dispatch calls this unconditionally, never checking
+        ``hasattr``/type first.
+
+        :rtype: bool
+        """
+        return self._position is not None
+
+    @_check_types.do
+    def drag(self, delta: _point.Point) -> None:
+        """
+        Apply a world-space drag *delta*.
+
+        Default: translate this object's own position directly
+        (``self._position += delta``). Override for object-specific
+        movement that isn't a plain translation (e.g. a splice/wire-
+        marker/wire-service-loop that must follow along a wire instead
+        of moving freely -- see the object-type drag rules), or make
+        this a no-op when :meth:`can_drag` returns False for this
+        type/view combination (the default no-op below already covers
+        that case as long as :meth:`can_drag` is also overridden to
+        match -- callers are expected to check :meth:`can_drag` first,
+        but this stays safe to call unconditionally regardless).
+
+        :param delta: World-space delta to apply this frame.
+        :type delta: :class:`_point.Point`
+        """
+        if self._position is not None:
+            self._position += delta
+
+    @_check_types.do
+    def can_rotate(self) -> bool:
+        """
+        Return whether this object can currently be rotated via the
+        rotation-ring gizmo in this view.
+
+        Default: True whenever this object has a real angle. Override to
+        reject rotation outright for a specific object type/view, or to
+        gate on runtime state, mirroring :meth:`can_drag`.
+
+        Guaranteed to exist on every object in every view.
+
+        :rtype: bool
+        """
+        return self._angle is not None
+
+    @_check_types.do
+    def rotate(self, axis: str, value: float) -> None:
+        """
+        Apply a rotation-drag angle *value* (degrees) to Euler *axis*.
+
+        Default: write straight through to the live
+        :class:`~harness_designer.geometry.angle.Angle` (``setattr``) --
+        its own bound callbacks already handle everything else (DB
+        write, cascades, geometry refresh). Override as a no-op (or to
+        reject/clamp) when this view/type combination doesn't support
+        rotation the way the generic default assumes -- pair with a
+        matching :meth:`can_rotate` override so the gizmo is never even
+        offered in the first place.
+
+        :param axis: ``'x'``, ``'y'`` or ``'z'``.
+        :type axis: str
+        :param value: New Euler value in degrees.
+        :type value: float
+        """
+        if self._angle is not None:
+            setattr(self._angle, axis, value)
+
+    @_check_types.do
+    def _render_geometry(self, pos_loc, rot_loc, scale_loc, normal_loc=None):
+        """Render the object geometry using the active shader program.
+
+        Called by render() for each rendering pass (faces, edges, normals, vertices).
+        Sets the per-object transform uniforms (position, rotation, scale) and
+        issues the draw call via vertex attribute arrays or the VBO.
+        """
+
+        if self._vbo is None:
+            return
+
+        if normal_loc is not None:
+            GL.glUniform1i(normal_loc, int(getattr(self, 'smooth', False)))
+
+        GL.glUniform3f(pos_loc, *self._position.as_float)
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
+        GL.glUniform3f(scale_loc, *self._scale.as_float)
+
+        self._vbo.render()
+
+    def _render_selected(self):
+        pass
+
+    @_check_types.do
+    def render(self, faces_program, edges_program, vertices_program):
+        """
+        Execute the render operation.
+
+        :param faces_program: Value for ``faces_program``.
+        :type faces_program: UNKNOWN
+
+        :param edges_program: Value for ``edges_program``.
+        :type edges_program: UNKNOWN
+
+        :param vertices_program: Value for ``vertices_program``.
+        :type vertices_program: UNKNOWN
+        """
+
+        if not self.is_visible:
+            return
+
+        if self._vbo is None:
+            return
+
+        if self._vbo.is_dirty:
+            self._compute_aabb()
+            self._compute_obb()
+
+        if _debug_config.draw_faces:
+            GL.glUseProgram(faces_program)
+
+            self.material.set(faces_program)
+
+            # Set object transformation uniforms
+            pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+            normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
+
+            self._render_geometry(pos_loc, rot_loc, scale_loc, normal_loc)
+            GL.glUseProgram(0)
+
+        if _debug_config.draw_edges:
+            material_color = self.material.diffuse[:3]  # Get RGB
+
+            # Calculate perceived brightness using standard luminance formula
+            # Human eye perceives green more than red, and red more than blue
+            luminance = (0.299 * material_color[0] +
+                         0.587 * material_color[1] +
+                         0.114 * material_color[2])
+
+            if luminance < _debug_config.edge_luminance_threshold:
+                e_color = _debug_config.edge_color_dark[:] + [1.0]
+            else:
+                e_color = _debug_config.edge_color_light[:] + [1.0]
+
+            GL.glUseProgram(edges_program)
+
+            material = _materials.Metallic(_color.Color(*e_color))
+
+            material.set(edges_program)
+
+            pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
+            render_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            normal_loc = GL.glGetUniformLocation(edges_program, "normalMode")
+
+            GL.glUniform1i(render_loc, 0)
+
+            self._render_geometry(pos_loc, rot_loc, scale_loc, normal_loc)
+
+            GL.glUseProgram(0)
+
+        if _debug_config.draw_normals:
+            p1, p2 = self.aabb
+            width = abs(p2[0] - p1[0])
+            height = abs(p2[1] - p1[1])
+            depth = abs(p2[2] - p1[2])
+            smallest_dimension = min(width, height, depth)
+            dynamic_normal_length = smallest_dimension / 10.0
+
+            GL.glUseProgram(edges_program)
+
+            color = _debug_config.normals_color[:] + [1.0]
+            material = _materials.Glowing(_color.Color(*color))
+            material.set(edges_program)
+
+            pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
+            render_loc = GL.glGetUniformLocation(edges_program, "renderMode")
+            normal_length_loc = GL.glGetUniformLocation(edges_program, "normalLength")
+            normal_loc = GL.glGetUniformLocation(edges_program, "normalMode")
+
+            GL.glUniform1i(render_loc, 1)
+            GL.glUniform1f(normal_length_loc, dynamic_normal_length)
+
+            self._render_geometry(pos_loc, rot_loc, scale_loc, normal_loc)
+            GL.glUseProgram(0)
+
+        if _debug_config.draw_vertices:
+            GL.glUseProgram(vertices_program)
+
+            pos_loc = GL.glGetUniformLocation(vertices_program, "objectPosition")
+            rot_loc = GL.glGetUniformLocation(vertices_program, "objectRotation")
+            scale_loc = GL.glGetUniformLocation(vertices_program, "objectScale")
+            vertex_color_loc = GL.glGetUniformLocation(vertices_program, "vertexColor")
+
+            GL.glUniform3f(vertex_color_loc, *_debug_config.vertices_color)  # Red vertices
+
+            self._render_geometry(pos_loc, rot_loc, scale_loc)
+
+            GL.glUseProgram(0)
+
+        if self.is_selected:
+            self._render_selected()
+
+    @_check_types.do
+    def _render_aabb(self):
+        """Render the AABB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
+        aabb = self.aabb
+
+        x1, y1, z1 = aabb[0]
+        x2, y2, z2 = aabb[1]
+
+        vertices = np.array([
+                [x1, y1, z1],  # 0: bottom-left-front
+                [x2, y1, z1],  # 1: bottom-right-front
+                [x2, y2, z1],  # 2: top-right-front
+                [x1, y2, z1],  # 3: top-left-front
+                [x1, y1, z2],  # 4: bottom-left-back
+                [x2, y1, z2],  # 5: bottom-right-back
+                [x2, y2, z2],  # 6: top-right-back
+                [x1, y2, z2],  # 7: top-left-back
+            ], dtype=np.float32)
+
+        edges = np.array([
+                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
+                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
+                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
+            ], dtype=np.int32)
+
+        @_check_types.do
+        def _render_edges(v, e):
+            """Render the edges.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param e: Value for ``e``.
+            :type e: UNKNOWN
+            """
+            e = v[e].reshape(-1, 3)
+            GL.glLineWidth(1.5)
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
+            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
+
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        # render edges
+        GL.glColor4f(1.0, 0.2, 0.2, 1.0)
+        _render_edges(vertices, edges)
+
+    @_check_types.do
+    def _render_obb(self):
+        """Render the OBB.
+
+        UNKNOWN details are inferred from the callable name and signature.
+        """
+        vertices = self.obb
+
+        faces = np.array([
+                (0, 1, 2, 3),  # front
+                (5, 4, 7, 6),  # back
+                (4, 0, 3, 7),  # left
+                (1, 5, 6, 2),  # right
+                (3, 2, 6, 7),  # top
+                (4, 5, 1, 0),  # bottom
+            ], dtype=np.int32)
+
+        edges = np.array([
+                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
+                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
+                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
+            ], dtype=np.int32)
+
+        @_check_types.do
+        def _render_bb(v, f):
+            """Render the bb.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param f: Value for ``f``.
+            :type f: UNKNOWN
+            """
+            vers, normals, count = _utils.compute_face_normals(v, f)
+
+            # Enable vertex arrays
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+            GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
+
+            # Set pointers
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, vers)
+            GL.glNormalPointer(GL.GL_FLOAT, 0, normals)
+
+            # Draw all quads
+            GL.glDrawArrays(GL.GL_QUADS, 0, count)
+
+            # Disable vertex arrays
+            GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        @_check_types.do
+        def _render_edges(v, e):
+            """Render the edges.
+
+            UNKNOWN details are inferred from the callable name and signature.
+
+            :param v: Value for ``v``.
+            :type v: UNKNOWN
+            :param e: Value for ``e``.
+            :type e: UNKNOWN
+            """
+            e = v[e].reshape(-1, 3)
+            GL.glLineWidth(1.0)
+            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
+
+            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
+            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
+
+            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+
+        GL.glColor4f(0.5, 1.0, 0.5, 0.3)
+        _render_bb(vertices.reshape(-1, 3), faces)
+
+        GL.glColor4f(0.5, 1.0, 0.5, 1.0)
+        _render_edges(vertices.reshape(-1, 3), edges)
+

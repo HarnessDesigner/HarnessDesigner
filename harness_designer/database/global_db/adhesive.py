@@ -79,7 +79,7 @@ class AdhesivesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Adhesive or item in self:
                 return Adhesive(self, item)
             raise IndexError(str(item))
 

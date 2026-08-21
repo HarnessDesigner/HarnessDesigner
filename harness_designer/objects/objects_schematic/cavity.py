@@ -2,12 +2,12 @@
 
 from typing import TYPE_CHECKING
 
-import uuid as _uuid_module
-
 import build123d
+import numpy as np
 
 from . import base_schematic as _base_schematic
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
@@ -21,12 +21,8 @@ if TYPE_CHECKING:
     from .. import cavity as _cavity
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
-_ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
-
-
-# TODO: add render function
 
 class Cavity(_base_schematic.BaseSchematic):
     """
@@ -34,11 +30,24 @@ class Cavity(_base_schematic.BaseSchematic):
 
     Renders only this cavity's own name -- RIGHT/BOTTOM-aligned text
     sitting just outside its owning housing's rectangle, a fixed gap
-    above its terminal's own bracket -- on the VBO/shader
-    pipeline (see ``objects_schematic/base_schematic.py``'s ``BaseSchematic``), matching how
-    ``Base3D`` subclasses render. ``position2d``/``angle2d`` are computed
-    and persisted by the owning ``objects_schematic/housing.py``'s ``Housing``
-    whenever its layout changes (see ``Housing._layout_children``).
+    above its terminal's own bracket. Its ``Text`` label (see
+    ``shapes/text.py``) IS this object's own ``_vbo`` -- ``Text``
+    implements the same public interface a real VBO handler does (see
+    its own "VBOHandlerBase-compatible interface" section), so this
+    class needs no ``render()``/``_compute_obb``/... override for
+    rendering itself -- the standard inherited ``BaseVar`` pipeline
+    drives it directly, matching how ``Base3D`` subclasses render.
+    ``_compute_obb``/``_compute_aabb`` ARE still overridden here, since
+    a Text's own "local" bounds aren't meaningful the way a real mesh's
+    are (see Text's own docstring) -- real bounds come from its
+    measured ``width``/``height`` instead.
+
+    ``position2d``/``angle2d`` are computed and persisted by the owning
+    ``objects_schematic/housing.py``'s ``Housing`` whenever its layout changes
+    (see ``Housing._layout_children``) -- :meth:`_sync_vbo_transform`
+    is what pushes that (RIGHT/BOTTOM-anchored) transform into the
+    ``Text`` label itself, since ``Text`` has no reactive binding of
+    its own the way a bound ``Point``/``Angle`` does.
 
     Owns two DB binds on itself: its own ``'name'`` (rebuilds this
     cavity's own text mesh, and tells the housing to update its cached
@@ -61,15 +70,7 @@ class Cavity(_base_schematic.BaseSchematic):
         :type db_obj: :class:`_pjt_cavity.PJTCavity`
         """
 
-        # _mesh_args()/_build() (below) read self.db_obj -- set it before
-        # that first call, same as objects_3d/note.py's Note.__init__ does
-        # (BaseSchematic.__init__, which normally sets this, doesn't run until
-        # after _build() since the VBO it builds is one of its own args).
         self.db_obj = db_obj
-
-        # This cavity's own id into shapes.text's VBO registry -- generated
-        # and owned here, exactly like objects_3d/note.py's Note._text_uuid.
-        self._text_uuid = str(_uuid_module.uuid4())
 
         position = db_obj.position2d
         angle = db_obj.angle2d
@@ -77,8 +78,9 @@ class Cavity(_base_schematic.BaseSchematic):
         material = _materials.Generic(_color.Color(*Config.colors.label))
 
         with parent.mainframe.editor2d.editor.context:
-            vbo, _width, _height = self._build()
+            vbo = self._build_vbo(db_obj.name)
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+            self._sync_vbo_transform()
 
         self._name_cb = self.db_obj.bind(self._on_name_changed, 'name')
 
@@ -141,35 +143,132 @@ class Cavity(_base_schematic.BaseSchematic):
         else:
             housing.update_terminal_name(self.db_obj.db_id, terminal.db_id, terminal.name)
 
+    @staticmethod
     @_check_types.do
-    def _mesh_args(self) -> dict:
-        return dict(text=self.db_obj.name, font_size=Config.label.cavity_name_font_size,
-                    text_align=_ALIGN_BOTTOM_RIGHT)
-
-    @_check_types.do
-    def _build(self):
-        """Build this cavity's name VBO (construction time only -- see
-        :meth:`_rebuild` for in-place content updates).
-
-        :returns: ``(vbo, width, height)``.
+    def _build_vbo(name: str) -> "_text.Text":
+        """Build this cavity's own name label -- doubles as this
+        object's ``_vbo`` (see the class docstring). Called both at
+        construction and whenever this cavity's name changes (see
+        :meth:`_on_name_changed`) -- ``Text`` has no in-place content-
+        update method the way a real VBO's ``.update()`` did, so a
+        rename just builds a fresh instance and swaps it in.
         """
-        return _text.create_vbo(self._text_uuid, **self._mesh_args())
+        return _text.Text(
+            name, Config.object_sizes.cavity.name_font_size,
+            build123d.FontStyle.REGULAR)
+
+    @_check_types.do
+    def _sync_vbo_transform(self):
+        """Push this cavity's own current position/angle into its
+        ``Text`` vbo's own transform.
+
+        ``self._position`` (see ``objects_schematic/housing.py``'s
+        ``Housing._layout_children``) is this cavity's own slot's
+        top-left corner, exactly on the housing's own pin edge -- the
+        actual rendered text sits outside and below that anchor:
+
+        - X: shifted left (outside the housing) by the shared
+          ``Config.object_sizes.pin_edge_padding`` gap, then further
+          left by the label's own measured width -- ``Text``'s local
+          x=0 is its own LEFT edge, so this is what makes the label
+          read RIGHT-aligned, ending exactly ``pin_edge_padding``
+          outside the pin edge (the same shared value the terminal's
+          own "(" bracket also offsets by, and the reason the two land
+          at the same X -- not because one is aligned to the other).
+        - Z: shifted by ``shapes.text.CHARACTER_HEIGHT`` (the tallest
+          glyph in the font, at font_size=1.0 -- scaled to this
+          cavity's own font size) to reach the label's own baseline --
+          a ``Text``'s local y=0 already IS the glyph baseline, so this
+          is the only Z offset needed to drop from the slot's top edge
+          down to where the glyphs actually sit.
+
+        ``Text`` has no reactive binding of its own to
+        ``self._position``/``self._angle`` the way a bound
+        ``Point``/``Angle`` does, so this must be called explicitly any
+        time either changes -- construction, :meth:`_update_position`,
+        :meth:`_update_angle`, :meth:`_rebuild`.
+        """
+        if self._vbo is None:
+            return
+
+        # Bottom-right corner of _local_text_corners() -- the label's
+        # own RIGHT/BOTTOM anchor point, in local space.
+        local_offset = _point.Point(*self._local_text_corners()[3].tolist())
+        offset = local_offset @ self._angle
+        self._vbo.set_transform(self._position + offset, self._angle)
+
+    @_check_types.do
+    def _update_position(self, position: _point.Point):
+        super()._update_position(position)
+        self._sync_vbo_transform()
+
+    @_check_types.do
+    def _update_angle(self, angle: _angle.Angle):
+        super()._update_angle(angle)
+        self._sync_vbo_transform()
+
+    @_check_types.do
+    def _local_text_corners(self) -> np.ndarray:
+        """This cavity's own rendered text bounds, as 4 corners in
+        housing-local space relative to :attr:`_position` (not yet
+        rotated/translated) -- the same right edge/baseline anchor
+        :meth:`_sync_vbo_transform` places the label at, expanded by
+        its own measured width/height. Shared by :meth:`_compute_obb`/
+        :meth:`_compute_aabb`, since a Text's own ``local_obb``/
+        ``local_aabb`` (see its VBOHandlerBase-compatible interface)
+        are harmless no-op placeholders, not real geometry.
+        """
+        w = self._vbo.width
+        h = self._vbo.height
+        font_size = Config.object_sizes.cavity.name_font_size
+
+        right_x = -Config.object_sizes.pin_edge_padding
+        left_x = right_x - w
+        baseline_z = _text.CHARACTER_HEIGHT * font_size
+        top_z = baseline_z - h
+
+        return np.array([
+            [left_x, 0.0, top_z], [left_x, 0.0, baseline_z],
+            [right_x, 0.0, top_z], [right_x, 0.0, baseline_z],
+        ], dtype=np.float32)
+
+    @_check_types.do
+    def _compute_obb(self):
+        """Derive this object's OBB from :meth:`_local_text_corners`."""
+        if self._vbo is None:
+            return
+
+        local = self._local_text_corners()
+        local @= self._angle
+        self._obb = local + self._position
+
+    @_check_types.do
+    def _compute_aabb(self):
+        """Same corners as :meth:`_compute_obb` -- see its docstring."""
+        if self._vbo is None:
+            return
+
+        corners = self._local_text_corners()
+        corners @= self._angle
+        corners += self._position.as_numpy
+
+        aabb = _utils.adjust_aabb(corners)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
 
     @_check_types.do
     def _rebuild(self, _entry=None):
-        """Rebuild this cavity's name mesh in place from its current
-        name and re-derive its OBB/AABB (``self._vbo.update`` recomputes
-        the VBO's own ``local_obb``/``local_aabb``, but that doesn't by
-        itself propagate to this object's world-space ``obb``/``aabb`` --
-        see ``BaseVar._compute_obb``/``_compute_aabb``). Bound to fire
-        whenever this cavity's own name changes.
+        """Rebuild this cavity's name label from its current name and
+        re-derive its OBB/AABB. Bound to fire whenever this cavity's
+        own name changes.
         """
         with self.editor2d.editor.context:
-            vertices, faces, _width, _height = _text.create(**self._mesh_args())
-            packed, count = _utils.compute_normals(vertices, faces)
-            self._vbo.update(packed, count)
+            self._vbo = self._build_vbo(self.db_obj.name)
             self._compute_obb()
             self._compute_aabb()
+            self._sync_vbo_transform()
 
         self.editor2d.Refresh()
 

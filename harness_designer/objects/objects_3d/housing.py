@@ -13,7 +13,7 @@ from ...geometry import point as _point
 from ...ui.dialogs import housing_editor as _housing_editor
 from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import box as _box
 from ...utils import mesh_surface_picker as _mesh_surface_picker
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
 @dataclass
@@ -79,7 +79,7 @@ def _build_marker_local_verts(
     return np.array([c0, c1, c2, c0, c2, c3], dtype=np.float32)
 
 
-class Housing(_base3d.Base3D):
+class Housing(_base_3d.Base3D):
     """Represent a housing in :mod:`harness_designer.objects.objects_3d.housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -143,9 +143,7 @@ class Housing(_base3d.Base3D):
             material = _materials.Plastic(self._part.color.ui)
             angle = db_obj.angle3d
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, db_obj.position3d,
-                scale, material)
+            super().__init__(parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
         canvas3d = parent.mainframe.editor3d.editor
         self._picker = _mesh_surface_picker.MeshSurfacePicker(self, canvas3d)
@@ -156,6 +154,24 @@ class Housing(_base3d.Base3D):
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_housings
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @property
     @_check_types.do

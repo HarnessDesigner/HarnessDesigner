@@ -81,8 +81,9 @@ class PJTConcentricsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTConcentric or item in self:
                 return PJTConcentric(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

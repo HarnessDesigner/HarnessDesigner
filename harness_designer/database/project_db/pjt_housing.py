@@ -19,6 +19,7 @@ from . import pjt_cpa_lock as _pjt_cpa_lock
 from . import pjt_seal as _pjt_seal
 from . import pjt_boot as _pjt_boot
 from . import pjt_cavity as _pjt_cavity
+from . import pjt_point2d as _pjt_point2d
 from . import pjt_point3d as _pjt_point3d
 from . import pjt_point_pegboard as _pjt_point_pegboard
 
@@ -47,6 +48,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     # from . import pjt_accessory as _pjt_accessory
     from . import pjt_point3d as _pjt_point3d
+    from . import pjt_terminal as _pjt_terminal
     from ..global_db import housing as _housing
     from ...objects import housing as _housing_obj
 
@@ -195,8 +197,9 @@ class PJTHousingsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTHousing or item in self:
                 return PJTHousing(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -375,6 +378,93 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._stored_cavities = cavities
         return cavities
+
+    _stored_terminals: list = None
+
+    @property
+    @_check_types.do
+    def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
+        """Every seated terminal across this housing's own cavities.
+
+        Populated as a side effect of :meth:`cache_names` -- falls back
+        to walking :attr:`cavities` (each cavity's own ``.terminal``
+        lazy lookup) when that hasn't been called yet.
+        """
+        if self._stored_terminals is not None:
+            return self._stored_terminals
+
+        terminals = []
+        for cavity in self.cavities:
+            if cavity is None:
+                continue
+
+            terminal = cavity.terminal
+            if terminal is not None:
+                terminals.append(terminal)
+
+        self._stored_terminals = terminals
+        return terminals
+
+    @_check_types.do
+    def cache_names(self) -> None:
+        """Batch-fetch every cavity's/seated terminal's own name under
+        this housing, in a single query, and pre-seed the result
+        straight into the real (singleton) ``PJTCavity``/``PJTTerminal``
+        instances' own caches -- ``NameMixin._stored_name`` for each,
+        plus the ``PJTCavity.terminal``/``PJTTerminal.cavity``
+        cross-reference caches -- so that later reading any of those
+        never fires its own query.
+
+        A housing can have several hundred cavities; the naive path
+        (this housing's own ``cavities`` property, then each cavity's
+        ``.name``, ``.terminal``, and that terminal's own ``.name``) is
+        up to 4 queries per cavity. Constructs each ``PJTCavity``/
+        ``PJTTerminal`` by calling the class directly (``PJTCavity(table,
+        id)``/``PJTTerminal(table, id)``) rather than going through
+        ``table[id]`` -- the entry-singleton metaclass (see
+        ``database/global_db/bases.py``'s ``_EntrySingleton``) already
+        returns the existing cached instance for an id if one's alive,
+        so this never re-queries an existence check the way
+        ``TableBase.__getitem__`` does.
+
+        Meant to run once, up front, before any per-cavity/per-terminal
+        view object gets constructed -- see ``objects/housing.py``'s
+        ``Housing._construct_cavities``.
+        """
+        from . import pjt_terminal as _pjt_terminal
+
+        cavity_table = self._table.db.pjt_cavities_table
+        terminal_table = self._table.db.pjt_terminals_table
+
+        self._table.db.connector.execute(
+            'SELECT cavity.id, cavity.name, terminal.id, terminal.name '
+            'FROM pjt_cavities AS cavity '
+            'LEFT JOIN pjt_terminals AS terminal ON terminal.cavity_id = cavity.id '
+            'WHERE cavity.housing_id = ?;',
+            (self._db_id,))
+
+        rows = self._table.db.connector.fetchall()
+
+        cavities = []
+        terminals = []
+
+        for cavity_id, cavity_name, terminal_id, terminal_name in rows:
+            cavity = _pjt_cavity.PJTCavity(cavity_table, cavity_id)
+            cavity._stored_name = cavity_name  # NOQA
+
+            if terminal_id is None:
+                cavity._stored_terminal = None  # NOQA
+            else:
+                terminal = _pjt_terminal.PJTTerminal(terminal_table, terminal_id)
+                terminal._stored_name = terminal_name  # NOQA
+                terminal._stored_cavity = cavity  # NOQA
+                cavity._stored_terminal = terminal  # NOQA
+                terminals.append(terminal)
+
+            cavities.append(cavity)
+
+        self._stored_cavities = cavities
+        self._stored_terminals = terminals
 
     _stored_cover_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 
@@ -1341,7 +1431,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     def _update_position2d(self, point: _point.Point):
         """Update the position 2D.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Batch-cascades to every cavity's own ``position2d`` -- mirrors
+        :meth:`_update_position3d`/:meth:`_update_position_pegboard`'s
+        single vectorized delta + one batch DB write, replacing the old
+        per-cavity ``+=`` loop (one individual DB write per cavity per
+        drag frame). ``pjt_points2d`` stores only ``x``/``y`` columns,
+        mapped onto the ``Point``'s X/Z axes (Y locked to 0.0 -- see
+        ``PJTPoint2D.point``), so the batch row only carries those two.
 
         :param point: Point value.
         :type point: :class:`_point.Point`
@@ -1349,12 +1445,32 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         delta = point - self._o_position2d
         self._o_position2d = point.copy()
 
-        for cavity in self.cavities:
-            if cavity is None:
-                continue
+        cavities = [c for c in self.cavities if c is not None]
+        positions = [cavity.position2d for cavity in cavities]
 
-            c_position = cavity.position2d
-            c_position += delta
+        if not positions:
+            return
+
+        positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
+        new_pos_arr = positions_array + delta
+
+        db_ids = [p.db_id[:-2] for p in positions]
+        f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
+        rows = [[pos[0], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
+
+        self._table.db.pjt_points2d_table.batch_update(['x', 'y'], rows)
+
+        _pjt_point2d.PJTPoint2D._skip_db_write = True
+        try:
+            for i, pos in enumerate(positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point2d.PJTPoint2D._skip_db_write = False
 
     _o_position2d: _point.Point = None
 
@@ -1862,23 +1978,81 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._populate('angle_pegboard')
 
+    _o_quat2d: list = None
+    _o_euler2d: list = None
+
     @_check_types.do
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Batch-cascades to every cavity's own ``position2d`` -- the
+        schematic rotation counterpart to :meth:`_update_position2d`,
+        rotating each cavity's schematic position around the housing's
+        own ``position2d`` by the same quaternion-delta vectorized
+        rotation :meth:`_update_angle3d`/:meth:`_update_angle_pegboard`
+        use. The schematic view only ever rotates about world Y (locked
+        to 90° increments -- see ``Angle2DControl._on_angle``), but the
+        quaternion-delta rotation is dimension-agnostic, so the same
+        formula applies unchanged. No OBB-based cavity re-orientation
+        like :meth:`_update_angle3d` -- cavities have no ``angle2d`` of
+        their own (no ``Angle2DMixin`` on ``PJTCavity``), just a
+        schematic position that follows the housing.
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        quat = str(list(angle.as_quat_float))
-        euler = str(list(angle.as_euler_float))
+        if self._o_quat2d is None:
+            self._o_quat2d = eval(self._table.select('quat2d', id=self._db_id)[0][0])
+            self._o_euler2d = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+
+        o_angle = _angle.Angle.from_quat(self._o_quat2d, self._o_euler2d)
+
+        new_quat = list(angle.as_quat_float)
+        new_euler = list(angle.as_euler_float)
+        quat = str(new_quat)
+        euler = str(new_euler)
+
+        self._table.update(self._db_id, quat2d=quat, angle2d=euler)
 
         if 'nan' in euler or 'nan' in quat:
             return
 
-        self._table.update(self._db_id, quat2d=quat)
-        self._table.update(self._db_id, angle2d=euler)
+        self._o_quat2d = new_quat
+        self._o_euler2d = new_euler
+
+        actual_delta_q = angle._q - o_angle._q  # NOQA
+        position = self.position2d
+
+        cavities = [c for c in self.cavities if c is not None]
+        positions = [cavity.position2d for cavity in cavities]
+
+        if positions:
+            w_d, x_d, y_d, z_d = actual_delta_q.as_float
+            qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
+            center = position.as_numpy.copy()
+
+            pos_arr = np.array([list(p.as_float) for p in positions], dtype=np.float32)
+            rel = pos_arr - center
+            t_vec = np.cross(qvec_d, rel)
+            new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
+
+            f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
+            db_ids = [p.db_id[:-2] for p in positions]
+            rows = [[pos[0], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
+            self._table.db.pjt_points2d_table.batch_update(['x', 'y'], rows)
+
+            _pjt_point2d.PJTPoint2D._skip_db_write = True
+            try:
+                for i, pos in enumerate(positions):
+                    with pos:
+                        pos.x = f_position_array[i][0]
+                        pos.y = f_position_array[i][1]
+                        pos.z = f_position_array[i][2]
+
+                    pos._process_callbacks()  # NOQA
+            finally:
+                _pjt_point2d.PJTPoint2D._skip_db_write = False
+
         self._populate('angle2d')
 
 

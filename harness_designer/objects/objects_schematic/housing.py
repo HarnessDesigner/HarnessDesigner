@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 import math
-import uuid as _uuid_module
+import re
 
 import numpy as np
 import build123d
 from PySide6.QtWidgets import QMenu
-from OpenGL import GL
 
 from . import base_schematic as _base_schematic
 from ...ui.widgets import context_menus as _context_menus
@@ -28,34 +27,74 @@ if TYPE_CHECKING:
     from .. import housing as _housing
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
+
+# shapes.text.Text has no multi-line support of its own (its glyph
+# cache has no '\n' entry) and build123d's own multi-line layout
+# metrics aren't available here to match exactly -- the corner label's
+# 3 lines (name/part number/manufacturer) are built as separate Text
+# instances and stacked manually (see Housing._build_corner_label/
+# render) using this as an approximate line-height multiple of
+# the font size. Retune if the stacking looks off once rendered.
+_CORNER_LABEL_LINE_HEIGHT_SCALE = 1.2
+
+_DIGIT_RUN = re.compile(r'(\d+)')
 
 
-# TODO: add render function
+def _natural_sort_key(name: str) -> tuple:
+    """Split *name* into alternating text/number chunks (numeric chunks
+    compared as ints) so ``"2"`` sorts before ``"10"`` -- a plain string
+    sort relies on cavity names being zero-padded to read in order,
+    which real project data isn't guaranteed to be.
+
+    Each chunk tagged ``(0, int)`` for a digit run or ``(1, str)`` for
+    text -- comparing two chunks always compares the leading kind tag
+    (int vs int) first, so same-position chunks of different kinds
+    decide right there and never fall through to comparing an int
+    against a str (a TypeError in Python 3).
+    """
+    return tuple(
+        (0, int(chunk)) if chunk.isdigit() else (1, chunk.lower())
+        for chunk in _DIGIT_RUN.split(name) if chunk)
+
+
+def _sort_cavities(cavities: list) -> list:
+    """Natural-sort *cavities* -- a list of ``(name, PJTCavity)`` pairs
+    -- by their own ``name``. Returns the same shape, sorted.
+    """
+    return sorted(cavities, key=lambda c: _natural_sort_key(c[0]))
 
 
 class Housing(_base_schematic.BaseSchematic):
     """
     2D representation of a housing for schematic view
 
-    Renders as a colored rectangle (unit primitive from ``shapes.rectangle``,
-    scaled) plus its own corner label (name/part number/manufacturer), via
-    the schematic2d shader/VBO pipeline (see ``objects_schematic/base_schematic.py``'s
-    ``BaseSchematic``) -- matches how ``Base3D`` subclasses render, no immediate-
-    mode fallback. Sizing is fixed (``Config.editor2d.housing.width`` for
-    the text-axis extent, ``num_cavities * Config.editor2d.cavity.height``
-    for the cavity-axis extent), not measured from any label text.
-
-    Every cavity's name, and (for cavities with a seated terminal) the "("
-    bracket and the terminal's name, are rendered independently by their
-    own ``objects_schematic/cavity.py``'s ``Cavity``/``objects_schematic/terminal.py``'s
+    Renders ONLY the housing rectangle (unit primitive from
+    ``shapes.rectangle``, scaled) plus its own corner label (name/part
+    number/manufacturer), via the schematic2d shader/VBO pipeline (see
+    ``objects_schematic/base_schematic.py``'s ``BaseSchematic``) -- matches
+    how ``Base3D`` subclasses render, no immediate-mode fallback. Every
+    cavity's own name, and (for a cavity with a seated terminal) the "("
+    bracket and the terminal's own name, are rendered independently by
+    ``objects_schematic/cavity.py``'s ``Cavity``/``objects_schematic/terminal.py``'s
     ``Terminal`` -- each a real, individually selectable ``BaseSchematic``
     object with its own OBB/AABB. This class only computes *where* those
-    live (see :meth:`_layout_children`) and persists it to their own
-    ``position2d``/``angle2d``, whenever the sorted cavity order or seated-
-    terminal set changes -- Cavity/Terminal pick the new values up
-    automatically through the same bound-Point callback every other
-    ``BaseVar`` position/angle update already uses.
+    live (see :meth:`get_cavity_aabb`/:meth:`_layout_children`) and
+    persists it to their own ``position2d``, whenever the sorted cavity
+    order or seated-terminal set changes -- Cavity/Terminal pick the new
+    values up automatically through the same bound-Point callback every
+    other ``BaseVar`` position update already uses.
+
+    Sizing is font-size-driven rather than a fixed constant: this
+    housing's own per-cavity slot height (:attr:`cavity_height`) is
+    derived from ``shapes.text.CHARACTER_HEIGHT`` (the tallest glyph in
+    the font, at font_size=1.0 -- see :func:`shapes.text.build_chars`)
+    times ``Config.object_sizes.terminal.name_font_size`` (a terminal's
+    own MAXIMUM font size, not a constant -- an individual terminal may
+    render smaller to fit its own name inside this slot), plus 10%
+    padding on top and bottom. Computed once per housing, in
+    :meth:`__init__`/:meth:`_recompute`, so cavities/terminals can read
+    it back via :meth:`get_cavity_aabb` without recomputing.
     """
     _parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing"
@@ -76,7 +115,7 @@ class Housing(_base_schematic.BaseSchematic):
         # Nothing built yet -- _recompute()'s first call, below, needs
         # these to already exist.
         self._db_callbacks = []
-        self._corner_label_vbo = None
+        self._corner_label_lines = []
 
         position = db_obj.position2d
         angle = db_obj.angle2d
@@ -103,27 +142,34 @@ class Housing(_base_schematic.BaseSchematic):
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        return False
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        pass
+
     @_check_types.do
     def _recompute(self, db_obj, position: _point.Point, angle: _angle.Angle
                    ) -> tuple[float, float]:
-        """(Re)compute this housing's fixed cavity-axis extent, rebuild
-        the corner label, push every cavity's/seated terminal's own
-        world position2d/angle2d (see :meth:`_layout_children`), and
-        (re)bind the DB callbacks that trigger the next recompute (a
-        cavity's name changes -- reordering its slot -- or a cavity
-        gains/loses its terminal). Shared by ``__init__`` (the first
-        build) and :meth:`_rebuild` (every one after). Requires a
-        current GL context.
+        """(Re)compute this housing's font-driven cavity slot height and
+        cavity-axis extent, rebuild the corner label, push every
+        cavity's/seated terminal's own world position2d (see
+        :meth:`_layout_children`), and (re)bind the DB callbacks that
+        trigger the next recompute (a cavity's name changes -- reordering
+        its slot -- or a cavity gains/loses its terminal). Shared by
+        ``__init__`` (the first build) and :meth:`_rebuild` (every one
+        after). Requires a current GL context.
 
         :param position: This housing's own ``position2d`` -- taken as a
             parameter rather than read from ``self._position`` since
             ``__init__`` calls this before ``BaseSchematic.__init__`` has set
             that attribute yet.
         :param angle: This housing's own ``angle2d``, same reason.
-        :returns: ``(cavity_extent, text_extent)`` -- ``text_extent`` is
-            now fixed (``Config.editor2d.housing.width``), returned only
-            so ``__init__``/:meth:`_rebuild`'s scale-setting code stays
-            uniform.
+        :returns: ``(cavity_extent, text_extent)``, for
+            ``__init__``/:meth:`_rebuild`'s scale-setting code.
         """
         self._release_corner_label()
         self._unbind_callbacks()
@@ -131,28 +177,107 @@ class Housing(_base_schematic.BaseSchematic):
         # Sorted by the cavity's own *name* -- the user-facing identifier
         # (can be numeric, alphabetic, or mixed; that's exactly why the
         # name field exists rather than relying on the catalog cavity's
-        # idx, which is purely internal bookkeeping and never shown).
-        cavities = sorted(
-            (c for c in db_obj.cavities if c is not None),
-            key=lambda c: c.name)
+        # idx, which is purely internal bookkeeping and never shown) --
+        # natural-sorted so e.g. "2" sorts before "10".
+        named = [(c.name, c) for c in db_obj.cavities if c is not None]
+        cavities = [c for _name, c in _sort_cavities(named)]
 
-        cavity_extent = self._compute_cavity_extent(len(cavities))
-        text_extent = Config.housing.width
+        num_cavities = len(cavities)
 
-        # Cached for _update_position/_update_angle below, so moving/
-        # rotating this housing (drag, or housing_layout.py's own
-        # auto-placement) can re-run _layout_children without re-sorting
-        # from scratch on every mutation.
-        self._sorted_cavities = cavities
+        # Font-size-driven slot height -- see the class docstring. Always
+        # derived from the terminal font size's configured MAXIMUM, never
+        # from any individual terminal's own (possibly shrunk-to-fit)
+        # rendered size, so every housing's cavity slots stay a uniform
+        # height regardless of what any one terminal's name needs.
+        terminal_font_height = (
+            _text.CHARACTER_HEIGHT * Config.object_sizes.terminal.name_font_size)
+        self.terminal_font_height_padding = terminal_font_height * 0.1
+        self.cavity_height = terminal_font_height + (self.terminal_font_height_padding * 2.0)
+
+        text_extent = Config.object_sizes.housing.width + (Config.object_sizes.housing.width / 2.0)
+        # +1 accounts for padding applying to both ends of the vertical
+        # cavity stack, not just between adjacent cavities.
+        cavity_extent = self.cavity_height * (num_cavities + 1)
+
+        # Cached for _update_position/_update_angle below (re-run
+        # _layout_children without recomputing), and for
+        # get_cavity_aabb (index lookup).
+        self._cavities = cavities
         self._cavity_extent = cavity_extent
         self._text_extent = text_extent
 
-        self._layout_children(cavities, cavity_extent, text_extent, position, angle)
+        self._layout_children(cavities, position, angle)
         self._build_corner_label(db_obj, cavity_extent, text_extent)
 
         self._bind_callbacks(cavities)
 
         return cavity_extent, text_extent
+
+    @_check_types.do
+    def get_cavity_aabb(self, cavity) -> np.ndarray:
+        """Return *cavity*'s own slot's complete bounding box, in
+        housing-local space (not yet rotated/translated by this
+        housing's own position/angle) -- the single source of truth
+        every cavity/terminal position (cavity name, terminal name, and
+        a terminal's own wire attachment point) is derived from, rather
+        than each independently re-deriving its own offset.
+
+        This box is INSIDE the housing -- its near edge sits flush at
+        the pin edge (``pin_local_x``), extending inward toward the
+        housing's far edge, but stopping short of it (at the same
+        inset the corner label's own anchor uses -- see
+        :meth:`_build_corner_label`) so there's always room for that
+        label at the bottom row, kept uniform across every row for
+        alignment even though only the bottom row actually needs the
+        clearance. The cavity's own NAME TEXT is NOT inside this box --
+        it renders entirely outside the housing, disjoint from this box
+        entirely (see ``objects_schematic/cavity.py``'s Cavity) -- this
+        box is where a seated TERMINAL's own name/"("/wire-stub render
+        instead (see ``objects_schematic/terminal.py``'s Terminal).
+
+        Y is always 0 (flat 2D). Z is this slot's own vertical span --
+        index 0 (natural-sort order) at the most-negative (top) Z, per
+        this housing's own up-is-negative-Z convention (see
+        :meth:`_layout_children`).
+
+        :returns: ``[[min_x, min_y, min_z], [max_x, max_y, max_z]]``,
+            same shape as :attr:`_aabb`/``BaseVar.local_aabb``.
+        :raises ValueError: if *cavity* isn't one of this housing's own
+            (already natural-sorted) cavities -- see :meth:`_recompute`.
+        """
+        index = self._cavities.index(cavity)
+
+        half_cavity_extent = self._cavity_extent / 2.0
+        half_text_extent = self._text_extent / 2.0
+        pin_local_x = -half_text_extent
+        far_local_x = half_text_extent - Config.object_sizes.cavity.padding
+
+        min_z = -half_cavity_extent + index * self.cavity_height
+        max_z = min_z + self.cavity_height
+
+        return np.array([
+            [pin_local_x, 0.0, min_z],
+            [far_local_x, 0.0, max_z],
+        ], dtype=np.float32)
+
+    @_check_types.do
+    def get_max_cavity_name_width(self) -> float:
+        """Return the widest rendered width, at
+        ``Config.object_sizes.cavity.name_font_size``, among every
+        cavity's own name in this housing -- so every terminal's own
+        wire-stub cylinder (see ``objects_schematic/terminal.py``'s
+        ``Terminal``) can be the same length, long enough to clear
+        whichever cavity name is longest, regardless of which row it's
+        actually on.
+        """
+        font_size = Config.object_sizes.cavity.name_font_size
+
+        widths = [
+            _text.Text(cavity.name, font_size, build123d.FontStyle.REGULAR).width
+            for cavity in self._cavities
+        ]
+
+        return max(widths, default=0.0)
 
     @_check_types.do
     def _update_position(self, position: _point.Point):
@@ -165,17 +290,13 @@ class Housing(_base_schematic.BaseSchematic):
         bounds.
         """
         super()._update_position(position)
-        self._layout_children(
-            self._sorted_cavities, self._cavity_extent, self._text_extent,
-            position, self._angle)
+        self._layout_children(self._cavities, position, self._angle)
 
     @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """See :meth:`_update_position` -- same reason, for rotation."""
         super()._update_angle(angle)
-        self._layout_children(
-            self._sorted_cavities, self._cavity_extent, self._text_extent,
-            self._position, angle)
+        self._layout_children(self._cavities, self._position, angle)
 
     @_check_types.do
     def _rebuild(self, _entry=None):
@@ -222,83 +343,67 @@ class Housing(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def _release_corner_label(self):
-        if self._corner_label_vbo is not None:
-            self._corner_label_vbo.release()
-
-        self._corner_label_vbo = None
+        # No GPU resource to explicitly release -- unlike the old per-
+        # instance VBO, a Text's glyph meshes are globally cached/shared
+        # (see shapes/text.py's build_chars()), so dropping the
+        # reference is all that's needed.
+        self._corner_label_lines = []
 
     @_check_types.do
     def _delete(self):
         self._unbind_callbacks()
         super()._delete()
 
-    @staticmethod
     @_check_types.do
-    def _compute_cavity_extent(n: int) -> float:
-        """Cavity-axis (local Z) extent for *n* cavities -- fixed slot
-        size, stacked edge-to-edge with no gap (see
-        ``Config.editor2d.cavity``); never individually drawn.
-        """
-        cavity_cfg = Config.cavity
-
-        if n <= 0:
-            return cavity_cfg.height
-
-        return n * cavity_cfg.height
-
-    @_check_types.do
-    def _layout_children(self, cavities, cavity_extent, text_extent,
-                         position: _point.Point, angle: _angle.Angle):
+    def _layout_children(self, cavities, position: _point.Point, angle: _angle.Angle):
         """Compute and persist each cavity's/seated terminal's own world
-        ``position2d``/``angle2d`` from the current sorted slot order --
+        ``position2d`` from :meth:`get_cavity_aabb` --
         ``objects_schematic/cavity.py``'s ``Cavity``/``objects_schematic/terminal.py``'s
         ``Terminal`` pick the new values up automatically (each already
-        has its own position/angle bound to trigger its inherited
-        ``BaseVar._update_position``/``_update_angle``, which recomputes
-        its own OBB/AABB) -- no direct call into either needed here.
+        has its own position bound to trigger its inherited
+        ``BaseVar._update_position``, which recomputes its own OBB/AABB)
+        -- no direct call into either needed here.
 
         Layout (local X = text/width axis, local Z = cavity/height axis;
         canonical/unrotated pose = this housing on the right edge of the
-        schematic, pin edge at local X = -text_extent/2; cavity slots
-        stack top-to-bottom in ascending sort order, i=0 at the top --
+        schematic, pin edge at local X = -text_extent/2; this housing's
+        own local frame is centered on (0, 0, 0), with UP the NEGATIVE-Z
+        direction -- cavity slots stack top-to-bottom in ascending
+        (natural-sort) order, index 0's slot at the most-negative Z --
         the standard pinout-diagram reading convention):
 
-        - Cavity name anchor: a small amount outside the housing
-          rectangle (past the pin edge), a fixed gap above the
-          bracket's own vertical center rather than flush with the
-          slot's own top edge (RIGHT/BOTTOM-aligned text, so this point
-          is exactly its own bottom-right corner).
+        - Cavity anchor: its own slot's top-left corner, exactly on the
+          pin edge (local X = pin edge, local Z = the slot's own top
+          edge). ``objects_schematic/cavity.py``'s ``Cavity`` derives
+          its actual rendered text position from this anchor itself --
+          a hardcoded X offset outside the pin edge (plus its own
+          measured width, for RIGHT-alignment) and a Z offset by
+          ``shapes.text.CHARACTER_HEIGHT`` (scaled to its own font
+          size) to reach its own baseline -- rather than this method
+          computing an already-offset render position the way it used
+          to.
         - Terminal name anchor: only when a terminal is seated, *inside*
           the housing rectangle (near the pin edge), bottom edge flush
-          with the slot's bottom boundary (LEFT/BOTTOM-aligned text, so
+          with the slot's own bottom boundary (LEFT/BOTTOM-aligned text, so
           this point is exactly its own bottom-left corner --
           ``objects_schematic/terminal.py``'s ``Terminal`` renders the "("
           bracket as an extra at a fixed local offset from this same
           point, RIGHT/BOTTOM-aligned to sit just outside the pin edge).
         """
-        label_cfg = Config.label
-        cavity_height = Config.cavity.height
+        cavity_cfg = Config.object_sizes.cavity
 
-        half_cavity_extent = cavity_extent / 2.0
-        half_text_extent = text_extent / 2.0
+        half_text_extent = self._text_extent / 2.0
         pin_local_x = -half_text_extent          # pin edge -- interior-facing side
-        cavity_local_x = pin_local_x - label_cfg.cavity_outside_offset
-        terminal_local_x = pin_local_x + label_cfg.padding
+        terminal_local_x = pin_local_x + cavity_cfg.padding
 
-        for i, cavity in enumerate(cavities):
-            # i=0 (the first, ascending-sorted cavity) gets the TOP-most
-            # slot, so cavities read top-to-bottom in ascending order --
-            # the standard pinout-diagram convention. i * cavity_height
-            # descends from there (each subsequent cavity moves down).
-            slot_top = half_cavity_extent - i * cavity_height
-            slot_bottom = slot_top - cavity_height
+        for cavity in cavities:
+            aabb = self.get_cavity_aabb(cavity)
+            slot_top = float(aabb[0][2])
+            slot_bottom = float(aabb[1][2])
 
-            # BOTTOM/RIGHT-aligned (see objects_schematic/cavity.py's Cavity),
-            # anchored a fixed gap above the bracket's own vertical
-            # center -- not the slot's own top edge, which would read as
-            # part of the row above it.
-            cavity_name_z = slot_bottom + label_cfg.bracket_font_size / 2.0 + label_cfg.cavity_name_gap
-            self._place_child(cavity, cavity_local_x, cavity_name_z, position, angle)
+            # Cavity's own anchor is its slot's top-left corner, exactly
+            # on the pin edge -- see the docstring above.
+            self._place_child(cavity, pin_local_x, slot_top, position, angle)
 
             terminal = cavity.terminal
             if terminal is not None and terminal.name:
@@ -317,7 +422,7 @@ class Housing(_base_schematic.BaseSchematic):
         (stays identity) -- cavity/terminal text must always render
         upright/axis-aligned no matter which way the owning housing is
         rotated, only its anchor position follows the rotation. See
-        :meth:`render_extras`, which applies the same "position rotates,
+        :meth:`render`, which applies the same "position rotates,
         glyph doesn't" rule to this housing's own corner label.
         """
         points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
@@ -332,58 +437,93 @@ class Housing(_base_schematic.BaseSchematic):
     def _build_corner_label(self, db_obj, cavity_extent, text_extent):
         """(Re)build the corner label (name/part number/manufacturer),
         this housing's own -- not a cavity's/terminal's -- extra.
+
+        ``shapes.text.Text`` has no multi-line support of its own (see
+        the module-level ``_CORNER_LABEL_LINE_HEIGHT_SCALE`` comment
+        above), so this builds one ``Text`` per line instead of a
+        single multi-line block -- stacked/anchored in :meth:`render`.
         """
-        label_cfg = Config.label
+        housing_cfg = Config.object_sizes.housing
+        cavity_cfg = Config.object_sizes.cavity
 
-        _ALIGN_BOTTOM_RIGHT = [build123d.TextAlign.RIGHT, build123d.TextAlign.BOTTOM]
-
-        corner_text = f'{db_obj.name}\n{self._part.part_number}\n{self._part.manufacturer.name}'
-        self._corner_label_vbo, _corner_width, _corner_height = _text.create_vbo(
-            str(_uuid_module.uuid4()), corner_text, label_cfg.corner_font_size,
-            text_align=_ALIGN_BOTTOM_RIGHT)
+        lines = [db_obj.name, self._part.part_number, self._part.manufacturer.name]
+        self._corner_label_lines = [
+            _text.Text(line, housing_cfg.font_size, build123d.FontStyle.REGULAR)
+            for line in lines
+        ]
+        self._corner_label_material = _materials.Generic(_color.Color(*Config.colors.label))
 
         half_text_extent = text_extent / 2.0
         half_cavity_extent = cavity_extent / 2.0
 
-        corner_local_x = half_text_extent - label_cfg.padding
-        corner_local_z = -half_cavity_extent + label_cfg.padding
+        corner_local_x = half_text_extent - cavity_cfg.padding
+        corner_local_z = -half_cavity_extent + cavity_cfg.padding
 
-        # RIGHT/BOTTOM-aligned (see _ALIGN_BOTTOM_RIGHT above), so this
-        # point IS the label's own bottom-right corner -- no width/height
-        # offset math needed to keep it from overflowing.
+        # RIGHT/BOTTOM-aligned (of the whole 3-line block), so this
+        # point IS the block's own bottom-right corner -- no width/
+        # height offset math needed to keep it from overflowing.
         self._corner_label_local = (corner_local_x, corner_local_z)
 
     @_check_types.do
-    def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
-        """Render this housing's own corner label (name/part number/
-        manufacturer) under the already-bound schematic2d *program* --
-        called by ``gl.canvas2d.canvas.Canvas._render_vbo_objects`` right
-        after this housing's own rectangle. Cavity names and terminal
-        brackets/names are rendered independently by
-        ``objects_schematic/cavity.py``'s ``Cavity``/``objects_schematic/terminal.py``'s
-        ``Terminal`` -- their own position2d/angle2d are kept in sync by
-        :meth:`_layout_children` above.
+    def render(self, faces_program, edges_program, vertices_program):
+        """Render the housing rectangle body, then swap this object's
+        own ``_vbo``/``_material``/``_angle``/``_scale``/``_position``
+        for the corner label's (one line at a time) and render again
+        through the exact same inherited pipeline -- the same swap-
+        call-super()-restore idiom ``objects_3d/wire.py``'s ``Wire``
+        already uses for its own multi-segment render, rather than a
+        separate hand-rolled draw path. ``Text`` stands in directly as
+        a ``_vbo`` here (see its own "VBOHandlerBase-compatible
+        interface" docstring in ``shapes/text.py``).
 
-        Rendered at an identity rotation (not this housing's own
-        ``self._angle``, which drives the rectangle body) so the label
-        always reads upright regardless of the housing's rotation -- its
-        anchor point still follows the rotated corner via
-        :meth:`_world_offset` below, only the glyph orientation is fixed.
+        This is the entire extent of what a ``Housing`` renders --
+        cavity names and terminal brackets/names are each drawn
+        independently by their own ``objects_schematic/cavity.py``'s
+        ``Cavity``/``objects_schematic/terminal.py``'s ``Terminal``.
         """
-        if self._position is None or self._corner_label_vbo is None:
+        super().render(faces_program, edges_program, vertices_program)
+
+        if not self.is_visible or self._position is None or not self._corner_label_lines:
             return
 
-        GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)  # identity, (w, x, y, z)
-        GL.glUniform1i(normal_loc, 0)
-        GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
+        real_vbo, real_material, real_selected_material, real_angle, real_scale, real_position = (
+            self._vbo, self._material, self._selected_material,
+            self._angle, self._scale, self._position)
 
-        label_material = _materials.Generic(_color.Color(*Config.colors.label))
-        label_material.set(program)
+        # Always this label's own color -- never the rectangle body's,
+        # and never selection-tinted either (self.material resolves to
+        # self._selected_material while self._is_selected is True, so
+        # that has to be overridden too, not just self._material) --
+        # only the rectangle body's own color changes on selection.
+        self._material = self._corner_label_material
+        self._selected_material = self._corner_label_material
+
+        # Identity rotation -- not this housing's own self._angle
+        # (which drives the rectangle body) -- so the label always
+        # reads upright regardless of the housing's rotation. Its
+        # anchor position still follows the rotated corner via
+        # _world_offset below; only the glyph orientation is fixed.
+        self._angle = _angle.Angle()
+        self._scale = _point.Point(1.0, 1.0, 1.0)
 
         local_x, local_z = self._corner_label_local
         wx, wy, wz = self._world_offset(local_x, local_z)
-        GL.glUniform3f(pos_loc, self._position.x + wx, wy, self._position.z + wz)
-        self._corner_label_vbo.render()
+        anchor = _point.Point(real_position.x + wx, wy, real_position.z + wz)
+
+        line_height = Config.object_sizes.housing.font_size * _CORNER_LABEL_LINE_HEIGHT_SCALE
+        line_count = len(self._corner_label_lines)
+
+        for i, line in enumerate(self._corner_label_lines):
+            z_offset = (line_count - 1 - i) * line_height
+
+            self._vbo = line
+            self._position = _point.Point(anchor.x - line.width, anchor.y, anchor.z + z_offset)
+
+            super().render(faces_program, edges_program, vertices_program)
+
+        self._vbo, self._material, self._selected_material, self._angle, self._scale, self._position = (
+            real_vbo, real_material, real_selected_material,
+            real_angle, real_scale, real_position)
 
     @_check_types.do
     def _world_offset(self, local_x: float, local_z: float) -> tuple[float, float, float]:

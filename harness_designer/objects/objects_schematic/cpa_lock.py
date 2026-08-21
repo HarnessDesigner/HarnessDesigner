@@ -34,4 +34,8 @@ class CPALock(_base_schematic.BaseSchematic):
         :type db_obj: :class:`_pjt_cpa_lock.PJTCPALock`
         """
 
-        super().__init__(parent, db_obj, None, None, None, None, None)
+        super().__init__(parent, db_obj, None, None,
+                         None, None, None)
+
+    def render(self, _, __, ___):
+        pass

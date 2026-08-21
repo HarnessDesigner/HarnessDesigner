@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from ...gl import vbo as _vbo
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
 
 @_check_types.do
@@ -115,6 +115,15 @@ class BaseSchematic(_objectsvar.BaseVar):
         except AttributeError:
             self._is_visible = False
 
+    @_check_types.do
+    def drag(self, delta: _point.Point) -> None:
+        """Same as :meth:`BaseVar.drag`, but locked to the X/Z board
+        plane -- this view's camera is permanently locked top-down
+        looking straight down world Y, so Y movement is never meaningful
+        here regardless of object type.
+        """
+        super().drag(_point.Point(delta.x, 0.0, delta.z))
+
         if vbo is None:
             # Legacy immediate-mode contract -- unchanged for object types
             # not yet migrated to the VBO/shader pipeline.
@@ -157,82 +166,25 @@ class BaseSchematic(_objectsvar.BaseVar):
         """
         self._is_visible = value
         try:
-            self.db_obj.is_visible2d = value
+            self.db_obj.is_visible_schematic = value
         except AttributeError:
             pass
+
+    @_check_types.do
+    def _is_visible_callback(self, *_, **__):
+        self._is_visible = self.db_obj.is_visible_schematic  # NOQA
+        self.mainframe.editor2d.Refresh()
 
     @property
     @_check_types.do
     def _selected_color(self) -> _color.Color:
         return _color.Color(*Config.colors.selected)
 
-    @_check_types.do
-    def _is_visible_callback(self, *_, **__):
-        self._is_visible = self.db_obj.is_visible2d  # NOQA
-        self.mainframe.editor2d.Refresh()
-
-    @_check_types.do
-    def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc=None):
-        """Render this object's VBO using the already-bound *program*.
-
-        Mirrors ``Base3D._render_geometry`` exactly -- ``self._angle``'s
-        own native quaternion is used directly, no reinterpretation here.
-        The angle's *source* (whatever sets ``angle2d``, e.g.
-        ``objects_schematic/housing_layout.py``) is responsible for writing a
-        rotation that's actually correct for a Y=0-flat 2D primitive
-        (about world Y) -- see ``angle2d.y``, not ``.z``.
-
-        Checks ``is_visible`` before doing any GL work -- ``Base3D.render()``
-        already does this (``if not self.is_visible: return``), but this
-        VBO-backed 2D path never had the matching guard (canvas2d.py's own
-        ``_render_vbo_objects`` calls straight into this with no visibility
-        filtering of its own either). Confirmed 2026-08-05 as a real gap:
-        an invisible object (``is_visible2d`` False, e.g. a wire-snap probe
-        -- see ``handlers.wire_snap``) reached all the way into
-        ``GL.glUniform3f`` on whatever ``self._position`` happens to be.
-        """
-        if self._vbo is None:
-            return
-
-        if not self._is_visible:
-            return
-
-        if normal_loc is not None:
-            GL.glUniform1i(normal_loc, int(getattr(self, 'smooth', False)))
-
-        GL.glUniform3f(pos_loc, self._position.x, 0.0, self._position.z)
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
-        GL.glUniform3f(scale_loc, *self._scale.as_float)
-
-        self._vbo.render()
-
     # ------------------------------------------------------------------
     # Hit-testing / bounds -- subclasses (Housing2D et al.) override these
     # against the OBB/AABB computed above; legacy subclasses override them
     # against their own manual geometry as before.
     # ------------------------------------------------------------------
-
-    @_check_types.do
-    def render_selection(self, program: int, proj, view) -> None:
-        """
-        Render selection highlight using the schematic2d shader.
-
-        Override this method to customise selection appearance.
-        """
-        pass
-
-    @_check_types.do
-    def hit_test(self, world_pos: _point.Point) -> bool:
-        """
-        Test if a point hits this object
-
-        Args:
-            world_pos: world position
-
-        Returns:
-            True if the point hits this object
-        """
-        return False
 
     @_check_types.do
     def get_bounds(self):
@@ -251,14 +203,3 @@ class BaseSchematic(_objectsvar.BaseVar):
 
         (min_x, _, min_z), (max_x, _, max_z) = self._aabb
         return float(min_x), float(min_z), float(max_x), float(max_z)
-
-    @_check_types.do
-    def move_to(self, world_x: float, world_y: float):
-        """
-        Move this object to a new position
-
-        Args:
-            world_x: New world X coordinate
-            world_y: New world Y coordinate
-        """
-        pass

@@ -139,8 +139,9 @@ class PJTBundleLayoutsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTBundleLayout or item in self:
                 return PJTBundleLayout(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -161,6 +162,25 @@ class PJTBundleLayoutsTable(PJTTableBase):
         db_id = PJTTableBase.insert(self, coord_id=coord_id, diameter=diameter)
 
         return PJTBundleLayout(self, db_id)
+
+    @_check_types.do
+    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> "PJTBundleLayout | None":
+        """Return the bundle-layout row whose peg-board position is
+        *point_pegboard_id*, or ``None`` if no row references it.
+
+        See ``PJTWireLayoutsTable.for_point_pegboard_id`` -- identical
+        purpose/shape, mirrored here for bundles.
+
+        :param point_pegboard_id: The waypoint's own row id.
+        :type point_pegboard_id: bytes
+        :returns: The matching layout row, or ``None``.
+        :rtype: PJTBundleLayout | None
+        """
+        rows = self.select('id', point_pegboard_id=point_pegboard_id)
+        if not rows:
+            return None
+
+        return self[rows[0][0]]
 
 
 class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesMixin, SmoothMixin):

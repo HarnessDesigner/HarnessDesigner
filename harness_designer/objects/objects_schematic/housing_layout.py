@@ -12,7 +12,7 @@ or any connected wire's.
 
 Single entry point: :func:`place_housing`, called after a housing is
 added (see ``handlers/housing_handler.py``). A no-op when
-``Config.editor2d.layout.auto_layout_enabled`` is ``False``.
+``Config.editor_schematic.layout.auto_layout_enabled`` is ``False``.
 """
 
 from typing import TYPE_CHECKING
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from .. import housing as _housing_obj
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
 
 @_check_types.do
@@ -33,7 +33,7 @@ def _footprint(housing: "_housing_obj.Housing") -> tuple[float, float]:
     """This housing's own unrotated ``(width, height)`` footprint -- see
     ``objects_schematic/housing.py``'s ``Housing._recompute`` (``_text_extent``
     is the fixed cross-axis width, ``_cavity_extent`` is
-    ``num_cavities * Config.editor2d.cavity.height``).
+    ``num_cavities * Config.editor_schematic.cavity.height``).
     """
     objschematic = housing.objschematic
     return objschematic._text_extent, objschematic._cavity_extent
@@ -44,7 +44,7 @@ def _occupied_rects(project: "_project.Project", housing: "_housing_obj.Housing"
                     ) -> list[tuple[float, float, float, float]]:
     """Every other housing's, and every connected wire's, world AABB
     (``(min_x, min_z, max_x, max_z)``) expanded by
-    ``Config.editor2d.layout.housing_spacing`` on each side -- the set a
+    ``Config.editor_schematic.layout.housing_spacing`` on each side -- the set a
     newly placed housing's own footprint must not overlap.
 
     A wire that hasn't completed its connection at both ends isn't
@@ -148,7 +148,7 @@ def place_housing(project: "_project.Project", housing: "_housing_obj.Housing"
     overlap any other housing's or any connected wire's -- always
     unrotated (``angle2d.y == 0``; the user can rotate it afterward via
     the schematic editor's own Rotate menu). No-op if
-    ``Config.editor2d.layout.auto_layout_enabled`` is ``False``.
+    ``Config.editor_schematic.layout.auto_layout_enabled`` is ``False``.
     """
     if not Config.layout.auto_layout_enabled:
         return

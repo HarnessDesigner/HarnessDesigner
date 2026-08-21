@@ -57,15 +57,14 @@ def _obb_face_for_direction(
 
 class _Config:
     """Minimal config for the part orientation canvas."""
-    lighting = _config.Config.editor3d.lighting
-    keyboard_settings = _config.Config.editor3d.keyboard_settings
-    rotate = _config.Config.editor3d.rotate
-    pan_tilt = _config.Config.editor3d.pan_tilt
-    truck_pedestal = _config.Config.editor3d.truck_pedestal
-    walk = _config.Config.editor3d.walk
-    zoom = _config.Config.editor3d.zoom
-    reset = _config.Config.editor3d.reset
-    edit2d = _config.Config.editor3d.edit2d
+    lighting = _config.Config.editor_3d.lighting
+    keyboard_settings = _config.Config.editor_3d.keyboard_settings
+    rotate = _config.Config.editor_3d.rotate
+    pan_tilt = _config.Config.editor_3d.pan_tilt
+    truck_pedestal = _config.Config.editor_3d.truck_pedestal
+    walk = _config.Config.editor_3d.walk
+    zoom = _config.Config.editor_3d.zoom
+    reset = _config.Config.editor_3d.reset
     selected_color = [0.2, 0.6, 0.2, 0.35]
     background_color = [0.13, 0.13, 0.15, 1.0]
 

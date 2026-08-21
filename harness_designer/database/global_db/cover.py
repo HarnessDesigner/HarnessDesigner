@@ -128,7 +128,7 @@ class CoversTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Cover or item in self:
                 return Cover(self, item)
 
             raise IndexError(str(item))

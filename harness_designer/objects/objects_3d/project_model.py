@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QMenu
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import vbo as _vbo
@@ -23,10 +23,10 @@ if TYPE_CHECKING:
     from .. import project_model as _project_model
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
-class ProjectModel(_base3d.Base3D):
+class ProjectModel(_base_3d.Base3D):
     parent: "_project_model.ProjectModel" = None
     db_obj: "_project.Project" = None
 
@@ -39,16 +39,19 @@ class ProjectModel(_base3d.Base3D):
             material = _materials.Plastic(color)
             angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, position, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         self._is_visible = True
         self.mainframe.editor3d.Refresh()
 
     @property
     @_check_types.do
-    def smooth(self):
+    def smooth(self) -> bool:
         return True
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        pass
 
     @_check_types.do
     def get_context_menu(self):

@@ -88,8 +88,9 @@ class PJTCircuitsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTCircuit or item in self:
                 return PJTCircuit(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

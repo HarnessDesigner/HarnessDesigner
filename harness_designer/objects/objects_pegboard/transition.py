@@ -3,16 +3,20 @@
 from typing import TYPE_CHECKING
 
 from . import base_pegboard as _base_pegboard
-from ...gl.canvas_pegboard import flatten as _flatten
-from ...gl.canvas_pegboard import table_rows as _table_rows
+# from ...gl.canvas_pegboard import flatten as _flatten
+# from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...gl import materials as _materials
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ... import config as _config
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_transition as _pjt_transition
     from .. import transition as _transition
+
+
+Config = _config.Config.editor_pegboard
 
 
 class Transition(_base_pegboard.BasePegboard):
@@ -23,10 +27,13 @@ class Transition(_base_pegboard.BasePegboard):
     generated at runtime, ``objects.objects_3d.transition._build_model``,
     always synchronously -- no async ``model.load()`` step, unlike
     ``Housing``/``Splice``/``Terminal``), so the real ``vbo`` is available
-    immediately and the flatten orientation (via
-    ``flatten_quaternion_for_transition``, which uses the fact that
-    ``_build_model`` confines every branch to local Z=0) is applied right
-    here instead of deferred to :meth:`~.base_pegboard.BasePegboard._set_model`.
+    immediately and the initial flatten rotation (a one-time -90° seed on
+    ``angle_pegboard.x``, since ``_build_model`` confines every branch to
+    local Z=0 -- see ``__init__``) is applied right here instead of
+    deferred to :meth:`~.base_pegboard.BasePegboard._set_model`. Like
+    ``Housing``/``Terminal``, this is only ever a one-time default --
+    from then on ``angle_pegboard`` is a normal user-adjustable rotation,
+    no further code-side flattening happens on every load.
     """
     db_obj: "_pjt_transition.PJTTransition"
 
@@ -60,7 +67,6 @@ class Transition(_base_pegboard.BasePegboard):
             scale=_point.Point(1.0, 1.0, 1.0),
             material=_materials.Rubber(self._part.color.ui),
         )
-        self.smooth = db_obj.smooth
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
         # keyed by this transition's own peg-board point, not its 3D one
@@ -72,65 +78,31 @@ class Transition(_base_pegboard.BasePegboard):
             self._position.x = float(pos3d.x)
             self._position.z = float(pos3d.z)
 
-        flatten_quat = _flatten.flatten_quaternion_for_transition(
-            obj3d._vbo.local_obb)  # NOQA
-        self._apply_flatten_if_untouched(flatten_quat.as_euler)
+        # Seed the transition's initial peg-board rotation to lay its
+        # branches (built confined to local Z=0 -- see this class's own
+        # docstring) flat in the board's XZ view plane; left unrotated,
+        # they'd render edge-on viewed straight down world Y. Same
+        # "only the very first time" sentinel discipline as the X/Z
+        # position seed above (identity is the fresh-row default) --
+        # from then on this is a normal user-adjustable rotation, same
+        # as housing's/terminal's own angle_pegboard.
+        if self._angle.x == 0.0 and self._angle.y == 0.0 and self._angle.z == 0.0:
+            self._angle.x = -90.0
 
     @property
     @_check_types.do
-    def table_anchor_points(self) -> list:
-        """One table-anchor point per populated branch (1-6) -- a
-        transition gets **one data table per branch**, not one combined
-        table for the whole transition, since each
-        :class:`~harness_designer.database.project_db.pjt_transition_branch.PJTTransitionBranch`
-        represents an independent bundle attachment point and already has
-        its own independent ``position3d_id`` (``Position3DMixin``) to key
-        a ``pjt_pegboard_tables`` row by -- no schema change needed.
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_transitions
 
-        :returns: One entry per populated branch.
-        :rtype: list[tuple[int, float, float, str]]
-        """
-        if not self.is_active:
-            return []
+        return smooth
 
-        points = []
-        for i in range(1, 7):
-            branch = getattr(self.db_obj, f'branch{i}')
-            if branch is None:
-                continue
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
 
-            pos = branch.position3d
-            points.append((branch.position3d_id, float(pos.x), float(pos.z),
-                           f'{self._table_label()} - Branch {i}'))
-
-        return points
-
-    @_check_types.do
-    def table_anchor_live_position(self, point3d_id: bytes) -> "_point.Point":
-        """One branch's live ``position3d`` -- *point3d_id* must be one of
-        this transition's own branches' ``position3d_id`` (see
-        :attr:`table_anchor_points`), not the transition's own anchor
-        point. Falls back to the transition's own :attr:`position` if no
-        branch matches (shouldn't happen given the caller always passes
-        one of this transition's own ``table_anchor_points`` ids).
-        """
-        for i in range(1, 7):
-            branch = getattr(self.db_obj, f'branch{i}')
-            if branch is not None and branch.position3d_id == point3d_id:
-                return branch.position3d
-
-        return self.position
-
-    @_check_types.do
-    def build_table_rows(self, project, point3d_id: bytes) -> list:
-        """One branch's non-filler wires -- see
-        ``table_rows.build_rows_for_transition_branch``. *point3d_id* must
-        be one of this transition's own branches' ``position3d_id`` (see
-        :attr:`table_anchor_points`), not the transition's own anchor point.
-        """
-        for i in range(1, 7):
-            branch = getattr(self.db_obj, f'branch{i}')
-            if branch is not None and branch.position3d_id == point3d_id:
-                return _table_rows.build_rows_for_transition_branch(branch)
-
-        return []
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass

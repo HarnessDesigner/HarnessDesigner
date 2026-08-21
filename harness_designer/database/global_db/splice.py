@@ -133,7 +133,7 @@ class SplicesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Splice or item in self:
                 return Splice(self, item)
 
             raise IndexError(str(item))

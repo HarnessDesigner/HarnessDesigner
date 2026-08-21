@@ -85,6 +85,7 @@ EVT_GL_CAMERA_WALK = 'gl_camera_walk'
 EVT_GL_CAMERA_TRUCKPEDISTAL = 'gl_camera_truckpedistal'
 EVT_GL_CAMERA_ROTATE = 'gl_camera_rotate'
 EVT_GL_CAMERA_RESET = 'gl_camera_reset'
+EVT_GL_CAMERA_DOLLY = 'gl_camera_dolly'
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +98,13 @@ BTN_RIGHT = 0x02
 BTN_MIDDLE = 0x04
 BTN_AUX1 = 0x08
 BTN_AUX2 = 0x10
+
+# Not a real mouse button -- a synthetic flag passed alone (never OR'ed with
+# a real button bit) so a direct-call drag/rotation handler can distinguish
+# "mouse capture was yanked away" (abort, don't commit) from "the button was
+# released normally" (0x00, commit) using the same single int parameter,
+# with no second argument and no string/enum type needed.
+BTN_CAPTURE_LOST = 0x20
 
 
 # ---------------------------------------------------------------------------

@@ -9,22 +9,17 @@ class Config:
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    class editor3d:
+    class editor_3d:
         """Represent an editor 3D in :mod:`harness_designer.ui.dialogs.housing_editor.config`.
 
         UNKNOWN details are inferred from the class name and surrounding code.
         """
-        lighting = _config.Config.editor3d.lighting
-        keyboard_settings = _config.Config.editor3d.keyboard_settings
-        rotate = _config.Config.editor3d.rotate
-        pan_tilt = _config.Config.editor3d.pan_tilt
-        truck_pedestal = _config.Config.editor3d.truck_pedestal
-        walk = _config.Config.editor3d.walk
-        zoom = _config.Config.editor3d.zoom
-        reset = _config.Config.editor3d.reset
-        edit2d = _config.Config.editor3d.edit2d
-        selected_color = _config.Config.editor3d.selected_color
-        background_color = _config.Config.editor3d.background_color
+        lighting = _config.Config.editor_3d.lighting
+        keyboard_settings = _config.Config.editor_3d.keyboard_settings
+
+        input = _config.Config.editor_3d.input
+        selected_color = _config.Config.editor_3d.selected_color
+        background_color = _config.Config.editor_3d.background_color
 
         class headlight:
             """Represent a headlight in :mod:`harness_designer.ui.dialogs.housing_editor.config`.

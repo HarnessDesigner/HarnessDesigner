@@ -3,8 +3,8 @@
 from . import editor_pegboard as _editor_pegboard
 
 
-EditorPegBoard = _editor_pegboard.EditorPegBoard
-EditorPegBoardPanel = _editor_pegboard.EditorPegBoardPanel
+EditorPegboard = _editor_pegboard.EditorPegboard
+EditorPegboardPanel = _editor_pegboard.EditorPegboardPanel
 
 
 del _editor_pegboard

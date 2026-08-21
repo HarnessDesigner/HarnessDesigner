@@ -3,17 +3,21 @@
 from typing import TYPE_CHECKING
 
 from . import base_pegboard as _base_pegboard
-from ...gl.canvas_pegboard import flatten as _flatten
-from ...gl.canvas_pegboard import table_rows as _table_rows
+# from ...gl.canvas_pegboard import flatten as _flatten
+# from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import box as _box
 from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
 from ... import check_types as _check_types
+from ... import config as _config
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from .. import terminal as _terminal
+
+
+Config = _config.Config.editor_pegboard
 
 
 class Terminal(_base_pegboard.BasePegboard):
@@ -82,8 +86,6 @@ class Terminal(_base_pegboard.BasePegboard):
                 material=_materials.Polished(self._part.plating.color.ui),
             )
 
-        self.smooth = db_obj.smooth
-
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
         # keyed by this terminal's own peg-board point, not its 3D one
         # (see housing.py's own comment on why).
@@ -97,18 +99,20 @@ class Terminal(_base_pegboard.BasePegboard):
         if self._model is not None:
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
-
+    @property
     @_check_types.do
-    def _flatten_hook(self) -> tuple:
-        """Return the current OBB-derived "lay it flat" Euler orientation."""
-        flatten_quat = _flatten.flatten_quaternion_for_model3d(
-            self._vbo.local_obb, self._model.forward_up)  # NOQA
-        return flatten_quat.as_euler
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_terminals
 
-    @_check_types.do
-    def build_table_rows(self, project, point3d_id: bytes) -> list:
-        """This bare terminal's single attached wire -- see
-        ``table_rows.build_rows_for_terminal``. A *seated* terminal never
-        reaches here (``is_active`` is ``False``, see :meth:`__init__`).
-        """
-        return _table_rows.build_rows_for_terminal(self.db_obj, project)
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass

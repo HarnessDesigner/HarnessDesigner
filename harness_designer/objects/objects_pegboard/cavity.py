@@ -29,4 +29,20 @@ class Cavity(_base_pegboard.BasePegboard):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_cavity.PJTCavity`
         """
-        super().__init__(parent, db_obj, position=None, angle=None)
+
+        # No vbo (never rendered directly -- a seated terminal/seal
+        # reads its own independent position_pegboard/angle_pegboard,
+        # same as objects_3d.terminal.Terminal/objects_3d.seal.Seal read
+        # position3d/angle3d directly rather than deriving it from the
+        # cavity at render time; whatever writes those columns at
+        # seating/placement time is what actually needs the cavity's own
+        # position/angle available to compute from). pjt_points_pegboard
+        # already stores a real x/y/z (see PJTPointPegboard.point), so
+        # angle_pegboard/position_pegboard are real, bound, Y-aware
+        # values -- passing them through here (rather than None/None)
+        # is what makes them available for that placement code to read.
+        super().__init__(parent, db_obj, None, db_obj.angle_pegboard,
+                         db_obj.position_pegboard, None, None)
+
+    def render(self, _, __, ___):
+        pass

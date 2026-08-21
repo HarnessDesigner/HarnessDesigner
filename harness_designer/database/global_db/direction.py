@@ -79,7 +79,7 @@ class DirectionsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Direction or item in self:
                 return Direction(self, item)
 
             raise IndexError(str(item))

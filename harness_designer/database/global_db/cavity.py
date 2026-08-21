@@ -138,7 +138,7 @@ class CavitiesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Cavity or item in self:
                 return Cavity(self, item)
             raise IndexError(str(item))
 

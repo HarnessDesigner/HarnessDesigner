@@ -8,7 +8,7 @@ from PySide6.QtCore import QTimer
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
@@ -25,10 +25,10 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
-class WireMarker(_base3d.Base3D):
+class WireMarker(_base_3d.Base3D):
     """Represent a wire marker in :mod:`harness_designer.objects.objects_3d.wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -107,8 +107,25 @@ class WireMarker(_base3d.Base3D):
             wire_p1.bind(self._update_position)
             wire_p2.bind(self._update_position)
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wire_markers
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def _wire_too_short(self, length: float) -> bool:

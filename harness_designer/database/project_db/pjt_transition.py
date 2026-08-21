@@ -3,13 +3,17 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
+import numpy as np
 from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import transition as _transition
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from ...geometry import point as _point
 from ...geometry import angle as _angle
+from . import pjt_point3d as _pjt_point3d
+from . import pjt_point_pegboard as _pjt_point_pegboard
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -127,8 +131,9 @@ class PJTTransitionsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTTransition or item in self:
                 return PJTTransition(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -217,6 +222,317 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :rtype: :class:`PJTTransitionsTable`
         """
         return self._table
+
+    @property
+    @_check_types.do
+    def branches(self) -> list["_pjt_transition_branch.PJTTransitionBranch"]:
+        """Every non-``None`` branch (``branch1``..``branch6``) --
+        shared by :meth:`_update_position3d`/:meth:`_update_angle3d`/
+        :meth:`_update_position_pegboard`/:meth:`_update_angle_pegboard`
+        to gather what needs to move/rotate along with the transition.
+        """
+        return [b for b in (self.branch1, self.branch2, self.branch3,
+                            self.branch4, self.branch5, self.branch6) if b is not None]
+
+    _o_position3d: _point.Point = None
+
+    @property
+    @_check_types.do
+    def position3d(self) -> _point.Point:
+        """Return the position 3D.
+
+        Overrides :meth:`Position3DMixin.position3d` to additionally bind
+        :meth:`_update_position3d` -- the base mixin has no cascade hook of
+        its own (see ``mixins.position3d``), so a batch-cascading move
+        needs this override, same as ``PJTHousing.position3d``.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_position3d is DefaultStoredValue:
+            point_id = self.position3d_id
+
+            if point_id is None:
+                self._stored_position3d = None
+            else:
+                self._stored_position3d = self._table.db.pjt_points3d_table[point_id]
+
+                point = self._stored_position3d.point
+                point.bind(self._update_position3d)
+                self._o_position3d = point.copy()
+
+        if self._stored_position3d is not None:
+            if self._obj is not None:
+                self._stored_position3d.add_object(self._obj())
+
+            point = self._stored_position3d.point
+        else:
+            point = None
+
+        return point
+
+    @_check_types.do
+    def _update_position3d(self, point: _point.Point):
+        """Batch-cascade the transition's move to every branch's own
+        ``position3d`` -- up to 6 branches (``branch1``..``branch6``).
+
+        A branch's ``position3d`` row is not a clone of anything -- the
+        bundle attached to a branch, and every wire inside that bundle,
+        share this exact ``pjt_points3d`` row directly (``bundle_db.
+        start_position3d_id = branch.position3d_id``, see
+        ``handlers.transition_handler._insert_bundle``), so moving the
+        branch's row here via one batch write is all that's needed for
+        the bundle/wires to follow too -- no separate gathering, no
+        ``parent_point_id`` clone lookup (unlike ``PJTHousing``'s
+        terminal/wire cascade), since branches have no clone mechanism.
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
+        delta = point - self._o_position3d
+        self._o_position3d = point.copy()
+
+        positions = [b.position3d for b in self.branches]
+
+        if not positions:
+            return
+
+        positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
+        new_pos_arr = positions_array + delta
+
+        db_ids = [p.db_id[:-2] for p in positions]
+        f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
+        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+
+        self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
+
+        # The DB row for each branch point was already batch-written above
+        # in one shot -- suppress PJTPoint3D's own per-point DB write while
+        # applying the same values to the live Point (still need
+        # _process_callbacks() to fire so rendering/geometry recompute).
+        _pjt_point3d.PJTPoint3D._skip_db_write = True
+        try:
+            for i, pos in enumerate(positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point3d.PJTPoint3D._skip_db_write = False
+
+    _o_position_pegboard: _point.Point = None
+
+    @property
+    @_check_types.do
+    def position_pegboard(self) -> _point.Point:
+        """Return the peg-board position.
+
+        Overrides :meth:`PositionPegboardMixin.position_pegboard` to
+        additionally bind :meth:`_update_position_pegboard` -- see
+        :meth:`position3d`'s own docstring for why.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_position_pegboard is DefaultStoredValue:
+            point_id = self.position_pegboard_id
+
+            if point_id is None:
+                self._stored_position_pegboard = None
+            else:
+                self._stored_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+                point = self._stored_position_pegboard.point
+                point.bind(self._update_position_pegboard)
+                self._o_position_pegboard = point.copy()
+
+        if self._stored_position_pegboard is not None:
+            if self._obj is not None:
+                self._stored_position_pegboard.add_object(self._obj())
+
+            point = self._stored_position_pegboard.point
+        else:
+            point = None
+
+        return point
+
+    @_check_types.do
+    def _update_position_pegboard(self, point: _point.Point):
+        """Peg-board equivalent of :meth:`_update_position3d` -- see its
+        docstring for the full rationale (identical, minus the 3D/
+        peg-board table swap).
+
+        :param point: Point value.
+        :type point: :class:`_point.Point`
+        """
+        delta = point - self._o_position_pegboard
+        self._o_position_pegboard = point.copy()
+
+        positions = [b.position_pegboard for b in self.branches]
+
+        if not positions:
+            return
+
+        positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
+        new_pos_arr = positions_array + delta
+
+        db_ids = [p.db_id[:-8] for p in positions]
+        f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
+        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+
+        self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
+
+        _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
+        try:
+            for i, pos in enumerate(positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+
+    _o_quat3d: list = None
+    _o_euler3d: list = None
+
+    @_check_types.do
+    def _update_angle3d(self, angle: _angle.Angle):
+        """Batch-cascade the transition's rotation to every branch's
+        ``position3d`` -- same row-sharing rationale as
+        :meth:`_update_position3d`. Branches have no angle of their own
+        (no ``Angle3DMixin`` on ``PJTTransitionBranch`` -- a branch's own
+        orientation is derived geometrically from its position relative
+        to the transition center by ``objects_3d.transition.
+        _build_model``), so only positions rotate here -- no per-branch
+        OBB face-alignment step (mirrors ``PJTHousing.
+        _update_angle_pegboard``'s own no-mesh fallback path, since a
+        transition has no accessory mesh geometry to align a branch
+        against either).
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
+        if self._o_quat3d is None:
+            self._o_quat3d = eval(self._table.select('quat3d', id=self._db_id)[0][0])
+            self._o_euler3d = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+
+        o_angle = _angle.Angle.from_quat(self._o_quat3d, self._o_euler3d)
+
+        new_quat = list(angle.as_quat_float)
+        new_euler = list(angle.as_euler_float)
+        quat = str(new_quat)
+        euler = str(new_euler)
+
+        self._table.update(self._db_id, quat3d=quat, angle3d=euler)
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._o_quat3d = new_quat
+        self._o_euler3d = new_euler
+
+        actual_delta_q = angle._q - o_angle._q  # NOQA
+        position = self.position3d
+
+        positions = [b.position3d for b in self.branches]
+
+        if not positions:
+            return
+
+        w_d, x_d, y_d, z_d = actual_delta_q.as_float
+        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
+        center = position.as_numpy.copy()
+
+        pos_arr = np.array([list(p.as_float) for p in positions], dtype=np.float32)
+        rel = pos_arr - center
+        t_vec = np.cross(qvec_d, rel)
+        new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
+
+        f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
+        db_ids = [p.db_id[:-2] for p in positions]
+        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+        self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
+
+        _pjt_point3d.PJTPoint3D._skip_db_write = True
+        try:
+            for i, pos in enumerate(positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point3d.PJTPoint3D._skip_db_write = False
+
+    _o_quat_pegboard: list = None
+    _o_euler_pegboard: list = None
+
+    @_check_types.do
+    def _update_angle_pegboard(self, angle: _angle.Angle):
+        """Peg-board equivalent of :meth:`_update_angle3d` -- see its
+        docstring for the full rationale (identical, minus the 3D/
+        peg-board table swap).
+
+        :param angle: Value for ``angle``.
+        :type angle: :class:`_angle.Angle`
+        """
+        if self._o_quat_pegboard is None:
+            self._o_quat_pegboard = eval(self._table.select('quat_pegboard', id=self._db_id)[0][0])
+            self._o_euler_pegboard = eval(self._table.select('angle_pegboard', id=self._db_id)[0][0])
+
+        o_angle = _angle.Angle.from_quat(self._o_quat_pegboard, self._o_euler_pegboard)
+
+        new_quat = list(angle.as_quat_float)
+        new_euler = list(angle.as_euler_float)
+        quat = str(new_quat)
+        euler = str(new_euler)
+
+        self._table.update(self._db_id, quat_pegboard=quat, angle_pegboard=euler)
+
+        if 'nan' in euler or 'nan' in quat:
+            return
+
+        self._o_quat_pegboard = new_quat
+        self._o_euler_pegboard = new_euler
+
+        actual_delta_q = angle._q - o_angle._q  # NOQA
+        position = self.position_pegboard
+
+        positions = [b.position_pegboard for b in self.branches]
+
+        if not positions:
+            return
+
+        w_d, x_d, y_d, z_d = actual_delta_q.as_float
+        qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
+        center = position.as_numpy.copy()
+
+        pos_arr = np.array([list(p.as_float) for p in positions], dtype=np.float32)
+        rel = pos_arr - center
+        t_vec = np.cross(qvec_d, rel)
+        new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
+
+        f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
+        db_ids = [p.db_id[:-8] for p in positions]
+        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
+        self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
+
+        _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
+        try:
+            for i, pos in enumerate(positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
 
     _stored_branch1: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
 

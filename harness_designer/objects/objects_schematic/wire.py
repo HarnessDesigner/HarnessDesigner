@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QMenu
 from . import base_schematic as _base_schematic
 from ...geometry import angle as _angle
 from ...geometry import point as _point
+from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
@@ -23,6 +24,9 @@ if TYPE_CHECKING:
     from .. import wire as _wire
 
 
+Config = _config.Config.editor_schematic
+
+
 class Wire(_base_schematic.BaseSchematic):
     """
     2D representation of a wire for schematic view
@@ -32,7 +36,7 @@ class Wire(_base_schematic.BaseSchematic):
     positioned at the start point and scaled/rotated to reach the stop
     point, plus (if the part has a stripe color) the *same* shared
     growable helix stripe mesh (``shapes/helix.py``) that wire uses too
-    -- rendered as an extra (see :meth:`render_extras`), clipped to this
+    -- rendered as part of the same pass (see :meth:`render`), clipped to this
     segment via the ``stripeClipStart``/``stripeClipStop`` uniforms
     ported into ``gl/shaders/schematic2d.py`` for this purpose (mirrors
     ``gl/shaders/faces.py``'s mechanism exactly, minus the geometry-
@@ -44,9 +48,11 @@ class Wire(_base_schematic.BaseSchematic):
     text are, since a cylinder viewed edge-on from directly above already
     reads as a plain rectangle.
 
-    Renders at the part's real ``od_mm`` -- same value ``objects_3d/wire.py``'s
-    ``Wire`` uses -- so gauge is visually distinguishable in the schematic
-    too; unlike 3D's ``stripe_clip_start``/``stripe_clip_stop`` (calibrated
+    Renders at a fixed ``Config.editor_schematic.wire.diameter`` -- NOT
+    the part's real ``od_mm`` the way ``objects_3d/wire.py``'s ``Wire``
+    does -- so gauge is not visually distinguishable in the schematic
+    (every 2D wire reads the same thickness regardless of part); unlike
+    3D's ``stripe_clip_start``/``stripe_clip_stop`` (calibrated
     to real 3D
     routing length and chained across split segments so the phase never
     jumps at a splice), each 2D segment's stripe starts fresh at its own
@@ -82,7 +88,7 @@ class Wire(_base_schematic.BaseSchematic):
         self._stripe_material = (
             _materials.Generic(stripe_color.ui) if stripe_color is not None else None)
 
-        diameter = self._part.od_mm
+        diameter = Config.object_sizes.wire.diameter
         self._length = self._calc_length()
         scale = _point.Point(diameter, diameter, self._length)
 
@@ -107,6 +113,24 @@ class Wire(_base_schematic.BaseSchematic):
 
             self._bind_waypoints()
             self._recalculate_geometry()
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wires
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def _segments(self) -> list[tuple]:
@@ -163,8 +187,8 @@ class Wire(_base_schematic.BaseSchematic):
         any endpoint or interior waypoint moves.
 
         Per-segment position/angle/scale for actual drawing are computed
-        fresh in render()/render_extras from _segment_transforms(); this
-        only maintains the aggregate values anything outside this class
+        fresh in render() from _segment_transforms(); this only
+        maintains the aggregate values anything outside this class
         still reads (.scale, .angle, .obb, .aabb).
         """
         total_length = 0.0
@@ -451,39 +475,44 @@ class Wire(_base_schematic.BaseSchematic):
                 b_point.x = world_pos.x
 
     @_check_types.do
-    def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
+    def render(self, faces_program, edges_program, vertices_program):
         """Render every sub-segment of the wire's current 2D path,
         mirroring ``objects_3d/wire.py``'s ``Wire.render`` -- temporarily
         points this object at each segment's own position/angle/scale
         before delegating to the base class's single-transform draw call,
-        once per segment.
+        once per segment -- then this wire's own color stripe (if its
+        part has one) as a clipped window into the shared helix mesh,
+        once per segment too. The stripe pass is merged in here rather
+        than kept as a separate ``render_extras()`` (which nothing ever
+        called) since it only ever piggybacks on this same render pass,
+        same as ``objects_3d/wire.py``'s ``WireStripe``, and needs its
+        own uniform locations resolved directly (the ``stripeClipStart``/
+        ``stripeClipStop`` uniforms the standard ``_render_geometry``
+        pipeline doesn't know about).
         """
         real_position, real_angle, real_scale = self._position, self._angle, self._scale
 
         for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
             self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
-            super().render(program, pos_loc, rot_loc, scale_loc, normal_loc)
+            super().render(faces_program, edges_program, vertices_program)
 
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
 
-    @_check_types.do
-    def render_extras(self, program, pos_loc, rot_loc, scale_loc, normal_loc):
-        """Render this wire's stripe (if its part has a stripe color) as
-        a clipped window into the shared helix mesh, once per sub-segment
-        -- see the class docstring. Piggybacks on this wire's own render
-        pass, same as ``objects_3d/wire.py``'s ``WireStripe`` (not a
-        separately-registered scene object; nothing else ever calls this
-        for it).
-        """
-        if self._stripe_material is None or self._position is None:
+        if self._stripe_material is None or self._position is None or not self.is_visible:
             return
+
+        GL.glUseProgram(faces_program)
+
+        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
+        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
+        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
+        start_loc = GL.glGetUniformLocation(faces_program, 'stripeClipStart')
+        stop_loc = GL.glGetUniformLocation(faces_program, 'stripeClipStop')
 
         stripe_vbo = _helix.create_vbo(self._length)
 
-        start_loc = GL.glGetUniformLocation(program, 'stripeClipStart')
-        stop_loc = GL.glGetUniformLocation(program, 'stripeClipStop')
-
-        self._stripe_material.set(program)
+        self._stripe_material.set(faces_program)
         GL.glUniform1i(normal_loc, 0)
 
         stripe_offset = 0.0
@@ -501,6 +530,7 @@ class Wire(_base_schematic.BaseSchematic):
 
         GL.glUniform1f(start_loc, 0.0)
         GL.glUniform1f(stop_loc, 0.0)
+        GL.glUseProgram(0)
 
 
 class WireMenu(QMenu):

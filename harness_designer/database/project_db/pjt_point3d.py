@@ -74,8 +74,9 @@ class PJTPoints3DTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTPoint3D or item in self:
                 return PJTPoint3D(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

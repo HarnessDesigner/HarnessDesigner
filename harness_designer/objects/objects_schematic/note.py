@@ -38,10 +38,30 @@ class Note(_base_schematic.BaseSchematic):
         :type db_obj: :class:`_pjt_note.PJTNote`
         """
 
+        # TODO: need to fix the call to the super class so all arguments are supplied
+
         position = db_obj.position2d
         angle = db_obj.angle2d
 
         super().__init__(parent, db_obj, None, angle, position, None, None)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_notes
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def set_size(self, size):

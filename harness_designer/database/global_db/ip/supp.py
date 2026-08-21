@@ -65,7 +65,7 @@ class IPSuppsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in IPSupp or item in self:
                 return IPSupp(self, item)
 
             raise IndexError(str(item))

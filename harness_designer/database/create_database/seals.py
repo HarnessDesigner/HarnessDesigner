@@ -16,6 +16,7 @@ from . import families as _families
 
 from . import projects as _projects
 from . import points3d as _points3d
+from . import points_pegboard as _points_pegboard
 from . import housings as _housings
 from . import cavities as _cavities
 from . import terminals as _terminals
@@ -409,10 +410,18 @@ pjt_table = _con.SQLTable(
                                                     _points3d.pjt_id_field,
                                                     on_delete=_con.REFERENCE_DEFAULT,
                                                     on_update=_con.REFERENCE_CASCADE)),
+    _con.UUIDField('point_pegboard_id', default='NULL',
+                  references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                    _points_pegboard.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_CASCADE,
+                                                    on_update=_con.REFERENCE_CASCADE)),
     _con.TextField('name', default='""', no_null=True),
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('quat_pegboard', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('angle_pegboard', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL')
 )

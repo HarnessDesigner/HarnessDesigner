@@ -6,6 +6,7 @@ import gc
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
+from PySide6 import QtGui
 
 from .. import config as _config
 from .dialogs import closing_dialog as _closing_dialog
@@ -28,6 +29,17 @@ if TYPE_CHECKING:
 _mainframe: "MainFrame" = None
 
 Config = _config.Config.mainframe
+
+# A generous, deliberately over-large estimate of the OS title bar's
+# height, used only to sanity-check a remembered Config.position/size
+# against the currently-connected displays (see MainFrame.__init__
+# below) -- the real frame extents aren't knowable before the OS window
+# manager has actually realized the window, so this can't be exact.
+# Native Windows caption height is ~31px at 100% display scaling;
+# rounding well up costs nothing here (worst case, a genuinely reachable
+# title bar gets reset a little too eagerly) while rounding down risks
+# missing a title bar that's really off-screen.
+_ASSUMED_TITLE_BAR_HEIGHT = 40
 
 # ---------------------------------------------------------------------------
 # EVT_GL_* constants are plain strings equal to the signal names,
@@ -80,6 +92,34 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self.logger = logger
         self._clone_obj = None
+
+        # A remembered position/size can go stale between runs -- a
+        # monitor unplugged, or its resolution/arrangement changed --
+        # leaving the title bar (the part actually clickable/draggable
+        # to recover the window) off of every currently-connected
+        # display, with no way for the user to drag it back. Config.
+        # position is this widget's own top-left (see move() below and
+        # _save_size()/_save_position() -- Qt's pos()/move() operate on
+        # the client geometry, excluding the OS window frame), so the
+        # title bar sits in a _ASSUMED_TITLE_BAR_HEIGHT-tall strip just
+        # above that. If any part of that strip is off of every display
+        # at once, both position and size are dropped back to None so
+        # the fallback logic just below computes fresh, centered
+        # defaults -- same as a first-ever launch.
+        if Config.position is not None and Config.size is not None:
+            title_bar = QtCore.QRect(
+                int(Config.position[0]),
+                int(Config.position[1]) - _ASSUMED_TITLE_BAR_HEIGHT,
+                int(Config.size[0]),
+                _ASSUMED_TITLE_BAR_HEIGHT)
+
+            union = QtGui.QRegion()
+            for screen in QtWidgets.QApplication.screens():
+                union += QtGui.QRegion(screen.availableGeometry())
+
+            if not QtGui.QRegion(title_bar).subtracted(union).isEmpty():
+                Config.position = None
+                Config.size = None
 
         if Config.size is None:
             screen = self.screen()
@@ -175,16 +215,16 @@ class MainFrame(QtWidgets.QMainWindow):
         splash.SetText('Creating 2D editor...')
         splash.flush()
 
-        from . import editor_2d
+        from . import editor_schematic
 
-        self.editor2d = editor_2d.Editor2D(self)
+        self.editor2d = editor_schematic.EditorSchematic(self)
 
         splash.SetText('Creating peg board editor...')
         splash.flush()
 
         from . import editor_pegboard
 
-        self.editor_pegboard = editor_pegboard.EditorPegBoard(self)
+        self.editor_pegboard = editor_pegboard.EditorPegboard(self)
 
         splash.SetText('Creating database editor...')
         splash.flush()
@@ -887,28 +927,13 @@ class MainFrame(QtWidgets.QMainWindow):
         """
         super().showEvent(event)
 
-        if self._splash is not None:
-            self._splash.Destroy()
-            self._splash = None
-
-            # Destroy() only schedules deferred deletion of the underlying
-            # Qt widget (self._window.deleteLater(), see splash.py) -- the
-            # actual C++ QLabel is freed on the next return to the event
-            # loop, the same turn _open_project below gets dispatched on
-            # (queued via the same QTimer.singleShot(0, ...) mechanism).
-            # Nothing ever cleared the two OTHER references to this same
-            # Splash instance -- harness_designer.splash and App.splash
-            # (see app.py's _init, where both get set alongside this
-            # MainFrame's own self._splash) -- so a fully reachable Python
-            # object with an already-deleted C++ backing sat in the object
-            # graph indefinitely, crashing the first time anything (e.g.
-            # gc.collect()'s tp_traverse walk) touched it. See the crash
-            # investigation.
-            import harness_designer as _hd
-            _hd.splash = None
-            if _hd._app is not None:
-                _hd._app.splash = None
-
+        # The splash stays up (see _open_project below) -- it isn't torn
+        # down here anymore. cache_primitives() (arrow/box/cylinder/sphere
+        # VBOs, then the full glyph set) needs a real GL context, which
+        # only exists once this window has actually been created/shown, so
+        # this is the earliest point that work could start anyway. Keeping
+        # the splash visible through it gives the user something better
+        # than a bare wait cursor for the several-second glyph build.
         QtCore.QTimer.singleShot(0, self._open_project)
 
     @_check_types.do
@@ -922,23 +947,42 @@ class MainFrame(QtWidgets.QMainWindow):
         # the crash investigation this all traces back to.
         from .. import shapes
 
-        shapes.cache_primitives(self)
+        shapes.cache_primitives(self, self._splash)
+
+        if self._splash is not None:
+            import time
+
+            # ---- show main window, hide splash ----
+            self._splash.SetText('DONE!')
+            time.sleep(0.50)
+
+            self._splash.Destroy()
+            self._splash = None
+
+            # Destroy() only schedules deferred deletion of the underlying
+            # Qt widget (self._window.deleteLater(), see splash.py) -- the
+            # actual C++ QLabel is freed on the next return to the event
+            # loop. Nothing must go on to hold a live reference to this
+            # same Splash instance past this point -- harness_designer.
+            # splash and App.splash (see app.py's _init, where both get
+            # set alongside this MainFrame's own self._splash) -- or a
+            # fully reachable Python object with an already-deleted C++
+            # backing sits in the object graph indefinitely, crashing the
+            # first time anything (e.g. gc.collect()'s tp_traverse walk)
+            # touches it. See the crash investigation this was moved from
+            # (originally in showEvent, right next to the old Destroy()
+            # call -- same reasoning, just relocated so the splash can
+            # stay up through cache_primitives() above).
+            import harness_designer as _hd
+            _hd.splash = None
+            if _hd._app is not None:
+                _hd._app.splash = None
 
         from ..objects import project as _proj
 
         self.editor_db.load_db(self.global_db)
 
         self.project = _proj.Project.select_project(self)
-
-        # Every housing/splice/transition/terminal wrapper constructed while
-        # building the Project above already called add_object(), but
-        # self._project was still None at that point (it isn't assigned
-        # until the line above returns) — so the load_project() rebuild
-        # guarded on self._project inside add_object()/remove_object() never
-        # fired for any of them. Trigger it once now that a project (or
-        # None, if the user canceled the open dialog) is actually assigned.
-        if self._project is not None:
-            self.editor_pegboard.load_project(self._project)
 
     @_check_types.do
     def load_project(self):
@@ -969,7 +1013,6 @@ class MainFrame(QtWidgets.QMainWindow):
         _proj.Config.last_project = project_name
 
         self.project = _proj.Project(self, db_obj, project_name, project_id)
-        self.editor_pegboard.load_project(self._project)
 
     # ------------------------------------------------------------------
     # GL object event handlers (3D canvas)

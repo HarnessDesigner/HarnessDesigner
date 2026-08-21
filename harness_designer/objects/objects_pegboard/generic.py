@@ -22,4 +22,9 @@ class Generic(_base_pegboard.BasePegboard):
         :param parent: Parent object.
         :type parent: :class:`_generic.Generic`
         """
-        super().__init__(parent, None, position=None, angle=None)
+
+        super().__init__(parent, None, None, None,
+                         None, None, None)
+
+    def render(self, _, __, ___):
+        pass

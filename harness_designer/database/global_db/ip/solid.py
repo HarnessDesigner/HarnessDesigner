@@ -67,7 +67,7 @@ class IPSolidsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in IPSolid or item in self:
                 return IPSolid(self, item)
 
             raise IndexError(str(item))

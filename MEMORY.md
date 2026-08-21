@@ -21,6 +21,19 @@ See the MANDATORY section above for the read-at-start / update-on-change rule. T
 
 Key insight: **part-type fan-out** — a part type (e.g. "seal") has parallel files in `database/global_db`, `database/project_db` (`pjt_*`), `database/create_database`, `objects/objects2d`, `objects/objects3d`, `handlers`, and `ui/editor_db`. Changing a part type usually touches all seven.
 
+### Local tooling: LibreOffice (for xlsx skill recalculation)
+LibreOffice is installed on this machine at `C:\Program Files\LibreOffice\program\soffice.exe` (not on `PATH`; `which soffice`/`where soffice.exe` find nothing).
+
+**Why this matters:** The `anthropic-skills:xlsx` skill's `scripts/recalc.py` fails outright on this Windows machine with `Could not prepare the LibreOffice environment: module 'socket' has no attribute 'AF_UNIX'` — that script assumes a POSIX unix-socket connection to a headless LibreOffice instance, which doesn't exist on Windows Python. This isn't a missing-LibreOffice problem, it's the script's connection method being POSIX-only.
+
+**Workaround that works:** run LibreOffice headless directly instead of the skill's `recalc.py`:
+```
+"C:\Program Files\LibreOffice\program\soffice.exe" --headless --calc --convert-to xlsx --outdir <out_dir> <file.xlsx>
+```
+This recalculates every formula and rewrites the file (into `<out_dir>`, same filename) with cached values, same effect as the skill's intended recalc step. Verify afterward with `openpyxl.load_workbook(path, data_only=True)` and scan cells for strings starting with `#` (formula errors) — confirmed clean on a real workbook (26-row CPI reweighting model, SUM/arithmetic formulas only) on 2026-08-20.
+
+**How to apply:** Any time the xlsx skill is used on this machine, expect `recalc.py` to fail this way — go straight to the `soffice.exe --headless --convert-to` workaround rather than debugging the socket error or reporting "LibreOffice isn't available."
+
 ---
 
 ## User
@@ -133,6 +146,25 @@ def some_func(some_param: _Union["_somemodule.SomeClass", None]) -> None:
 - Never use `Optional` under any circumstance.
 - Never import an actual class/type from a module that's only needed for typing — import the module itself under a `TYPE_CHECKING` guard, aliased with a leading underscore.
 
+### PySide6 imports: never more than one layer down
+Anything imported from PySide6 must be imported at most one layer down — import the submodule (`QtCore`, `QtWidgets`, `QtGui`, ...), then reference names off it. Never import a name directly from a PySide6 submodule.
+
+Not OK:
+```python
+from PySide6.QtCore import Signal
+
+x = Signal(...)
+```
+
+OK:
+```python
+from PySide6 import QtCore
+
+x = QtCore.Signal(...)
+```
+
+**How to apply:** Any `from PySide6.QtXxx import Something` is wrong — rewrite as `from PySide6 import QtXxx` plus `QtXxx.Something` at each use site. This applies throughout the codebase, not just new code — flag it when seen in passing.
+
 ### Cython variable type reuse
 Never reassign a type-annotated parameter/variable to a value of a **different type** in the same function. Works fine interpreted (dynamic typing), but crashes only once Cython-compiled — Cython gives the variable a fixed C-level storage type from the annotation, and reassigning to an incompatible type triggers a coercion failure.
 
@@ -174,6 +206,10 @@ Performance comes first. Memory should be kept low but never at the expense of s
 **Exception — plain-language walkthrough can suffice:** when deciding whether to move wire-stripe geometry math from CPU to a GPU shader path, talking through the actual operations (a subtract+normalize per segment, a running-sum addition) and their bounded scope (2 wires recompute per moved waypoint, not the whole project) was sufficient to conclude the GPU rewrite wasn't worth it — no benchmarking needed. Reserve insistence on an actual benchmark for cases where intuition has a track record of being wrong (numpy vs. plain-loop, memory layout/conversion order) — that's what `timeit`/`dis` is for. **Hard boundary: this exception does not extend to C-extension/Cython-compiled performance** — once a comparison crosses into compiled-C territory, reasoning it out isn't reliable (compiler optimizations, cache locality, interpreted-vs-compiled overhead defy plain-language prediction); those cases always need an actual test (see the scipy case above: assumed faster, measured 3x slower after compilation).
 
 **Database query consolidation:** Multiple sequential queries that could be one query are a performance problem, especially over a network (MySQL). Collapse reads of related columns into one `SELECT col1, col2, col3` and writes into one `UPDATE col1=, col2=, col3=` wherever possible. The `size` property on `DimensionMixin` (one SELECT/UPDATE for width/height/length together) is the pattern to follow. If existing code makes N separate queries for N columns that could be one, flag it as a suggestion even if not the primary task — but keep suggestions in proportion, don't refactor a whole file over one extra query.
+
+**Singleton-cache short-circuit before an existence-check query:** Every DB entry class (`PJTCavity`, `PJTHousing`, `Cavity`, `Housing`, etc.) is a per-`db_id` singleton via its metaclass (`_PJTEntrySingleton` in `database/project_db/pjt_bases.py`, `_EntrySingleton` in `database/global_db/bases.py`) — the same Python object is always returned for the same id, tracked in `cls._instances` as `db_id -> weakref`. Both metaclasses now implement `__contains__` (`db_id in cls._instances and cls._instances[db_id]() is not None`), and every table's `__getitem__` checks it first: `if item in PJTCavity or item in self:` (`item in self` is the fallback DB `SELECT id ... WHERE id=?` existence check). If the row's Python wrapper is already alive, this skips the query entirely. Confirmed 2026-08-20 across all 26 `project_db` tables and all 41 applicable `global_db` tables (excluding `setting.py`/`resource_state.py`, which don't fit the pattern — see below). The user's own assessment, unprompted: "I think this is actually a fantastic upgrade because it will reduce database hits by possibly 1000's of queries, even getting into 10's of thousands for really large projects" — validates this as a real, load-bearing perf win, not just a style nit.
+
+**How to apply:** When adding a new entry-class table's `__getitem__` (or reviewing an existing one), always add the `item in EntryClass or item in self` short-circuit, matching every other table in both `project_db`/`global_db`. Skip it only when the lookup key isn't the row's own `db_id` (e.g. `resource_state.py`'s composite `(resource_type, resource_id)` key, resolved only *after* the query already ran) or when `__getitem__` doesn't construct/return an entry instance at all (e.g. `setting.py`, which returns a raw column value).
 
 ### Rotation matrix convention
 `Angle.as_matrix_numpy` returns the **column-vector** rotation matrix `R` where `R @ v` rotates a column vector. But everywhere in the codebase that applies rotation via numpy `@` (e.g. `corners @= angle`) uses **row-vector** convention, equivalent to `v @ R.T`.
@@ -230,6 +266,13 @@ Across this codebase, patterns that look unusual or inconsistent at first read h
 
 **How to apply:** When something looks odd, redundant, or like it "should" be refactored, default to investigating *why* before proposing a change — read the surrounding class, check for mixins, check whether the same shape repeats elsewhere (a repeated pattern is itself evidence of intent), and ask the user rather than assuming inconsistency.
 
+### Point/Angle callback system is THE architectural backbone — default to it for any new reactive behavior
+The `CallbackMixin`-backed `bind()`/`unbind()`/`with:`-batching system on `Point`/`Angle` (see `app_mixins/callback_mixin.py`, and the dunder-both-sides naming convention above) isn't just one pattern among several — the user (sole author) stated directly and emphatically (2026-08-17): "the whole callback system I designed for the angles and the points was a genius way to go about it. it is literally the backbone to this entire program."
+
+**Why this matters beyond the compliment:** confirmed empirically, not just asserted — in one session alone this same mechanism, unmodified, ended up driving: camera dirty-gating (`position`/`focal_position` bound to `_update_camera`), the 3D headlight's direction tracking (bound to both camera points), the rotation-rings gizmo following the selected object's angle/scale/position, the 2D camera's `position` mirroring `focal_position` on every pan, and — mid-design, not yet built — the planned protractor feature's camera-facing labels (binding to `camera.position`/`camera.focal_position`, unbound on hide, same lifecycle `Rings3D.detach()` already uses for `obj_angle`). Every one of those is a materially different problem, solved without inventing anything new — just another `bind()` call plus the object's own `__iadd__`/`__imatmul__`/`with:` usage already fires the right updates.
+
+**How to apply:** When a new feature needs "recompute X whenever Y changes," the default answer in this codebase is *not* a bespoke observer, a polling flag, or a manual "call this after that" wiring — it's `Y.bind(self._on_y_changed)` (or the equivalent `Angle`/`Color` primitive), with `unbind()` at the matching teardown point if the binding shouldn't outlive the feature. Reach for this first; treat inventing a parallel update mechanism as a sign you've missed how the existing one already covers the case.
+
 ### Context-building conversations
 The user deliberately initiates conversational, non-task segments (explaining rationale, business/architectural intent) specifically to transfer understanding into persistent memory for future sessions — not idle chat.
 
@@ -255,6 +298,13 @@ When the Write tool creates a NEW file (not editing an existing one), immediatel
 **Why:** New files aren't staged automatically; the user commits and pushes without realizing a new file was left out — caused a real CI failure when `rthook_pip_distlib.py` was created locally but never committed.
 
 **How to apply:** After every Write tool call that creates a new file, the very next tool call should be `git add <path>`. Don't wait until the end of the session.
+
+### Don't let a designed-but-deferred piece of work silently drop
+When a multi-step design gets worked out in detail (e.g. the `smooth` tri-state getter/setter pattern — resolve `None` against a per-type `Config.editor_X.renderer.smooth_Y`, needed on every view class backed by a `smooth` DB column) but the conversation immediately pivots to a different task before it's implemented, it's easy to build the *prerequisites* (config fields, in this case) and then never circle back to the actual implementation once focus shifts. The user caught this directly (2026-08-20): "you were supposed to have overridden the smooth getter and setter in ALL of the object view classes... " — it had been fully speced turns earlier but silently never got built once the housing/cavity/terminal AABB work took over.
+
+**Why:** Long, multi-topic sessions make it easy to lose track of a committed-to piece of work that isn't the *current* topic — especially dangerous when it's a real correctness/crash risk (this one reintroduced the exact `int(None)` crash from the session's original bug reports, now live again on objects that were otherwise just fixed).
+
+**How to apply:** When a design is agreed upon but not immediately implemented (deferred for a legitimate reason, e.g. the user wants to keep going on something else first), explicitly track it as still-open (TODO.md, or a running mental checklist) and surface it again before declaring a broader task "done" — don't let scope drift silently swallow a committed piece of work. When asked "is there anything else we missed," this is exactly the category of thing to check for first.
 
 ### No bulk mechanical code edits
 Don't build an automated script to bulk-apply source edits across many functions/files (e.g. inserting `-> None` on every function flagged by a static-analysis pass), even when the underlying analysis is unambiguous. Report findings (file/line lists, CSVs) and let the user apply/review edits himself.
@@ -655,3 +705,26 @@ For list-style widgets: `itemSelected(row)` fires on any selection or selection 
 **Why:** Qt delivers the first click of a double-click as a normal press, so naive click-to-deselect breaks double-click activation. The user wants: double-click on a selected row keeps it selected and activates it.
 
 **How to apply:** Defer the toggle-deselect on a single-shot timer, cancel it in `mouseDoubleClickEvent`. The wait adapts to the user's measured double-click speed — rolling 5-sample window, trim min/max, blend in stored average, persist via a `ConfigDB` config class (see `EditorDBConfig.double_click_average` and `EditorList` in `harness_designer/ui/editor_db/base.py` as the reference implementation). Reuse that pattern rather than reinventing it in other widgets.
+
+### Drag/rotate interaction is being rebuilt as object-driven handler classes, not canvas isinstance checks
+Confirmed 2026-08-17: rotation rings and move arrows will no longer be handled inline by `mouse_handler.py`/the canvas classes (the old `gl/canvas_3d/mouse_handler.py`+`rotation_rings.py`+`move_arrows.py`+`dragging/` combo). The new design: a series of classes where **the objects themselves** handle the separation of view, plus dedicated `DragHandler`/`RotationHandler` class hierarchies that pick the right interaction behavior **per object type** — replacing a pile of `isinstance` checks in the mouse handler with polymorphism. `CanvasBase` already declares the contract for this (`_drag_handler: DragHandlerBase`, `_rotation_handler: RotationHandlerBase`, `gl/canvas_base/canvas_base.py:342-343`), and the new `harness_designer/drag_handlers/` package (`base.py`, `editor_3d/`, `editor_schematic/`, `editor_pegboard/` — each with `generic.py`/`wire.py`/`bundle.py`/`wire_marker.py`) is the in-progress home for it, alongside `MouseHandlerBase._pick_exclusions()` (`gl/canvas_base/mouse_handler.py:191-199`) as the already-built hook for excluding gizmo overlays from picking.
+
+**Why:** User's own words: "That is a cleaner way to handle it instead of having a bunch of isinstances to check types and what not to know what the handler should do and if the view supports interaction with a specific object type." The old `gl/canvas_3d/mouse_handler.py`/`key_handler.py` are confirmed dead (never constructed — `CanvasBase.__init__` always builds the generic `MouseHandlerBase`/`KeyHandlerBase`), so nothing is lost by leaving them disconnected while the replacement is built.
+
+**How to apply:** Do not propose wiring up or fixing the old `gl/canvas_3d/mouse_handler.py`, `key_handler.py`, `rotation_rings.py`, `move_arrows.py`, or the `dragging/` submodules (`canvas_3d/dragging/`, `canvas_schematic/dragging/`, `canvas_base/dragging/`) — the user is rebuilding this area themselves via `drag_handlers/` and will personally revisit each old call site. When asked to decouple a "canvas file" from these old modules, remove only the *import* statements pulling them in from outside their own package — leave the old files themselves untouched (don't delete, don't edit their internals) and leave all downstream usage/call-site code in the consuming file exactly as-is (even though it'll now dangle/NameError) as a marker for the user's own rewrite. See [[project-memory-lives-in-repo-file]] for where this memory lives.
+
+### Future rotation-rings redesign: protractor-style dial, click-anywhere-on-ring instead of small handles
+Discussed 2026-08-17, not yet implemented (explicitly a "side thought," no code changed) — part of the broader [[project-memory-lives-in-repo-file]] rotation-handler rebuild, but specific enough to its own visual/interaction redesign to track separately. Direction the user wants to move toward for `rotation_rings.py`'s gizmo:
+
+- **Visual**: modeled on a physical protractor (circular disc, degree tick marks/numbers around the rim, a pointer arm) — shown a reference image of a Helix clear plastic protractor. Muting the current bright ring colors and shrinking the ring diameter are easy, low-risk config-value tweaks (`Config.rotation_rings`) the user is open to trying first. Replacing the sphere-shaped grab handle with something else is the one open part of this — no replacement shape decided yet.
+- **New feature this enables**: when a handle/ring is actively being dragged, fill that axis's ring with a translucent (~0.1-0.2 opacity) glowing light-blue disc, plus render a reference line showing the object's 0° orientation for that axis. Assessed as feasible and moderate-effort — the codebase already has all three needed pieces in some form: `GlowingMaterial` for the glow look, `floor.py`'s existing `GL_BLEND`/`GL_SRC_ALPHA` pattern for translucency, and `HANDLE_LOCAL_DIRS[axis]` as the fixed-in-local-space zero-reference direction. `DragRotate` already tracks which axis is locked and has clean `__init__`/`delete()` lifecycle hooks to set/clear a "highlighted axis" state on `Rings3D`.
+- **Interaction model change (the actual reason this came up now)**: individual small grab-handle spheres go away entirely. Instead, the *ring itself* becomes directly pickable/draggable — click-and-drag anywhere along the ring's edge rotates the object about that axis, and clicking a ring triggers the protractor-disc display, with the ring repositioning to ride the outer edge of that disc. **Why:** stated directly — a fixed single-point handle can end up on the far/occluded side of the object relative to the current camera view, forcing a camera reposition before it's even clickable, which makes precise alignment awkward. A full-ring click target is always reachable from any camera angle since some portion of the circle is visible.
+
+**How to apply:** This directly conflicts with the blanket `RotationRings` pick-exclusion just added to `MouseHandlerBase._pick_exclusions()` (`gl/canvas_base/mouse_handler.py`) on this same date — that exclusion assumes the ring body itself should never be pick-eligible (only handles, via a separate `pick_handle()` path). Once this redesign is actually built, the exclusion logic will need to become more selective (distinguish "clicked the ring band, should register" from "clicked past it to whatever's behind"), not a simple blanket exclusion. Don't implement any of this redesign without the user explicitly asking — it was raised as a future direction only.
+
+### `gl/*/__init__.py` TODO audit comments go stale fast — always re-verify against current source
+Several `gl/canvas_3d/__init__.py`, `canvas_schematic/__init__.py`, `canvas_pegboard/__init__.py` files carry a running "TODO: re-audit (Nth pass)" comment block listing known bugs/dead code/missing pieces, refreshed pass-by-pass. During the 2026-08-17 canvas_3d pass, roughly half the listed bullets (self.camera never assigned, `self.floor.render` crash, the `_base3d` NameError in `move_arrows.py`, `_get_view_object` never overridden, the camera.set()/_set_view() ordering bug) turned out to already be fixed or no longer accurate against current source — the file structure had moved substantially (`canvas3d`→`canvas_3d`, `dragging`→`drag_handlers`, etc.) since the comment was last updated.
+
+**Why:** This codebase changes fast and these comments are hand-maintained narrative, not generated from source — trusting a bullet at face value risks presenting (or worse, "fixing") a non-issue.
+
+**How to apply:** When walking one of these issue lists, verify each bullet against the actual current file/line before presenting it — grep for the claimed symbol/attribute, read the actual current code, don't assume the comment's line numbers or even its premise still hold. When a bullet turns out to be stale, remove it from the comment (user has consistently approved this); when a fix is applied, replace the bullet with a short "FIXED: ..." note explaining what changed, rather than deleting it outright — this preserves the audit trail for the next pass.

@@ -130,8 +130,9 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTWireServiceLoop or item in self:
                 return PJTWireServiceLoop(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

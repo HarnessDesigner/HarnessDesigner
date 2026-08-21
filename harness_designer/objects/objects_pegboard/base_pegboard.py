@@ -11,6 +11,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from .. import objectsvar as _objectsvar
 from ...gl import vbo as _vbo
+from . import chain_edges as _chain_edges
 
 from ... import debug as _debug
 from ... import check_types as _check_types
@@ -111,7 +112,7 @@ class BasePegboard(_objectsvar.BaseVar):
         :type material: :class:`_materials.GLMaterial` | None
         """
 
-        self.pegboard: "_editor_pegboard.EditorPegBoard" = parent.mainframe.editor_pegboard
+        self.pegboard: "_editor_pegboard.EditorPegboard" = parent.mainframe.editor_pegboard
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching and
         # this anchor's own data-table(s) -- set by each real subclass's
@@ -121,14 +122,64 @@ class BasePegboard(_objectsvar.BaseVar):
 
         super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+        try:
+            self._is_visible = self.db_obj.is_visible_pegboard  # NOQA
+            self.db_obj.bind(self.__is_visible_callback, 'is_visible_pegboard')
+        except AttributeError:
+            self._is_visible = False
+
+    @_check_types.do
+    def drag(self, delta: _point.Point) -> None:
+        """Same as :meth:`BaseVar.drag`, but locked to the X/Z board
+        plane -- this view's camera is permanently locked top-down
+        looking straight down world Y, so Y movement is never meaningful
+        here regardless of object type.
+        """
+        super().drag(_point.Point(delta.x, 0.0, delta.z))
+
+    @_check_types.do
+    def touching_budgets(self) -> list:
+        """Return the length budget(s) for every wire/bundle segment
+        directly attached to this anchor's own peg-board point.
+
+        Default implementation for a real anchor (housing/terminal/
+        transition -- anything with a real, DB-backed :attr:`point3d_id`
+        that's a genuine start/stop endpoint for wires/bundles, not a
+        waypoint along one -- ``wire_layout.WireLayout``/
+        ``bundle_layout.BundleLayout`` override this instead with their
+        own interior-waypoint version, see their own docstrings).
+
+        Scans every wire and bundle in the project for one whose start or
+        stop point matches this anchor's own :attr:`point3d_id` -- there
+        is no reverse index from a point to the wires/bundles that
+        reference it. Cheap enough to only ever call once per drag-arm
+        (never per mouse-move) -- same cost/call-frequency discipline the
+        pre-migration graph-based version used.
+        """
+        if self.point3d_id is None:
+            return []
+
+        from . import chain_edges as _chain_edges
+
+        project = self.parent.mainframe.project
+        budgets = []
+
+        for wire in project.ptables.pjt_wires_table:
+            budgets.extend(_chain_edges.touching_edges(wire, self.point3d_id))
+
+        for bundle in project.ptables.pjt_bundles_table:
+            budgets.extend(_chain_edges.touching_edges(bundle, self.point3d_id))
+
+        return budgets
+
     @property
     @_check_types.do
     def editor(self):
         return self.pegboard
 
     @_check_types.do
-    def _is_visible_callback(self, *_, **__):
-        pass
+    def __is_visible_callback(self, *_, **__):
+        self._is_visible = self.db_obj.is_visible_pegboard  # NOQA
 
     @property
     @_check_types.do
@@ -139,7 +190,7 @@ class BasePegboard(_objectsvar.BaseVar):
         :rtype: bool
         """
 
-        return True
+        return self._is_visible
 
     @is_visible.setter
     @_check_types.do
@@ -149,44 +200,17 @@ class BasePegboard(_objectsvar.BaseVar):
 
         :type value: bool
         """
+        self._is_visible = value
 
-        pass
+        try:
+            self.db_obj.is_visible_pegboard = value
+        except AttributeError:
+            pass
 
     @property
     @_check_types.do
     def _selected_color(self) -> _color.Color:
         return _color.Color(*Config.selected_color)
-
-    @_check_types.do
-    def _apply_flatten_if_untouched(self, euler: tuple) -> None:
-        """Apply a computed "lay it flat" Euler orientation to
-        :attr:`angle`, but only if the anchor's rotation is still at the
-        fresh-row identity default -- never clobbers a real user rotation
-        (or a previously-applied flatten).
-
-        Setting ``.x``/``.y``/``.z`` one at a time (there is no bulk
-        "replace this Angle's rotation in place" API -- see
-        ``geometry.angle.Angle``) fires the bound DB-write callback on
-        each assignment, exactly like every other live peg-board rotation
-        edit -- three quick synchronous writes for a one-time
-        initialization event is no different from what a rotate-drag
-        already does per mouse-move.
-
-        :param euler: ``(x, y, z)`` Euler degrees to apply.
-        :type euler: tuple[float, float, float]
-        """
-        if self._angle is None:
-            return
-
-        current_quat = self._angle.as_quat_float
-        if not all(abs(a - b) < 1e-6
-                   for a, b in zip(current_quat, (1.0, 0.0, 0.0, 0.0))):
-            return
-
-        ex, ey, ez = euler
-        self._angle.x = ex
-        self._angle.y = ey
-        self._angle.z = ez
 
     @_debug.logfunc
     @_check_types.do
@@ -236,12 +260,6 @@ class BasePegboard(_objectsvar.BaseVar):
             self._compute_obb()
             self._compute_aabb()
 
-        flatten_hook = getattr(self, '_flatten_hook', None)
-        if flatten_hook is not None:
-            self._apply_flatten_if_untouched(flatten_hook())
-
-        self.pegboard.Refresh()
-
         # Already registered from construction time (is_active was already
         # True with the placeholder vbo) -- add_object()/add_anchor() is
         # idempotent, so this is only ever a real registration for the
@@ -249,6 +267,7 @@ class BasePegboard(_objectsvar.BaseVar):
         # ran (e.g. a synchronous, already-cached model.load() call during
         # __init__ itself).
         self.pegboard.add_object(self.parent)
+        self.pegboard.Refresh()
 
     @property
     @_check_types.do
@@ -264,23 +283,6 @@ class BasePegboard(_objectsvar.BaseVar):
         """
         return self.parent
 
-    @property
-    @_check_types.do
-    def is_active(self) -> bool:
-        """Return whether this anchor has a real, rendered peg-board
-        presence right now.
-
-        ``True`` once a real ``vbo`` exists (either provided at
-        construction, e.g. ``Transition``, or set later by
-        :meth:`_set_model` once an async model load finishes) --
-        ``False`` for every do-nothing object type, and for a
-        ``Terminal`` currently seated in a cavity.
-
-        :returns: Property value.
-        :rtype: bool
-        """
-        return self._vbo is not None
-
     @_check_types.do
     def delete(self):
         self.parent.delete()
@@ -289,120 +291,3 @@ class BasePegboard(_objectsvar.BaseVar):
     def _delete(self):
         self._is_deleted = True
         self.pegboard.Refresh()
-
-    @property
-    @_check_types.do
-    def smooth(self) -> bool:
-        """Return whether the mesh renders with smooth (vertex) normals.
-
-        :returns: Property value.
-        :rtype: bool
-        """
-        return getattr(self, '_smooth', False)
-
-    @smooth.setter
-    @_check_types.do
-    def smooth(self, value: bool) -> None:
-        self._smooth = bool(value)
-
-    # ------------------------------------------------------------------
-    # Peg Board Editor data-table overlays (gl.canvas_pegboard.tables_overlay)
-    # ------------------------------------------------------------------
-
-    @_check_types.do
-    def _table_label(self) -> str:
-        """Title-strip text for this anchor's own (single) data table.
-
-        :returns: This anchor's DB name, or its class name if unset.
-        :rtype: str
-        """
-        name = getattr(self.db_obj, 'name', '')
-        return name or type(self.obj).__name__
-
-    @property
-    @_check_types.do
-    def table_anchor_points(self) -> list:
-        """Every ``(point3d_id, world_x, world_z, label)`` this anchor
-        needs its own data table for.
-
-        Every ordinary anchor has exactly one -- its own ``point3d_id``/
-        live ``position`` -- so the base implementation covers housing/
-        splice/bare-terminal directly.
-        :class:`~harness_designer.objects.objects_pegboard.transition.Transition`
-        overrides this to return one entry per populated branch (1-6),
-        since each branch needs an independent table (a branch's own
-        ``position3d_id`` is a distinct point from the transition's own
-        anchor point). Inactive anchors (``is_active`` ``False``, or the
-        do-nothing stub classes for object types with no board presence)
-        return an empty list -- nothing to show a table for.
-
-        :returns: This anchor's table-anchor points.
-        :rtype: list[tuple[int, float, float, str]]
-        """
-        if not self.is_active or self.point3d_id is None:
-            return []
-
-        return [(self.point3d_id, float(self.position.x), float(self.position.z),
-                 self._table_label())]
-
-    @_check_types.do
-    def table_anchor_live_position(self, point3d_id: bytes) -> _point.Point:
-        """Return the live, bound ``Point`` backing *point3d_id* -- one of
-        this anchor's own :attr:`table_anchor_points` ids.
-
-        Unlike the plain floats :attr:`table_anchor_points` returns (a
-        one-time snapshot), this is the very same ``Point`` object this
-        anchor's own position mutates in place on every drag (see
-        :meth:`_update_position`/``PositionPegboardMixin``). Callers that need
-        to keep tracking a moving anchor after the snapshot was taken --
-        the table-drag leader line,
-        ``gl.canvas_pegboard.tables_overlay.PegboardTableWidget`` -- must
-        hold onto *this* reference instead of copying x/z out of it into
-        a new, disconnected ``Point``, or the line's anchor-side endpoint
-        goes stale the moment the anchor is moved and committed without a
-        table-overlay rebuild in between.
-
-        Every ordinary anchor has exactly one point3d_id (its own), so the
-        base implementation just returns :attr:`position` directly.
-        :class:`~harness_designer.objects.objects_pegboard.transition.Transition`
-        overrides this to resolve *point3d_id* to the matching branch's
-        own live ``position3d`` instead.
-
-        :param point3d_id: One of this anchor's own :attr:`table_anchor_points` ids.
-        :type point3d_id: int
-        :returns: The live position ``Point``.
-        :rtype: :class:`_point.Point`
-        """
-        return self.position
-
-    @_check_types.do
-    def build_table_rows(self, project, point3d_id: bytes) -> list:
-        """Return this anchor's wire rows for the table anchored at
-        *point3d_id* -- one of the id(s) :attr:`table_anchor_points`
-        returned.
-
-        Overridden per concrete anchor subclass (housing/splice/
-        transition/bare-terminal); the base implementation returns an
-        empty list, covering every do-nothing ``objects_pegboard`` stub class
-        for object types that never appear on the board.
-
-        :param project: The currently open project.
-        :type project: :class:`harness_designer.objects.project.Project`
-        :param point3d_id: One of this anchor's own :attr:`table_anchor_points` ids.
-        :type point3d_id: int
-        :returns: This table's rows.
-        :rtype: list[:class:`~harness_designer.gl.canvas_pegboard.table_rows.WireTableRow`]
-        """
-        return []
-
-    @property
-    @_check_types.do
-    def table_include_cavity_columns(self) -> bool:
-        """Whether this anchor's table(s) should include the Cavity
-        Index/Cavity Name columns -- ``True`` only for
-        :class:`~harness_designer.objects.objects_pegboard.housing.Housing`.
-
-        :returns: Property value.
-        :rtype: bool
-        """
-        return False

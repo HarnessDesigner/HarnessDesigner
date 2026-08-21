@@ -90,7 +90,7 @@ class AppUsersTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in AppUser or item in self:
                 return AppUser(self, item)
             raise IndexError(str(item))
 

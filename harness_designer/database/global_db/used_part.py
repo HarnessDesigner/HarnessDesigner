@@ -39,7 +39,7 @@ class UsedPartsTable(TableBase):
 
     @_check_types.do
     def __getitem__(self, item: int | bytes) -> "UsedPart":
-        if item in self:
+        if item in UsedPart or item in self:
             return UsedPart(self, item)
 
         raise KeyError(item)

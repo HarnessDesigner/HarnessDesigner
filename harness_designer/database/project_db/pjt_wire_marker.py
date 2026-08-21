@@ -12,6 +12,8 @@ from ..global_db import wire_marker as _wire_marker
 from .mixins import (
     Position2DMixin, Position2DControl,
     Position3DMixin, Position3DControl,
+    PositionPegboardMixin,
+    VisiblePegboardMixin,
     PartMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
@@ -124,8 +126,9 @@ class PJTWireMarkersTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTWireMarker or item in self:
                 return PJTWireMarker(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -157,7 +160,8 @@ class PJTWireMarkersTable(PJTTableBase):
         return PJTWireMarker(self, db_id)
 
 
-class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PartMixin,
+class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegboardMixin,
+                    VisiblePegboardMixin, PartMixin,
                     Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT wire marker in :mod:`harness_designer.database.project_db.pjt_wire_marker`.
 

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QMenu
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
 from ... import config as _config
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from .. import wire_marker as _wire_marker
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +304,7 @@ class _MoveSession:
     candidate_obb_edge_owner: np.ndarray | None = None
 
 
-class WireServiceLoop(_base3d.Base3D):
+class WireServiceLoop(_base_3d.Base3D):
     """A wire service loop: a helix-shaped part connecting a start point to
     a derived stop point (see _sync_stop_position) offset from it by the
     loop's own geometry.
@@ -356,7 +356,7 @@ class WireServiceLoop(_base3d.Base3D):
             # both, and _resolve_collision.
             self._move_session: _MoveSession | None = None
 
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
             self._p1 = position
             self._p2 = position2
@@ -387,6 +387,24 @@ class WireServiceLoop(_base3d.Base3D):
                 self._stripe.is_visible = self._is_visible
 
                 self.editor3d.Refresh()
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wires
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def _world_centroid(self) -> np.ndarray:
@@ -856,7 +874,7 @@ class WireServiceLoop(_base3d.Base3D):
         return self._p2
 
 
-class WireServiceLoopStripe(_base3d.Base3D):
+class WireServiceLoopStripe(_base_3d.Base3D):
     """Represent a wire stripe in :mod:`harness_designer.objects.objects_3d.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -891,7 +909,7 @@ class WireServiceLoopStripe(_base3d.Base3D):
         self._wireserviceloop = wireserviceloop
 
         stripe_scale = _point.Point(scale.x, scale.y, scale.z)
-        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
+        super().__init__(parent, None, vbo, angle, position, stripe_scale, material)
 
     @property
     @_check_types.do

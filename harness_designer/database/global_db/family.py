@@ -78,7 +78,7 @@ class FamiliesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Family or item in self:
                 return Family(self, item)
 
             raise IndexError(str(item))

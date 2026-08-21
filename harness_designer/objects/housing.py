@@ -41,6 +41,15 @@ class Housing(_ObjectBase):
         :type db_obj: :class:`_pjt_housing.PJTHousing`
         """
 
+        # Pure DB-layer op -- doesn't touch/construct any Cavity/Terminal
+        # object instances itself, just pre-seeds the PJTCavity/PJTTerminal
+        # rows' own name/cross-reference caches -- so this runs unconditionally
+        # here (project_load or not) rather than only from _construct_cavities,
+        # regardless of whether this housing's cavities happen to already
+        # exist as PJTCavity singletons by this point (project load) or not
+        # (interactive add).
+        db_obj.cache_names()
+
         if not project_load:
             # Deferred one Qt event-loop iteration past this housing's
             # own construction (see _construct_cavities) -- Cavity2D
@@ -78,7 +87,9 @@ class Housing(_ObjectBase):
         """Construct every ``Cavity`` wrapper for this housing's own
         existing cavity rows -- see the ``CallAfter`` call in
         :meth:`__init__` for why this is deferred rather than run
-        directly there.
+        directly there. ``__init__`` already called
+        ``db_obj.cache_names()``, so ``self.db_obj.cavities`` below
+        hits the pre-populated cache instead of querying per cavity.
         """
         for cavity in self.db_obj.cavities:
             if cavity is None:

@@ -127,7 +127,7 @@ class AddHousingHandler(_handler_base.HandlerBase):
 
         # A housing was just added -- give it its own non-overlapping
         # spot in the 2D schematic (no-op if
-        # Config.editor2d.layout.auto_layout_enabled is off). Every
+        # Config.editor_schematic.layout.auto_layout_enabled is off). Every
         # other housing already placed, by this or an earlier auto-
         # placement or by hand, is left untouched.
         _housing_layout.place_housing(self.mainframe.project, self.obj)

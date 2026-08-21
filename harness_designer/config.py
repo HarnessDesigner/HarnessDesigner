@@ -616,273 +616,31 @@ class Config(metaclass=ConfigDB):
                 }
             ]
 
-    class editor2d(metaclass=ConfigDB):
-        """2D editor interaction and canvas settings."""
-
-        class virtual_canvas(metaclass=ConfigDB):
-            """Virtual canvas size for 2D editing."""
-            width = 1920
-            height = 1080
-
-        class angle(metaclass=ConfigDB):
-            """Angle snapping settings for the 2D editor."""
-            lock = False
-            lock_increment = 90.0
-
-        class floor(metaclass=ConfigDB):
-            """Grid display and snapping settings for the 2D editor."""
-            enable = True
-            ground_height = 0.0
-            enable_floor_lock = True
-
-            snap = False
-
-            target_dot_pixel_spacing = 40.0
-            dot_color = [0.45, 0.45, 0.45, 1.0]
-
-            manual_snap_spacing = None
-
-        class zoom(metaclass=ConfigDB):
-            """2D editor zoom control bindings."""
-            mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
-            in_key = 43
-            out_key = 45
-            sensitivity = 5.0
-
-        class pan(metaclass=ConfigDB):
-            """2D editor pan control bindings."""
-            mouse = MOUSE_LEFT
-            up_key = 16777235
-            down_key = 16777237
-            left_key = 16777234
-            right_key = 16777236
-            sensitivity = 0.4
-
-        class reset(metaclass=ConfigDB):
-            """2D editor reset-view bindings."""
-            key = 16777232
-            mouse = MOUSE_NONE
-
-        class canvas(metaclass=ConfigDB):
-            """Export or render canvas size for the 2D editor."""
-            width = 3840
-            height = 2160
-
-        class colors(metaclass=ConfigDB):
-            """Part colours for the 2D schematic editor."""
-            housing = [0.55, 0.75, 0.95, 1.0]
-            housing_outline = [0.15, 0.25, 0.45, 1.0]
-            # Selection highlight -- mirrors Config.editor_pegboard.selected_color's role.
-            selected = [0.2, 0.6, 0.2, 0.25]
-            label = [0.1, 0.1, 0.1, 1.0]
-            splice = [0.0, 0.0, 0.0, 1.0]
-
-        class splice(metaclass=ConfigDB):
-            """Fixed splice sizing for the 2D schematic editor -- a
-            splice renders as the same shared sphere mesh
-            objects_3d/splice.py's Splice uses (schematic2d's shader
-            already does the full 3D lighting/transform before
-            projecting to 2D, so there's no need for a flat-only mesh
-            here)."""
-            diameter = 3.0  # mm
-
-        class wire_layout(metaclass=ConfigDB):
-            """Fixed wire-layout (drag handle) sizing for the 2D
-            schematic editor -- renders as the same shared sphere mesh
-            objects_3d/wire_layout.py's WireLayout uses, but at a fixed
-            size rather than the attached wire's real od_mm (matching
-            wire/splice's own fixed-size-in-2D convention), since it
-            needs to stay comfortably larger than the fixed 1mm wire for
-            grabbability regardless of gauge."""
-            diameter = 2.0  # mm
-
-        class cavity(metaclass=ConfigDB):
-            """Fixed cavity sizing for the 2D schematic editor. Cavities
-            are never individually drawn as boxes -- this value is only
-            used as a fixed-size unit for housing-rectangle and
-            pin-spacing layout math: a housing's cavity-axis (height)
-            extent is exactly ``num_pins * height`` (cavity slots are
-            stacked edge-to-edge, no gap)."""
-            height = 14.0  # mm
-
-        class layout(metaclass=ConfigDB):
-            """Automatic housing placement and wire routing for the 2D
-            schematic editor."""
-            auto_layout_enabled = True
-
-            # mm, minimum clearance kept between a newly auto-placed
-            # housing's own footprint and every other housing's/connected
-            # wire's -- see objects_schematic/housing_layout.py's place_housing.
-            # Also used by objects_schematic/wire_routing.py as the routing
-            # grid's own clearance around housings and its bounding-box
-            # margin around a wire's two endpoints.
-            housing_spacing = 10.0
-
-            # mm, uniform routing-grid resolution objects_schematic/wire_routing.py's
-            # auto-router adds between a wire's two endpoints (on top of
-            # exact lines through the endpoints and every nearby housing
-            # edge) -- finer than housing_spacing so a route has room to
-            # jog around obstacles without being forced into a wide detour.
-            routing_grid = 5.0
-
-        class label(metaclass=ConfigDB):
-            """Housing/cavity/terminal schematic label text sizing --
-            each element gets its own fixed font size (per the original
-            sizing spec) rather than one shared size."""
-            cavity_name_font_size = 5.0
-            bracket_font_size = 8.0
-            terminal_name_font_size = 5.0
-            corner_font_size = 2.0  # housing's own name/part number/manufacturer block
-
-            # mm around text when it drives box sizing
-            padding = 0.75
-
-            # mm the bracket sits outside the housing rectangle, and the
-            # gap between the bracket and the terminal's 2D position
-            # just to its left
-            outside_offset = 0.5
-
-            # mm the cavity name sits outside the housing rectangle --
-            # separate from the bracket's own outside_offset above, since
-            # the two need noticeably different clearance
-            cavity_outside_offset = 8.0
-
-            # mm gap between the cavity name's own bottom edge and the
-            # bracket's vertical center (the cavity name sits above it)
-            cavity_name_gap = 3.0
-
-        class housing(metaclass=ConfigDB):
-            """Fixed housing rectangle sizing for the 2D schematic editor
-            -- width is constant regardless of cavity count or terminal-
-            name length; height is ``num_pins * Config.editor2d.cavity.height``.
-            """
-            width = 100.0  # mm
-
-    class editor_pegboard(metaclass=ConfigDB):
-        """Peg board editor interaction and canvas settings."""
-
+    class editor_schematic(metaclass=ConfigDB):
         # Selection highlight material color -- mirrors
-        # Config.editor3d.selected_color's role exactly.
-        selected_color = [0.2, 0.6, 0.2, 0.25]
-
-        class virtual_canvas(metaclass=ConfigDB):
-            """Virtual canvas size for peg board editing."""
-            width = 1920
-            height = 1080
-
-        class floor(metaclass=ConfigDB):
-            """Grid display and snapping settings for the 2D editor."""
-            enable = True
-            ground_height = 0.0
-            enable_floor_lock = True
-
-            snap = False
-
-            target_dot_pixel_spacing = 40.0
-            dot_color = [0.45, 0.45, 0.45, 1.0]
-
-            manual_snap_spacing = None
-
-        class zoom(metaclass=ConfigDB):
-            """Peg board editor zoom control bindings."""
-            mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
-            in_key = 43
-            out_key = 45
-            sensitivity = 5.0
-
-        class pan(metaclass=ConfigDB):
-            """Peg board editor pan control bindings."""
-            mouse = MOUSE_LEFT
-            up_key = 16777235
-            down_key = 16777237
-            left_key = 16777234
-            right_key = 16777236
-            sensitivity = 0.4
-
-        class reset(metaclass=ConfigDB):
-            """Peg board editor reset-view bindings."""
-            key = 16777232
-            mouse = MOUSE_NONE
-
-        class canvas(metaclass=ConfigDB):
-            """Export or render canvas size for the peg board editor."""
-            width = 3840
-            height = 2160
-
-        class table(metaclass=ConfigDB):
-            """Excel-like wire-table overlay settings."""
-            default_width = 200.0    # world units
-            default_height = 120.0   # world units
-            base_font_size = 10.0    # world units, scaled by zoom at render time
-            min_font_px = 6
-            max_font_px = 48
-
-        class drag(metaclass=ConfigDB):
-            """Peg board drag-repositioning behavior.
-
-            "clamp": dragging a node stops at each touching edge's
-            max_length_mm boundary (the node itself never exceeds its
-            neighbors' length budgets).
-            "pull": dragging a node is never itself clamped -- once a
-            touching edge goes taut, the neighbor node is pulled along
-            (rigidly translated to keep that edge at exactly its
-            max_length_mm), and the pull propagates recursively through
-            any of that neighbor's own taut edges.
-            """
-            mode = "clamp"
-
-        class rotation_ring(metaclass=ConfigDB):
-            """Peg-board rotation-ring gizmo settings (board-plane-only spin).
-
-            Deliberately a separate section from ``Config.editor3d.
-            rotation_rings`` -- that section's ``snap_enable``/``snap_angle``
-            are read by the 3D editor's own three-ring Euler gizmo
-            (``gl.canvas3d.rotation_rings``); the peg board only ever shows
-            one ring (a board-plane-only spin, unrelated to a part's real 3D
-            angle -- see ``objects.objects_pegboard.base_pegboard.BasePegboard.angle``), so it gets its
-            own independent snap settings rather than sharing/coupling to
-            the 3D editor's.
-            """
-            snap_enable = False
-            # Drag snap increment in degrees. Must have at most 2 decimal
-            # places and divide the 360 degree range evenly (15, 22.5,
-            # 0.45, ...) -- invalid values disable snapping (see
-            # gl.canvas3d.rotation_rings.validate_snap_angle, reused as-is
-            # by the peg board's rotation-drag handling).
-            snap_angle = 15.0
-
-    class editor3d(metaclass=ConfigDB):
-        """3D editor rendering and navigation settings."""
+        # Config.editor_3d.selected_color's role exactly.
         background_color = [0.20, 0.20, 0.20, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.25]
 
         class lighting(metaclass=ConfigDB):
-            """Default 3D scene lighting values."""
             position = [100.0, 100.0, 100.0]
             ambient = [0.4, 0.4, 0.4, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
         class renderer(metaclass=ConfigDB):
-            """3D renderer smoothing toggles for supported object types."""
-            smooth_covers = True
-            smooth_boots = True
-            smooth_housings = True
+            smooth_housings = False
             smooth_wires = True
-            smooth_bundles = True
-            smooth_seals = True
-            smooth_cpa_locks = True
-            smooth_tpa_locks = True
-            smooth_terminals = True
+            smooth_terminals = False
+            smooth_notes = False
+            smooth_transitions = True
+            smooth_splices = True
+            smooth_wire_markers = True
 
-        class focal_target(metaclass=ConfigDB):
-            """Focal target marker settings in the 3D editor."""
-            enable = True
-            color = [1.0, 0.4, 0.4, 1.0]
-            radius = 0.25
+        class drag_handler(metaclass=ConfigDB):
+            mode = ''
 
-        class rotation_rings(metaclass=ConfigDB):
-            """Rotation ring gizmo settings in the 3D editor."""
+        class rotation_handler(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box)
             diameter_scale = 1.1
@@ -891,9 +649,202 @@ class Config(metaclass=ConfigDB):
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
             # Ring/handle colors as scalar RGBA (0.0 - 1.0)
-            x_color = [0.782, 0.135, 0.135, 0.8]
             y_color = [0.135, 0.684, 0.135, 0.8]
-            z_color = [0.175, 0.331, 0.822, 0.8]
+            # Enable snapping of ring-drag rotation to snap_angle increments
+            snap_enable = True
+            # Drag snap increment in degrees. Must have at most 2 decimal
+            # places and divide the 360 degree range evenly (15, 22.5,
+            # 0.45, ...) — invalid values disable snapping
+            snap_angle = 90.0
+            # Half-width in degrees of the detent at 0 — the dragged angle
+            # sticks at exactly 0.0 until the cursor moves past this
+            detent_width = 1.0
+
+        class virtual_canvas(metaclass=ConfigDB):
+            width = 1920
+            height = 1080
+
+        class floor(metaclass=ConfigDB):
+            enable = True
+            ground_height = 0.0
+            enable_floor_lock = True
+
+            snap = False
+
+            target_dot_pixel_spacing = 40.0
+            dot_color = [0.45, 0.45, 0.45, 1.0]
+
+            manual_snap_spacing = None
+
+            class reflections:
+                enable = False
+                strength = 50.0
+
+        class keyboard_settings(metaclass=ConfigDB):
+            max_speed_factor = 10.0
+            speed_factor_increment = 0.1
+            start_speed_factor = 1.0
+
+        class input(metaclass=ConfigDB):
+            class rotate:
+                mouse = None
+                up_key = None
+                down_key = None
+                left_key = None
+                right_key = None
+                sensitivity = None
+
+            class pan_tilt:
+                mouse = None
+                up_key = None
+                down_key = None
+                left_key = None
+                right_key = None
+                sensitivity = None
+
+            class truck_pedestal(metaclass=ConfigDB):
+                mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS | MOUSE_REVERSE_Y_AXIS
+                up_key = ord('8')
+                down_key = ord('2')
+                left_key = ord('4')
+                right_key = ord('6')
+                sensitivity = 0.2
+                speed = 1.0
+
+            class walk:
+                mouse = None
+                forward_key = None
+                backward_key = None
+                left_key = None
+                right_key = None
+                sensitivity = None
+                speed = None
+
+            class dolly(metaclass=ConfigDB):
+                mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
+                in_key = 16777235
+                out_key = 16777237
+                sensitivity = 1.0
+
+            class zoom:
+                mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
+                in_key = None
+                out_key = None
+                sensitivity = None
+
+            class reset(metaclass=ConfigDB):
+                key = 16777232
+                mouse = MOUSE_NONE
+
+        class colors(metaclass=ConfigDB):
+            """Part colours for the 2D schematic editor."""
+
+            housing = [0.55, 0.75, 0.95, 1.0]
+            housing_outline = [0.15, 0.25, 0.45, 1.0]
+            # Selection highlight -- mirrors Config.editor_pegboard.selected_color's role.
+            selected = [0.2, 0.6, 0.2, 0.25]
+            label = [0.1, 0.1, 0.1, 1.0]
+            splice = [0.0, 0.0, 0.0, 1.0]
+
+        class object_sizes(metaclass=ConfigDB):
+            # Shared padding (mm) used throughout the cavity/terminal
+            # pin-edge layout: how far the cavity name sits outside the
+            # housing's pin edge, how far the terminal's "(" bracket sits
+            # outside it (the two land at the same X for this reason --
+            # not because one is aligned to the other, they're both
+            # independently pin_edge - pin_edge_padding), and how far the
+            # terminal's own name is inset from its cavity's AABB on all
+            # 4 sides. One shared value for now (confirmed with the user
+            # 2026-08-20) -- split into separate per-purpose values later
+            # if that turns out to be needed.
+            pin_edge_padding = 3.0
+
+            class terminal(metaclass=ConfigDB):
+                # Maximum -- a housing's own cavity_height (see
+                # objects_schematic/housing.py's Housing.__init__) is
+                # always derived from this value, but an individual
+                # terminal may render smaller than this to fit its own
+                # name inside that computed slot height.
+                name_font_size = 3.0
+
+            class splice(metaclass=ConfigDB):
+                """Fixed splice sizing for the 2D schematic editor -- a
+                splice renders as the same shared sphere mesh
+                objects_3d/splice.py's Splice uses (schematic2d's shader
+                already does the full 3D lighting/transform before
+                projecting to 2D, so there's no need for a flat-only mesh
+                here)."""
+                diameter = 2.0  # mm
+
+            class wire(metaclass=ConfigDB):
+                """Fixed diameter (mm) for both the 2D wire itself and its
+                own WireLayout drag handle -- objects_schematic/wire.py's
+                Wire and objects_schematic/wire_layout.py's WireLayout both
+                read this SAME value (never two separate sizes), regardless
+                of the wire part's real od_mm."""
+                diameter = 1.0
+
+            class cavity(metaclass=ConfigDB):
+                """Cavity sizing for the 2D schematic editor. Cavities are
+                never individually drawn as boxes -- only their own name
+                label. The cavity slot height itself is no longer a fixed
+                config value -- see ``objects_schematic/housing.py``'s
+                ``Housing.__init__``, which derives it from
+                ``Config.object_sizes.terminal.name_font_size`` (the
+                driving/tallest label in a slot) instead."""
+                name_font_size = 1.5
+
+                # mm around text when it drives box sizing (corner label
+                # inset from the housing's own edges, and how far
+                # Housing.get_cavity_aabb's far edge stops short of the
+                # housing's own far edge to leave room for that label).
+                padding = 0.75
+
+            class housing(metaclass=ConfigDB):
+                """Fixed housing rectangle sizing for the 2D schematic editor
+                -- width is constant regardless of cavity count or terminal-
+                name length; height is ``num_pins * Config.editor2d.cavity.height``.
+                """
+                width = 50.0  # mm
+                font_size = 3.0  # housing's own name/part number/manufacturer block
+
+    class editor_pegboard(metaclass=ConfigDB):
+
+        # Selection highlight material color -- mirrors
+        # Config.editor_3d.selected_color's role exactly.
+        background_color = [0.20, 0.20, 0.20, 1.0]
+        selected_color = [0.2, 0.6, 0.2, 0.25]
+
+        class lighting(metaclass=ConfigDB):
+            position = [100.0, 100.0, 100.0]
+            ambient = [0.4, 0.4, 0.4, 1.0]
+            diffuse = [0.8, 0.8, 0.8, 1.0]
+            specular = [1.0, 1.0, 1.0, 1.0]
+
+        class renderer(metaclass=ConfigDB):
+            smooth_boots = True
+            smooth_housings = True
+            smooth_wires = True
+            smooth_bundles = True
+            smooth_terminals = True
+            smooth_notes = False
+            smooth_transitions = True
+            smooth_splices = True
+            smooth_wire_markers = True
+
+        class drag_handler(metaclass=ConfigDB):
+            mode = ''
+
+        class rotation_handler(metaclass=ConfigDB):
+            # Ring diameter as a multiple of the object's AABB space diagonal
+            # (the largest distance between two corners of the bounding box)
+            diameter_scale = 1.1
+            # Grab handle diameter as a fraction of the ring diameter
+            handle_diameter_scale = 0.08
+            # Ring tube diameter as a fraction of the ring diameter
+            tube_diameter_scale = 0.01
+            # Ring/handle colors as scalar RGBA (0.0 - 1.0)
+            y_color = [0.135, 0.684, 0.135, 0.8]
             # Enable snapping of ring-drag rotation to snap_angle increments
             snap_enable = False
             # Drag snap increment in degrees. Must have at most 2 decimal
@@ -904,15 +855,155 @@ class Config(metaclass=ConfigDB):
             # sticks at exactly 0.0 until the cursor moves past this
             detent_width = 1.0
 
+        class virtual_canvas(metaclass=ConfigDB):
+            width = 1920
+            height = 1080
+
         class floor(metaclass=ConfigDB):
-            """Floor plane, grid, and reflection settings for the 3D editor."""
+            enable = True
+            ground_height = 0.0
+            enable_floor_lock = True
+
+            snap = False
+
+            target_dot_pixel_spacing = 40.0
+            dot_color = [0.45, 0.45, 0.45, 1.0]
+
+            manual_snap_spacing = None
+
+            class reflections:
+                enable = False
+                strength = 50.0
+
+        class keyboard_settings(metaclass=ConfigDB):
+            max_speed_factor = 10.0
+            speed_factor_increment = 0.1
+            start_speed_factor = 1.0
+
+        class input(metaclass=ConfigDB):
+
+            class rotate:
+                mouse = None
+                up_key = None
+                down_key = None
+                left_key = None
+                right_key = None
+                sensitivity = None
+
+            class pan_tilt:
+                mouse = None
+                up_key = None
+                down_key = None
+                left_key = None
+                right_key = None
+                sensitivity = None
+
+            class truck_pedestal(metaclass=ConfigDB):
+                mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS | MOUSE_REVERSE_Y_AXIS
+                up_key = ord('8')
+                down_key = ord('2')
+                left_key = ord('4')
+                right_key = ord('6')
+                sensitivity = 0.2
+                speed = 1.0
+
+            class walk:
+                mouse = None
+                forward_key = None
+                backward_key = None
+                left_key = None
+                right_key = None
+                sensitivity = None
+                speed = None
+
+            class dolly(metaclass=ConfigDB):
+                mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
+                in_key = 16777235
+                out_key = 16777237
+                sensitivity = 1.0
+
+            class zoom:
+                mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
+                in_key = None
+                out_key = None
+                sensitivity = None
+
+            class reset(metaclass=ConfigDB):
+                key = 16777232
+                mouse = MOUSE_NONE
+
+        class table(metaclass=ConfigDB):
+            """Excel-like wire-table overlay settings."""
+            default_width = 200.0    # world units
+            default_height = 120.0   # world units
+            base_font_size = 10.0    # world units, scaled by zoom at render time
+            min_font_px = 6
+            max_font_px = 48
+
+    class editor_3d(metaclass=ConfigDB):
+        background_color = [0.20, 0.20, 0.20, 1.0]
+        selected_color = [0.2, 0.6, 0.2, 0.25]
+
+        class lighting(metaclass=ConfigDB):
+            position = [100.0, 100.0, 100.0]
+            ambient = [0.4, 0.4, 0.4, 1.0]
+            diffuse = [0.8, 0.8, 0.8, 1.0]
+            specular = [1.0, 1.0, 1.0, 1.0]
+
+        class renderer(metaclass=ConfigDB):
+            smooth_covers = True
+            smooth_boots = True
+            smooth_housings = True
+            smooth_wires = True
+            smooth_bundles = True
+            smooth_seals = True
+            smooth_cpa_locks = True
+            smooth_tpa_locks = True
+            smooth_terminals = True
+            smooth_notes = False
+            smooth_transitions = True
+            smooth_splices = True
+            smooth_wire_markers = True
+
+        class focal_target(metaclass=ConfigDB):
+            enable = True
+            color = [1.0, 0.4, 0.4, 1.0]
+            radius = 0.25
+
+        class drag_handler(metaclass=ConfigDB):
+            mode = ''
+
+        class rotation_handler(metaclass=ConfigDB):
+            # Ring diameter as a multiple of the object's AABB space diagonal
+            # (the largest distance between two corners of the bounding box)
+            diameter_scale = 1.1
+            # Grab handle diameter as a fraction of the ring diameter
+            handle_diameter_scale = 0.08
+            # Ring tube diameter as a fraction of the ring diameter
+            tube_diameter_scale = 0.01
+            # Ring/handle colors as scalar RGBA (0.0 - 1.0)
+            y_color = [0.135, 0.684, 0.135, 0.8]
+            # Enable snapping of ring-drag rotation to snap_angle increments
+            snap_enable = False
+            # Drag snap increment in degrees. Must have at most 2 decimal
+            # places and divide the 360 degree range evenly (15, 22.5,
+            # 0.45, ...) — invalid values disable snapping
+            snap_angle = 15.0
+            # Half-width in degrees of the detent at 0 — the dragged angle
+            # sticks at exactly 0.0 until the cursor moves past this
+            detent_width = 1.0
+
+        class virtual_canvas(metaclass=ConfigDB):
+            width = 1920
+            height = 1080
+
+        class floor(metaclass=ConfigDB):
             enable = True
             ground_height = 0.0
             size = 2000
             enable_floor_lock = True
 
             class grid(metaclass=ConfigDB):
-                """Floor grid appearance settings."""
                 primary_color = [0.2039, 0.2549, 0.2902, 0.8]
                 secondary_color = [0.2925, 0.3430, 0.3430, 0.8]
 
@@ -931,83 +1022,34 @@ class Config(metaclass=ConfigDB):
                 enable = True
 
             class reflections(metaclass=ConfigDB):
-                """Floor reflection settings in the 3D editor."""
                 enable = True
                 strength = 50.0
 
-        class virtual_canvas(metaclass=ConfigDB):
-            """Virtual canvas size for 3D rendering output."""
-            width = 1920
-            height = 1080
-
         class keyboard_settings(metaclass=ConfigDB):
-            """Keyboard speed scaling settings for the 3D editor."""
             max_speed_factor = 10.0
             speed_factor_increment = 0.1
             start_speed_factor = 1.0
 
-        class rotate(metaclass=ConfigDB):
-            """3D rotate control bindings."""
-            mouse = MOUSE_MIDDLE
-            up_key = ord('w')
-            down_key = ord('s')
-            left_key = ord('a')
-            right_key = ord('d')
-            sensitivity = 0.4
+        class input(metaclass=ConfigDB):
 
-        class pan_tilt(metaclass=ConfigDB):
-            """3D pan/tilt control bindings."""
-            mouse = MOUSE_LEFT
-            up_key = ord('o')
-            down_key = ord('l')
-            left_key = ord('k')
-            right_key = ord(';')
-            sensitivity = 0.2
+            class rotate(metaclass=ConfigDB):
+                mouse = MOUSE_MIDDLE
+                up_key = ord('w')
+                down_key = ord('s')
+                left_key = ord('a')
+                right_key = ord('d')
+                sensitivity = 0.4
 
-        class truck_pedestal(metaclass=ConfigDB):
-            """3D truck and pedestal movement bindings."""
-            mouse = MOUSE_RIGHT
-            up_key = ord('8')
-            down_key = ord('2')
-            left_key = ord('4')
-            right_key = ord('6')
-            sensitivity = 0.2
-            speed = 1.0
-
-        class walk(metaclass=ConfigDB):
-            """3D walking/navigation bindings."""
-            mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
-            forward_key = 16777235
-            backward_key = 16777237
-            left_key = 16777234
-            right_key = 16777236
-            sensitivity = 1.0
-            speed = 5.0
-
-        class zoom(metaclass=ConfigDB):
-            """3D zoom control bindings."""
-            mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
-            in_key = 43
-            out_key = 45
-            sensitivity = 5.0
-
-        class reset(metaclass=ConfigDB):
-            """3D editor reset-view bindings."""
-            key = 16777232
-            mouse = MOUSE_NONE
-
-        class edit2d(metaclass=ConfigDB):
-            """Locked top-down (bird's-eye) editing mode.
-
-            Deliberately has no `rotate`/`pan_tilt` sub-class — their
-            absence is what makes those functions unreachable through the
-            mouse/key dispatch layer while `enable` is True.
-            """
-            enable = False
+            class pan_tilt(metaclass=ConfigDB):
+                mouse = MOUSE_LEFT
+                up_key = ord('o')
+                down_key = ord('l')
+                left_key = ord('k')
+                right_key = ord(';')
+                sensitivity = 0.2
 
             class truck_pedestal(metaclass=ConfigDB):
-                """2D-mode truck and pedestal movement bindings."""
-                mouse = MOUSE_LEFT
+                mouse = MOUSE_RIGHT
                 up_key = ord('8')
                 down_key = ord('2')
                 left_key = ord('4')
@@ -1016,7 +1058,6 @@ class Config(metaclass=ConfigDB):
                 speed = 1.0
 
             class walk(metaclass=ConfigDB):
-                """2D-mode dolly (forward/back) bindings."""
                 mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
                 forward_key = 16777235
                 backward_key = 16777237
@@ -1025,15 +1066,19 @@ class Config(metaclass=ConfigDB):
                 sensitivity = 1.0
                 speed = 5.0
 
+            class dolly:
+                mouse = MOUSE_WHEEL
+                in_key = None
+                out_key = None
+                sensitivity = 3.0
+
             class zoom(metaclass=ConfigDB):
-                """2D-mode zoom control bindings."""
-                mouse = MOUSE_NONE
+                mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
                 in_key = 43
                 out_key = 45
                 sensitivity = 5.0
 
             class reset(metaclass=ConfigDB):
-                """2D-mode reset-view bindings."""
                 key = 16777232
                 mouse = MOUSE_NONE
 

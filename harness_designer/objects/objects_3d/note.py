@@ -2,21 +2,23 @@
 
 from typing import TYPE_CHECKING
 
-import uuid as _uuid_module
 import weakref
+from OpenGL import GL
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
 import build123d
+import numpy as np
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...ui.widgets import context_menus as _context_menus
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...shapes import text as _text
 from ... import check_types as _check_types
+from ... import config as _config
 
 
 if TYPE_CHECKING:
@@ -24,7 +26,10 @@ if TYPE_CHECKING:
     from .. import note as _note
 
 
-class Note(_base3d.Base3D):
+Config = _config.Config.editor_3d
+
+
+class Note(_base_3d.Base3D):
     """Represent a note in :mod:`harness_designer.objects.objects_3d.note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -50,50 +55,155 @@ class Note(_base3d.Base3D):
         scale = _point.Point(1.0, 1.0, 1.0)
         material = _materials.Plastic(color)
 
-        # This note's own id into shapes.text's VBO registry -- generated
-        # and owned here (not by shapes/text.py, which has no single "unit"
-        # text shape to cache), exactly like a catalog part's Model3D.uuid
-        # keys its own PooledVBOHandler (see Base3D._set_model).
-        self._text_uuid = str(_uuid_module.uuid4())
-
         with parent.mainframe.editor3d.context:
-            vbo, _width, _height = self._build()
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            # No vbo of its own (None) -- this object's only visible
+            # content is the Text label it owns, built/positioned below.
+            super().__init__(parent, db_obj, None, angle, position, scale, material)
+            self._label = self._build_label()
+            self._compute_obb()
+            self._compute_aabb()
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_notes
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
-    def _mesh_args(self) -> dict:
-        """Current ``shapes.text.create``/``create_vbo`` args, from this
-        note's live db_obj fields. ``depth=0.25`` extrudes the text
-        upright (real 3D thickness) -- unlike the 2D schematic editor's
-        flat labels, a note needs to be visible from any angle in the 3D
-        scene.
+    def _build_label(self) -> "_text.Text":
+        """Build this note's own text label, from this note's live
+        db_obj fields.
+
+        Two real behavior changes from the old ``create()``/
+        ``create_vbo()`` API, both because ``shapes.text.Text`` has no
+        per-instance control over either:
+
+        - Depth: every glyph is pre-extruded at a fixed 1.0 world unit
+          (see ``shapes/text.py``'s ``build_chars()``), not the old
+          ``depth=0.25`` -- notes now render thicker than they used to.
+          A real per-instance depth knob would need a change to
+          ``shapes/text.py`` itself, out of scope here.
+        - Alignment: ``Text`` always lays out left-to-right from local
+          x=0 with the baseline at local z=0, no alignment option of
+          its own -- ``h_align3d``/the always-CENTER vertical alignment
+          are instead applied fresh every :meth:`render` call (see
+          :meth:`_alignment_offset`), same trick every other migrated
+          text-owning object in this session uses.
         """
-        return dict(
-            text=self.db_obj.notes,
-            font_size=self.db_obj.size3d,
-            depth=0.25,
-            font_style=build123d.FontStyle(self.db_obj.style3d),
-            text_align=[build123d.TextAlign(self.db_obj.h_align3d), build123d.TextAlign.CENTER],
-        )
+        return _text.Text(
+            self.db_obj.notes, self.db_obj.size3d,
+            build123d.FontStyle(self.db_obj.style3d))
 
     @_check_types.do
-    def _build(self):
-        """Build this note's VBO (construction time only -- see
-        :meth:`_rebuild` for in-place content updates).
+    def _alignment_offset(self) -> _point.Point:
+        """Local-space anchor offset for this note's current alignment.
 
-        :returns: ``(vbo, width, height)``.
+        Horizontal follows ``h_align3d`` (LEFT/CENTER/RIGHT); vertical
+        is unconditionally CENTER -- the old ``_mesh_args()`` always
+        passed ``build123d.TextAlign.CENTER`` for it, there's no
+        per-note column to read instead.
         """
-        return _text.create_vbo(self._text_uuid, **self._mesh_args())
+        h_align = build123d.TextAlign(self.db_obj.h_align3d)
+
+        if h_align == build123d.TextAlign.CENTER:
+            x = -self._label.width / 2.0
+        elif h_align == build123d.TextAlign.RIGHT:
+            x = -self._label.width
+        else:
+            x = 0.0
+
+        z = -self._label.height / 2.0
+
+        return _point.Point(x, 0.0, z)
+
+    @_check_types.do
+    def _compute_obb(self):
+        """Derive this object's OBB from the label's own measured
+        width/height -- this object has no VBO of its own (see
+        __init__), just the label it owns.
+        """
+        if not hasattr(self, '_label'):
+            return
+
+        offset = self._alignment_offset()
+        x0, x1 = offset.x, offset.x + self._label.width
+        z0, z1 = offset.z, offset.z + self._label.height
+
+        local = np.array([
+            [x0, 0.0, z0], [x0, 0.0, z1],
+            [x1, 0.0, z0], [x1, 0.0, z1],
+        ], dtype=np.float32)
+
+        local @= self._angle
+        self._obb = local + self._position
+
+    @_check_types.do
+    def _compute_aabb(self):
+        """Same shape as :meth:`_compute_obb` -- see its docstring."""
+        if not hasattr(self, '_label'):
+            return
+
+        offset = self._alignment_offset()
+        x0, x1 = offset.x, offset.x + self._label.width
+        z0, z1 = offset.z, offset.z + self._label.height
+
+        corners = np.array([
+            [x0, 0.0, z0], [x0, 0.0, z1],
+            [x1, 0.0, z0], [x1, 0.0, z1],
+        ], dtype=np.float32)
+
+        corners @= self._angle
+        corners += self._position.as_numpy
+
+        aabb = _utils.adjust_aabb(corners)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
+
+    @_check_types.do
+    def render(self, faces_program, edges_program, vertices_program):
+        """Render this note's own text label -- this object has no VBO
+        of its own (see __init__), just the label it owns. Matches
+        Base3D.render()'s own uniform-resolution pattern (this class
+        overrides it entirely rather than relying on the inherited
+        VBO-draw path, which would no-op with vbo=None anyway).
+        """
+        if not self.is_visible:
+            return
+
+        GL.glUseProgram(faces_program)
+        self.material.set(faces_program)
+
+        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
+        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
+        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
+
+        offset = self._alignment_offset() @ self._angle
+        self._label.set_transform(self._position + offset, self._angle)
+        self._label.render(faces_program, pos_loc, rot_loc, scale_loc, normal_loc)
 
     @_check_types.do
     def _rebuild(self):
-        """Rebuild this note's mesh in place from its current db_obj
-        fields and upload it to the existing VBO -- called by every
-        ``set_*`` method below.
+        """Rebuild this note's label from its current db_obj fields and
+        re-derive its OBB/AABB -- called by every ``set_*`` method below.
         """
-        vertices, faces, _width, _height = _text.create(**self._mesh_args())
-        packed, count = _utils.compute_normals(vertices, faces)
-        self._vbo.update(packed, count)
+        self._label = self._build_label()
+        self._compute_obb()
+        self._compute_aabb()
 
     @_check_types.do
     def set_size(self, size):

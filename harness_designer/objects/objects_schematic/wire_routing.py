@@ -14,7 +14,7 @@ points for a path that:
 Routing happens on a *compressed* grid rather than a uniform one: the
 grid lines always include the two endpoints exactly (so nothing needs
 snapping/stub-connecting) plus every nearby housing edge, with uniform
-``Config.editor2d.layout.routing_grid``-spaced lines filled in between
+``Config.editor_schematic.layout.routing_grid``-spaced lines filled in between
 for room to jog around obstacles. A* (4-directional, with a bend-cost
 penalty so straighter runs are preferred) finds the path; consecutive
 non-turning nodes are then collapsed away, so a wire that doesn't need
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from .. import project as _project
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
 # Extra cost added at every turn -- keeps A* from taking a longer but
 # straighter path over a shorter one with more bends only when the

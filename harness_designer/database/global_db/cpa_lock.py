@@ -132,7 +132,7 @@ class CPALocksTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in CPALock or item in self:
                 return CPALock(self, item)
 
             raise IndexError(str(item))

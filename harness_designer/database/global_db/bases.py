@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable, TYPE_CHECKING, IO
 import weakref
 import json
 import threading
+import functools
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
@@ -70,13 +71,27 @@ class _EntrySingleton(type):
         setattr(cls, '_instances_lock', threading.RLock())
         cls._instances_lock = threading.RLock()
 
-    @classmethod
+    @staticmethod
     @_check_types.do
     def __remove_ref(cls, ref):
         """Remove the ref.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        A plain staticmethod, not a classmethod -- this is defined ON
+        the metaclass, and a classmethod accessed via ``cls.method``
+        where ``cls`` is itself an instance of this metaclass (i.e. any
+        real entry class) binds to ``type(cls)`` (this metaclass) rather
+        than ``cls``, per the classmethod descriptor protocol. That
+        silently broke this method for every entry class: the weakref
+        callback below always ran with ``cls`` rebound to
+        ``_EntrySingleton`` itself, which never got its own
+        ``_instances_lock``/``_instances`` (those are only set on real
+        entry classes, once each, by ``__init__`` above). A staticmethod
+        never auto-binds, so ``functools.partial`` in ``__call__`` below
+        is what supplies the correct ``cls`` instead.
 
+        :param cls: The real entry class whose ``_instances`` this
+            reference belongs to -- explicitly bound via
+            ``functools.partial`` at registration time (see ``__call__``).
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
@@ -88,6 +103,16 @@ class _EntrySingleton(type):
                 return
 
             del cls._instances[key]
+
+    @_check_types.do
+    def __contains__(cls, db_id: int | bytes) -> bool:
+        """Return whether *db_id* already has a live (not yet garbage-
+        collected) singleton instance cached on this entry class --
+        e.g. ``db_id in Cavity`` -- so a table's own ``__getitem__`` can
+        skip the ``item in self`` DB existence-check query entirely when
+        the row's Python wrapper already exists.
+        """
+        return db_id in cls._instances and cls._instances[db_id]() is not None
 
     @_check_types.do
     def __call__(cls, table, db_id: int | bytes):
@@ -111,7 +136,8 @@ class _EntrySingleton(type):
 
             if instance is None:
                 instance = super().__call__(table, db_id)
-                cls._instances[db_id] = weakref.ref(instance, cls.__remove_ref)
+                cls._instances[db_id] = weakref.ref(
+                    instance, functools.partial(cls.__remove_ref, cls))
 
             return instance
 

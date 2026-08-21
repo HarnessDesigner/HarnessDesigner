@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QMenu
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import vbo as _vbo
@@ -22,10 +22,10 @@ if TYPE_CHECKING:
     from .. import cpa_lock as _cpa_lock
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
-class CPALock(_base3d.Base3D):
+class CPALock(_base_3d.Base3D):
     """Represent a CPA lock in :mod:`harness_designer.objects.objects_3d.cpa_lock`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -55,13 +55,29 @@ class CPALock(_base3d.Base3D):
             material = _materials.Plastic(self._part.color.ui)
             angle = db_obj.angle3d
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, db_obj.position3d,
-                scale, material)
+            super().__init__(parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_cpa_locks
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def get_context_menu(self):

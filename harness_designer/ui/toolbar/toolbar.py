@@ -571,7 +571,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         # Rotation-drag snap: left click toggles (checkbox overlay shows the
         # state), right click opens the angle popup. Always enabled — it is
         # a mode setting, not an object property.
-        ring_config = _config.Config.editor3d.rotation_rings
+        ring_config = _config.Config.editor_3d.rotation_handler
 
         self.snap_angle = _sab.SnapAngleButton(
             self, 'Rotation Snap',
@@ -760,12 +760,12 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
     @staticmethod
     @_check_types.do
     def _on_snap_enabled(enabled: bool) -> None:
-        _config.Config.editor3d.rotation_rings.snap_enable = bool(enabled)
+        _config.Config.editor_3d.rotation_handler.snap_enable = bool(enabled)
 
     @staticmethod
     @_check_types.do
     def _on_snap_angle(value: float) -> None:
-        _config.Config.editor3d.rotation_rings.snap_angle = float(value)
+        _config.Config.editor_3d.rotation_handler.snap_angle = float(value)
 
     @_check_types.do
     def on_rotate_x(self, value: float) -> None:
@@ -956,7 +956,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.addAction(self.show_vertices)
 
         icn = self._get_icon(
-            mainframe.config.editor3d.floor.reflections.enable, icons.reflections)
+            mainframe.config.editor_3d.floor.reflections.enable, icons.reflections)
 
         self.show_reflections = QtGui.QAction(icn, 'Show Reflections', self)
         self.show_reflections.setCheckable(False)
@@ -964,7 +964,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.addAction(self.show_reflections)
 
         icn = self._get_icon(
-            mainframe.config.editor3d.headlight.enable, icons.spot_light)
+            mainframe.config.editor_3d.headlight.enable, icons.spot_light)
 
         self.show_spotlight = QtGui.QAction(icn, 'Show Spotlight', self)
         self.show_spotlight.setCheckable(False)
@@ -974,15 +974,15 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         # Locked top-down (bird's-eye) view: composes the camera icon with
         # the lock/unlock overlay rather than the checkbox one, since this
         # isn't a simple display toggle — it also snaps/restricts the camera.
-        icn = self._get_lock_icon(mainframe.config.editor3d.edit2d.enable)
-
-        self.lock_top_view = QtGui.QAction(icn, 'Lock Top View', self)
-        self.lock_top_view.setCheckable(False)
-        self.lock_top_view.triggered.connect(self.on_lock_top_view)
-        self.addAction(self.lock_top_view)
-
-        # Apply the persisted lock state to the camera at startup.
-        mainframe.editor3d.camera.SetTopDownLock(mainframe.config.editor3d.edit2d.enable)
+        # icn = self._get_lock_icon(mainframe.config.editor_3d.edit2d.enable)
+        #
+        # self.lock_top_view = QtGui.QAction(icn, 'Lock Top View', self)
+        # self.lock_top_view.setCheckable(False)
+        # self.lock_top_view.triggered.connect(self.on_lock_top_view)
+        # self.addAction(self.lock_top_view)
+        #
+        # # Apply the persisted lock state to the camera at startup.
+        # mainframe.editor3d.camera.SetTopDownLock(mainframe.config.editor3d.edit2d.enable)
 
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
@@ -1022,11 +1022,11 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         """
         Handle the show reflections toggle.
         """
-        self.mainframe.config.editor3d.floor.reflections.enable = (
-            not self.mainframe.config.editor3d.floor.reflections.enable)
+        self.mainframe.config.editor_3d.floor.reflections.enable = (
+            not self.mainframe.config.editor_3d.floor.reflections.enable)
 
         icn = self._get_icon(
-            self.mainframe.config.editor3d.floor.reflections.enable, _image.icons.reflections)
+            self.mainframe.config.editor_3d.floor.reflections.enable, _image.icons.reflections)
 
         self.show_reflections.setIcon(icn)
 
@@ -1037,11 +1037,11 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         """
         Handle the show spotlight toggle.
         """
-        self.mainframe.config.editor3d.headlight.enable = (
-            not self.mainframe.config.editor3d.headlight.enable)
+        self.mainframe.config.editor_3d.headlight.enable = (
+            not self.mainframe.config.editor_3d.headlight.enable)
 
         icn = self._get_icon(
-            self.mainframe.config.editor3d.headlight.enable, _image.icons.spot_light)
+            self.mainframe.config.editor_3d.headlight.enable, _image.icons.spot_light)
 
         self.show_spotlight.setIcon(icn)
 
@@ -1052,11 +1052,11 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         """
         Handle the locked top-down view toggle.
         """
-        enable = not self.mainframe.config.editor3d.edit2d.enable
-
-        self.mainframe.editor3d.camera.SetTopDownLock(enable)
-
-        self.lock_top_view.setIcon(self._get_lock_icon(enable))
+        # enable = not self.mainframe.config.editor_3d.edit2d.enable
+        #
+        # self.mainframe.editor_3d.camera.SetTopDownLock(enable)
+        #
+        # self.lock_top_view.setIcon(self._get_lock_icon(enable))
 
         self.mainframe.editor3d.Refresh()
 
@@ -1214,7 +1214,7 @@ class PegBoardToolbar(QtWidgets.QToolBar):
         # button above.
         self.pegboard_drag_mode = _pdmb.PegboardDragModeButton(self)
         self.pegboard_drag_mode.SetDragMode(
-            _config.Config.editor_pegboard.drag.mode)
+            _config.Config.editor_pegboard.drag_handler.mode)
         self.pegboard_drag_mode.dragModeChanged.connect(self._on_drag_mode)
         self.addWidget(self.pegboard_drag_mode)
 
@@ -1234,7 +1234,7 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     @staticmethod
     @_check_types.do
     def _on_drag_mode(mode: str) -> None:
-        _config.Config.editor_pegboard.drag.mode = mode
+        _config.Config.editor_pegboard.drag_handler.mode = mode
 
     @_check_types.do
     def Refresh(self, *_, **__):
@@ -1282,7 +1282,9 @@ class Editor2DToolbar(QtWidgets.QToolBar):
         # mip_mapping + checkbox/uncheckbox overlay combination
         # PegBoardToolbar's grid-snap button already established as this
         # codebase's convention for that situation.
-        enabled = _config.Config.editor2d.layout.auto_layout_enabled
+
+        enabled = False
+        # enabled = _config.Config.editor_schematic.layout.auto_layout_enabled
 
         self._auto_layout = QtGui.QAction(
             self._get_icon(enabled), 'Auto Layout', self)
@@ -1305,7 +1307,7 @@ class Editor2DToolbar(QtWidgets.QToolBar):
 
     @_check_types.do
     def _on_auto_layout(self, checked: bool):
-        _config.Config.editor2d.layout.auto_layout_enabled = bool(checked)
+        # _config.Config.editor_schematic.layout.auto_layout_enabled = bool(checked)
         self._auto_layout.setIcon(self._get_icon(checked))
 
     @_check_types.do

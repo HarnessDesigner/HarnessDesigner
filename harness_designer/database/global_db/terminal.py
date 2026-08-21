@@ -159,7 +159,7 @@ class TerminalsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Terminal or item in self:
                 return Terminal(self, item)
 
             raise IndexError(str(item))

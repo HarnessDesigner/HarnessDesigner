@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QMenu
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
@@ -20,10 +20,10 @@ if TYPE_CHECKING:
     from .. import wire_layout as _wire_layout
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
-class WireLayout(_base3d.Base3D):
+class WireLayout(_base_3d.Base3D):
     """Represent a wire layout in :mod:`harness_designer.objects.objects_3d.wire_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -66,7 +66,25 @@ class WireLayout(_base3d.Base3D):
             vbo = _sphere.create_vbo()
             angle = _angle.Angle()
             position = db_obj.position3d
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wires
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @property
     @_check_types.do

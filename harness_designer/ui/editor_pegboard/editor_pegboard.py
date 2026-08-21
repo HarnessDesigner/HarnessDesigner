@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
-class EditorPegBoard(_dock_base.DockBase):
+class EditorPegboard(_dock_base.DockBase):
     """
     Represent a peg board editor in
     :mod:`harness_designer.ui.editor_pegboard.editor_pegboard`.
@@ -34,15 +34,15 @@ class EditorPegBoard(_dock_base.DockBase):
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame"):
         """
-        Initialise the :class:`EditorPegBoard` instance.
+        Initialise the :class:`EditorPegboard` instance.
 
         :param mainframe: Main application frame.
         :type mainframe: :class:`_mainframe.MainFrame`
         """
 
-        self._ui_obj = EditorPegBoardPanel(mainframe)
+        self._ui_obj = EditorPegboardPanel(mainframe)
 
-        super().__init__(mainframe, 'Peg Board Editor', 'editor_pegboard',
+        super().__init__(mainframe, 'Pegboard Editor', 'editor_pegboard',
                          QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
 
     @property
@@ -77,7 +77,7 @@ class EditorPegBoard(_dock_base.DockBase):
         """
         Set the selected.
 
-        Forwards to :class:`EditorPegBoardPanel`'s ``set_selected`` so
+        Forwards to :class:`EditorPegboardPanel`'s ``set_selected`` so
         callers (``mainframe._set_selected``) can treat this editor the
         same as ``editor2d``/``editor3d`` without special-casing.
 
@@ -92,7 +92,7 @@ class EditorPegBoard(_dock_base.DockBase):
         """
         Add an object.
 
-        Incremental now -- forwards to :class:`EditorPegBoardPanel`, which
+        Incremental now -- forwards to :class:`EditorPegboardPanel`, which
         registers ``obj.objpegboard`` with the inner ``Canvas`` (skipping every
         type that isn't a real, active anchor).
 
@@ -107,7 +107,7 @@ class EditorPegBoard(_dock_base.DockBase):
         """
         Remove the object.
 
-        Incremental now -- forwards to :class:`EditorPegBoardPanel`, which
+        Incremental now -- forwards to :class:`EditorPegboardPanel`, which
         unregisters ``obj.objpegboard`` from the inner ``Canvas`` (skipping every
         type that isn't a real, active anchor).
 
@@ -136,29 +136,13 @@ class EditorPegBoard(_dock_base.DockBase):
         Set the clone obj.
 
         Phase 1 has no clone/paste model for the peg board -- forwards to
-        :class:`EditorPegBoardPanel`'s no-op stub.
+        :class:`EditorPegboardPanel`'s no-op stub.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
 
         self._ui_obj.set_clone_obj(obj)
-
-    @_check_types.do
-    def load_project(self, project) -> None:
-        """
-        Rebuild the peg board's full static anchor list from *project*.
-
-        Unlike ``editor2d`` (which builds its scene incrementally via
-        ``add_object``), the peg board's Phase 1 render is a bulk rebuild --
-        forwards to :meth:`harness_designer.gl.canvas_pegboard.canvas.Canvas.load_project`
-        via :class:`EditorPegBoardPanel`.
-
-        :param project: The currently open project.
-        :type project: :class:`harness_designer.objects.project.Project`
-        """
-
-        self._ui_obj.load_project(project)
 
     @_check_types.do
     def clear(self) -> None:
@@ -172,11 +156,11 @@ class EditorPegBoard(_dock_base.DockBase):
 
     @property
     @_check_types.do
-    def editor(self) -> "EditorPegBoardPanel":
+    def editor(self) -> "EditorPegboardPanel":
         return self._ui_obj
 
 
-class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
+class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
     """
     Represent a peg board editor panel in
     :mod:`harness_designer.ui.editor_pegboard.editor_pegboard`.
@@ -185,12 +169,12 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
     :class:`harness_designer.ui.editor_2d.editor2d.Editor2DPanel` -- same
     virtual-canvas auto-sizing logic, reading from
     ``Config.editor_pegboard.virtual_canvas`` instead of
-    ``Config.editor2d.virtual_canvas``.
+    ``Config.editor_schematic.virtual_canvas``.
     """
 
     @_check_types.do
     def __init__(self, parent):
-        """Initialise the :class:`EditorPegBoardPanel` instance.
+        """Initialise the :class:`EditorPegboardPanel` instance.
 
         :param parent: Parent object.
         :type parent: UNKNOWN
@@ -256,11 +240,8 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        objpegboard = getattr(obj, 'objpegboard', None)
-        if objpegboard is None or not isinstance(objpegboard, _base_pegboard.BasePegboard) or not objpegboard.is_active:
-            return
 
-        self._canvas.add_anchor(objpegboard)
+        self._canvas.add_object(obj)
 
     @_check_types.do
     def remove_object(self, obj):
@@ -273,11 +254,8 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        objpegboard = getattr(obj, 'objpegboard', None)
-        if objpegboard is None or not isinstance(objpegboard, _base_pegboard.BasePegboard) or not objpegboard.is_active:
-            return
 
-        self._canvas.remove_anchor(objpegboard)
+        self._canvas.remove_object(obj)
 
     @_check_types.do
     def set_clone_obj(self, obj):
@@ -288,16 +266,6 @@ class EditorPegBoardPanel(_canvas_pegboard.CanvasPegBoard):
         :type obj: UNKNOWN
         """
         pass
-
-    @_check_types.do
-    def load_project(self, project) -> None:
-        """
-        Forward to the inner GL canvas's full anchor-list rebuild.
-
-        :param project: The currently open project.
-        :type project: :class:`harness_designer.objects.project.Project`
-        """
-        self._canvas.load_project(project)
 
     @_check_types.do
     def clear(self) -> None:

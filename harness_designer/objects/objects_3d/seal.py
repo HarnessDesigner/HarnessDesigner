@@ -8,7 +8,7 @@ import build123d
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from .. import seal as _seal
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
 @_check_types.do
@@ -57,13 +57,20 @@ def _build_sws(length, o_dia, i_dia):
     return vertices, faces
 
 
-class Seal(_base3d.Base3D):
+class Seal(_base_3d.Base3D):
     """Represent a seal in :mod:`harness_designer.objects.objects_3d.seal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     parent: "_seal.Seal" = None
     db_obj: "_pjt_seal.PJTSeal" = None
+
+    # PooledVBOHandler's own lookup id for the SWS mesh built below (``None``
+    # for Plug/box types, which use a plain shared unit primitive instead) --
+    # exposed so objects_pegboard.seal.Seal can re-resolve the exact same
+    # pooled VBO via PooledVBOHandler(vbo_id) rather than aliasing self._vbo
+    # directly, giving it its own properly ref-counted handle on the pool.
+    _vbo_id: str | None = None
 
     @_check_types.do
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
@@ -85,6 +92,7 @@ class Seal(_base3d.Base3D):
             if type_.lower() in ('sws', 'single wire seal'):
                 vbo_id = self._part.manufacturer.name
                 vbo_id += ':' + self._part.part_number
+                self._vbo_id = vbo_id
 
                 length = self._part.length
                 o_dia = self._part.o_dia
@@ -106,24 +114,42 @@ class Seal(_base3d.Base3D):
                     vbo = _vbo.PooledVBOHandler(vbo_id, packed, count, aabb=aabb, obb=obb)
 
             elif type_.lower() == 'plug':
+                self._vbo_id = None
                 vbo = _cylinder.create_vbo()
                 length = self._part.length
                 o_dia = self._part.o_dia
                 scale = _point.Point(o_dia, o_dia, length)
             else:
+                self._vbo_id = None
                 vbo = _box.create_vbo()
                 scale = _point.Point(self._part.width, self._part.height, self._part.length)
 
             material = _materials.Rubber(self._part.color.ui)
             angle = db_obj.angle3d
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, db_obj.position3d,
-                scale, material)
+            super().__init__(parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_seals
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def get_context_menu(self):

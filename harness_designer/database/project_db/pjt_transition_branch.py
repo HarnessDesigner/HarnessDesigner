@@ -85,8 +85,9 @@ class PJTTransitionBranchesTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTTransitionBranch or item in self:
                 return PJTTransitionBranch(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

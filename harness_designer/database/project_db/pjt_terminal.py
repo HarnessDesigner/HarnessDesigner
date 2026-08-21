@@ -136,8 +136,9 @@ class PJTTerminalsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTTerminal or item in self:
                 return PJTTerminal(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -641,11 +642,12 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         Unlike :attr:`position2d_id` (this terminal's own name anchor,
         inside the housing body), this is the far end of the wire-stub
-        line drawn past every cavity name in the housing -- see
-        ``objects_schematic/housing.py``'s ``Housing._layout_children`` (which
-        positions it) and ``objects_schematic/terminal.py``'s ``Terminal.
-        render_extras`` (which draws the line up to it) -- and it's where
-        a wire actually connects in the 2D schematic, not
+        cylinder drawn past every cavity name in the housing -- see
+        ``objects_schematic/terminal.py``'s ``Terminal._rebuild_geometry``
+        (which computes and persists this point here, using
+        ``objects_schematic/housing.py``'s ``Housing.get_max_cavity_name_width``)
+        and ``Terminal.render`` (which draws the cylinder up to it) --
+        and it's where a wire actually connects in the 2D schematic, not
         :attr:`position2d`.
         """
         if self._stored_wire_position2d is not None:

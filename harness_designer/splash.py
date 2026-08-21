@@ -55,6 +55,12 @@ class Splash:
         self._draw_lock = threading.Lock()
         self._init_event = threading.Event()
 
+        # Status-strip progress bar. None means "plain text, no bar" --
+        # see start_progress()/set_progress()/end_progress_bar().
+        self._status_text = ''
+        self._progress_max: int | None = None
+        self._progress_value: int = 0
+
         # Load splash image via Pillow (same as wx version)
         base_path = os.path.dirname(__file__)
 
@@ -104,8 +110,7 @@ class Splash:
         self.draw('Loading...')
         self._window.setPixmap(self._render_pixmap)
 
-        center = QtWidgets.QApplication.primaryScreen().availableGeometry().center()
-        self._window.move(center - self._window.rect().center())
+        self._position_window()
 
         self._window.show()
         QtWidgets.QApplication.processEvents()
@@ -173,6 +178,7 @@ class Splash:
         if log:
             self.logger.info(text)
 
+        self._status_text = text
         self.draw(text)
 
         if threading.main_thread() != threading.current_thread():
@@ -196,6 +202,123 @@ class Splash:
         """
 
         QtWidgets.QApplication.processEvents()
+
+    @_check_types.do
+    def start_progress(self, label: str, max_value: int) -> None:
+        """
+        Switch the status strip into progress-bar mode, filling it
+        left-to-right as :meth:`set_progress` advances -- mirrors
+        MainFrame's own start_progress/set_progress/end_progress_bar
+        status-bar API.
+
+        :param label: Status text to show while the bar fills.
+        :type label: str
+        :param max_value: Number of steps the bar represents.
+        :type max_value: int
+        """
+
+        self._progress_max = max_value
+        self._progress_value = 0
+        self.SetText(label)
+
+    @_check_types.do
+    def set_progress(self, value: int, label: str | None = None) -> None:
+        """
+        Advance the progress bar started by :meth:`start_progress`.
+
+        :param value: Current step, ``0..max_value``.
+        :type value: int
+        :param label: Replacement status text; keeps the current text
+            if omitted.
+        :type label: str | None
+        """
+
+        self._progress_value = value
+
+        if label is None:
+            label = self._status_text
+
+        self.SetText(label, log=False)
+
+    @_check_types.do
+    def end_progress_bar(self) -> None:
+        """
+        Return the status strip to plain text mode.
+        """
+
+        self._progress_max = None
+
+    # ------------------------------------------------------------------
+    # Internal positioning
+    # ------------------------------------------------------------------
+
+    @_check_types.do
+    def _position_window(self) -> None:
+        """
+        Center the splash over where the mainframe window is about to
+        open (``Config.mainframe.position``/``size``), rather than always
+        the primary display -- otherwise, once the splash stays up past
+        the mainframe's own show() (see ui/mainframe.py's
+        ``_open_project``), a splash centered on a different monitor than
+        the mainframe reads as broken.
+
+        Falls back to centering on the primary display outright when
+        ``position``/``size`` aren't set yet (first-ever launch -- the
+        mainframe's own default-geometry logic, in MainFrame.__init__,
+        hasn't run yet the first time this is called), and again when the
+        remembered rectangle would put the splash even partially off of
+        every display at once (e.g. an external monitor that held the
+        mainframe last session is no longer connected) -- in that case,
+        centers on whichever display holds the most of the mainframe's
+        own remembered rectangle instead of the (now meaningless) exact
+        remembered position.
+        """
+
+        from . import config as _config
+
+        mf_config = _config.Config.mainframe
+        position = mf_config.position
+        size = mf_config.size
+
+        screens = QtWidgets.QApplication.screens()
+        primary = QtWidgets.QApplication.primaryScreen()
+
+        if position is None or size is None or not screens:
+            center = primary.availableGeometry().center()
+            self._window.move(center - self._window.rect().center())
+            return
+
+        mf_rect = QtCore.QRect(
+            int(position[0]), int(position[1]), int(size[0]), int(size[1]))
+
+        win_w, win_h = self._size
+        candidate = QtCore.QRect(0, 0, win_w, win_h)
+        candidate.moveCenter(mf_rect.center())
+
+        # Union of every display's own available area -- if *candidate*
+        # isn't fully contained in it, some part of the splash would
+        # render off of every display at once.
+        union = QtGui.QRegion()
+        for screen in screens:
+            union += QtGui.QRegion(screen.availableGeometry())
+
+        if QtGui.QRegion(candidate).subtracted(union).isEmpty():
+            center = mf_rect.center()
+        else:
+            target_screen = primary
+            best_area = -1
+
+            for screen in screens:
+                overlap = screen.availableGeometry().intersected(mf_rect)
+                area = overlap.width() * overlap.height()
+
+                if area > best_area:
+                    best_area = area
+                    target_screen = screen
+
+            center = target_screen.availableGeometry().center()
+
+        self._window.move(center - self._window.rect().center())
 
     # ------------------------------------------------------------------
     # Internal drawing
@@ -228,6 +351,18 @@ class Splash:
             painter.setBrush(QtGui.QBrush(QtGui.QColor(0, 0, 0, 255)))
             painter.setPen(QtGui.QPen(QtCore.Qt.PenStyle.NoPen))
             painter.drawRect(0, bmp_height, w, bar_height)
+
+            # Progress fill -- drawn on top of the bar background, behind
+            # the status text, so the strip itself doubles as the bar
+            # (start_progress()/set_progress()/end_progress_bar() toggle
+            # this on/off via self._progress_max).
+            if self._progress_max:
+                fraction = self._progress_value / self._progress_max
+                fraction = min(1.0, max(0.0, fraction))
+                fill_width = int(w * fraction)
+
+                painter.setBrush(QtGui.QBrush(QtGui.QColor(70, 130, 200, 255)))
+                painter.drawRect(0, bmp_height, fill_width, bar_height)
 
             # Draw status text centred in the bar
             painter.setPen(QtGui.QColor(190, 190, 190, 255))

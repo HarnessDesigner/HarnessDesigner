@@ -118,7 +118,7 @@ class TransitionsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Transition or item in self:
                 return Transition(self, item)
 
             raise IndexError(str(item))

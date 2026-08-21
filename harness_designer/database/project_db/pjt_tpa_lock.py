@@ -124,8 +124,9 @@ class PJTTPALocksTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTTPALock or item in self:
                 return PJTTPALock(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

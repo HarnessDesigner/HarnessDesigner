@@ -33,4 +33,8 @@ class Cover(_base_schematic.BaseSchematic):
         :type db_obj: :class:`_pjt_cover.PJTCover`
         """
 
-        super().__init__(parent, db_obj, None, None, None, None, None)
+        super().__init__(parent, db_obj, None, None,
+                         None, None, None)
+
+    def render(self, _, __, ___):
+        pass

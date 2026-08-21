@@ -84,7 +84,7 @@ class TransitionBranchesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in TransitionBranch or item in self:
                 return TransitionBranch(self, item)
 
             raise IndexError(str(item))

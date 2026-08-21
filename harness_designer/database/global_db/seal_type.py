@@ -78,7 +78,7 @@ class SealTypesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in SealType or item in self:
                 return SealType(self, item)
 
             raise IndexError(str(item))

@@ -78,7 +78,7 @@ class CavityLocksTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in CavityLock or item in self:
                 return CavityLock(self, item)
             raise IndexError(str(item))
 

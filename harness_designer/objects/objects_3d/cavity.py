@@ -7,7 +7,7 @@ from PySide6.QtCore import QTimer
 from OpenGL import GL
 import numpy as np
 
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...ui.widgets import context_menus as _context_menus
 from ...shapes import cylinder as _cylinder
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from .. import cavity as _cavity
 
 
-class Cavity(_base3d.Base3D):
+class Cavity(_base_3d.Base3D):
     """Represent a cavity in :mod:`harness_designer.objects.objects_3d.cavity`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -69,7 +69,7 @@ class Cavity(_base3d.Base3D):
             else:
                 vbo = _box.create_vbo()
 
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
             self.surf_idx: int = -1
             self.wire_surf_idx: int = -1
             # Index into the owning Housing3D._cavity_markers, set instead of

@@ -135,7 +135,7 @@ class SealsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Seal or item in self:
                 return Seal(self, item)
 
             raise IndexError(str(item))

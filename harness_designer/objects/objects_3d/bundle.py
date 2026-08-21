@@ -10,7 +10,7 @@ import numpy as np
 from ...geometry import point as _point
 from ...geometry import line as _line
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ... import config as _config
@@ -25,10 +25,10 @@ if TYPE_CHECKING:
     from .. import bundle as _bundle
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
-class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
+class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     """Represent a bundle in :mod:`harness_designer.objects.objects_3d.bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -81,7 +81,7 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
             scale = _point.Point(self._diameter, self._diameter, 0.0)
             vbo = _cylinder.create_vbo()
 
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
             # Track wires grouped inside this bundle using weak references --
             # unrelated to the waypoint/sibling-graph work above; see
@@ -97,6 +97,24 @@ class Bundle(_base3d.Base3D, _mixins.WireTypeMixin):
             # multi-segment) geometry recompute both happen here, not earlier.
             self._bind_waypoints()
             self._recalculate_geometry()
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_bundles
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @property
     @_check_types.do

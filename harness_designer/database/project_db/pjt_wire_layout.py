@@ -125,8 +125,9 @@ class PJTWireLayoutsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTWireLayout or item in self:
                 return PJTWireLayout(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -144,6 +145,27 @@ class PJTWireLayoutsTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(self, point3d_id=point3d_id)
         return PJTWireLayout(self, db_id)
+
+    @_check_types.do
+    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> "PJTWireLayout | None":
+        """Return the wire-layout row whose peg-board position is
+        *point_pegboard_id*, or ``None`` if no row references it.
+
+        Resolves a bare ``pjt_points_pegboard`` waypoint row back to its
+        owning layout object -- a waypoint has no back-reference of its
+        own (see ``PJTPointPegboard``), so this is the only way to find
+        "which draggable object does this point belong to".
+
+        :param point_pegboard_id: The waypoint's own row id.
+        :type point_pegboard_id: bytes
+        :returns: The matching layout row, or ``None``.
+        :rtype: PJTWireLayout | None
+        """
+        rows = self.select('id', point_pegboard_id=point_pegboard_id)
+        if not rows:
+            return None
+
+        return self[rows[0][0]]
 
 
 class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, SmoothMixin):

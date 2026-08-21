@@ -13,6 +13,8 @@ Text is expected to move rarely (or never) relative to how often it's
 drawn.
 """
 
+from typing import Callable
+
 import build123d
 import numpy as np
 from OpenGL import GL
@@ -48,6 +50,14 @@ SPACE_ADVANCE = 0.3
 # tuple) so objects/text.py's Text can use its own dunder arithmetic
 # directly against a glyph's own measured size.
 _CHARS: dict[str, list] = {}
+
+# Tallest glyph height across every character/style built by build_chars()
+# (font_size=1.0 basis, same dims.y _build_char() measures per-character
+# below) -- the one real character-height ratio this module can offer, for
+# callers (objects_schematic/housing.py's Housing) that need to compute a
+# text-driven layout size (e.g. cavity slot height) before any actual Text
+# string exists to measure. Set once, during build_chars()'s preload pass.
+CHARACTER_HEIGHT: float = 0.0
 
 # --- Real, kerning-aware character advances -- read directly from the
 # same font FILE build123d/OCCT itself resolves "Arial"+style to (see
@@ -214,7 +224,7 @@ def _build_char(char: str, depth: float, style: build123d.FontStyle):
     return vbo, _point.Point(width, height, depth), center_z
 
 
-def build_chars(mainframe) -> None:
+def build_chars(mainframe, on_progress: Callable[[int, int], None] | None = None) -> None:
     """Eagerly build+cache every character in *chars* (the full keyboard
     set by default), in every FontStyle, at *depth* -- so every later
     :func:`get` call (via objects/text.py's Text) hits an already-
@@ -234,6 +244,12 @@ def build_chars(mainframe) -> None:
     frequent enough to keep the window responsive without adding
     meaningful overhead against work already measured in milliseconds
     per glyph.
+
+    :param on_progress: If given, called as ``on_progress(done, total)``
+        -- once with ``done=0`` before any glyph is built (so a caller
+        can initialize a progress bar against the real total), then once
+        more after each individual (character, style) glyph finishes.
+    :type on_progress: Callable[[int, int], None] | None
     """
 
     chars = (
@@ -244,26 +260,39 @@ def build_chars(mainframe) -> None:
         '.,;:!?()[]{}\'"-_=+/\\*&^%$#@~`|<>'
     )
 
-    for style in (
-        build123d.FontStyle.REGULAR.value,
-        build123d.FontStyle.BOLD.value,
-        build123d.FontStyle.ITALIC.value,
-        build123d.FontStyle.BOLDITALIC.value
-    ):
-        _font_metrics(style)
+    styles = (
+        build123d.FontStyle.REGULAR,
+        build123d.FontStyle.BOLD,
+        build123d.FontStyle.ITALIC,
+        build123d.FontStyle.BOLDITALIC
+    )
+
+    for style in styles:
+        _font_metrics(style.value)
+
+    global CHARACTER_HEIGHT
+
+    total = len(chars) * len(styles)
+    done = 0
+
+    if on_progress is not None:
+        on_progress(done, total)
 
     for char in chars:
         entry = _CHARS.setdefault(char, [None, None, None, None, None])
         QtWidgets.QApplication.processEvents()
 
         with mainframe.editor3d.context:
-            for style in (
-                build123d.FontStyle.REGULAR,
-                build123d.FontStyle.BOLD,
-                build123d.FontStyle.ITALIC,
-                build123d.FontStyle.BOLDITALIC
-            ):
-                entry[style.value] = _build_char(char, 1.0, style)
+            for style in styles:
+                built = _build_char(char, 1.0, style)
+                entry[style.value] = built
+
+                _, dims, _center_z = built
+                CHARACTER_HEIGHT = max(CHARACTER_HEIGHT, dims.y)
+
+                done += 1
+                if on_progress is not None:
+                    on_progress(done, total)
 
 
 class Text:
@@ -415,12 +444,34 @@ class Text:
         self._angle = angle
         self._recompute()
 
-    def render(self, program, pos_loc, rot_loc, scale_loc, normal_loc) -> None:  # NOQA
+    def render(self, *_args, **_kwargs) -> None:
         """Draw every character in this string as its own shared glyph
-        VBO. X is negated on the *scale* uniform per character -- see
+        VBO. Ignores any positional/keyword arguments -- always resolves
+        its own uniform locations from whichever program is currently
+        bound (``GL.glUseProgram`` already called by whoever invoked
+        this, same as every other ``render()`` in this codebase), so
+        this works both called the old, explicit way
+        (``text.render(program, pos_loc, rot_loc, scale_loc,
+        normal_loc)`` -- e.g. ``objects_schematic/housing.py``'s own
+        corner label) and duck-typed as a ``BaseVar._vbo``
+        (``BaseVar._render_geometry`` calls ``self._vbo.render()`` with
+        no arguments at all -- see the VBO-interface properties/methods
+        below, which exist so a ``Text`` can stand in for a real VBO
+        handler wherever ``BaseVar``'s generic pipeline expects one).
+
+        X is negated on the *scale* uniform per character -- see
         :meth:`_recompute`'s own docstring for why that's needed for
-        legibility and never affects position.
+        legibility and never affects position. ``normalMode`` is always
+        forced flat (0) here regardless of the owning object's own
+        ``smooth`` -- extruded lettering reads better flat-shaded.
         """
+        program = GL.glGetIntegerv(GL.GL_CURRENT_PROGRAM)
+
+        pos_loc = GL.glGetUniformLocation(program, 'objectPosition')
+        rot_loc = GL.glGetUniformLocation(program, 'objectRotation')
+        scale_loc = GL.glGetUniformLocation(program, 'objectScale')
+        normal_loc = GL.glGetUniformLocation(program, 'normalMode')
+
         GL.glUniform1i(normal_loc, 0)
         GL.glUniform4f(rot_loc, *self._angle.as_quat_float)
         GL.glUniform3f(scale_loc, -self._size, 1.0, self._size)
@@ -428,3 +479,77 @@ class Text:
         for vbo, world_pos in zip(self._vbos, self._world):
             GL.glUniform3f(pos_loc, *world_pos.as_float)
             vbo.render()
+
+    # ------------------------------------------------------------------
+    # VBOHandlerBase-compatible interface -- lets a Text stand in
+    # directly as a BaseVar._vbo (e.g. objects_schematic/cavity.py's
+    # Cavity) so the generic render()/is_dirty-check pipeline in
+    # objects/objectsvar/base_var.py never needs a Text-specific branch.
+    # Real geometry (local_aabb/local_obb/OBB-driven picking) is NOT
+    # meaningful here -- a Text draws itself as N independent glyph
+    # VBOs, not one mesh -- so callers that need real bounds (e.g.
+    # Cavity's own hit-testing) keep computing them from :attr:`width`/
+    # :attr:`height` directly rather than through these. These exist
+    # purely so nothing crashes if generic BaseVar code happens to touch
+    # them on a Text-backed object.
+    # ------------------------------------------------------------------
+
+    @property
+    def is_dirty(self) -> bool:
+        return False
+
+    @property
+    def local_aabb(self):
+        return np.zeros((2, 3), dtype=np.float32)
+
+    @property
+    def local_obb(self):
+        return np.zeros((8, 3), dtype=np.float32)
+
+    @property
+    def data(self):
+        return None
+
+    @property
+    def vertices(self):
+        return None
+
+    @property
+    def smooth_normals(self):
+        return None
+
+    @property
+    def face_normals(self):
+        return None
+
+    @property
+    def faces(self):
+        return None
+
+    @property
+    def vertex_count(self) -> int:
+        return 0
+
+    @staticmethod
+    def get_aspect() -> tuple[float, float, float]:
+        return 1.0, 1.0, 1.0
+
+    @property
+    def ctx(self):
+        from PySide6.QtGui import QOpenGLContext
+
+        ctx = QOpenGLContext.currentContext()
+        if ctx is None:
+            raise RuntimeError('context has not been acquired')
+
+        return ctx
+
+    def acquire(self) -> None:
+        """No-op -- each character's own cached glyph VBO (see
+        build_chars()) manages its own GL acquisition lazily."""
+
+    def release(self) -> None:
+        """No-op -- a Text never owns a VBO of its own to release; its
+        character glyphs are globally shared/cached (see build_chars()),
+        and releasing them here would break every other Text instance
+        using the same letters."""

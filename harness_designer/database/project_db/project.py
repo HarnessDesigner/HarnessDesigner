@@ -84,6 +84,7 @@ class ProjectsTable(PJTTableBase):
         if isinstance(item, int):
             if item in self:
                 return Project(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

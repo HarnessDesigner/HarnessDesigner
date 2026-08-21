@@ -102,7 +102,7 @@ class Terminal(_ObjectBase):
         terminal's own ``wire_position2d_id`` (the far end of its
         wire-stub line, past every cavity name in the housing -- see
         ``objects_schematic/housing.py``'s ``Housing._layout_children``/
-        ``objects_schematic/terminal.py``'s ``Terminal.render_extras`` --
+        ``objects_schematic/terminal.py``'s ``Terminal.render`` --
         distinct from ``position2d_id``, this terminal's own name
         anchor).
 

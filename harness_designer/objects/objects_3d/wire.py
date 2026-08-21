@@ -11,7 +11,7 @@ import math
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from .. import wire as _wire
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 # Real-world mm of extra headroom built into the shared stripe helix mesh
 # beyond whatever's currently required (see WireStripe._ensure_stripe_capacity).
@@ -37,7 +37,7 @@ Config = _config.Config.editor3d
 _HELIX_OVERSHOOT_MM = 1000.0
 
 
-class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
+class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     """Represent a wire in :mod:`harness_designer.objects.objects_3d.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -114,7 +114,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             # can safely read them. Binding position/angle/scale here first also
             # means this wire's own _update_* callbacks (which recompute its
             # _obb/_aabb) fire before the stripe's on any later shared change.
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position, scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
             if stripe_color is not None:
                 self._stripe = WireStripe(parent, self, stripe_color.ui, scale, angle, position)
@@ -137,6 +137,24 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
             # multi-segment) geometry recompute both happen here, not earlier.
             self._bind_waypoints()
             self._recalculate_geometry()
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_wires
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @property
     @_check_types.do
@@ -629,7 +647,7 @@ class Wire(_base3d.Base3D, _mixins.WireTypeMixin):
         return WireMenu(self.mainframe.editor3d.editor, self)
 
 
-class WireStripe(_base3d.Base3D):
+class WireStripe(_base_3d.Base3D):
     """Represent a wire stripe in :mod:`harness_designer.objects.objects_3d.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -692,7 +710,7 @@ class WireStripe(_base3d.Base3D):
         # render_segment below, computed fresh per segment as it walks
         # the wire's own waypoints.
         stripe_scale = _point.Point(scale.x + 0.1, scale.y + 0.1, scale.z)
-        _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, stripe_scale, material)
+        super().__init__(parent, None, vbo, angle, position, stripe_scale, material)
 
     @staticmethod
     @_check_types.do

@@ -12,7 +12,7 @@ from copy import deepcopy
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import vbo as _vbo
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_transition_branch as _pjt_transition_branch
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
 # TODO:
@@ -136,7 +136,7 @@ def _build_model(b_data: "_g_transition.Transition", branches: list["Branch"], u
     return model
 
 
-class Transition(_base3d.Base3D):
+class Transition(_base_3d.Base3D):
     """Represent a transition in :mod:`harness_designer.objects.objects_3d.transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -255,8 +255,26 @@ class Transition(_base3d.Base3D):
         with parent.mainframe.editor3d.context:
             packed, count = _utils.compute_normals(self._vertices, self._faces)
             vbo = _vbo.NonPooledVBOHandler(packed, count)
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, db_obj.position3d,
-                                    scale, material)
+            super().__init__(parent, db_obj, vbo, angle, 
+                             db_obj.position3d, scale, material)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_transitions
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def build(self):
@@ -348,7 +366,7 @@ class Transition(_base3d.Base3D):
         return TransitionMenu(self.mainframe.editor3d.editor, self)
 
 
-class Branch(_base3d.Base3D):
+class Branch(_base_3d.Base3D):
     """Represent a branch in :mod:`harness_designer.objects.objects_3d.transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -383,8 +401,7 @@ class Branch(_base3d.Base3D):
             color = _color.Color(1.0, 0.3, 0.3, 1.0)
             material = _materials.Rubber(color)
 
-            _base3d.Base3D.__init__(self, parent, db_obj, vbo, angle, position,
-                                    scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         color = _color.Color(0.3, 1.0, 0.3, 1.0)
         self._selected_material = _materials.Rubber(color)

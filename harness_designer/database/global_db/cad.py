@@ -83,7 +83,7 @@ class CADsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in CAD or item in self:
                 return CAD(self, item)
             raise IndexError(str(item))
 

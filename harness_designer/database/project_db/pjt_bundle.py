@@ -132,8 +132,9 @@ class PJTBundlesTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTBundle or item in self:
                 return PJTBundle(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

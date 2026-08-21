@@ -19,14 +19,14 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from . import base3d as _base3d
+    from . import base_3d as _base_3d
 
 
 _colors_config = _config.Config.colors
 
 
 @_check_types.do
-def select_object(obj3d: "_base3d.Base3D"):
+def select_object(obj3d: "_base_3d.Base3D"):
     """Make the object the active selection in all of the editors."""
     select_object_for_object(obj3d.mainframe, obj3d.parent)
 
@@ -48,7 +48,7 @@ def select_object_for_object(mainframe, parent):
 
 
 @_check_types.do
-def clone_object(obj3d: "_base3d.Base3D"):
+def clone_object(obj3d: "_base_3d.Base3D"):
     """Arm clone mode using the object as the template."""
     mainframe = obj3d.mainframe
 
@@ -57,7 +57,7 @@ def clone_object(obj3d: "_base3d.Base3D"):
 
 
 @_check_types.do
-def delete_object(obj3d: "_base3d.Base3D"):
+def delete_object(obj3d: "_base_3d.Base3D"):
     """Remove the object from the editors, the project and the database.
 
     :param obj3d: 3d object whose parent is being deleted.
@@ -72,7 +72,7 @@ def delete_object(obj3d: "_base3d.Base3D"):
 
 
 @_check_types.do
-def show_properties(obj3d: "_base3d.Base3D"):
+def show_properties(obj3d: "_base_3d.Base3D"):
     """Open the modeless properties dialog for the object.
 
     The dialog gets its own instance of the object's property tab widget so
@@ -204,7 +204,7 @@ def get_part_id(mainframe, page_name: str, table, title: str,
 
 
 @_check_types.do
-def trace_circuit(obj3d: "_base3d.Base3D", db_obj=None):
+def trace_circuit(obj3d: "_base_3d.Base3D", db_obj=None):
     """Highlight every project object on the circuit the object belongs to."""
     if db_obj is None:
         db_obj = obj3d.db_obj

@@ -148,7 +148,7 @@ class HousingsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Housing or item in self:
                 return Housing(self, item)
 
             raise IndexError(str(item))

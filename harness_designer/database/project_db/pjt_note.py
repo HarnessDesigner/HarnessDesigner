@@ -12,10 +12,13 @@ from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultSt
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
+    AnglePegboardMixin,
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
+    PositionPegboardMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
+    VisiblePegboardMixin, VisiblePegboardControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl,
@@ -125,8 +128,9 @@ class PJTNotesTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTNote or item in self:
                 return PJTNote(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -157,23 +161,39 @@ class PJTNotesTable(PJTTableBase):
         :rtype: :class:`PJTNote`
         """
 
+        # Peg-board presence is not mutually exclusive with the 2D-vs-3D
+        # choice below -- every note also gets a peg-board spot, seeded
+        # from the same dialog values (size/align/style), always visible
+        # there by default. point_pegboard_id itself is left unset here
+        # (stays NULL) -- PositionPegboardMixin.position_pegboard_id
+        # lazily creates the actual pjt_points_pegboard row (at (0, 0, 0))
+        # the first time this row's position_pegboard is read, same as
+        # every other peg-board anchor type (Housing/Terminal/...) relies
+        # on, so there's nothing to pre-create here.
         if point3d_id is None:
             db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
                                         point3d_id=point3d_id, notes=notes,
                                         size2d=size, h_align2d=align, style2d=style,
-                                        is_visible2d=1, is_visible3d=0, color_id=color_id)
+                                        is_visible2d=1, is_visible3d=0,
+                                        size_pegboard=size, h_align_pegboard=align,
+                                        style_pegboard=style, is_visible_pegboard=1,
+                                        color_id=color_id)
 
         else:
             db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
                                         point3d_id=point3d_id, notes=notes,
                                         size3d=size, h_align3d=align, style3d=style,
-                                        is_visible2d=0, is_visible3d=1, color_id=color_id)
+                                        is_visible2d=0, is_visible3d=1,
+                                        size_pegboard=size, h_align_pegboard=align,
+                                        style_pegboard=style, is_visible_pegboard=1,
+                                        color_id=color_id)
 
         return PJTNote(self, db_id)
 
 
-class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
-              Position3DMixin, Position2DMixin, Visible3DMixin, Visible2DMixin, Scale3DMixin, SmoothMixin):
+class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin, NotesMixin, ColorMixin,
+              Position3DMixin, Position2DMixin, PositionPegboardMixin,
+              Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, Scale3DMixin, SmoothMixin):
     """Represent a PJT note in :mod:`harness_designer.database.project_db.pjt_note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -492,6 +512,90 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, NotesMixin, ColorMixin,
 
         self._table.update(self._db_id, is_visible3d=int(value))
         self._populate('is_visible3d')
+
+    _stored_size_pegboard: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def size_pegboard(self) -> float:
+        """Return the peg-board size.
+
+        :returns: Property value.
+        :rtype: float
+        """
+        if self._stored_size_pegboard is DefaultStoredValue:
+            self._stored_size_pegboard = self._table.select('size_pegboard', id=self._db_id)[0][0]
+
+        return self._stored_size_pegboard
+
+    @size_pegboard.setter
+    @_check_types.do
+    def size_pegboard(self, value: float):
+        """Set the peg-board size.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
+        self._stored_size_pegboard = value
+
+        self._table.update(self._db_id, size_pegboard=value)
+        self._populate('size_pegboard')
+
+    _stored_h_align_pegboard: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def h_align_pegboard(self) -> int:
+        """Return the peg-board horizontal alignment.
+
+        :returns: Property value.
+        :rtype: int
+        """
+        if self._stored_h_align_pegboard is DefaultStoredValue:
+            self._stored_h_align_pegboard = self._table.select('h_align_pegboard', id=self._db_id)[0][0]
+
+        return self._stored_h_align_pegboard
+
+    @h_align_pegboard.setter
+    @_check_types.do
+    def h_align_pegboard(self, value: int):
+        """Set the peg-board horizontal alignment.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
+        self._stored_h_align_pegboard = value
+
+        self._table.update(self._db_id, h_align_pegboard=value)
+        self._populate('h_align_pegboard')
+
+    _stored_style_pegboard: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def style_pegboard(self) -> int:
+        """Return the peg-board font style.
+
+        :returns: Property value.
+        :rtype: int
+        """
+        if self._stored_style_pegboard is DefaultStoredValue:
+            self._stored_style_pegboard = self._table.select('style_pegboard', id=self._db_id)[0][0]
+
+        return self._stored_style_pegboard
+
+    @style_pegboard.setter
+    @_check_types.do
+    def style_pegboard(self, value: int):
+        """Set the peg-board font style.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
+        self._stored_style_pegboard = value
+
+        self._table.update(self._db_id, style_pegboard=value)
+        self._populate('style_pegboard')
 
 
 class PJTNoteControl(QTabWidget, LazyTabMixin):

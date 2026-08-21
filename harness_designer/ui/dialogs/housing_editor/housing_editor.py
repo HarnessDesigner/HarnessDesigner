@@ -14,7 +14,7 @@ from . import accessory_panel as _accessory_panel
 from . import connector_analysis as _analysis
 from . import analysis_panel as _analysis_panel
 from .. import dialog_base as _dialog_base
-from ....gl import canvas3d as _canvas3d
+from ....gl import canvas_3d as _canvas_3d
 from ....utils.mesh_surface_picker import MeshSurfacePicker as _MeshSurfacePicker
 from .... import check_types as _check_types
 
@@ -644,13 +644,13 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Edit Housing', size=(1200, 900))
 
-        w = Config.editor3d.virtual_canvas.width
-        h = Config.editor3d.virtual_canvas.height
+        w = Config.editor_3d.virtual_canvas.width
+        h = Config.editor_3d.virtual_canvas.height
 
         self._obj_handler = None
 
-        self.canvas = _canvas3d.Canvas3D(
-            self.panel, Config.editor3d, size=(w, h))
+        self.canvas = _canvas_3d.Canvas3D(
+            self.panel, Config.editor_3d, size=(w, h))
 
         self.controls = QtWidgets.QTabWidget(self.panel)
         self.controls.setMaximumHeight(250)
@@ -1510,7 +1510,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     @property
     @_check_types.do
     def config(self):
-        return Config.editor3d
+        return Config.editor_3d
 
     @_check_types.do
     def Refresh(self, *_, **__):

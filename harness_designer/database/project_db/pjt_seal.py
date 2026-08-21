@@ -12,6 +12,9 @@ from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultSt
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
+    PositionPegboardMixin,
+    AnglePegboardMixin,
+    VisiblePegboardMixin,
     PartMixin,
     HousingMixin,
     Visible3DMixin, Visible3DControl,
@@ -126,8 +129,9 @@ class PJTSealsTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTSeal or item in self:
                 return PJTSeal(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -169,7 +173,8 @@ class PJTSealsTable(PJTTableBase):
         return seal
 
 
-class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
+class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin,
+              AnglePegboardMixin, VisiblePegboardMixin, NotesMixin, Scale3DMixin,
               PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
     """Represent a PJT seal in :mod:`harness_designer.database.project_db.pjt_seal`.
 

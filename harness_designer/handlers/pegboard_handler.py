@@ -9,7 +9,7 @@ Mirrors ``handlers.bundle_layout_handler.AddBundleLayoutHandler``'s
 instead of the 3D editor's -- ``HandlerBase.__init__`` hardcodes
 ``self.camera = mainframe.editor3d.camera``, which is wrong here, so
 :class:`AddWaypointHandler` overrides ``self.camera`` right after calling
-``super().__init__`` to the peg-board canvas's own ``Camera2D``.
+``super().__init__`` to the peg-board canvas's own ``Camera``.
 
 Unlike every other ``HandlerBase`` subclass in this codebase, this one is
 not driven by ``mainframe``'s generic ``_obj_handler``/editor3d-mouse-event
@@ -187,7 +187,7 @@ class AddWaypointHandler(_handler_base.HandlerBase):
 
         # HandlerBase.__init__ sets self.camera to the 3D editor's camera
         # -- wrong for this 2D top-down interaction. Override with the peg
-        # board's own Camera2D right after.
+        # board's own Camera right after.
         self.canvas = canvas
         self.camera = canvas.camera
 

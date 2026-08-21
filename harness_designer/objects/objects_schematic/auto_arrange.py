@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from .. import housing as _housing_obj
 
 
-Config = _config.Config.editor2d
+Config = _config.Config.editor_schematic
 
 _MAX_ITERATIONS = 500
 _CONVERGENCE_EPS = 0.01  # mm total displacement -- below this, stop early
@@ -208,7 +208,7 @@ def _force_layout(project: "_project.Project", nodes: list, edge_weights: dict) 
 @_check_types.do
 def _snap_and_resolve(nodes: list, positions: dict) -> dict:
     """Grid-snap every converged position to
-    ``Config.editor2d.layout.routing_grid``, then nudge apart any pair
+    ``Config.editor_schematic.layout.routing_grid``, then nudge apart any pair
     snapping reintroduced an overlap in -- snapping error is at most
     half a grid cell, so a handful of cheap passes always converges.
     """

@@ -9,7 +9,7 @@ import build123d
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...gl import vbo as _vbo
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from .. import splice as _splice
 
 
-Config = _config.Config.editor3d
+Config = _config.Config.editor_3d
 
 
 @_check_types.do
@@ -57,7 +57,7 @@ def _build_model(p1: _point.Point, p2: _point.Point, diameter: float):
     return model, (corner1, corner2)
 
 
-class Splice(_base3d.Base3D):
+class Splice(_base_3d.Base3D):
     """Represent a splice in :mod:`harness_designer.objects.objects_3d.splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -132,13 +132,29 @@ class Splice(_base3d.Base3D):
 
             material = _materials.Rubber(self._part.color.ui)
 
-            _base3d.Base3D.__init__(
-                self, parent, db_obj, vbo, angle, position,
-                scale, material)
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @property
+    @_check_types.do
+    def smooth(self) -> bool:
+        smooth = self.db_obj.smooth
+        if smooth is None:
+            smooth = Config.renderer.smooth_splices
+
+        return smooth
+
+    @smooth.setter
+    def smooth(self, value: bool | None):
+        self._smooth = value
+
+        try:
+            self.db_obj.smooth = value
+        except AttributeError:
+            pass
 
     @_check_types.do
     def get_context_menu(self):

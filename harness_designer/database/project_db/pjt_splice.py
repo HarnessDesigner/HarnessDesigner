@@ -24,6 +24,7 @@ from .mixins import (
     StartStopPosition3DMixin, StartStopPosition3DControl,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
+    VisiblePegboardMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
@@ -134,8 +135,9 @@ class PJTSplicesTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTSplice or item in self:
                 return PJTSplice(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -172,7 +174,8 @@ class PJTSplicesTable(PJTTableBase):
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
                 PositionPegboardMixin, AnglePegboardMixin,
-                Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin, Scale3DMixin):
+                Visible3DMixin, Visible2DMixin, VisiblePegboardMixin,
+                NameMixin, NotesMixin, SmoothMixin, Scale3DMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

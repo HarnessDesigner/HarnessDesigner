@@ -74,8 +74,9 @@ class PJTPointsPegboardTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTPointPegboard or item in self:
                 return PJTPointPegboard(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

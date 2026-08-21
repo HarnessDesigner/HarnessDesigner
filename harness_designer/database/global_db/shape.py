@@ -78,7 +78,7 @@ class ShapesTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Shape or item in self:
                 return Shape(self, item)
 
             raise IndexError(str(item))

@@ -65,8 +65,9 @@ class PJTPegboardTablesTable(PJTTableBase):
         :raises IndexError: Raised when no row with that id exists.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTPegboardTable or item in self:
                 return PJTPegboardTable(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)

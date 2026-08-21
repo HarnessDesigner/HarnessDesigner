@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 # from ...widgets.context_menus import RotateMenu, MirrorMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import base3d as _base3d
+from . import base_3d as _base_3d
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import check_types as _check_types
@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .. import generic as _generic
 
 
-class Generic(_base3d.Base3D):
+class Generic(_base_3d.Base3D):
     """Represent a generic in :mod:`harness_designer.objects.objects_3d.generic`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -28,5 +28,5 @@ class Generic(_base3d.Base3D):
                  material: _materials.GLMaterial):
 
         with parent.mainframe.editor3d.context:
-            _base3d.Base3D.__init__(self, parent, None, vbo, angle, position, scale, material)
+            super().__init__(parent, None, vbo, angle, position, scale, material)
 

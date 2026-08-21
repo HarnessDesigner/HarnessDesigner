@@ -309,10 +309,6 @@ class App(QObject):
             event.wait()
             return
 
-        # ---- show main window, hide splash ----
-        self.splash.SetText('DONE!')
-        time.sleep(0.50)
-
         @_check_types.do
         def _do():
             """Show the main frame after startup completes.

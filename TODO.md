@@ -10,6 +10,229 @@ be intentional/non-issue.
 
 ## Open
 
+- **`Config.layout`/`wire_routing` naming mismatch** in `auto_arrange.py`/
+  `housing_layout.py`/`wire_routing.py` (they reference `Config.layout.*`,
+  but no `layout` class exists in `config.py` -- the real class is named
+  `wire_routing`, and even that's missing a `wire_spacing` attribute
+  `auto_arrange.py` needs). Deliberately NOT fixed -- the user said not
+  to worry about the auto-arrange subsystem, it's getting redone later
+  (2026-08-20).
+
+- **Schematic housing/cavity/terminal layout, part 2 -- cavity AABB +
+  terminal bracket/wire-stub, now BUILT (2026-08-20)** -- confirmed via
+  a diagram plus concrete example coordinates from the user, which
+  resolved every sign-convention ambiguity from the first pass (several
+  earlier back-and-forths on this had the Z-axis/inside-outside
+  direction backwards). Implemented:
+  - `Housing.get_cavity_aabb` narrowed to sit INSIDE the housing (was
+    spanning the full width) -- near edge at the pin edge, far edge
+    short of the housing's own far edge (room for the corner label).
+  - New `Housing.get_max_cavity_name_width()`.
+  - `Config.object_sizes.pin_edge_padding = 3.0` -- ONE shared padding
+    constant (confirmed by the user, not split per-purpose) driving the
+    cavity name's own offset outside the pin edge, the terminal name's
+    inset from the cavity AABB on all 4 sides, and the "(" bracket's
+    offset outside the pin edge. Replaced the old, now-removed
+    `cavity.name_offset`/`cavity.name_gap`/`terminal.bracket_font_size`/
+    `terminal.position_outside_offset` fields.
+  - `objects_schematic/terminal.py` fully rewritten: name shrink-to-fit
+    (multi-line via explicit `\n`, never exceeds the configured max,
+    shrinks only if needed to fit the padded AABB), the "(" bracket
+    (independent sizing from `cavity_height - cavity_name_char_height`,
+    positioned below the name, right-aligned to the SAME `pin_edge -
+    padding` x the cavity name uses), and the wire-stub cylinder
+    (starts at the "("'s own left edge, Z-centered on the "("'s height,
+    length reaches `Housing.get_max_cavity_name_width()`, diameter
+    `Config.object_sizes.wire.diameter`). Own `render()` override
+    (swaps `_vbo`, and for the cylinder pass only `_angle`/`_scale`/
+    `_position`, matching the established Wire/Housing swap idiom).
+    Position is now PULLED live from the housing each render (not
+    pushed via `position2d` the way every other schematic object works)
+    -- `position2d`/`angle2d` still get pushed by
+    `Housing._layout_children` and still matter, but only as the
+    *trigger* for `_update_position`/`_update_angle` to re-derive
+    everything, not as the literal anchor value.
+
+  **Found but NOT yet wired up**: `database/project_db/pjt_terminal.py`
+  has a `wire_position2d_id` field -- per `objects/terminal.py`'s own
+  docstring (~line 102), this is meant to be "the far end of [the]
+  wire-stub line, past every cavity name in the housing," i.e. exactly
+  where a wire actually attaches -- distinct from `position2d_id` (the
+  name anchor). The new cylinder's own computed stop point
+  (`Terminal._cylinder_local_stop` in the schematic view) is purely
+  visual right now and does NOT get persisted to
+  `db_obj.wire_position2d_id`. Needs wiring up before wire-drawing can
+  actually use it, but wasn't done as part of this pass -- flagged
+  rather than guessed at, since writing to that DB field could affect
+  the wire-drawing tool's existing behavior.
+
+  **Not yet visually verified** -- this entire multi-message design (Z
+  sign convention, inside/outside placement, padding relationships) was
+  worked out and implemented without ever actually rendering it. Given
+  how many corrections the sign/direction conventions alone needed
+  through pure discussion, render this in the schematic editor and
+  check it against the diagram before trusting it further.
+
+  Original spec, for reference:
+
+  1. **`Housing.get_cavity_aabb` is INSIDE the housing** -- its near
+     edge sits flush at the housing's own pin edge (`pin_local_x`),
+     extending inward toward the housing's far edge, but stopping
+     short of it so there's always room for the corner label at the
+     bottom row (kept uniform across every row for alignment, even
+     though only the bottom row actually needs the clearance). This is
+     a layout/bookkeeping region, not something drawn directly.
+     Current code has this backwards (spans the full housing width) --
+     needs narrowing.
+  2. **Cavity name text is unaffected** -- it already renders entirely
+     OUTSIDE the housing, disjoint from the AABB, right-aligned so its
+     own right edge lands `padding` short of the AABB's near edge
+     (`objects_schematic/cavity.py`'s existing
+     `_sync_vbo_transform`/`_local_text_corners` already do exactly
+     this -- no change needed there). Right-alignment exists
+     specifically because of this "text ends at a fixed edge" rule.
+  3. **Terminal's name renders INSIDE the cavity AABB** (from
+     ``Housing.get_cavity_aabb``), padded on all 4 sides by a hardcoded
+     value (exact number TBD -- placeholder for now, "sort out later").
+     Font size starts at (never exceeds) the configured max
+     (``Config.object_sizes.terminal.name_font_size``, 3.0mm) but must
+     shrink below that if, at the max size, either the (single-line)
+     text would extend past the padded AABB's right edge, or -- if the
+     name is multi-line -- the summed height of all lines would exceed
+     the padded AABB's height. (Multi-line splitting mechanism itself
+     not specified -- assuming explicit newlines in the name string,
+     not auto-wrap, unless told otherwise.) Not yet built -- this is
+     the "terminal font is a maximum, not a constant" shrink-to-fit
+     behavior flagged as an open question back when `object_sizes` was
+     first introduced.
+  4. **The "(" bracket is a fully separate piece from the name** --
+     independent sizing AND position:
+     - Size: font size dictated by
+       ``cavity_height - cavity_name_max_char_height`` (the vertical
+       space left over after the cavity name's own max glyph height,
+       both computed the same ``shapes.text.CHARACTER_HEIGHT *
+       font_size`` way ``Housing.__init__`` already computes
+       ``cavity_height`` itself) -- the "(" MUST fit within that
+       remaining height, so its font size has to be derived (solved
+       for) from that remainder, not read off any config value.
+     - Position: rendered BELOW the (already-positioned) terminal name,
+       its own right edge aligned with the terminal name's own right
+       edge.
+     Not yet built.
+  5. **New wire-stub cylinder decoration**: starting from the "("
+     character's own left edge, vertically centered within the "("'s
+     own height, a cylinder extends horizontally past the longest
+     cavity name's own length among ALL cavities in this housing (so
+     every terminal's wire-stub in a given housing is the same length,
+     long enough to clear whichever cavity name is longest) --
+     diameter 1.0 (matches the fixed ``Config.object_sizes.wire.diameter``
+     convention already used for 2D wires). Not yet built.
+
+  All 5 of the above are now built -- see the summary at the top of
+  this entry.
+
+- **Schematic housing/cavity/terminal rendering + layout redesign** (spec
+  given 2026-08-20, mid-implementation of the objects_schematic render()
+  pipeline fixes). Full design as given, not yet built:
+
+  1. **Rendering ownership split** -- each ``objects_schematic`` class draws
+     only its own piece, via its own ``render(faces_program, edges_program,
+     vertices_program)`` override (matching ``BaseVar``'s current 3-arg
+     contract -- this folds into the existing signature-fix work on
+     ``cavity.py``/``terminal.py``/``wire.py``, and retires the dead
+     ``render_extras()`` methods entirely rather than reviving them):
+     - ``Housing`` renders ONLY the housing rectangle body + the housing's
+       own corner label (name/part number/manufacturer).
+     - ``Terminal`` renders the terminal's own name AND the "(" bracket
+       (currently split across ``render()``/dead ``render_extras()`` --
+       merge into one ``render()``).
+     - ``Cavity`` renders ONLY its own name.
+     - Default orientation: terminals (a term that includes cavities here)
+       on the housing's left side, stacked vertically.
+
+  2. **Font-size-driven sizing** -- stop hand-tuning separate font
+     sizes/offsets/gaps per object type; derive as much as possible from
+     font size alone, using a real measured character-height ratio rather
+     than a guessed constant:
+     - ``shapes/text.py``: track the tallest glyph height measured across
+       every character/style built in ``build_chars()`` (at font_size=1.0,
+       same ``dims.y`` ``_build_char()`` already computes) into a new
+       module-level ``CHARACTER_HEIGHT`` constant, set once during the
+       preload pass.
+     - New font sizes: housing corner label = 3.0mm, terminal name =
+       3.0mm, cavity name = 1.5mm (scaled for the project's 1mm fixed 2D
+       wire size). Terminal's 3.0mm is a MAXIMUM, not a constant -- a
+       given terminal's actual rendered font size must be shrunk (not yet
+       specified how far, or exactly what "total text extent of all
+       lines" means here -- needs clarification before implementing this
+       part specifically) so its text fits within the cavity_height slot;
+       cavity_height itself is always computed from the 3.0mm maximum,
+       not from any shrunk per-instance value.
+     - Per housing, computed once in ``Housing.__init__`` (bottom-layer
+       ``objects/housing.py::Housing``, not the schematic view class) and
+       cached for cavities/terminals to read without recomputing:
+       ```python
+       num_cavities = len(db_obj.cavities)
+       terminal_font_height = _text.CHARACTER_HEIGHT * Config.editor_schematic.object_sizes.terminal.name_font_size
+       self.terminal_font_height_padding = terminal_font_height * 0.1
+       self.cavity_height = terminal_font_height + (self.terminal_font_height_padding * 2)
+       housing_width = Config.editor_schematic.object_sizes.housing.width + (Config.editor_schematic.object_sizes.housing.width / 2)
+       # +1 accounts for padding at both ends of the vertical cavity stack
+       scale = _point.Point(housing_width, 1.0, self.cavity_height * (num_cavities + 1))
+       ```
+
+  3. **Natural-sort cavity ordering** -- replace the current plain
+     string sort (``key=lambda c: c.name``) with a digit-run-aware natural
+     sort so ``"2"`` sorts before ``"10"``:
+     ```python
+     _DIGIT_RUN = re.compile(r'(\d+)')
+
+     def _sort_cavities(cavities: list[str, PJTCavity]):
+         def _natural_sort_key(name: str) -> tuple:
+             return tuple(
+                 (0, int(chunk)) if chunk.isdigit() else (1, chunk.lower())
+                 for chunk in _DIGIT_RUN.split(name) if chunk)
+         return sorted(cavities, key=lambda c: _natural_sort_key(c[0]))
+     ```
+
+  4. **Cavity position lookup** -- a ``Housing`` method every
+     cavity/terminal calls (rather than ``Housing._layout_children``
+     pushing position2d out to each child as it does today) to derive its
+     own Z-offset within the vertical stack:
+     ```python
+     def get_cavity_position(cavity: PJTCavity):
+         index = self._cavities.index(cavity)
+         padding = self.cavity_height / 2
+         return (index * self.cavity_height) + padding
+     ```
+     Cavity name position, terminal name position, AND a terminal's wire
+     attachment point are all derivable from this same cavity position
+     (exact per-type X-offset math from it not yet worked out).
+
+  5. **Batch cavity/terminal name query** -- a housing can have several
+     hundred cavities; querying each cavity's own ``name`` + its
+     ``terminal`` reverse-lookup + that terminal's own ``name``
+     individually is 3 queries x N cavities. The batch query already
+     exists and is unused --
+     ``database/project_db/pjt_cavity.py:303``'s
+     ``PJTCavitiesTable.names_with_terminals(housing_id)`` returns
+     ``(cavity_id, cavity_name, terminal_id, terminal_name)`` for every
+     cavity in one query, and its own docstring already names the
+     intended (but never built) consumer:
+     ``objects_schematic/housing.py``'s ``Housing._collect_names``. Needs
+     to actually be called from the bottom-layer ``objects/housing.py``'s
+     ``Housing`` (before per-cavity/terminal view objects are
+     constructed -- see ``_construct_cavities``), with each result row's
+     name(s) pre-seeded directly into the cavity's/terminal's own
+     ``NameMixin._stored_name`` cache (see the "Cython typing + DB cache
+     convention" memory entry's ``_stored_*`` cache pattern) so the
+     later, per-object ``.name`` property read never fires its own query.
+
+  Not started yet -- captured here mid-conversation per the "write the
+  spec down immediately" rule so it survives if the session compacts.
+  Open question before finishing part 2: what exactly triggers a
+  terminal's own font-size shrink, and by how much/to what floor.
+
 - **`PJTCavity.seal_position3d` vs `seal_position3d_id` read different rows**
   (`database/project_db/pjt_cavity.py`). `seal_position3d` returns
   `self.terminal_position3d` (the cavity's own `terminal_point3d_id` slot),
@@ -85,18 +308,60 @@ be intentional/non-issue.
 - Add TE Terminals to the database. Also find out why the solid deutsch 
     terminals are missing from the JSON file.  
 
-- **Wire fully hidden when placed in a bundle, even the parts outside the
-  bundle's own start/stop waypoints** (`objects/wire.py`,
-  `database/project_db/pjt_wire.py`, `gl/canvas_pegboard` rendering). When a
-  wire is placed into a bundle, the bundle's own start/stop points get
-  married to waypoints *on* the wire (existing, or added at that time) — not
-  the wire's own true start/stop. The wire's whole visibility flag is set to
-  hidden as a result, but a wire can extend beyond the bundle's own waypoint
-  boundaries (bare sections before/after where the bundle actually
-  starts/stops), and those exposed sections should still render. Needs logic
-  to determine at which waypoint a wire exits the bundle and render just the
-  non-bundled sections instead of hiding the whole wire. Noted 2026-08-13,
-  explicitly deferred by the user — fix later.
+- **Wire/bundle "leader" feature — bundle should stop short of the wire's
+  real ends, wire should render its exposed leader sections instead of
+  being fully hidden** (`handlers/bundle_handler.py`, `objects_3d/wire.py`,
+  `objects_3d/bundle.py`, `objects_pegboard/wire.py`,
+  `objects_pegboard/bundle.py`, likely `config.py`). Confirmed by reading
+  the actual current code (not just inferred): this doesn't exist anywhere
+  today, in either editor, and it's not just an unrendered gap — the data
+  relationship itself doesn't support it yet:
+  - `AddBundleHandler._create_preview`/`release_capture`
+    (`handlers/bundle_handler.py`) seeds a new bundle's start/stop at the
+    wire's own `start_position`/`stop_position` numpy values, then
+    `.attach()`-*merges* the wire's start/stop Points with the bundle's —
+    after creation they are literally the same Point instance, not two
+    independent positions that happen to coincide. There is no margin/inset
+    concept anywhere in this path.
+  - `Bundle.add_wire()` (`objects_3d/bundle.py`) sets `wire.is_visible =
+    False` unconditionally — the whole wire disappears for its entire
+    length, not just the covered middle.
+
+  **Full spec, given by the user 2026-08 (during the pegboard object-file
+  review pass):**
+  1. Add a new, user-adjustable **wire leader length** config setting.
+  2. When a bundle is created over a wire (`AddBundleHandler`), the
+     bundle's start/stop must no longer be `.attach()`-merged with the
+     wire's own start/stop — they need to be independent points, each
+     inset from the wire's real end by the leader length (so the bundle
+     stops short of the wire's actual endpoint by that distance).
+  3. When an existing wire is dragged onto an existing bundle:
+     - If the wire's near end is **free** (not attached to a terminal/
+       anything else), **shorten the wire itself** so it ends exactly one
+       leader-length past the bundle's edge.
+     - If the wire's near end **is** attached to a terminal, the wire's
+       endpoint can't move — instead **adjust the bundle's length** to
+       reach appropriately, and the leader-length rule does not apply in
+       this case (the bundle just extends/shrinks to meet the wire where
+       it actually is).
+  4. Wire rendering (both editors) then needs to render only the leader
+     sections outside wherever the bundle actually starts/stops along it,
+     instead of the current unconditional `is_visible = False`. Explicit
+     correction from the user: **`is_visible` is not the mechanism** —
+     don't toggle the whole wire on/off. The wire's own render path needs
+     to determine which part of its length falls inside the bundle's span
+     and which falls outside, and draw only the outside (leader) portion
+     — an inside/outside split per render, not a whole-object visibility
+     flag.
+  5. Explicitly scoped to build in **both editors at once** (3D and
+     pegboard), not 3D-first-then-port — the user's own call when this was
+     discussed.
+
+  Not started. This is a real design/data-model change (decoupling the
+  attach()-merge, adding the leader-length setting, teaching the creation/
+  drag-attach handlers the shorten-wire-vs-grow-bundle branch, then
+  rendering the leader sections in both editors), not a quick fix — plan it
+  as its own dedicated task.
 
 - **Rename `position2d`/`position3d` (and `angle2d`/`angle3d`) to
   `position_schematic`/`position_3d` (`angle_schematic`/`angle_3d`)**

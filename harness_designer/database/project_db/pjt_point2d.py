@@ -75,8 +75,9 @@ class PJTPoints2DTable(PJTTableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in PJTPoint2D or item in self:
                 return PJTPoint2D(self, item)
+
             raise IndexError(str(item))
 
         raise KeyError(item)
@@ -243,6 +244,10 @@ class PJTPoint2D(PJTEntryBase):
 
     _stored_point2d: _point.Point = None
 
+    # Class-level flag: set True during bulk position batch-writes so the
+    # per-point DB callback is suppressed while render callbacks still fire.
+    _skip_db_write: bool = False
+
     @property
     @_check_types.do
     def point(self) -> _point.Point:
@@ -270,6 +275,9 @@ class PJTPoint2D(PJTEntryBase):
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
+        if PJTPoint2D._skip_db_write:
+            return
+
         x, _, y = point.as_float
         self._stored_x = x
         self._stored_y = y

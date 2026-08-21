@@ -81,7 +81,7 @@ class ColorsTable(TableBase):
         :raises IndexError: Raised when the operation cannot be completed.
         """
         if isinstance(item, (int, bytes)):
-            if item in self:
+            if item in Color or item in self:
                 return Color(self, item)
 
             raise IndexError(str(item))
