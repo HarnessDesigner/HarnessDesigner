@@ -38,8 +38,7 @@ def _quat_about_y(degrees: float) -> _quaternion.Quaternion:
     Not used by ``BaseSchematic`` itself -- ``_render_geometry``/``BaseVar``'s
     ``_compute_obb``/``_compute_aabb`` all use ``self._angle``'s own
     native quaternion directly (``angle2d.y``, since that's the axis a
-    Y=0-flat 2D primitive must spin about to stay flat -- see
-    ``objects_schematic/housing_layout.py``, the source that writes it). Kept as
+    Y=0-flat 2D primitive must spin about to stay flat). Kept as
     a plain utility for callers that need a raw Y-rotation quaternion/
     point-rotation without going through a live ``Angle`` object at all
     (e.g. ``objects_schematic/housing.py``'s extras positioning).

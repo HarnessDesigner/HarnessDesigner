@@ -14,8 +14,7 @@ running the router against each candidate and comparing total routed
 length, then re-routes every wire for real (see ``wire_reroute.py``).
 
 Repositions and re-rotates every housing/splice unconditionally --
-this is a deliberate, user-triggered command, not the conservative
-single-housing insert-time placement ``housing_layout.py`` does.
+this is a deliberate, user-triggered whole-project command.
 """
 
 from typing import TYPE_CHECKING

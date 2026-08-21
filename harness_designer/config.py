@@ -721,16 +721,16 @@ class Config(metaclass=ConfigDB):
                 speed = None
 
             class dolly(metaclass=ConfigDB):
-                mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
-                in_key = 16777235
-                out_key = 16777237
-                sensitivity = 1.0
-
-            class zoom:
-                mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
+                mouse = None
                 in_key = None
                 out_key = None
                 sensitivity = None
+
+            class zoom:
+                mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
+                in_key = 16777235
+                out_key = 16777237
+                sensitivity = 2.0
 
             class reset(metaclass=ConfigDB):
                 key = 16777232
@@ -917,16 +917,16 @@ class Config(metaclass=ConfigDB):
                 speed = None
 
             class dolly(metaclass=ConfigDB):
-                mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
-                in_key = 16777235
-                out_key = 16777237
-                sensitivity = 1.0
-
-            class zoom:
-                mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
+                mouse = None
                 in_key = None
                 out_key = None
                 sensitivity = None
+
+            class zoom:
+                mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
+                in_key = 16777235
+                out_key = 16777237
+                sensitivity = 2.0
 
             class reset(metaclass=ConfigDB):
                 key = 16777232
@@ -1011,9 +1011,7 @@ class Config(metaclass=ConfigDB):
                 secondary_line_color = [0.57, 0.59, 0.65, 1.0]
                 primary_line_width = 0.8
                 secondary_line_width = 0.25
-
                 secondary_lines_per_tile = 4
-
                 secondary_line_pattern = 0x0B2664D0
                 # 0000 1011 0010 0110 0110 0100 1101 0000
                 secondary_line_shift = False

@@ -275,3 +275,20 @@ class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
         See :meth:`harness_designer.gl.canvas_pegboard.canvas.Canvas.clear`.
         """
         self._canvas.clear()
+
+    @_check_types.do
+    def center_on_object(self, obj) -> None:
+        """
+        Pan the peg board camera to bring *obj* into view, without
+        changing zoom -- mirrors
+        ``mainframe.MainFrame._set_selected``'s direct
+        ``editor3d.camera.CenterOn(obj.obj3d.position)`` call for the 3D
+        view, forwarded here (rather than exposed as a raw ``.camera``
+        call at the mainframe level) since the peg board's own anchor
+        position lives on ``obj.objpegboard``, not on ``obj`` itself.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
+        if obj.objpegboard is not None:
+            self.camera.CenterOn(obj.objpegboard.position)

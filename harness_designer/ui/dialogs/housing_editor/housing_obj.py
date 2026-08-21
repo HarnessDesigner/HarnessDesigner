@@ -6,6 +6,9 @@ import numpy as np
 
 from .... import objects as _objects
 from ....objects.objects_3d import base_3d as _base_3d
+from ....objects.objects_pegboard import base_pegboard as _base_pegboard
+from ....objects.objects_schematic import base_schematic as _base_schematic
+
 from ....geometry import point as _point
 from ....geometry import angle as _angle
 from ....shapes import box as _box
@@ -43,6 +46,8 @@ class Housing(_objects.ObjectBase):
 
         self.dialog = parent
         self.obj3d = Housing3D(self, housing)
+        self.objpegboard = HousingPegboard(self, housing)
+        self.objschematic = HousingSchematic(self, housing)
 
         parent.add_object(self)
 
@@ -138,3 +143,24 @@ class Housing3D(_base_3d.Base3D):
         """
         super()._update_position(position)
         self.dialog.canvas.Refresh()
+
+
+class HousingPegboard(_base_pegboard.BasePegboard):
+
+    def __init__(self, parent, db_obj):
+        super().__init__(parent, db_obj, None, None,
+                         None, None, None)
+
+    def render(self, _, __, ___):
+        pass
+
+
+class HousingSchematic(_base_schematic.BaseSchematic):
+
+    def __init__(self, parent, db_obj):
+
+        super().__init__(parent, db_obj, None, None,
+                         None, None, None)
+
+    def render(self, _, __, ___):
+        pass

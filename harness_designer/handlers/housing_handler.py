@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from . import handler_base as _handler_base
 from ..geometry import point as _point
 from ..objects import housing as _housing
-from ..objects.objects_schematic import housing_layout as _housing_layout
 from ..gl import materials as _materials
 from .. import config as _config
 from ..ui.dialogs import part_search as _part_search
@@ -124,12 +123,5 @@ class AddHousingHandler(_handler_base.HandlerBase):
         self.mainframe.project.add_housing(self.obj)
         self.obj.db_obj.update_cavities()
         self.obj.obj3d.match_cavity_surfaces()
-
-        # A housing was just added -- give it its own non-overlapping
-        # spot in the 2D schematic (no-op if
-        # Config.editor_schematic.layout.auto_layout_enabled is off). Every
-        # other housing already placed, by this or an earlier auto-
-        # placement or by hand, is left untouched.
-        _housing_layout.place_housing(self.mainframe.project, self.obj)
 
         self.obj = None

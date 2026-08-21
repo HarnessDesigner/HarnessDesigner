@@ -649,8 +649,15 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         self._obj_handler = None
 
+        # Passes *self* (not self.panel) as the canvas's "mainframe" --
+        # Qt widget-parenting is unaffected (the layout's addWidget()
+        # below reparents the canvas to self.panel regardless), but
+        # anything the canvas builds on its own (e.g. FocalPoint, created
+        # in Canvas.initializeGL()) resolves canvas.mainframe.editor3d
+        # through this dialog's own editor3d/context/config/Refresh
+        # forwarding -- self.panel is a plain QWidget with none of that.
         self.canvas = _canvas_3d.Canvas3D(
-            self.panel, Config.editor_3d, size=(w, h))
+            self, Config.editor_3d, size=(w, h))
 
         self.controls = QtWidgets.QTabWidget(self.panel)
         self.controls.setMaximumHeight(250)
@@ -1484,6 +1491,11 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     @_check_types.do
     def editor3d(self):
         return self
+
+    @property
+    @_check_types.do
+    def editor_pegboard(self):
+        return None
 
     @_check_types.do
     def add_object(self, obj):

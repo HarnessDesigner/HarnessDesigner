@@ -18,6 +18,8 @@ from . import menu_ops as _menu_ops
 from ...shapes import box as _box
 from ...utils import mesh_surface_picker as _mesh_surface_picker
 from ...gl import materials as _materials
+from ...gl import vbo as _vbo
+from ... import color as _color
 from ... import config as _config
 
 from ... import debug as _debug
@@ -150,6 +152,11 @@ class Housing(_base_3d.Base3D):
         self._surf_to_cavity: dict = {}
         self._cavity_markers: list = []
         self._selected_marker_idx: int = -1
+        # Reused scratch VBO for every decal drawn by _draw_overlay_faces
+        # (surface pick highlight, cavity markers, terminal overlays) --
+        # one draw at a time, re-uploaded per call, never more than one
+        # decal's worth of geometry live in it at once.
+        self._overlay_vbo: "_vbo.NonPooledVBOHandler | None" = None
 
         if model is not None:
             model.load(self._part.manufacturer.name,
@@ -569,33 +576,79 @@ class Housing(_base_3d.Base3D):
         self._selected_marker_idx = -1
         self._picker.clear_selection()
 
-    @staticmethod
     @_check_types.do
-    def _draw_overlay_triangles(positions_world: np.ndarray, color) -> None:
-        """Immediate-mode filled-triangle draw used for both the picker's
-        hover/click surface highlight and the persistent cavity-marker
-        decals.  *color* is an RGBA sequence with components in the
-        0.0-1.0 range (matches ``GLMaterial.diffuse``).
-        """
-        r, g, b, a = color
+    def _draw_overlay_faces(self, faces_program, positions_world: np.ndarray, color) -> None:
+        """Draw a translucent decal directly on top of already-rendered
+        geometry, through the same modern faces_program shader pipeline
+        every other mesh face in the scene renders through.
 
-        GL.glUseProgram(0)
+        Replaces a legacy fixed-function immediate-mode draw
+        (``glEnableClientState``/``glVertexPointer``/``glColor4f`` after
+        ``glUseProgram(0)``) that silently stopped producing any visible
+        pixels once the renderer moved to this shader-based pipeline --
+        those calls target the old client-side-array pipeline, which this
+        canvas no longer drives any state for. *positions_world* is
+        already fully world-space (transformed from the housing's own
+        local mesh data by the caller), so this draws it with an identity
+        object transform; a flat per-triangle normal is computed on the
+        fly since a decal has no real surface curvature of its own to
+        shade smoothly. *color* is an RGBA sequence with components in
+        the 0.0-1.0 range (matches ``GLMaterial.diffuse``).
+        """
+        vert_count = len(positions_world)
+        if vert_count == 0 or vert_count % 3 != 0:
+            return
+
+        tris = positions_world.reshape(-1, 3, 3).astype(np.float64)
+        normals = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+        lengths = np.linalg.norm(normals, axis=1, keepdims=True)
+        lengths[lengths < 1e-12] = 1.0
+        normals = np.repeat((normals / lengths).astype(np.float32), 3, axis=0)
+
+        packed = np.concatenate([
+            positions_world.astype(np.float32).reshape(-1),
+            normals.reshape(-1),
+            normals.reshape(-1),
+        ])
+
+        if self._overlay_vbo is None:
+            self._overlay_vbo = _vbo.NonPooledVBOHandler(packed, vert_count)
+        else:
+            self._overlay_vbo.update(packed, vert_count)
+
+        # Color() treats a float channel as already 0.0-1.0 and scales it
+        # to 0-255 itself (see color.py's __init__) -- color's components
+        # are already that same 0.0-1.0 range, so they pass straight
+        # through unscaled.
+        material = _materials.Generic(_color.Color(*color))
+
+        GL.glUseProgram(faces_program)
+        material.set(faces_program)
+
+        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
+        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
+        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
+
+        GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
+        GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)  # identity quaternion (w, x, y, z)
+        GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
+        GL.glUniform1i(normal_loc, 0)
+
         GL.glDepthMask(GL.GL_FALSE)
         GL.glEnable(GL.GL_POLYGON_OFFSET_FILL)
         GL.glPolygonOffset(-1.0, -1.0)
 
-        GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-        GL.glColor4f(r, g, b, a)
-        GL.glVertexPointer(3, GL.GL_FLOAT, 0, positions_world)
-        GL.glDrawArrays(GL.GL_TRIANGLES, 0, len(positions_world))
-        GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
+        self._overlay_vbo.render()
 
         GL.glDisable(GL.GL_POLYGON_OFFSET_FILL)
         GL.glPolygonOffset(0.0, 0.0)
         GL.glDepthMask(GL.GL_TRUE)
 
+        GL.glUseProgram(0)
+
     @_check_types.do
-    def render_surface_overlay(self, surf_idx: int, color) -> None:
+    def render_surface_overlay(self, faces_program, surf_idx: int, color) -> None:
         """Draw an overlay on one of this housing's mesh surfaces.
 
         *color* is an RGBA sequence with components in the 0.0-1.0 range
@@ -623,10 +676,10 @@ class Housing(_base_3d.Base3D):
         idx = (tri_arr[:, None] * 3 + np.arange(3, dtype=np.int64)).ravel()
         positions = ((verts[idx] * scale) @ rot + pos).astype(np.float32)
 
-        self._draw_overlay_triangles(positions, color)
+        self._draw_overlay_faces(faces_program, positions, color)
 
     @_check_types.do
-    def render_marker_overlay(self, marker_idx: int, color) -> None:
+    def render_marker_overlay(self, faces_program, marker_idx: int, color) -> None:
         """Draw an override-color overlay on one of this housing's synthetic
         cavity markers -- the marker equivalent of ``render_surface_overlay``.
         Used by a placed terminal to color-match its cavity's synthetic
@@ -648,10 +701,10 @@ class Housing(_base_3d.Base3D):
         positions = ((marker.local_verts.astype(np.float64) * scale) @
                      rot + pos).astype(np.float32)
 
-        self._draw_overlay_triangles(positions, color)
+        self._draw_overlay_faces(faces_program, positions, color)
 
     @_check_types.do
-    def _render_cavity_markers(self) -> None:
+    def _render_cavity_markers(self, faces_program) -> None:
         """Draw every synthetic cavity-marker decal — persistent, not just
         on selection, since these are the only visual cue for cavities that
         have no real recessed mesh geometry of their own.
@@ -672,14 +725,14 @@ class Housing(_base_3d.Base3D):
                          rot + pos).astype(np.float32)
 
             color = selected_color if i == self._selected_marker_idx else default_color
-            self._draw_overlay_triangles(positions, color)
+            self._draw_overlay_faces(faces_program, positions, color)
 
     @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         super().render(faces_program, edges_program, vertices_program)
 
-        self._render_cavity_markers()
-        self._render_terminal_overlays()
+        self._render_cavity_markers(faces_program)
+        self._render_terminal_overlays(faces_program)
 
         picker = self._picker
         if picker is None or picker.selected_surf_idx is None:
@@ -687,10 +740,11 @@ class Housing(_base_3d.Base3D):
 
         r, g, b, a = picker.overlay_color
         self.render_surface_overlay(
-            picker.selected_surf_idx, (r / 255.0, g / 255.0, b / 255.0, a / 255.0))
+            faces_program, picker.selected_surf_idx,
+            (r / 255.0, g / 255.0, b / 255.0, a / 255.0))
 
     @_check_types.do
-    def _render_terminal_overlays(self) -> None:
+    def _render_terminal_overlays(self, faces_program) -> None:
         """Draw every seated terminal's cavity wire-side/pin-side overlay,
         immediately after this housing's own base mesh (just above) so the
         draw order between the two is always deterministic -- see
@@ -706,7 +760,7 @@ class Housing(_base_3d.Base3D):
             if terminal_obj is None or terminal_obj.obj3d is None:
                 continue
 
-            terminal_obj.obj3d.render_cavity_overlay()
+            terminal_obj.obj3d.render_cavity_overlay(faces_program)
 
     @_check_types.do
     def _delete(self):

@@ -107,10 +107,9 @@ class Wire(_ObjectBase):
         *both* its start and stop -- the schematic editor only ever
         shows/picks a wire meeting this (see ``gl/canvas2d/canvas.py``'s
         ``_render_vbo_objects``/``gl/canvas2d/mouse_handler.py``'s
-        ``_get_object_at_point``), and it's also what the auto-layout
-        (``objects_schematic/housing_layout.py``) and auto-router
-        (``objects_schematic/wire_routing.py``) treat as a real obstacle to route
-        around -- an in-progress wire isn't really "there" yet.
+        ``_get_object_at_point``), and it's also what the auto-router
+        (``objects_schematic/wire_routing.py``) treats as a real obstacle to
+        route around -- an in-progress wire isn't really "there" yet.
         """
         return (isinstance(self.start_sibling, (_terminal.Terminal, _splice.Splice))
                 and isinstance(self.stop_sibling, (_terminal.Terminal, _splice.Splice)))

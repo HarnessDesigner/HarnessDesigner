@@ -284,10 +284,8 @@ class Housing(_base_schematic.BaseSchematic):
         """Re-run :meth:`_layout_children` after the inherited OBB/AABB
         update -- a housing's cavities/terminals are positioned in
         absolute world space (not relative to the housing at render
-        time), so moving the housing (drag, or
-        ``objects_schematic/housing_layout.py``'s own auto-placement) must push
-        fresh positions to them, not just recompute this housing's own
-        bounds.
+        time), so moving the housing must push fresh positions to them,
+        not just recompute this housing's own bounds.
         """
         super()._update_position(position)
         self._layout_children(self._cavities, position, self._angle)
@@ -415,8 +413,8 @@ class Housing(_base_schematic.BaseSchematic):
                      housing_position: _point.Point, housing_angle: _angle.Angle):
         """Write *child_db_obj*'s own ``position2d`` from a housing-local
         ``(local_x, local_z)`` offset -- same rotate-then-translate math
-        as ``objects_schematic/housing_layout.py``'s own ``_apply_placement``,
-        and the same bound-Point write path.
+        used everywhere else a local offset is turned into a world
+        ``position2d``, and the same bound-Point write path.
 
         *child_db_obj*'s own ``angle2d`` is deliberately left untouched
         (stays identity) -- cavity/terminal text must always render
@@ -529,9 +527,8 @@ class Housing(_base_schematic.BaseSchematic):
     def _world_offset(self, local_x: float, local_z: float) -> tuple[float, float, float]:
         """Rotate a ``(local_x, 0, local_z)`` offset by this housing's
         current ``angle2d.y`` (about world Y -- the axis a Y=0-flat 2D
-        primitive must spin about to stay flat; the source that writes
-        it, ``objects_schematic/housing_layout.py``, is what controls this, not
-        this method) -- see ``objects_schematic/base_schematic.py``'s ``_rotate_about_y``.
+        primitive must spin about to stay flat) -- see
+        ``objects_schematic/base_schematic.py``'s ``_rotate_about_y``.
         """
         points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
         x, y, z = _base_schematic._rotate_about_y(points, self._angle.y)[0]  # NOQA

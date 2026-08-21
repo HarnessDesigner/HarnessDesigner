@@ -10,7 +10,7 @@ from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ....gl import canvas3d as _canvas3d
+    from ....gl import canvas_3d as _canvas3d
 
 
 class WireTypeMixin:

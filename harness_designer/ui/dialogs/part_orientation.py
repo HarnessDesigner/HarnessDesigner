@@ -10,11 +10,13 @@ from PySide6 import QtWidgets
 
 from . import dialog_base as _dialog_base
 from ... import config as _config
-from ...gl import canvas3d as _canvas3d
+from ...gl import canvas_3d as _canvas3d
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ...objects import ObjectBase as _ObjectBase
 from ...objects.objects_3d import base_3d as _base_3d
+from ...objects.objects_pegboard import base_pegboard as _base_pegboard
+from ...objects.objects_schematic import base_schematic as _base_schematic
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry.angle import quaternion as _quaternion
@@ -59,12 +61,9 @@ class _Config:
     """Minimal config for the part orientation canvas."""
     lighting = _config.Config.editor_3d.lighting
     keyboard_settings = _config.Config.editor_3d.keyboard_settings
-    rotate = _config.Config.editor_3d.rotate
-    pan_tilt = _config.Config.editor_3d.pan_tilt
-    truck_pedestal = _config.Config.editor_3d.truck_pedestal
-    walk = _config.Config.editor_3d.walk
-    zoom = _config.Config.editor_3d.zoom
-    reset = _config.Config.editor_3d.reset
+    input = _config.Config.editor_3d.input
+    renderer = _config.Config.editor_3d.renderer
+
     selected_color = [0.2, 0.6, 0.2, 0.35]
     background_color = [0.13, 0.13, 0.15, 1.0]
 
@@ -101,17 +100,6 @@ class _Config:
             enable = False
             strength = 50.0
 
-    class renderer:
-        smooth_covers = False
-        smooth_boots = True
-        smooth_housings = False
-        smooth_wires = True
-        smooth_bundles = True
-        smooth_seals = True
-        smooth_cpa_locks = False
-        smooth_tpa_locks = False
-        smooth_terminals = False
-
     class focal_target:
         enable = False
         color = [1.0, 0.4, 0.4, 1.0]
@@ -132,6 +120,9 @@ class PartModel(_ObjectBase):
         super().__init__(dialog, model_db)
         self.dialog = dialog
         self.obj3d = PartModel3D(self, model_db)
+        self.objpegboard = PartModelPegboard(self, model_db)
+        self.objschematic = PartModelSchematic(self, model_db)
+
         dialog.add_object(self)
 
     @_check_types.do
@@ -205,6 +196,31 @@ class PartModel3D(_base_3d.Base3D):
     @_check_types.do
     def delete(self):
         pass
+
+
+class PartModelPegboard(_base_pegboard.BasePegboard):
+
+    def __init__(self, parent, db_obj):
+        super().__init__(
+            parent, db_obj, None, None,
+            None, None, None
+            )
+
+    def render(self, _, __, ___):
+        pass
+
+
+class PartModelSchematic(_base_schematic.BaseSchematic):
+
+    def __init__(self, parent, db_obj):
+        super().__init__(
+            parent, db_obj, None, None,
+            None, None, None
+            )
+
+    def render(self, _, __, ___):
+        pass
+
 
 
 class AxisLabel(_ObjectBase):
@@ -289,8 +305,15 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self.o_position: _point.Point = None
         self._obj_handler = None
 
+        # Passes *self* (not self.panel) as the canvas's "mainframe" --
+        # Qt widget-parenting is unaffected (the layout's addWidget()
+        # below reparents the canvas to self.panel regardless), but
+        # anything the canvas builds on its own (e.g. FocalPoint, created
+        # in Canvas.initializeGL()) resolves canvas.mainframe.editor3d
+        # through this dialog's own editor3d/context/config/Refresh
+        # forwarding -- self.panel is a plain QWidget with none of that.
         self.canvas = _canvas3d.Canvas3D(
-            self.panel, _Config, size=(1600, 900))
+            self, _Config, size=(1600, 900))
 
         # Orientation controls — one button per icon, all ±90° steps
         orient_group = QtWidgets.QGroupBox('Orientation', self.panel)
@@ -620,6 +643,11 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
     @_check_types.do
     def editor3d(self):
         return self
+
+    @property
+    @_check_types.do
+    def editor_pegboard(self):
+        return None
 
     @_check_types.do
     def add_object(self, obj):

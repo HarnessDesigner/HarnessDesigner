@@ -289,7 +289,7 @@ class Terminal(_base_3d.Base3D):
         super().render(faces_program, edges_program, vertices_program)
 
     @_check_types.do
-    def render_cavity_overlay(self) -> None:
+    def render_cavity_overlay(self, faces_program) -> None:
         """Draw this terminal's cavity wire-side/pin-side overlay onto the
         owning housing's mesh.
 
@@ -328,12 +328,12 @@ class Terminal(_base_3d.Base3D):
             color = self._color.rgba_scalar
 
         if self._overlay_wire_surf_idx is not None:
-            housing_3d.render_surface_overlay(self._overlay_wire_surf_idx, color)
+            housing_3d.render_surface_overlay(faces_program, self._overlay_wire_surf_idx, color)
         elif self._overlay_wire_marker_idx is not None:
-            housing_3d.render_marker_overlay(self._overlay_wire_marker_idx, color)
+            housing_3d.render_marker_overlay(faces_program, self._overlay_wire_marker_idx, color)
 
         if self._overlay_pin_surf_idx is not None:
-            housing_3d.render_surface_overlay(self._overlay_pin_surf_idx, color)
+            housing_3d.render_surface_overlay(faces_program, self._overlay_pin_surf_idx, color)
 
     @_check_types.do
     def _update_position(self, position: _point.Point):

@@ -276,7 +276,6 @@ class MainFrame(QtWidgets.QMainWindow):
         self.note_toolbar = _toolbar.NoteToolbar(self)
         self.object_toolbar = _toolbar.EditorObjectToolbar(self)
         self.settings3d_toolbar = _toolbar.Setting3DToolbar(self)
-        self.editor2d_toolbar = _toolbar.Editor2DToolbar(self)
         self.pegboard_toolbar = _toolbar.PegBoardToolbar(self)
 
         splash.SetText('Loading system menu...')
