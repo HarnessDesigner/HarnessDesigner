@@ -12,6 +12,7 @@ from ...geometry.decimal import Decimal as _d
 from ... import config as _config
 from ...gl import materials as _materials
 from ...gl import vbo as _vbo
+from ...shapes import text as _text
 from .. import objectsvar as _objectsvar
 
 from ... import debug as _debug
@@ -64,9 +65,9 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
-                 vbo: _vbo.VBOHandlerBase, angle: _angle.Angle,
-                 position: _point.Point, scale: _point.Point,
-                 material: _materials.GLMaterial):
+                 vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
+                 position: _point.Point | None, scale: _point.Point | None,
+                 material: _materials.GLMaterial | None):
 
         self.editor3d = parent.mainframe.editor3d
 
@@ -81,23 +82,30 @@ class Base3D(_objectsvar.BaseVar):
         except AttributeError:
             self._is_visible = False
 
-        position.unbind(self._update_position)
-        angle.unbind(self._update_angle)
-        scale.unbind(self._update_scale)
+        # Inert placeholder construction (no position/angle/scale of its
+        # own -- e.g. a note not placed in this view, see
+        # objects_3d/note.py's own __init__) passes all three as None;
+        # BaseVar.__init__ above already tolerates that, but the
+        # floor-lock logic below is 3D-only and has nothing to bind/
+        # unbind/snap in that case.
+        if position is not None and angle is not None and scale is not None:
+            position.unbind(self._update_position)
+            angle.unbind(self._update_angle)
+            scale.unbind(self._update_scale)
 
-        if (
-            not self._floor_lock_exempt and
-            self.editor3d.config.floor.enable_floor_lock and
-            self._aabb[0][1] < Config.floor.ground_height
-        ):
-            y = _d(position.y)
-            y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+            if (
+                not self._floor_lock_exempt and
+                self.editor3d.config.floor.enable_floor_lock and
+                self._aabb[0][1] < Config.floor.ground_height
+            ):
+                y = _d(position.y)
+                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
 
-            position.y = float(y)
+                position.y = float(y)
 
-        position.bind(self._update_position)
-        angle.bind(self._update_angle)
-        scale.bind(self._update_scale)
+            position.bind(self._update_position)
+            angle.bind(self._update_angle)
+            scale.bind(self._update_scale)
 
     @property
     @_check_types.do

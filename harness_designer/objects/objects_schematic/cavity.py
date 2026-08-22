@@ -7,7 +7,6 @@ import numpy as np
 
 from . import base_schematic as _base_schematic
 from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
@@ -43,11 +42,17 @@ class Cavity(_base_schematic.BaseSchematic):
     measured ``width``/``height`` instead.
 
     ``position2d``/``angle2d`` are computed and persisted by the owning
-    ``objects_schematic/housing.py``'s ``Housing`` whenever its layout changes
-    (see ``Housing._layout_children``) -- :meth:`_sync_vbo_transform`
-    is what pushes that (RIGHT/BOTTOM-anchored) transform into the
-    ``Text`` label itself, since ``Text`` has no reactive binding of
-    its own the way a bound ``Point``/``Angle`` does.
+    ``objects_schematic/housing.py``'s ``Housing`` whenever its layout
+    changes (see ``Housing._layout_children``) -- but that position is
+    this cavity's own slot's top-left corner, not the label's own
+    RIGHT/BOTTOM anchor point (see :meth:`_local_text_corners`), so
+    :meth:`render` temporarily shifts ``self._position`` to that anchor
+    for the duration of the generic (inherited) render call -- the same
+    swap-call-super()-restore idiom ``objects_schematic/housing.py``'s
+    ``Housing`` already uses for its own corner label -- rather than
+    pushing a separate transform into the ``Text`` label itself (which
+    tracks no position/angle of its own at all -- see shapes/text.py's
+    ``Text.render()`` docstring).
 
     Owns two DB binds on itself: its own ``'name'`` (rebuilds this
     cavity's own text mesh, and tells the housing to update its cached
@@ -58,6 +63,11 @@ class Cavity(_base_schematic.BaseSchematic):
     """
     _parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity"
+
+    # Narrower than BaseVar's own generic `_vbo.VBOHandlerBase | None`
+    # -- this object's only visible content is the Text label it owns
+    # (see _build_vbo), never a real mesh VBO.
+    _vbo: "_text.Text | None" = None
 
     @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
@@ -80,7 +90,6 @@ class Cavity(_base_schematic.BaseSchematic):
         with parent.mainframe.editor2d.editor.context:
             vbo = self._build_vbo(db_obj.name)
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
-            self._sync_vbo_transform()
 
         self._name_cb = self.db_obj.bind(self._on_name_changed, 'name')
 
@@ -155,12 +164,11 @@ class Cavity(_base_schematic.BaseSchematic):
         """
         return _text.Text(
             name, Config.object_sizes.cavity.name_font_size,
-            build123d.FontStyle.REGULAR)
+            build123d.FontStyle.REGULAR, local_tilt=_text.TOP_DOWN_TILT)
 
     @_check_types.do
-    def _sync_vbo_transform(self):
-        """Push this cavity's own current position/angle into its
-        ``Text`` vbo's own transform.
+    def render(self, faces_program, edges_program, vertices_program):
+        """Render this cavity's own name label.
 
         ``self._position`` (see ``objects_schematic/housing.py``'s
         ``Housing._layout_children``) is this cavity's own slot's
@@ -182,30 +190,23 @@ class Cavity(_base_schematic.BaseSchematic):
           is the only Z offset needed to drop from the slot's top edge
           down to where the glyphs actually sit.
 
-        ``Text`` has no reactive binding of its own to
-        ``self._position``/``self._angle`` the way a bound
-        ``Point``/``Angle`` does, so this must be called explicitly any
-        time either changes -- construction, :meth:`_update_position`,
-        :meth:`_update_angle`, :meth:`_rebuild`.
+        Temporarily shifts ``self._position`` to that anchor for the
+        duration of the inherited (generic) render call, then restores
+        it -- see the class docstring for why.
         """
         if self._vbo is None:
+            super().render(faces_program, edges_program, vertices_program)
             return
 
-        # Bottom-right corner of _local_text_corners() -- the label's
-        # own RIGHT/BOTTOM anchor point, in local space.
+        real_position = self._position
+
         local_offset = _point.Point(*self._local_text_corners()[3].tolist())
-        offset = local_offset @ self._angle
-        self._vbo.set_transform(self._position + offset, self._angle)
+        self._position = self._position + (local_offset @ self._angle)
 
-    @_check_types.do
-    def _update_position(self, position: _point.Point):
-        super()._update_position(position)
-        self._sync_vbo_transform()
-
-    @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
-        super()._update_angle(angle)
-        self._sync_vbo_transform()
+        try:
+            super().render(faces_program, edges_program, vertices_program)
+        finally:
+            self._position = real_position
 
     @_check_types.do
     def _local_text_corners(self) -> np.ndarray:
@@ -268,7 +269,6 @@ class Cavity(_base_schematic.BaseSchematic):
             self._vbo = self._build_vbo(self.db_obj.name)
             self._compute_obb()
             self._compute_aabb()
-            self._sync_vbo_transform()
 
         self.editor2d.Refresh()
 

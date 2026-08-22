@@ -811,10 +811,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
-        ref2 = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref2)
-        child = self._append_item(treeitem, f'Housing: {housing.name}')
-        self._set_data(child, ref2)
+        if housing is not None:
+            ref2 = weakref.ref(housing, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Housing: {housing.name}')
+            self._set_data(child, ref2)
 
         self._mark_canonical(treeitem)
         obj.set_treeitem(treeitem)

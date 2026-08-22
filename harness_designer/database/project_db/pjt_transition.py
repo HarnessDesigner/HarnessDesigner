@@ -156,8 +156,9 @@ class PJTTransitionsTable(PJTTableBase):
         :rtype: :class:`PJTTransition`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, center_id=center_id,
-                                    angle=str(list(angle.as_euler_float)))
+        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, point3d_id=center_id,
+                                    quat3d=str(list(angle.as_quat_float)),
+                                    angle3d=str(list(angle.as_euler_float)))
 
         return PJTTransition(self, db_id)
 

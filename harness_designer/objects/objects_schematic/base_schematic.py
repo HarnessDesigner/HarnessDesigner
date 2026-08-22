@@ -16,6 +16,7 @@ from ... import color as _color
 from ... import config as _config
 from ...gl import materials as _materials
 from ...gl import vbo as _vbo
+from ...shapes import text as _text
 from ... import utils as _utils
 from ... import check_types as _check_types
 
@@ -77,7 +78,7 @@ class BaseSchematic(_objectsvar.BaseVar):
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
-                 vbo: _vbo.VBOHandlerBase | None, angle: _angle.Angle | None,
+                 vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
                  material: _materials.GLMaterial | None):
         """Initialise the :class:`BaseSchematic` instance.
@@ -91,9 +92,12 @@ class BaseSchematic(_objectsvar.BaseVar):
         :param angle: Value for ``angle`` (``angle2d``; only ``.z`` is
             meaningful -- this app's single-DOF 2D rotation convention).
         :type angle: :class:`_angle.Angle`
-        :param vbo: Shared primitive VBO to render with. ``None`` (default)
-            for object types still on the legacy immediate-mode path.
-        :type vbo: :class:`_vbo.PooledVBOHandler` | None
+        :param vbo: Shared primitive VBO to render with (or a
+            ``shapes.text.Text``, which duck-types the same VBO-handler
+            interface -- see its own "VBOHandlerBase-compatible
+            interface" docstring). ``None`` (default) for object types
+            still on the legacy immediate-mode path.
+        :type vbo: :class:`_vbo.VBOHandlerBase` | :class:`_text.Text` | None
         :param scale: World-space size to render the unit-sized ``vbo`` at.
         :type scale: :class:`_point.Point` | None
         :param material: Fill material/colour.

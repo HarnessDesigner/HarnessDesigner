@@ -11,7 +11,8 @@ from ...geometry import angle as _angle
 from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
-from ...gl import vbo as _vbo
+from ...gl import vbo as _vbo_base
+from ...shapes import text as _text
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
@@ -31,9 +32,18 @@ class BaseVar:
     # wire they sit on/inside).
     _pick_priority: int = 0
 
+    # Explicit class-level type for every subclass whose own _vbo is a
+    # real mesh VBO handler (the common case) -- a subclass whose own
+    # _vbo is instead a shapes.text.Text (a Note, see objects_3d/
+    # objects_schematic/objects_pegboard's own note.py) redeclares this
+    # narrower, to its own actual type, at the class level (not just in
+    # __init__'s own parameter annotation, which every subclass shares
+    # regardless of which one it actually ends up holding).
+    _vbo: "_vbo_base.VBOHandlerBase | None" = None
+
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
-                 vbo: _vbo.VBOHandlerBase | None,
+                 vbo: _vbo_base.VBOHandlerBase | _text.Text | None,
                  angle: _angle.Angle | None, position: _point.Point | None,
                  scale: _point.Point | None, material: _materials.GLMaterial | None):
 
@@ -758,21 +768,20 @@ class BaseVar:
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
-        Sets the per-object transform uniforms (position, rotation, scale) and
-        issues the draw call via vertex attribute arrays or the VBO.
+        This object's own transform (position/rotation/scale) and the uniform
+        locations to set them at are handed straight to the VBO's own
+        render() -- the VBO owns setting those uniforms (and, for a compound
+        handler like shapes/text.py's Text, deriving whatever per-piece
+        values it actually needs from this single transform) rather than
+        this method setting them itself before an argument-less draw call.
         """
 
         if self._vbo is None:
             return
 
-        if normal_loc is not None:
-            GL.glUniform1i(normal_loc, int(getattr(self, 'smooth', False)))
-
-        GL.glUniform3f(pos_loc, *self._position.as_float)
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
-        GL.glUniform3f(scale_loc, *self._scale.as_float)
-
-        self._vbo.render()
+        self._vbo.render(
+            pos_loc, rot_loc, scale_loc, normal_loc,
+            self._position, self._angle, self._scale, self.smooth)
 
     def _render_selected(self):
         pass

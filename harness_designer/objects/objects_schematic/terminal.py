@@ -137,7 +137,11 @@ class Terminal(_base_schematic.BaseSchematic):
         ``None`` if not resolvable yet (e.g. at this object's own
         construction time -- see :meth:`_rebuild_geometry`'s own guard).
         """
-        housing_row = self.db_obj.cavity.housing
+        cavity = self.db_obj.cavity
+        if cavity is None:
+            return None
+
+        housing_row = cavity.housing
         if housing_row is None:
             return None
 
@@ -208,7 +212,8 @@ class Terminal(_base_schematic.BaseSchematic):
         lines = self.db_obj.name.split('\n') if self.db_obj.name else ['']
 
         built = [
-            _text.Text(line, max_font_size, build123d.FontStyle.REGULAR)
+            _text.Text(line, max_font_size, build123d.FontStyle.REGULAR,
+                       local_tilt=_text.TOP_DOWN_TILT)
             for line in lines
         ]
         max_line_width = max((t.width for t in built), default=0.0)
@@ -226,7 +231,8 @@ class Terminal(_base_schematic.BaseSchematic):
 
         if name_font_size != max_font_size:
             built = [
-                _text.Text(line, name_font_size, build123d.FontStyle.REGULAR)
+                _text.Text(line, name_font_size, build123d.FontStyle.REGULAR,
+                           local_tilt=_text.TOP_DOWN_TILT)
                 for line in lines
             ]
 
@@ -247,7 +253,9 @@ class Terminal(_base_schematic.BaseSchematic):
         remaining_height = max(0.0, housing.cavity_height - cavity_char_height)
         bracket_font_size = remaining_height / _text.CHARACTER_HEIGHT
 
-        self._bracket = _text.Text('(', bracket_font_size, build123d.FontStyle.REGULAR)
+        self._bracket = _text.Text(
+            '(', bracket_font_size, build123d.FontStyle.REGULAR,
+            local_tilt=_text.TOP_DOWN_TILT)
 
         # Independently pin_edge - padding -- lands at the same X as the
         # cavity name's own right edge (see the class docstring), not
@@ -375,38 +383,45 @@ class Terminal(_base_schematic.BaseSchematic):
     @_check_types.do
     def render(self, faces_program, edges_program, vertices_program):
         """Render the name line(s), the "(" bracket, and the wire-stub
-        cylinder -- swapping ``self._vbo`` (and, for the cylinder only,
-        ``self._angle``/``self._scale``/``self._position``) for each in
-        turn and delegating to the inherited pipeline -- the same
+        cylinder -- swapping ``self._vbo``/``self._angle``/
+        ``self._scale``/``self._position`` for each piece in turn and
+        delegating to the inherited pipeline -- the same
         swap-call-super()-restore idiom ``objects_3d/wire.py``'s
         ``Wire``/``objects_schematic/housing.py``'s ``Housing`` both
         already use.
 
         A ``Text`` piece (see its own "VBOHandlerBase-compatible
-        interface" in ``shapes/text.py``) draws itself using its OWN
-        internal position/angle (set via ``set_transform`` below), not
-        the outer ``self._position``/``self._angle`` uniforms
-        ``_render_geometry`` sets -- so only ``self._vbo`` actually
-        needs swapping for the name/bracket passes. The cylinder is a
-        real VBO handler, which DOES respect those outer uniforms, so
-        those three get swapped (and restored) around that one pass.
+        interface" in ``shapes/text.py``) draws itself using whatever
+        ``self._position``/``self._angle``/``self._scale`` this
+        terminal has at the moment ``_render_geometry`` reads them
+        (``Text`` tracks no position/angle of its own -- see
+        ``Text.render()``'s own docstring), so those (not just
+        ``self._vbo``) get swapped and restored around the name/bracket
+        passes too -- same as the cylinder pass already does.
         """
         if not self.is_visible:
             return
 
-        real_vbo = self._vbo
+        real_vbo, real_angle, real_scale, real_position = (
+            self._vbo, self._angle, self._scale, self._position)
         identity_angle = _angle.Angle()
 
         for line, (local_x, local_z) in zip(self._name_lines, self._name_local_positions):
-            line.set_transform(self._local_to_world(local_x, local_z), identity_angle)
             self._vbo = line
+            self._angle = identity_angle
+            self._scale = real_scale
+            self._position = self._local_to_world(local_x, local_z)
             super().render(faces_program, edges_program, vertices_program)
 
         if hasattr(self, '_bracket'):
             bracket_x, bracket_z = self._bracket_local_position
-            self._bracket.set_transform(self._local_to_world(bracket_x, bracket_z), identity_angle)
             self._vbo = self._bracket
+            self._angle = identity_angle
+            self._scale = real_scale
+            self._position = self._local_to_world(bracket_x, bracket_z)
             super().render(faces_program, edges_program, vertices_program)
+
+        self._angle, self._scale, self._position = real_angle, real_scale, real_position
 
         if hasattr(self, '_cylinder_local_start'):
             start_x, start_z = self._cylinder_local_start

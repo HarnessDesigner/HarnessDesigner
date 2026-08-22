@@ -298,13 +298,13 @@ class KeyHandler:
         event.SetUnicodeKey(ord(text[0]) if text else 0)
 
         mods = qt_evt.modifiers()
-        event.SetAltDown(bool(mods & Qt.AltModifier))  # NOQA
-        event.SetControlDown(bool(mods & Qt.ControlModifier))  # NOQA
-        event.SetCmdDown(bool(mods & Qt.ControlModifier))   # NOQA
+        event.SetAltDown(bool(mods & QtCore.Qt.AltModifier))  # NOQA
+        event.SetControlDown(bool(mods & QtCore.Qt.ControlModifier))  # NOQA
+        event.SetCmdDown(bool(mods & QtCore.Qt.ControlModifier))   # NOQA
         event.SetModifiers(int(mods.value))
-        event.SetMetaDown(bool(mods & Qt.MetaModifier))  # NOQA
-        event.SetRawControlDown(bool(mods & Qt.ControlModifier))  # NOQA
-        event.SetShiftDown(bool(mods & Qt.ShiftModifier))  # NOQA
+        event.SetMetaDown(bool(mods & QtCore.Qt.MetaModifier))  # NOQA
+        event.SetRawControlDown(bool(mods & QtCore.Qt.ControlModifier))  # NOQA
+        event.SetShiftDown(bool(mods & QtCore.Qt.ShiftModifier))  # NOQA
 
         event.SetId(id(self.canvas))
         event.SetEventObject(self.canvas)

@@ -11,10 +11,17 @@ import numpy as np
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
+from . import mesh_cache as _mesh_cache
 from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
+
+# Bump if this module's own build123d geometry/tessellation ever
+# changes -- a mismatch means the cache on disk was written by
+# different logic than what's running now, so it's discarded and
+# rebuilt rather than trusted.
+_MESH_CACHE_VERSION = 1
 
 
 @_check_types.do
@@ -23,7 +30,9 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
 
     The geometry is assembled with :mod:`build123d`, converted to a mesh with
     :func:`harness_designer.utils.convert_model_to_mesh`, and then wrapped in a
-    :class:`harness_designer.gl.vbo.PooledVBOHandler`.
+    :class:`harness_designer.gl.vbo.PooledVBOHandler`. The tessellated mesh
+    itself (skipping the build123d/OCCT work, not the VBO upload) is also
+    cached to disk across app launches -- see shapes/mesh_cache.py.
 
     :returns: Cached vertex-buffer object data for the move arrow mesh.
     :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
@@ -31,6 +40,14 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
     global _vbo
 
     if _vbo is not None:
+        return _vbo
+
+    cached = _mesh_cache.load('arrow', _MESH_CACHE_VERSION)
+    if cached is not None:
+        packed, count, aabb, obb, _extra = cached
+        _vbo = _vbo_handler.PooledVBOHandler(
+            'move_arrow', packed, count, aabb=aabb, obb=obb,
+            arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
         return _vbo
 
     edge = build123d.Edge.extrude(build123d.Vertex(2.0, 0.0, 0.0), (6.0, 0.0, 0.0))
@@ -73,5 +90,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
     _vbo = _vbo_handler.PooledVBOHandler(
         'move_arrow', packed, count, aabb=aabb, obb=obb,
         arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
+
+    _mesh_cache.save('arrow', _MESH_CACHE_VERSION, packed, count, aabb, obb)
 
     return _vbo

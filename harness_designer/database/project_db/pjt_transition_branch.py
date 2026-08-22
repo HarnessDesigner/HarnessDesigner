@@ -93,12 +93,14 @@ class PJTTransitionBranchesTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, transition_id: bytes, point_id: bytes,
+    def insert(self, part_id: bytes, transition_id: bytes, point_id: bytes,
                branch_id: int, diameter: float) -> "PJTTransitionBranch":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
 
+        :param part_id: Identifier for the global transition branch this row represents.
+        :type part_id: bytes
         :param transition_id: Identifier for the transition.
         :type transition_id: bytes
         :param point_id: Identifier for the point.
@@ -115,8 +117,9 @@ class PJTTransitionBranchesTable(PJTTableBase):
         if branch_id < 1 or branch_id > 6:
             raise RuntimeError('sanity check')
 
-        db_id = PJTTableBase.insert(self, transition_id=transition_id, point_id=point_id,
-                                    branch_id=branch_id, diameter=float(diameter))
+        db_id = PJTTableBase.insert(self, part_id=part_id, transition_id=transition_id,
+                                    point3d_id=point_id, branch_id=branch_id,
+                                    diameter=float(diameter))
 
         return PJTTransitionBranch(self, db_id)
 

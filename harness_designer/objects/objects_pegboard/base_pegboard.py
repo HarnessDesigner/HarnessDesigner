@@ -11,6 +11,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from .. import objectsvar as _objectsvar
 from ...gl import vbo as _vbo
+from ...shapes import text as _text
 from . import chain_edges as _chain_edges
 
 from ... import debug as _debug
@@ -71,7 +72,7 @@ class BasePegboard(_objectsvar.BaseVar):
         self,
         parent: "_ObjectBase",
         db_obj: "_project_db.PJTEntryBase",
-        vbo: _vbo.VBOHandlerBase | None = None,
+        vbo: _vbo.VBOHandlerBase | _text.Text | None = None,
         angle: _angle.Angle | None = None,
         position: _point.Point | None = None,
         scale: _point.Point | None = None,

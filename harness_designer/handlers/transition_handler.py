@@ -370,7 +370,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
             g_br = self.part.branches[branch_id - 1]
             pt_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
             self.ptables.pjt_transition_branches_table.insert(
-                transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
+                g_br.db_id, transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
 
         self.obj = _transition.Transition(mainframe, transition_db)
         self.obj.obj3d.is_visible = False
@@ -472,7 +472,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
         # Branch 1 — trunk
         trunk_dia = effective_diameter(conc_wires, trunk_global)
         trunk_br_db = ptables.pjt_transition_branches_table.insert(
-            transition_db.db_id, trunk_point_id, 1, trunk_dia)
+            trunk_global.db_id, transition_db.db_id, trunk_point_id, 1, trunk_dia)
         _create_branch_concentric(ptables, trunk_br_db, conc_wires, trunk_dia)
 
         # Invisible wire layout at trunk entry point
@@ -486,7 +486,7 @@ class AddTransitionHandler(_handler_base.HandlerBase):
             br_pt_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
             br_dia = effective_diameter(assigned, g_br)
             br_db = ptables.pjt_transition_branches_table.insert(
-                transition_db.db_id, br_pt_db.db_id, i + 2, br_dia)
+                g_br.db_id, transition_db.db_id, br_pt_db.db_id, i + 2, br_dia)
             _create_branch_concentric(ptables, br_db, assigned, br_dia)
             branch_records.append((br_db, br_pt_db.db_id, assigned))
 

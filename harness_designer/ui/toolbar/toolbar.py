@@ -434,7 +434,7 @@ class NoteToolbar(QtWidgets.QToolBar):
 
         if isinstance(obj, _note.Note):
             self._obj = obj.objschematic
-            self.set_buttons(obj.db_obj.h_align2d)
+            self.set_buttons(obj.db_obj.h_align)
         else:
             self._obj = None
             self.set_buttons(-1)
@@ -466,7 +466,7 @@ class NoteToolbar(QtWidgets.QToolBar):
 
         if isinstance(obj, _note.Note):
             self._obj = obj.obj3d
-            self.set_buttons(obj.db_obj.h_align3d)
+            self.set_buttons(obj.db_obj.h_align)
         else:
             self._obj = None
             self.set_buttons(-1)

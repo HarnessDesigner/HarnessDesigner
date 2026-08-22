@@ -13,6 +13,7 @@ from .. import config as _config
 from .. import logger as _logger
 from .. import utils as _utils
 from ..geometry import point as _point
+from ..geometry import angle as _angle
 from .. import check_types as _check_types
 
 
@@ -524,11 +525,33 @@ class VBOHandlerBase:
         return None
 
     @_check_types.do
-    def render(self):
+    def render(self, pos_loc, rot_loc, scale_loc, normal_loc,
+               position: _point.Point, angle: "_angle.Angle", scale: _point.Point,
+               smooth: bool):
+        """Set this mesh's own per-draw transform uniforms, then draw it.
+
+        Moved here (out of objects/objectsvar/base_var.py's own
+        _render_geometry, which used to set these same uniforms itself
+        before calling a bare ``self._vbo.render()``) so every VBO
+        handler owns its own uniform-setting -- a compound handler
+        (shapes/text.py's Text, one draw call per glyph rather than
+        one mesh) needs different per-glyph position/rotation/scale
+        values than the single set a real mesh VBO uses as-is, and can
+        only compute those itself, glyph by glyph, if ``render()`` is
+        the one place that both knows the transform *and* issues the
+        draw call -- see Text's own ``render()`` docstring.
+        """
         ctx = self.ctx
         ctx_id = id(ctx)
         if ctx_id not in self._vaos:
             self.acquire()
+
+        if normal_loc is not None:
+            GL.glUniform1i(normal_loc, int(smooth))
+
+        GL.glUniform3f(pos_loc, *position.as_float)
+        GL.glUniform4f(rot_loc, *[float(str(v)) for v in angle.as_quat_numpy.tolist()])
+        GL.glUniform3f(scale_loc, *scale.as_float)
 
         # Attribute offsets (including the arena allocation base) are baked
         # into the VAO, so drawing always starts at vertex 0.  Compaction
@@ -694,10 +717,12 @@ class NonPooledVBOHandler(VBOHandlerBase):
         return self._dirty_vaos.get(ctx_id, True)
 
     @_check_types.do
-    def render(self):
+    def render(self, pos_loc, rot_loc, scale_loc, normal_loc,
+               position: _point.Point, angle: "_angle.Angle", scale: _point.Point,
+               smooth: bool):
         self._rebuild()
 
-        super().render()
+        super().render(pos_loc, rot_loc, scale_loc, normal_loc, position, angle, scale, smooth)
 
 
 class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):

@@ -8,6 +8,8 @@ other parts of :mod:`harness_designer`.
 """
 from typing import TYPE_CHECKING, Union as _Union
 
+import time
+
 from .. import check_types as _check_types
 
 
@@ -79,36 +81,63 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash"
             if done == total:
                 splash.end_progress_bar()
 
+    # Per-shape timing -- most primitives below are plain numpy (box,
+    # cylinder, sphere, disc_ring) and already near-instant, but the
+    # build123d/OCCT-based ones (helix, cylinder_helix's two VBOs,
+    # arrow) measured anywhere from tens of ms to several seconds each
+    # before shapes/mesh_cache.py started caching all but helix (whose
+    # mesh grows with the project's longest wire, so has no single
+    # fixed result to cache) to disk. Logged as one line per shape plus
+    # a total, so a cache hit vs. a cold/first-run rebuild is directly
+    # visible in the log.
+    timings: list[tuple[str, float]] = []
+
+    @_check_types.do
+    def _timed(label: str, fn):
+        t0 = time.perf_counter()
+        result = fn()
+        timings.append((label, time.perf_counter() - t0))
+        return result
+
     QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
     try:
         with mainframe.editor3d.context:
+            overall_start = time.perf_counter()
+
             splash.SetText('Loading helix shape...')
-            _helix_vbo = helix.create_vbo(1999)
+            _helix_vbo = _timed('helix', lambda: helix.create_vbo(1999))
 
             splash.SetText('Loading arrow shape...')
-            _arrow_vbo = arrow.create_vbo()
+            _arrow_vbo = _timed('arrow', arrow.create_vbo)
 
             splash.SetText('Loading box shape...')
-            _box_vbo = box.create_vbo()
+            _box_vbo = _timed('box', box.create_vbo)
 
             splash.SetText('Loading cylinder shape...')
-            _cylinder_vbo = cylinder.create_vbo()
+            _cylinder_vbo = _timed('cylinder', cylinder.create_vbo)
 
             splash.SetText('Loading cylinder helix shape...')
-            _cylinder_helix_vbo = cylinder_helix.create_vbo()
+            _cylinder_helix_vbo = _timed('cylinder_helix', cylinder_helix.create_vbo)
 
             splash.SetText('Loading cylinder helix stripe shape...')
-            _stripe_cylinder_helix_vbo = cylinder_helix.create_stripe_vbo()
+            _stripe_cylinder_helix_vbo = _timed(
+                'cylinder_helix_stripe', cylinder_helix.create_stripe_vbo)
 
             splash.SetText('Loading sphere shape...')
-            _sphere_vbo = sphere.create_vbo()
+            _sphere_vbo = _timed('sphere', sphere.create_vbo)
 
             splash.SetText('Loading disc ring shape...')
-            _disc_ring_vbo = disc_ring.create_vbo()
+            _disc_ring_vbo = _timed('disc_ring', disc_ring.create_vbo)
 
             text.build_chars(mainframe, _on_glyph_progress)
 
             # _rectangle_vbo = rectangle.create_vbo()
             # _circle_vbo = circle.create_vbo()
+
+            overall_total = time.perf_counter() - overall_start
+            breakdown = ', '.join(f'{label}={dt * 1000:.1f}ms' for label, dt in timings)
+            mainframe.logger.info(
+                f'primitive shapes: {overall_total:.3f}s total '
+                f'(text glyphs timed separately, see above) -- {breakdown}')
     finally:
         QApplication.restoreOverrideCursor()

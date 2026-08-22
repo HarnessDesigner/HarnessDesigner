@@ -2,20 +2,15 @@
 
 from typing import TYPE_CHECKING
 
-import weakref
-from OpenGL import GL
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
 import build123d
-import numpy as np
 
 from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ...ui.widgets import context_menus as _context_menus
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
-from ... import utils as _utils
 from ...shapes import text as _text
 from ... import check_types as _check_types
 from ... import config as _config
@@ -37,6 +32,11 @@ class Note(_base_3d.Base3D):
     parent: "_note.Note" = None
     db_obj: "_pjt_note.PJTNote" = None
 
+    # Narrower than BaseVar's own generic `_vbo.VBOHandlerBase | None`
+    # -- this object's only visible content is the Text label it owns
+    # (see __init__), never a real mesh VBO.
+    _vbo: "_text.Text | None" = None
+
     @_check_types.do
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
         """Initialise the :class:`Note` instance.
@@ -49,19 +49,55 @@ class Note(_base_3d.Base3D):
         :type db_obj: :class:`_pjt_note.PJTNote`
         """
         self.db_obj = db_obj
-        angle = db_obj.angle3d
-        position = db_obj.position3d
-        color = db_obj.color.ui
-        scale = _point.Point(1.0, 1.0, 1.0)
-        material = _materials.Plastic(color)
 
         with parent.mainframe.editor3d.context:
+            # A note belongs to exactly one view -- point3d_id is only
+            # ever set if this note was actually placed/configured for
+            # the 3D view (see PJTNotesTable.insert()'s own docstring;
+            # PJTNote.position3d_id never lazily creates one just
+            # because it's read). Nothing real to build otherwise --
+            # construct as a fully inert placeholder (None straight
+            # through, matching a vbo-less object with no position/
+            # angle/scale/material at all) and mark it not-visible so
+            # render() skips it. Sets the in-memory flag directly (NOT
+            # the ``is_visible`` property) purely to avoid a pointless
+            # DB write for a placeholder that's never read again --
+            # is_visible3d is this view's own real, independent column
+            # (see PJTNote's own class docstring).
+            if db_obj.position3d_id is None:
+                super().__init__(parent, db_obj, None, None, None, None, None)
+                self._is_visible = False
+                return
+
+            angle = db_obj.angle3d
+            position = db_obj.position3d
+            color = db_obj.color.ui
+            scale = _point.Point(1.0, 1.0, 1.0)
+            material = _materials.Plastic(color)
+
             # No vbo of its own (None) -- this object's only visible
             # content is the Text label it owns, built/positioned below.
-            super().__init__(parent, db_obj, None, angle, position, scale, material)
-            self._label = self._build_label()
-            self._compute_obb()
-            self._compute_aabb()
+
+            vbo = self._build_label()
+
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+        # notes/size/h_align/style are shared by every view (see
+        # pjt_note.PJTNotesTable.insert()'s own docstring) -- rebuild
+        # this label whenever any of them changes, regardless of which
+        # view's own set_text/set_size/set_style/set_alignment actually
+        # wrote it.
+        db_obj.bind(self._on_label_changed, 'notes')
+        db_obj.bind(self._on_label_changed, 'size')
+        db_obj.bind(self._on_label_changed, 'h_align')
+        db_obj.bind(self._on_label_changed, 'style')
+
+    @_check_types.do
+    def _on_label_changed(self, *_, **__):
+        with self.editor3d.context:
+            self._rebuild()
+
+        self.editor3d.Refresh()
 
     @property
     @_check_types.do
@@ -86,157 +122,60 @@ class Note(_base_3d.Base3D):
         """Build this note's own text label, from this note's live
         db_obj fields.
 
-        Two real behavior changes from the old ``create()``/
-        ``create_vbo()`` API, both because ``shapes.text.Text`` has no
-        per-instance control over either:
+        One real behavior change from the old ``create()``/
+        ``create_vbo()`` API: every glyph is pre-extruded at a fixed
+        1.0 world unit (see ``shapes/text.py``'s ``build_chars()``),
+        not the old ``depth=0.25`` -- notes now render thicker than
+        they used to. A real per-instance depth knob would need a
+        change to ``shapes/text.py`` itself, out of scope here.
 
-        - Depth: every glyph is pre-extruded at a fixed 1.0 world unit
-          (see ``shapes/text.py``'s ``build_chars()``), not the old
-          ``depth=0.25`` -- notes now render thicker than they used to.
-          A real per-instance depth knob would need a change to
-          ``shapes/text.py`` itself, out of scope here.
-        - Alignment: ``Text`` always lays out left-to-right from local
-          x=0 with the baseline at local z=0, no alignment option of
-          its own -- ``h_align3d``/the always-CENTER vertical alignment
-          are instead applied fresh every :meth:`render` call (see
-          :meth:`_alignment_offset`), same trick every other migrated
-          text-owning object in this session uses.
+        ``h_align`` is passed straight through to ``Text`` itself --
+        it handles per-line LEFT/CENTER/RIGHT alignment natively
+        (relevant only once ``notes`` has more than one line; a single
+        line always renders the same regardless). ``center_anchor=True``
+        so this note's own stored position (what a drag actually moves)
+        is the label's own center, not its bottom-left corner -- the
+        anchor a mouse dragging it around actually expects to be
+        holding, regardless of how many lines/how long the text is.
         """
         return _text.Text(
-            self.db_obj.notes, self.db_obj.size3d,
-            build123d.FontStyle(self.db_obj.style3d))
-
-    @_check_types.do
-    def _alignment_offset(self) -> _point.Point:
-        """Local-space anchor offset for this note's current alignment.
-
-        Horizontal follows ``h_align3d`` (LEFT/CENTER/RIGHT); vertical
-        is unconditionally CENTER -- the old ``_mesh_args()`` always
-        passed ``build123d.TextAlign.CENTER`` for it, there's no
-        per-note column to read instead.
-        """
-        h_align = build123d.TextAlign(self.db_obj.h_align3d)
-
-        if h_align == build123d.TextAlign.CENTER:
-            x = -self._label.width / 2.0
-        elif h_align == build123d.TextAlign.RIGHT:
-            x = -self._label.width
-        else:
-            x = 0.0
-
-        z = -self._label.height / 2.0
-
-        return _point.Point(x, 0.0, z)
-
-    @_check_types.do
-    def _compute_obb(self):
-        """Derive this object's OBB from the label's own measured
-        width/height -- this object has no VBO of its own (see
-        __init__), just the label it owns.
-        """
-        if not hasattr(self, '_label'):
-            return
-
-        offset = self._alignment_offset()
-        x0, x1 = offset.x, offset.x + self._label.width
-        z0, z1 = offset.z, offset.z + self._label.height
-
-        local = np.array([
-            [x0, 0.0, z0], [x0, 0.0, z1],
-            [x1, 0.0, z0], [x1, 0.0, z1],
-        ], dtype=np.float32)
-
-        local @= self._angle
-        self._obb = local + self._position
-
-    @_check_types.do
-    def _compute_aabb(self):
-        """Same shape as :meth:`_compute_obb` -- see its docstring."""
-        if not hasattr(self, '_label'):
-            return
-
-        offset = self._alignment_offset()
-        x0, x1 = offset.x, offset.x + self._label.width
-        z0, z1 = offset.z, offset.z + self._label.height
-
-        corners = np.array([
-            [x0, 0.0, z0], [x0, 0.0, z1],
-            [x1, 0.0, z0], [x1, 0.0, z1],
-        ], dtype=np.float32)
-
-        corners @= self._angle
-        corners += self._position.as_numpy
-
-        aabb = _utils.adjust_aabb(corners)
-
-        for i in range(2):
-            for j in range(3):
-                self._aabb[i][j] = aabb[i][j]
-
-    @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
-        """Render this note's own text label -- this object has no VBO
-        of its own (see __init__), just the label it owns. Matches
-        Base3D.render()'s own uniform-resolution pattern (this class
-        overrides it entirely rather than relying on the inherited
-        VBO-draw path, which would no-op with vbo=None anyway).
-        """
-        if not self.is_visible:
-            return
-
-        GL.glUseProgram(faces_program)
-        self.material.set(faces_program)
-
-        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
-        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
-
-        offset = self._alignment_offset() @ self._angle
-        self._label.set_transform(self._position + offset, self._angle)
-        self._label.render(faces_program, pos_loc, rot_loc, scale_loc, normal_loc)
+            self.db_obj.notes, self.db_obj.size,
+            build123d.FontStyle(self.db_obj.style),
+            build123d.TextAlign(self.db_obj.h_align),
+            center_anchor=True)
 
     @_check_types.do
     def _rebuild(self):
         """Rebuild this note's label from its current db_obj fields and
         re-derive its OBB/AABB -- called by every ``set_*`` method below.
         """
-        self._label = self._build_label()
+        self._vbo = self._build_label()
         self._compute_obb()
         self._compute_aabb()
 
     @_check_types.do
     def set_size(self, size):
-        self.db_obj.size3d = size
-
-        with self.editor3d.context:
-            self._rebuild()
-        self.editor3d.Refresh()
+        """Set this note's (shared) font size -- rebuild/refresh happens
+        via the bound callback from __init__, for every view, not just
+        this one.
+        """
+        self.db_obj.size = size
 
     @_check_types.do
     def set_style(self, style):
-        self.db_obj.style3d = style
-
-        with self.editor3d.context:
-            self._rebuild()
-        self.editor3d.Refresh()
+        """Set this note's (shared) font style -- see :meth:`set_size`."""
+        self.db_obj.style = style
 
     @_check_types.do
     def set_alignment(self, alignment):
-        self.db_obj.h_align3d = alignment
-
-        with self.editor3d.context:
-            self._rebuild()
-        self.editor3d.Refresh()
+        """Set this note's (shared) horizontal alignment -- see
+        :meth:`set_size`."""
+        self.db_obj.h_align = alignment
 
     @_check_types.do
     def set_text(self, text: str):
-        """Set the note text and rebuild the 3d geometry."""
+        """Set this note's (shared) text -- see :meth:`set_size`."""
         self.db_obj.notes = text
-
-        with self.editor3d.context:
-            self._rebuild()
-        self.editor3d.Refresh()
 
     @_check_types.do
     def get_context_menu(self):

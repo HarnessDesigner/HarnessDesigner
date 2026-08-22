@@ -295,7 +295,7 @@ class ResourceState(EntryBase):
 
         error_blob['step'] = step
 
-        new_blob = json.dumps(error_blob)
+        new_blob = json.dumps(error_blob, default=str)
         old_blob = self.error_blob
 
         if old_blob is None:

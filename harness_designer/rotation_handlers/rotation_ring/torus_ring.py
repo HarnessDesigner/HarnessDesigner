@@ -97,10 +97,6 @@ class TorusRing:
         rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
         scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
 
-        GL.glUniform3f(pos_loc, *self.position.as_float)
-        GL.glUniform4f(rot_loc, *self.angle.as_quat_float)
-        GL.glUniform3f(scale_loc, self.radius, self.radius, self.radius)
-
         # Dimmed (a sibling axis's protractor is active) -- blend needs
         # to be explicitly enabled for the alpha RotationRing.set_dimmed()
         # wrote into materialDiffuse to actually show as transparency
@@ -110,7 +106,10 @@ class TorusRing:
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-        self._vbo.render()
+        self._vbo.render(
+            pos_loc, rot_loc, scale_loc, None,
+            self.position, self.angle,
+            _point.Point(self.radius, self.radius, self.radius), False)
 
         if dimmed:
             GL.glDisable(GL.GL_BLEND)

@@ -10,6 +10,7 @@ from OpenGL import GL
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ...ui.dialogs import housing_editor as _housing_editor
 from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
@@ -683,16 +684,13 @@ class Housing(_base_3d.Base3D):
         scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
         normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
 
-        GL.glUniform3f(pos_loc, 0.0, 0.0, 0.0)
-        GL.glUniform4f(rot_loc, 1.0, 0.0, 0.0, 0.0)  # identity quaternion (w, x, y, z)
-        GL.glUniform3f(scale_loc, 1.0, 1.0, 1.0)
-        GL.glUniform1i(normal_loc, 0)
-
         GL.glDepthMask(GL.GL_FALSE)
         GL.glEnable(GL.GL_POLYGON_OFFSET_FILL)
         GL.glPolygonOffset(-1.0, -1.0)
 
-        vbo.render()
+        vbo.render(
+            pos_loc, rot_loc, scale_loc, normal_loc,
+            _point.Point(0.0, 0.0, 0.0), _angle.Angle(), _point.Point(1.0, 1.0, 1.0), False)
 
         GL.glDisable(GL.GL_POLYGON_OFFSET_FILL)
         GL.glPolygonOffset(0.0, 0.0)

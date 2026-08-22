@@ -261,7 +261,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
             if part_id is None:
                 self._stored_part = None
             else:
-                self._stored_part = self._table.db.global_db.cpa_locks_table[part_id]
+                self._stored_part = self._table.db.global_db.tpa_locks_table[part_id]
 
         if self._stored_part is not None:
             if self._obj is not None:

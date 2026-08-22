@@ -69,7 +69,7 @@ class _Tick:
     (the outer ring, billboarding its labels).
     """
 
-    __slots__ = ('degrees', 'local_theta', 'position', 'rotation', 'label')
+    __slots__ = ('degrees', 'local_theta', 'position', 'rotation', 'label', 'label_position')
 
     def __init__(self, degrees: float, local_theta: float,
                 position: _point.Point, rotation: _angle.Angle, label: "_text.Text"):
@@ -78,6 +78,7 @@ class _Tick:
         self.position = position
         self.rotation = rotation
         self.label = label
+        self.label_position = position
 
 
 class ProtractorRingBase:
@@ -153,8 +154,7 @@ class ProtractorRingBase:
                 [float(self.center.x), float(self.center.y), float(self.center.z)],
                 dtype=np.float64) + radial_world * (self.radius * self._LABEL_RADIUS_SCALE)
 
-            tick.label.set_transform(
-                _point.Point(*[float(v) for v in label_world_pos]), tick.rotation)
+            tick.label_position = _point.Point(*[float(v) for v in label_world_pos])
 
     @_check_types.do
     def render(self, faces_program, edges_program, vertices_program) -> None:
@@ -173,22 +173,28 @@ class ProtractorRingBase:
         pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
         rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
         scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
 
         band_outer = self.radius * self._BAND_INSET
         band_inner = band_outer * self._BAND_WIDTH
 
-        GL.glUniform3f(pos_loc, *self.center.as_float)
         # disc_ring's own create_vbo() bakes outer=0.5/inner=0.4/depth=1.0
         # -- scale X/Y to reach band_outer*2 (diameter), Z to self.depth;
         # the ring's own inner/outer ratio (0.4/0.5=0.8) is close enough
         # to _BAND_WIDTH that no per-instance mesh rebuild is needed.
-        GL.glUniform3f(scale_loc, band_outer * 2.0, band_outer * 2.0, self.depth)
-        GL.glUniform4f(rot_loc, *self._disc_rotation().as_quat_float)
-        self._disc_vbo.render()
+        self._disc_vbo.render(
+            pos_loc, rot_loc, scale_loc, None,
+            self.center, self._disc_rotation(),
+            _point.Point(band_outer * 2.0, band_outer * 2.0, self.depth), False)
 
         diffuse_loc = GL.glGetUniformLocation(faces_program, "materialDiffuse")
         emissive_loc = GL.glGetUniformLocation(faces_program, "materialEmissive")
         overridden = False
+
+        tick_scale = _point.Point(
+            self.radius * self._TICK_THICKNESS,
+            self.radius * self._TICK_LENGTH,
+            self.radius * self._TICK_THICKNESS)
 
         for tick in self._ticks:
             override = self._tick_override_color(tick.degrees)
@@ -204,27 +210,21 @@ class ProtractorRingBase:
                 self.material.set(faces_program)
                 overridden = False
 
-            GL.glUniform3f(pos_loc, *tick.position.as_float)
-            GL.glUniform4f(rot_loc, *tick.rotation.as_quat_float)
-            GL.glUniform3f(
-                scale_loc,
-                self.radius * self._TICK_THICKNESS,
-                self.radius * self._TICK_LENGTH,
-                self.radius * self._TICK_THICKNESS)
-            self._tick_vbo.render()
+            self._tick_vbo.render(
+                pos_loc, rot_loc, scale_loc, None,
+                tick.position, tick.rotation, tick_scale, False)
 
         if overridden:
             self.material.set(faces_program)
 
         GL.glDisable(GL.GL_BLEND)
 
+        label_scale = _point.Point(1.0, 1.0, 1.0)
+
         for tick in self._ticks:
             tick.label.render(
-                faces_program,
-                GL.glGetUniformLocation(faces_program, "objectPosition"),
-                GL.glGetUniformLocation(faces_program, "objectRotation"),
-                GL.glGetUniformLocation(faces_program, "objectScale"),
-                GL.glGetUniformLocation(faces_program, "normalMode"))
+                pos_loc, rot_loc, scale_loc, normal_loc,
+                tick.label_position, tick.rotation, label_scale, False)
 
     @_check_types.do
     def _disc_rotation(self) -> "_angle.Angle":

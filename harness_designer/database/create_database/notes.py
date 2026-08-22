@@ -51,26 +51,38 @@ pjt_table = _con.SQLTable(
 
     _con.TextField('notes', default='""', no_null=True),
 
+    # Single, shared size/alignment/style -- a note has exactly one of
+    # these regardless of which view renders it. Exactly one of
+    # point2d_id/point3d_id/point_pegboard_id is set -- a note belongs
+    # to exactly one view, never more than one -- and that's what
+    # determines which view actually renders it (see
+    # PJTNotesTable.insert()), not a separate per-view copy of this
+    # data.
+    _con.IntField('size', default='1', no_null=True),
+    _con.IntField('h_align', default='1', no_null=True),
+    _con.IntField('style', default='1', no_null=True),
+
+    # Visibility, unlike size/h_align/style above, IS kept one column
+    # per view (matching every other object type's own Visible2DMixin/
+    # Visible3DMixin/VisiblePegboardMixin) rather than collapsed to a
+    # single shared column -- a shared column meant a note's own
+    # is_visible-setter write (from whichever TWO views it does NOT
+    # belong to, each constructing an inert not-visible placeholder --
+    # see e.g. objects_pegboard/note.py's own __init__) clobbered the
+    # ONE view it actually does belong to's real visibility, since they
+    # all aliased the same underlying value.
+    _con.IntField('is_visible2d', default='1', no_null=True),
+    _con.IntField('is_visible3d', default='1', no_null=True),
+    _con.IntField('is_visible_pegboard', default='1', no_null=True),
+
     _con.TextField('quat2d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle2d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.IntField('size2d', default='NULL'),
-    _con.IntField('h_align2d', default='NULL'),
-    _con.IntField('style2d', default='NULL'),
-    _con.IntField('is_visible2d', default='1', no_null=True),
 
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.IntField('size3d', default='NULL'),
-    _con.IntField('h_align3d', default='NULL'),
-    _con.IntField('style3d', default='NULL'),
-    _con.IntField('is_visible3d', default='1', no_null=True),
 
     _con.TextField('quat_pegboard', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle_pegboard', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.IntField('size_pegboard', default='NULL'),
-    _con.IntField('h_align_pegboard', default='NULL'),
-    _con.IntField('style_pegboard', default='NULL'),
-    _con.IntField('is_visible_pegboard', default='1', no_null=True),
 
     _con.IntField('smooth', default='NULL')
 )

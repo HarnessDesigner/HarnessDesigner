@@ -52,8 +52,12 @@ class AddNoteHandler(_handler_base.HandlerBase):
 
         position = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
 
+        # Placed via the 3D editor -- this note belongs to the 3D view
+        # only (point2d_id/point_pegboard_id both left None; see
+        # PJTNotesTable.insert()'s own docstring).
         db_obj = self.ptables.pjt_notes_table.insert(
-            position.db_id, None, note, size, align, style, color_id)
+            position.db_id, None, None, note, size, align, style,
+            color_id=color_id)
 
         self.obj = _note.Note(mainframe, db_obj)
         self.obj.identify(self._preview_material)

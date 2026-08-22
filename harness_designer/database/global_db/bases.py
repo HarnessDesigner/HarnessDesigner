@@ -504,7 +504,7 @@ class TableBase:
         while row:
             count += 1
             entry = dict(tuple(zip(column_names, row)))
-            j_data = json.dumps(entry).strip()
+            j_data = json.dumps(entry, default=str).strip()
             file.write(b'  ' + j_data.encode('utf-8') + b',\n')
 
             row = self.fetchone()

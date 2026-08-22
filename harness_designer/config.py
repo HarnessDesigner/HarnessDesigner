@@ -826,6 +826,7 @@ class Config(metaclass=ConfigDB):
             smooth_housings = True
             smooth_wires = True
             smooth_bundles = True
+            smooth_seals = True
             smooth_terminals = True
             smooth_notes = False
             smooth_transitions = True

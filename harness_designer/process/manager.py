@@ -492,7 +492,7 @@ class ProcessManager(threading.Thread):
 
                             dlg = _error.ErrorDialog(
                                 self.mainframe,
-                                json.dumps(msg, indent=4),
+                                json.dumps(msg, indent=4, default=str),
                                 '3D Model Conversion Watchdog timeout')
 
                             dlg.exec()
@@ -550,7 +550,7 @@ class ProcessManager(threading.Thread):
 
                             dlg = _error.ErrorDialog(
                                 self.mainframe,
-                                json.dumps(msg, indent=4),
+                                json.dumps(msg, indent=4, default=str),
                                 '3D Model Conversion Error')
 
                             dlg.exec()

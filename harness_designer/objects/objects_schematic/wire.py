@@ -513,18 +513,15 @@ class Wire(_base_schematic.BaseSchematic):
         stripe_vbo = _helix.create_vbo(self._length)
 
         self._stripe_material.set(faces_program)
-        GL.glUniform1i(normal_loc, 0)
 
         stripe_offset = 0.0
         for seg_position, seg_angle, _seg_scale, seg_len in self._segment_transforms():
-            GL.glUniform4f(rot_loc, *[float(str(v)) for v in seg_angle.as_quat_numpy.tolist()])
-            GL.glUniform3f(scale_loc, *self._scale.as_float)
-            GL.glUniform3f(pos_loc, seg_position.x, 0.0, seg_position.z)
-
             GL.glUniform1f(start_loc, stripe_offset)
             GL.glUniform1f(stop_loc, stripe_offset + seg_len)
 
-            stripe_vbo.render()
+            stripe_vbo.render(
+                pos_loc, rot_loc, scale_loc, normal_loc,
+                _point.Point(seg_position.x, 0.0, seg_position.z), seg_angle, self._scale, False)
 
             stripe_offset += seg_len
 

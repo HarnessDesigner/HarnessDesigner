@@ -16,8 +16,8 @@ from .mixins import (
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
     PositionPegboardMixin,
-    Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
+    Visible3DMixin, Visible3DControl,
     VisiblePegboardMixin, VisiblePegboardControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
@@ -136,67 +136,78 @@ class PJTNotesTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: bytes | None, point2d_id: bytes | None,
-               notes: str, size: int, align: int, style: int,
-               color_id: bytes | DefaultStoredValueType = DefaultStoredValue) -> "PJTNote":
+    def insert(
+        self,
+        point3d_id: bytes | None, point2d_id: bytes | None,
+        point_pegboard_id: bytes | None, notes: str,
+        size: int, h_align: int, style: int,
+        color_id: bytes | DefaultStoredValueType = DefaultStoredValue) -> "PJTNote":
         """Execute the insert operation.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        A note belongs to exactly one view, never more than one --
+        exactly one of point2d_id/point3d_id/point_pegboard_id should
+        be given (the caller leaves the other two ``None``), matching
+        whichever view actually placed it. Nothing here creates that
+        point row lazily (unlike most other placed-object types) --
+        the caller is expected to have already created it (e.g. via
+        ``pjt_points3d_table.insert(...)`` for a 3D-placed note) and
+        pass its id in directly, same as every other reference column
+        here. size/h_align/style are each a single value, not a
+        separate copy per view -- see :class:`PJTNote`'s own class
+        docstring. is_visible2d/is_visible3d/is_visible_pegboard are
+        each a real, independent per-view column (see Visible2DMixin/
+        Visible3DMixin/VisiblePegboardMixin) -- not passed here, they
+        default to visible (1) same as every other object type's own
+        insert().
 
         :param point2d_id: Identifier for the point 2D.
         :type point2d_id: bytes | None
         :param point3d_id: Identifier for the point 3D.
         :type point3d_id: bytes | None
+        :param point_pegboard_id: Identifier for the peg-board point.
+        :type point_pegboard_id: bytes | None
         :param notes: Value for ``note``.
         :type notes: str
-        :param size: Value for ``size``.
+        :param size: Font size.
         :type size: int
-        :param align: Value for ``align``.
-        :type align: int
-        :param style: Value for ``style``.
+        :param h_align: Horizontal text alignment.
+        :type h_align: int
+        :param style: Font style.
         :type style: int
         :param color_id: Value for ``color_id``.
         :type color_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTNote`
         """
-
-        # Peg-board presence is not mutually exclusive with the 2D-vs-3D
-        # choice below -- every note also gets a peg-board spot, seeded
-        # from the same dialog values (size/align/style), always visible
-        # there by default. point_pegboard_id itself is left unset here
-        # (stays NULL) -- PositionPegboardMixin.position_pegboard_id
-        # lazily creates the actual pjt_points_pegboard row (at (0, 0, 0))
-        # the first time this row's position_pegboard is read, same as
-        # every other peg-board anchor type (Housing/Terminal/...) relies
-        # on, so there's nothing to pre-create here.
-        if point3d_id is None:
-            db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
-                                        point3d_id=point3d_id, notes=notes,
-                                        size2d=size, h_align2d=align, style2d=style,
-                                        is_visible2d=1, is_visible3d=0,
-                                        size_pegboard=size, h_align_pegboard=align,
-                                        style_pegboard=style, is_visible_pegboard=1,
-                                        color_id=color_id)
-
-        else:
-            db_id = PJTTableBase.insert(self, point2d_id=point2d_id,
-                                        point3d_id=point3d_id, notes=notes,
-                                        size3d=size, h_align3d=align, style3d=style,
-                                        is_visible2d=0, is_visible3d=1,
-                                        size_pegboard=size, h_align_pegboard=align,
-                                        style_pegboard=style, is_visible_pegboard=1,
-                                        color_id=color_id)
+        db_id = PJTTableBase.insert(
+            self, point2d_id=point2d_id, point3d_id=point3d_id,
+            point_pegboard_id=point_pegboard_id, notes=notes,
+            size=size, h_align=h_align, style=style,
+            color_id=color_id)
 
         return PJTNote(self, db_id)
 
 
 class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin, NotesMixin, ColorMixin,
               Position3DMixin, Position2DMixin, PositionPegboardMixin,
-              Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, Scale3DMixin, SmoothMixin):
+              Visible2DMixin, Visible3DMixin, VisiblePegboardMixin,
+              Scale3DMixin, SmoothMixin):
     """Represent a PJT note in :mod:`harness_designer.database.project_db.pjt_note`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    A note belongs to exactly one view, never more than one -- exactly
+    one of point2d_id/point3d_id/point_pegboard_id (see
+    position2d_id/position3d_id/position_pegboard_id below) is ever
+    set, and that is what determines which view actually renders it,
+    not a separate per-view size/style/alignment (see ``size``/
+    ``h_align``/``style`` below -- each a single, shared value).
+    Visibility, unlike those, IS a real, independent column per view
+    (Visible2DMixin/Visible3DMixin/VisiblePegboardMixin, inherited
+    unchanged same as every other object type) -- a single shared
+    column here previously meant the inert-placeholder construction
+    for whichever TWO views a note does NOT belong to (see e.g.
+    objects_pegboard/note.py's own __init__) each wrote "not visible"
+    into that one shared value, permanently clobbering the visibility
+    of the ONE view the note actually does belong to.
     """
 
     _table: PJTNotesTable = None
@@ -252,350 +263,192 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin, Note
         """
         return self._table
 
-    _stored_size2d: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_size: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def size2d(self) -> int:
-        """Return the size 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-        if self._stored_size2d is DefaultStoredValue:
-            self._stored_size2d = self._table.select('size2d', id=self._db_id)[0][0]
-
-        return self._stored_size2d
-
-    @size2d.setter
-    @_check_types.do
-    def size2d(self, value: int):
-        """Set the size 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-
-        self._stored_size2d = value
-
-        self._table.update(self._db_id, size2d=value)
-        self._populate('size2d')
-
-    _stored_h_align2d: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def h_align2d(self) -> int:
-        """Return the h align 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-        if self._stored_h_align2d is DefaultStoredValue:
-            self._stored_h_align2d = self._table.select('h_align2d', id=self._db_id)[0][0]
-
-        return self._stored_h_align2d
-
-    @h_align2d.setter
-    @_check_types.do
-    def h_align2d(self, value: int):
-        """Set the h align 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-        self._stored_h_align2d = value
-
-        self._table.update(self._db_id, h_align2d=value)
-        self._populate('h_align2d')
-
-    _stored_style2d: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def style2d(self) -> int:
-        """Return the style 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-        if self._stored_style2d is DefaultStoredValue:
-            self._stored_style2d = self._table.select('style2d', id=self._db_id)[0][0]
-
-        return self._stored_style2d
-
-    @style2d.setter
-    @_check_types.do
-    def style2d(self, value: int):
-        """Set the style 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-        self._stored_style2d = value
-
-        self._table.update(self._db_id, style2d=value)
-        self._populate('style2d')
-
-    _stored_is_visible2d: bool | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def is_visible2d(self) -> bool:
-        """Return the is visible 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: bool
-        """
-
-        if self._stored_is_visible2d is DefaultStoredValue:
-            self._stored_is_visible2d = bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
-
-        return self._stored_is_visible2d
-
-    @is_visible2d.setter
-    @_check_types.do
-    def is_visible2d(self, value: bool):
-        """Set the is visible 2D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: bool
-        """
-        self._stored_is_visible2d = value
-
-        self._table.update(self._db_id, is_visible2d=int(value))
-        self._populate('is_visible2d')
-
-    _stored_size3d: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def size3d(self) -> float:
-        """Return the size 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: float
-        """
-        if self._stored_size3d is DefaultStoredValue:
-            self._stored_size3d = self._table.select('size3d', id=self._db_id)[0][0]
-
-        return self._stored_size3d
-
-    @size3d.setter
-    @_check_types.do
-    def size3d(self, value: float):
-        """Set the size 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: float
-        """
-        self._stored_size3d = value
-
-        self._table.update(self._db_id, size3d=value)
-        self._populate('size3d')
-
-    _stored_h_align3d: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def h_align3d(self) -> int:
-        """Return the h align 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-
-        if self._stored_h_align3d is DefaultStoredValue:
-            self._stored_h_align3d = self._table.select('h_align3d', id=self._db_id)[0][0]
-
-        return self._stored_h_align3d
-
-    @h_align3d.setter
-    @_check_types.do
-    def h_align3d(self, value: int):
-        """Set the h align 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-        self._stored_h_align3d = value
-
-        self._table.update(self._db_id, h_align3d=value)
-        self._populate('h_align3d')
-
-    _stored_style3d: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def style3d(self) -> int:
-        """Return the style 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: int
-        """
-
-        if self._stored_style3d is DefaultStoredValue:
-            self._stored_style3d = self._table.select('style3d', id=self._db_id)[0][0]
-
-        return self._stored_style3d
-
-    @style3d.setter
-    @_check_types.do
-    def style3d(self, value: int):
-        """Set the style 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: int
-        """
-        self._stored_style3d = value
-
-        self._table.update(self._db_id, style3d=value)
-        self._populate('style3d')
-
-    _stored_is_visible3d: bool | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def is_visible3d(self) -> bool:
-        """Return the is visible 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: bool
-        """
-        if self._stored_is_visible3d is DefaultStoredValue:
-            self._stored_is_visible3d = bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
-
-        return self._stored_is_visible3d
-
-    @is_visible3d.setter
-    @_check_types.do
-    def is_visible3d(self, value: bool):
-        """Set the is visible 3D.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: bool
-        """
-
-        self._stored_is_visible3d = value
-
-        self._table.update(self._db_id, is_visible3d=int(value))
-        self._populate('is_visible3d')
-
-    _stored_size_pegboard: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def size_pegboard(self) -> float:
-        """Return the peg-board size.
-
-        :returns: Property value.
-        :rtype: float
-        """
-        if self._stored_size_pegboard is DefaultStoredValue:
-            self._stored_size_pegboard = self._table.select('size_pegboard', id=self._db_id)[0][0]
-
-        return self._stored_size_pegboard
-
-    @size_pegboard.setter
-    @_check_types.do
-    def size_pegboard(self, value: float):
-        """Set the peg-board size.
-
-        :param value: Value to store or process.
-        :type value: float
-        """
-        self._stored_size_pegboard = value
-
-        self._table.update(self._db_id, size_pegboard=value)
-        self._populate('size_pegboard')
-
-    _stored_h_align_pegboard: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def h_align_pegboard(self) -> int:
-        """Return the peg-board horizontal alignment.
+    def size(self) -> int:
+        """Return this note's font size -- shared by every view that
+        renders it (see PJTNotesTable.insert()'s own docstring).
 
         :returns: Property value.
         :rtype: int
         """
-        if self._stored_h_align_pegboard is DefaultStoredValue:
-            self._stored_h_align_pegboard = self._table.select('h_align_pegboard', id=self._db_id)[0][0]
+        if self._stored_size is DefaultStoredValue:
+            self._stored_size = self._table.select('size', id=self._db_id)[0][0]
 
-        return self._stored_h_align_pegboard
+        return self._stored_size
 
-    @h_align_pegboard.setter
+    @size.setter
     @_check_types.do
-    def h_align_pegboard(self, value: int):
-        """Set the peg-board horizontal alignment.
+    def size(self, value: int):
+        """Set this note's font size.
 
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_h_align_pegboard = value
+        self._stored_size = value
 
-        self._table.update(self._db_id, h_align_pegboard=value)
-        self._populate('h_align_pegboard')
+        self._table.update(self._db_id, size=value)
+        self._populate('size')
 
-    _stored_style_pegboard: int | None | DefaultStoredValueType = DefaultStoredValue
+    _stored_h_align: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def style_pegboard(self) -> int:
-        """Return the peg-board font style.
+    def h_align(self) -> int:
+        """Return this note's horizontal text alignment -- shared by
+        every view that renders it (see PJTNotesTable.insert()'s own
+        docstring).
 
         :returns: Property value.
         :rtype: int
         """
-        if self._stored_style_pegboard is DefaultStoredValue:
-            self._stored_style_pegboard = self._table.select('style_pegboard', id=self._db_id)[0][0]
+        if self._stored_h_align is DefaultStoredValue:
+            self._stored_h_align = self._table.select('h_align', id=self._db_id)[0][0]
 
-        return self._stored_style_pegboard
+        return self._stored_h_align
 
-    @style_pegboard.setter
+    @h_align.setter
     @_check_types.do
-    def style_pegboard(self, value: int):
-        """Set the peg-board font style.
+    def h_align(self, value: int):
+        """Set this note's horizontal text alignment.
 
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_style_pegboard = value
+        self._stored_h_align = value
 
-        self._table.update(self._db_id, style_pegboard=value)
-        self._populate('style_pegboard')
+        self._table.update(self._db_id, h_align=value)
+        self._populate('h_align')
+
+    _stored_style: int | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def style(self) -> int:
+        """Return this note's font style -- shared by every view that
+        renders it (see PJTNotesTable.insert()'s own docstring).
+
+        :returns: Property value.
+        :rtype: int
+        """
+        if self._stored_style is DefaultStoredValue:
+            self._stored_style = self._table.select('style', id=self._db_id)[0][0]
+
+        return self._stored_style
+
+    @style.setter
+    @_check_types.do
+    def style(self, value: int):
+        """Set this note's font style.
+
+        :param value: Value to store or process.
+        :type value: int
+        """
+        self._stored_style = value
+
+        self._table.update(self._db_id, style=value)
+        self._populate('style')
+
+    _stored_position2d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position2d_id(self) -> bytes | None:
+        """Like ``Position2DMixin``'s own version, but never lazily
+        creates a point row on read -- this note either belongs to the
+        2D view (point2d_id already set) or it doesn't (see the class
+        docstring); silently creating one just because something read
+        this property would defeat that distinction entirely, unlike
+        e.g. a Housing (which always has a real position in every view
+        once placed, so lazy-creating there is correct).
+
+        :returns: Property value.
+        :rtype: bytes | None
+        """
+        if self._stored_position2d_id is DefaultStoredValue:
+            self._stored_position2d_id = self._table.select('point2d_id', id=self._db_id)[0][0]
+
+        return self._stored_position2d_id
+
+    @position2d_id.setter
+    @_check_types.do
+    def position2d_id(self, value: bytes | None):
+        """Set this note's own point2d_id -- see the getter's docstring.
+
+        :param value: Value to store or process.
+        :type value: bytes | None
+        """
+        self._stored_position2d_id = value
+        self._stored_position2d = DefaultStoredValue
+
+        self._table.update(self._db_id, point2d_id=value)
+        self._populate('position2d_id')
+
+    _stored_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position3d_id(self) -> bytes | None:
+        """Like ``Position3DMixin``'s own version, but never lazily
+        creates a point row on read -- see :attr:`position2d_id`'s own
+        docstring for why.
+
+        :returns: Property value.
+        :rtype: bytes | None
+        """
+        if self._stored_position3d_id is DefaultStoredValue:
+            self._stored_position3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
+
+        return self._stored_position3d_id
+
+    @position3d_id.setter
+    @_check_types.do
+    def position3d_id(self, value: bytes | None):
+        """Set this note's own point3d_id -- see the getter's docstring.
+
+        :param value: Value to store or process.
+        :type value: bytes | None
+        """
+        self._stored_position3d_id = value
+        self._stored_position3d = DefaultStoredValue
+
+        self._table.update(self._db_id, point3d_id=value)
+        self._populate('position3d_id')
+
+    _stored_position_pegboard_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def position_pegboard_id(self) -> bytes | None:
+        """Like ``PositionPegboardMixin``'s own version, but never
+        lazily creates a point row on read -- see :attr:`position2d_id`'s
+        own docstring for why.
+
+        :returns: Property value.
+        :rtype: bytes | None
+        """
+        if self._stored_position_pegboard_id is DefaultStoredValue:
+            self._stored_position_pegboard_id = self._table.select(
+                'point_pegboard_id', id=self._db_id)[0][0]
+
+        return self._stored_position_pegboard_id
+
+    @position_pegboard_id.setter
+    @_check_types.do
+    def position_pegboard_id(self, value: bytes | None):
+        """Set this note's own point_pegboard_id -- see the getter's
+        docstring.
+
+        :param value: Value to store or process.
+        :type value: bytes | None
+        """
+        self._stored_position_pegboard_id = value
+        self._stored_position_pegboard = DefaultStoredValue
+
+        self._table.update(self._db_id, point_pegboard_id=value)
+        self._populate('position_pegboard_id')
 
 
 class PJTNoteControl(QTabWidget, LazyTabMixin):
@@ -608,18 +461,9 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
     def set_obj(self, db_obj: PJTNote | None):
         """Set the obj.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param db_obj: Database-backed object.
         :type db_obj: :class:`PJTNote`
         """
-        if self.db_obj is not None:
-            if self.db_obj.is_visible2d:
-                self.align_2d_ctrl.SetValue(build123d.TextAlign.LEFT)
-                self.style_2d_ctrl.SetValue(build123d.FontStyle.REGULAR)
-            if self.db_obj.is_visible3d:
-                self.align_3d_ctrl.SetValue(build123d.TextAlign.LEFT)
-                self.style_3d_ctrl.SetValue(build123d.FontStyle.REGULAR)
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
@@ -638,101 +482,48 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         elif page is self._visible_page:
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
+            self.visible_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._style_page:
             if self.db_obj is None:
-                self.style_2d_ctrl.Enable(False)
-                self.style_3d_ctrl.Enable(False)
+                self.style_ctrl.Enable(False)
             else:
-                if self.db_obj.is_visible2d:
-                    self.style_2d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
-                    self.style_2d_ctrl.SetItems(
-                        [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
-                         build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
-                    self.style_2d_ctrl.show()
-                    self.style_2d_ctrl.SetValue(self.db_obj.h_align2d)
-                else:
-                    self.style_2d_ctrl.hide()
-                if self.db_obj.is_visible3d:
-                    self.style_3d_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
-                    self.style_3d_ctrl.SetItems(
-                        [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
-                         build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
-                    self.style_3d_ctrl.show()
-                    self.style_3d_ctrl.SetValue(self.db_obj.h_align3d)
-                else:
-                    self.style_3d_ctrl.hide()
+                self.style_ctrl.SetLabels(['Normal', 'Bold', 'Italic', 'Bold Italic'])
+                self.style_ctrl.SetItems(
+                    [build123d.FontStyle.REGULAR, build123d.FontStyle.BOLD,
+                     build123d.FontStyle.ITALIC, build123d.FontStyle.BOLDITALIC])
+                self.style_ctrl.Enable(True)
+                self.style_ctrl.SetValue(self.db_obj.style)
         elif page is self._align_page:
             if self.db_obj is None:
-                self.align_2d_ctrl.Enable(False)
-                self.align_3d_ctrl.Enable(False)
+                self.align_ctrl.Enable(False)
             else:
-                if self.db_obj.is_visible2d:
-                    self.align_2d_ctrl.SetLabels(['Left', 'Center', 'Right'])
-                    self.align_2d_ctrl.SetItems(
-                        [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
-                         build123d.TextAlign.RIGHT])
-                    self.align_2d_ctrl.show()
-                    self.align_2d_ctrl.SetValue(self.db_obj.h_align2d)
-                else:
-                    self.align_2d_ctrl.hide()
-                if self.db_obj.is_visible3d:
-                    self.align_3d_ctrl.SetLabels(['Left', 'Center', 'Right'])
-                    self.align_3d_ctrl.SetItems(
-                        [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
-                         build123d.TextAlign.RIGHT])
-                    self.align_3d_ctrl.show()
-                    self.align_3d_ctrl.SetValue(self.db_obj.h_align3d)
-                else:
-                    self.align_3d_ctrl.hide()
+                self.align_ctrl.SetLabels(['Left', 'Center', 'Right'])
+                self.align_ctrl.SetItems(
+                    [build123d.TextAlign.LEFT, build123d.TextAlign.CENTER,
+                     build123d.TextAlign.RIGHT])
+                self.align_ctrl.Enable(True)
+                self.align_ctrl.SetValue(self.db_obj.h_align)
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_align2d(self, evt):
-        """Handle the align 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def _on_align(self, evt):
+        """Handle the align event.
 
         :param evt: Event object.
         :type evt: UNKNOWN
         """
         value = evt.GetValue()
-        self.db_obj.h_align2d = value
+        self.db_obj.h_align = value
 
     @_check_types.do
-    def _on_align3d(self, evt):
-        """Handle the align 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def _on_style(self, evt):
+        """Handle the style event.
 
         :param evt: Event object.
         :type evt: UNKNOWN
         """
         value = evt.GetValue()
-        self.db_obj.h_align3d = value
-
-    @_check_types.do
-    def _on_style2d(self, evt):
-        """Handle the style 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param evt: Event object.
-        :type evt: UNKNOWN
-        """
-        value = evt.GetValue()
-        self.db_obj.style2d = value
-
-    @_check_types.do
-    def _on_style3d(self, evt):
-        """Handle the style 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param evt: Event object.
-        :type evt: UNKNOWN
-        """
-        value = evt.GetValue()
-        self.db_obj.style3d = value
+        self.db_obj.style = value
 
     @_check_types.do
     def __init__(self, parent):
@@ -759,24 +550,17 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         general_page.addWidget(self.color_control)
 
         self._style_page = style_page = _prop_ctrls.Category(self, 'Style')
-        self.style_2d_ctrl = _prop_ctrls.EnumProperty(style_page, '2D Style')
-        self.style_3d_ctrl = _prop_ctrls.EnumProperty(style_page, '3D Style')
+        self.style_ctrl = _prop_ctrls.EnumProperty(style_page, 'Style')
 
-        style_page.addWidget(self.style_2d_ctrl)
-        style_page.addWidget(self.style_3d_ctrl)
+        style_page.addWidget(self.style_ctrl)
 
         self._align_page = align_page = _prop_ctrls.Category(self, 'Align')
-        self.align_2d_ctrl = _prop_ctrls.EnumProperty(align_page, '2D Align')
-        self.align_3d_ctrl = _prop_ctrls.EnumProperty(align_page, '3D Align')
+        self.align_ctrl = _prop_ctrls.EnumProperty(align_page, 'Align')
 
-        align_page.addWidget(self.align_2d_ctrl)
-        align_page.addWidget(self.align_3d_ctrl)
+        align_page.addWidget(self.align_ctrl)
 
-        self.style_2d_ctrl.propertyChanged.connect(self._on_style2d)
-        self.style_3d_ctrl.propertyChanged.connect(self._on_style3d)
-
-        self.align_2d_ctrl.propertyChanged.connect(self._on_align2d)
-        self.align_3d_ctrl.propertyChanged.connect(self._on_align3d)
+        self.style_ctrl.propertyChanged.connect(self._on_style)
+        self.align_ctrl.propertyChanged.connect(self._on_align)
 
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
@@ -795,9 +579,11 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)
         self.visible3d_ctrl = Visible3DControl(visible_page)
+        self.visible_pegboard_ctrl = VisiblePegboardControl(visible_page)
 
         visible_page.addWidget(self.visible2d_ctrl)
         visible_page.addWidget(self.visible3d_ctrl)
+        visible_page.addWidget(self.visible_pegboard_ctrl)
 
         for page in (
             general_page,

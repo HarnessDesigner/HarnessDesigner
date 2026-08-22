@@ -343,17 +343,15 @@ class Arrows3D(_base_3d.Base3D):
         if clip_loc != -1:
             GL.glUniform1f(clip_loc, 0.0)
 
-        GL.glUniform3f(pos_loc, *(self._position + self._arrow1_offset).as_float)
-        GL.glUniform3f(scale_loc, *self._scale.as_float)
-
         # Render first arrow (positive direction)
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._angle.as_quat_numpy.tolist()])
-        self._vbo.render()
+        self._vbo.render(
+            pos_loc, rot_loc, scale_loc, None,
+            self._position + self._arrow1_offset, self._angle, self._scale, self.smooth)
 
-        GL.glUniform3f(pos_loc, *(self._position + self._arrow2_offset).as_float)
         # Render second arrow (negative direction - 180° flipped)
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in self._flip_angle.as_quat_numpy.tolist()])
-        self._vbo.render()
+        self._vbo.render(
+            pos_loc, rot_loc, scale_loc, None,
+            self._position + self._arrow2_offset, self._flip_angle, self._scale, self.smooth)
 
         if reflect_loc != -1:
             config = self.editor3d.config

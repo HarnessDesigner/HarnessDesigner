@@ -446,7 +446,8 @@ class Housing(_base_schematic.BaseSchematic):
 
         lines = [db_obj.name, self._part.part_number, self._part.manufacturer.name]
         self._corner_label_lines = [
-            _text.Text(line, housing_cfg.font_size, build123d.FontStyle.REGULAR)
+            _text.Text(line, housing_cfg.font_size, build123d.FontStyle.REGULAR,
+                       local_tilt=_text.TOP_DOWN_TILT)
             for line in lines
         ]
         self._corner_label_material = _materials.Generic(_color.Color(*Config.colors.label))

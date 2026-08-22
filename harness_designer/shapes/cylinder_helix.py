@@ -14,11 +14,18 @@ import numpy as np
 from .. import utils as _utils
 from ..geometry import point as _point
 from ..gl import vbo as _vbo_handler
+from . import mesh_cache as _mesh_cache
 from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
 _stripe_vbo: _vbo_handler.PooledVBOHandler = None
+
+# Bump if either function's own build123d geometry/tessellation ever
+# changes -- a mismatch means the cache on disk was written by
+# different logic than what's running now, so it's discarded and
+# rebuilt rather than trusted.
+_MESH_CACHE_VERSION = 1
 
 # Visual tuning for the decorative twist stripe -- pitch kept in sync with
 # shapes.helix.PITCH_MM so straight wire segments and this part's stripe
@@ -160,6 +167,9 @@ def create_vbo():
     The generated part combines two cylinders with a swept helix loop, each
     with its own decorative twist stripe. The returned VBO also stores a
     secondary connection point derived from the internal tracking sphere.
+    The tessellated mesh itself (skipping the build123d/OCCT work, not the
+    VBO upload) is also cached to disk across app launches -- see
+    shapes/mesh_cache.py.
 
     :returns: Cached VBO for the composite cylinder/helix part.
     :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
@@ -167,6 +177,17 @@ def create_vbo():
     global _vbo
 
     if _vbo is not None:
+        return _vbo
+
+    cached = _mesh_cache.load('cylinder_helix', _MESH_CACHE_VERSION)
+    if cached is not None:
+        packed, count, aabb, obb, extra = cached
+        cn = _point.Point(*[float(v) for v in extra])
+
+        _vbo = _vbo_handler.PooledVBOHandler(
+            'cylinder_helix', packed, count, aabb=aabb, obb=obb,
+            arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE, endpoint=cn)
+
         return _vbo
 
     wire_r = 0.5
@@ -252,6 +273,9 @@ def create_vbo():
         'cylinder_helix', packed, count, aabb=aabb, obb=obb,
         arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE, endpoint=cn)
 
+    _mesh_cache.save('cylinder_helix', _MESH_CACHE_VERSION, packed, count,
+                     aabb, obb, extra=[cn.x, cn.y, cn.z])
+
     return _vbo
 
 
@@ -260,7 +284,10 @@ def create_stripe_vbo():
     """Create or return the cached cylinder-helix stripe VBO -- the
     decorative twist stripe rendered as its own mesh, overlaid on top of
     the plain body from :func:`create_vbo` (see
-    ``objects_3d.wire_service_loop.WireServiceLoopStripe``).
+    ``objects_3d.wire_service_loop.WireServiceLoopStripe``). The
+    tessellated mesh itself (skipping the build123d/OCCT work, not the
+    VBO upload) is also cached to disk across app launches -- see
+    shapes/mesh_cache.py.
 
     :returns: Cached VBO for the stripe part.
     :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
@@ -268,6 +295,16 @@ def create_stripe_vbo():
     global _stripe_vbo
 
     if _stripe_vbo is not None:
+        return _stripe_vbo
+
+    cached = _mesh_cache.load('cylinder_helix_stripe', _MESH_CACHE_VERSION)
+    if cached is not None:
+        packed, count, aabb, obb, _extra = cached
+
+        _stripe_vbo = _vbo_handler.PooledVBOHandler(
+            'stripe_cylinder_helix', packed, count, aabb=aabb, obb=obb,
+            arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
+
         return _stripe_vbo
 
     wire_r = 0.5
@@ -312,6 +349,9 @@ def create_stripe_vbo():
     _stripe_vbo = _vbo_handler.PooledVBOHandler(
         'stripe_cylinder_helix', packed, count, aabb=aabb, obb=obb,
         arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
+
+    _mesh_cache.save('cylinder_helix_stripe', _MESH_CACHE_VERSION,
+                     packed, count, aabb, obb)
 
     return _stripe_vbo
 
