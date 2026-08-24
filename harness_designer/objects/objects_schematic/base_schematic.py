@@ -15,6 +15,7 @@ from ...geometry.angle import quaternion as _quaternion
 from ... import color as _color
 from ... import config as _config
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ...gl import vbo as _vbo
 from ...shapes import text as _text
 from ... import utils as _utils
@@ -127,7 +128,7 @@ class BaseSchematic(_objectsvar.BaseVar):
         """
         super().drag(_point.Point(delta.x, 0.0, delta.z))
 
-        if vbo is None:
+        if self._vbo is None:
             # Legacy immediate-mode contract -- unchanged for object types
             # not yet migrated to the VBO/shader pipeline.
             self._scale = None
@@ -139,6 +140,42 @@ class BaseSchematic(_objectsvar.BaseVar):
         else:
             self._compute_obb()
             self._compute_aabb()
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Generic locked-X/Z drag arming/dispatch -- applies to any
+        schematic object type that doesn't need bespoke drag behavior
+        (see drag_handlers.editor_schematic.generic.Generic's own
+        docstring for the full list). Wire overrides this outright with
+        its own segment-drag arm/forward logic instead of this generic
+        one; WireMarker overrides it to arm its own handler class.
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
+            clicked_object is self.parent and
+            self.can_drag()
+        ):
+            from ...drag_handlers.editor_schematic import generic as _drag_generic
+
+            self._active_handler = _drag_generic.Generic(self.editor2d.editor, self.parent)
+            return True
+
+        return False
 
     @property
     @_check_types.do

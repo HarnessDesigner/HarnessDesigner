@@ -637,6 +637,21 @@ class Config(metaclass=ConfigDB):
             smooth_splices = True
             smooth_wire_markers = True
 
+        class layout(metaclass=ConfigDB):
+            """Orthogonal auto-router geometry (mm) --
+            objects_schematic.wire_routing/wire_reroute/auto_arrange.
+            """
+            # Clearance kept between a routed path and a housing's own
+            # footprint (also the routing grid's search margin beyond
+            # the two endpoints being routed).
+            housing_spacing = 10.0
+            # Grid pitch A* samples at when jogging around obstacles.
+            routing_grid = 5.0
+            # Minimum gap kept between two wires running parallel to
+            # each other -- wires may cross (a perpendicular crossing is
+            # always fine), but never run the same lane closer than this.
+            wire_spacing = 3.0
+
         class drag_handler(metaclass=ConfigDB):
             mode = ''
 

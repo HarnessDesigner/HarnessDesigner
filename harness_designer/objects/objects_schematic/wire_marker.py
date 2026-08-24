@@ -13,6 +13,7 @@ from ...geometry import line as _line
 from ...geometry import angle as _angle
 from ... import config as _config
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ... import logger as _logger
 from ... import check_types as _check_types
@@ -292,6 +293,42 @@ class WireMarker(_base_schematic.BaseSchematic):
         self._compute_aabb()
 
         self.editor2d.Refresh()
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Along-the-wire drag -- overrides BaseSchematic's generic
+        single-position drag so the specific WireMarker handler gets
+        armed instead of the generic one. The actual along-the-wire
+        constraint is enforced by this object's own _update_position,
+        not the handler -- it applies a plain unlocked delta and the
+        position callback re-projects it back onto the wire.
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent or
+            not self.can_drag()
+        ):
+            return False
+
+        from ...drag_handlers.editor_schematic import wire_marker as _drag_wire_marker
+
+        self._active_handler = _drag_wire_marker.WireMarker(self.editor2d.editor, self.parent)
+        return True
 
 
 class WireMarkerMenu(QMenu):

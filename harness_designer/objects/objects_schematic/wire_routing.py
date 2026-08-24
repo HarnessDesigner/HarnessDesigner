@@ -129,15 +129,18 @@ def _edge_crosses_housing(x1: float, z1: float, x2: float, z2: float,
 
 
 @_check_types.do
-def _edge_follows_wire(x1: float, z1: float, x2: float, z2: float,
-                       segments: list[tuple[tuple[float, float], tuple[float, float]]]) -> bool:
-    """Whether the edge from *(x1, z1)* to *(x2, z2)* runs along
-    (collinear with, and overlapping -- not just touching at a point)
-    an existing connected wire's own segment. A perpendicular crossing
-    through a shared point is never a match here, since one of the two
-    pairs' coordinates won't be equal.
+def _edge_too_close_to_wire(x1: float, z1: float, x2: float, z2: float,
+                            segments: list[tuple[tuple[float, float], tuple[float, float]]]) -> bool:
+    """Whether the edge from *(x1, z1)* to *(x2, z2)* runs parallel to,
+    and within ``Config.layout.wire_spacing`` of, an existing connected
+    wire's own segment, over any overlapping stretch (touching at a
+    single point doesn't count). A perpendicular crossing is never a
+    match here (wires may freely cross at a right angle -- only running
+    the same lane too closely is disallowed), since one of the two
+    pairs' coordinates won't be within spacing of the other.
     """
     horizontal = abs(z1 - z2) < _EPS
+    spacing = Config.layout.wire_spacing
 
     if horizontal:
         this_lo, this_hi = min(x1, x2), max(x1, x2)
@@ -152,16 +155,49 @@ def _edge_follows_wire(x1: float, z1: float, x2: float, z2: float,
             continue
 
         if horizontal:
-            if abs(sz1 - fixed) > _EPS:
+            if abs(sz1 - fixed) >= spacing - _EPS:
                 continue
             s_lo, s_hi = min(sx1, sx2), max(sx1, sx2)
         else:
-            if abs(sx1 - fixed) > _EPS:
+            if abs(sx1 - fixed) >= spacing - _EPS:
                 continue
             s_lo, s_hi = min(sz1, sz2), max(sz1, sz2)
 
         if max(this_lo, s_lo) < min(this_hi, s_hi) - _EPS:
             return True
+
+    return False
+
+
+@_check_types.do
+def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tuple[float, float],
+                    ignore_wire=None) -> bool:
+    """Whether a single orthogonal edge from *p1* to *p2* (both ``(x, z)``
+    world points, already known to be axis-aligned) is blocked -- crosses
+    a housing, or runs closer than ``Config.layout.wire_spacing`` to
+    another connected wire's own parallel lane over any overlapping
+    stretch.
+
+    The single-edge equivalent of what :func:`_astar` checks per grid
+    step, exposed for a live interactive drag (see
+    ``drag_handlers.editor_schematic.wire``) to test one candidate move
+    against, without paying for a full A* search when the direct move is
+    still legal.
+    """
+    rects = _housing_rects(project)
+    segments = _wire_segments(project, ignore_wire=ignore_wire)
+
+    x1, z1 = p1
+    x2, z2 = p2
+
+    if _node_blocked(x1, z1, rects) or _node_blocked(x2, z2, rects):
+        return True
+
+    if _edge_crosses_housing(x1, z1, x2, z2, rects):
+        return True
+
+    if _edge_too_close_to_wire(x1, z1, x2, z2, segments):
+        return True
 
     return False
 
@@ -227,7 +263,7 @@ def _astar(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_ij:
                 continue
             if _edge_crosses_housing(x1, z1, x2, z2, rects):
                 continue
-            if _edge_follows_wire(x1, z1, x2, z2, segments):
+            if _edge_too_close_to_wire(x1, z1, x2, z2, segments):
                 continue
 
             step_dir = 'h' if nj == j else 'v'

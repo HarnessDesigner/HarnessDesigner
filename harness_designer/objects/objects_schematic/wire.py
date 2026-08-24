@@ -12,6 +12,7 @@ from ...geometry import angle as _angle
 from ...geometry import point as _point
 from ... import config as _config
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
@@ -521,6 +522,48 @@ class Wire(_base_schematic.BaseSchematic):
 
             faces_program.stripe_clip_start = 0.0
             faces_program.stripe_clip_stop = 0.0
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Interior-segment drag -- overrides BaseSchematic's generic
+        single-position drag outright: a click on the wire's rendered
+        strand only ever arms something when it lands on a segment fully
+        bounded by two real waypoints (see
+        drag_handlers.editor_schematic.wire's own module docstring for
+        the full rule -- straightening/waypoint-visibility and the
+        obstacle clamp both happen there, every move).
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent
+        ):
+            return False
+
+        from ...drag_handlers.editor_schematic import wire as _drag_wire
+
+        world_pos = self.editor2d.editor.camera.screen_to_world(current_pos)
+        plan = _drag_wire.plan_wire_segment_drag(
+            self.parent, (float(world_pos.x), float(world_pos.z)))
+        if plan is None:
+            return False
+
+        self._active_handler = _drag_wire.Wire(self.editor2d.editor, self.parent, plan)
+        return True
 
 
 class WireMenu(QMenu):
