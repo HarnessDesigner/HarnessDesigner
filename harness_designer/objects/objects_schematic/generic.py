@@ -37,5 +37,5 @@ class Generic(_base_schematic.BaseSchematic):
         super().__init__(parent, None, None, None,
                          None, None, None)
 
-    def render(self, _, __, ___):
+    def render(self, shaders):
         pass

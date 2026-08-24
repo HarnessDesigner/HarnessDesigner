@@ -167,7 +167,7 @@ class Cavity(_base_schematic.BaseSchematic):
             build123d.FontStyle.REGULAR, local_tilt=_text.TOP_DOWN_TILT)
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders):
         """Render this cavity's own name label.
 
         ``self._position`` (see ``objects_schematic/housing.py``'s
@@ -195,7 +195,7 @@ class Cavity(_base_schematic.BaseSchematic):
         it -- see the class docstring for why.
         """
         if self._vbo is None:
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
             return
 
         real_position = self._position
@@ -204,7 +204,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._position = self._position + (local_offset @ self._angle)
 
         try:
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
         finally:
             self._position = real_position
 

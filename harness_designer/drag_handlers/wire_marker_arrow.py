@@ -22,21 +22,21 @@ cannot be reused here without producing a mirrored/incorrect orientation.
 from typing import TYPE_CHECKING
 
 import numpy as np
-from OpenGL import GL
 
-from ...shapes import arrow as _arrow
-from ...objects.objects_3d import base_3d as _base_3d
-from ...objects.objects_schematic import base_schematic as _base_schematic
-from ...objects import object_base as _object_base
-from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...gl import materials as _materials
-from ... import color as _color
-from ... import check_types as _check_types
+from ..shapes import arrow as _arrow
+from ..objects.objects_3d import base_3d as _base_3d
+from ..objects.objects_schematic import base_schematic as _base_schematic
+from ..objects import object_base as _object_base
+from ..geometry import point as _point
+from ..geometry import angle as _angle
+from ..gl import materials as _materials
+from .. import color as _color
+from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ... import ui as _ui
+    from ..gl import shaders as _shaders
+    from .. import ui as _ui
 
 
 # Scale factor applied to the object's max dimension to determine arrow length
@@ -247,34 +247,27 @@ class ArrowMarker3D(_base_3d.Base3D):
         self._position += delta
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Render the bidirectional arrow -- same draw-the-VBO-twice
         approach as move_arrows.Arrows3D.render."""
-        GL.glUseProgram(faces_program)
-        self._material.set(faces_program)
+        faces_program = shaders.faces
 
-        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+        with faces_program:
+            self._material.set(faces_program)
 
-        reflect_loc = GL.glGetUniformLocation(faces_program, "objectHasReflection")
-        if reflect_loc != -1:
-            GL.glUniform1i(reflect_loc, 0)
+            faces_program.has_reflection = 0
+            faces_program.stripe_clip_start = 0.0
+            faces_program.stripe_clip_stop = 0.0
 
-        clip_loc = GL.glGetUniformLocation(faces_program, "stripeClipLength")
-        if clip_loc != -1:
-            GL.glUniform1f(clip_loc, 0.0)
+            self._vbo.render(
+                faces_program,
+                self._position + self._arrow1_offset, self._angle, self._scale, None)
 
-        self._vbo.render(
-            pos_loc, rot_loc, scale_loc, None,
-            self._position + self._arrow1_offset, self._angle, self._scale, self.smooth)
+            self._vbo.render(
+                faces_program,
+                self._position + self._arrow2_offset, self._flip_angle, self._scale, None)
 
-        self._vbo.render(
-            pos_loc, rot_loc, scale_loc, None,
-            self._position + self._arrow2_offset, self._flip_angle, self._scale, self.smooth)
-
-        if reflect_loc != -1:
             config = self.editor3d.config
-            GL.glUniform1i(reflect_loc, int(
+            faces_program.has_reflection = int(
                 config.floor.reflections.enable and
-                config.floor.enable_floor_lock))
+                config.floor.enable_floor_lock)

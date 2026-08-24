@@ -1138,6 +1138,10 @@ class Config(metaclass=ConfigDB):
             edge_luminance_threshold = 0.5  # Brightness cutoff
             vertices_color = [1.0, 0.0, 0.0]
             normals_color = [1.0, 1.0, 1.0]
+            aabb_color = [1.0, 0.2, 0.2, 0.12]  # RGBA, translucent red
+            obb_color = [0.3, 0.5, 1.0, 0.12]  # RGBA, translucent blue -- deliberately not green (selection highlight color)
+            floor_projection_color = [1.0, 0.4, 0.4, 0.8]  # RGBA, floor footprint outline
+            box_edge_diameter = 0.1  # Diameter (mm) of the AABB/OBB edge cylinders and corner spheres
 
     class colors(metaclass=ConfigDB):
         """Colour customisation settings."""

@@ -31,6 +31,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_base import camera_base as _camera_base
+    from ...gl import shaders as _shaders
 
 
 class TorusRing:
@@ -87,32 +88,31 @@ class TorusRing:
             self._vbo.update(packed, count)
 
     @_check_types.do
-    def render(self, faces_program) -> None:
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         if not self.is_visible:
             return
 
-        self.material.set(faces_program)
+        faces_program = shaders.faces
 
-        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+        with faces_program:
+            self.material.set(faces_program)
 
-        # Dimmed (a sibling axis's protractor is active) -- blend needs
-        # to be explicitly enabled for the alpha RotationRing.set_dimmed()
-        # wrote into materialDiffuse to actually show as transparency
-        # rather than just darker lighting math.
-        dimmed = float(self.material.diffuse[3]) < 1.0
-        if dimmed:
-            GL.glEnable(GL.GL_BLEND)
-            GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            # Dimmed (a sibling axis's protractor is active) -- blend needs
+            # to be explicitly enabled for the alpha RotationRing.set_dimmed()
+            # wrote into materialDiffuse to actually show as transparency
+            # rather than just darker lighting math.
+            dimmed = float(self.material.diffuse[3]) < 1.0
+            if dimmed:
+                GL.glEnable(GL.GL_BLEND)
+                GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-        self._vbo.render(
-            pos_loc, rot_loc, scale_loc, None,
-            self.position, self.angle,
-            _point.Point(self.radius, self.radius, self.radius), False)
+            self._vbo.render(
+                faces_program,
+                self.position, self.angle,
+                _point.Point(self.radius, self.radius, self.radius), None)
 
-        if dimmed:
-            GL.glDisable(GL.GL_BLEND)
+            if dimmed:
+                GL.glDisable(GL.GL_BLEND)
 
     @_check_types.do
     def hit_test(self, mouse_pos: _point.Point,

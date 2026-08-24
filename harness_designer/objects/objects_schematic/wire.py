@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 import math
 
 import numpy as np
-from OpenGL import GL
 from PySide6.QtWidgets import QMenu
 
 from . import base_schematic as _base_schematic
@@ -22,6 +21,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_schematic
@@ -475,7 +475,7 @@ class Wire(_base_schematic.BaseSchematic):
                 b_point.x = world_pos.x
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Render every sub-segment of the wire's current 2D path,
         mirroring ``objects_3d/wire.py``'s ``Wire.render`` -- temporarily
         points this object at each segment's own position/angle/scale
@@ -494,40 +494,33 @@ class Wire(_base_schematic.BaseSchematic):
 
         for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
             self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
 
         if self._stripe_material is None or self._position is None or not self.is_visible:
             return
 
-        GL.glUseProgram(faces_program)
+        faces_program = shaders.faces
 
-        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
-        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
-        start_loc = GL.glGetUniformLocation(faces_program, 'stripeClipStart')
-        stop_loc = GL.glGetUniformLocation(faces_program, 'stripeClipStop')
+        with faces_program:
+            stripe_vbo = _helix.create_vbo(self._length)
 
-        stripe_vbo = _helix.create_vbo(self._length)
+            self._stripe_material.set(faces_program)
 
-        self._stripe_material.set(faces_program)
+            stripe_offset = 0.0
+            for seg_position, seg_angle, _seg_scale, seg_len in self._segment_transforms():
+                faces_program.stripe_clip_start = stripe_offset
+                faces_program.stripe_clip_stop = stripe_offset + seg_len
 
-        stripe_offset = 0.0
-        for seg_position, seg_angle, _seg_scale, seg_len in self._segment_transforms():
-            GL.glUniform1f(start_loc, stripe_offset)
-            GL.glUniform1f(stop_loc, stripe_offset + seg_len)
+                stripe_vbo.render(
+                    faces_program,
+                    _point.Point(seg_position.x, 0.0, seg_position.z), seg_angle, self._scale, self.smooth)
 
-            stripe_vbo.render(
-                pos_loc, rot_loc, scale_loc, normal_loc,
-                _point.Point(seg_position.x, 0.0, seg_position.z), seg_angle, self._scale, False)
+                stripe_offset += seg_len
 
-            stripe_offset += seg_len
-
-        GL.glUniform1f(start_loc, 0.0)
-        GL.glUniform1f(stop_loc, 0.0)
-        GL.glUseProgram(0)
+            faces_program.stripe_clip_start = 0.0
+            faces_program.stripe_clip_stop = 0.0
 
 
 class WireMenu(QMenu):

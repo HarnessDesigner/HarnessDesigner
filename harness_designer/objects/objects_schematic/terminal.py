@@ -381,7 +381,7 @@ class Terminal(_base_schematic.BaseSchematic):
         self._rebuild_geometry()
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders):
         """Render the name line(s), the "(" bracket, and the wire-stub
         cylinder -- swapping ``self._vbo``/``self._angle``/
         ``self._scale``/``self._position`` for each piece in turn and
@@ -411,7 +411,7 @@ class Terminal(_base_schematic.BaseSchematic):
             self._angle = identity_angle
             self._scale = real_scale
             self._position = self._local_to_world(local_x, local_z)
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
         if hasattr(self, '_bracket'):
             bracket_x, bracket_z = self._bracket_local_position
@@ -419,7 +419,7 @@ class Terminal(_base_schematic.BaseSchematic):
             self._angle = identity_angle
             self._scale = real_scale
             self._position = self._local_to_world(bracket_x, bracket_z)
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
         self._angle, self._scale, self._position = real_angle, real_scale, real_position
 
@@ -444,7 +444,7 @@ class Terminal(_base_schematic.BaseSchematic):
                     Config.object_sizes.wire.diameter, length)
                 self._position = self._local_to_world(start_x, start_z)
 
-                super().render(faces_program, edges_program, vertices_program)
+                super().render(shaders)
 
                 self._angle, self._scale, self._position = real_angle, real_scale, real_position
 

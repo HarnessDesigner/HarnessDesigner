@@ -20,19 +20,21 @@ uniform vec4 objectRotation;
 uniform vec3 objectScale;
 uniform int normalMode;
 
-// <= 0.0 means "not a stripe, no clipping". Only WireStripe.render() ever
-// sets this (to a nonzero value for its own draw, then back to 0.0 right
-// after -- see that method), so it defaults to 0.0 for every other
-// object without needing to be set on every draw call. When active, the
-// mesh already has real-world units baked into local Z (see
-// shapes/helix.py), so local Z scaling is skipped entirely instead of
-// being stretched to the segment length like every other axis/object --
-// objectScale.z is unused for stripe geometry.
+// <= 0.0 means "not a stripe, no clipping". Only WireStripe.render_segment()
+// (and objects_schematic/wire.py's own stripe tail) ever sets this to a
+// nonzero value for its own draw; every other caller either leaves it
+// untouched or explicitly resets it to 0.0 (see FacesProgram.stripe_clip_stop
+// in gl/shaders/program.py), so it defaults to 0.0 for every other object
+// without needing to be set on every draw call. When active, the mesh
+// already has real-world units baked into local Z (see shapes/helix.py),
+// so local Z scaling is skipped entirely instead of being stretched to the
+// segment length like every other axis/object -- objectScale.z is unused
+// for stripe geometry.
 uniform float stripeClipStop;
 
 // Only meaningful when stripeClipStop > 0.0 -- the other end of the
 // window into the shared stripe helix mesh (see stripeClipStop above).
-// Same "only WireStripe.render() ever touches this" contract.
+// Same contract as stripeClipStop.
 uniform float stripeClipStart;
 
 out vec3 fragPositionWorld;
@@ -164,6 +166,14 @@ uniform vec4 lightAmbient;
 uniform vec4 lightDiffuse;
 uniform vec4 lightSpecular;
 
+// ===== HEADLIGHT (camera-mounted spotlight) =====
+uniform vec3 headlightPosition;
+uniform vec3 headlightDirection;   // normalized, points from the light into the scene
+uniform vec4 headlightDiffuse;
+uniform float headlightDiameter;   // full cone angle, radians
+uniform int headlightEnabled;
+// ==================================================
+
 uniform vec3 viewPosition;
 uniform float floorY;
 uniform float stripeClipStop;
@@ -223,6 +233,22 @@ void main() {
                 vec3 reflectDir = reflect(-lightDir, normal);
                 float specularStrength = pow(max(dot(viewDir, reflectDir), 0.0), materialShininess);
                 specular = lightSpecular.rgb * (specularStrength * materialSpecular.rgb);
+            }
+        }
+
+        // Camera-mounted spotlight -- only lights real geometry, not the
+        // mirrored reflection duplicate (the headlight travels with the
+        // camera, so a mirrored copy of it doesn't correspond to anything
+        // physical the way the scene light's reflection does).
+        if (headlightEnabled == 1 && isReflection < 0.5) {
+            vec3 headlightDir = normalize(headlightPosition - fragPositionGeom);
+            float cosAngle = dot(-headlightDir, normalize(headlightDirection));
+            float cosCutoff = cos(headlightDiameter * 0.5);
+            float spotFactor = smoothstep(cosCutoff - 0.05, cosCutoff + 0.05, cosAngle);
+
+            if (spotFactor > 0.0) {
+                float headDiffuseStrength = max(dot(normal, headlightDir), 0.0);
+                diffuse += headlightDiffuse.rgb * (headDiffuseStrength * materialDiffuse.rgb) * spotFactor;
             }
         }
     }

@@ -10,9 +10,14 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry.decimal import Decimal as _d
 from ... import config as _config
+from ... import utils as _utils
 from ...gl import materials as _materials
 from ...gl import vbo as _vbo
 from ...shapes import text as _text
+from ...shapes import box as _box
+from ...shapes import cylinder as _cylinder
+from ...shapes import sphere as _sphere
+from ...shapes import square_outline as _square_outline
 from .. import objectsvar as _objectsvar
 
 from ... import debug as _debug
@@ -24,6 +29,7 @@ if TYPE_CHECKING:
     from ...database.global_db import model3d as _model3d
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_3d
@@ -325,29 +331,359 @@ class Base3D(_objectsvar.BaseVar):
         except AttributeError:
             pass
 
-    def _render_selected(self):
-        if _debug_config.draw_obb:
-            self._render_obb()
+    @_check_types.do
+    def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Debug/selection overlays for the currently-selected object --
+        AABB/OBB wireframe-ish boxes (each gated by its own debug toggle)
+        plus a floor projection of the OBB's footprint (always on, not a
+        debug setting) -- every check lives *inside* the respective
+        ``render_*`` method below rather than here, so any other caller
+        (see ``objects_3d/wire.py``'s own ``render_selected_overlay``
+        override, which draws the identical overlays per segment plus for
+        each waypoint layout marker along a bent path) gets the same
+        gating for free without needing to duplicate the checks.
 
-        if _debug_config.draw_aabb:
-            self._render_aabb()
+        Called directly by ``canvas_base.py::_render_selected_overlay``
+        once per frame, as the last thing drawn (see that method's own
+        docstring, and ``objectsvar/base_var.py::render_selected_overlay``'s,
+        for why this isn't an automatic ``render()`` tail call) -- the
+        explicit ``is_selected`` guard below is this method's own
+        responsibility now rather than the caller's.
 
-        GL.glColor4f(1.0, 0.4, 0.4, 1.0)
-        GL.glLineWidth(2.0)
-        p1, p2 = self.aabb
+        The 3 methods below take only *shaders* -- they read
+        ``self._vbo``/``self._position``/``self._angle``/``self._scale``
+        directly, the same way ``_render_geometry`` already does. A caller
+        that wants these overlays for something other than this object's
+        own current transform (a Wire/Bundle waypoint marker, not the
+        wire/bundle itself) temporarily swaps those 4 attributes first --
+        the same swap-call-restore idiom ``Wire.render()``'s own per-segment
+        loop already uses -- rather than these methods taking extra
+        parameters for a shape/transform that isn't ``self``'s own.
+        """
+        if not self.is_selected:
+            return
 
-        y = Config.floor.ground_height + 0.20
+        if not self.is_visible:
+            return
 
-        GL.glBegin(GL.GL_LINES)
-        GL.glVertex3f(p1[0], y, p1[2])
-        GL.glVertex3f(p1[0], y, p2[2])
+        if self._vbo is None or self._position is None or self._scale is None or self._angle is None:
+            return
 
-        GL.glVertex3f(p1[0], y, p2[2])
-        GL.glVertex3f(p2[0], y, p2[2])
+        self._render_overlay_group(shaders)
 
-        GL.glVertex3f(p2[0], y, p2[2])
-        GL.glVertex3f(p2[0], y, p1[2])
+    @_check_types.do
+    def _render_overlay_group(self, shaders: "_shaders.ShaderProgram") -> None:
+        """DO NOT remove the ``GL.glDepthMask(GL.GL_FALSE)`` below or draw
+        the AABB/OBB/floor-projection calls outside of it -- this method
+        and ``canvas_base.py::_render_selected_overlay`` (which controls
+        WHEN this whole group runs, relative to the floor) are a matched
+        pair; changing either one without the other reintroduces one of
+        two bugs this pairing exists to prevent: with a depth write here
+        but the group still running after the floor (current call order),
+        nothing is broken by writing depth per se, but it's also entirely
+        pointless -- there's nothing left downstream in the frame for it
+        to protect, so it only adds a way for the AABB/OBB to needlessly
+        occlude each other again (see below); with depth writes removed
+        from here AND the group moved back to running before the floor
+        (undoing the canvas_base.py change), the floor punches straight
+        through the boxes again, exactly as before that fix.
 
-        GL.glVertex3f(p2[0], y, p1[2])
-        GL.glVertex3f(p1[0], y, p1[2])
-        GL.glEnd()
+        Draw the AABB box, OBB box, and floor projection as one group
+        with depth writes disabled, so none of the 3 can hide another of
+        the 3 behind it via the depth test -- the AABB always encloses
+        the OBB (same object, AABB is just the OBB's own axis-aligned
+        bound), so with both debug toggles on and normal depth writes,
+        drawing the AABB first would leave its nearer front face's depth
+        in the buffer and the OBB drawn right after would fail the depth
+        test against it everywhere the two overlap, making the OBB
+        disappear entirely rather than show through the AABB's own
+        translucent fill.
+
+        Depth TESTING stays on (each of the 3 is still correctly hidden
+        behind any genuine geometry actually in front of it), only
+        writing is off. This used to also need a second, color-masked
+        pass to write depth anyway, for the floor's sake -- see
+        ``canvas_base.py::_render_selected_overlay``'s own docstring for
+        why that's no longer necessary now that the overlay is the very
+        last thing drawn each frame, after the floor, instead of before
+        it: with nothing left to draw afterward, there's nothing left
+        that needs this group's depth written for it to respect.
+
+        Called both from ``render_selected_overlay`` itself (this
+        object's own current transform) and from ``Wire``/``Bundle``'s
+        own ``_render_waypoint_layouts`` (each waypoint's temporarily
+        swapped-in sphere transform) -- either way it just draws whatever
+        ``render_aabb_overlay``/``render_obb_overlay``/
+        ``render_floor_projection`` would currently produce for ``self``.
+        """
+        GL.glDepthMask(GL.GL_FALSE)
+        try:
+            self.render_aabb_overlay(shaders)
+            self.render_obb_overlay(shaders)
+            self.render_floor_projection(shaders)
+        finally:
+            GL.glDepthMask(GL.GL_TRUE)
+
+    @_check_types.do
+    def render_aabb_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw a translucent AABB box for this object's current
+        ``self._vbo``/``self._position``/``self._angle``/``self._scale``
+        -- no-op unless ``_debug_config.draw_aabb`` is set.
+
+        Computed fresh every call (re-fit to a true world-space
+        axis-aligned box from all 8 rotated/scaled/translated local
+        corners) rather than read back from the cached ``self.aabb``
+        property -- that only refreshes via the Point/Angle callback
+        system (``_update_position``/``_update_angle``/``_update_scale``),
+        which a per-segment position swap (Wire/Bundle's own ``render()``
+        loop, a bare reassignment rather than a bound-Point mutation) never
+        triggers, so the cached value would otherwise go stale mid-loop.
+        """
+        if not _debug_config.draw_aabb:
+            return
+
+        if not self.is_visible:
+            return
+
+        if self._vbo is None or self._position is None or self._angle is None or self._scale is None:
+            return
+
+        local_min, local_max = self._vbo.local_aabb
+        local_center = (local_min + local_max) / 2.0
+        local_extents = local_max - local_min
+        scale_np = self._scale.as_numpy
+
+        half = local_extents / 2.0
+        local_corners = local_center + np.array([
+            [sx * half[0], sy * half[1], sz * half[2]]
+            for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)
+        ], dtype=np.float32)
+
+        world_corners = (local_corners * scale_np) @ self._angle + self._position.as_numpy
+        aabb = _utils.adjust_aabb(world_corners)
+
+        center = _point.Point(*[float(v) for v in ((aabb[0] + aabb[1]) / 2.0).tolist()])
+        extents = _point.Point(*[float(v) for v in (aabb[1] - aabb[0]).tolist()])
+        self._render_debug_box(shaders, center, _angle.Angle(), extents, _debug_config.aabb_color)
+
+    @_check_types.do
+    def render_obb_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw a translucent OBB box for this object's current
+        ``self._vbo``/``self._position``/``self._angle``/``self._scale``
+        -- no-op unless ``_debug_config.draw_obb`` is set.
+        """
+        if not _debug_config.draw_obb:
+            return
+
+        if not self.is_visible:
+            return
+
+        if self._vbo is None or self._position is None or self._angle is None or self._scale is None:
+            return
+
+        local_min, local_max = self._vbo.local_aabb
+        local_center = (local_min + local_max) / 2.0
+        local_extents = local_max - local_min
+        scale_np = self._scale.as_numpy
+
+        center_np = (local_center * scale_np) @ self._angle + self._position.as_numpy
+        center = _point.Point(*[float(v) for v in center_np.tolist()])
+        extents = _point.Point(*[float(v) for v in (local_extents * scale_np).tolist()])
+
+        self._render_debug_box(shaders, center, self._angle, extents, _debug_config.obb_color)
+
+    # Index pairs (into _debug_box_corners' 8-corner array) forming the
+    # box's 12 real edges -- corner i and corner i^bit differ in exactly
+    # one axis for bit in (1, 2, 4), which is exactly an edge of a cube;
+    # the "j > i" filter keeps each of the 12 edges once instead of twice.
+    _BOX_EDGE_INDICES = [
+        (i, i ^ bit) for i in range(8) for bit in (1, 2, 4) if (i ^ bit) > i]
+
+    @staticmethod
+    @_check_types.do
+    def _debug_box_corners(position: _point.Point, angle: "_angle.Angle", scale: _point.Point) -> np.ndarray:
+        """Return the box's 8 world-space corners.
+
+        *scale* is the box's full (not half) size along each local axis,
+        matching what ``_render_debug_box``'s own caller already passes to
+        ``box_vbo.render`` -- ``shapes/box.py``'s unit box spans -0.5..0.5
+        locally, so half of *scale* is the local corner offset.
+        """
+        half = scale.as_numpy / 2.0
+        local_corners = np.array([
+            [sx * half[0], sy * half[1], sz * half[2]]
+            for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)
+        ], dtype=np.float32)
+        return local_corners @ angle + position.as_numpy
+
+    @_check_types.do
+    def _render_debug_box(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
+                          angle: "_angle.Angle", scale: _point.Point, color) -> None:
+        material = _materials.Generic(_color.Color(*color))
+        box_vbo = _box.create_vbo()
+
+        # Depth mask is deliberately left alone here (whatever the caller
+        # already has active) rather than forced off -- this geometry
+        # needs to write depth normally like any other solid mesh so that
+        # anything drawn afterward in the same frame (the floor, in
+        # particular) correctly tests against it and doesn't draw straight
+        # through the parts of the box that extend past the selected
+        # object's own real surface. The one context where writing this
+        # box's depth would be wrong -- canvas_base.py's selected-object
+        # supplemental depth-only pass, which exists specifically to
+        # (re)establish the real mesh's own depth and would have that
+        # undone by this enclosing box's nearer depth winning instead --
+        # is handled at the source in canvas_base.py's own _draw_scene,
+        # by skipping this whole overlay for that one call rather than by
+        # this method guessing its caller's intent from GL state.
+        with shaders.faces:
+            material.set(shaders.faces)
+            # smooth=False -> face (flat) normals (see gl/vbo.py's own
+            # render(), which maps smooth -> normalMode as
+            # int(not smooth) -- normalMode=0 is smooth, anything else
+            # is face). A box needs its 6 faces sharply distinct, not
+            # blended across edges the way the segment/waypoint
+            # geometry drawn just before it in the same frame might
+            # have left normalMode set for (whatever self.smooth was
+            # for that real geometry) -- always pass this explicitly,
+            # every call, rather than assuming state.
+            box_vbo.render(shaders.faces, position, angle, scale, False)
+
+        self._render_debug_box_edges(shaders, position, angle, scale, color)
+
+    @_check_types.do
+    def _render_debug_box_edges(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
+                                angle: "_angle.Angle", scale: _point.Point, color) -> None:
+        """Trace the box's real 12 edges (plus a sphere at each of its 8
+        corners) on top of the translucent fill -- a thin cylinder run
+        corner-to-corner along each edge, using the box's own known
+        corner points directly, with a matching sphere at each corner to
+        cleanly join the cylinders where 3 edges meet rather than leaving
+        a gap or a hard-edged cylinder cap showing. Both render with
+        ``smooth=True`` -- rounded cylinders/spheres read cleanly at this
+        thinness, unlike a triangulated wireframe-box mesh, which would
+        need flat shading and would draw each face's diagonal along with
+        its edges (2 triangles per face, no way to suppress just the
+        diagonal).
+        """
+        edge_color = self._debug_box_edge_color(color)
+        edge_material = _materials.Generic(_color.Color(*edge_color))
+        diameter = _debug_config.box_edge_diameter
+        edge_scale = _point.Point(diameter, diameter, diameter)
+
+        corners = self._debug_box_corners(position, angle, scale)
+
+        cylinder_vbo = _cylinder.create_vbo()
+        sphere_vbo = _sphere.create_vbo()
+
+        with shaders.faces:
+            edge_material.set(shaders.faces)
+
+            for i, j in self._BOX_EDGE_INDICES:
+                start = corners[i]
+                end = corners[j]
+                delta = end - start
+                length = float(np.linalg.norm(delta))
+                if length < 1e-6:
+                    continue
+
+                direction = delta / length
+                edge_angle = _angle.Angle.from_direction(direction)
+                edge_position = _point.Point(*[float(v) for v in start.tolist()])
+                cylinder_scale = _point.Point(diameter, diameter, length)
+
+                cylinder_vbo.render(shaders.faces, edge_position, edge_angle, cylinder_scale, True)
+
+            for corner in corners:
+                corner_position = _point.Point(*[float(v) for v in corner.tolist()])
+                sphere_vbo.render(shaders.faces, corner_position, _angle.Angle(), edge_scale, True)
+
+    @staticmethod
+    @_check_types.do
+    def _debug_box_edge_color(color) -> list:
+        """Derive a more-opaque, lighter-or-darker edge color from *color*
+        (a debug box's own translucent fill) -- lighten a dark fill,
+        darken a light one, so the edges read clearly against the fill
+        either way, using the same perceived-luminance formula
+        BaseVar.render()'s own debug edges pass already uses to pick
+        light-vs-dark.
+        """
+        r, g, b, a = color
+        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+
+        shift = 0.35
+        if luminance < 0.5:
+            r, g, b = (r + (1.0 - r) * shift, g + (1.0 - g) * shift, b + (1.0 - b) * shift)
+        else:
+            r, g, b = (r * (1.0 - shift), g * (1.0 - shift), b * (1.0 - shift))
+
+        return [r, g, b, min(a + 0.4, 1.0)]
+
+    @_check_types.do
+    def render_floor_projection(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw an outline of the OBB's footprint (for this object's
+        current ``self._vbo``/``self._position``/``self._angle``/
+        ``self._scale``) flattened onto the floor.
+
+        Unlike the AABB/OBB boxes, this is not a debug toggle -- it always
+        renders for the selected object (3D view only; nothing calls this
+        from the schematic/pegboard object hierarchies).
+
+        The OBB's own bottom-face corners (local Y = ``local_min[1]``) are
+        transformed into world space here (carrying the real rotation/tilt
+        with them), so flattening just their Y to floor height gives the
+        true footprint as seen from directly above -- not merely an
+        axis-aligned footprint. Rather than 4 separate draw calls (one thin
+        box per edge), this uses the cached unit
+        ``shapes/square_outline.py`` frame mesh -- one draw call, scaled
+        non-uniformly to (footprint length, floor thickness, footprint
+        width) and rotated to the footprint's own heading.
+        """
+        if not self.is_visible:
+            return
+
+        if self._vbo is None or self._position is None or self._angle is None or self._scale is None:
+            return
+
+        local_min, local_max = self._vbo.local_aabb
+        x1, _y1, z1 = local_min
+        x2, _y2, z2 = local_max
+        scale_np = self._scale.as_numpy
+
+        local_bottom = np.array([
+            [x1, local_min[1], z1],  # 0
+            [x2, local_min[1], z1],  # 1
+            [x1, local_min[1], z2],  # 4
+            [x2, local_min[1], z2],  # 5
+        ], dtype=np.float32)
+
+        world_bottom = (local_bottom * scale_np) @ self._angle + self._position.as_numpy
+
+        floor_y = Config.floor.ground_height + 0.01  # avoid z-fighting with the floor mesh
+        p0 = _point.Point(float(world_bottom[0][0]), floor_y, float(world_bottom[0][2]))
+        p1 = _point.Point(float(world_bottom[1][0]), floor_y, float(world_bottom[1][2]))
+        p4 = _point.Point(float(world_bottom[2][0]), floor_y, float(world_bottom[2][2]))
+        p5 = _point.Point(float(world_bottom[3][0]), floor_y, float(world_bottom[3][2]))
+
+        center = (p0 + p5) * 0.5
+        length = float(np.linalg.norm((p1 - p0).as_numpy))
+        width = float(np.linalg.norm((p4 - p0).as_numpy))
+        heading = _angle.Angle.from_points(p0, p1)
+
+        outline_vbo = _square_outline.create_vbo()
+        material = _materials.Generic(_color.Color(*_debug_config.floor_projection_color))
+        outline_scale = _point.Point(width, 0.012, length)
+
+        # Depth mask deliberately left alone (see _render_debug_box's own
+        # comment on this) -- this outline sits just 0.01 above the floor
+        # mesh itself, so it particularly needs to write its own (nearer)
+        # depth normally: the floor renders after every object in the
+        # frame (canvas_base.py's own _draw_scene -> _render_floor_after
+        # ordering), and without a depth write here the floor's opaque
+        # pass would have nothing of this outline's to test against and
+        # would draw straight over it.
+        with shaders.faces:
+            material.set(shaders.faces)
+            # smooth=False -> face (flat) normals -- see
+            # _render_debug_box's own comment for the normalMode mapping.
+            outline_vbo.render(shaders.faces, center, heading, outline_scale, False)

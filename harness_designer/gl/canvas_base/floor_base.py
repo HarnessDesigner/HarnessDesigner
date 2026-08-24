@@ -9,6 +9,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import canvas_base as _canvas_base
+    from .. import shaders as _shaders
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -27,16 +28,14 @@ class FloorBase:
     derivatives (fwidth) rather than relying on the rasteriser to hit
     thin geometry.
 
-    Interface change vs the previous version
-    ─────────────────────────────────────────
-    __init__ and render now accept a single *program* instead of the
-    previous (program_solid, program_dashed) pair.  Update call sites
-    accordingly, and note that compile_program() in shader.py now also
-    returns a single program object.
+    __init__ takes no program argument. render() takes the `ShaderProgram()`
+    singleton itself (handed down from the canvas) and each concrete
+    subclass (3D `Floor` vs. schematic/pegboard `Floor`) picks out the one
+    fixed program it always wants (`.floor` vs. `.grid`).
     """
 
     @_check_types.do
-    def __init__(self, canvas: '_canvas_base.CanvasBase', program):
+    def __init__(self, canvas: '_canvas_base.CanvasBase'):
         self.canvas = canvas
 
         self._vao = None
@@ -62,7 +61,7 @@ class FloorBase:
     # ─────────────────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def render(self, program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """
         Draw the procedural floor in a single pass.
         """

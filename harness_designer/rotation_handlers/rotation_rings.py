@@ -32,7 +32,6 @@ moves even while the object (and the inner ring) spin past it -- see
 from typing import TYPE_CHECKING
 
 import numpy as np
-from OpenGL import GL
 
 from . import rotation_ring
 from ..objects.objects_3d import base_3d as _base_3d
@@ -59,6 +58,7 @@ LABEL_SIZE_SCALE = 0.045
 if TYPE_CHECKING:
     from ..gl.canvas_3d import canvas as _canvas
     from .. import ui as _ui
+    from ..gl import shaders as _shaders
     from .. import objects as _objects
 
 
@@ -578,42 +578,37 @@ class Rings3D(_base_3d.Base3D):
         self._compute_size()
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Render all three axis gizmos."""
         # Live config tracking: rebuild sizing/mesh/colors when any of the
         # gizmo settings changed since the last frame
         if self._config_sig != self._current_config_sig():
             self._refresh_from_config()
 
-        GL.glUseProgram(faces_program)
+        faces_program = shaders.faces
 
-        # Smooth normals so the tube/washer cross-sections shade round
-        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
-        if normal_loc != -1:
-            GL.glUniform1i(normal_loc, 0)
+        with faces_program:
+            # Smooth normals so the tube/washer cross-sections shade round
+            faces_program.normal_mode = 0
 
-        # The gizmo is a UI element, not part of the scene — suppress the
-        # floor reflection for it, then restore the global config value so
-        # objects rendered after the rings keep theirs.
-        reflect_loc = GL.glGetUniformLocation(faces_program, "objectHasReflection")
-        if reflect_loc != -1:
-            GL.glUniform1i(reflect_loc, 0)
+            # The gizmo is a UI element, not part of the scene — suppress the
+            # floor reflection for it, then restore the global config value so
+            # objects rendered after the rings keep theirs.
+            faces_program.has_reflection = 0
 
-        # This program's uniform state persists across draw calls, so a
-        # WireStripe drawn earlier in the same frame can leave
-        # stripeClipLength set to a real length -- without resetting it,
-        # that leftover value forces this gizmo's own Z scale to 1.0 and
-        # clips its geometry too (spheres flattening to discs, rings
-        # flattening), varying frame to frame with whatever last set it.
-        clip_loc = GL.glGetUniformLocation(faces_program, "stripeClipLength")
-        if clip_loc != -1:
-            GL.glUniform1f(clip_loc, 0.0)
+            # This program's uniform state persists across draw calls, so a
+            # WireStripe drawn earlier in the same frame can leave
+            # stripeClipStart/stripeClipStop set to a real window -- without
+            # resetting it, that leftover value clips this gizmo's own
+            # geometry too (spheres flattening to discs, rings flattening),
+            # varying frame to frame with whatever last set it.
+            faces_program.stripe_clip_start = 0.0
+            faces_program.stripe_clip_stop = 0.0
 
-        for ring in self._rings.values():
-            ring.render(faces_program, edges_program, vertices_program)
+            for ring in self._rings.values():
+                ring.render(shaders)
 
-        if reflect_loc != -1:
             config = self.editor3d.config
-            GL.glUniform1i(reflect_loc, int(
+            faces_program.has_reflection = int(
                 config.floor.reflections.enable and
-                config.floor.enable_floor_lock))
+                config.floor.enable_floor_lock)

@@ -334,9 +334,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     _mouse_handler: _mouse_handler_base.MouseHandlerBase = None
     camera: _camera_base.CameraBase = None
 
-    # These attributes need to be created in an overrided initializeGL function
+    # This attribute needs to be created in an overrided initializeGL function
     # created before calling super().initializeGL
-    _floor_program = None
     _floor: _floor_base.FloorBase = None
 
     @_check_types.do
@@ -382,21 +381,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         self._init = False
 
-        self._faces_program = None
-        self._edges_program = None
-        self._vertices_program = None
-
-        self._faces_view_position = None
-        self._faces_projection = None
-        self._faces_view = None
-        self._faces_floor_y = None
-        self._faces_object_has_reflection = None
-
-        self._edges_projection = None
-        self._edges_view = None
-
-        self._vertices_projection = None
-        self._vertices_view = None
+        self._shaders = None
 
         self._last_culled = []
         self._object_refs = []
@@ -733,27 +718,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             GL.glHint(GL.GL_LINE_SMOOTH_HINT, GL.GL_NICEST)
             GL.glClearColor(*self.config.background_color)
 
-            self._faces_program = _shaders.compile_faces_program()
-            self._edges_program = _shaders.compile_edges_program()
-            self._vertices_program = _shaders.compile_vertices_program()
-
-            # ---------- Faces program
-            GL.glUseProgram(self._faces_program)
-            self._faces_view_position = GL.glGetUniformLocation(self._faces_program, 'viewPosition')
-            self._faces_projection = GL.glGetUniformLocation(self._faces_program, 'projection')
-            self._faces_view = GL.glGetUniformLocation(self._faces_program, 'view')
-            self._faces_floor_y = GL.glGetUniformLocation(self._faces_program, 'floorY')
-            self._faces_object_has_reflection = GL.glGetUniformLocation(self._faces_program, 'objectHasReflection')
-
-            # ---------- Edges program
-            GL.glUseProgram(self._edges_program)
-            self._edges_projection = GL.glGetUniformLocation(self._edges_program, 'projection')
-            self._edges_view = GL.glGetUniformLocation(self._edges_program, 'view')
-
-            # ---------- Vertices program
-            GL.glUseProgram(self._vertices_program)
-            self._vertices_projection = GL.glGetUniformLocation(self._vertices_program, 'projection')
-            self._vertices_view = GL.glGetUniformLocation(self._vertices_program, 'view')
+            self._shaders = _shaders.ShaderProgram()
 
             # Use the virtual size recorded in resizeGL (first call), not the
             # current widget geometry, so the aspect ratio matches the virtual
@@ -772,7 +737,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
             self._init = True  # viewport is live; notify_virtual_size_changed may update it
 
-            self._scene_light = _scene_light.SceneLight(self, self._faces_program)
+            self._scene_light = _scene_light.SceneLight(self)
             self.set_draw_floor(self.config.floor.enable)
 
         except Exception as err:  # NOQA
@@ -871,29 +836,26 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                              self.config.floor.enable_floor_lock)
 
         # ---------- Faces program
-        GL.glUseProgram(self._faces_program)
-        GL.glUniform3fv(self._faces_view_position, 1, self.camera.position.as_numpy)
-
-        GL.glUniformMatrix4fv(self._faces_projection, 1, GL.GL_TRUE, projection_matrix)
-        GL.glUniformMatrix4fv(self._faces_view, 1, GL.GL_TRUE, view_matrix)
-        GL.glUniform1f(self._faces_floor_y, self.config.floor.ground_height)
-        GL.glUniform1i(self._faces_object_has_reflection, has_reflection)
+        with self._shaders.faces:
+            self._shaders.faces.view_position = self.camera.position.as_numpy
+            self._shaders.faces.projection = projection_matrix
+            self._shaders.faces.view = view_matrix
+            self._shaders.faces.floor_y = self.config.floor.ground_height
+            self._shaders.faces.has_reflection = has_reflection
 
         # ---------- Edges program
-        GL.glUseProgram(self._edges_program)
-        GL.glUniformMatrix4fv(self._edges_projection, 1, GL.GL_TRUE, projection_matrix)
-        GL.glUniformMatrix4fv(self._edges_view, 1, GL.GL_TRUE, view_matrix)
+        with self._shaders.edges:
+            self._shaders.edges.projection = projection_matrix
+            self._shaders.edges.view = view_matrix
 
         # ---------- Vertices program
-        GL.glUseProgram(self._vertices_program)
-        GL.glUniformMatrix4fv(self._vertices_projection, 1, GL.GL_TRUE, projection_matrix)
-        GL.glUniformMatrix4fv(self._vertices_view, 1, GL.GL_TRUE, view_matrix)
+        with self._shaders.vertices:
+            self._shaders.vertices.projection = projection_matrix
+            self._shaders.vertices.view = view_matrix
 
     @_debug.logfunc
     @_check_types.do
     def _draw_scene(self, obj_data):
-        GL.glUseProgram(self._faces_program)
-
         removed_objects = []
         objects_in_view = []
 
@@ -926,83 +888,84 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                 if obj is self._selected and not view_obj.is_opaque:
                     continue
 
-                view_obj.render(self._faces_program,
-                                self._edges_program,
-                                self._vertices_program)
+                view_obj.render(self._shaders)
 
             except Exception as err:  # NOQA
                 _logger.traceback(err, 'object render error')
 
-            # Deferred full-color pass for the selected, translucent object --
-            # see the matching "continue" in _draw_scene's own object loop,
-            # which skips it there specifically so it always renders here,
-            # after every opaque object in the scene already has its own
-            # color+depth in the buffers. Depth writes are disabled for this
-            # one render call so it still can't block whatever draws after it
-            # (the depth-only pass below, the floor) -- it only ever reads the
-            # depth buffer (correct occlusion against anything genuinely in
-            # front of it, e.g. another housing between it and the camera)
-            # and blends its own color on top of whatever's already there
-            # (a housing's own interior terminals/wires, for instance)
-            # instead of unconditionally overwriting them.
-            if self._selected is not None:
-                view_obj = self._get_view_object(self._selected)
+        # Deferred full-color pass for the selected, translucent object --
+        # see the matching "continue" in _draw_scene's own object loop,
+        # which skips it there specifically so it always renders here,
+        # after every opaque object in the scene already has its own
+        # color+depth in the buffers. Depth writes are disabled for this
+        # one render call so it still can't block whatever draws after it
+        # (the depth-only pass below, the floor) -- it only ever reads the
+        # depth buffer (correct occlusion against anything genuinely in
+        # front of it, e.g. another housing between it and the camera)
+        # and blends its own color on top of whatever's already there
+        # (a housing's own interior terminals/wires, for instance)
+        # instead of unconditionally overwriting them.
+        #
+        # This whole block runs once per frame, after the object loop
+        # above has finished -- it must NOT sit inside that loop (it did,
+        # for a long time, nested one level too deep): self._selected
+        # doesn't depend on the loop variable at all, so running it once
+        # per row in obj_data re-rendered/re-blended the selected object's
+        # translucent shell and its debug overlay once per OTHER object in
+        # the scene, compounding into exactly the over-darkened "muted"
+        # look reported earlier.
+        if self._selected is not None:
+            view_obj = self._get_view_object(self._selected)
 
-                if not view_obj.is_opaque:
-                    GL.glDepthMask(GL.GL_FALSE)
+            if not view_obj.is_opaque:
+                GL.glDepthMask(GL.GL_FALSE)
 
-                    try:
-                        view_obj.render(self._faces_program,
-                                        self._edges_program,
-                                        self._vertices_program)
-                    except Exception as err:  # NOQA
-                        _logger.traceback(
-                            err, 'selected object deferred render error')
+                try:
+                    view_obj.render(self._shaders)
+                except Exception as err:  # NOQA
+                    _logger.traceback(
+                        err, 'selected object deferred render error')
 
-                    GL.glDepthMask(GL.GL_TRUE)
+                GL.glDepthMask(GL.GL_TRUE)
 
-                    # Supplemental depth-only pass for selected (semi-transparent) objects.
-                    #
-                    # Transparent outer shells render with glDepthMask(FALSE) so interior
-                    # opaque parts remain visible through them.  That leaves 1.0 (background)
-                    # in the depth buffer at the shell's screen position, which lets the floor
-                    # pass the depth test and draw over the selected object.
-                    #
-                    # Fix: before the floor renders, write the outer-shell depth for each
-                    # selected object using GL_LESS with no colour output.  The floor then
-                    # fails the depth test at those positions and does not occlude the object.
-                    # Reflections are disabled for this pass so only above-floor geometry
-                    # contributes depth (reflections are deeper than the floor anyway, but
-                    # excluding them keeps the depth buffer clean).
-                    GL.glColorMask(GL.GL_FALSE, GL.GL_FALSE,
-                                   GL.GL_FALSE, GL.GL_FALSE)
+                # Supplemental depth-only pass for selected (semi-transparent) objects.
+                #
+                # Transparent outer shells render with glDepthMask(FALSE) so interior
+                # opaque parts remain visible through them.  That leaves 1.0 (background)
+                # in the depth buffer at the shell's screen position, which lets the floor
+                # pass the depth test and draw over the selected object.
+                #
+                # Fix: before the floor renders, write the outer-shell depth for each
+                # selected object using GL_LESS with no colour output.  The floor then
+                # fails the depth test at those positions and does not occlude the object.
+                # Reflections are disabled for this pass so only above-floor geometry
+                # contributes depth (reflections are deeper than the floor anyway, but
+                # excluding them keeps the depth buffer clean).
+                GL.glColorMask(GL.GL_FALSE, GL.GL_FALSE,
+                               GL.GL_FALSE, GL.GL_FALSE)
 
-                    GL.glDepthMask(GL.GL_TRUE)
-                    GL.glDepthFunc(GL.GL_LESS)
+                GL.glDepthMask(GL.GL_TRUE)
+                GL.glDepthFunc(GL.GL_LESS)
 
-                    GL.glUseProgram(self._faces_program)
-                    GL.glUniform1i(self._faces_object_has_reflection, 0)
+                with self._shaders.faces:
+                    self._shaders.faces.has_reflection = 0
 
-                    try:
-                        view_obj.render(self._faces_program,
-                                        self._edges_program,
-                                        self._vertices_program)
-                    except Exception as err:  # NOQA
-                        _logger.traceback(
-                            err, 'selected object render error')
+                try:
+                    view_obj.render(self._shaders)
+                except Exception as err:  # NOQA
+                    _logger.traceback(
+                        err, 'selected object render error')
 
-                    GL.glUseProgram(self._faces_program)
+                # Restore reflection uniform and colour mask before floor render.
+                has_reflection = int(self.config.floor.reflections.enable and
+                                     self.config.floor.enable_floor_lock)
 
-                    # Restore reflection uniform and colour mask before floor render.
-                    has_reflection = int(self.config.floor.reflections.enable and
-                                         self.config.floor.enable_floor_lock)
+                with self._shaders.faces:
+                    self._shaders.faces.has_reflection = has_reflection
 
-                    GL.glUniform1i(self._faces_object_has_reflection, has_reflection)
+                GL.glColorMask(GL.GL_TRUE, GL.GL_TRUE,
+                               GL.GL_TRUE, GL.GL_TRUE)
 
-                    GL.glColorMask(GL.GL_TRUE, GL.GL_TRUE,
-                                   GL.GL_TRUE, GL.GL_TRUE)
-
-        GL.glUseProgram(0)
         self._objects_in_view = objects_in_view
 
         for row in removed_objects:
@@ -1051,7 +1014,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         # ---------- Faces program rendering
         try:
-            self._scene_light.render(self._faces_program)
+            self._scene_light.render(self._shaders)
         except Exception as err:  # NOQA
             _logger.traceback(err, 'scene light error')
 
@@ -1063,9 +1026,68 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             _logger.traceback(err, 'culling error')
             return
 
+        # This 3-call order is load-bearing -- do not reorder it and do
+        # not move _render_selected_overlay() earlier. The AABB/OBB/
+        # floor-projection debug overlay depends on the floor already
+        # being drawn (color AND depth) by the time it runs, and the
+        # floor depends on real object geometry already being drawn by
+        # the time IT runs (reflections need the floor's own translucent
+        # surface to composite over each object's mirrored geometry-
+        # shader duplicate -- see _render_selected_overlay's own
+        # docstring for the full chain of reasoning). Moving the overlay
+        # before the floor brings back the exact bug this ordering fixed:
+        # the floor can no longer be seen through the AABB/OBB boxes
+        # (either the box's depth write blocks the floor from drawing
+        # under it at all, or without a depth write the floor draws over
+        # and erases the box -- neither gives real translucency, because
+        # alpha blending can only show B through A if B was already in
+        # the color buffer when A drew).
         self._render_floor_before()
         self._draw_scene(objs)
         self._render_floor_after()
+        self._render_selected_overlay()
+
+    @_check_types.do
+    def _render_selected_overlay(self):
+        """Draw the selected object's AABB/OBB/floor-projection debug
+        overlay -- deliberately the very last thing drawn each frame,
+        after the floor (unlike everything else, which draws before it;
+        see ``canvas_3d/canvas.py``'s own ``_render_floor_after`` for why
+        the 3D floor specifically has to stay last relative to real
+        object geometry: its own translucent surface needs to composite
+        OVER each reflective object's mirrored geometry-shader duplicate
+        to read as a believable tinted reflection, which only works if
+        the floor draws after that geometry).
+
+        The debug overlay has no such constraint -- it never emits a
+        reflected duplicate of itself -- so there's nothing forcing it to
+        draw before the floor the way real geometry is forced to. Drawing
+        it after instead means its own translucent fill is blending on
+        top of a framebuffer that already has the floor's (and every
+        other object's) real color in it, which is what actually lets the
+        floor and any other geometry show through the box rather than the
+        box either erasing the floor or the floor erasing the box --
+        neither of which alpha blending can produce correctly no matter
+        how depth writes for the box are juggled if the floor hasn't been
+        drawn yet when the box blends.
+
+        No special depth-mask handling is needed here either: with
+        nothing left to draw afterward in the frame, the overlay doesn't
+        need to write its own depth for anything downstream to respect
+        (see ``Base3D._render_overlay_group``'s own docstring for why it
+        still disables depth writes -- that's purely so the AABB and OBB
+        boxes, drawn in the same pass, don't occlude each other, not
+        anything to do with the floor).
+        """
+        if self._selected is None:
+            return
+
+        view_obj = self._get_view_object(self._selected)
+
+        try:
+            view_obj.render_selected_overlay(self._shaders)
+        except Exception as err:  # NOQA
+            _logger.traceback(err, 'selected object overlay render error')
 
     # ------------------------------------------------------------------
     # Snapshot (returns QImage instead of wx.Bitmap)

@@ -206,7 +206,7 @@ class PartModelPegboard(_base_pegboard.BasePegboard):
             None, None, None
             )
 
-    def render(self, _, __, ___):
+    def render(self, shaders):
         pass
 
 
@@ -218,7 +218,7 @@ class PartModelSchematic(_base_schematic.BaseSchematic):
             None, None, None
             )
 
-    def render(self, _, __, ___):
+    def render(self, shaders):
         pass
 
 

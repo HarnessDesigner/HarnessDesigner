@@ -10,6 +10,7 @@ from .. canvas_base import floor_base as _floor_base
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
+    from .. import shaders as _shaders
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -55,35 +56,13 @@ class Floor(_floor_base.FloorBase):
     derivatives (fwidth) rather than relying on the rasteriser to hit
     thin geometry.
 
-    Interface change vs the previous version
-    ─────────────────────────────────────────
-    __init__ and render now accept a single *program* instead of the
-    previous (program_solid, program_dashed) pair.  Update call sites
-    accordingly, and note that compile_program() in shader.py now also
-    returns a single program object.
+    Always renders with `ShaderProgram().floor` -- fetched directly here,
+    never passed in from a caller.
     """
 
     @_check_types.do
-    def __init__(self, canvas: '_canvas.Canvas', program):
-        super().__init__(canvas, program)
-
-        with canvas.context:
-            GL.glUseProgram(program)
-
-            self._loc_mvp = GL.glGetUniformLocation(program, 'uMVP')
-            self._loc_tile_sz = GL.glGetUniformLocation(program, 'uTileSize')
-            self._loc_minor_sz = GL.glGetUniformLocation(program, 'uMinorSpacing')
-            self._loc_color_a = GL.glGetUniformLocation(program, 'uColorA')
-            self._loc_color_b = GL.glGetUniformLocation(program, 'uColorB')
-            self._loc_maj_col = GL.glGetUniformLocation(program, 'uMajorColor')
-            self._loc_min_col = GL.glGetUniformLocation(program, 'uMinorColor')
-            self._loc_maj_w = GL.glGetUniformLocation(program, 'uMajorWidth')
-            self._loc_min_w = GL.glGetUniformLocation(program, 'uMinorWidth')
-            self._loc_stipple = GL.glGetUniformLocation(program, 'uStipplePattern')
-            self._loc_has_minor = GL.glGetUniformLocation(program, 'uHasMinorGrid')
-            self._loc_stipple_phase = GL.glGetUniformLocation(program, 'uStipplePhase')
-            self._loc_opaque_pass = GL.glGetUniformLocation(program, 'uOpaquePass')
-            GL.glUseProgram(0)
+    def __init__(self, canvas: '_canvas.Canvas'):
+        super().__init__(canvas)
 
         self._ebo = None
         self._n = None
@@ -147,21 +126,21 @@ class Floor(_floor_base.FloorBase):
     # ─────────────────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def render(self, program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Draw the procedural floor in a single pass."""
 
         if not self.config.enable or self._vao is None:
             return
 
-        with self.canvas.context:
+        program = shaders.floor
+
+        with self.canvas.context, program:
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
             GL.glEnable(GL.GL_MULTISAMPLE)
-            GL.glUseProgram(program)
 
             # MVP ─────────────────────────────────────────────────────────────────
-            GL.glUniformMatrix4fv(
-                self._loc_mvp, 1, GL.GL_TRUE, self.canvas.camera.clip)
+            program.mvp = self.canvas.camera.clip
 
             # Grid dimensions ─────────────────────────────────────────────────────
             cfg = self.config.grid
@@ -169,35 +148,31 @@ class Floor(_floor_base.FloorBase):
             tile_size = cfg.size
             minor_sz = tile_size / (cfg.secondary_lines_per_tile + 1)
 
-            GL.glUniform1f(self._loc_tile_sz,   tile_size)
-            GL.glUniform1f(self._loc_minor_sz,  minor_sz)
-            GL.glUniform1ui(self._loc_has_minor, has_minor)
+            program.tile_size = tile_size
+            program.minor_spacing = minor_sz
+            program.has_minor_grid = has_minor
 
             # Tile colours ────────────────────────────────────────────────────────
-            pc = cfg.primary_color
-            sc = cfg.secondary_color
-            GL.glUniform4f(self._loc_color_a, *pc)
-            GL.glUniform4f(self._loc_color_b, *sc)
+            program.color_a = cfg.primary_color
+            program.color_b = cfg.secondary_color
 
             # Line colours ────────────────────────────────────────────────────────
-            plc = cfg.primary_line_color
-            slc = cfg.secondary_line_color
-            GL.glUniform4f(self._loc_maj_col, *plc)
-            GL.glUniform4f(self._loc_min_col, *slc)
+            program.major_color = cfg.primary_line_color
+            program.minor_color = cfg.secondary_line_color
 
             # Line widths ─────────────────────────────────────────────────────────
-            GL.glUniform1f(self._loc_maj_w, cfg.primary_line_width)
-            GL.glUniform1f(self._loc_min_w, cfg.secondary_line_width)
+            program.major_width = cfg.primary_line_width
+            program.minor_width = cfg.secondary_line_width
 
             # Dash parameters ─────────────────────────────────────────────────────
-            GL.glUniform1ui(self._loc_stipple, int(cfg.secondary_line_pattern) & 0xFFFFFFFF)
-            GL.glUniform1ui(self._loc_stipple_phase, int(cfg.secondary_line_shift))
+            program.stipple_pattern = int(cfg.secondary_line_pattern)
+            program.stipple_phase = int(cfg.secondary_line_shift)
 
             # Pass 1 — opaque fragments only, depth writes enabled.
             # The shader discards any fragment whose final alpha < 0.999 so only
             # fully-opaque tiles and lines write to the depth buffer.
             GL.glDepthMask(GL.GL_TRUE)
-            GL.glUniform1i(self._loc_opaque_pass, 1)
+            program.opaque_pass = 1
             GL.glBindVertexArray(self._vao)
             GL.glDrawElements(GL.GL_TRIANGLES, self._n, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
@@ -205,11 +180,10 @@ class Floor(_floor_base.FloorBase):
             # Pass 2 — transparent fragments only, depth writes disabled so they
             # blend correctly without corrupting the depth buffer.
             GL.glDepthMask(GL.GL_FALSE)
-            GL.glUniform1i(self._loc_opaque_pass, 0)
+            program.opaque_pass = 0
             GL.glBindVertexArray(self._vao)
             GL.glDrawElements(GL.GL_TRIANGLES, self._n, GL.GL_UNSIGNED_INT, None)
             GL.glBindVertexArray(0)
 
             GL.glDepthMask(GL.GL_TRUE)
             GL.glDisable(GL.GL_MULTISAMPLE)
-            GL.glUseProgram(0)

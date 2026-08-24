@@ -25,6 +25,7 @@ from ..canvas_base import floor_base as _floor_base
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
+    from .. import shaders as _shaders
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -49,18 +50,10 @@ def _build_quad(left: float | _d, right: float | _d, bottom: float, top: float |
 class Floor(_floor_base.FloorBase):
     """Procedural top-down dot grid."""
 
-    def __init__(self, canvas: '_canvas.Canvas', program):
-        super().__init__(canvas, program)
+    def __init__(self, canvas: '_canvas.Canvas'):
+        super().__init__(canvas)
 
         self.grid_spacing = 1.0
-
-        with self.canvas.context:
-            GL.glUseProgram(program)
-            self._loc_projection = GL.glGetUniformLocation(program, "projection")
-            self._loc_spacing = GL.glGetUniformLocation(program, "uSpacing")
-            self._loc_world_per_pixel = GL.glGetUniformLocation(program, "uWorldPerPixel")
-            self._loc_dot_color = GL.glGetUniformLocation(program, "uDotColor")
-            GL.glUseProgram(0)
 
     def _initialize_grid(self):
         # placeholder bounds, updated every render()
@@ -130,11 +123,13 @@ class Floor(_floor_base.FloorBase):
         n = math.floor(math.log2(raw))
         return float(2.0 ** n)
 
-    def render(self, program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Draw the procedural floor in a single pass."""
 
         if not self.config.enable or self._vao is None:
             return
+
+        program = shaders.grid
 
         size = self.canvas.size
         if size is None:
@@ -163,7 +158,7 @@ class Floor(_floor_base.FloorBase):
 
         self.grid_spacing = self._current_spacing(world_per_pixel)
 
-        with self.canvas.context:
+        with self.canvas.context, program:
             verts = _build_quad(left, right, bottom, top)
 
             GL.glBindBuffer(GL.GL_ARRAY_BUFFER, self._vbo)
@@ -172,22 +167,12 @@ class Floor(_floor_base.FloorBase):
 
             GL.glEnable(GL.GL_BLEND)
             GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
-            GL.glUseProgram(program)
 
-            GL.glUniformMatrix4fv(self._loc_projection, 1, GL.GL_FALSE,
-                                  np.ascontiguousarray(camera.projection.T))
-
-            GL.glUniform1f(
-                self._loc_spacing, self.grid_spacing)
-
-            GL.glUniform1f(
-                self._loc_world_per_pixel, world_per_pixel)
-
-            GL.glUniform4f(
-                self._loc_dot_color, *self.config.dot_color)
+            program.projection = camera.projection.T
+            program.spacing = self.grid_spacing
+            program.world_per_pixel = world_per_pixel
+            program.dot_color = self.config.dot_color
 
             GL.glBindVertexArray(self._vao)
             GL.glDrawArrays(GL.GL_TRIANGLES, 0, 6)
             GL.glBindVertexArray(0)
-
-            GL.glUseProgram(0)

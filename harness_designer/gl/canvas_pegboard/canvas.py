@@ -26,7 +26,6 @@ from PySide6.QtCore import QSize
 from OpenGL import GL
 import numpy as np
 
-from .. import shaders as _shaders
 from ... import config as _config
 from . import floor as _floor2d
 from . import mouse_handler as _mouse_handler2d
@@ -71,8 +70,7 @@ class Canvas(_canvas_base.CanvasBase):
     def initializeGL(self):
         """One-time GL setup. Qt guarantees the context is already current here."""
 
-        self._floor_program = _shaders.compile_grid2d_program()
-        self._floor = _floor2d.Floor(self, self._floor_program)
+        self._floor = _floor2d.Floor(self)
 
         super().initializeGL()
 
@@ -85,7 +83,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     def _render_floor_before(self):
         try:
-            self._floor.render(self._floor_program)
+            self._floor.render(self._shaders)
         except:  # NOQA
             import traceback
             traceback.print_exc()

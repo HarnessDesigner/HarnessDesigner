@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
-from OpenGL import GL
 import numpy as np
 import math
 
@@ -15,6 +14,7 @@ from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
+from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -25,6 +25,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_3d
@@ -480,7 +481,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 isinstance(self.parent.stop_sibling, _terminal.Terminal))
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Render every sub-segment of the wire's current path.
 
         Geometry is always current by the time this runs --
@@ -532,7 +533,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 self._scale = seg_scale
                 self._material = real_material
 
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
             if draw_stripe and not is_conductor:
                 # Stripe geometry ignores scale.z entirely (see
@@ -541,9 +542,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 # is irrelevant; position/angle must match this segment.
                 self._stripe._position = seg_position  # NOQA
                 self._stripe._angle = seg_angle  # NOQA
-                self._stripe.render_segment(
-                    faces_program, edges_program, vertices_program,
-                    stripe_offset, stripe_offset + seg_len)
+                self._stripe.render_segment(shaders, stripe_offset, stripe_offset + seg_len)
 
             stripe_offset += seg_len
 
@@ -552,6 +551,84 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         if draw_stripe:
             self._stripe._position = stripe_position  # NOQA
             self._stripe._angle = stripe_angle  # NOQA
+
+    @_check_types.do
+    def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the wire's AABB/OBB/floor-projection overlays for every
+        sub-segment of its current path, plus each waypoint layout
+        marker's own overlays for completeness at a sharp bend (see
+        ``_render_waypoint_layouts`` below) -- called directly by
+        ``canvas_base.py::_render_selected_overlay`` once per frame, same
+        as ``Base3D.render_selected_overlay`` itself (see that method's
+        own docstring), just repeated per segment the same way ``render()``
+        draws the wire's actual tube geometry once per segment. This is a
+        separate loop over ``self._segment_transforms()`` from ``render()``'s
+        own -- it runs later in the frame (after the floor, not as part
+        of the normal per-object draw), so it can't just piggyback on
+        that one.
+
+        Temporarily points this object's position/angle/scale at each
+        segment before delegating to ``Base3D.render_selected_overlay``
+        -- the same swap-call-restore idiom ``render()``'s own per-segment
+        loop already uses (``self._vbo`` doesn't need swapping here since
+        every segment shares the wire's own single cylinder mesh).
+        """
+        if not self.is_selected:
+            return
+
+        real_position, real_angle, real_scale = (
+            self._position, self._angle, self._scale)
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+            super().render_selected_overlay(shaders)
+
+        self._position, self._angle, self._scale = (
+            real_position, real_angle, real_scale)
+
+        self._render_waypoint_layouts(shaders)
+
+    @_check_types.do
+    def _render_waypoint_layouts(self, shaders: "_shaders.ShaderProgram"):
+        """Draw each waypoint layout marker's own AABB/OBB/floor-projection
+        overlays for completeness -- a bent wire's per-segment overlays
+        (drawn once per segment by ``render_selected_overlay`` above)
+        don't cover the joint at a sharp bend by themselves; the small
+        sphere ``WireLayout`` marker sitting at each waypoint fills that
+        gap. These draw because the WIRE is selected, not because any
+        individual ``WireLayout`` is -- called once here, not once per
+        segment, and never through ``Base3D.render_selected_overlay``
+        (which is tied to this object's own ``is_visible``/selected
+        state, not a waypoint's).
+
+        Temporarily swaps ``self._vbo``/``self._position``/``self._angle``/
+        ``self._scale`` to each waypoint's own sphere/position/identity/
+        diameter and calls ``_render_overlay_group`` -- the same
+        AABB/OBB/floor-projection group draw ``render_selected_overlay``
+        itself uses per segment (see that method's own docstring for why
+        the group is drawn together rather than as 3 separate calls), and
+        the identical swap-call-restore idiom this method's own caller
+        already uses per segment, just with a sphere instead of a
+        cylinder segment.
+        """
+        if not self._waypoint_points:
+            return
+
+        real_vbo, real_position, real_angle, real_scale = (
+            self._vbo, self._position, self._angle, self._scale)
+
+        diameter = self._part.od_mm if self._part is not None else 3.0
+
+        self._vbo = _sphere.create_vbo()
+        self._angle = _angle.Angle()
+        self._scale = _point.Point(diameter, diameter, diameter)
+
+        for point in self._waypoint_points:
+            self._position = point
+            self._render_overlay_group(shaders)
+
+        self._vbo, self._position, self._angle, self._scale = (
+            real_vbo, real_position, real_angle, real_scale)
 
     @_check_types.do
     def set_selected(self, flag: bool):
@@ -750,8 +827,7 @@ class WireStripe(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def render_segment(self, faces_program, edges_program, vertices_program,
-                        clip_start: float, clip_stop: float):
+    def render_segment(self, shaders: "_shaders.ShaderProgram", clip_start: float, clip_stop: float):
         """Draw this stripe windowed to [clip_start, clip_stop] -- one
         call per wire sub-segment, made by Wire.render() with this
         stripe's own _position/_angle already pointed at that segment.
@@ -781,24 +857,19 @@ class WireStripe(_base_3d.Base3D):
         if not self.is_visible:
             return
 
-        programs = (faces_program, edges_program, vertices_program)
-        locs = [
-            (GL.glGetUniformLocation(program, "stripeClipStart"),
-             GL.glGetUniformLocation(program, "stripeClipStop"))
-            for program in programs
-        ]
+        programs = (shaders.faces, shaders.edges, shaders.vertices)
 
-        for program, (start_loc, stop_loc) in zip(programs, locs):
-            GL.glUseProgram(program)
-            GL.glUniform1f(start_loc, clip_start)
-            GL.glUniform1f(stop_loc, clip_stop)
+        for program in programs:
+            with program:
+                program.stripe_clip_start = clip_start
+                program.stripe_clip_stop = clip_stop
 
-        super().render(faces_program, edges_program, vertices_program)
+        super().render(shaders)
 
-        for program, (start_loc, stop_loc) in zip(programs, locs):
-            GL.glUseProgram(program)
-            GL.glUniform1f(start_loc, 0.0)
-            GL.glUniform1f(stop_loc, 0.0)
+        for program in programs:
+            with program:
+                program.stripe_clip_start = 0.0
+                program.stripe_clip_stop = 0.0
 
     @_check_types.do
     def _compute_obb(self):

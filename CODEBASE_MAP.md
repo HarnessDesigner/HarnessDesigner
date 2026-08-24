@@ -472,7 +472,37 @@ Contents/structure of the `harness_designer/` package.
   - `grid2d`: procedural top-down dot-grid shader (see `gl/canvas2d/grid.py`)
     — single quad, all detail computed per-pixel from world position, same
     technique `floor.py` uses for the 3D floor grid
-  - schematic2d
+  - `schematic2d`: standalone shader module, **not currently wired up** —
+    nothing compiles or uses it; the schematic canvas actually reuses the
+    3D `faces`/`edges`/`vertices` programs via `CanvasBase`. Deliberately
+    left unused (2026-08-23 decision) — do not add a `Program` wrapper for
+    it without checking with the user first.
+  - `program.py` / `__init__.py`: **single entry point for every shader
+    program** — `ShaderProgram()` (singleton via `_ShaderProgramMeta`) exposes
+    `.faces`/`.edges`/`.vertices`/`.floor`/`.grid`, each a `Program` subclass
+    (`FacesProgram`/`EdgesProgram`/`VerticesProgram`/`FloorProgram`/
+    `GridProgram`) wrapping a compiled GL program int. `Program` supports
+    `with program:` (ref-counted `glUseProgram`/`glUseProgram(0)`) and
+    exposes typed write-only properties (`.position`, `.projection`,
+    `.material_diffuse`, `.stripe_clip_start`, etc.) whose setters call the
+    correct `GL.glUniform*`, with the uniform location cached once at
+    construction. This is the only place in the app that should call
+    `GL.glGetUniformLocation`/raw `GL.glUniform*`/`GL.glUseProgram` —
+    every consumer (canvases, `gl/vbo.py`, `gl/materials/material.py`,
+    `objects/objectsvar/base_var.py`, drag/rotation gizmo handlers, floor
+    renderers) gets a `Program` instance handed to it and sets uniforms only
+    through its properties, never raw GL calls. `gl/vbo.py`'s
+    `VBOHandlerBase.render(program, position, angle, scale, smooth)` takes
+    the `Program` object itself (not location ints) — `smooth=None` means
+    "leave normalMode untouched" (gizmos that never wanted it touched),
+    `True`/`False` sets it via `program.normal_mode` when the program type
+    supports that property (checked via `hasattr(type(program), ...)`,
+    a class-level check that never triggers the write-only getter).
+    `FacesProgram` also owns the headlight spotlight uniforms
+    (`headlight_position/direction/diffuse/diameter/enabled`) — the
+    headlight shading term was added to `faces.py`'s fragment shader
+    2026-08-23 (previously a confirmed no-op: the uniforms didn't exist in
+    the GLSL at all).
 - `materials/`:
   - material 
   - generic 
@@ -751,6 +781,12 @@ How a part's 3D model gets from disk to the screen:
     - `objectPosition` (vec3)
     - `objectRotation` (quaternion, vec4)
     - `objectScale` (vec3)
+  - every uniform above (and everything else the shaders declare) is set
+    through the `ShaderProgram()`/`Program` mechanism (see `gl/shaders/`
+    above) — `gl/vbo.py`'s `render(program, position, angle, scale, smooth)`
+    is what actually pushes `objectPosition`/`objectRotation`/`objectScale`/
+    `normalMode` via `program.position = ...` etc., not raw
+    `GL.glGetUniformLocation`/`GL.glUniform*` calls
   - **quaternion ordering is scalar-first: `(w, x, y, z)`** — used consistently in 
     `geometry/angle/quaternion.py` (`_data = [w, x, y, z]`) and the shader uniform
     - ⚠ in GLSL the vec4 component names do NOT match the quaternion components: 

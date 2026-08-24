@@ -4,6 +4,7 @@ import ctypes
 import threading
 import weakref
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 from OpenGL import GL
@@ -15,6 +16,9 @@ from .. import utils as _utils
 from ..geometry import point as _point
 from ..geometry import angle as _angle
 from .. import check_types as _check_types
+
+if TYPE_CHECKING:
+    from .shaders import program as _shader_program
 
 
 # Maximum triangle-soup vertices managed in the imported-model arena.
@@ -525,9 +529,9 @@ class VBOHandlerBase:
         return None
 
     @_check_types.do
-    def render(self, pos_loc, rot_loc, scale_loc, normal_loc,
+    def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: _point.Point, angle: "_angle.Angle", scale: _point.Point,
-               smooth: bool):
+               smooth: bool | None):
         """Set this mesh's own per-draw transform uniforms, then draw it.
 
         Moved here (out of objects/objectsvar/base_var.py's own
@@ -540,18 +544,28 @@ class VBOHandlerBase:
         only compute those itself, glyph by glyph, if ``render()`` is
         the one place that both knows the transform *and* issues the
         draw call -- see Text's own ``render()`` docstring.
+
+        *smooth* of ``None`` means "leave normalMode alone entirely" --
+        the equivalent of the old ``normal_loc=None`` callers (gizmos
+        like move_arrows.py/wire_marker_arrow.py that never resolved a
+        normalMode location to begin with), as opposed to a real
+        ``True``/``False`` which always pushes the uniform.
         """
         ctx = self.ctx
         ctx_id = id(ctx)
         if ctx_id not in self._vaos:
             self.acquire()
 
-        if normal_loc is not None:
-            GL.glUniform1i(normal_loc, int(smooth))
+        if smooth is not None and hasattr(type(program), "normal_mode"):
+            # gl/shaders/faces.py and edges.py both resolve normalMode as
+            # "0 -> smooth normal, anything else -> face (flat) normal" --
+            # int(not smooth) is therefore the correct mapping (smooth=True
+            # -> normalMode=0 -> smooth shading), not int(smooth).
+            program.normal_mode = int(not smooth)
 
-        GL.glUniform3f(pos_loc, *position.as_float)
-        GL.glUniform4f(rot_loc, *[float(str(v)) for v in angle.as_quat_numpy.tolist()])
-        GL.glUniform3f(scale_loc, *scale.as_float)
+        program.position = position.as_float
+        program.rotation = [float(str(v)) for v in angle.as_quat_numpy.tolist()]
+        program.scale = scale.as_float
 
         # Attribute offsets (including the arena allocation base) are baked
         # into the VAO, so drawing always starts at vertex 0.  Compaction
@@ -717,12 +731,12 @@ class NonPooledVBOHandler(VBOHandlerBase):
         return self._dirty_vaos.get(ctx_id, True)
 
     @_check_types.do
-    def render(self, pos_loc, rot_loc, scale_loc, normal_loc,
+    def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: _point.Point, angle: "_angle.Angle", scale: _point.Point,
-               smooth: bool):
+               smooth: bool | None):
         self._rebuild()
 
-        super().render(pos_loc, rot_loc, scale_loc, normal_loc, position, angle, scale, smooth)
+        super().render(program, position, angle, scale, smooth)
 
 
 class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):

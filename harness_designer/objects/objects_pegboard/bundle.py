@@ -372,7 +372,7 @@ class Bundle(_base_pegboard.BasePegboard):
         return np.concatenate(all_corners, axis=0)
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders):
         """Render every sub-segment of the bundle's current path.
 
         Geometry is always current by the time this runs --
@@ -387,7 +387,7 @@ class Bundle(_base_pegboard.BasePegboard):
 
         for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
             self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
 

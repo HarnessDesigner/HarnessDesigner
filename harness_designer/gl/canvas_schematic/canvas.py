@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QSize
 import numpy as np
 
-from .. import shaders as _shaders
 from ... import config as _config
 from . import camera as _camera
 from . import mouse_handler as _mouse_handler2d
@@ -78,8 +77,7 @@ class Canvas(_canvas_base.CanvasBase):
         Qt guarantees the context is already current here.
         """
 
-        self._floor_program = _shaders.compile_grid2d_program()
-        self._floor = _floor2d.Floor(self, self._floor_program)
+        self._floor = _floor2d.Floor(self)
 
         super().initializeGL()
 
@@ -89,7 +87,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     def _render_floor_before(self):
         try:
-            self._floor.render(self._floor_program)
+            self._floor.render(self._shaders)
         except:  # NOQA
             import traceback
             traceback.print_exc()

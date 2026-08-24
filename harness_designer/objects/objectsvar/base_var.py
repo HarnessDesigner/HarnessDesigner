@@ -3,7 +3,6 @@
 from typing import TYPE_CHECKING, Union
 
 import numpy as np
-from OpenGL import GL
 
 from ... import color as _color
 from ...geometry import point as _point
@@ -18,6 +17,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
     from .. import ObjectBase as _ObjectBase
+    from ...gl import shaders as _shaders
+    from ...gl.shaders import program as _shader_program
 
 
 Config = _config.Config.colors
@@ -764,12 +765,14 @@ class BaseVar:
             setattr(self._angle, axis, value)
 
     @_check_types.do
-    def _render_geometry(self, pos_loc, rot_loc, scale_loc, normal_loc=None):
+    def _render_geometry(self, program: Union["_shader_program.FacesProgram",
+                                               "_shader_program.EdgesProgram",
+                                               "_shader_program.VerticesProgram"]):
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
-        This object's own transform (position/rotation/scale) and the uniform
-        locations to set them at are handed straight to the VBO's own
+        This object's own transform (position/rotation/scale) and the
+        program to set them on are handed straight to the VBO's own
         render() -- the VBO owns setting those uniforms (and, for a compound
         handler like shapes/text.py's Text, deriving whatever per-piece
         values it actually needs from this single transform) rather than
@@ -780,25 +783,34 @@ class BaseVar:
             return
 
         self._vbo.render(
-            pos_loc, rot_loc, scale_loc, normal_loc,
-            self._position, self._angle, self._scale, self.smooth)
+            program, self._position, self._angle, self._scale, self.smooth)
 
-    def _render_selected(self):
-        pass
+    def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw this object's selection debug overlay (AABB/OBB boxes,
+        floor projection, etc. -- see the ``Base3D`` override for the
+        actual 3D implementation; the base default is a no-op for object
+        hierarchies, e.g. schematic/pegboard, that don't have one).
+
+        NOT called automatically from ``render()`` -- called directly,
+        once per frame, by ``canvas_base.py::_render_selected_overlay``,
+        deliberately as the very last thing drawn each frame (after the
+        floor). See that method's own docstring for the full reasoning;
+        in short, this overlay's translucent fill needs the floor (and
+        every other object) already sitting in the color buffer for
+        normal alpha blending to show them through it -- which folding
+        this into ``render()``'s own ``if self.is_selected: ...`` tail
+        call (the way it used to work) could never do, since ``render()``
+        always runs before the floor, not after it.
+        """
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """
         Execute the render operation.
 
-        :param faces_program: Value for ``faces_program``.
-        :type faces_program: UNKNOWN
-
-        :param edges_program: Value for ``edges_program``.
-        :type edges_program: UNKNOWN
-
-        :param vertices_program: Value for ``vertices_program``.
-        :type vertices_program: UNKNOWN
+        :param shaders: The `ShaderProgram()` singleton, holding every
+            compiled program (`.faces`/`.edges`/`.vertices`/etc.) -- handed
+            down from the canvas rather than looked up here.
         """
 
         if not self.is_visible:
@@ -812,18 +824,9 @@ class BaseVar:
             self._compute_obb()
 
         if _debug_config.draw_faces:
-            GL.glUseProgram(faces_program)
-
-            self.material.set(faces_program)
-
-            # Set object transformation uniforms
-            pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-            rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-            scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
-            normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
-
-            self._render_geometry(pos_loc, rot_loc, scale_loc, normal_loc)
-            GL.glUseProgram(0)
+            with shaders.faces:
+                self.material.set(shaders.faces)
+                self._render_geometry(shaders.faces)
 
         if _debug_config.draw_edges:
             material_color = self.material.diffuse[:3]  # Get RGB
@@ -839,23 +842,13 @@ class BaseVar:
             else:
                 e_color = _debug_config.edge_color_light[:] + [1.0]
 
-            GL.glUseProgram(edges_program)
+            with shaders.edges:
+                material = _materials.Metallic(_color.Color(*e_color))
+                material.set(shaders.edges)
 
-            material = _materials.Metallic(_color.Color(*e_color))
+                shaders.edges.render_mode = 0
 
-            material.set(edges_program)
-
-            pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
-            rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
-            scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
-            render_loc = GL.glGetUniformLocation(edges_program, "renderMode")
-            normal_loc = GL.glGetUniformLocation(edges_program, "normalMode")
-
-            GL.glUniform1i(render_loc, 0)
-
-            self._render_geometry(pos_loc, rot_loc, scale_loc, normal_loc)
-
-            GL.glUseProgram(0)
+                self._render_geometry(shaders.edges)
 
         if _debug_config.draw_normals:
             p1, p2 = self.aabb
@@ -865,168 +858,19 @@ class BaseVar:
             smallest_dimension = min(width, height, depth)
             dynamic_normal_length = smallest_dimension / 10.0
 
-            GL.glUseProgram(edges_program)
+            with shaders.edges:
+                color = _debug_config.normals_color[:] + [1.0]
+                material = _materials.Glowing(_color.Color(*color))
+                material.set(shaders.edges)
 
-            color = _debug_config.normals_color[:] + [1.0]
-            material = _materials.Glowing(_color.Color(*color))
-            material.set(edges_program)
+                shaders.edges.render_mode = 1
+                shaders.edges.normal_length = dynamic_normal_length
 
-            pos_loc = GL.glGetUniformLocation(edges_program, "objectPosition")
-            rot_loc = GL.glGetUniformLocation(edges_program, "objectRotation")
-            scale_loc = GL.glGetUniformLocation(edges_program, "objectScale")
-            render_loc = GL.glGetUniformLocation(edges_program, "renderMode")
-            normal_length_loc = GL.glGetUniformLocation(edges_program, "normalLength")
-            normal_loc = GL.glGetUniformLocation(edges_program, "normalMode")
-
-            GL.glUniform1i(render_loc, 1)
-            GL.glUniform1f(normal_length_loc, dynamic_normal_length)
-
-            self._render_geometry(pos_loc, rot_loc, scale_loc, normal_loc)
-            GL.glUseProgram(0)
+                self._render_geometry(shaders.edges)
 
         if _debug_config.draw_vertices:
-            GL.glUseProgram(vertices_program)
+            with shaders.vertices:
+                shaders.vertices.color = _debug_config.vertices_color  # Red vertices
 
-            pos_loc = GL.glGetUniformLocation(vertices_program, "objectPosition")
-            rot_loc = GL.glGetUniformLocation(vertices_program, "objectRotation")
-            scale_loc = GL.glGetUniformLocation(vertices_program, "objectScale")
-            vertex_color_loc = GL.glGetUniformLocation(vertices_program, "vertexColor")
-
-            GL.glUniform3f(vertex_color_loc, *_debug_config.vertices_color)  # Red vertices
-
-            self._render_geometry(pos_loc, rot_loc, scale_loc)
-
-            GL.glUseProgram(0)
-
-        if self.is_selected:
-            self._render_selected()
-
-    @_check_types.do
-    def _render_aabb(self):
-        """Render the AABB.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        aabb = self.aabb
-
-        x1, y1, z1 = aabb[0]
-        x2, y2, z2 = aabb[1]
-
-        vertices = np.array([
-                [x1, y1, z1],  # 0: bottom-left-front
-                [x2, y1, z1],  # 1: bottom-right-front
-                [x2, y2, z1],  # 2: top-right-front
-                [x1, y2, z1],  # 3: top-left-front
-                [x1, y1, z2],  # 4: bottom-left-back
-                [x2, y1, z2],  # 5: bottom-right-back
-                [x2, y2, z2],  # 6: top-right-back
-                [x1, y2, z2],  # 7: top-left-back
-            ], dtype=np.float32)
-
-        edges = np.array([
-                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
-                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
-                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
-            ], dtype=np.int32)
-
-        @_check_types.do
-        def _render_edges(v, e):
-            """Render the edges.
-
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param v: Value for ``v``.
-            :type v: UNKNOWN
-            :param e: Value for ``e``.
-            :type e: UNKNOWN
-            """
-            e = v[e].reshape(-1, 3)
-            GL.glLineWidth(1.5)
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
-            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
-
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
-        # render edges
-        GL.glColor4f(1.0, 0.2, 0.2, 1.0)
-        _render_edges(vertices, edges)
-
-    @_check_types.do
-    def _render_obb(self):
-        """Render the OBB.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        vertices = self.obb
-
-        faces = np.array([
-                (0, 1, 2, 3),  # front
-                (5, 4, 7, 6),  # back
-                (4, 0, 3, 7),  # left
-                (1, 5, 6, 2),  # right
-                (3, 2, 6, 7),  # top
-                (4, 5, 1, 0),  # bottom
-            ], dtype=np.int32)
-
-        edges = np.array([
-                (0, 1), (1, 2), (2, 3), (3, 0),  # front face
-                (4, 5), (5, 6), (6, 7), (7, 4),  # back face
-                (0, 4), (1, 5), (2, 6), (3, 7),  # connecting edges
-            ], dtype=np.int32)
-
-        @_check_types.do
-        def _render_bb(v, f):
-            """Render the bb.
-
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param v: Value for ``v``.
-            :type v: UNKNOWN
-            :param f: Value for ``f``.
-            :type f: UNKNOWN
-            """
-            vers, normals, count = _utils.compute_face_normals(v, f)
-
-            # Enable vertex arrays
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-            GL.glEnableClientState(GL.GL_NORMAL_ARRAY)
-
-            # Set pointers
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, vers)
-            GL.glNormalPointer(GL.GL_FLOAT, 0, normals)
-
-            # Draw all quads
-            GL.glDrawArrays(GL.GL_QUADS, 0, count)
-
-            # Disable vertex arrays
-            GL.glDisableClientState(GL.GL_NORMAL_ARRAY)
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
-        @_check_types.do
-        def _render_edges(v, e):
-            """Render the edges.
-
-            UNKNOWN details are inferred from the callable name and signature.
-
-            :param v: Value for ``v``.
-            :type v: UNKNOWN
-            :param e: Value for ``e``.
-            :type e: UNKNOWN
-            """
-            e = v[e].reshape(-1, 3)
-            GL.glLineWidth(1.0)
-            GL.glEnableClientState(GL.GL_VERTEX_ARRAY)
-
-            GL.glVertexPointer(3, GL.GL_FLOAT, 0, e)
-            GL.glDrawArrays(GL.GL_LINES, 0, len(e))
-
-            GL.glDisableClientState(GL.GL_VERTEX_ARRAY)
-
-        GL.glColor4f(0.5, 1.0, 0.5, 0.3)
-        _render_bb(vertices.reshape(-1, 3), faces)
-
-        GL.glColor4f(0.5, 1.0, 0.5, 1.0)
-        _render_edges(vertices.reshape(-1, 3), edges)
+                self._render_geometry(shaders.vertices)
 

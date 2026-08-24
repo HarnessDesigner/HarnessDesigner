@@ -13,7 +13,7 @@ nothing to keep in sync between moves the way an explicit
 ``set_transform()`` call used to require.
 """
 
-from typing import Callable
+from typing import Callable, TYPE_CHECKING, Union as _Union
 
 import os
 import time
@@ -29,6 +29,9 @@ from .. import utils as _utils
 from ..geometry import angle as _angle
 from ..geometry import point as _point
 from ..gl import vbo as _vbo_handler
+
+if TYPE_CHECKING:
+    from ..gl.shaders import program as _shader_program
 
 
 # Neither of these comes from a font metric this harness has access to
@@ -768,9 +771,9 @@ class Text:
         vbo, dims, _center_y = self._entry(char)
         return vbo, dims
 
-    def render(self, pos_loc, rot_loc, scale_loc, normal_loc,
+    def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: "_point.Point", angle: "_angle.Angle", scale: "_point.Point",
-               smooth: bool) -> None:
+               smooth: bool | None) -> None:
         """Draw every character in this string as its own shared glyph
         VBO, computing each glyph's own world position/rotation/scale
         fresh from *position*/*angle*/*scale* -- this Text's owner's
@@ -788,9 +791,8 @@ class Text:
         angle the caller's own *angle* came from.
 
         ``smooth`` is passed straight through to every glyph, same as
-        *pos_loc*/*rot_loc*/*scale_loc*/*normal_loc* -- purely forwarded
-        to whichever VBO handler actually owns setting that uniform,
-        same as every other parameter here.
+        *program* -- purely forwarded to whichever VBO handler actually
+        owns setting that uniform, same as every other parameter here.
 
         Every glyph's own world position is expensive to re-derive (a
         Point addition/rotation per glyph, times however many notes are
@@ -839,7 +841,7 @@ class Text:
         glyph_scale = self._cached_glyph_scale
 
         for vbo, world_pos in zip(self._vbos, self._cached_world_positions):
-            vbo.render(pos_loc, rot_loc, scale_loc, normal_loc, world_pos, angle, glyph_scale, smooth)
+            vbo.render(program, world_pos, angle, glyph_scale, smooth)
 
     # ------------------------------------------------------------------
     # VBOHandlerBase-compatible interface -- lets a Text stand in

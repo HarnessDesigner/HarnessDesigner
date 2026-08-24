@@ -29,6 +29,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_base import camera_base as _camera_base
+    from ...gl import shaders as _shaders
 
 
 # Torus opacity while a sibling axis's protractor is active -- "the
@@ -165,12 +166,12 @@ class RotationRing:
         return self.is_active and self.inner.hit_test(mouse_pos, camera)
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program) -> None:
-        self.torus.render(faces_program)
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        self.torus.render(shaders)
 
         if self.is_active:
-            self.inner.render(faces_program, edges_program, vertices_program)
-            self.outer.render(faces_program, edges_program, vertices_program)
+            self.inner.render(shaders)
+            self.outer.render(shaders)
 
     @_check_types.do
     def delete(self, context) -> None:

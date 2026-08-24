@@ -464,7 +464,7 @@ class Housing(_base_schematic.BaseSchematic):
         self._corner_label_local = (corner_local_x, corner_local_z)
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders):
         """Render the housing rectangle body, then swap this object's
         own ``_vbo``/``_material``/``_angle``/``_scale``/``_position``
         for the corner label's (one line at a time) and render again
@@ -480,7 +480,7 @@ class Housing(_base_schematic.BaseSchematic):
         independently by their own ``objects_schematic/cavity.py``'s
         ``Cavity``/``objects_schematic/terminal.py``'s ``Terminal``.
         """
-        super().render(faces_program, edges_program, vertices_program)
+        super().render(shaders)
 
         if not self.is_visible or self._position is None or not self._corner_label_lines:
             return
@@ -518,7 +518,7 @@ class Housing(_base_schematic.BaseSchematic):
             self._vbo = line
             self._position = _point.Point(anchor.x - line.width, anchor.y, anchor.z + z_offset)
 
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
         self._vbo, self._material, self._selected_material, self._angle, self._scale, self._position = (
             real_vbo, real_material, real_selected_material,

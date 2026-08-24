@@ -3,11 +3,11 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
-from OpenGL import GL
 
 from ..shapes import arrow as _arrow
 from ..objects.objects_3d import base_3d as _base_3d
 from ..objects.objects_schematic import base_schematic as _base_schematic
+from ..objects.objects_pegboard import base_pegboard as _base_pegboard
 from ..objects import object_base as _object_base
 from ..geometry import point as _point
 from ..geometry import angle as _angle
@@ -18,76 +18,55 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import ui as _ui
+    from ..gl import shaders as _shaders
 
 
-# Scale factor applied to the object's max dimension to determine arrow length
+# Scale factor applied to the object's max dimension
+# to determine arrow length
 ARROW_LENGTH_SCALE = 0.055
 
-# Scale factor applied to the object's max dimension to determine arrow offset from the object
+# Scale factor applied to the object's max dimension
+# to determine arrow offset from the object
 ARROW_OFFSET_SCALE = 2.0
 
 
 class MoveArrows(_object_base.ObjectBase):
-    """Represent a move arrows in :mod:`harness_designer.drag_handlers.move_arrows`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
 
     @_check_types.do
     def __init__(self, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):
-        """Initialise the :class:`MoveArrows` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`MoveArrows` instance.
 
         :param obj_position: Value for ``obj_position``.
         :type obj_position: :class:`_point.Point`
+
         :param axis: Value for ``axis``.
         :type axis: str
+
         :param mainframe: Main application frame.
         :type mainframe: :class:`_ui.MainFrame`
+
         :param aabb: Value for ``aabb``.
         :type aabb: :class:`np.ndarray`
         """
         _object_base.ObjectBase.__init__(self, mainframe, None)
-        self.objschematic = Arrows2D(self)
+        self.objschematic = ArrowsSchematic(self)
+        self.objpegboard = ArrowsPegboard(self)
         self.obj3d = Arrows3D(self, obj_position, axis, mainframe, aabb)
         self._treeitem = None
         self.mainframe.add_object(self)
 
     @_check_types.do
     def set_treeitem(self, treeitem):
-        """Set the treeitem.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param treeitem: Value for ``treeitem``.
-        :type treeitem: UNKNOWN
-        """
         self._treeitem = treeitem
 
     @_check_types.do
     def get_treeitem(self):
-        """Return the treeitem.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
-        """
         return self._treeitem
 
     @_check_types.do
     def __del__(self):
-        """Execute the del operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-
-        # we need to avoid an error that can occur when the application closes
-        # and the rings have not yet been removed. Deleting the rings after
-        # the application closes tried to update the canvas after it has already
-        # been deleted and this causes a runtime error to occur
         try:
             self.delete()
         except RuntimeError:
@@ -95,126 +74,67 @@ class MoveArrows(_object_base.ObjectBase):
 
     @_check_types.do
     def delete(self):
-        """Execute the delete operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        # print('deleting object from mainframe')
         self.mainframe.remove_object(self)
 
     @_check_types.do
     def close(self):
-        """Execute the close operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :raises NotImplementedError: Raised when the operation cannot be completed.
-        """
         raise NotImplementedError
 
     @_check_types.do
     def set_selected(self, flag):
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param flag: Value for ``flag``.
-        :type flag: UNKNOWN
-        """
         pass
 
     @property
     @_check_types.do
     def is_selected(self) -> bool:
-        """Return the is selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: bool
-        """
         return False
 
     @is_selected.setter
     @_check_types.do
     def is_selected(self, value: bool):
-        """Set the is selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: bool
-        """
         pass
 
 
-class Arrows2D(_base_schematic.BaseSchematic):
-    """Represent an arrows 2D in :mod:`harness_designer.drag_handlers.move_arrows`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
+class ArrowsSchematic(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent):
-        """Initialise the :class:`Arrows2D` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param parent: Parent object.
-        :type parent: UNKNOWN
-        """
-        angle = _angle.Angle()
-        position = _point.Point(0, 0)
-
-        # Purely a dummy 2D presence -- MoveArrows is a 3D-editor-only
-        # gizmo, this has no VBO/rendering role of its own (see
-        # objects_schematic/base_schematic.py's BaseSchematic.__init__: vbo=None keeps it on
-        # the inert legacy-contract branch, same as boot.py/cover.py/etc).
-        super().__init__(parent, None, None, angle, position, None, None)
+        super().__init__(parent, None, None, None,
+                         None, None, None)
 
     @_check_types.do
     def set_selected(self, flag: bool):
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param flag: Value for ``flag``.
-        :type flag: bool
-        """
         pass
 
     @property
     @_check_types.do
     def is_selected(self) -> bool:
-        """Return the is selected.
+        return False
 
-        UNKNOWN details are inferred from the callable name and signature.
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: bool
-        """
+class ArrowsPegboard(_base_pegboard.BasePegboard):
+
+    @_check_types.do
+    def __init__(self, parent):
+        super().__init__(parent, None, None, None,
+                         None, None, None)
+
+    @_check_types.do
+    def set_selected(self, flag: bool):
+        pass
+
+    @property
+    @_check_types.do
+    def is_selected(self) -> bool:
         return False
 
 
 class Arrows3D(_base_3d.Base3D):
-    """Represent an arrows 3D in :mod:`harness_designer.drag_handlers.move_arrows`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
-    """
 
     @_check_types.do
     def __init__(self, parent, obj_position: _point.Point, axis: str,
                  mainframe: "_ui.MainFrame", aabb: np.ndarray):
-        """
-        Create movement arrows for visual feedback during dragging.
 
-        Args:
-            obj_position: The Point instance from the object being dragged
-                          (to bind callback)
-            axis: String - 'x', 'y', or 'z' indicating which axis is locked
-            mainframe: MainFrame reference
-            aabb: The object's axis-aligned bounding box for sizing calculations
-        """
         # Create cyan material
         color = _color.Color(0, 170, 170, 255)
         material = _materials.Glowing(color)
@@ -297,7 +217,6 @@ class Arrows3D(_base_3d.Base3D):
 
     @_check_types.do
     def _compute_aabb(self):
-        """Compute the AABB, clamped during init so floor-lock never fires."""
         _base_3d.Base3D._compute_aabb(self)
 
         if getattr(self, '_floor_guard', False):
@@ -307,54 +226,44 @@ class Arrows3D(_base_3d.Base3D):
 
     @_check_types.do
     def _on_obj_position(self, position: _point.Point):
-        """Update arrow position when the dragged object moves."""
-
         delta = position - self._o_obj_position
         self._o_obj_position = position.copy()
 
         self._position += delta
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
-        """Render bidirectional arrow by drawing the VBO twice with a 180° rotation."""
+    def render(self, shaders: "_shaders.ShaderProgram"):
+        faces_program = shaders.faces
 
-        # Set material
-        GL.glUseProgram(faces_program)
+        with faces_program:
+            self._material.set(faces_program)
 
-        self._material.set(faces_program)
+            # The arrows are a UI element, not part of the scene — suppress the
+            # floor reflection for them, then restore the global config value so
+            # objects rendered after the arrows keep theirs.
+            faces_program.has_reflection = 0
 
-        # Get uniform locations
-        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
+            # A WireStripe drawn earlier in the same frame can leave
+            # stripeClipStart/stripeClipStop set to a real window, which
+            # would otherwise clip this gizmo's own geometry too.
+            faces_program.stripe_clip_start = 0.0
+            faces_program.stripe_clip_stop = 0.0
 
-        # The arrows are a UI element, not part of the scene — suppress the
-        # floor reflection for them, then restore the global config value so
-        # objects rendered after the arrows keep theirs.
-        reflect_loc = GL.glGetUniformLocation(faces_program, "objectHasReflection")
-        if reflect_loc != -1:
-            GL.glUniform1i(reflect_loc, 0)
+            # Render first arrow (positive direction). smooth=None here
+            # (not self.smooth) preserves this gizmo's original behavior
+            # of never touching normalMode at all -- see gl/vbo.py's
+            # render() docstring.
+            self._vbo.render(faces_program,
+                             self._position + self._arrow1_offset, self._angle,
+                             self._scale, None)
 
-        # See rotation_rings.py's identical reset -- a WireStripe drawn
-        # earlier in the same frame can leave stripeClipLength set to a
-        # real length, which would otherwise force this gizmo's Z scale to
-        # 1.0 and clip its geometry too.
-        clip_loc = GL.glGetUniformLocation(faces_program, "stripeClipLength")
-        if clip_loc != -1:
-            GL.glUniform1f(clip_loc, 0.0)
+            # Render second arrow (negative direction - 180° flipped)
+            self._vbo.render(faces_program,
+                             self._position + self._arrow2_offset, self._flip_angle,
+                             self._scale, None)
 
-        # Render first arrow (positive direction)
-        self._vbo.render(
-            pos_loc, rot_loc, scale_loc, None,
-            self._position + self._arrow1_offset, self._angle, self._scale, self.smooth)
-
-        # Render second arrow (negative direction - 180° flipped)
-        self._vbo.render(
-            pos_loc, rot_loc, scale_loc, None,
-            self._position + self._arrow2_offset, self._flip_angle, self._scale, self.smooth)
-
-        if reflect_loc != -1:
             config = self.editor3d.config
-            GL.glUniform1i(reflect_loc, int(
-                config.floor.reflections.enable and
-                config.floor.enable_floor_lock))
+            reflect = int(config.floor.reflections.enable and
+                          config.floor.enable_floor_lock)
+
+            faces_program.has_reflection = reflect

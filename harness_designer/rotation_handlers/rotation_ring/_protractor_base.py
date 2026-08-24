@@ -13,6 +13,7 @@ the shared geometry.
 """
 
 import math
+from typing import TYPE_CHECKING
 
 import build123d
 import numpy as np
@@ -25,6 +26,9 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
 
 
 # One tick (and one numeric label) every 10 degrees.
@@ -157,7 +161,7 @@ class ProtractorRingBase:
             tick.label_position = _point.Point(*[float(v) for v in label_world_pos])
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program) -> None:
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         if not self.is_visible:
             return
 
@@ -167,64 +171,59 @@ class ProtractorRingBase:
         GL.glEnable(GL.GL_BLEND)
         GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-        GL.glUseProgram(faces_program)
-        self.material.set(faces_program)
+        faces_program = shaders.faces
 
-        pos_loc = GL.glGetUniformLocation(faces_program, "objectPosition")
-        rot_loc = GL.glGetUniformLocation(faces_program, "objectRotation")
-        scale_loc = GL.glGetUniformLocation(faces_program, "objectScale")
-        normal_loc = GL.glGetUniformLocation(faces_program, "normalMode")
-
-        band_outer = self.radius * self._BAND_INSET
-        band_inner = band_outer * self._BAND_WIDTH
-
-        # disc_ring's own create_vbo() bakes outer=0.5/inner=0.4/depth=1.0
-        # -- scale X/Y to reach band_outer*2 (diameter), Z to self.depth;
-        # the ring's own inner/outer ratio (0.4/0.5=0.8) is close enough
-        # to _BAND_WIDTH that no per-instance mesh rebuild is needed.
-        self._disc_vbo.render(
-            pos_loc, rot_loc, scale_loc, None,
-            self.center, self._disc_rotation(),
-            _point.Point(band_outer * 2.0, band_outer * 2.0, self.depth), False)
-
-        diffuse_loc = GL.glGetUniformLocation(faces_program, "materialDiffuse")
-        emissive_loc = GL.glGetUniformLocation(faces_program, "materialEmissive")
-        overridden = False
-
-        tick_scale = _point.Point(
-            self.radius * self._TICK_THICKNESS,
-            self.radius * self._TICK_LENGTH,
-            self.radius * self._TICK_THICKNESS)
-
-        for tick in self._ticks:
-            override = self._tick_override_color(tick.degrees)
-
-            if override is not None:
-                GL.glUniform4f(diffuse_loc, override[0], override[1], override[2], 1.0)
-                GL.glUniform4f(emissive_loc, override[0], override[1], override[2], 1.0)
-                overridden = True
-            elif overridden:
-                # A previous tick overrode the shared uniform state --
-                # restore this material's own values before drawing a
-                # normal tick again.
-                self.material.set(faces_program)
-                overridden = False
-
-            self._tick_vbo.render(
-                pos_loc, rot_loc, scale_loc, None,
-                tick.position, tick.rotation, tick_scale, False)
-
-        if overridden:
+        with faces_program:
             self.material.set(faces_program)
 
-        GL.glDisable(GL.GL_BLEND)
+            band_outer = self.radius * self._BAND_INSET
+            band_inner = band_outer * self._BAND_WIDTH
 
-        label_scale = _point.Point(1.0, 1.0, 1.0)
+            # disc_ring's own create_vbo() bakes outer=0.5/inner=0.4/depth=1.0
+            # -- scale X/Y to reach band_outer*2 (diameter), Z to self.depth;
+            # the ring's own inner/outer ratio (0.4/0.5=0.8) is close enough
+            # to _BAND_WIDTH that no per-instance mesh rebuild is needed.
+            self._disc_vbo.render(
+                faces_program,
+                self.center, self._disc_rotation(),
+                _point.Point(band_outer * 2.0, band_outer * 2.0, self.depth), None)
 
-        for tick in self._ticks:
-            tick.label.render(
-                pos_loc, rot_loc, scale_loc, normal_loc,
-                tick.label_position, tick.rotation, label_scale, False)
+            overridden = False
+
+            tick_scale = _point.Point(
+                self.radius * self._TICK_THICKNESS,
+                self.radius * self._TICK_LENGTH,
+                self.radius * self._TICK_THICKNESS)
+
+            for tick in self._ticks:
+                override = self._tick_override_color(tick.degrees)
+
+                if override is not None:
+                    faces_program.material_diffuse = [override[0], override[1], override[2], 1.0]
+                    faces_program.material_emissive = [override[0], override[1], override[2], 1.0]
+                    overridden = True
+                elif overridden:
+                    # A previous tick overrode the shared uniform state --
+                    # restore this material's own values before drawing a
+                    # normal tick again.
+                    self.material.set(faces_program)
+                    overridden = False
+
+                self._tick_vbo.render(
+                    faces_program,
+                    tick.position, tick.rotation, tick_scale, None)
+
+            if overridden:
+                self.material.set(faces_program)
+
+            GL.glDisable(GL.GL_BLEND)
+
+            label_scale = _point.Point(1.0, 1.0, 1.0)
+
+            for tick in self._ticks:
+                tick.label.render(
+                    faces_program,
+                    tick.label_position, tick.rotation, label_scale, False)
 
     @_check_types.do
     def _disc_rotation(self) -> "_angle.Angle":

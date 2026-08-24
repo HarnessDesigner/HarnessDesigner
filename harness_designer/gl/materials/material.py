@@ -1,10 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from OpenGL import GL
+from typing import TYPE_CHECKING, Union as _Union
+
 import numpy as np
 
 from ... import color as _color
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ..shaders import program as _shader_program
 
 
 class GLMaterial:
@@ -96,13 +100,11 @@ class GLMaterial:
         return self._is_opaque
 
     @_check_types.do
-    def set(self, shader_program):
-        """Execute the set operation.
+    def set(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram"]):
+        """Push this material's uniforms onto the given (already-bound) program.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param shader_program: Value for ``shader_program``.
-        :type shader_program: UNKNOWN
+        :param program: The faces or edges program currently bound via
+            ``with program:``.
         """
 
         # if self.is_opaque:
@@ -111,27 +113,23 @@ class GLMaterial:
         # else:
         #     GL.glDepthMask(GL.GL_FALSE)
 
-        ambient = GL.glGetUniformLocation(shader_program, "materialAmbient")
-        diffuse = GL.glGetUniformLocation(shader_program, "materialDiffuse")
-        specular = GL.glGetUniformLocation(shader_program, "materialSpecular")
-        shininess = GL.glGetUniformLocation(shader_program, "materialShininess")
-        emissive = GL.glGetUniformLocation(shader_program, "materialEmissive")
-        emissive_rim_power = GL.glGetUniformLocation(shader_program, "emissiveRimPower")
-        emissive_rim_intensity = GL.glGetUniformLocation(shader_program, "emissiveRimIntensity")
+        program.material_ambient = self.ambient
+        program.material_diffuse = self.diffuse
+        program.material_specular = self.specular
+        program.material_shininess = self.shininess
+        program.material_emissive = self.emissive
 
-        GL.glUniform4fv(ambient, 1, self.ambient)
-        GL.glUniform4fv(diffuse, 1, self.diffuse)
-        GL.glUniform4fv(specular, 1, self.specular)
-        GL.glUniform1f(shininess, self.shininess)
-        GL.glUniform4fv(emissive, 1, self.emissive)
+        if not hasattr(type(program), "emissive_rim_power"):
+            return
 
         if (
             self.emissive[0] != 0.0 or
             self.emissive[1] != 0.0 or
             self.emissive[2] != 0.0
         ):
-            GL.glUniform1f(emissive_rim_power, sum(float(str(v)) for v in self.emissive[:-1].tolist()) * 2)
-            GL.glUniform1f(emissive_rim_intensity, sum(float(str(v)) for v in self.emissive[:-1].tolist()) * 2)
+            rim = sum(float(str(v)) for v in self.emissive[:-1].tolist()) * 2
+            program.emissive_rim_power = rim
+            program.emissive_rim_intensity = rim
         else:
-            GL.glUniform1f(emissive_rim_power, 0.0)
-            GL.glUniform1f(emissive_rim_intensity, 0.0)
+            program.emissive_rim_power = 0.0
+            program.emissive_rim_intensity = 0.0

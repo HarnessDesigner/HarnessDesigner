@@ -44,5 +44,5 @@ class Cavity(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, db_obj.angle_pegboard,
                          db_obj.position_pegboard, None, None)
 
-    def render(self, _, __, ___):
+    def render(self, shaders):
         pass

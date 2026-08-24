@@ -21,6 +21,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from .. import terminal as _terminal
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_3d
@@ -285,11 +286,11 @@ class Terminal(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
-        super().render(faces_program, edges_program, vertices_program)
+    def render(self, shaders: "_shaders.ShaderProgram"):
+        super().render(shaders)
 
     @_check_types.do
-    def render_cavity_overlay(self, faces_program) -> None:
+    def render_cavity_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw this terminal's cavity wire-side/pin-side overlay onto the
         owning housing's mesh.
 
@@ -328,12 +329,12 @@ class Terminal(_base_3d.Base3D):
             color = self._color.rgba_scalar
 
         if self._overlay_wire_surf_idx is not None:
-            housing_3d.render_surface_overlay(faces_program, self._overlay_wire_surf_idx, color)
+            housing_3d.render_surface_overlay(shaders, self._overlay_wire_surf_idx, color)
         elif self._overlay_wire_marker_idx is not None:
-            housing_3d.render_marker_overlay(faces_program, self._overlay_wire_marker_idx, color)
+            housing_3d.render_marker_overlay(shaders, self._overlay_wire_marker_idx, color)
 
         if self._overlay_pin_surf_idx is not None:
-            housing_3d.render_surface_overlay(faces_program, self._overlay_pin_surf_idx, color)
+            housing_3d.render_surface_overlay(shaders, self._overlay_pin_surf_idx, color)
 
     @_check_types.do
     def _update_position(self, position: _point.Point):

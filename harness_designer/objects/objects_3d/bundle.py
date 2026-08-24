@@ -13,6 +13,7 @@ from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
+from ...shapes import sphere as _sphere
 from ... import config as _config
 from ...gl import materials as _materials
 from . import mixins as _mixins
@@ -23,6 +24,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle as _pjt_bundle
     from .. import bundle as _bundle
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_3d
@@ -367,7 +369,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return False
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
+    def render(self, shaders: "_shaders.ShaderProgram"):
         """Render every sub-segment of the bundle's current path.
 
         Geometry is always current by the time this runs --
@@ -383,9 +385,57 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
             self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
-            super().render(faces_program, edges_program, vertices_program)
+            super().render(shaders)
 
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
+
+    @_check_types.do
+    def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw the bundle's AABB/OBB/floor-projection overlays for every
+        sub-segment of its current path, plus each waypoint layout
+        marker's own overlays -- see ``objects_3d/wire.py``'s own
+        ``render_selected_overlay``, which this mirrors exactly.
+        """
+        if not self.is_selected:
+            return
+
+        real_position, real_angle, real_scale = (
+            self._position, self._angle, self._scale)
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
+            super().render_selected_overlay(shaders)
+
+        self._position, self._angle, self._scale = (
+            real_position, real_angle, real_scale)
+
+        self._render_waypoint_layouts(shaders)
+
+    @_check_types.do
+    def _render_waypoint_layouts(self, shaders: "_shaders.ShaderProgram"):
+        """Draw each waypoint layout marker's own AABB/OBB/floor-projection
+        overlays for completeness -- see ``objects_3d/wire.py``'s own
+        ``_render_waypoint_layouts``, which this mirrors exactly (sphere
+        marker, identity rotation, swap-call-restore idiom), just using
+        this bundle's own ``self._diameter`` instead of a wire part's
+        ``od_mm``.
+        """
+        if not self._waypoint_points:
+            return
+
+        real_vbo, real_position, real_angle, real_scale = (
+            self._vbo, self._position, self._angle, self._scale)
+
+        self._vbo = _sphere.create_vbo()
+        self._angle = _angle.Angle()
+        self._scale = _point.Point(self._diameter, self._diameter, self._diameter)
+
+        for point in self._waypoint_points:
+            self._position = point
+            self._render_overlay_group(shaders)
+
+        self._vbo, self._position, self._angle, self._scale = (
+            real_vbo, real_position, real_angle, real_scale)
 
     @staticmethod
     @_check_types.do

@@ -1,5 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+# TODO: this is the intended home for database administration/maintenance
+#  tools. Needed:
+#  - Purge orphaned resource files (images, datasheets, cads, models, etc.)
+#    left behind on disk when a part that referenced them is deleted from
+#    the database.
+#  - Purge orphaned rows from the 3 points tables (points2d, points3d,
+#    points_pegboard) once nothing references them any more.
+
 """Utility helpers for database identifier parsing and file maintenance."""
 
 from typing import TYPE_CHECKING

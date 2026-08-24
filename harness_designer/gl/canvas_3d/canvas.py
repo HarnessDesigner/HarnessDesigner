@@ -8,7 +8,6 @@ import numpy as np
 from PySide6 import QtCore
 
 from . import focal_target as _focal_target
-from .. import shaders as _shaders
 from ... import debug as _debug
 from ... import config as _config
 from . import floor as _floor3d
@@ -139,11 +138,10 @@ class Canvas(_canvas_base.CanvasBase):
         Qt guarantees the context is already current here — no makeCurrent needed."""
 
         try:
-            self._floor_program = _shaders.compile_floor_program()
-            self._floor = _floor3d.Floor(self, self._floor_program)
+            self._floor = _floor3d.Floor(self)
             super().initializeGL()
 
-            self._headlight = _headlight.Headlight(self, self._faces_program)
+            self._headlight = _headlight.Headlight(self)
 
             self._focal_target = _focal_target.FocalPoint(self)
             self.set_focal_target(self.config.focal_target.enable)
@@ -204,7 +202,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     def _render_floor_after(self):
         try:
-            self._floor.render(self._floor_program)
+            self._floor.render(self._shaders)
         except:  # NOQA
             import traceback
             traceback.print_exc()
@@ -216,22 +214,19 @@ class Canvas(_canvas_base.CanvasBase):
         super()._on_draw()
 
         try:
-            self._headlight.set(self._faces_program)
+            self._headlight.set(self._shaders)
         except Exception as err:  # NOQA
             _logger.traceback(err, 'headlight error')
 
         if self._focal_target is not None:
             # No visibility check needed here -- render() already checks
             # is_visible internally (set_focal_target() is the one place
-            # that toggles it) and no-ops if it's off.
-            GL.glUseProgram(self._faces_program)
+            # that toggles it) and no-ops if it's off. render() binds
+            # whichever program(s) it needs itself.
             try:
-                self._focal_target.obj3d.render(
-                    self._faces_program, self._edges_program, self._vertices_program)
+                self._focal_target.obj3d.render(self._shaders)
             except Exception as err:  # NOQA
                 _logger.traceback(err, 'focal target error')
-
-            GL.glUseProgram(0)
 
         if self.axis_overlay is not None:
             self.axis_overlay.set_angle(

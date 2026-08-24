@@ -33,5 +33,5 @@ class Circuit(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, _, __, ___):
+    def render(self, shaders):
         pass

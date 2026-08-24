@@ -58,5 +58,5 @@ class ProjectModel(_base_3d.Base3D):
         pass
 
     @_check_types.do
-    def render(self, faces_program, edges_program, vertices_program):
-        super().render(faces_program, edges_program, vertices_program)
+    def render(self, shaders):
+        super().render(shaders)

@@ -2855,7 +2855,12 @@ class MainFrame(QtWidgets.QMainWindow):
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddWireHandler(self, selected)
+            if selected is not None and selected.is_terminal:
+                self._obj_handler = _handlers.AddWireHandler(self, terminal=selected)
+            elif selected is not None and selected.is_splice:
+                self._obj_handler = _handlers.AddWireHandler(self, splice=selected)
+            else:
+                self._obj_handler = _handlers.AddWireHandler(self)
         elif mode == _toolbar.ID_SPLICE:
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
