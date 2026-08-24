@@ -713,6 +713,276 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         if self._stripe is not None:
             self._stripe.is_visible = value
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", terminal=None, splice=None,
+        extend_wire: tuple = None, add_to_wire: tuple = None, preset_part_id: bytes = None
+    ) -> "_wire.Wire | None":
+        """Entry point for every way a 3D wire-placement session can
+        start -- toolbar mode-select (all args None: free-space) or a
+        context-menu action (exactly one of the others). Resolves the
+        part (and, for a terminal/splice start, checks compatibility) up
+        front, builds the real facade object (or grabs the existing wire
+        being extended/continued -- see add_handlers.editor_3d.wire.Wire's
+        own module docstring for why those two never create a fresh
+        preview), arms its add-session, and arms the canvas's own
+        active_handler_obj pointer -- so callers just need this return
+        value to know whether anything actually started (None means the
+        part-search dialog was cancelled, or an incompatible-part
+        confirmation was declined).
+
+        :param preset_part_id: Skip GetSelection()/the part-search dialog
+            entirely and start a free-space placement with this part --
+            "Add Wire" from an existing wire's own context menu (same
+            part, no re-pick).
+        """
+        canvas = mainframe.editor3d.editor
+
+        if preset_part_id is not None:
+            return cls._start_free_space(mainframe, canvas, preset_part_id)
+
+        from ...handlers import wire_handler as _wire_handler
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from PySide6.QtWidgets import QDialog
+
+        if terminal is not None:
+            compat_pns = _wire_handler._get_terminal_compat_pns(mainframe, terminal)  # NOQA
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.WiresPage, title='Add Wire',
+                table=mainframe.global_db.wires_table, initial_results=compat_pns)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+            return cls._start_from_terminal(mainframe, canvas, terminal, part_id)
+
+        if splice is not None:
+            compat_pns = _wire_handler._get_splice_compat_pns(mainframe, splice)  # NOQA
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.WiresPage, title='Add Wire',
+                table=mainframe.global_db.wires_table, initial_results=compat_pns)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+            return cls._start_from_splice(mainframe, canvas, splice, part_id)
+
+        if extend_wire is not None:
+            wire_obj, end = extend_wire
+            return cls._start_extend_from_wire(mainframe, canvas, wire_obj, end)
+
+        if add_to_wire is not None:
+            wire_obj, end = add_to_wire
+            return cls._start_add_to_wire(mainframe, canvas, wire_obj, end)
+
+        part_id = mainframe.editor_db.editor.wires.GetSelection()
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.WiresPage, title='Add Wire',
+                table=mainframe.global_db.wires_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        return cls._start_free_space(mainframe, canvas, part_id)
+
+    @classmethod
+    @_check_types.do
+    def _start_from_terminal(cls, mainframe, canvas, terminal, part_id: bytes) -> "_wire.Wire | None":
+        """Pin the preview wire's start to *terminal* and enter phase 1
+        directly -- see handlers.wire_handler.AddWireHandler.
+        _start_from_terminal, the original of this method.
+        """
+        from ...handlers import wire_snap as _wire_snap
+        from .. import wire as _wire_facade
+        from PySide6.QtWidgets import QMessageBox
+
+        ptables = mainframe.project.ptables
+        wire_part = mainframe.global_db.wires_table[part_id]
+
+        ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, wire_part)
+        if not ok:
+            block_msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
+            if button == QMessageBox.StandardButton.No:
+                return None
+
+        start_circuit_id = terminal.db_obj.circuit_id
+
+        placeholder_id = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+
+        initial_pos = terminal.db_obj.attach_position3d
+        stop_db = ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        name = f'{wire_part.manufacturer.name} {wire_part.part_number}'
+
+        wire_db = ptables.pjt_wires_table.insert(
+            part_id, name, start_circuit_id,
+            placeholder_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
+
+        facade = _wire_facade.Wire(mainframe, wire_db)
+
+        terminal.add_wire(facade, 'start')
+        ptables.pjt_points3d_table[placeholder_id].delete()
+
+        return cls._arm(canvas, facade, part_id, phase=1, growing_end='stop',
+                        start_circuit_id=start_circuit_id)
+
+    @classmethod
+    @_check_types.do
+    def _start_from_splice(cls, mainframe, canvas, splice, part_id: bytes) -> "_wire.Wire | None":
+        from ...handlers import wire_snap as _wire_snap
+        from .. import wire as _wire_facade
+        from PySide6.QtWidgets import QMessageBox
+
+        ptables = mainframe.project.ptables
+        wire_part = mainframe.global_db.wires_table[part_id]
+
+        ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(splice, wire_part)
+        if not ok:
+            block_msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
+            if button == QMessageBox.StandardButton.No:
+                return None
+
+        start_point_id = splice.db_obj.branch_position3d_id
+        initial_pos = splice.obj3d.wire_position
+
+        stop_db = ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        name = f'{wire_part.manufacturer.name} {wire_part.part_number}'
+
+        wire_db = ptables.pjt_wires_table.insert(
+            part_id, name, None,
+            start_point_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
+
+        facade = _wire_facade.Wire(mainframe, wire_db)
+
+        splice.add_wire(facade)
+        facade.set_sibling(splice, 'start')
+
+        return cls._arm(canvas, facade, part_id, phase=1, growing_end='stop', start_circuit_id=None)
+
+    @classmethod
+    @_check_types.do
+    def _start_extend_from_wire(cls, mainframe, canvas, wire_obj, end: str) -> "_wire.Wire | None":
+        """Extension mode: live-move *wire_obj*'s own dangling *end*
+        directly, never creating a fresh preview -- see
+        add_handlers.editor_3d.wire.Wire's own module docstring.
+        """
+        import numpy as np
+
+        obj3d = wire_obj.obj3d
+        start_np = obj3d.start_position.as_numpy
+        stop_np = obj3d.stop_position.as_numpy
+
+        if end == 'stop':
+            source_endpoint = 'stop'
+            endpoint_np = stop_np
+            seg = stop_np - start_np
+        else:
+            source_endpoint = 'start'
+            endpoint_np = start_np
+            seg = start_np - stop_np
+
+        seg_len = float(np.linalg.norm(seg))
+        if seg_len < 1e-8:
+            return None
+
+        from ...add_handlers.editor_3d import wire as _add_wire
+
+        handler = _add_wire.Wire(
+            canvas, wire_obj, wire_obj.db_obj.part_id, phase=1,
+            start_circuit_id=wire_obj.db_obj.circuit_id,
+            extension_mode=True, source_wire=wire_obj, source_endpoint=source_endpoint)
+
+        handler._extension_dir = seg / seg_len  # NOQA
+        handler._extension_origin = endpoint_np.copy()  # NOQA
+        handler._extension_original_pos = endpoint_np.copy()  # NOQA
+
+        wire_obj.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = wire_obj.obj3d
+
+        return wire_obj
+
+    @classmethod
+    @_check_types.do
+    def _start_add_to_wire(cls, mainframe, canvas, wire_obj, end: str) -> "_wire.Wire | None":
+        """Continue *wire_obj* from its own free *end* -- tags that end
+        as a permanent interior waypoint, then continues the live
+        preview from a fresh point there. Unlike every other entry
+        point, *wire_obj* is a real, already-placed, already-registered
+        wire the whole time (see add_handlers.editor_3d.wire.Wire's own
+        ``_preexisting_wire``/``_growing_end`` handling).
+        """
+        from ...add_handlers.editor_3d import wire as _add_wire
+
+        handler = _add_wire.Wire(
+            canvas, wire_obj, wire_obj.db_obj.part_id, phase=1, growing_end=end,
+            preexisting_wire=True, start_circuit_id=wire_obj.db_obj.circuit_id)
+
+        wire_obj.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = wire_obj.obj3d
+
+        handler._commit_growing_point_as_waypoint()  # NOQA
+
+        return wire_obj
+
+    @classmethod
+    @_check_types.do
+    def _start_free_space(cls, mainframe, canvas, part_id: bytes) -> "_wire.Wire | None":
+        """Build the preview wire eagerly, at a placeholder start point
+        the very first hover call immediately relocates to the cursor --
+        see the module-level docstring on add_handlers.editor_3d.wire.Wire
+        for why this differs from the old deferred-until-first-click
+        behavior.
+        """
+        from .. import wire as _wire_facade
+
+        ptables = mainframe.project.ptables
+        wire_part = mainframe.global_db.wires_table[part_id]
+
+        start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+
+        name = f'{wire_part.manufacturer.name} {wire_part.part_number}'
+
+        wire_db = ptables.pjt_wires_table.insert(
+            part_id, name, None,
+            start_db.db_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
+
+        facade = _wire_facade.Wire(mainframe, wire_db)
+
+        return cls._arm(canvas, facade, part_id, phase=0, growing_end='start', start_circuit_id=None)
+
+    @classmethod
+    @_check_types.do
+    def _arm(cls, canvas, facade, part_id: bytes, phase: int, growing_end: str,
+             start_circuit_id) -> "_wire.Wire":
+        from ...add_handlers.editor_3d import wire as _add_wire
+
+        handler = _add_wire.Wire(
+            canvas, facade, part_id, phase=phase, growing_end=growing_end,
+            start_circuit_id=start_circuit_id)
+
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
     @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
@@ -738,7 +1008,26 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         snapped_target) is only made real here, on release -- mirroring
         exactly what the two-click placement flow's own inline commits do
         (see handlers.wire_snap.commit_snap's own docstring).
+
+        Also forwards to an active add-session (see
+        add_handlers.editor_3d.wire.Wire) -- both this object's own
+        drag and its own placement session use the same
+        self._active_handler slot (never simultaneously), told apart by
+        which kind is actually armed since their call shapes differ
+        (add takes the full event tuple this method itself received;
+        drag takes just a screen delta + position).
         """
+        from ...add_handlers.editor_3d import wire as _add_wire  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_wire.Wire):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)
@@ -1184,19 +1473,21 @@ class WireMenu(QMenu):
     @_check_types.do
     def on_add_wire(self):
         """Start placing another wire of the same part type."""
-        from ... import handlers as _handlers
-
         mainframe = self.selected.mainframe
         part_id = self.selected.db_obj.part_id
 
-        _menu_ops.start_handler(
-            mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
+        @_check_types.do
+        def _do():
+            Wire.start_add(mainframe, preset_part_id=part_id)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_extend_wire(self):
         """Grow this wire's free end in its current direction, with no
-        waypoint/layout added -- see AddWireHandler._start_extend_from_wire."""
-        from ... import handlers as _handlers
+        waypoint/layout added -- see Wire.start_add's own
+        extend_wire branch / add_handlers.editor_3d.wire's module
+        docstring."""
         from ...handlers import wire_handler as _wire_handler
 
         mainframe = self.selected.mainframe
@@ -1207,15 +1498,17 @@ class WireMenu(QMenu):
         if end is None:
             return
 
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireHandler(mainframe, extend_wire=(wire, end)))
+        @_check_types.do
+        def _do():
+            Wire.start_add(mainframe, extend_wire=(wire, end))
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_to_wire(self):
         """Drop a waypoint + layout at this wire's free end and continue
-        it from there, freely -- see AddWireHandler._start_add_to_wire."""
-        from ... import handlers as _handlers
+        it from there, freely -- see Wire.start_add's own add_to_wire
+        branch / add_handlers.editor_3d.wire's module docstring."""
         from ...handlers import wire_handler as _wire_handler
 
         mainframe = self.selected.mainframe
@@ -1226,9 +1519,11 @@ class WireMenu(QMenu):
         if end is None:
             return
 
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireHandler(mainframe, add_to_wire=(wire, end)))
+        @_check_types.do
+        def _do():
+            Wire.start_add(mainframe, add_to_wire=(wire, end))
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_wire_service_loop(self):

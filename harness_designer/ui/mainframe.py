@@ -12,6 +12,7 @@ from .. import config as _config
 from .dialogs import closing_dialog as _closing_dialog
 from . import toolbar as _toolbar
 from .. import gl as _gl
+from ..gl.canvas_base import interaction as _interaction
 from .. import handlers as _handlers
 from .. import app as _app
 from .. import check_types as _check_types
@@ -1235,7 +1236,36 @@ class MainFrame(QtWidgets.QMainWindow):
                 evt.StopPropagation()
                 return
 
+        elif evt.GetKeyCode() == QtCore.Qt.Key.Key_Escape:
+            if self._cancel_active_handler_obj(self.editor3d.editor):
+                evt.StopPropagation()
+                return
+
         evt.Skip()
+
+    @_check_types.do
+    def _cancel_active_handler_obj(self, canvas) -> bool:
+        """Escape for the new object-owned handler system (see
+        objectsvar.base_var.BaseVar.handle_interaction) -- there's no
+        mouse position to give a CANCEL interaction (it's a key event),
+        so this bypasses the normal mouse dispatch and calls straight
+        through, mirroring exactly what _dispatch_to_active_handler does
+        with a real mouse event: forward, then clear the pointer if
+        is_handler_active went False.
+
+        :returns: Whether an active handler was actually cancelled.
+        """
+        target = canvas.active_handler_obj
+        if target is None:
+            return False
+
+        target.handle_interaction(
+            None, None, False, _interaction.MouseInteraction.CANCEL, None)
+
+        if not target.is_handler_active:
+            canvas.active_handler_obj = None
+
+        return True
 
     @_check_types.do
     def _on_key_up_3d(self, evt: _gl.GLKeyEvent) -> None:
@@ -2838,6 +2868,11 @@ class MainFrame(QtWidgets.QMainWindow):
 
             self._obj_handler = None
 
+        # New object-owned handler system (see objects.objects_3d.wire.
+        # Wire.start_add and friends) -- switching tool mode away from an
+        # in-progress session cancels it the same way Escape does.
+        self._cancel_active_handler_obj(self.editor3d.editor)
+
         if mode == _toolbar.ID_SELECT:
             return
         elif mode == _toolbar.ID_CONNECTOR:
@@ -2850,17 +2885,23 @@ class MainFrame(QtWidgets.QMainWindow):
 
             self._obj_handler = _handlers.AddTerminalHandler(self, selected)
         elif mode == _toolbar.ID_WIRE:
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.wire.Wire.start_add) -- no longer
+            # tracked via self._obj_handler at all; the classmethod
+            # arms canvas.active_handler_obj itself.
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
+            from ..objects.objects_3d import wire as _wire_3d
+
             if selected is not None and selected.is_terminal:
-                self._obj_handler = _handlers.AddWireHandler(self, terminal=selected)
+                _wire_3d.Wire.start_add(self, terminal=selected)
             elif selected is not None and selected.is_splice:
-                self._obj_handler = _handlers.AddWireHandler(self, splice=selected)
+                _wire_3d.Wire.start_add(self, splice=selected)
             else:
-                self._obj_handler = _handlers.AddWireHandler(self)
+                _wire_3d.Wire.start_add(self)
         elif mode == _toolbar.ID_SPLICE:
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
