@@ -12,6 +12,7 @@ from ...geometry import line as _line
 from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
 from ... import config as _config
@@ -573,6 +574,41 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         :rtype: UNKNOWN
         """
         return BundleMenu(self.mainframe.editor3d.editor, self)
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Rigid whole-path drag -- overrides Base3D's generic single-
+        position drag outright (a Bundle's own start/every waypoint/stop
+        move together; see drag_handlers.editor_3d.bundle.Bundle's own
+        docstring). No snap concept, unlike Wire -- release just tears
+        down the handler.
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent or
+            not self.can_drag()
+        ):
+            return False
+
+        from ...drag_handlers.editor_3d import bundle as _drag_bundle  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> base_3d)
+
+        self._active_handler = _drag_bundle.Bundle(self.editor3d.editor, self.parent, current_pos)
+        return True
 
     @property
     @_check_types.do

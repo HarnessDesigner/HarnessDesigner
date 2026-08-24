@@ -19,6 +19,7 @@ from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
 from ...shapes import square_outline as _square_outline
 from .. import objectsvar as _objectsvar
+from ...gl.canvas_base import interaction as _interaction
 
 from ... import debug as _debug
 from ... import check_types as _check_types
@@ -303,6 +304,42 @@ class Base3D(_objectsvar.BaseVar):
         self._is_deleted = True
         self.editor3d.Refresh()
 
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Generic single-position drag arming/dispatch -- applies to any
+        3D object type that doesn't need bespoke drag behavior (see
+        drag_handlers.editor_3d.generic.Generic's own docstring for the
+        full list). Object types whose drag isn't a plain translation
+        (Wire, Bundle, WireMarker) override this outright with their own
+        arm/forward logic instead of this generic one.
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
+            clicked_object is self.parent and
+            self.can_drag()
+        ):
+            from ...drag_handlers.editor_3d import generic as _drag_generic  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> this module)
+
+            self._active_handler = _drag_generic.Generic(self.editor3d.editor, self.parent)
+            return True
+
+        return False
+
     @property
     @_check_types.do
     def is_visible(self) -> bool:
@@ -366,7 +403,12 @@ class Base3D(_objectsvar.BaseVar):
         if not self.is_visible:
             return
 
-        if self._vbo is None or self._position is None or self._scale is None or self._angle is None:
+        if (
+            self._vbo is None or
+            self._position is None or
+            self._scale is None or
+            self._angle is None
+        ):
             return
 
         self._render_overlay_group(shaders)
@@ -445,7 +487,12 @@ class Base3D(_objectsvar.BaseVar):
         if not self.is_visible:
             return
 
-        if self._vbo is None or self._position is None or self._angle is None or self._scale is None:
+        if (
+            self._vbo is None or
+            self._position is None or
+            self._angle is None or
+            self._scale is None
+        ):
             return
 
         local_min, local_max = self._vbo.local_aabb
@@ -478,7 +525,12 @@ class Base3D(_objectsvar.BaseVar):
         if not self.is_visible:
             return
 
-        if self._vbo is None or self._position is None or self._angle is None or self._scale is None:
+        if (
+            self._vbo is None or
+            self._position is None or
+            self._angle is None or
+            self._scale is None
+        ):
             return
 
         local_min, local_max = self._vbo.local_aabb
@@ -514,11 +566,13 @@ class Base3D(_objectsvar.BaseVar):
             [sx * half[0], sy * half[1], sz * half[2]]
             for sx in (-1.0, 1.0) for sy in (-1.0, 1.0) for sz in (-1.0, 1.0)
         ], dtype=np.float32)
+
         return local_corners @ angle + position.as_numpy
 
     @_check_types.do
     def _render_debug_box(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
                           angle: "_angle.Angle", scale: _point.Point, color) -> None:
+
         material = _materials.Generic(_color.Color(*color))
         box_vbo = _box.create_vbo()
 
@@ -554,6 +608,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def _render_debug_box_edges(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
                                 angle: "_angle.Angle", scale: _point.Point, color) -> None:
+        
         """Trace the box's real 12 edges (plus a sphere at each of its 8
         corners) on top of the translucent fill -- a thin cylinder run
         corner-to-corner along each edge, using the box's own known
@@ -583,6 +638,7 @@ class Base3D(_objectsvar.BaseVar):
                 start = corners[i]
                 end = corners[j]
                 delta = end - start
+
                 length = float(np.linalg.norm(delta))
                 if length < 1e-6:
                     continue
@@ -613,9 +669,13 @@ class Base3D(_objectsvar.BaseVar):
 
         shift = 0.35
         if luminance < 0.5:
-            r, g, b = (r + (1.0 - r) * shift, g + (1.0 - g) * shift, b + (1.0 - b) * shift)
+            r += (1.0 - r) * shift
+            g += (1.0 - g) * shift
+            b += (1.0 - b) * shift
         else:
-            r, g, b = (r * (1.0 - shift), g * (1.0 - shift), b * (1.0 - shift))
+            r *= 1.0 - shift
+            g *= 1.0 - shift
+            b *= 1.0 - shift
 
         return [r, g, b, min(a + 0.4, 1.0)]
 
@@ -642,7 +702,12 @@ class Base3D(_objectsvar.BaseVar):
         if not self.is_visible:
             return
 
-        if self._vbo is None or self._position is None or self._angle is None or self._scale is None:
+        if (
+            self._vbo is None or
+            self._position is None or
+            self._angle is None or
+            self._scale is None
+        ):
             return
 
         local_min, local_max = self._vbo.local_aabb
@@ -650,12 +715,10 @@ class Base3D(_objectsvar.BaseVar):
         x2, _y2, z2 = local_max
         scale_np = self._scale.as_numpy
 
-        local_bottom = np.array([
-            [x1, local_min[1], z1],  # 0
-            [x2, local_min[1], z1],  # 1
-            [x1, local_min[1], z2],  # 4
-            [x2, local_min[1], z2],  # 5
-        ], dtype=np.float32)
+        local_bottom = np.array([[x1, local_min[1], z1],
+                                 [x2, local_min[1], z1],
+                                 [x1, local_min[1], z2],
+                                 [x2, local_min[1], z2]], dtype=np.float32)
 
         world_bottom = (local_bottom * scale_np) @ self._angle + self._position.as_numpy
 

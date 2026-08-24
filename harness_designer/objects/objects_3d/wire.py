@@ -12,6 +12,7 @@ from ...geometry import angle as _angle
 from ...geometry import line as _line
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
 from ...shapes import sphere as _sphere
@@ -722,6 +723,56 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         :rtype: UNKNOWN
         """
         return WireMenu(self.mainframe.editor3d.editor, self)
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Segment-local wire drag -- overrides Base3D's generic single-
+        position drag outright: what a click on the wire's body actually
+        moves (a free end, a waypoint pair, or nothing draggable at all)
+        is computed by drag_handlers.editor_3d.wire.plan_wire_drag; see
+        that module's own docstring for the full rule. A snap committed
+        mid-drag (drag_handlers.editor_3d.wire.Wire.snapped_kind/
+        snapped_target) is only made real here, on release -- mirroring
+        exactly what the two-click placement flow's own inline commits do
+        (see handlers.wire_snap.commit_snap's own docstring).
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                handler = self._active_handler
+
+                if handler.end is not None and handler.snapped_kind is not None:
+                    from ...handlers import wire_snap as _wire_snap  # NOQA -- avoid a cycle at import time
+                    _wire_snap.commit_snap(
+                        self.mainframe, self.parent, handler.end,
+                        handler.snapped_kind, handler.snapped_target)
+
+                handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent
+        ):
+            return False
+
+        from ...drag_handlers.editor_3d import wire as _drag_wire  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> base_3d)
+
+        plan = _drag_wire.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
+        if plan is None:
+            return False
+
+        self._active_handler = _drag_wire.Wire(self.editor3d.editor, self.parent, plan)
+        return True
 
 
 class WireStripe(_base_3d.Base3D):

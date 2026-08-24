@@ -198,6 +198,7 @@ from ...geometry import angle as _angle
 from ...geometry import line as _line
 from ... import debug as _debug
 from .. import events as _events
+from . import interaction as _interaction
 from ... import check_types as _check_types
 
 
@@ -471,28 +472,21 @@ class CameraBase:
         for key events, which don't carry one) gives the current mouse
         position without needing to cache the last real motion event.
         """
-        # Disabled -- _drag_obj belonged to the old, now-retired mouse-
-        # handler-owned dragging system and no longer exists anywhere
-        # (dragging now goes through DragHandlerBase/RotationHandlerBase,
-        # drag_handler_base.py/rotation_handler_base.py, not yet wired
-        # into any canvas). Revisit this whole method once that new
-        # system is fully in place -- both what it should refresh and
-        # how it locates the active drag will need to change.
-        #
-        # from PySide6.QtGui import QCursor
-        #
-        # local_pos = self.canvas.mapFromGlobal(QCursor.pos())
-        # mouse_pos = _point.Point(float(local_pos.x()), float(local_pos.y()))
-        #
-        # drag_obj = self.canvas._mouse_handler._drag_obj  # NOQA
-        # if drag_obj is not None:
-        #     drag_obj(_point.Point(0.0, 0.0))
-        #     return
-        #
-        # obj_handler = self.canvas.mainframe._obj_handler  # NOQA
-        # if obj_handler is not None:
-        #     obj_handler.hover(mouse_pos)
-        pass
+        target = self.canvas.active_handler_obj
+        if target is None:
+            return
+
+        mouse_handler = self.canvas._mouse_handler  # NOQA
+        if mouse_handler is None:
+            return
+
+        from PySide6.QtGui import QCursor
+
+        local_pos = self.canvas.mapFromGlobal(QCursor.pos())
+        mouse_pos = _point.Point(float(local_pos.x()), float(local_pos.y()))
+
+        mouse_handler._dispatch_to_active_handler(  # NOQA
+            mouse_pos, _interaction.MouseInteraction.MOVE, mouse_handler._is_motion)  # NOQA
 
     @property
     @_check_types.do

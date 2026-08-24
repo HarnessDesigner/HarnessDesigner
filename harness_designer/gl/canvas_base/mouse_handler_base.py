@@ -247,10 +247,19 @@ class MouseHandlerBase:
         True when the event was consumed, in which case the caller must
         return immediately without running its own default behavior for
         this event (including its own ``_send_event`` call).
+
+        *clicked_object* (from :meth:`_pick_object`) is the facade
+        (``ObjectBase``) -- ``handle_interaction``/``is_handler_active``
+        live on the view-level object (``obj.obj3d`` etc., what
+        :attr:`CanvasBase.active_handler_obj` actually stores), so a freshly
+        picked facade is resolved to its view object here via
+        :meth:`_get_view_object` before use; *clicked_object* itself is
+        still forwarded to the handler as-is (the facade), matching what
+        every other picking call site in this module already hands out.
         """
         target = self.canvas.active_handler_obj
-        if target is None:
-            target = clicked_object
+        if target is None and clicked_object is not None:
+            target = self._get_view_object(clicked_object)
 
         if target is None:
             return False
