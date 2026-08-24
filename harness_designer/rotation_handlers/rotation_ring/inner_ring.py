@@ -44,7 +44,7 @@ class InnerRing(ProtractorRingBase):
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, radius: float,
                 depth: float, material, label_size: float,
-                obj_angle: _angle.Angle, context):
+                obj_angle: _angle.Angle, context, camera=None):
 
         self.axis = axis
         self._obj_angle = obj_angle
@@ -57,7 +57,7 @@ class InnerRing(ProtractorRingBase):
         self._drag_total = 0.0
         self._drag_sign = 1.0
 
-        super().__init__(center, radius, depth, material, label_size, context)
+        super().__init__(center, radius, depth, material, label_size, context, camera)
         self.reposition_all(self._disc_rotation())
 
     @_check_types.do

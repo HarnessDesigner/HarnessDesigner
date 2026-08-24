@@ -11,6 +11,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from .. import objectsvar as _objectsvar
 from ...gl import vbo as _vbo
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import text as _text
 from . import chain_edges as _chain_edges
 
@@ -292,3 +293,38 @@ class BasePegboard(_objectsvar.BaseVar):
     def _delete(self):
         self._is_deleted = True
         self.pegboard.Refresh()
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Generic locked-X/Z drag arming/dispatch -- applies to any
+        peg-board anchor that doesn't need bespoke drag behavior (see
+        drag_handlers.editor_pegboard.generic.Generic's own docstring for
+        the full list). Wire/Bundle override this outright with their
+        own segment-drag arm/forward logic instead of this generic one.
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
+            clicked_object is self.parent and
+            self.can_drag()
+        ):
+            from ...drag_handlers.editor_pegboard import generic as _drag_generic  # NOQA -- avoid a cycle at import time
+
+            self._active_handler = _drag_generic.Generic(self.pegboard.editor, self.parent)
+            return True
+
+        return False

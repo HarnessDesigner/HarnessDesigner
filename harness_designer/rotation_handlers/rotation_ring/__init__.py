@@ -58,14 +58,23 @@ class RotationRing:
     :param label_size: Font size for tick numbers.
     """
 
-    _PROTRACTOR_RADIUS_SCALE = 0.82
+    # Inner is the larger (outermost) of the two flat protractor rings,
+    # outer the smaller (innermost) -- "inner"/"outer" names their role
+    # (object-space vs. world-space spin), not their radial order. The
+    # torus -- the always-on, click-to-activate ring -- sits radially
+    # between the two, splitting them, and is the one actually grabbed
+    # to free-rotate once its axis is active (the inner ring is what
+    # that drag rotates, not what you click on to start it).
+    _INNER_RADIUS_SCALE = 0.82
+    _OUTER_RADIUS_SCALE = _INNER_RADIUS_SCALE * 0.92
+    _TORUS_RADIUS_SCALE = (_INNER_RADIUS_SCALE + _OUTER_RADIUS_SCALE) / 2.0
     _PROTRACTOR_DEPTH_SCALE = 0.03
 
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point,
                 obj_angle: _angle.Angle, radius: float,
                 tube_diameter_scale: float, color: "_color.Color",
-                label_size: float, context):
+                label_size: float, context, camera=None):
 
         self.axis = axis
         self.center = center
@@ -81,18 +90,20 @@ class RotationRing:
 
         torus_angle = _rotation_mesh.slot_ring_angle(axis, obj_angle.as_euler_float)
         self.torus = TorusRing(
-            center, torus_angle, radius, tube_diameter_scale, torus_material, context)
+            center, torus_angle, radius * self._TORUS_RADIUS_SCALE,
+            tube_diameter_scale, torus_material, context)
 
-        protractor_radius = radius * self._PROTRACTOR_RADIUS_SCALE
+        inner_radius = radius * self._INNER_RADIUS_SCALE
+        outer_radius = radius * self._OUTER_RADIUS_SCALE
         protractor_depth = radius * self._PROTRACTOR_DEPTH_SCALE
 
         self.inner = InnerRing(
-            axis, center, protractor_radius, protractor_depth,
-            protractor_material, label_size, obj_angle, context)
+            axis, center, inner_radius, protractor_depth,
+            protractor_material, label_size, obj_angle, context, camera)
 
         self.outer = OuterRing(
-            axis, center, protractor_radius * 0.92, protractor_depth,
-            protractor_material, label_size, obj_angle, context)
+            axis, center, outer_radius, protractor_depth,
+            protractor_material, label_size, obj_angle, context, camera)
 
     @_check_types.do
     def on_object_angle_changed(self) -> None:
@@ -114,9 +125,9 @@ class RotationRing:
         just re-derives everything downstream of it.
         """
         self.radius = radius
-        self.torus.radius = radius
-        self.inner.radius = radius * self._PROTRACTOR_RADIUS_SCALE
-        self.outer.radius = radius * self._PROTRACTOR_RADIUS_SCALE * 0.92
+        self.torus.radius = radius * self._TORUS_RADIUS_SCALE
+        self.inner.radius = radius * self._INNER_RADIUS_SCALE
+        self.outer.radius = radius * self._OUTER_RADIUS_SCALE
         self.inner.depth = radius * self._PROTRACTOR_DEPTH_SCALE
         self.outer.depth = radius * self._PROTRACTOR_DEPTH_SCALE
 

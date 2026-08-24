@@ -4,12 +4,19 @@
 :mod:`.inner_ring`/:mod:`.outer_ring`.
 
 Both protractor rings are a flat washer (:mod:`~harness_designer.shapes.disc_ring`)
-with a ring of small radial tick marks (:mod:`~harness_designer.shapes.box`) and a
-:class:`~harness_designer.shapes.text.Text` numeric label at every tick. What
-differs between them (whether the angle tracks the selected object or
-stays fixed, and what a click/hover/drag on the ring actually does) is
-left entirely to the two subclasses -- this class only builds and draws
-the shared geometry.
+with a ring of small radial tick marks (:mod:`~harness_designer.shapes.cylinder`)
+and a :class:`~harness_designer.shapes.text.Text` numeric label at every
+tick. A cylinder needs only one radius/length pair (vs. a box's three
+independent scale components) and, being rotationally symmetric about
+its own length axis, has no front/back face to worry about -- unlike
+the flat text label, which does, and is flipped 180 degrees about the
+tick's own radial axis (see :meth:`ProtractorRingBase._label_rotation`)
+whenever the camera is looking at this ring from its back side, so the
+numbers never render mirrored. What differs between the two protractor
+rings (whether the angle tracks the selected object or stays fixed, and
+what a click/hover/drag on the ring actually does) is left entirely to
+the two subclasses -- this class only builds and draws the shared
+geometry.
 """
 
 import math
@@ -20,7 +27,7 @@ import numpy as np
 from OpenGL import GL
 
 from ...shapes import disc_ring as _disc_ring
-from ...shapes import box as _box
+from ...shapes import cylinder as _cylinder
 from ...shapes import text as _text
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -29,6 +36,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl import shaders as _shaders
+    from ...gl.canvas_base import camera_base as _camera_base
 
 
 # One tick (and one numeric label) every 10 degrees.
@@ -73,7 +81,9 @@ class _Tick:
     (the outer ring, billboarding its labels).
     """
 
-    __slots__ = ('degrees', 'local_theta', 'position', 'rotation', 'label', 'label_position')
+    __slots__ = (
+        'degrees', 'local_theta', 'position', 'rotation', 'mesh_rotation',
+        'flipped_rotation', 'normal', 'label', 'label_position')
 
     def __init__(self, degrees: float, local_theta: float,
                 position: _point.Point, rotation: _angle.Angle, label: "_text.Text"):
@@ -81,6 +91,9 @@ class _Tick:
         self.local_theta = local_theta
         self.position = position
         self.rotation = rotation
+        self.mesh_rotation = rotation
+        self.flipped_rotation = rotation
+        self.normal = np.array([0.0, 0.0, 1.0], dtype=np.float32)
         self.label = label
         self.label_position = position
 
@@ -100,21 +113,23 @@ class ProtractorRingBase:
     _BAND_INSET = 0.85  # washer outer radius as a fraction of the tick radius
     _BAND_WIDTH = 0.9   # washer inner radius as a fraction of its own outer radius
     _TICK_LENGTH = 0.06  # tick length, as a fraction of radius
-    _TICK_THICKNESS = 0.006  # tick width/depth, as a fraction of radius
+    _TICK_DIAMETER = 0.006  # tick diameter, as a fraction of radius
     _LABEL_RADIUS_SCALE = 1.12  # label distance from center, as a fraction of radius
 
     @_check_types.do
     def __init__(self, center: _point.Point, radius: float, depth: float,
-                material: _materials.GLMaterial, label_size: float, context):
+                material: _materials.GLMaterial, label_size: float, context,
+                camera: "_camera_base.CameraBase" = None):
 
         self.center = center
         self.radius = radius
         self.depth = depth
         self.material = material
         self.is_visible = False
+        self._camera = camera
 
         self._disc_vbo = _disc_ring.create_vbo()
-        self._tick_vbo = _box.create_vbo()
+        self._tick_vbo = _cylinder.create_vbo()
 
         self._ticks: list[_Tick] = []
 
@@ -153,6 +168,21 @@ class ProtractorRingBase:
 
             matrix = np.column_stack([tangential_world, radial_world, normal_world])
             tick.rotation = _angle.Angle.from_matrix(matrix)
+            tick.normal = normal_world
+
+            # Cylinder tick: rotationally symmetric about its own length
+            # axis, so it only needs that axis (+Z in the unit mesh, see
+            # shapes/cylinder.py) pointed radially outward -- no in-plane
+            # orientation to get right the way the label needs.
+            tick.mesh_rotation = _angle.Angle.from_direction(radial_world)
+
+            # Label, viewed from this ring's back side: negating both the
+            # tangential and normal columns (keeping radial fixed) is
+            # exactly a 180-degree rotation about the radial axis -- the
+            # numbers read left-to-right correctly from that side too,
+            # instead of mirrored.
+            flipped_matrix = np.column_stack([-tangential_world, radial_world, -normal_world])
+            tick.flipped_rotation = _angle.Angle.from_matrix(flipped_matrix)
 
             label_world_pos = np.array(
                 [float(self.center.x), float(self.center.y), float(self.center.z)],
@@ -190,10 +220,12 @@ class ProtractorRingBase:
 
             overridden = False
 
+            # cylinder's own unit mesh (shapes/cylinder.py) uses
+            # scale.x/scale.y as diameter and scale.z as length -- see
+            # e.g. Base3D._render_debug_box_edges' own cylinder_scale.
+            tick_diameter = self.radius * self._TICK_DIAMETER
             tick_scale = _point.Point(
-                self.radius * self._TICK_THICKNESS,
-                self.radius * self._TICK_LENGTH,
-                self.radius * self._TICK_THICKNESS)
+                tick_diameter, tick_diameter, self.radius * self._TICK_LENGTH)
 
             for tick in self._ticks:
                 override = self._tick_override_color(tick.degrees)
@@ -211,7 +243,7 @@ class ProtractorRingBase:
 
                 self._tick_vbo.render(
                     faces_program,
-                    tick.position, tick.rotation, tick_scale, None)
+                    tick.position, tick.mesh_rotation, tick_scale, True)
 
             if overridden:
                 self.material.set(faces_program)
@@ -223,7 +255,27 @@ class ProtractorRingBase:
             for tick in self._ticks:
                 tick.label.render(
                     faces_program,
-                    tick.label_position, tick.rotation, label_scale, False)
+                    tick.label_position, self._label_rotation(tick), label_scale, False)
+
+    @_check_types.do
+    def _label_rotation(self, tick: _Tick) -> "_angle.Angle":
+        """Return whichever of *tick*'s two precomputed label
+        orientations currently reads correctly -- ``rotation`` from the
+        front, ``flipped_rotation`` (180 degrees about the radial axis)
+        from the back. No camera means always front-facing (never flip)
+        rather than guessing.
+        """
+        if self._camera is None:
+            return tick.rotation
+
+        to_camera = self._camera.position.as_numpy - np.array(
+            [float(tick.position.x), float(tick.position.y), float(tick.position.z)],
+            dtype=np.float32)
+
+        if float(np.dot(tick.normal, to_camera)) < 0.0:
+            return tick.flipped_rotation
+
+        return tick.rotation
 
     @_check_types.do
     def _disc_rotation(self) -> "_angle.Angle":

@@ -254,7 +254,7 @@ class Rings3D(_base_3d.Base3D):
                     axis, obj3d.position, obj_angle, self._radius,
                     float(Config.rotation_rings.tube_diameter_scale),
                     self._colors[axis], self._radius * LABEL_SIZE_SCALE,
-                    mainframe.editor3d.context)
+                    mainframe.editor3d.context, mainframe.editor3d.camera)
                 for axis in self._axes
             }
 
@@ -507,6 +507,20 @@ class Rings3D(_base_3d.Base3D):
     @_check_types.do
     def active_axis(self) -> str | None:
         return self._active_axis
+
+    @property
+    @_check_types.do
+    def is_inner_dragging(self) -> bool:
+        """Whether the active axis's inner (free-rotation) band currently
+        has a drag in progress -- lets a caller distinguish "advance the
+        free-rotation drag" (:meth:`update_inner_drag`) from "just update
+        the outer ring's nearest-tick hover" (:meth:`update_outer_hover`)
+        on the same mouse-move event.
+        """
+        if self._active_axis is None:
+            return False
+
+        return self._rings[self._active_axis].inner.is_dragging
 
     @_check_types.do
     def begin_inner_drag(self, mouse_pos: _point.Point, camera) -> bool:

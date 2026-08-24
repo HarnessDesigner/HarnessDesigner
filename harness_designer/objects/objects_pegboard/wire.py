@@ -10,6 +10,7 @@ from . import chain_edges as _chain_edges
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ... import utils as _utils
 from ... import check_types as _check_types
@@ -364,6 +365,49 @@ class Wire(_base_pegboard.BasePegboard):
         see ``chain_edges.touching_edges``.
         """
         return _chain_edges.touching_edges(self.db_obj, point_pegboard_id)
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Segment drag -- overrides BasePegboard's generic single-
+        position drag outright: a click on the wire's rendered strand
+        (between two chain nodes) drags that segment's two bounding
+        points together, rigidly, budget-clamped (see
+        drag_handlers.editor_pegboard.wire's own docstring). Waypoints
+        and ends are real anchor objects with their own
+        handle_interaction (BasePegboard's generic default), never
+        reached through this wire object at all.
+        """
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent
+        ):
+            return False
+
+        from ...drag_handlers.editor_pegboard import wire as _drag_wire  # NOQA -- avoid a cycle at import time
+
+        canvas = self.pegboard.editor
+        world_pos = canvas.camera.screen_to_world(current_pos)
+        plan = _drag_wire.plan_segment_drag(self.parent.mainframe.project, self.db_obj, world_pos)
+        if plan is None:
+            return False
+
+        self._active_handler = _drag_wire.Wire(canvas, self.parent, current_pos)
+        return True
 
     @property
     @_check_types.do

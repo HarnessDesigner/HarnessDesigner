@@ -309,13 +309,24 @@ class Base3D(_objectsvar.BaseVar):
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: "_interaction.MouseInteraction", clicked_object
     ) -> bool:
-        """Generic single-position drag arming/dispatch -- applies to any
-        3D object type that doesn't need bespoke drag behavior (see
-        drag_handlers.editor_3d.generic.Generic's own docstring for the
-        full list). Object types whose drag isn't a plain translation
-        (Wire, Bundle, WireMarker) override this outright with their own
-        arm/forward logic instead of this generic one.
+        """Generic single-position drag arming/dispatch, plus rotation-
+        gizmo arming/dispatch (see rotation_handlers.rotation_rings.
+        RotationRings) -- applies to any 3D object type that doesn't need
+        bespoke drag behavior (see drag_handlers.editor_3d.generic.
+        Generic's own docstring for the full list). Object types whose
+        drag isn't a plain translation (Wire, Bundle, WireMarker) override
+        this outright with their own drag arm/forward logic instead of
+        this generic one -- and get no rotation support at all as a
+        result, which is correct: none of the three has an independently
+        user-set orientation (a wire/bundle's shape comes from its path,
+        a marker's from the wire it rides), so there's nothing meaningful
+        for a rotation gizmo to adjust.
         """
+        from ...rotation_handlers import rotation_rings as _rotation_rings
+
+        if isinstance(self._active_handler, _rotation_rings.RotationRings):
+            return self._handle_rotation_interaction(current_pos, interaction_type, clicked_object)
+
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)
@@ -329,6 +340,15 @@ class Base3D(_objectsvar.BaseVar):
             return False
 
         if (
+            interaction_type is _interaction.MouseInteraction.RIGHT_DOWN and
+            clicked_object is self.parent and
+            self.mainframe.get_selected() is self.parent and
+            self.can_rotate()
+        ):
+            self._active_handler = _rotation_rings.RotationRings(self.editor3d.editor, self.parent)
+            return True
+
+        if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
             self.can_drag()
@@ -337,6 +357,60 @@ class Base3D(_objectsvar.BaseVar):
 
             self._active_handler = _drag_generic.Generic(self.editor3d.editor, self.parent)
             return True
+
+        return False
+
+    @_check_types.do
+    def _handle_rotation_interaction(
+        self, current_pos: _point.Point, interaction_type: "_interaction.MouseInteraction",
+        clicked_object
+    ) -> bool:
+        """Forward one mouse event to the already-armed rotation gizmo
+        (:attr:`_active_handler`, a RotationRings) -- see that class's
+        own docstring for the full torus-pick -> protractor-activate ->
+        inner-drag/outer-snap flow this drives.
+
+        Right-clicking again while active toggles the gizmo off; clicking
+        somewhere that hits neither a torus ring nor (while an axis is
+        active) the inner/outer protractor closes the gizmo too, but
+        leaves the event unconsumed so normal selection handling still
+        runs for that click.
+        """
+        rings = self._active_handler
+        camera = self.editor3d.editor.camera
+
+        if interaction_type is _interaction.MouseInteraction.RIGHT_DOWN:
+            rings.delete()
+            self._active_handler = None
+            return True
+
+        if interaction_type is _interaction.MouseInteraction.MOVE:
+            if rings.obj3d.is_inner_dragging:
+                rings.obj3d.update_inner_drag(current_pos)
+            elif rings.obj3d.active_axis is not None:
+                rings.obj3d.update_outer_hover(current_pos, camera)
+            return True
+
+        if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+            rings.obj3d.end_inner_drag()
+            return True
+
+        if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
+            if rings.obj3d.active_axis is not None:
+                if rings.obj3d.begin_inner_drag(current_pos, camera):
+                    return True
+
+                rings.obj3d.click_outer_snap()
+                return True
+
+            axis = rings.obj3d.pick(current_pos, camera)
+            if axis is not None:
+                rings.obj3d.activate(axis)
+                return True
+
+            rings.delete()
+            self._active_handler = None
+            return False
 
         return False
 

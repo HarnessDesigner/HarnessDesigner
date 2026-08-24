@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ...gl.canvas_3d import wire_marker_arrow as _wire_marker_arrow
+from .. import wire_marker_arrow as _wire_marker_arrow
 from ...geometry import point as _point
 from .. import editor_3d as _editor_3d
 from ... import debug as _debug
