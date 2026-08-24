@@ -396,6 +396,15 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         self._objects = []
         self._ref_count = 0
 
+        # The view object (obj.obj3d / .objschematic / .objpegboard)
+        # currently armed with an add/drag/rotation handler on THIS canvas
+        # -- see MouseHandlerBase's dispatch, which routes every mouse
+        # event here first when set. Sandboxed per canvas by construction:
+        # each of the 3 canvases has its own CanvasBase instance and
+        # therefore its own independent pointer, so an armed handler in one
+        # view is untouched by mouse activity in another.
+        self._active_handler_obj = None
+
         self._event_filter = CanvasEventFilter(self)
 
         if size is not None:
@@ -469,6 +478,25 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         :rtype: UNKNOWN
         """
         return self._selected
+
+    @property
+    @_check_types.do
+    def active_handler_obj(self):
+        """The view object currently armed with an add/drag/rotation
+        handler on this canvas, or ``None`` if nothing is armed.
+
+        Set by a view object's own ``handle_interaction`` override the
+        moment it decides to arm one (see ``objectsvar.base_var.BaseVar.
+        handle_interaction``); cleared by ``MouseHandlerBase`` once that
+        same object's ``is_handler_active`` goes False after a dispatched
+        call.
+        """
+        return self._active_handler_obj
+
+    @active_handler_obj.setter
+    @_check_types.do
+    def active_handler_obj(self, value):
+        self._active_handler_obj = value
 
     @_check_types.do
     def add_object(self, obj):

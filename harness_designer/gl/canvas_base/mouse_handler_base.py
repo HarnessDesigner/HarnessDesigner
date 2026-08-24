@@ -2,21 +2,18 @@
 
 """Editor-agnostic mouse dispatch.
 
-This module knows nothing about ``CanvasBase._drag_handler`` /
-``CanvasBase._rotation_handler`` and never calls them directly. Those
-handlers (see ``drag_handler_base.py`` / ``rotation_handler_base.py``)
-instead register themselves as listeners on the same GL Qt signals this
-module already emits via :meth:`MouseHandlerBase._send_event`
-(``gl_left_down`` / ``gl_mouse_move`` / ``gl_left_up`` /
-``gl_right_down`` / ``gl_capture_lost``) -- exactly the same pattern
-``ui.mainframe.MainFrame`` already uses for its own ``_obj_handler``
-(e.g. an in-progress ``AddWireHandler`` two-click placement). When a
-handler takes authority over an event it calls ``evt.StopPropagation()``,
-which every default-behavior call site below is already gated on via
-``event.ShouldPropagate()`` (returned by ``_send_event``) -- so a drag
-or rotation in progress transparently suppresses this module's own
-camera-pan / object-selection logic without this module needing to ask
-about it.
+Every add/drag/rotation handler lives directly on a view object instance
+(``obj.obj3d`` / ``obj.objschematic`` / ``obj.objpegboard`` -- see
+``objectsvar.base_var.BaseVar.handle_interaction``), not as a separate
+listener object reacting to Qt signals. This module tracks, per canvas,
+which view object (if any) is currently armed -- ``CanvasBase.
+active_handler_obj`` -- and routes every relevant mouse event there first
+via :meth:`MouseHandlerBase._dispatch_to_active_handler`, called at the top
+of each button/motion handler below before any of that handler's own
+default click/drag/selection behavior runs. A `True` return means the
+event was consumed and this module's own default logic for that event is
+skipped entirely; `False` (nothing armed, and the freshly picked object
+declined to arm one) falls through unchanged to the existing behavior.
 """
 
 import math
@@ -28,6 +25,7 @@ from .. import object_picker as _object_picker
 from ...geometry import point as _point
 from ... import config as _config
 from .. import events as _events
+from . import interaction as _interaction
 from ...objects import housing as _housing
 from ... import check_types as _check_types
 
@@ -108,6 +106,13 @@ class MouseHandlerBase:
         self._active_cavity_housing = None
 
         self._gl_mouse_event: _events.GLEvent | _events.GLObjectEvent | None = None
+
+        # Last position handed to an active/newly-armed handler via
+        # _dispatch_to_active_handler -- independent of _mouse_pos (which
+        # is cleared on button-up and serves the older click/drag-distance
+        # bookkeeping below), so a handler always gets a real previous
+        # position even across a plain hover with no button held.
+        self._last_dispatch_pos: _point.Point | None = None
 
     # ------------------------------------------------------------------
     # Qt event filter dispatcher
@@ -227,6 +232,44 @@ class MouseHandlerBase:
         return _object_picker.find_object(
             mouse_pos, objects, self.canvas.camera,
             self._get_view_object, current_selection=current_selection)
+
+    @_check_types.do
+    def _dispatch_to_active_handler(
+        self, mouse_pos: _point.Point, interaction_type: _interaction.MouseInteraction,
+        had_motion: bool, clicked_object=None,
+    ) -> bool:
+        """Route one mouse event to whatever's armed on this canvas, or to
+        a freshly picked object so it gets a chance to arm.
+
+        Called first, before any of this handler's own default click/drag/
+        selection logic -- see ``objectsvar.base_var.BaseVar.
+        handle_interaction`` for the object side of this contract. Returns
+        True when the event was consumed, in which case the caller must
+        return immediately without running its own default behavior for
+        this event (including its own ``_send_event`` call).
+        """
+        target = self.canvas.active_handler_obj
+        if target is None:
+            target = clicked_object
+
+        if target is None:
+            return False
+
+        last_pos = self._last_dispatch_pos
+        self._last_dispatch_pos = mouse_pos
+
+        if not target.handle_interaction(
+            last_pos, mouse_pos, had_motion, interaction_type, clicked_object
+        ):
+            return False
+
+        if self.canvas.active_handler_obj is not target:
+            self.canvas.active_handler_obj = target
+
+        if not target.is_handler_active:
+            self.canvas.active_handler_obj = None
+
+        return True
 
     @_check_types.do
     def _process_mouse(self, code):
@@ -452,6 +495,13 @@ class MouseHandlerBase:
         self._mouse_pos = mouse_pos
         self._is_motion = False
 
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.LEFT_DOWN, False, clicked_object
+        ):
+            self.canvas.grabMouse()
+            return
+
         event = _events.GLEvent(_events.EVT_GL_LEFT_DOWN)
         if self._send_event(event, evt):
             return
@@ -465,6 +515,16 @@ class MouseHandlerBase:
         """
 
         refresh = False
+
+        mouse_pos = _qt_pos(evt)
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.LEFT_UP, self._is_motion, clicked_object
+        ):
+            self.canvas.releaseMouse()
+            self._mouse_pos = None
+            self._is_motion = False
+            return
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_UP)
 
@@ -590,6 +650,14 @@ class MouseHandlerBase:
 
         refresh = False
 
+        mouse_pos = _qt_pos(evt)
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.MIDDLE_UP, self._is_motion, clicked_object
+        ):
+            self.canvas.releaseMouse()
+            return
+
         event = _events.GLEvent(_events.EVT_GL_MIDDLE_UP)
         if self._send_event(event, evt):
             if not self._is_motion:
@@ -616,6 +684,15 @@ class MouseHandlerBase:
         """
 
         self._is_motion = False
+
+        mouse_pos = _qt_pos(evt)
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.MIDDLE_DOWN, False, clicked_object
+        ):
+            self.canvas.grabMouse()
+            self._mouse_pos = mouse_pos
+            return
 
         event = _events.GLEvent(_events.EVT_GL_MIDDLE_DOWN)
         self._send_event(event, evt)
@@ -652,6 +729,14 @@ class MouseHandlerBase:
         """
 
         refresh = False
+
+        mouse_pos = _qt_pos(evt)
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.RIGHT_UP, self._is_motion, clicked_object
+        ):
+            self.canvas.releaseMouse()
+            return
 
         event = _events.GLEvent(_events.EVT_GL_RIGHT_UP)
         if self._send_event(event, evt):
@@ -706,16 +791,25 @@ class MouseHandlerBase:
         Handle the right down event.
 
         Entering angle mode for the selected object (if this editor's
-        rotation handler decides to) is driven entirely by the handler's
-        own ``gl_right_down`` connection -- see ``rotation_handler_base.py``.
-        This method's only remaining job is emitting the event and
-        establishing the mouse grab.
+        rotation handler decides to) is driven entirely by the picked
+        object's own ``handle_interaction`` override -- see
+        ``objectsvar.base_var.BaseVar.handle_interaction`` and
+        ``_dispatch_to_active_handler``. This method's only remaining job
+        is emitting the event and establishing the mouse grab when nothing
+        claims the interaction.
         """
 
         self._is_motion = False
 
         mouse_pos = _qt_pos(evt)
         self._mouse_pos = mouse_pos
+
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.RIGHT_DOWN, False, clicked_object
+        ):
+            self.canvas.grabMouse()
+            return
 
         event = _events.GLEvent(_events.EVT_GL_RIGHT_DOWN)
         self._send_event(event, evt)
@@ -829,16 +923,21 @@ class MouseHandlerBase:
         """
         Handle the mouse motion event.
 
-        Per-button behavior below is always the *default*: any drag or
-        rotation handler that wants authority over this motion claims it
-        via ``evt.StopPropagation()`` from its own ``gl_mouse_move``
-        connection during the ``_send_event`` call just below, which
-        this method is already gated on.
+        Per-button behavior below is always the *default*: whatever's
+        armed on ``canvas.active_handler_obj`` gets first refusal via
+        ``_dispatch_to_active_handler`` -- no picking is done here (unlike
+        the click-type handlers) since this fires on every pixel of
+        movement and an unarmed hover never arms anything new on its own.
         """
 
         refresh = False
 
         mouse_pos = _qt_pos(evt)
+
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.MOVE, self._is_motion
+        ):
+            return
 
         event = _events.GLEvent(_events.EVT_GL_MOUSE_MOVE)
         if not self._send_event(event, evt):

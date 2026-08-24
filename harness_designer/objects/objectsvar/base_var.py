@@ -11,6 +11,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from ... import utils as _utils
 from ...gl import vbo as _vbo_base
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import text as _text
 from ... import check_types as _check_types
 
@@ -763,6 +764,59 @@ class BaseVar:
         """
         if self._angle is not None:
             setattr(self._angle, axis, value)
+
+    # ------------------------------------------------------------------
+    # Add/drag/rotation dispatch entry point
+    # ------------------------------------------------------------------
+
+    _active_handler = None
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction, clicked_object
+    ) -> bool:
+        """Entry point ``MouseHandlerBase`` calls on whichever view object
+        is either already armed (``canvas.active_handler_obj``) or was just
+        freshly picked, for every mouse event on this object's own canvas.
+
+        Default: always ``False`` -- no handler applies. Every view class
+        that supports being dragged/rotated/added overrides this outright
+        (not by overriding some smaller decision hook) to decide, given
+        *interaction_type*/*clicked_object*, whether to construct and arm
+        its own handler on :attr:`_active_handler`, then forward the event
+        to it. Where the same behavior genuinely applies to several object
+        types in one view (e.g. plain single-position dragging), that
+        shared implementation belongs on that view's own base class
+        (``Base3D``/``BaseSchematic``/``BasePegboard``) instead of being
+        repeated per type -- only object types needing bespoke handling
+        (e.g. Wire's path-constrained drag) override it again on top of
+        that.
+
+        Callers never need to know which kind of handler (add/drag/
+        rotation) is active, or whether one is active at all here versus
+        about to become active on this exact call -- add/drag/rotation
+        handlers all share this same call signature, so this method just
+        forwards to whatever :attr:`_active_handler` turns out to be.
+
+        :returns: True if this call was consumed by a handler (armed just
+            now or already active) -- the caller stops further default
+            processing for this event. False otherwise.
+        """
+        return False
+
+    @property
+    @_check_types.do
+    def is_handler_active(self) -> bool:
+        """Whether this view object still has a live handler after the
+        last :meth:`handle_interaction` call returned True.
+
+        Checked by ``MouseHandlerBase`` immediately after a True return, to
+        decide whether to clear ``canvas.active_handler_obj`` back to
+        ``None`` (handler finished/cancelled itself during that same call)
+        or leave it pointing here for the next event.
+        """
+        return self._active_handler is not None
 
     @_check_types.do
     def _render_geometry(self, program: Union["_shader_program.FacesProgram",
