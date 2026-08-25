@@ -14,7 +14,9 @@ from . import menu_ops as _menu_ops
 from ...shapes import cylinder as _cylinder
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
+from ... import color as _color
 from ... import utils as _utils
 from ... import check_types as _check_types
 
@@ -22,6 +24,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_splice as _pjt_splice
     from .. import splice as _splice
+    from ... import ui as _ui
+    from .. import wire as _wire_facade
 
 
 Config = _config.Config.editor_3d
@@ -138,6 +142,113 @@ class Splice(_base_3d.Base3D):
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", wire: "_wire_facade.Wire | None" = None
+    ) -> "_splice.Splice | None":
+        """Wire-snapping splice placement, ported from
+        handlers.splice_handler.AddSpliceHandler. Always interactive --
+        unlike Terminal's cavity-given Mode 1, there is no "everything
+        already known" synchronous case here, since a splice always has
+        to be snapped to a wire's exact position/orientation, either by
+        the user's own mouse or (for the context-menu path) resolved
+        against *wire*'s current geometry at commit time.
+
+        A placeholder preview is armed immediately either way -- when
+        *wire* is given and AWG-compatible it's replaced right away with
+        a real one locked to that wire (matching AddSpliceHandler's own
+        "immediately lock to it" __init__ behavior for the context-menu
+        case); otherwise it stays an invisible placeholder until the
+        first hover over a compatible wire recreates it (see
+        add_handlers.editor_3d.splice.Splice._recreate_preview).
+        """
+        from ...handlers import splice_handler as _splice_handler
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from ...add_handlers.editor_3d import splice as _add_splice
+        from .. import splice as _splice_facade
+        from PySide6.QtWidgets import QDialog
+
+        canvas = mainframe.editor3d.editor
+
+        part_id = mainframe.editor_db.editor.splices.GetSelection()
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.SplicesPage, title='Add Splice',
+                table=mainframe.global_db.splices_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        ptables = mainframe.project.ptables
+        part = ptables.global_db.splices_table[part_id]
+
+        preview_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.preview_color))
+        compat_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.wire_highlight))
+
+        for w in mainframe.project.wires:
+            if _splice_handler._wire_fits(part, w):  # NOQA
+                w.identify(compat_material)
+
+        # Degenerate but non-zero-length placeholder segment -- Splice's
+        # own angle is only ever computed once, in __init__ (from p1/p2),
+        # so a real (if meaningless) start/stop pair is needed even before
+        # any wire has been picked; it's hidden until a real one replaces
+        # it via hover.
+        half = float(part.length) / 2.0
+        start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, -half)
+        stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, half)
+        branch_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+
+        name = f'{part.manufacturer.name} {part.part_number}'
+
+        db_obj = ptables.pjt_splices_table.insert(
+            part_id, name, start_db.db_id, stop_db.db_id, branch_db.db_id, None, None)
+
+        facade = _splice_facade.Splice(mainframe, db_obj)
+        facade.identify(preview_material)
+        facade.obj3d.is_visible = False
+
+        handler = _add_splice.Splice(
+            canvas, facade, part_id, part, preview_material, compat_material)
+
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        if wire is not None and _splice_handler._wire_fits(part, wire):  # NOQA
+            handler._recreate_preview(wire)  # NOQA
+            facade = handler.target
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to Base3D's own generic drag/rotation handling otherwise.
+        """
+        from ...add_handlers.editor_3d import splice as _add_splice  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_splice.Splice):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @property
     @_check_types.do
     def smooth(self) -> bool:
@@ -246,14 +357,17 @@ class SpliceMenu(QMenu):
         splice's own branch point -- the part-search dialog (pre-filtered
         to wires whose diameter fits) opens immediately, straight into
         phase 1, same as a terminal's/cavity's own pinned Add Wire."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe
         splice_obj = self.selected.parent
 
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireHandler(mainframe, splice=splice_obj))
+        @_check_types.do
+        def _do():
+            _wire_3d.Wire.start_add(mainframe, splice=splice_obj)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_trace_circuit(self):

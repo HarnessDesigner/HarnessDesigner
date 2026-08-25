@@ -7,6 +7,8 @@ from . import base_pegboard as _base_pegboard
 # from ...gl.canvas_pegboard import table_rows as _table_rows
 from ...shapes import box as _box
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
+from ...geometry import point as _point
 from ... import check_types as _check_types
 from ... import config as _config
 
@@ -14,6 +16,7 @@ from ... import config as _config
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_pegboard
@@ -88,6 +91,75 @@ class Housing(_base_pegboard.BasePegboard):
         if self._model is not None:
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
+
+    @classmethod
+    @_check_types.do
+    def start_add(cls, mainframe: "_ui.MainFrame") -> "_housing.Housing | None":
+        """Single-click free placement, pegboard-native -- mirrors
+        objects_3d.housing.Housing.start_add/objects_schematic.housing.
+        Housing.start_add. Unlike those two, this housing's own
+        position_pegboard needs no explicit placeholder at all --
+        PositionPegboardMixin.position_pegboard_id lazily creates one
+        the first time anything reads it (this class's own __init__
+        already does, to seed its initial position from position3d).
+        """
+        canvas = mainframe.editor_pegboard.editor
+
+        part_id = mainframe.editor_db.editor.housings.GetSelection()
+
+        if part_id is None:
+            from ...ui.dialogs import part_search as _part_search
+            from ...ui import editor_db as _editor_db
+            from PySide6.QtWidgets import QDialog
+
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.HousingsPage, title='Add Housing',
+                table=mainframe.global_db.housings_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        from .. import housing as _housing_facade
+
+        ptables = mainframe.project.ptables
+        part = mainframe.project.gtables.housings_table[part_id]
+        name = f'{part.manufacturer.name} {part.part_number}'
+        position = ptables.pjt_points3d_table.insert(0, 0, 0)
+
+        db_obj = ptables.pjt_housings_table.insert(part_id, name, position.db_id)
+        facade = _housing_facade.Housing(mainframe, db_obj)
+
+        from ...add_handlers.editor_pegboard import housing as _add_housing
+
+        handler = _add_housing.Housing(canvas, facade)
+        facade.objpegboard._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objpegboard
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to BasePegboard's own generic drag handling otherwise.
+        """
+        from ...add_handlers.editor_pegboard import housing as _add_housing  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_housing.Housing):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @property
     @_check_types.do

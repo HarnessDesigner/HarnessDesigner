@@ -1390,36 +1390,34 @@ class WireMenu(QMenu):
 
     @_check_types.do
     def on_add_handle(self):
-        """Insert a wire layout (drag handle) at the point on the wire
-        that was right-clicked to open this menu (falls back to the
-        wire's midpoint if no click point was captured -- e.g. the menu
-        was opened some other way).
-
-        No row split any more -- the new waypoint is inserted into the
-        wire's own ordered path at whichever position the click actually
-        projects onto (see _create_wire_layout_on_wire), same as
-        on_add_marker's own click-position handling below.
+        """Start the interactive waypoint-placement flow (see
+        add_handlers.editor_3d.wire_layout), seeded at the point on the
+        wire that was right-clicked to open this menu (falls back to the
+        wire's own midpoint if no click point was captured -- e.g. the
+        menu was opened some other way). A live preview follows the
+        cursor from there (snapping onto the wire's own true start/stop
+        when close enough) until the next click commits it.
         """
-        from ...handlers import wire_layout_handler as _wire_layout_handler
+        from PySide6.QtCore import QTimer
+        from . import wire_layout as _wire_layout_3d
 
+        mainframe = self.selected.mainframe
         wire = self.selected.parent
-        project = self.selected.mainframe.project
 
         click_pos = self.selected._context_menu_click_pos  # NOQA
-        position = insert_idx = None
+        initial_pos = None
         if click_pos is not None:
-            position, _angle, insert_idx = self.selected.get_closest_point(click_pos)
+            initial_pos, _angle, _insert_idx = self.selected.get_closest_point(click_pos)
 
-        if position is None:
-            # No click captured -- fall back to the wire's own midpoint;
-            # _create_wire_layout_on_wire works out the insertion index
-            # itself in that case (see its insert_idx=None default).
-            position = self._midpoint()
+        if initial_pos is None:
+            # No click captured -- fall back to the wire's own midpoint.
+            initial_pos = self._midpoint()
 
-        _wire_layout_handler._create_wire_layout_on_wire(  # NOQA
-            project, wire, position, insert_idx)
+        @_check_types.do
+        def _do():
+            _wire_layout_3d.WireLayout.start_add(mainframe, wire, initial_pos)
 
-        self.selected.editor3d.Refresh()
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_marker(self):
@@ -1462,13 +1460,20 @@ class WireMenu(QMenu):
     @_check_types.do
     def on_add_splice(self):
         """Start the interactive splice placement flow on this wire."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import splice as _splice_3d
 
         mainframe = self.selected.mainframe
         wire = self.selected.parent
 
-        _menu_ops.start_handler(
-            mainframe, lambda: _handlers.AddSpliceHandler(mainframe, wire))
+        # Deferred past the menu closing since it may open a modal
+        # part-search dialog, same reasoning menu_ops.start_handler exists
+        # for.
+        @_check_types.do
+        def _do():
+            _splice_3d.Splice.start_add(mainframe, wire=wire)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_wire(self):
@@ -1529,15 +1534,18 @@ class WireMenu(QMenu):
     def on_add_wire_service_loop(self):
         """Start placing a service loop on this wire, anchored at the point
         that was right-clicked to open this menu."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import wire_service_loop as _wire_service_loop_3d
 
         mainframe = self.selected.mainframe
         wire = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireServiceLoopHandler(mainframe, wire, click_pos))
+        @_check_types.do
+        def _do():
+            _wire_service_loop_3d.WireServiceLoop.start_add(mainframe, wire, click_pos)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_to_bundle(self):

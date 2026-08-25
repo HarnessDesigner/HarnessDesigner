@@ -6,6 +6,7 @@ from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...gl.canvas_base import interaction as _interaction
 from ... import check_types as _check_types
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
@@ -16,6 +17,8 @@ from ... import config as _config
 if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
     from .. import bundle_layout as _bundle_layout
+    from .. import bundle as _bundle_facade
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_pegboard
@@ -122,3 +125,63 @@ class BundleLayout(_base_pegboard.BasePegboard):
 
         bundle_db_obj = project.ptables.pjt_bundles_table[waypoint_row.bundle_id]
         return _chain_edges.touching_edges(bundle_db_obj, self.point3d_id)
+
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", bundle: "_bundle_facade.Bundle",
+        initial_pos: _point.Point | None = None
+    ) -> "_bundle_layout.BundleLayout":
+        """Interactive placement of a new waypoint on *bundle*'s own
+        pegboard chain, pinned to it for the whole session -- see
+        add_handlers.editor_pegboard.bundle_layout's own module
+        docstring. *initial_pos* seeds the live preview's starting
+        pegboard position (the point that was right-clicked to open the
+        "Add Waypoint" menu item, when available).
+        """
+        canvas = mainframe.editor_pegboard.editor
+        ptables = mainframe.project.ptables
+
+        if initial_pos is None:
+            initial_pos = _point.Point(0.0, 0.0, 0.0)
+
+        pos_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        layout_db = ptables.pjt_bundle_layouts_table.insert(pos_db.db_id, bundle.obj3d.diameter)
+
+        from .. import bundle_layout as _bundle_layout_facade
+
+        facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
+        facade.objpegboard.is_visible = False
+
+        pos = facade.objpegboard.position
+        pos += initial_pos - pos
+
+        from ...add_handlers.editor_pegboard import bundle_layout as _add_bundle_layout
+
+        handler = _add_bundle_layout.BundleLayout(canvas, facade, bundle)
+        facade.objpegboard._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objpegboard
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to BasePegboard's own generic drag handling otherwise.
+        """
+        from ...add_handlers.editor_pegboard import bundle_layout as _add_bundle_layout  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_bundle_layout.BundleLayout):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)

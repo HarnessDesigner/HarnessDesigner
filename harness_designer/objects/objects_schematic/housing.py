@@ -13,6 +13,7 @@ from . import base_schematic as _base_schematic
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
@@ -25,6 +26,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_schematic
@@ -572,6 +574,75 @@ class Housing(_base_schematic.BaseSchematic):
             self._position.x = world_x
             self._position.z = world_y
 
+    @classmethod
+    @_check_types.do
+    def start_add(cls, mainframe: "_ui.MainFrame") -> "_housing.Housing | None":
+        """Single-click free placement, schematic-native -- mirrors
+        objects_3d.housing.Housing.start_add. This housing's own
+        position3d is left unset here (None), same as position2d is
+        left unset there -- PJTHousingsTable.insert auto-fills whichever
+        one is left None with a fresh (0, 0, 0)/(0, 0) placeholder point,
+        so it still renders (just unpositioned) in the view that didn't
+        place it, rather than being truly inert.
+        """
+        canvas = mainframe.editor2d.editor
+
+        part_id = mainframe.editor_db.editor.housings.GetSelection()
+
+        if part_id is None:
+            from ...ui.dialogs import part_search as _part_search
+            from ...ui import editor_db as _editor_db
+            from PySide6.QtWidgets import QDialog
+
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.HousingsPage, title='Add Housing',
+                table=mainframe.global_db.housings_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        from .. import housing as _housing_facade
+
+        ptables = mainframe.project.ptables
+        part = mainframe.project.gtables.housings_table[part_id]
+        name = f'{part.manufacturer.name} {part.part_number}'
+        position2d = ptables.pjt_points2d_table.insert(0, 0)
+
+        db_obj = ptables.pjt_housings_table.insert(part_id, name, None, position2d.db_id)
+        facade = _housing_facade.Housing(mainframe, db_obj)
+
+        from ...add_handlers.editor_schematic import housing as _add_housing
+
+        handler = _add_housing.Housing(canvas, facade)
+        facade.objschematic._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objschematic
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to BaseSchematic's own generic drag handling otherwise.
+        """
+        from ...add_handlers.editor_schematic import housing as _add_housing  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_housing.Housing):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @_check_types.do
     def get_context_menu(self):
         """Return this housing's own right-click context menu (see
@@ -653,11 +724,20 @@ class HousingMenu(QMenu):
 
     @_check_types.do
     def on_add_terminal(self):
-        """Handle the add terminal event.
+        """Add terminals to this housing's cavities -- pick an empty
+        cavity in the schematic view to seat one (see
+        add_handlers.editor_schematic.terminal)."""
+        from PySide6.QtCore import QTimer
+        from . import terminal as _terminal_2d
 
-        UNKNOWN details are inferred from the callable name and signature.
-        """
-        pass
+        mainframe = self.selected.mainframe
+        housing = self.selected.parent
+
+        @_check_types.do
+        def _do():
+            _terminal_2d.Terminal.start_add(mainframe, housing=housing)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_cpa_lock(self):

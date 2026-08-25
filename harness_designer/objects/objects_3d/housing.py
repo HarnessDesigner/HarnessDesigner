@@ -16,6 +16,7 @@ from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import box as _box
 from ...utils import mesh_surface_picker as _mesh_surface_picker
 from ...gl import materials as _materials
@@ -856,6 +857,75 @@ class Housing(_base_3d.Base3D):
         """
         return HousingMenu(self.mainframe, self)
 
+    @classmethod
+    @_check_types.do
+    def start_add(cls, mainframe: "_ui.MainFrame") -> "_housing.Housing | None":
+        """Resolve the part (a preselected part-library row wins over the
+        dialog, same as every other Add* entry point), build the real
+        facade at a placeholder position, and arm its single-click
+        placement session -- see add_handlers.editor_3d.housing.Housing.
+        None if the part-search dialog was cancelled.
+        """
+        canvas = mainframe.editor3d.editor
+
+        part_id = mainframe.editor_db.editor.housings.GetSelection()
+
+        if part_id is None:
+            from ...ui.dialogs import part_search as _part_search
+            from ...ui import editor_db as _editor_db
+            from PySide6.QtWidgets import QDialog
+
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.HousingsPage, title='Add Housing',
+                table=mainframe.global_db.housings_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        from .. import housing as _housing_facade
+
+        ptables = mainframe.project.ptables
+        part = mainframe.project.gtables.housings_table[part_id]
+        name = f'{part.manufacturer.name} {part.part_number}'
+        position = ptables.pjt_points3d_table.insert(0, 0, 0)
+
+        db_obj = ptables.pjt_housings_table.insert(part_id, name, position.db_id)
+        facade = _housing_facade.Housing(mainframe, db_obj)
+
+        from ...add_handlers.editor_3d import housing as _add_housing
+
+        handler = _add_housing.Housing(canvas, facade)
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add) the same way
+        every migrated object type does -- falls back to Base3D's own
+        generic drag/rotation handling otherwise (a housing has no
+        bespoke drag of its own).
+        """
+        from ...add_handlers.editor_3d import housing as _add_housing  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_housing.Housing):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
 
 class HousingMenu(QMenu):
     """Represent a housing menu in :mod:`harness_designer.objects.objects_3d.housing`.
@@ -953,66 +1023,92 @@ class HousingMenu(QMenu):
     @_check_types.do
     def on_add_mat_seal(self):
         """Attach a MAT seal to this housing."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import seal as _seal_3d
 
+        mainframe = self.mainframe
         housing = self.obj.parent
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(self.mainframe, housing=housing))
+        @_check_types.do
+        def _do():
+            _seal_3d.Seal.start_add(mainframe, housing=housing)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_cavity_seal(self):
         """Add a plug seal interactively to one of this housing's cavities."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import seal as _seal_3d
 
+        mainframe = self.mainframe
         housing = self.obj.parent
 
-        _menu_ops.start_handler(
-            self.mainframe,
-            lambda: _handlers.AddSealHandler(
-                self.mainframe, housing=housing, for_cavity=True))
+        @_check_types.do
+        def _do():
+            _seal_3d.Seal.start_add(mainframe, housing=housing, for_cavity=True)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_terminal(self):
         """Add terminals to this housing's cavities with a snapping preview."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import terminal as _terminal_3d
 
+        mainframe = self.mainframe
         housing = self.obj.parent
 
-        _menu_ops.start_handler(
-            self.mainframe,
-            lambda: _handlers.AddTerminalHandler(
-                self.mainframe, housing=housing))
+        @_check_types.do
+        def _do():
+            _terminal_3d.Terminal.start_add(mainframe, housing=housing)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_cpa_lock(self):
         """Attach a CPA lock to this housing."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import cpa_lock as _cpa_lock_3d
 
+        mainframe = self.mainframe
         housing = self.obj.parent
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddCPALockHandler(self.mainframe, housing))
+        @_check_types.do
+        def _do():
+            _cpa_lock_3d.CPALock.start_add(mainframe, housing=housing)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_tpa_lock(self):
         """Attach a TPA lock to this housing."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import tpa_lock as _tpa_lock_3d
 
+        mainframe = self.mainframe
         housing = self.obj.parent
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddTPALockHandler(self.mainframe, housing))
+        @_check_types.do
+        def _do():
+            _tpa_lock_3d.TPALock.start_add(mainframe, housing=housing)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_cover(self):
         """Attach a cover to this housing."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import cover as _cover_3d
 
+        mainframe = self.mainframe
         housing = self.obj.parent
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddCoverHandler(self.mainframe, housing))
+        @_check_types.do
+        def _do():
+            _cover_3d.Cover.start_add(mainframe, housing=housing)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_boot(self):

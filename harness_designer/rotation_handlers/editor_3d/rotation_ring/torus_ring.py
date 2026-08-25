@@ -22,12 +22,12 @@ import numpy as np
 from OpenGL import GL
 
 from . import _hit_test
-from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...gl import materials as _materials
-from ...gl import vbo as _vbo_handler
-from ...gl.canvas_base import rotation_mesh as _rotation_mesh
-from ... import check_types as _check_types
+from ....geometry import point as _point
+from ....geometry import angle as _angle
+from ....gl import materials as _materials
+from ....gl import vbo as _vbo_handler
+from ....gl.canvas_base import rotation_mesh as _rotation_mesh
+from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_base import camera_base as _camera_base

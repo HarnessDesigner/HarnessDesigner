@@ -17,10 +17,10 @@ import math
 from typing import TYPE_CHECKING
 
 from ._protractor_base import ProtractorRingBase
-from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...gl.canvas_base import rotation_mesh as _rotation_mesh
-from ... import check_types as _check_types
+from ....geometry import point as _point
+from ....geometry import angle as _angle
+from ....gl.canvas_base import rotation_mesh as _rotation_mesh
+from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_base import camera_base as _camera_base

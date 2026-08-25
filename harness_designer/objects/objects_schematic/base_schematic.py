@@ -146,13 +146,22 @@ class BaseSchematic(_objectsvar.BaseVar):
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: "_interaction.MouseInteraction", clicked_object
     ) -> bool:
-        """Generic locked-X/Z drag arming/dispatch -- applies to any
-        schematic object type that doesn't need bespoke drag behavior
-        (see drag_handlers.editor_schematic.generic.Generic's own
-        docstring for the full list). Wire overrides this outright with
-        its own segment-drag arm/forward logic instead of this generic
-        one; WireMarker overrides it to arm its own handler class.
+        """Generic locked-X/Z drag arming/dispatch, plus rotation-gizmo
+        arming/dispatch (see rotation_handlers.rotation_rings.
+        RotationRings) -- applies to any schematic object type that
+        doesn't need bespoke drag behavior (see drag_handlers.
+        editor_schematic.generic.Generic's own docstring for the full
+        list). Wire overrides this outright with its own segment-drag
+        arm/forward logic instead of this generic one; WireMarker
+        overrides it to arm its own handler class -- and get no rotation
+        support at all as a result, same reasoning as
+        objects_3d.base_3d.Base3D's own version of this docstring.
         """
+        from ...rotation_handlers import rotation_rings as _rotation_rings
+
+        if isinstance(self._active_handler, _rotation_rings.RotationRings):
+            return self._handle_rotation_interaction(current_pos, interaction_type, clicked_object)
+
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)
@@ -166,6 +175,15 @@ class BaseSchematic(_objectsvar.BaseVar):
             return False
 
         if (
+            interaction_type is _interaction.MouseInteraction.RIGHT_DOWN and
+            clicked_object is self.parent and
+            self.mainframe.get_selected() is self.parent and
+            self.can_rotate()
+        ):
+            self._active_handler = _rotation_rings.RotationRings(self.editor2d.editor, self.parent)
+            return True
+
+        if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
             self.can_drag()
@@ -174,6 +192,53 @@ class BaseSchematic(_objectsvar.BaseVar):
 
             self._active_handler = _drag_generic.Generic(self.editor2d.editor, self.parent)
             return True
+
+        return False
+
+    @_check_types.do
+    def _handle_rotation_interaction(
+        self, current_pos: _point.Point, interaction_type: "_interaction.MouseInteraction",
+        clicked_object
+    ) -> bool:
+        """Forward one mouse event to the already-armed rotation gizmo --
+        see objects_3d.base_3d.Base3D._handle_rotation_interaction (same
+        shape, this view's own single Y-axis ring instead of 3 axes).
+        """
+        rings = self._active_handler
+        camera = self.editor2d.editor.camera
+
+        if interaction_type is _interaction.MouseInteraction.RIGHT_DOWN:
+            rings.delete()
+            self._active_handler = None
+            return True
+
+        if interaction_type is _interaction.MouseInteraction.MOVE:
+            if rings.objschematic.is_inner_dragging:
+                rings.objschematic.update_inner_drag(current_pos)
+            elif rings.objschematic.active_axis is not None:
+                rings.objschematic.update_outer_hover(current_pos, camera)
+            return True
+
+        if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+            rings.objschematic.end_inner_drag()
+            return True
+
+        if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
+            if rings.objschematic.active_axis is not None:
+                if rings.objschematic.begin_inner_drag(current_pos, camera):
+                    return True
+
+                rings.objschematic.click_outer_snap()
+                return True
+
+            axis = rings.objschematic.pick(current_pos, camera)
+            if axis is not None:
+                rings.objschematic.activate(axis)
+                return True
+
+            rings.delete()
+            self._active_handler = None
+            return False
 
         return False
 

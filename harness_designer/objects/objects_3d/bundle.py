@@ -19,6 +19,7 @@ from ... import config as _config
 from ...gl import materials as _materials
 from . import mixins as _mixins
 from ... import utils as _utils
+from ... import color as _color
 from ... import check_types as _check_types
 
 
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle as _pjt_bundle
     from .. import bundle as _bundle
     from ...gl import shaders as _shaders
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_3d
@@ -100,6 +102,120 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             # multi-segment) geometry recompute both happen here, not earlier.
             self._bind_waypoints()
             self._recalculate_geometry()
+
+    @classmethod
+    @_check_types.do
+    def start_add(cls, mainframe: "_ui.MainFrame") -> "_bundle.Bundle | None":
+        """Wire-snapping bundle-cover placement, ported from
+        handlers.bundle_handler.AddBundleHandler -- always free/
+        interactive, no housing/wire argument (see
+        add_handlers.editor_3d.bundle for why).
+
+        A placeholder preview is armed immediately, same reasoning as
+        Splice.start_add: a bundle's geometry is only ever meaningful
+        once a wire is picked, but a real view instance is needed from
+        the start to hang canvas.active_handler_obj on.
+        """
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from ...add_handlers.editor_3d import bundle as _add_bundle
+        from .. import bundle as _bundle_facade
+        from PySide6.QtWidgets import QDialog
+
+        canvas = mainframe.editor3d.editor
+
+        part_id = mainframe.editor_db.editor.bundle_covers.GetSelection()
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.BundleCoversPage, title='Add Bundle Cover',
+                table=mainframe.global_db.bundle_covers_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        ptables = mainframe.project.ptables
+        part = ptables.global_db.bundle_covers_table[part_id]
+
+        preview_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.preview_color))
+        wire_highlight_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.wire_highlight))
+
+        for w in mainframe.project.wires:
+            if _add_bundle._wire_fits_bundle(part, w):  # NOQA
+                w.identify(wire_highlight_material)
+
+        # Degenerate placeholder span -- swapped for a real one locked
+        # to whichever wire the first hover finds compatible.
+        start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, float(part.min_dia) or 1.0)
+
+        name = f'{part.manufacturer.name} {part.part_number}'
+        bundle_db = ptables.pjt_bundles_table.insert(part_id, name)
+        bundle_db.start_position3d_id = start_db.db_id
+        bundle_db.stop_position3d_id = stop_db.db_id
+
+        preview_conc_db = ptables.pjt_concentrics_table.insert(bundle_db.db_id, None)
+
+        facade = _bundle_facade.Bundle(mainframe, bundle_db)
+        facade.identify(preview_material)
+        facade.obj3d.is_visible = False
+
+        handler = _add_bundle.Bundle(canvas, facade, part_id, part, preview_material)
+        handler._preview_conc_db = preview_conc_db  # NOQA
+
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Add-session check first (see start_add), then falls through
+        to this class's own existing rigid whole-path drag handling
+        below -- not Base3D's generic single-position drag, so this
+        stays a full override rather than a super() call.
+        """
+        from ...add_handlers.editor_3d import bundle as _add_bundle  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_bundle.Bundle):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        if self._active_handler is not None:
+            if interaction_type is _interaction.MouseInteraction.MOVE:
+                self._active_handler(current_pos - last_pos, current_pos)
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                self._active_handler.delete()
+                self._active_handler = None
+                return True
+
+            return False
+
+        if (
+            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
+            clicked_object is not self.parent or
+            not self.can_drag()
+        ):
+            return False
+
+        from ...drag_handlers.editor_3d import bundle as _drag_bundle  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> base_3d)
+
+        self._active_handler = _drag_bundle.Bundle(self.editor3d.editor, self.parent, current_pos)
+        return True
 
     @property
     @_check_types.do
@@ -575,41 +691,6 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         """
         return BundleMenu(self.mainframe.editor3d.editor, self)
 
-    @_check_types.do
-    def handle_interaction(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
-    ) -> bool:
-        """Rigid whole-path drag -- overrides Base3D's generic single-
-        position drag outright (a Bundle's own start/every waypoint/stop
-        move together; see drag_handlers.editor_3d.bundle.Bundle's own
-        docstring). No snap concept, unlike Wire -- release just tears
-        down the handler.
-        """
-        if self._active_handler is not None:
-            if interaction_type is _interaction.MouseInteraction.MOVE:
-                self._active_handler(current_pos - last_pos, current_pos)
-                return True
-
-            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
-                self._active_handler.delete()
-                self._active_handler = None
-                return True
-
-            return False
-
-        if (
-            interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
-            clicked_object is not self.parent or
-            not self.can_drag()
-        ):
-            return False
-
-        from ...drag_handlers.editor_3d import bundle as _drag_bundle  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> base_3d)
-
-        self._active_handler = _drag_bundle.Bundle(self.editor3d.editor, self.parent, current_pos)
-        return True
-
     @property
     @_check_types.do
     def start_position(self):
@@ -667,55 +748,57 @@ class BundleMenu(QMenu):
 
     @_check_types.do
     def on_add_handle(self):
-        """Insert a bundle layout (drag handle) at the point on the bundle
-        that was right-clicked to open this menu (falls back to the
-        bundle's midpoint if no click point was captured -- e.g. the menu
-        was opened some other way).
-
-        No row split -- the new waypoint is inserted into the bundle's
-        own ordered path at whichever position the click actually
-        projects onto (see _create_bundle_layout_on_bundle), mirroring
-        objects.objects_3d.wire.WireMenu.on_add_handle.
+        """Start the interactive waypoint-placement flow (see
+        add_handlers.editor_3d.bundle_layout), seeded at the point on
+        the bundle that was right-clicked to open this menu (falls back
+        to the bundle's own midpoint if no click point was captured --
+        e.g. the menu was opened some other way). A live preview follows
+        the cursor from there (snapping onto the bundle's own true
+        start/stop when close enough) until the next click commits it --
+        mirroring objects.objects_3d.wire.WireMenu.on_add_handle.
         """
-        from ...handlers import bundle_layout_handler as _bundle_layout_handler
+        from PySide6.QtCore import QTimer
+        from . import bundle_layout as _bundle_layout_3d
 
+        mainframe = self.selected.mainframe
         bundle = self.selected.parent
-        project = self.selected.mainframe.project
 
         click_pos = self.selected._context_menu_click_pos  # NOQA
-        position = insert_idx = None
+        initial_pos = None
         if click_pos is not None:
-            position, _angle, insert_idx = self.selected.get_closest_point(click_pos)
+            initial_pos, _angle, _insert_idx = self.selected.get_closest_point(click_pos)
 
-        if position is None:
+        if initial_pos is None:
             line = _line.Line(self.selected.start_position,
                               self.selected.stop_position)
-            position = line.point_from_start(line.length() / 2.0)
+            initial_pos = line.point_from_start(line.length() / 2.0)
 
-        _bundle_layout_handler._create_bundle_layout_on_bundle(  # NOQA
-            project, bundle, position, self.selected.diameter, insert_idx)
+        @_check_types.do
+        def _do():
+            _bundle_layout_3d.BundleLayout.start_add(mainframe, bundle, initial_pos)
 
-        self.selected.editor3d.Refresh()
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_transition(self):
         """Start the interactive transition placement flow."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import transition as _transition_3d
 
         mainframe = self.selected.mainframe
 
         @_check_types.do
-        def _factory():
+        def _do():
             part_id = _menu_ops.get_part_id(
                 mainframe, 'transitions',
                 mainframe.global_db.transitions_table, 'Add Transition')
 
             if part_id is None:
-                return None
+                return
 
-            return _handlers.AddTransitionHandler(mainframe, part_id)
+            _transition_3d.Transition.start_add(mainframe, part_id)
 
-        _menu_ops.start_handler(mainframe, _factory)
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_wire_contents(self):

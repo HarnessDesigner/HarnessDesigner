@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QMenu
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
@@ -18,6 +19,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
     from .. import bundle_layout as _bundle_layout
+    from .. import bundle as _bundle_facade
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_3d
@@ -103,6 +106,67 @@ class BundleLayout(_base_3d.Base3D):
         diff = self._scale - scale
         self._scale += diff
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", bundle: "_bundle_facade.Bundle",
+        initial_pos: _point.Point | None = None
+    ) -> "_bundle_layout.BundleLayout":
+        """Interactive placement of a new waypoint on *bundle*, pinned to
+        it for the whole session -- see
+        add_handlers.editor_3d.bundle_layout's own module docstring.
+        *initial_pos* seeds the live preview's starting position (the
+        exact point that was right-clicked to open the "Add Handle" menu
+        item, when available) so the preview appears right where the
+        user clicked rather than snapping elsewhere first.
+        """
+        canvas = mainframe.editor3d.editor
+        ptables = mainframe.project.ptables
+
+        if initial_pos is None:
+            initial_pos = _point.Point(0.0, 0.0, 0.0)
+
+        pos_db = ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        diameter = bundle.obj3d.diameter
+        layout_db = ptables.pjt_bundle_layouts_table.insert(pos_db.db_id, diameter)
+
+        from .. import bundle_layout as _bundle_layout_facade
+
+        facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
+        facade.obj3d.is_visible = False
+
+        from ...add_handlers.editor_3d import bundle_layout as _add_bundle_layout
+
+        handler = _add_bundle_layout.BundleLayout(canvas, facade, bundle)
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to Base3D's own generic drag/rotation handling otherwise.
+        """
+        from ...add_handlers.editor_3d import bundle_layout as _add_bundle_layout  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_bundle_layout.BundleLayout):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
@@ -146,22 +210,23 @@ class BundleLayoutMenu(QMenu):
     @_check_types.do
     def on_add_transition(self):
         """Start the interactive transition placement flow."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import transition as _transition_3d
 
         mainframe = self.selected.mainframe
 
         @_check_types.do
-        def _factory():
+        def _do():
             part_id = _menu_ops.get_part_id(
                 mainframe, 'transitions',
                 mainframe.global_db.transitions_table, 'Add Transition')
 
             if part_id is None:
-                return None
+                return
 
-            return _handlers.AddTransitionHandler(mainframe, part_id)
+            _transition_3d.Transition.start_add(mainframe, part_id)
 
-        _menu_ops.start_handler(mainframe, _factory)
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_delete(self):

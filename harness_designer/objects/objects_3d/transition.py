@@ -17,6 +17,7 @@ from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import utils as _utils
 from ... import color as _color
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_transition as _pjt_transition
     from .. import transition as _transition
     from ...database.project_db import pjt_transition_branch as _pjt_transition_branch
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_3d
@@ -353,6 +355,90 @@ class Transition(_base_3d.Base3D):
         for branch in self._branches:
             if branch.position.db_id == point.db_id:
                 return branch
+
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", part_id: bytes | None = None
+    ) -> "_transition.Transition | None":
+        """Bundle-snapping transition placement, ported from
+        handlers.transition_handler.AddTransitionHandler -- always
+        free/interactive (no housing/bundle argument, matching the
+        original, which was only ever invoked from the toolbar).
+        """
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui.editor_db import transition as _trans_editor_page
+        from ...add_handlers.editor_3d import transition as _add_transition
+        from .. import transition as _transition_facade
+        from PySide6.QtWidgets import QDialog
+
+        canvas = mainframe.editor3d.editor
+
+        if part_id is None:
+            part_id = mainframe.editor_db.editor.transitions.GetSelection()
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _trans_editor_page.TransitionsPage, title='Add Transition',
+                table=mainframe.global_db.transitions_table)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        ptables = mainframe.project.ptables
+        part = ptables.global_db.transitions_table[part_id]
+
+        highlight_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.bundle_highlight))
+
+        # Preview: all branch points at the origin -- _build_model fires in
+        # Transition.__init__ and positions them locally; hover repositions
+        # and rebuilds the whole thing once a bundle is snapped.
+        center_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        init_angle = _angle.Angle()
+        name = f'{part.manufacturer.name} {part.part_number}'
+
+        transition_db = ptables.pjt_transitions_table.insert(
+            part_id, name, center_db.db_id, init_angle)
+
+        for branch_id in range(1, part.branch_count + 1):
+            g_br = part.branches[branch_id - 1]
+            pt_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+            ptables.pjt_transition_branches_table.insert(
+                g_br.db_id, transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
+
+        facade = _transition_facade.Transition(mainframe, transition_db)
+        facade.obj3d.is_visible = False
+
+        handler = _add_transition.Transition(canvas, facade, part_id, part, highlight_material)
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to Base3D's own generic drag/rotation handling otherwise.
+        """
+        from ...add_handlers.editor_3d import transition as _add_transition  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_transition.Transition):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
     def get_context_menu(self):

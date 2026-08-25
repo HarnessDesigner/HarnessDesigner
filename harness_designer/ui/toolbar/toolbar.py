@@ -75,6 +75,21 @@ ID_BUNDLE_COVER = _new_id()
 ID_TPA_LOCK = _new_id()
 ID_CPA_LOCK = _new_id()
 
+# Which "Add X" toolbar modes each editor view actually supports -- see
+# EditorToolbar.set_active_view, called by mainframe.py whenever the
+# active editor pane changes. Per the user's own scoping: pegboard only
+# ever supports placing a Housing; schematic supports Housing, Terminal,
+# Wire, and Splice; 3D supports everything. ID_SELECT is always allowed,
+# handled separately below rather than listed in every set.
+VIEW_MODE_IDS = {
+    'editor3d': {
+        ID_CONNECTOR, ID_TERMINAL, ID_WIRE, ID_SPLICE, ID_NOTE, ID_TRANSITION,
+        ID_SEAL, ID_BUNDLE_COVER, ID_TPA_LOCK, ID_CPA_LOCK, ID_COVER,
+    },
+    'editor2d': {ID_CONNECTOR, ID_TERMINAL, ID_WIRE, ID_SPLICE},
+    'editor_pegboard': {ID_CONNECTOR},
+}
+
 
 @_check_types.do
 def _make_icon(img_attr, size: int = 32) -> QtGui.QIcon:
@@ -163,6 +178,14 @@ class EditorToolbar(QtWidgets.QToolBar):
         self._mode = ID_SELECT
         self._selected = None
 
+        self._mode_actions = {
+            ID_CONNECTOR: self._housing, ID_TERMINAL: self._terminal, ID_WIRE: self._wire,
+            ID_SPLICE: self._splice, ID_NOTE: self._note, ID_TRANSITION: self._transition,
+            ID_SEAL: self._seal, ID_BUNDLE_COVER: self._bundle, ID_TPA_LOCK: self._tpa_lock,
+            ID_CPA_LOCK: self._cpa_lock, ID_COVER: self._cover,
+        }
+        self._active_view = 'editor3d'
+
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
         # GL object selection drives button enable/disable
@@ -194,6 +217,52 @@ class EditorToolbar(QtWidgets.QToolBar):
         self.modeChanged.emit(id_)
 
     @_check_types.do
+    def _apply_selection_filter(self, obj) -> None:
+        """Selection-driven fine-tuning of which "Add X" buttons make
+        sense given *obj* -- only ever meaningful in the 3D view (the
+        events driving this are only bound to editor3d; see __init__).
+        Layered on top of (after) the broader view-level gate in
+        :meth:`set_active_view`, never the other way round, so a
+        button never gets re-enabled here that the active view doesn't
+        support at all.
+        """
+        # Reset everything to disabled first, then selectively enable.
+        for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
+                    self._transition, self._splice, self._terminal, self._cover,
+                    self._wire):
+            act.setEnabled(False)
+
+        if isinstance(obj, _housing.Housing):
+            for act in (self._cpa_lock, self._tpa_lock, self._seal, self._terminal, self._cover):
+                act.setEnabled(True)
+
+        elif isinstance(obj, _wire.Wire):
+            for act in (self._bundle, self._splice, self._transition, self._wire):
+                act.setEnabled(True)
+
+        elif isinstance(obj, _bundle.Bundle):
+            for act in (self._bundle, self._transition):
+                act.setEnabled(True)
+
+        elif isinstance(obj, _terminal.Terminal):
+            for act in (self._seal, self._wire):
+                act.setEnabled(True)
+
+        elif isinstance(obj, _transition.Transition):
+            for act in (self._bundle,):
+                act.setEnabled(True)
+
+        elif isinstance(obj, _splice.Splice):
+            for act in (self._wire,):
+                act.setEnabled(True)
+        else:
+            for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
+                        self._transition, self._splice, self._terminal, self._cover,
+                        self._wire):
+
+                act.setEnabled(True)
+
+    @_check_types.do
     def _on_obj_selected(self, evt: _gl.GLObjectEvent):
         """Handle the obj selected event.
 
@@ -208,49 +277,17 @@ class EditorToolbar(QtWidgets.QToolBar):
             evt.StopPropagation()
             return
 
-        # Reset everything to disabled first, then selectively enable.
-        for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
-                    self._transition, self._splice, self._terminal, self._cover,
-                    self._wire):
-            act.setEnabled(False)
+        # Matches the original's own quirk: an object that doesn't match
+        # any of the specific isinstance branches below clears
+        # self._selected back to None (treated the same as "nothing
+        # selected" for is_selected's own purposes), even though evt
+        # itself did carry a real object.
+        self._selected = obj if isinstance(
+            obj, (_housing.Housing, _wire.Wire, _bundle.Bundle, _terminal.Terminal,
+                  _transition.Transition, _splice.Splice)) else None
 
-        if isinstance(obj, _housing.Housing):
-            for act in (self._cpa_lock, self._tpa_lock, self._seal, self._terminal, self._cover):
-                act.setEnabled(True)
-                self._selected = obj
-
-        elif isinstance(obj, _wire.Wire):
-            for act in (self._bundle, self._splice, self._transition, self._wire):
-                act.setEnabled(True)
-                self._selected = obj
-
-        elif isinstance(obj, _bundle.Bundle):
-            for act in (self._bundle, self._transition):
-                act.setEnabled(True)
-                self._selected = obj
-
-        elif isinstance(obj, _terminal.Terminal):
-            for act in (self._seal, self._wire):
-                act.setEnabled(True)
-                self._selected = obj
-
-        elif isinstance(obj, _transition.Transition):
-            for act in (self._bundle,):
-                act.setEnabled(True)
-                self._selected = obj
-
-        elif isinstance(obj, _splice.Splice):
-            for act in (self._wire,):
-                act.setEnabled(True)
-                self._selected = obj
-        else:
-            for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
-                        self._transition, self._splice, self._terminal, self._cover,
-                        self._wire):
-
-                act.setEnabled(True)
-
-            self._selected = None
+        if self._active_view == 'editor3d':
+            self._apply_selection_filter(obj)
 
     @_check_types.do
     def _on_obj_unselected(self, _: _gl.GLObjectEvent):
@@ -261,13 +298,33 @@ class EditorToolbar(QtWidgets.QToolBar):
         :param _: Value for ``_``.
         :type _: :class:`_gl.GLObjectEvent`
         """
-        for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
-                    self._transition, self._splice, self._terminal, self._cover,
-                    self._wire):
-
-            act.setEnabled(True)
-
         self._selected = None
+
+        if self._active_view == 'editor3d':
+            for act in (self._cpa_lock, self._tpa_lock, self._bundle, self._seal,
+                        self._transition, self._splice, self._terminal, self._cover,
+                        self._wire):
+
+                act.setEnabled(True)
+
+    @_check_types.do
+    def set_active_view(self, view_key: str) -> None:
+        """Enable only the "Add X" buttons *view_key* actually supports
+        -- called by mainframe whenever the active editor pane changes
+        (see ui/mainframe.py's own dock-visibility wiring). Switching
+        back to the 3D editor re-applies the existing selection-driven
+        fine-tuning on top of the view-level gate; the other views have
+        no selection-driven refinement of their own, so their gate is
+        the final word.
+        """
+        self._active_view = view_key
+        allowed = VIEW_MODE_IDS.get(view_key, set())
+
+        for id_, act in self._mode_actions.items():
+            act.setEnabled(id_ in allowed)
+
+        if view_key == 'editor3d' and self._selected is not None:
+            self._apply_selection_filter(self._selected)
 
     @property
     @_check_types.do

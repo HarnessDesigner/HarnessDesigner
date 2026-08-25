@@ -11,6 +11,7 @@ from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ...shapes import cylinder_helix as _cylinder_helix
 from ... import check_types as _check_types
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from .. import wire_service_loop as _wire_service_loop
     from .. import wire as _wire
     from .. import wire_marker as _wire_marker
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_3d
@@ -852,6 +854,87 @@ class WireServiceLoop(_base_3d.Base3D):
         self._last_centroid = self._world_centroid()
         self.editor3d.Refresh(False)
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", wire: "_wire.Wire", mouse_pos: _point.Point
+    ) -> "_wire_service_loop.WireServiceLoop | None":
+        """Fixed-wire service-loop placement, ported from
+        handlers.wire_service_loop_handler.AddWireServiceLoopHandler --
+        only ever started from a wire's own context menu, never a
+        toolbar tool. *wire* is split immediately (before the real
+        preview object is even constructed -- see
+        add_handlers.editor_3d.wire_service_loop's own module docstring
+        for why), so there is no placeholder-preview phase here.
+        """
+        from ...add_handlers.editor_3d import wire_service_loop as _add_wsl
+        from .. import wire_service_loop as _wsl_facade
+
+        canvas = mainframe.editor3d.editor
+        ptables = mainframe.project.ptables
+
+        position, wire_angle, seg_idx = wire.obj3d.get_closest_point(mouse_pos)
+        if position is None or wire_angle is None:
+            return None
+
+        preview_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.preview_color))
+
+        q_arr = np.array(wire_angle.as_quat_float, dtype=np.float64)
+
+        p_start_db = ptables.pjt_points3d_table.insert(*position.as_float)
+        p_stop_db = ptables.pjt_points3d_table.insert(*position.as_float)
+
+        part = wire.db_obj.part
+        name = f'{part.manufacturer.name} {part.part_number}'
+
+        loop_db = ptables.pjt_wire_service_loops_table.insert(
+            wire.db_obj.part_id, name,
+            p_start_db.db_id, p_stop_db.db_id,
+            wire.db_obj.circuit_id,
+            True, q_arr)
+
+        with mainframe.editor3d.context:
+            split_state = _add_wsl.split_wire_for_loop(
+                mainframe, wire, p_start_db.db_id, p_stop_db.db_id, seg_idx)
+
+            facade = _wsl_facade.WireServiceLoop(mainframe, loop_db)
+            facade.identify(preview_material)
+
+            facade.set_siblings(split_state.wire1, split_state.wire2)
+            split_state.wire1.set_sibling(facade, 'stop')
+            split_state.wire2.set_sibling(facade, 'start')
+
+            facade.obj3d.begin_move_session()
+
+        handler = _add_wsl.WireServiceLoop(canvas, facade, split_state)
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to Base3D's own generic drag/rotation handling otherwise.
+        """
+        from ...add_handlers.editor_3d import wire_service_loop as _add_wsl  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_wsl.WireServiceLoop):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
@@ -1064,13 +1147,17 @@ class WireServiceLoopMenu(QMenu):
     @_check_types.do
     def on_add_wire(self):
         """Start placing a wire using this service loop's part type."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe
         part_id = self.selected.db_obj.part_id
 
-        _menu_ops.start_handler(
-            mainframe, lambda: _handlers.AddWireHandler(mainframe, part_id))
+        @_check_types.do
+        def _do():
+            _wire_3d.Wire.start_add(mainframe, preset_part_id=part_id)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_trace_circuit(self):

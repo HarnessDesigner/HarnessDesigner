@@ -26,13 +26,13 @@ import build123d
 import numpy as np
 from OpenGL import GL
 
-from ...shapes import disc_ring as _disc_ring
-from ...shapes import cylinder as _cylinder
-from ...shapes import text as _text
-from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...gl import materials as _materials
-from ... import check_types as _check_types
+from ....shapes import disc_ring as _disc_ring
+from ....shapes import cylinder as _cylinder
+from ....shapes import text as _text
+from ....geometry import point as _point
+from ....geometry import angle as _angle
+from ....gl import materials as _materials
+from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl import shaders as _shaders

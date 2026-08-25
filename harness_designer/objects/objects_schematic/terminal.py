@@ -13,6 +13,7 @@ from ...ui.widgets import context_menus as _context_menus
 from ... import config as _config
 from ... import color as _color
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...shapes import text as _text
@@ -25,6 +26,8 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from .. import terminal as _terminal
     from . import housing as _housing_schematic
+    from .. import housing as _housing_facade
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_schematic
@@ -467,6 +470,81 @@ class Terminal(_base_schematic.BaseSchematic):
         self._detach_extra_wires_at_position2d()
         super()._delete()
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", housing: "_housing_facade.Housing | None" = None
+    ) -> "_terminal.Terminal | None":
+        """Cavity-pick placement, schematic-native -- see
+        add_handlers.editor_schematic.terminal's own module docstring
+        for why there's no cursor-following preview here, unlike the 3D
+        editor's own Terminal.start_add.
+        """
+        from ...objects.objects_3d import terminal as _terminal_3d
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from ...add_handlers.editor_schematic import terminal as _add_terminal
+        from .. import terminal as _terminal_facade
+        from PySide6.QtWidgets import QDialog
+
+        canvas = mainframe.editor2d.editor
+
+        compat_ids = (
+            _terminal_3d.Terminal._get_housing_compat_pns(mainframe, housing)  # NOQA
+            if housing is not None else [])
+
+        part_id = mainframe.editor_db.editor.terminals.GetSelection() if housing is None else None
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.TerminalsPage, title='Add Terminal',
+                table=mainframe.global_db.terminals_table, initial_results=compat_ids)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        ptables = mainframe.project.ptables
+        part = ptables.global_db.terminals_table[part_id]
+        name = f'{part.manufacturer.name} {part.part_number}'
+
+        pos3d = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        pos2d = ptables.pjt_points2d_table.insert(0.0, 0.0)
+
+        db_obj = ptables.pjt_terminals_table.insert(part_id, name, pos2d.db_id, pos3d.db_id, None)
+
+        facade = _terminal_facade.Terminal(mainframe, db_obj)
+        facade.obj3d.is_visible = False
+
+        handler = _add_terminal.Terminal(canvas, facade, part, housing)
+        facade.objschematic._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objschematic
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to BaseSchematic's own generic drag handling otherwise.
+        """
+        from ...add_handlers.editor_schematic import terminal as _add_terminal  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_terminal.Terminal):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @_check_types.do
     def get_context_menu(self):
         """Return this terminal's own right-click context menu (see
@@ -572,18 +650,20 @@ class TerminalMenu(QMenu):
     @_check_types.do
     def on_add_wire(self):
         """Start the interactive 2D wire-drawing flow (see
-        ``handlers/wire_handler_2d.py``), pinned to this terminal as the
-        start end.
+        add_handlers.editor_schematic.wire), pinned to this terminal as
+        the start end.
         """
-        from ..objects_3d import menu_ops as _menu_ops
-        from ...handlers import wire_handler_2d as _wire_handler_2d
+        from PySide6.QtCore import QTimer
+        from . import wire as _wire_schematic
 
         mainframe = self.selected.mainframe
         terminal_obj = self.selected.parent
 
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _wire_handler_2d.AddWireHandler2D(mainframe, terminal=terminal_obj))
+        @_check_types.do
+        def _do():
+            _wire_schematic.Wire.start_add(mainframe, terminal=terminal_obj)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_wire_service_loop(self):

@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 import math
 import numpy as np
 
+from PySide6.QtWidgets import QMenu
+
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
 from ...geometry import point as _point
@@ -420,3 +422,77 @@ class Wire(_base_pegboard.BasePegboard):
     def stop_position(self) -> _point.Point:
         """Wire stop position (Point instance)."""
         return self._p2
+
+    @_check_types.do
+    def get_context_menu(self):
+        """Return this wire's own right-click context menu (see
+        ``ui/mainframe.py``'s ``_on_obj_right_click_pegboard``).
+        """
+        return WireMenu(self.pegboard.editor, self)
+
+
+class WireMenu(QMenu):
+    """Right-click menu for a pegboard Wire."""
+
+    @_check_types.do
+    def __init__(self, canvas, selected: Wire):
+        QMenu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        action = self.addAction('Add Waypoint')
+        action.triggered.connect(self.on_add_waypoint)
+
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
+
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
+
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
+
+    @_check_types.do
+    def on_add_waypoint(self):
+        """Start the interactive waypoint-placement flow (see
+        add_handlers.editor_pegboard.wire_layout), seeded at the point
+        that was right-clicked to open this menu.
+        """
+        from PySide6.QtCore import QTimer
+        from . import wire_layout as _wire_layout_pegboard
+
+        mainframe = self.selected.mainframe
+        wire = self.selected.parent
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+
+        initial_pos = None
+        if click_pos is not None:
+            world_pos = self.canvas.camera.screen_to_world(click_pos)
+            initial_pos = _point.Point(world_pos.x, 0.0, world_pos.z)
+
+        @_check_types.do
+        def _do():
+            _wire_layout_pegboard.WireLayout.start_add(mainframe, wire, initial_pos)
+
+        QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_select(self):
+        """Make this wire the active selection."""
+        from ...objects.objects_3d import menu_ops as _menu_ops
+        _menu_ops.select_object_for_object(self.selected.mainframe, self.selected.parent)
+
+    @_check_types.do
+    def on_delete(self):
+        """Delete this wire from the project."""
+        from ...objects.objects_3d import menu_ops as _menu_ops
+        _menu_ops.delete_object(self.selected)
+
+    @_check_types.do
+    def on_properties(self):
+        """Show this wire's properties in the object editor."""
+        from ...objects.objects_3d import menu_ops as _menu_ops
+        _menu_ops.show_properties_for_object(self.selected.mainframe, self.selected.parent)

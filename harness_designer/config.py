@@ -659,21 +659,10 @@ class Config(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box)
             diameter_scale = 1.1
-            # Grab handle diameter as a fraction of the ring diameter
-            handle_diameter_scale = 0.08
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
-            # Ring/handle colors as scalar RGBA (0.0 - 1.0)
+            # Ring color as scalar RGBA (0.0 - 1.0)
             y_color = [0.135, 0.684, 0.135, 0.8]
-            # Enable snapping of ring-drag rotation to snap_angle increments
-            snap_enable = True
-            # Drag snap increment in degrees. Must have at most 2 decimal
-            # places and divide the 360 degree range evenly (15, 22.5,
-            # 0.45, ...) — invalid values disable snapping
-            snap_angle = 90.0
-            # Half-width in degrees of the detent at 0 — the dragged angle
-            # sticks at exactly 0.0 until the cursor moves past this
-            detent_width = 1.0
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920
@@ -855,21 +844,10 @@ class Config(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box)
             diameter_scale = 1.1
-            # Grab handle diameter as a fraction of the ring diameter
-            handle_diameter_scale = 0.08
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
-            # Ring/handle colors as scalar RGBA (0.0 - 1.0)
+            # Ring color as scalar RGBA (0.0 - 1.0)
             y_color = [0.135, 0.684, 0.135, 0.8]
-            # Enable snapping of ring-drag rotation to snap_angle increments
-            snap_enable = False
-            # Drag snap increment in degrees. Must have at most 2 decimal
-            # places and divide the 360 degree range evenly (15, 22.5,
-            # 0.45, ...) — invalid values disable snapping
-            snap_angle = 15.0
-            # Half-width in degrees of the detent at 0 — the dragged angle
-            # sticks at exactly 0.0 until the cursor moves past this
-            detent_width = 1.0
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920
@@ -993,21 +971,18 @@ class Config(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
             # (the largest distance between two corners of the bounding box)
             diameter_scale = 1.1
-            # Grab handle diameter as a fraction of the ring diameter
-            handle_diameter_scale = 0.08
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
-            # Ring/handle colors as scalar RGBA (0.0 - 1.0)
+            # Per-axis ring colors as scalar RGBA (0.0 - 1.0)
+            x_color = [0.684, 0.135, 0.135, 0.8]
             y_color = [0.135, 0.684, 0.135, 0.8]
+            z_color = [0.135, 0.135, 0.684, 0.8]
             # Enable snapping of ring-drag rotation to snap_angle increments
             snap_enable = False
             # Drag snap increment in degrees. Must have at most 2 decimal
             # places and divide the 360 degree range evenly (15, 22.5,
-            # 0.45, ...) — invalid values disable snapping
+            # 0.45, ...) -- invalid values disable snapping
             snap_angle = 15.0
-            # Half-width in degrees of the detent at 0 — the dragged angle
-            # sticks at exactly 0.0 until the cursor moves past this
-            detent_width = 1.0
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920

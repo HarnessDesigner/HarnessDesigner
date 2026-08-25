@@ -223,30 +223,43 @@ class CavityMenu(QMenu):
     @_check_types.do
     def on_add_terminal(self):
         """Add a terminal into this cavity."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import terminal as _terminal_3d
 
         mainframe = self._cavity_3d.mainframe
         housing_wrapper = self._cavity_3d.db_obj.housing.get_object()
         cavity_obj = self._cavity_3d.parent
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddTerminalHandler(
-                mainframe, housing=housing_wrapper, cavity=cavity_obj))
+        # start_add's own Mode 1 (housing AND cavity given) finalizes
+        # synchronously and never arms an interactive session -- still
+        # deferred past the menu closing since it may open a modal
+        # part-search dialog, same reasoning menu_ops.run_attached_handler
+        # exists for.
+        @_check_types.do
+        def _do():
+            _terminal_3d.Terminal.start_add(
+                mainframe, housing=housing_wrapper, cavity=cavity_obj)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_seal(self):
         """Add a seal: a wire seal onto the terminal already in this
         cavity if one is seated, otherwise a plug seal into the cavity
         itself."""
-        from ... import handlers as _handlers
+        from . import seal as _seal_3d
 
         mainframe = self._cavity_3d.mainframe
         terminal_db = self._cavity_3d.db_obj.terminal
 
         if terminal_db is None:
             cavity_obj = self._cavity_3d.parent
-            _menu_ops.run_attached_handler(
-                lambda: _handlers.AddSealHandler(mainframe, cavity=cavity_obj))
+
+            @_check_types.do
+            def _do():
+                _seal_3d.Seal.start_add(mainframe, cavity=cavity_obj)
+
+            QTimer.singleShot(0, _do)
             return
 
         terminal_obj = terminal_db.get_object()
@@ -268,13 +281,16 @@ class CavityMenu(QMenu):
             if res != QMessageBox.StandardButton.Yes:
                 return
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(mainframe, terminal=terminal_obj))
+        @_check_types.do
+        def _do():
+            _seal_3d.Seal.start_add(mainframe, terminal=terminal_obj)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_wire(self):
         """Start placing a wire from the terminal already in this cavity."""
-        from ... import handlers as _handlers
+        from . import wire as _wire_3d
 
         terminal_db = self._cavity_3d.db_obj.terminal
         if terminal_db is None:
@@ -284,9 +300,12 @@ class CavityMenu(QMenu):
             return
 
         mainframe = self._cavity_3d.mainframe
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireHandler(mainframe, terminal=terminal_obj))
+
+        @_check_types.do
+        def _do():
+            _wire_3d.Wire.start_add(mainframe, terminal=terminal_obj)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_edit_terminal(self):

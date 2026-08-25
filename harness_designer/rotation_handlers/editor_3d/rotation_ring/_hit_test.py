@@ -4,7 +4,7 @@
 
 import math
 
-from ... import check_types as _check_types
+from .... import check_types as _check_types
 
 
 @_check_types.do

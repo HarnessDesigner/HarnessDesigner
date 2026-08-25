@@ -294,6 +294,24 @@ class MainFrame(QtWidgets.QMainWindow):
         self.tabifyDockWidget(self.editor3d.dock, self.editor_pegboard.dock)
         self.editor3d.dock.raise_()  # 3D editor is the initially active tab
 
+        # Track which of the 3 tabbed canvas views is currently active, so
+        # the shared "Add X" toolbar (ui/toolbar/toolbar.py's
+        # EditorToolbar) can gate itself to what that view actually
+        # supports, and _on_tool_mode_change can dispatch a click to the
+        # right view's own start_add. QDockWidget.visibilityChanged fires
+        # True for whichever dock becomes the active tab in a tabbed
+        # group (and False for the one it replaced) -- the standard Qt
+        # idiom for tab-switch detection here, since these 3 docks are
+        # tabified rather than held in an explicit QTabWidget.
+        self._active_canvas_view = 'editor3d'
+        self.editor3d.dock.visibilityChanged.connect(
+            lambda visible: self._on_canvas_view_activated('editor3d', visible))
+        self.editor2d.dock.visibilityChanged.connect(
+            lambda visible: self._on_canvas_view_activated('editor2d', visible))
+        self.editor_pegboard.dock.visibilityChanged.connect(
+            lambda visible: self._on_canvas_view_activated('editor_pegboard', visible))
+        self.editor_toolbar.set_active_view('editor3d')
+
         self.setDockOptions(
             QtWidgets.QMainWindow.DockOption.GroupedDragging |
             QtWidgets.QMainWindow.DockOption.AnimatedDocks |
@@ -2193,7 +2211,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right click peg board event.
+        """Handle the obj right click peg board event -- see
+        _on_obj_right_click_3d, mirrored exactly.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2205,6 +2224,17 @@ class MainFrame(QtWidgets.QMainWindow):
             evt.StopPropagation()
         else:
             evt.Skip()
+            obj = evt.GetGLObject()
+
+            obj.objpegboard._context_menu_click_pos = evt.GetPosition()  # NOQA
+            context_menu = obj.objpegboard.get_context_menu()
+            if context_menu is not None:
+                x, y, _ = evt.GetPosition().as_int
+                gl_widget = self.editor_pegboard.editor._canvas  # NOQA
+                global_pos = gl_widget.mapToGlobal(
+                    gl_widget.rect().topLeft().__class__(x, y)
+                )
+                context_menu.exec(global_pos)
 
     @_check_types.do
     def _on_obj_right_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
@@ -2627,6 +2657,22 @@ class MainFrame(QtWidgets.QMainWindow):
         else:
             evt.Skip()
 
+    @_check_types.do
+    def _on_canvas_view_activated(self, view_key: str, visible: bool) -> None:
+        """Fired by whichever of editor3d/editor2d/editor_pegboard's own
+        dock just became the active tab (visible=True) or got replaced
+        by another tab becoming active (visible=False) -- see the
+        visibilityChanged wiring in __init__. Only the "became active"
+        edge matters here; the "no longer active" edge for the
+        previously-active view fires as its own separate, redundant
+        False call and is ignored.
+        """
+        if not visible:
+            return
+
+        self._active_canvas_view = view_key
+        self.editor_toolbar.set_active_view(view_key)
+
     # QDockWidget.visibilityChanged / raise_() is the Qt equivalent for
     # focus-tracking; this stub preserves the hook for future use.
     # ------------------------------------------------------------------
@@ -2861,6 +2907,19 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
+    def _get_active_canvas(self):
+        """Return the currently-active canvas's own inner editor widget
+        (editor3d.editor / editor2d.editor / editor_pegboard.editor) --
+        see self._active_canvas_view, kept up to date by
+        _on_canvas_view_activated.
+        """
+        return {
+            'editor3d': self.editor3d.editor,
+            'editor2d': self.editor2d.editor,
+            'editor_pegboard': self.editor_pegboard.editor,
+        }[self._active_canvas_view]
+
+    @_check_types.do
     def _on_tool_mode_change(self, mode: int) -> None:
         if self._obj_handler is not None:
             if not self._obj_handler.is_finalized:
@@ -2870,89 +2929,202 @@ class MainFrame(QtWidgets.QMainWindow):
 
         # New object-owned handler system (see objects.objects_3d.wire.
         # Wire.start_add and friends) -- switching tool mode away from an
-        # in-progress session cancels it the same way Escape does.
-        self._cancel_active_handler_obj(self.editor3d.editor)
+        # in-progress session cancels it the same way Escape does, on
+        # whichever view is actually active (sessions are sandboxed per
+        # view -- see BaseVar.handle_interaction -- so only that one can
+        # possibly have anything armed right now).
+        active_canvas = self._get_active_canvas()
+        self._cancel_active_handler_obj(active_canvas)
 
         if mode == _toolbar.ID_SELECT:
             return
         elif mode == _toolbar.ID_CONNECTOR:
-            self._obj_handler = _handlers.AddHousingHandler(self)
+            # Migrated to the object-owned handler system -- see
+            # objects.objects_3d.housing.Housing.start_add and its
+            # objects_schematic/objects_pegboard siblings. Every view
+            # supports adding a Housing (see toolbar.VIEW_MODE_IDS), so
+            # this is the one mode that always needs the active-view
+            # dispatch below.
+            if self._active_canvas_view == 'editor2d':
+                from ..objects.objects_schematic import housing as _housing_2d
+
+                _housing_2d.Housing.start_add(self)
+            elif self._active_canvas_view == 'editor_pegboard':
+                from ..objects.objects_pegboard import housing as _housing_pegboard
+
+                _housing_pegboard.Housing.start_add(self)
+            else:
+                from ..objects.objects_3d import housing as _housing_3d
+
+                _housing_3d.Housing.start_add(self)
         elif mode == _toolbar.ID_TERMINAL:
+            # Migrated to the object-owned handler system -- see
+            # objects.objects_3d.terminal.Terminal.start_add and its
+            # objects_schematic sibling (pegboard never enables this
+            # button -- see toolbar.VIEW_MODE_IDS).
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddTerminalHandler(self, selected)
+            if self._active_canvas_view == 'editor2d':
+                from ..objects.objects_schematic import terminal as _terminal_2d
+
+                if selected is not None and selected.is_housing:
+                    _terminal_2d.Terminal.start_add(self, housing=selected)
+                else:
+                    _terminal_2d.Terminal.start_add(self)
+            else:
+                from ..objects.objects_3d import terminal as _terminal_3d
+
+                if selected is not None and selected.is_housing:
+                    _terminal_3d.Terminal.start_add(self, housing=selected)
+                else:
+                    _terminal_3d.Terminal.start_add(self)
         elif mode == _toolbar.ID_WIRE:
             # Migrated to the object-owned handler system (see
-            # objects.objects_3d.wire.Wire.start_add) -- no longer
-            # tracked via self._obj_handler at all; the classmethod
-            # arms canvas.active_handler_obj itself.
+            # objects.objects_3d.wire.Wire.start_add and its
+            # objects_schematic sibling) -- no longer tracked via
+            # self._obj_handler at all; the classmethod arms
+            # canvas.active_handler_obj itself.
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            from ..objects.objects_3d import wire as _wire_3d
+            if self._active_canvas_view == 'editor2d':
+                from ..objects.objects_schematic import wire as _wire_2d
 
-            if selected is not None and selected.is_terminal:
-                _wire_3d.Wire.start_add(self, terminal=selected)
-            elif selected is not None and selected.is_splice:
-                _wire_3d.Wire.start_add(self, splice=selected)
+                if selected is not None and selected.is_terminal:
+                    _wire_2d.Wire.start_add(self, terminal=selected)
+                elif selected is not None and selected.is_splice:
+                    _wire_2d.Wire.start_add(self, splice=selected)
+                # The schematic editor has no free-space wire tool (see
+                # add_handlers.editor_schematic.wire's own module
+                # docstring) -- without a pinned terminal/splice
+                # selection there is genuinely nothing this mode can do.
             else:
-                _wire_3d.Wire.start_add(self)
+                from ..objects.objects_3d import wire as _wire_3d
+
+                if selected is not None and selected.is_terminal:
+                    _wire_3d.Wire.start_add(self, terminal=selected)
+                elif selected is not None and selected.is_splice:
+                    _wire_3d.Wire.start_add(self, splice=selected)
+                else:
+                    _wire_3d.Wire.start_add(self)
         elif mode == _toolbar.ID_SPLICE:
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.splice.Splice.start_add and its
+            # objects_schematic sibling) -- no longer tracked via
+            # self._obj_handler at all; the classmethod arms
+            # canvas.active_handler_obj itself.
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddSpliceHandler(self, selected)
+            if self._active_canvas_view == 'editor2d':
+                from ..objects.objects_schematic import splice as _splice_2d
+
+                if selected is not None and selected.is_wire:
+                    _splice_2d.Splice.start_add(self, wire=selected)
+                else:
+                    _splice_2d.Splice.start_add(self)
+            else:
+                from ..objects.objects_3d import splice as _splice_3d
+
+                if selected is not None and selected.is_wire:
+                    _splice_3d.Splice.start_add(self, wire=selected)
+                else:
+                    _splice_3d.Splice.start_add(self)
         elif mode == _toolbar.ID_NOTE:
-            self._obj_handler = _handlers.AddNoteHandler(self)
+            # Migrated to the object-owned handler system -- see
+            # objects.objects_3d.note.Note.start_add.
+            from ..objects.objects_3d import note as _note_3d
+
+            _note_3d.Note.start_add(self)
         elif mode == _toolbar.ID_TRANSITION:
-            if self.editor_toolbar.is_selected:
-                selected = self.get_selected()
-            else:
-                selected = None
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.transition.Transition.start_add).
+            # AddTransitionHandler's own signature is (mainframe, part_id) --
+            # the old branch here passed the selected object where a raw
+            # part_id was expected, so it's dropped entirely rather than
+            # forwarded (this mode never had a "start from selection" case).
+            from ..objects.objects_3d import transition as _transition_3d
 
-            self._obj_handler = _handlers.AddTransitionHandler(self, selected)
+            _transition_3d.Transition.start_add(self)
         elif mode == _toolbar.ID_SEAL:
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.seal.Seal.start_add). The old branch here
+            # passed the selection as AddSealHandler's own housing=
+            # positional regardless of its actual type -- fixed to route
+            # by is_housing/is_terminal/is_cavity, same bug class as the
+            # Terminal/Splice/Cover/TPALock/CPALock toolbar branches.
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddSealHandler(self, selected)
+            from ..objects.objects_3d import seal as _seal_3d
+
+            if selected is not None and selected.is_housing:
+                _seal_3d.Seal.start_add(self, housing=selected)
+            elif selected is not None and selected.is_terminal:
+                _seal_3d.Seal.start_add(self, terminal=selected)
+            elif selected is not None and selected.is_cavity:
+                _seal_3d.Seal.start_add(self, cavity=selected)
+            else:
+                _seal_3d.Seal.start_add(self)
         elif mode == _toolbar.ID_BUNDLE_COVER:
-            if self.editor_toolbar.is_selected:
-                selected = self.get_selected()
-            else:
-                selected = None
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.bundle.Bundle.start_add). AddBundleHandler
+            # never took a selection argument -- the old branch here passed
+            # one anyway, an outright TypeError on every use.
+            from ..objects.objects_3d import bundle as _bundle_3d
 
-            self._obj_handler = _handlers.AddBundleHandler(self, selected)
+            _bundle_3d.Bundle.start_add(self)
         elif mode == _toolbar.ID_TPA_LOCK:
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.tpa_lock.TPALock.start_add).
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddTPALockHandler(self, selected)
+            from ..objects.objects_3d import tpa_lock as _tpa_lock_3d
+
+            if selected is not None and selected.is_housing:
+                _tpa_lock_3d.TPALock.start_add(self, housing=selected)
+            else:
+                _tpa_lock_3d.TPALock.start_add(self)
         elif mode == _toolbar.ID_CPA_LOCK:
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.cpa_lock.CPALock.start_add).
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddCPALockHandler(self, selected)
+            from ..objects.objects_3d import cpa_lock as _cpa_lock_3d
+
+            if selected is not None and selected.is_housing:
+                _cpa_lock_3d.CPALock.start_add(self, housing=selected)
+            else:
+                _cpa_lock_3d.CPALock.start_add(self)
         elif mode == _toolbar.ID_COVER:
+            # Migrated to the object-owned handler system (see
+            # objects.objects_3d.cover.Cover.start_add).
             if self.editor_toolbar.is_selected:
                 selected = self.get_selected()
             else:
                 selected = None
 
-            self._obj_handler = _handlers.AddCoverHandler(self, selected)
+            from ..objects.objects_3d import cover as _cover_3d
+
+            if selected is not None and selected.is_housing:
+                _cover_3d.Cover.start_add(self, housing=selected)
+            else:
+                _cover_3d.Cover.start_add(self)
 
     @_check_types.do
     def unload(self):

@@ -20,12 +20,12 @@ from typing import TYPE_CHECKING
 from .torus_ring import TorusRing
 from .inner_ring import InnerRing
 from .outer_ring import OuterRing
-from ...geometry import point as _point
-from ...geometry import angle as _angle
-from ...gl import materials as _materials
-from ...gl.canvas_base import rotation_mesh as _rotation_mesh
-from ... import color as _color
-from ... import check_types as _check_types
+from ....geometry import point as _point
+from ....geometry import angle as _angle
+from ....gl import materials as _materials
+from ....gl.canvas_base import rotation_mesh as _rotation_mesh
+from .... import color as _color
+from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_base import camera_base as _camera_base

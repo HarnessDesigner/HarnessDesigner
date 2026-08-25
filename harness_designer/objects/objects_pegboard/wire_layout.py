@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
+from ...geometry import point as _point
+from ...gl.canvas_base import interaction as _interaction
 from ... import check_types as _check_types
 from ... import config as _config
 
@@ -11,6 +13,8 @@ from ... import config as _config
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
+    from .. import wire as _wire_facade
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_pegboard
@@ -89,3 +93,63 @@ class WireLayout(_base_pegboard.BasePegboard):
 
         wire_db_obj = project.ptables.pjt_wires_table[waypoint_row.wire_id]
         return _chain_edges.touching_edges(wire_db_obj, self.point3d_id)
+
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", wire: "_wire_facade.Wire",
+        initial_pos: _point.Point | None = None
+    ) -> "_wire_layout.WireLayout":
+        """Interactive placement of a new waypoint on *wire*'s own
+        pegboard chain, pinned to it for the whole session -- see
+        add_handlers.editor_pegboard.wire_layout's own module docstring.
+        *initial_pos* seeds the live preview's starting pegboard
+        position (the point that was right-clicked to open the "Add
+        Waypoint" menu item, when available).
+        """
+        canvas = mainframe.editor_pegboard.editor
+        ptables = mainframe.project.ptables
+
+        if initial_pos is None:
+            initial_pos = _point.Point(0.0, 0.0, 0.0)
+
+        pos_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        layout_db = ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
+
+        from .. import wire_layout as _wire_layout_facade
+
+        facade = _wire_layout_facade.WireLayout(mainframe, layout_db)
+        facade.objpegboard.is_visible = False
+
+        pos = facade.objpegboard.position
+        pos += initial_pos - pos
+
+        from ...add_handlers.editor_pegboard import wire_layout as _add_wire_layout
+
+        handler = _add_wire_layout.WireLayout(canvas, facade, wire)
+        facade.objpegboard._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objpegboard
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to BasePegboard's own generic drag handling otherwise.
+        """
+        from ...add_handlers.editor_pegboard import wire_layout as _add_wire_layout  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_wire_layout.WireLayout):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)

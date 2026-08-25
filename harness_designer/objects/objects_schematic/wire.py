@@ -23,6 +23,9 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
     from ...gl import shaders as _shaders
+    from .. import terminal as _terminal_facade
+    from .. import splice as _splice_facade
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_schematic
@@ -523,19 +526,122 @@ class Wire(_base_schematic.BaseSchematic):
             faces_program.stripe_clip_start = 0.0
             faces_program.stripe_clip_stop = 0.0
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", terminal: "_terminal_facade.Terminal | None" = None,
+        splice: "_splice_facade.Splice | None" = None
+    ) -> "_wire.Wire | None":
+        """Terminal/splice-pinned wire placement, ported from
+        handlers.wire_handler_2d.AddWireHandler2D -- see
+        add_handlers.editor_schematic.wire's own module docstring for why
+        there's no free-space mode here at all, unlike the 3D editor's
+        Wire.start_add.
+        """
+        from ...handlers.wire_handler import _get_terminal_compat_pns  # NOQA
+        from ...handlers import wire_snap as _wire_snap
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from ...add_handlers.editor_schematic import wire as _add_wire
+        from .. import wire as _wire_facade
+        from PySide6.QtWidgets import QDialog, QMessageBox
+
+        canvas = mainframe.editor2d.editor
+
+        start = terminal if terminal is not None else splice
+        if start is None:
+            return None
+
+        if terminal is not None:
+            compat_pns = _get_terminal_compat_pns(mainframe, terminal)
+        else:
+            compat_pns = None
+
+        dlg = _part_search.SearchDialog(
+            mainframe, _editor_db.WiresPage, title='Add Wire',
+            table=mainframe.global_db.wires_table, initial_results=compat_pns)
+        part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+        dlg.deleteLater()
+
+        if part_id is None:
+            return None
+
+        ptables = mainframe.project.ptables
+        part = ptables.global_db.wires_table[part_id]
+
+        start_circuit_id = None
+        if terminal is not None:
+            ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, part)
+            if not ok:
+                block_msg += '\n\nDo you want to use this wire?'
+                button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
+                if button == QMessageBox.StandardButton.No:
+                    return None
+
+            start_circuit_id = terminal.db_obj.circuit_id
+
+        # Placeholder 3D points -- overwritten immediately below by the
+        # start attach, and tracked live during hover for the stop, never
+        # sharing one point row between start and stop.
+        start3d = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+
+        if terminal is not None:
+            initial_pos = terminal.db_obj.attach_position3d
+        else:
+            initial_pos = splice.obj3d.wire_position
+
+        stop3d = ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        start_pos2d = start.db_obj.position2d
+        stop2d = ptables.pjt_points2d_table.insert(float(start_pos2d.x), float(start_pos2d.z))
+
+        name = f'{part.manufacturer.name} {part.part_number}'
+
+        wire_db = ptables.pjt_wires_table.insert(
+            part_id, name, start_circuit_id,
+            start3d.db_id, stop3d.db_id,
+            None, stop2d.db_id,
+            True, False, None, None, False)
+
+        facade = _wire_facade.Wire(mainframe, wire_db)
+
+        handler = _add_wire.Wire(canvas, facade, part, stop2d, start)
+
+        if terminal is not None:
+            # terminal.add_wire always performs the attachment -- leaves
+            # the stale placeholder for the caller to clean up.
+            terminal.add_wire(facade, 'start')
+            ptables.pjt_points3d_table[start3d.db_id].delete()
+        else:
+            handler._attach_splice(splice, 'start')  # NOQA
+
+        facade.objschematic._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objschematic
+
+        return facade
+
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: "_interaction.MouseInteraction", clicked_object
     ) -> bool:
-        """Interior-segment drag -- overrides BaseSchematic's generic
-        single-position drag outright: a click on the wire's rendered
-        strand only ever arms something when it lands on a segment fully
-        bounded by two real waypoints (see
-        drag_handlers.editor_schematic.wire's own module docstring for
-        the full rule -- straightening/waypoint-visibility and the
-        obstacle clamp both happen there, every move).
+        """Add-session check first (see start_add), then falls through
+        to this class's own existing interior-segment drag handling
+        below -- not BaseSchematic's generic single-position drag, so
+        this stays a full override rather than a super() call.
         """
+        from ...add_handlers.editor_schematic import wire as _add_wire  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_wire.Wire):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)

@@ -155,6 +155,53 @@ class CanvasWindowBase(QWidget):
 
         return self._canvas.camera
 
+    @property
+    @_check_types.do
+    def mainframe(self):
+        """The owning MainFrame -- forwarded from the inner canvas (see
+        ``CanvasBase.__init__``), needed by every drag/rotation/add
+        handler constructed with *this* wrapper as their own ``canvas``
+        (e.g. ``Base3D.handle_interaction`` arming a handler with
+        ``self.editor3d.editor``) -- they're never handed the inner
+        ``Canvas`` directly, only this outer window.
+        """
+        return self._canvas.mainframe
+
+    @property
+    @_check_types.do
+    def objects_in_view(self) -> list:
+        """Forwarded from the inner canvas -- see :attr:`mainframe`'s own
+        docstring for why outward-facing code needs this on the wrapper
+        too, not just internally on the inner canvas.
+        """
+        return self._canvas.objects_in_view
+
+    @_check_types.do
+    def get_selected(self):
+        """Forwarded from the inner canvas -- see :attr:`mainframe`'s own
+        docstring.
+        """
+        return self._canvas.get_selected()
+
+    @property
+    @_check_types.do
+    def active_handler_obj(self):
+        """Forwarded from the inner canvas -- see
+        ``objectsvar.base_var.BaseVar.handle_interaction`` and
+        :attr:`mainframe`'s own docstring on why outward-facing code
+        (every ``start_add`` classmethod, ``Base3D.handle_interaction``'s
+        own drag/rotation arming, ``MainFrame._cancel_active_handler_obj``)
+        needs this reachable through the wrapper it's actually handed,
+        not just internally on the inner canvas ``MouseHandlerBase``
+        itself already operates on directly.
+        """
+        return self._canvas.active_handler_obj
+
+    @active_handler_obj.setter
+    @_check_types.do
+    def active_handler_obj(self, value):
+        self._canvas.active_handler_obj = value
+
     @_check_types.do
     def set_selected(self, obj):
         """

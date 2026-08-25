@@ -10,6 +10,7 @@ from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
+from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import color as _color
 from ... import check_types as _check_types
@@ -18,6 +19,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
+    from .. import wire as _wire_facade
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_3d
@@ -222,6 +225,65 @@ class WireLayout(_base_3d.Base3D):
         if wire_obj is not None:
             wire_obj.obj3d.refresh_waypoints()
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", wire: "_wire_facade.Wire",
+        initial_pos: _point.Point | None = None
+    ) -> "_wire_layout.WireLayout":
+        """Interactive placement of a new waypoint on *wire*, pinned to
+        it for the whole session -- see
+        add_handlers.editor_3d.wire_layout's own module docstring.
+        *initial_pos* seeds the live preview's starting position (the
+        exact point that was right-clicked to open the "Add Handle" menu
+        item, when available).
+        """
+        canvas = mainframe.editor3d.editor
+        ptables = mainframe.project.ptables
+
+        if initial_pos is None:
+            initial_pos = _point.Point(0.0, 0.0, 0.0)
+
+        pos_db = ptables.pjt_points3d_table.insert(
+            float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
+
+        layout_db = ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
+
+        from .. import wire_layout as _wire_layout_facade
+
+        facade = _wire_layout_facade.WireLayout(mainframe, layout_db)
+        facade.obj3d.is_visible = False
+
+        from ...add_handlers.editor_3d import wire_layout as _add_wire_layout
+
+        handler = _add_wire_layout.WireLayout(canvas, facade, wire)
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to Base3D's own generic drag/rotation handling otherwise.
+        """
+        from ...add_handlers.editor_3d import wire_layout as _add_wire_layout  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_wire_layout.WireLayout):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
@@ -272,12 +334,16 @@ class WireLayoutMenu(QMenu):
     @_check_types.do
     def on_add_splice(self):
         """Start the interactive splice placement flow."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import splice as _splice_3d
 
         mainframe = self.selected.mainframe
 
-        _menu_ops.start_handler(
-            mainframe, lambda: _handlers.AddSpliceHandler(mainframe))
+        @_check_types.do
+        def _do():
+            _splice_3d.Splice.start_add(mainframe)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_trace_circuit(self):

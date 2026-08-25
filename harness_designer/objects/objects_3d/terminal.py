@@ -10,10 +10,12 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
+from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
+from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
 
@@ -21,7 +23,10 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from .. import terminal as _terminal
+    from .. import housing as _housing
+    from .. import cavity as _cavity
     from ...gl import shaders as _shaders
+    from ... import ui as _ui
 
 
 Config = _config.Config.editor_3d
@@ -410,6 +415,256 @@ class Terminal(_base_3d.Base3D):
         """
         return self.db_obj.wire_position3d
 
+    @classmethod
+    @_check_types.do
+    def _get_cavity_compat_pns(cls, mainframe: "_ui.MainFrame", housing, cavity) -> list:
+        """Terminal part numbers compatible with *cavity*/*housing* (Mode
+        1) -- see handlers.terminal_handler.AddTerminalHandler's own
+        version of this method for the full priority-order rationale.
+        """
+        g_cavity = cavity.db_obj.part
+        g_housing = housing.db_obj.part
+
+        compat = g_cavity.compat_terminals
+        if compat:
+            return [t.part_number for t in compat]
+
+        housing_gender_id = g_housing.gender_id
+        table = mainframe.global_db.terminals_table
+
+        terminal_sizes = g_cavity.terminal_sizes
+        if terminal_sizes:
+            pns = []
+            for size in terminal_sizes:
+                table.execute(
+                    'SELECT part_number FROM terminals WHERE blade_size=? AND gender_id=?;',
+                    (size, housing_gender_id))
+                pns.extend(row[0] for row in table.fetchall())
+
+            if pns:
+                return list(set(pns))
+
+        max_dim = max(g_cavity.width or 0.0, g_cavity.height or 0.0)
+        if max_dim > 0.0:
+            table.execute(
+                'SELECT part_number FROM terminals WHERE blade_size<=? AND gender_id=?;',
+                (max_dim, housing_gender_id))
+            return list(set(row[0] for row in table.fetchall()))
+
+        return []
+
+    @classmethod
+    @_check_types.do
+    def _get_housing_compat_pns(cls, mainframe: "_ui.MainFrame", housing) -> list:
+        """Terminal part numbers compatible with *housing* (Mode 2) --
+        see handlers.terminal_handler.AddTerminalHandler's own version.
+        """
+        g_housing = housing.db_obj.part
+        housing_gender_id = g_housing.gender_id
+        table = mainframe.global_db.terminals_table
+
+        compat = g_housing.compat_terminals
+        if compat:
+            return [t.part_number for t in compat]
+
+        all_sizes = set()
+        for g_cav in g_housing.cavities:
+            all_sizes.update(g_cav.terminal_sizes)
+
+        if all_sizes:
+            pns = []
+            for size in all_sizes:
+                table.execute(
+                    'SELECT part_number FROM terminals '
+                    'WHERE blade_size=? '
+                    'AND gender_id=?;',
+                    (size, housing_gender_id))
+                pns.extend(row[0] for row in table.fetchall())
+
+            if pns:
+                return list(set(pns))
+
+        max_dim = 0.0
+        for pjt_cav in housing.db_obj.cavities:
+            g_cav = pjt_cav.part
+            max_dim = max(max_dim, g_cav.width or 0.0, g_cav.height or 0.0)
+
+        if max_dim > 0.0:
+            table.execute(
+                'SELECT part_number FROM terminals '
+                'WHERE blade_size<=? '
+                'AND gender_id=?;',
+                (max_dim, housing_gender_id))
+
+            return list(set(row[0] for row in table.fetchall()))
+
+        return []
+
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing" = None,
+        cavity: "_cavity.Cavity" = None
+    ) -> "_terminal.Terminal | None":
+        """Three placement modes, exactly matching
+        handlers.terminal_handler.AddTerminalHandler's own docstring:
+
+        - *housing* and *cavity* both given: place immediately into that
+          cavity -- synchronous, no interactive session armed at all.
+        - *housing* only: interactive, snaps only to that housing's own
+          empty cavities.
+        - Neither given: interactive, snaps to any compatible cavity in
+          the whole project.
+        """
+        from ...handlers import terminal_handler as _terminal_handler
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from PySide6.QtWidgets import QDialog
+
+        canvas = mainframe.editor3d.editor
+
+        if housing is not None and cavity is not None:
+            compat_ids = cls._get_cavity_compat_pns(mainframe, housing, cavity)
+        elif housing is not None:
+            compat_ids = cls._get_housing_compat_pns(mainframe, housing)
+        else:
+            compat_ids = []
+
+        # Mode 3 checks the editor DB first; modes 1 & 2 always open the dialog.
+        part_id = mainframe.editor_db.editor.terminals.GetSelection() if housing is None else None
+
+        if part_id is None:
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.TerminalsPage, title='Add Terminal',
+                table=mainframe.global_db.terminals_table, initial_results=compat_ids)
+            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+        ptables = mainframe.project.ptables
+        part = ptables.global_db.terminals_table[part_id]
+        name = f'{part.manufacturer.name} {part.part_number}'
+
+        from .. import terminal as _terminal_facade
+        from ...handlers import handler_base as _handler_base
+
+        if cavity is not None:
+            # Mode 1 -- immediate, synchronous, no interactive session.
+            pjt_cavity = cavity.db_obj
+            is_male = _terminal_handler._resolve_is_male(part, pjt_cavity.housing.part)  # NOQA
+
+            if is_male:
+                tx, ty, tz = _terminal_handler._male_terminal_position(part, pjt_cavity)  # NOQA
+            else:
+                tx, ty, tz = _terminal_handler._female_terminal_position(part, pjt_cavity)  # NOQA
+
+            point_db = ptables.pjt_points3d_table.insert(tx, ty, tz)
+            db_obj = ptables.pjt_terminals_table.insert(
+                part_id, name, None, point_db.db_id, pjt_cavity.db_id)
+
+            facade = _terminal_facade.Terminal(mainframe, db_obj)
+            _handler_base.HandlerBase.set_angle_from_cavity(facade, pjt_cavity)
+
+            mainframe.project.add_terminal(facade)
+            return facade
+
+        preview_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.preview_color))
+        compat_highlight = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.splice_highlight))
+        plain_highlight = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.housing_highlight))
+
+        project_cavities = []
+
+        if housing is not None:
+            # Mode 2 -- floating preview, snaps only to this housing's cavities.
+            is_male = _terminal_handler._resolve_is_male(part, housing.db_obj.part)  # NOQA
+
+            for cav in housing.cavities:
+                if cav.db_obj.terminal is not None:
+                    continue
+
+                cav.identify(compat_highlight)
+                project_cavities.append(cav)
+        else:
+            # Mode 3 -- floating preview, snaps to any compatible cavity.
+            is_male = _terminal_handler._resolve_is_male(part)  # NOQA
+            part_number = part.part_number
+            blade_size = part.blade_size
+            part_gender_id = part.gender_id
+
+            for cav in mainframe.project.cavities:
+                if cav.db_obj.terminal is not None:
+                    continue
+
+                g_cavity = cav.db_obj.part
+                g_housing = cav.db_obj.housing.part
+
+                compat = g_cavity.compat_terminals
+                if any(t.part_number == part_number for t in compat):
+                    cav.identify(compat_highlight)
+                    project_cavities.append(cav)
+                    continue
+
+                gender_match = (g_housing.gender_id == part_gender_id)
+                terminal_sizes = g_cavity.terminal_sizes
+
+                if (
+                    terminal_sizes and blade_size and
+                    blade_size in terminal_sizes and gender_match
+                ):
+                    cav.identify(compat_highlight)
+                    project_cavities.append(cav)
+                    continue
+
+                if not terminal_sizes and gender_match and blade_size:
+                    max_dim = max(g_cavity.width or 0.0, g_cavity.height or 0.0)
+                    if max_dim > 0.0 and blade_size <= max_dim:
+                        cav.identify(compat_highlight)
+                        project_cavities.append(cav)
+                        continue
+
+                cav.identify(plain_highlight)
+
+        pos_obj = ptables.pjt_points3d_table.insert(0, 0, 0)
+        db_obj = ptables.pjt_terminals_table.insert(part_id, name, None, pos_obj.db_id, None)
+
+        facade = _terminal_facade.Terminal(mainframe, db_obj)
+        facade.identify(preview_material)
+
+        from ...add_handlers.editor_3d import terminal as _add_terminal
+
+        handler = _add_terminal.Terminal(canvas, facade, part, project_cavities, is_male)
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @_check_types.do
+    def handle_interaction(
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
+    ) -> bool:
+        """Forwards to an active add-session (see start_add); falls back
+        to Base3D's own generic drag/rotation handling otherwise.
+        """
+        from ...add_handlers.editor_3d import terminal as _add_terminal  # NOQA -- avoid a cycle at import time
+
+        if isinstance(self._active_handler, _add_terminal.Terminal):
+            handled = self._active_handler(
+                last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
+            if self._active_handler.is_finished:
+                self._active_handler = None
+
+            return handled
+
+        return super().handle_interaction(
+            last_pos, current_pos, had_motion, interaction_type, clicked_object)
+
     @_check_types.do
     def get_context_menu(self):
         """Return the context menu.
@@ -561,25 +816,32 @@ class TerminalMenu(QMenu):
         terminal's own attach point -- the part-search dialog (pre-filtered
         to wires whose diameter fits) opens immediately, straight into
         phase 1, same as a cavity's/splice's own pinned Add Wire."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe
         terminal_obj = self.selected.parent
 
-        _menu_ops.start_handler(
-            mainframe,
-            lambda: _handlers.AddWireHandler(mainframe, terminal=terminal_obj))
+        @_check_types.do
+        def _do():
+            _wire_3d.Wire.start_add(mainframe, terminal=terminal_obj)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_seal(self):
         """Attach a seal to this terminal."""
-        from ... import handlers as _handlers
+        from PySide6.QtCore import QTimer
+        from . import seal as _seal_3d
 
         mainframe = self.selected.mainframe
         terminal = self.selected.parent
 
-        _menu_ops.run_attached_handler(
-            lambda: _handlers.AddSealHandler(mainframe, terminal))
+        @_check_types.do
+        def _do():
+            _seal_3d.Seal.start_add(mainframe, terminal=terminal)
+
+        QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_trace_circuit(self):
