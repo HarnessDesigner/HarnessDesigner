@@ -4,84 +4,52 @@ from . import program as _program
 
 from ... import check_types as _check_types
 
-_faces_program: _program.FacesProgram = None
-_edges_program: _program.EdgesProgram = None
-_vertices_program: _program.VerticesProgram = None
-_floor_program: _program.FloorProgram = None
-_grid2d_program: _program.GridProgram = None
-
 
 @_check_types.do
 def _compile_grid2d_program() -> _program.GridProgram:
     """Compile and link the grid2d program."""
 
-    global _grid2d_program
-
-    if _grid2d_program is None:
-        _grid2d_program = _program.GridProgram()
-
-    return _grid2d_program
+    return _program.GridProgram()
 
 
 @_check_types.do
 def _compile_faces_program() -> _program.FacesProgram:
     """Compile and link the triangles shader program (faces with lighting and reflections)."""
 
-    global _faces_program
-
-    if _faces_program is None:
-        _faces_program = _program.FacesProgram()
-
-    return _faces_program
+    return _program.FacesProgram()
 
 
 @_check_types.do
 def _compile_edges_program() -> _program.EdgesProgram:
     """Compile and link the lines shader program (edges and normals)."""
 
-    global _edges_program
-
-    if _edges_program is None:
-        _edges_program = _program.EdgesProgram()
-
-    return _edges_program
+    return _program.EdgesProgram()
 
 
 @_check_types.do
 def _compile_vertices_program() -> _program.VerticesProgram:
     """Compile and link the points shader program (vertices)."""
 
-    global _vertices_program
-
-    if _vertices_program is None:
-        _vertices_program = _program.VerticesProgram()
-
-    return _vertices_program
+    return _program.VerticesProgram()
 
 
 @_check_types.do
 def _compile_floor_program() -> _program.FloorProgram:
     """Compile and link the floor shader program (per-vertex color, no lighting)."""
 
-    global _floor_program
-
-    if _floor_program is None:
-        _floor_program = _program.FloorProgram()
-
-    return _floor_program
+    return _program.FloorProgram()
 
 
-class _ShaderProgramMeta(type):
-    _instance = None
+class ShaderProgram:
+    """One set of compiled/linked GL programs, owned by a single canvas.
 
-    def __call__(cls):
-        if cls._instance is None:
-            cls._instance = super().__call__()
-
-        return cls._instance
-
-
-class ShaderProgram(metaclass=_ShaderProgramMeta):
+    Each of the 3 canvases (3D/schematic/pegboard) is a separate
+    QOpenGLWidget with its own, non-shared GL context, and constructs its
+    own ``ShaderProgram`` from ``initializeGL`` (with that context current).
+    A process-wide cache here would hand later canvases program ids that
+    are only valid in whichever canvas's context compiled them first --
+    exactly the cross-context GL_INVALID_OPERATION bug this replaced.
+    """
 
     def __init__(self):
         self.grid = _compile_grid2d_program()

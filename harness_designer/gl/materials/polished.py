@@ -32,35 +32,36 @@ class PolishedMaterial(_material.GLMaterial):
         :param color: Value for ``color``.
         :type color: :class:`_color.Color`
         """
-        r, g, b = color.rgb_scalar
+        r, g, b, a = color.rgba_scalar
 
-        ar = _utils.remap(r, 0.0, 1.0,
-                          0.22745, 0.24705)
-        ag = _utils.remap(g, 0.0, 1.0,
-                          0.22745, 0.22352)
-        ab = _utils.remap(b, 0.0, 1.0,
-                          0.06274, 0.22745)
+        #
+        # ar = _utils.remap(r, 0.0, 1.0,
+        #                   0.22745, 0.24705)
+        # ag = _utils.remap(g, 0.0, 1.0,
+        #                   0.22745, 0.22352)
+        # ab = _utils.remap(b, 0.0, 1.0,
+        #                   0.06274, 0.22745)
+        #
+        # dr = _utils.remap(r, 0.0, 1.0,
+        #                   0.27450, 0.34509)
+        # dg = _utils.remap(g, 0.0, 1.0,
+        #                   0.27450, 0.31372)
+        # db = _utils.remap(b, 0.0, 1.0,
+        #                   0.09019, 0.27450)
+        #
+        # sr = _utils.remap(r, 0.0, 1.0,
+        #                   0.77254, 0.79607)
+        # sg = _utils.remap(g, 0.0, 1.0,
+        #                   0.77254, 0.72156)
+        # sb = _utils.remap(b, 0.0, 1.0,
+        #                   0.20784, 0.77254)
 
-        dr = _utils.remap(r, 0.0, 1.0,
-                          0.27450, 0.34509)
-        dg = _utils.remap(g, 0.0, 1.0,
-                          0.27450, 0.31372)
-        db = _utils.remap(b, 0.0, 1.0,
-                          0.09019, 0.27450)
+        self._ambient = (r, g, b, a)
+        self._diffuse = (r, g, b, a)
+        self._specular = (r / 2.0, g / 2.0, b / 2.0, a / 2.0)
 
-        sr = _utils.remap(r, 0.0, 1.0,
-                          0.77254, 0.79607)
-        sg = _utils.remap(g, 0.0, 1.0,
-                          0.77254, 0.72156)
-        sb = _utils.remap(b, 0.0, 1.0,
-                          0.20784, 0.77254)
-
-        self._ambient = (ar, ag, ab)
-        self._diffuse = (dr, dg, db)
-        self._specular = (sr, sg, sb)
-
-        self._shine = _utils.remap(r + g + b, 0.0,
-                                   3.0, 83.2, 89.6)
+        self._shine = _utils.remap(r + g + b + a, 0.0,
+                                   4.0, 83.2, 89.6)
 
         self._cl_specular = sum(self._specular) / len(self._specular)
         self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)

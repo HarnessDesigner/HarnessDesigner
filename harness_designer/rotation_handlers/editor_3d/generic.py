@@ -12,14 +12,14 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from . import rotation_ring
+from .. import rotation_ring
 from ...objects.objects_3d import base_3d as _base_3d
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
-from ...gl.canvas_base import rotation_mesh as _rotation_mesh
+from .. import rotation_mesh as _rotation_mesh
 
 
 Config = _config.Config.editor_3d
@@ -61,8 +61,7 @@ class Rings3D(_base_3d.Base3D):
 
         self._obj3d = obj3d
         self._selected = selected
-        self._radius = 1e-3
-        self._compute_size()
+        self._radius, self._object_radius = self._compute_radius_values()
 
         # Signature of the config values baked into materials/meshes —
         # render() dirty-checks this each frame so config edits made from
@@ -94,10 +93,11 @@ class Rings3D(_base_3d.Base3D):
         with mainframe.editor3d.context:
             self._rings = {
                 axis: rotation_ring.RotationRing(
-                    axis, obj3d.position, obj_angle, self._radius,
+                    axis, obj3d.position, obj_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
-                    self._colors[axis], self._radius * LABEL_SIZE_SCALE,
-                    mainframe.editor3d.context, mainframe.editor3d.camera)
+                    self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
+                    mainframe.editor3d.context, mainframe, _base_3d.Base3D,
+                    mainframe.editor3d.camera)
                 for axis in self._axes
             }
 
@@ -123,6 +123,7 @@ class Rings3D(_base_3d.Base3D):
             axis: _color.Color(*getattr(ring_config, f'{axis}_color'))
             for axis in self._axes
         }
+        self._outer_color = _color.Color(*ring_config.outer_ring_color)
 
     @staticmethod
     @_check_types.do
@@ -135,6 +136,7 @@ class Rings3D(_base_3d.Base3D):
             tuple(ring_config.x_color),
             tuple(ring_config.y_color),
             tuple(ring_config.z_color),
+            tuple(ring_config.outer_ring_color),
         )
 
     @_check_types.do
@@ -219,8 +221,13 @@ class Rings3D(_base_3d.Base3D):
             pass
 
     @_check_types.do
-    def _compute_size(self):
-        """Derive the gizmo radius from the object's AABB space diagonal.
+    def _compute_radius_values(self) -> tuple[float, float]:
+        """Derive (radius, object_radius) from the object's AABB space
+        diagonal -- a pure computation, no side effects on
+        ``self._radius``/``self._object_radius`` -- so it's safe to call
+        before either exists (see ``__init__``, which uses this directly
+        instead of ever assigning a placeholder value that would need a
+        later call to overwrite before anything reads it).
 
         All gizmo sizing derives from the AABB space diagonal (the largest
         distance between two points of the box) so the rings always clear
@@ -266,22 +273,34 @@ class Rings3D(_base_3d.Base3D):
                         np.asarray(obb, dtype=np.float64) - housing_pos, axis=1)
                     max_reach = max(max_reach, float(dists.max()))
 
+            object_radius = max_reach
             diameter = max_reach * 2.0 * float(ring_config.diameter_scale)
         else:
             diagonal = float(np.linalg.norm(
                 np.asarray(aabb[1], dtype=np.float64) -
                 np.asarray(aabb[0], dtype=np.float64)))
+            object_radius = diagonal / 2.0
             diameter = diagonal * float(ring_config.diameter_scale)
 
-        self._radius = max(diameter / 2.0, 1e-3)
+        radius = max(diameter / 2.0, 1e-3)
+        object_radius = max(object_radius, 1e-3)
 
-        # Guard for the __init__-time call, made before self._rings exists
-        # (the rings are constructed with this initial radius directly);
-        # every later call (config/scale changes) propagates to them.
+        return radius, object_radius
+
+    @_check_types.do
+    def _compute_size(self):
+        """Recompute size and propagate it to every already-built ring --
+        call whenever the tracked object's own scale/AABB changes.
+        """
+        self._radius, self._object_radius = self._compute_radius_values()
+
+        # Guard: nothing to propagate to yet the first time this ever
+        # runs (this is __init__ itself, before self._rings exists --
+        # see __init__, which no longer calls this method at all).
         rings = getattr(self, '_rings', None)
         if rings is not None:
             for ring in rings.values():
-                ring.on_object_scale_changed(self._radius)
+                ring.on_object_scale_changed(self._radius, self._object_radius)
 
     @_check_types.do
     def apply_drag_angle(self, axis: str, value: float):
@@ -324,7 +343,17 @@ class Rings3D(_base_3d.Base3D):
 
     @_check_types.do
     def activate(self, axis: str):
-        """Show *axis*'s protractor and dim the other two torus rings."""
+        """Show *axis*'s protractor and dim the other two torus rings.
+
+        Switching directly from one axis's protractor to another's (a
+        dimmed sibling torus is still pickable -- see ``RotationRing.
+        set_dimmed``) has to explicitly deactivate the old one first --
+        a plain ``set_dimmed(True)`` only fades its torus back in, it
+        never hides that axis's own inner/outer protractor bands.
+        """
+        if self._active_axis is not None and self._active_axis != axis:
+            self._rings[self._active_axis].deactivate()
+
         for a, ring in self._rings.items():
             if a == axis:
                 # Un-dim first in case this axis was left dimmed by a
@@ -408,22 +437,40 @@ class Rings3D(_base_3d.Base3D):
         self._rings[self._active_axis].outer.update_hover(mouse_pos, camera)
 
     @_check_types.do
-    def click_outer_snap(self):
+    def click_outer_snap(self) -> bool:
         """Snap the active axis's Euler value to the currently-hovered
         outer-ring tick, if any.
+
+        :returns: Whether a tick was actually hovered (and so a snap
+            happened) -- lets the caller tell a real gizmo interaction
+            apart from a click that missed it entirely.
         """
         if self._active_axis is None:
-            return
+            return False
 
         value = self._rings[self._active_axis].outer.click_hovered()
-        if value is not None:
-            self.apply_drag_angle(self._active_axis, value)
+        if value is None:
+            return False
+
+        self.apply_drag_angle(self._active_axis, value)
+        return True
 
     @_check_types.do
     def _on_obj_angle(self, _):
-        """Update every ring's orientation when the tracked object rotates."""
+        """Update every ring's orientation when the tracked object rotates.
+
+        The rings' own sizes/offsets are fixed for this gizmo's whole
+        lifetime (the tracked object can't resize while it's up -- see
+        _compute_radius_values), but this wrapper's own culling bounds
+        (_aabb/_obb, mirrored from the tracked object) genuinely are
+        angle-dependent -- the object's own bounding box changes shape as
+        it rotates -- so those still need refreshing here, every time.
+        """
         for ring in self._rings.values():
             ring.on_object_angle_changed()
+
+        self._compute_obb()
+        self._compute_aabb()
 
     @_check_types.do
     def _on_obj_scale(self, _):

@@ -251,7 +251,13 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @_check_types.do
     def inverse(self) -> "Angle":
         """
-        Return the inverse rotation.
+        Return the inverse rotation -- the angle that, applied after
+        this one, undoes it (no net rotation). Delegates straight to
+        :meth:`~harness_designer.geometry.angle.quaternion.Quaternion.
+        __neg__` -- see that method's own docstring for the full
+        distinction between this (compositional, "undo") and
+        ``Quaternion.negation`` (component sign-flip, same rotation,
+        never "undo").
 
         :returns: Inverse angle.
         :rtype: :class:`Angle`
@@ -259,11 +265,16 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         q = -self._q
         return Angle(q)
-    
+
     @_check_types.do
     def __neg__(self) -> "Angle":
         """
-        Return the inverse rotation.
+        Return the inverse rotation -- ``-angle`` is exactly
+        :attr:`inverse`, provided so ``point @= -angle`` reads naturally
+        as "un-rotate this point." See :attr:`inverse`'s own docstring
+        (and, for the full compositional-inverse-vs-same-rotation
+        distinction, :meth:`~harness_designer.geometry.angle.quaternion.
+        Quaternion.__neg__`'s).
 
         :returns: Inverse angle.
         :rtype: :class:`Angle`
@@ -929,9 +940,17 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
         q = _quaternion.Quaternion(w, x, y, z)
 
-        # optional: canonicalize sign
+        # Canonicalize to the positive-w double-cover representative --
+        # deliberately Quaternion.negation here, NOT its unary "-" (that's
+        # the multiplicative inverse, "undo this rotation" -- see
+        # Quaternion.__neg__'s own docstring). This step never wants to
+        # undo anything; it just needs the other valid quaternion for
+        # the SAME rotation just extracted, whenever w came out negative
+        # -- using -q here instead silently produced the inverse
+        # rotation rather than the equivalent same-rotation
+        # representative, for roughly half of all possible inputs.
         if q.w < 0:
-            q = -q
+            q = q.negation
 
         return cls(q, db_id=db_id)
 

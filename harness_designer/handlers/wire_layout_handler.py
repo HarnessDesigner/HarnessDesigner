@@ -11,18 +11,12 @@ from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import wire_layout as _wire_layout
 from ..objects import wire as _wire
-from ..gl import materials as _materials
-from .. import config as _config
-from .. import color as _color
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import camera as _camera
-    from .. import ui as _ui
+    from ..gl.canvas_3d import camera as _camera
 
-
-Config = _config.Config.colors
 
 _SNAP_THRESHOLD = 5.0
 
@@ -174,134 +168,3 @@ def _create_wire_layout_on_wire(
     wire.obj3d.refresh_waypoints()
 
     return layout_obj
-
-
-class AddWireLayoutHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of wire layout points along existing wires."""
-    obj: _wire_layout.WireLayout = None
-
-    @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
-        """Initialize the handler and create the placement preview.
-
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: "_ui.MainFrame"
-        """
-        super().__init__(mainframe, None)
-
-        self._highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.wire_highlight))
-
-        self._snapped_wire: _wire.Wire | None = None
-
-        pos_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        layout_db = self.ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
-        self.obj = _wire_layout.WireLayout(mainframe, layout_db)
-        self.obj.obj3d.is_visible = False
-
-    @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
-        """Snap the preview to the nearest wire and update its diameter and color.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-        wire = _find_wire(mouse_pos, self.camera, self.mainframe.project)
-
-        if wire is None:
-            self.obj.obj3d.is_visible = False
-            if self._snapped_wire is not None:
-                self._snapped_wire.identify(None)
-                self._snapped_wire = None
-
-            return
-
-        raw_pos, _, _ = wire.obj3d.get_closest_endpoint(mouse_pos)
-
-        if not isinstance(raw_pos, _point.Point):
-            raw_pos = _point.Point(*raw_pos)
-
-        pos = self.obj.obj3d.position
-        pos += raw_pos - pos
-
-        if wire is not self._snapped_wire:
-            if self._snapped_wire is not None:
-                self._snapped_wire.identify(None)
-
-            wire.identify(self._highlight_material)
-
-            diameter = wire.db_obj.part.od_mm
-            scale = self.obj.obj3d.scale
-            scale += _point.Point(diameter, diameter, diameter) - scale
-
-            color = wire.db_obj.part.color.ui
-            material = _materials.Plastic(color)
-            self.obj.obj3d._material = material
-            self.obj.obj3d._unselected_material = material
-
-            self._snapped_wire = wire
-
-        self.obj.obj3d.is_visible = True
-
-    @_check_types.do
-    def release_capture(self) -> None:
-        """Finalize placement: insert a waypoint or attach to an endpoint.
-        """
-        if self._finalized:
-            return
-
-        if self._captured_position is None:
-            return
-
-        wire = self._snapped_wire
-        if wire is None:
-            return
-
-        self._snapped_wire.identify(None)
-        self._snapped_wire = None
-
-        mouse_pos = self._captured_position
-        raw_pos, is_at_endpoint, endpoint = wire.obj3d.get_closest_endpoint(mouse_pos)
-
-        self._finalized = True
-
-        if is_at_endpoint:
-            if endpoint == 'start':
-                wire.obj3d.start_position.attach(self.obj.obj3d.position)
-            else:
-                wire.obj3d.stop_position.attach(self.obj.obj3d.position)
-
-            # .attach() only makes the delegator (this layout's own preview
-            # point) track the wire endpoint live, in-memory, for this
-            # session -- the layout's own DB row still stores its original
-            # throwaway point's id. Repoint it to the wire endpoint's real
-            # id (now what self.obj.obj3d.position.db_id reports, since a
-            # delegator forwards db_id to its root) so the sharing survives
-            # a reload instead of only existing as a live delegation.
-            self.obj.db_obj.position3d_id = self.obj.obj3d.position.db_id[:-2]
-
-            self.obj.obj3d.is_visible = True
-            self.mainframe.project.add_wire_layout(self.obj)
-        else:
-            # Discard the throwaway preview point/layout row created in
-            # __init__ -- _create_wire_layout_on_wire makes the real one
-            # at the correct waypoint position/index, on the wire's own
-            # row (no split), and registers it with the project itself.
-            preview_position = _point.Point(*self.obj.obj3d.position.as_float)
-            self.obj.delete()
-            self.obj = _create_wire_layout_on_wire(
-                self.mainframe.project, wire, preview_position)
-            self.obj.obj3d.is_visible = True
-
-        self.obj = None
-
-    @_check_types.do
-    def cancel(self):
-        """Cancel placement and clean up the preview."""
-        if self._snapped_wire is not None:
-            self._snapped_wire.identify(None)
-            self._snapped_wire = None
-
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None

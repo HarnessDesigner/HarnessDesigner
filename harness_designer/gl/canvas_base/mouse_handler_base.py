@@ -220,6 +220,22 @@ class MouseHandlerBase:
         return tuple(exclusions)
 
     @_check_types.do
+    def _blocks_deselection(self, obj) -> bool:
+        """Whether *obj* currently has its rotation gizmo up -- if so, a
+        click that misses everything (or lands back on the object
+        itself, which would normally toggle selection off) shouldn't
+        also drop the selection out from under it. Closing the gizmo
+        itself is still entirely ``_handle_rotation_interaction``'s own
+        call (see its own docstring) -- this only stops that same click
+        from *additionally* deselecting.
+        """
+        from ...rotation_handlers import rotation_rings as _rotation_rings
+
+        view_obj = self._get_view_object(obj)
+        return isinstance(
+            getattr(view_obj, '_active_handler', None), _rotation_rings.RotationRings)
+
+    @_check_types.do
     def _pick_object(self, mouse_pos, current_selection=None):
         """Pick a scene object, ignoring anything :meth:`_pick_exclusions`
         reports (e.g. an active rotation gizmo overlay)."""
@@ -509,6 +525,13 @@ class MouseHandlerBase:
             mouse_pos, _interaction.MouseInteraction.LEFT_DOWN, False, clicked_object
         ):
             self.canvas.grabMouse()
+            # A consumed click can change visible state on its own (e.g.
+            # RotationRing.activate()'s newly-shown protractor, or an
+            # outer-tick click snapping the object's angle) with no
+            # button-drag delta of its own to fall through to the
+            # refresh below -- repaint now so that shows up immediately
+            # rather than waiting on some unrelated later event.
+            self.canvas.repaint()
             return
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_DOWN)
@@ -533,6 +556,10 @@ class MouseHandlerBase:
             self.canvas.releaseMouse()
             self._mouse_pos = None
             self._is_motion = False
+            # See on_left_down's own repaint -- a consumed release (e.g.
+            # ending an inner-ring free-rotation drag) needs to show its
+            # final state immediately too.
+            self.canvas.repaint()
             return
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_UP)
@@ -578,7 +605,10 @@ class MouseHandlerBase:
                     if not self._send_event(event, evt):
                         selected.set_selected(False)
 
-                elif selected is None and cur_selected is not None:
+                elif (
+                    selected is None and cur_selected is not None and
+                    not self._blocks_deselection(cur_selected)
+                ):
                     cur_selected.set_selected(False)
 
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
@@ -590,7 +620,8 @@ class MouseHandlerBase:
                 elif (
                     selected is not None and
                     cur_selected is not None and
-                    selected == cur_selected
+                    selected == cur_selected and
+                    not self._blocks_deselection(cur_selected)
                 ):
                     selected.set_selected(False)
                     event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
@@ -939,14 +970,27 @@ class MouseHandlerBase:
         movement and an unarmed hover never arms anything new on its own.
         """
 
-        refresh = False
-
         mouse_pos = _qt_pos(evt)
 
         if self._dispatch_to_active_handler(
             mouse_pos, _interaction.MouseInteraction.MOVE, self._is_motion
         ):
+            # A consumed MOVE (e.g. the inner ring's own free-rotation
+            # drag advancing) has no button-drag delta of its own to
+            # reach the refresh below -- repaint now so the drag's
+            # in-progress motion is actually visible, not just its final
+            # state once the mouse eventually stops.
+            self.canvas.repaint()
             return
+
+        # A handler can still be armed (e.g. the rotation gizmo's outer-
+        # ring tick hover) even when it declines to consume this MOVE --
+        # that's deliberate, so camera controls keep working while it's
+        # up (see BaseVar.handle_interaction's own docstring) -- but a
+        # hover highlight change like that still needs a repaint of its
+        # own, since with no mouse button held the button-driven refresh
+        # below never runs at all.
+        refresh = self.canvas.active_handler_obj is not None
 
         event = _events.GLEvent(_events.EVT_GL_MOUSE_MOVE)
         if not self._send_event(event, evt):

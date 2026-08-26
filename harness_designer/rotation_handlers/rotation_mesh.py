@@ -14,9 +14,10 @@ confirmed numerically here: ``Angle.from_euler(ex, ey, ez) @ v`` matches
 Each axis's ring, unrotated, has its own plane normal along that same
 axis (the X ring's flat face is perpendicular to world X, etc.) --
 :func:`slot_ring_angle` returns the orientation that carries a ring's
-local-Z-is-the-normal mesh convention (see ``_tick_world_basis`` in
-``rotation_ring/_protractor_base.py``, and ``TorusRing``'s own local
-XY-plane/Z-normal convention) onto that rest pose, then applies
+local-Z-is-the-normal mesh convention (see ``_Tick.local_radial``/
+``ProtractorRingBase.reposition_all`` in ``rotation_ring/
+_protractor_base.py``, and ``TorusRing``'s own local XY-plane/Z-normal
+convention) onto that rest pose, then applies
 whichever part of the tracked object's current Euler value sits
 *outside* this axis in the nested order -- nothing sits outside Y (fixed
 in world space); only Y sits outside X; Y and X both sit outside Z. Two
@@ -38,9 +39,9 @@ import math
 
 import numpy as np
 
-from ...geometry import angle as _angle
-from ... import utils as _utils
-from ... import check_types as _check_types
+from ..geometry import angle as _angle
+from .. import utils as _utils
+from .. import check_types as _check_types
 
 
 AXES = ('x', 'y', 'z')
@@ -53,8 +54,8 @@ def slot_ring_angle(axis: str, euler: tuple) -> "_angle.Angle":
     module docstring for the full derivation. Applying this to local Z
     (this gizmo's shared "ring normal is local Z" convention) gives the
     ring's current world-space plane normal; applying it to local X/Y
-    gives the tangential/radial directions ``_tick_world_basis`` places
-    ticks with.
+    gives the tangential/radial directions ``_Tick.local_radial``
+    (``rotation_ring/_protractor_base.py``) places ticks with.
     """
     ex, ey, ez = euler
 

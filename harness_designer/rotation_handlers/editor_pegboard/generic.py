@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Pegboard-editor rotation gizmo -- a single Y-axis
-:class:`~..editor_3d.rotation_ring.RotationRing` (torus + protractor),
+:class:`~..rotation_ring.RotationRing` (torus + protractor),
 reusing that exact same class. See :mod:`~..editor_schematic.generic`'s
 own module docstring for the full reasoning (identical here: the
 pegboard view is also permanently locked top-down, so only a rotation
@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from ..editor_3d import rotation_ring
+from .. import rotation_ring
 from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 
 class RingsPegboard(_base_pegboard.BasePegboard):
-    """Own a single Y-axis :class:`~..editor_3d.rotation_ring.
+    """Own a single Y-axis :class:`~..rotation_ring.
     RotationRing` gizmo (torus + protractor) built around a selected
     object -- see the module docstring.
     """
@@ -58,8 +58,7 @@ class RingsPegboard(_base_pegboard.BasePegboard):
 
         self._obj_view = objpegboard
         self._selected = selected
-        self._radius = 1e-3
-        self._compute_size()
+        self._radius, self._object_radius = self._compute_radius_values()
 
         self._config_sig = self._current_config_sig()
 
@@ -78,10 +77,11 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         with mainframe.editor_pegboard.context:
             self._rings = {
                 axis: rotation_ring.RotationRing(
-                    axis, objpegboard.position, obj_angle, self._radius,
+                    axis, objpegboard.position, obj_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
-                    self._colors[axis], self._radius * LABEL_SIZE_SCALE,
-                    mainframe.editor_pegboard.context, mainframe.editor_pegboard.camera)
+                    self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
+                    mainframe.editor_pegboard.context, mainframe, _base_pegboard.BasePegboard,
+                    mainframe.editor_pegboard.camera)
                 for axis in self._axes
             }
 
@@ -99,6 +99,7 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         """(Re)build the per-axis colors from config -- only ``y`` here."""
         ring_config = Config.rotation_handler
         self._colors = {axis: _color.Color(*ring_config.y_color) for axis in self._axes}
+        self._outer_color = _color.Color(*ring_config.outer_ring_color)
 
     @staticmethod
     @_check_types.do
@@ -109,6 +110,7 @@ class RingsPegboard(_base_pegboard.BasePegboard):
             float(ring_config.diameter_scale),
             float(ring_config.tube_diameter_scale),
             tuple(ring_config.y_color),
+            tuple(ring_config.outer_ring_color),
         )
 
     @_check_types.do
@@ -168,10 +170,13 @@ class RingsPegboard(_base_pegboard.BasePegboard):
             pass
 
     @_check_types.do
-    def _compute_size(self):
-        """Derive the gizmo radius from the object's own AABB space
-        diagonal -- no attached-parts sizing (the pegboard doesn't
-        overlay those the way the 3D editor does).
+    def _compute_radius_values(self) -> tuple[float, float]:
+        """Derive (radius, object_radius) from the object's own AABB
+        space diagonal -- a pure computation, no side effects, safe to
+        call before ``self._radius``/``self._object_radius`` or
+        ``self._rings`` exist (see ``__init__``). No attached-parts
+        sizing here -- the pegboard doesn't overlay those the way the 3D
+        editor does.
         """
         aabb = self._obj_view.aabb
 
@@ -182,12 +187,22 @@ class RingsPegboard(_base_pegboard.BasePegboard):
             np.asarray(aabb[0], dtype=np.float64)))
         diameter = diagonal * float(ring_config.diameter_scale)
 
-        self._radius = max(diameter / 2.0, 1e-3)
+        radius = max(diameter / 2.0, 1e-3)
+        object_radius = max(diagonal / 2.0, 1e-3)
+
+        return radius, object_radius
+
+    @_check_types.do
+    def _compute_size(self):
+        """Recompute size and propagate it to every already-built ring --
+        call whenever the tracked object's own scale/AABB changes.
+        """
+        self._radius, self._object_radius = self._compute_radius_values()
 
         rings = getattr(self, '_rings', None)
         if rings is not None:
             for ring in rings.values():
-                ring.on_object_scale_changed(self._radius)
+                ring.on_object_scale_changed(self._radius, self._object_radius)
 
     @_check_types.do
     def apply_drag_angle(self, axis: str, value: float):
@@ -278,18 +293,38 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         self._rings[self._active_axis].outer.update_hover(mouse_pos, camera)
 
     @_check_types.do
-    def click_outer_snap(self):
+    def click_outer_snap(self) -> bool:
+        """Snap the active axis's Euler value to the currently-hovered
+        outer-ring tick, if any.
+
+        :returns: Whether a tick was actually hovered (and so a snap
+            happened) -- lets the caller tell a real gizmo interaction
+            apart from a click that missed it entirely.
+        """
         if self._active_axis is None:
-            return
+            return False
 
         value = self._rings[self._active_axis].outer.click_hovered()
-        if value is not None:
-            self.apply_drag_angle(self._active_axis, value)
+        if value is None:
+            return False
+
+        self.apply_drag_angle(self._active_axis, value)
+        return True
 
     @_check_types.do
     def _on_obj_angle(self, _):
+        """Update every ring's orientation when the tracked object rotates.
+
+        The rings' own sizes/offsets are fixed for this gizmo's whole
+        lifetime, but this wrapper's own culling bounds (_aabb/_obb,
+        mirrored from the tracked object) genuinely are angle-dependent,
+        so those still need refreshing here, every time.
+        """
         for ring in self._rings.values():
             ring.on_object_angle_changed()
+
+        self._compute_obb()
+        self._compute_aabb()
 
     @_check_types.do
     def _on_obj_scale(self, _):

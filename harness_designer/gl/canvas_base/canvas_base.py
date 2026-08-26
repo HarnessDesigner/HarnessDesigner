@@ -904,16 +904,20 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
                 objects_in_view.append(obj)
 
-                # A selected, translucent object is deferred to a later
-                # pass (see _on_draw, right after this method returns) so
-                # it always renders AFTER every opaque object in the scene
-                # regardless of where it falls in this loop's arbitrary
-                # bucket order -- otherwise whichever opaque objects (e.g.
-                # a housing's own interior terminals/wires) happen to be
-                # drawn after it here would get fully overwritten instead
-                # of showing through it.
+                # The selected object -- opaque or translucent -- is
+                # deferred to a later pass (see below, right after this
+                # loop) so its active handler (drag arrows / rotation
+                # gizmo) always renders BEFORE it, and it in turn always
+                # renders AFTER every other opaque object in the scene
+                # regardless of where either falls in this loop's
+                # arbitrary bucket order -- otherwise whichever opaque
+                # objects (e.g. a housing's own interior terminals/wires)
+                # happen to be drawn after it here would get fully
+                # overwritten instead of showing through it, and the
+                # handler's own depth contribution would have no agreed
+                # relationship with this object's depth/blend passes.
                 view_obj = self._get_view_object(obj)
-                if obj is self._selected and not view_obj.is_opaque:
+                if obj is self._selected:
                     continue
 
                 view_obj.render(self._shaders)
@@ -945,7 +949,37 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         if self._selected is not None:
             view_obj = self._get_view_object(self._selected)
 
-            if not view_obj.is_opaque:
+            # The selected object's own active handler (drag arrows /
+            # rotation gizmo, whichever is armed) -- rendered here,
+            # BEFORE the object itself, so the object's own depth/blend
+            # passes below (opaque or translucent) composite against the
+            # handler's depth contribution the same way they would
+            # against any other already-drawn scene geometry, instead of
+            # the handler being layered on top afterward with its own
+            # separately hand-tuned depth-mask toggling (see
+            # BaseVar.render_handler's own docstring, and the handler
+            # render() methods themselves, which no longer touch
+            # glDepthMask at all -- that reasoning belongs here, at the
+            # one place that knows what renders before/after it, not
+            # inside the handler).
+            try:
+                view_obj.render_handler(self._shaders)
+            except Exception as err:  # NOQA
+                _logger.traceback(err, 'active handler render error')
+
+            if view_obj.is_opaque:
+
+                # Opaque selected objects skip the whole translucent
+                # dance above -- a single normal render, same as any
+                # other opaque object in the main loop, just deferred to
+                # here so it lands after the handler render above.
+                try:
+                    view_obj.render(self._shaders)
+                except Exception as err:  # NOQA
+                    _logger.traceback(
+                        err, 'selected object render error'
+                    )
+            else:
                 GL.glDepthMask(GL.GL_FALSE)
 
                 try:

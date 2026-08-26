@@ -1,59 +1,19 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Convenience imports for interactive object-placement and routing handlers.
+"""Shared classes/helpers reused by the object-owned add-handler system
+(``add_handlers``) and by ``objects.*``'s own ``start_add`` classmethods
+-- every ``handlers.Add*Handler`` class this package used to export has
+been migrated onto the objects themselves (see ``add_handlers/`` and
+each view's own ``objects_3d``/``objects_schematic``/``objects_pegboard``
+package) and removed. What remains here is the reusable, view-agnostic
+logic those replacements still call into: part-compatibility lookups,
+wire fork/merge, terminal/transition placement geometry, and
+``HandlerBase``'s own shared classmethods (``set_angle_from_cavity``/
+``set_angle_from_housing``/``reset_angle``/etc.).
 """
 
-from . import bundle_handler as _bundle_handler
-from . import bundle_layout_handler as _bundle_layout_handler
-from . import cover_handler as _cover_handler
-from . import cpa_lock_handler as _cpa_lock_handler
-from . import housing_handler as _housing_handler
-from . import pegboard_handler as _pegboard_handler
-from . import seal_handler as _seal_handler
-from . import splice_handler as _splice_handler
-from . import terminal_handler as _terminal_handler
-from . import tpa_lock_handler as _tpa_lock_handler
-from . import transition_handler as _transition_handler
-from . import wire_handler as _wire_handler
-from . import wire_handler_2d as _wire_handler_2d
-from . import wire_layout_handler as _wire_layout_handler
-from . import wire_service_loop_handler as _wire_service_loop_handler
 from . import handler_base as _handler_base
-from . import note_handler as _note_handler
-
 
 HandlerBase = _handler_base.HandlerBase
-AddBundleHandler = _bundle_handler.AddBundleHandler
-AddBundleLayoutHandler = _bundle_layout_handler.AddBundleLayoutHandler
-AddCoverHandler = _cover_handler.AddCoverHandler
-AddCPALockHandler = _cpa_lock_handler.AddCPALockHandler
-AddHousingHandler = _housing_handler.AddHousingHandler
-AddWaypointHandler = _pegboard_handler.AddWaypointHandler
-AddSealHandler = _seal_handler.AddSealHandler
-AddSpliceHandler = _splice_handler.AddSpliceHandler
-AddTerminalHandler = _terminal_handler.AddTerminalHandler
-AddTPALockHandler = _tpa_lock_handler.AddTPALockHandler
-AddTransitionHandler = _transition_handler.AddTransitionHandler
-AddWireHandler = _wire_handler.AddWireHandler
-AddWireHandler2D = _wire_handler_2d.AddWireHandler2D
-AddWireLayoutHandler = _wire_layout_handler.AddWireLayoutHandler
-AddWireServiceLoopHandler = _wire_service_loop_handler.AddWireServiceLoopHandler
-AddNoteHandler = _note_handler.AddNoteHandler
 
 del _handler_base
-del _bundle_handler
-del _bundle_layout_handler
-del _cover_handler
-del _cpa_lock_handler
-del _housing_handler
-del _pegboard_handler
-del _seal_handler
-del _splice_handler
-del _terminal_handler
-del _tpa_lock_handler
-del _transition_handler
-del _wire_handler
-del _wire_handler_2d
-del _wire_layout_handler
-del _wire_service_loop_handler
-del _note_handler

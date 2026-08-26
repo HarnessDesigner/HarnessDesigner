@@ -11,18 +11,12 @@ from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import bundle_layout as _bundle_layout
 from ..objects import bundle as _bundle
-from ..gl import materials as _materials
-from .. import config as _config
-from .. import color as _color
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import camera as _camera
-    from .. import ui as _ui
+    from ..gl.canvas_3d import camera as _camera
 
-
-Config = _config.Config.colors
 
 _SNAP_THRESHOLD = 5.0
 
@@ -173,145 +167,3 @@ def _create_bundle_layout_on_bundle(
     bundle.obj3d.refresh_waypoints()
 
     return layout_obj
-
-
-class AddBundleLayoutHandler(_handler_base.HandlerBase):
-    """
-    Handle interactive placement of bundle layout points along existing bundles.
-    """
-
-    obj: _bundle_layout.BundleLayout = None
-
-    @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
-        """
-        Initialize the handler and create the placement preview.
-
-        :param mainframe: Main application frame that owns the editor and project state.
-        :type mainframe: "_ui.MainFrame"
-        """
-
-        super().__init__(mainframe, None)
-
-        self._highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.bundle_highlight))
-
-        self._snapped_bundle: _bundle.Bundle | None = None
-
-        pos_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-
-        layout_db = self.ptables.pjt_bundle_layouts_table.insert(
-            pos_db.db_id, 10.0)
-
-        self.obj = _bundle_layout.BundleLayout(mainframe, layout_db)
-        self.obj.obj3d.is_visible = False
-
-    @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
-        """
-        Snap the preview to the nearest bundle and update its diameter and color.
-
-        :param mouse_pos: Mouse position used for picking or preview updates.
-        :type mouse_pos: _point.Point
-        """
-
-        bundle = _find_bundle(mouse_pos, self.camera, self.mainframe.project)
-
-        if bundle is None:
-            if self._snapped_bundle is not None:
-                self._snapped_bundle.identify(None)
-                self._snapped_bundle = None
-
-            self.obj.obj3d.is_visible = False
-
-            return
-
-        raw_pos, _, _ = bundle.obj3d.get_closest_endpoint(mouse_pos)
-
-        if not isinstance(raw_pos, _point.Point):
-            raw_pos = _point.Point(*raw_pos)
-
-        pos = self.obj.obj3d.position
-        pos += raw_pos - pos
-
-        if bundle is not self._snapped_bundle:
-            if self._snapped_bundle is not None:
-                self._snapped_bundle.identify(None)
-
-            bundle.identify(self._highlight_material)
-
-            diameter = bundle.obj3d.diameter
-            scale = self.obj.obj3d.scale
-            scale += _point.Point(diameter, diameter, diameter) - scale
-
-            color = bundle.db_obj.part.color.ui
-            material = _materials.Rubber(color)
-            self.obj.obj3d._material = material
-            self.obj.obj3d._unselected_material = material
-
-            self._snapped_bundle = bundle
-
-        self.obj.obj3d.is_visible = True
-
-    @_check_types.do
-    def release_capture(self) -> None:
-        """Finalize placement: insert a waypoint or attach to an endpoint.
-        """
-        if self._finalized or self._captured_position is None:
-            return
-
-        bundle = self._snapped_bundle
-        if bundle is None:
-            return
-
-        self._snapped_bundle.identify(None)
-        self._snapped_bundle = None
-
-        mouse_pos = self._captured_position
-        raw_pos, is_at_endpoint, endpoint = bundle.obj3d.get_closest_endpoint(mouse_pos)
-
-        diameter = bundle.obj3d.diameter
-        self._finalized = True
-
-        if is_at_endpoint:
-            if endpoint == 'start':
-                bundle.obj3d.start_position.attach(self.obj.obj3d.position)
-            else:
-                bundle.obj3d.stop_position.attach(self.obj.obj3d.position)
-
-            # .attach() only makes the delegator (this layout's own preview
-            # point) track the bundle endpoint live, in-memory, for this
-            # session -- the layout's own DB row still stores its original
-            # throwaway point's id. Repoint it to the bundle endpoint's real
-            # id (now what self.obj.obj3d.position.db_id reports, since a
-            # delegator forwards db_id to its root) so the sharing survives
-            # a reload instead of only existing as a live delegation.
-            self.obj.db_obj.position3d_id = self.obj.obj3d.position.db_id[:-2]
-
-            self.obj.db_obj.diameter = diameter
-            self.obj.obj3d.is_visible = True
-            self.mainframe.project.add_bundle_layout(self.obj)
-        else:
-            # Discard the throwaway preview point/layout row created in
-            # __init__ -- _create_bundle_layout_on_bundle makes the real
-            # one at the correct waypoint position/index, on the bundle's
-            # own row (no split), and registers it with the project itself.
-            preview_position = _point.Point(*self.obj.obj3d.position.as_float)
-            self.obj.delete()
-            self.obj = _create_bundle_layout_on_bundle(
-                self.mainframe.project, bundle, preview_position, diameter)
-
-            self.obj.obj3d.is_visible = True
-
-        self.obj = None
-
-    @_check_types.do
-    def cancel(self):
-        """Cancel placement and clean up the preview."""
-        if self._snapped_bundle is not None:
-            self._snapped_bundle.identify(None)
-            self._snapped_bundle = None
-
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None

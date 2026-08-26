@@ -31,6 +31,18 @@ ARROW_OFFSET_SCALE = 2.0
 
 
 class MoveArrows(_object_base.ObjectBase):
+    """Deliberately NOT registered via ``mainframe.add_object`` -- this
+    is a drag-in-progress gizmo, owned and rendered by whichever
+    ``DragHandler3D`` built it (see ``drag_handlers/editor_3d/
+    __init__.py``'s own ``render()``), through
+    ``BaseVar.render_handler()`` called directly by ``canvas_base.py``
+    at the same point as the selected object's own special rendering --
+    not through the ordinary per-object scene pipeline. Registering it
+    there used to leave its own depth/blend state to interfere with
+    whatever else was drawn around it that same frame, same underlying
+    problem :class:`~..rotation_handlers.rotation_rings.RotationRings`
+    had.
+    """
 
     @_check_types.do
     def __init__(self, obj_position: _point.Point, axis: str,
@@ -55,7 +67,6 @@ class MoveArrows(_object_base.ObjectBase):
         self.objpegboard = ArrowsPegboard(self)
         self.obj3d = Arrows3D(self, obj_position, axis, mainframe, aabb)
         self._treeitem = None
-        self.mainframe.add_object(self)
 
     @_check_types.do
     def set_treeitem(self, treeitem):
@@ -74,7 +85,10 @@ class MoveArrows(_object_base.ObjectBase):
 
     @_check_types.do
     def delete(self):
-        self.mainframe.remove_object(self)
+        """No-op -- never registered via ``add_object``, so there's
+        nothing in the mainframe/tree/render loop to unregister; the
+        owning ``DragHandler3D`` just drops its own reference.
+        """
 
     @_check_types.do
     def close(self):

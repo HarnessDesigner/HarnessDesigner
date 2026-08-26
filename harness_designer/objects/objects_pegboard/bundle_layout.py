@@ -84,6 +84,17 @@ class BundleLayout(_base_pegboard.BasePegboard):
 
         self.point3d_id = db_obj.position_pegboard_id
 
+    @_check_types.do
+    def can_rotate(self) -> bool:
+        """See the fixed, unbound ``angle`` built in ``__init__`` above --
+        it exists only to satisfy ``BaseVar``'s OBB/AABB math, not because
+        this waypoint has any independent orientation -- reject the
+        rotation gizmo outright rather than relying on the base class's
+        default ``self._angle is not None`` check, which would otherwise
+        arm it.
+        """
+        return False
+
     @property
     @_check_types.do
     def smooth(self) -> bool:

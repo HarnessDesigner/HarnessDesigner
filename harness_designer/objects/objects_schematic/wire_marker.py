@@ -314,13 +314,17 @@ class WireMarker(_base_schematic.BaseSchematic):
             if interaction_type is _interaction.MouseInteraction.LEFT_UP:
                 self._active_handler.delete()
                 self._active_handler = None
-                return True
+                # No real drag happened -- let a plain click-release fall
+                # through to the default select/deselect toggle instead of
+                # being eaten here (see objects_3d.base_3d.handle_interaction).
+                return had_motion
 
             return False
 
         if (
             interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
             clicked_object is not self.parent or
+            self.mainframe.get_selected() is not self.parent or
             not self.can_drag()
         ):
             return False

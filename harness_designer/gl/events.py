@@ -28,8 +28,8 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import objects as _objects
-    from .canvas3d import camera as _camera3d
-    from .canvas2d import camera as _camera2d
+    from .canvas_3d import camera as _camera3d
+    from .canvas_schematic import camera as _camera2d
 
 
 # ---------------------------------------------------------------------------

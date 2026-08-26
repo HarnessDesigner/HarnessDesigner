@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ...ui import editor_2d as _editor_2d
     from ...database import project_db as _project_db
     from ...gl import vbo as _vbo
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_schematic
@@ -160,7 +161,8 @@ class BaseSchematic(_objectsvar.BaseVar):
         from ...rotation_handlers import rotation_rings as _rotation_rings
 
         if isinstance(self._active_handler, _rotation_rings.RotationRings):
-            return self._handle_rotation_interaction(current_pos, interaction_type, clicked_object)
+            return self._handle_rotation_interaction(
+                current_pos, had_motion, interaction_type, clicked_object)
 
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -170,7 +172,10 @@ class BaseSchematic(_objectsvar.BaseVar):
             if interaction_type is _interaction.MouseInteraction.LEFT_UP:
                 self._active_handler.delete()
                 self._active_handler = None
-                return True
+                # No real drag happened -- let a plain click-release fall
+                # through to the default select/deselect toggle instead of
+                # being eaten here (see objects_3d.base_3d.handle_interaction).
+                return had_motion
 
             return False
 
@@ -181,11 +186,13 @@ class BaseSchematic(_objectsvar.BaseVar):
             self.can_rotate()
         ):
             self._active_handler = _rotation_rings.RotationRings(self.editor2d.editor, self.parent)
+            self._rotation_just_armed = True
             return True
 
         if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
+            self.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
             from ...drag_handlers.editor_schematic import generic as _drag_generic
@@ -197,17 +204,31 @@ class BaseSchematic(_objectsvar.BaseVar):
 
     @_check_types.do
     def _handle_rotation_interaction(
-        self, current_pos: _point.Point, interaction_type: "_interaction.MouseInteraction",
-        clicked_object
+        self, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo --
         see objects_3d.base_3d.Base3D._handle_rotation_interaction (same
-        shape, this view's own single Y-axis ring instead of 3 axes).
+        shape, this view's own single Y-axis ring instead of 3 axes, and
+        the same "only consume what actually hit the gizmo" rule, plus
+        the same RIGHT_UP-not-RIGHT_DOWN, motion-gated toggle-off, so the
+        camera's own mouse controls still work while the ring/protractor
+        are on screen).
         """
         rings = self._active_handler
         camera = self.editor2d.editor.camera
 
         if interaction_type is _interaction.MouseInteraction.RIGHT_DOWN:
+            return False
+
+        if interaction_type is _interaction.MouseInteraction.RIGHT_UP:
+            if self._rotation_just_armed:
+                self._rotation_just_armed = False
+                return True
+
+            if had_motion:
+                return False
+
             rings.delete()
             self._active_handler = None
             return True
@@ -215,21 +236,32 @@ class BaseSchematic(_objectsvar.BaseVar):
         if interaction_type is _interaction.MouseInteraction.MOVE:
             if rings.objschematic.is_inner_dragging:
                 rings.objschematic.update_inner_drag(current_pos)
-            elif rings.objschematic.active_axis is not None:
+                return True
+
+            if rings.objschematic.active_axis is not None:
                 rings.objschematic.update_outer_hover(current_pos, camera)
-            return True
+
+            return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_UP:
-            rings.objschematic.end_inner_drag()
-            return True
+            if rings.objschematic.is_inner_dragging:
+                rings.objschematic.end_inner_drag()
+                return True
+
+            return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
             if rings.objschematic.active_axis is not None:
                 if rings.objschematic.begin_inner_drag(current_pos, camera):
                     return True
 
-                rings.objschematic.click_outer_snap()
-                return True
+                if rings.objschematic.click_outer_snap():
+                    return True
+
+                # Missed both the inner and outer protractor bands --
+                # leave the gizmo exactly as it is (still active on this
+                # axis) and let the default click/drag behavior run.
+                return False
 
             axis = rings.objschematic.pick(current_pos, camera)
             if axis is not None:
@@ -241,6 +273,35 @@ class BaseSchematic(_objectsvar.BaseVar):
             return False
 
         return False
+
+    @_check_types.do
+    def render_handler(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Render whatever's currently armed on :attr:`_active_handler`
+        (a drag or rotation handler) -- e.g. the rotation-rings
+        protractor (this view has no move-arrows axis-lock gizmo of its
+        own -- see drag_handlers/editor_schematic's own module docstring,
+        a locked top-down 2D drag has no ambiguous axis to lock at all).
+
+        Called directly by ``canvas_base.py``'s own selected-object
+        rendering, not an automatic ``render()`` tail call, and the
+        handler itself is deliberately never registered as its own scene
+        object via ``mainframe.add_object`` -- see
+        ``objects_3d.base_3d.Base3D.render_handler``'s own docstring
+        (same shape, this view's own single Y-axis ring instead of 3
+        axes) for the full reasoning.
+        """
+        if self._active_handler is None:
+            return
+
+        if (
+            self._vbo is None or
+            self._position is None or
+            self._scale is None or
+            self._angle is None
+        ):
+            return
+
+        self._active_handler.objschematic.render(shaders)
 
     @property
     @_check_types.do

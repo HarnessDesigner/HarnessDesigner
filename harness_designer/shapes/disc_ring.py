@@ -6,7 +6,7 @@ Unlike torus.py's round-tube ring, this is a flat band with a
 rectangular cross-section -- outer diameter 1.0, depth 1.0 by default.
 Same XY-plane/Z-normal axis convention as torus.create() (Z is the
 ring's thickness/normal axis -- see
-gl/canvas_base/rotation_mesh.py:build_ring_mesh(), which builds the
+rotation_handlers/rotation_mesh.py:build_ring_mesh(), which builds the
 existing rotation-ring gizmo directly from torus.create(1.0, ...)), so
 this shape composes with that ring without a corrective rotation.
 
@@ -18,6 +18,7 @@ package.
 
 import math
 import numpy as np
+import build123d
 
 from .. import utils as _utils
 from ..gl import vbo as _vbo_handler
@@ -27,7 +28,7 @@ from .. import check_types as _check_types
 _vbo: _vbo_handler.NonPooledVBOHandler = None
 
 # Number of samples around the ring -- not exposed as a create()
-# parameter (matches gl/canvas_base/rotation_mesh.py's RING_RESOLUTION
+# parameter (matches rotation_handlers/rotation_mesh.py's RING_RESOLUTION
 # being a fixed constant rather than caller-supplied).
 _RESOLUTION = 90
 
@@ -84,20 +85,38 @@ def create(outer_radius: float = 0.5, inner_radius: float = 0.4,
     resolution = _RESOLUTION
     half_depth = depth / 2.0
 
-    # Four concentric rings of points, in this fixed row order:
-    # 0 = outer/top, 1 = outer/bottom, 2 = inner/top, 3 = inner/bottom.
+    # Eight concentric rings of points -- each of the washer's 4 physical
+    # rim circles (outer/top, outer/bottom, inner/top, inner/bottom) gets
+    # TWO vertex copies at the same position: one used only by the flat
+    # cap face it belongs to, one used only by the curved wall face it
+    # belongs to. The two faces meeting at a rim are a genuine hard edge
+    # (a cap's near-axial normal has nothing to do with a wall's radial
+    # one), but utils.mesh_normals.compute_normals averages face normals
+    # per *vertex index* with no concept of hard edges -- sharing one
+    # vertex between a cap and a wall face there would blend the two into
+    # a wrong, visibly seamed normal right at the rim. Splitting the
+    # index (not the position -- this introduces no actual gap, see the
+    # module's own watertightness note below) keeps each face group's
+    # normal averaging confined to itself.
+    CAP_OUTER_TOP, CAP_OUTER_BOTTOM, CAP_INNER_TOP, CAP_INNER_BOTTOM, \
+        WALL_OUTER_TOP, WALL_OUTER_BOTTOM, WALL_INNER_TOP, WALL_INNER_BOTTOM = range(8)
+
     rows = (
-        (outer_radius, half_depth),
-        (outer_radius, -half_depth),
-        (inner_radius, half_depth),
-        (inner_radius, -half_depth),
+        (outer_radius, half_depth),   # CAP_OUTER_TOP
+        (outer_radius, -half_depth),  # CAP_OUTER_BOTTOM
+        (inner_radius, half_depth),   # CAP_INNER_TOP
+        (inner_radius, -half_depth),  # CAP_INNER_BOTTOM
+        (outer_radius, half_depth),   # WALL_OUTER_TOP
+        (outer_radius, -half_depth),  # WALL_OUTER_BOTTOM
+        (inner_radius, half_depth),   # WALL_INNER_TOP
+        (inner_radius, -half_depth),  # WALL_INNER_BOTTOM
     )
 
     @_check_types.do
     def vert_idx(row: int, seg: int) -> int:
         return row * resolution + (seg % resolution)
 
-    vertices = np.zeros((4 * resolution, 3), dtype=np.float32)
+    vertices = np.zeros((len(rows) * resolution, 3), dtype=np.float32)
 
     step = 2.0 * math.pi / float(resolution)
     for seg in range(resolution):
@@ -114,25 +133,29 @@ def create(outer_radius: float = 0.5, inner_radius: float = 0.4,
     for seg in range(resolution):
         nxt = seg + 1
 
-        # Top face (outer row 0 -> inner row 2), facing +Z.
-        a, b, c, d = vert_idx(0, seg), vert_idx(0, nxt), vert_idx(2, nxt), vert_idx(2, seg)
+        # Top cap (outer -> inner), facing +Z.
+        a, b, c, d = (vert_idx(CAP_OUTER_TOP, seg), vert_idx(CAP_OUTER_TOP, nxt),
+                      vert_idx(CAP_INNER_TOP, nxt), vert_idx(CAP_INNER_TOP, seg))
         faces.append([a, b, c])
         faces.append([a, c, d])
 
-        # Bottom face (outer row 1 -> inner row 3), facing -Z --
-        # reversed winding relative to the top face.
-        a, b, c, d = vert_idx(1, seg), vert_idx(1, nxt), vert_idx(3, nxt), vert_idx(3, seg)
+        # Bottom cap (outer -> inner), facing -Z -- reversed winding
+        # relative to the top cap.
+        a, b, c, d = (vert_idx(CAP_OUTER_BOTTOM, seg), vert_idx(CAP_OUTER_BOTTOM, nxt),
+                      vert_idx(CAP_INNER_BOTTOM, nxt), vert_idx(CAP_INNER_BOTTOM, seg))
         faces.append([a, c, b])
         faces.append([a, d, c])
 
-        # Outer wall (top row 0 -> bottom row 1), facing outward.
-        a, b, c, d = vert_idx(0, seg), vert_idx(0, nxt), vert_idx(1, nxt), vert_idx(1, seg)
+        # Outer wall (top -> bottom), facing outward.
+        a, b, c, d = (vert_idx(WALL_OUTER_TOP, seg), vert_idx(WALL_OUTER_TOP, nxt),
+                      vert_idx(WALL_OUTER_BOTTOM, nxt), vert_idx(WALL_OUTER_BOTTOM, seg))
         faces.append([a, c, b])
         faces.append([a, d, c])
 
-        # Inner wall (top row 2 -> bottom row 3), facing inward --
-        # reversed winding relative to the outer wall.
-        a, b, c, d = vert_idx(2, seg), vert_idx(2, nxt), vert_idx(3, nxt), vert_idx(3, seg)
+        # Inner wall (top -> bottom), facing inward -- reversed winding
+        # relative to the outer wall.
+        a, b, c, d = (vert_idx(WALL_INNER_TOP, seg), vert_idx(WALL_INNER_TOP, nxt),
+                      vert_idx(WALL_INNER_BOTTOM, nxt), vert_idx(WALL_INNER_BOTTOM, seg))
         faces.append([a, b, c])
         faces.append([a, c, d])
 

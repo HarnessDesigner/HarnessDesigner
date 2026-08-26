@@ -72,6 +72,16 @@ class BundleLayout(_base_3d.Base3D):
 
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
+    @_check_types.do
+    def can_rotate(self) -> bool:
+        """A layout waypoint has no independent orientation of its own
+        (its ``_angle`` above is a fresh, never-synced dummy purely to
+        satisfy ``BaseVar``'s constructor) -- reject the rotation gizmo
+        outright rather than relying on the base class's default
+        ``self._angle is not None`` check, which would otherwise arm it.
+        """
+        return False
+
     @property
     @_check_types.do
     def smooth(self) -> bool:

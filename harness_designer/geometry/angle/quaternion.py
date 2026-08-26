@@ -634,7 +634,41 @@ class Quaternion:
     @_check_types.do
     def __neg__(self) -> "Quaternion":
         """
-        Return the multiplicative inverse quaternion.
+        Return the multiplicative inverse quaternion -- ``q⁻¹``.
+
+        This is a COMPOSITIONAL operation: ``q⁻¹`` is the rotation that,
+        composed with ``q``, gives the identity (no net rotation) --
+        ``q ∘ q⁻¹ == identity``. Concretely, if you've applied ``q`` to
+        something and want to undo just that -- get back to where you
+        were before ``q`` was applied -- composing with ``-q`` is how
+        you do it. For a unit quaternion (every quaternion this class
+        produces), the inverse equals the conjugate: ``q⁻¹ = conj(q) =
+        (w, -x, -y, -z)`` -- ``w`` unchanged, only the vector part
+        flips.
+
+        This is genuinely different from :attr:`negation`, even though
+        both involve flipping some signs and the results can look
+        superficially similar:
+
+        - ``-q`` (this method) keeps ``w`` the same, flips ``x/y/z`` --
+          a DIFFERENT rotation from ``q`` (its inverse), used to REMOVE
+          a rotation via composition.
+        - :attr:`negation` flips all four components including ``w`` --
+          the SAME rotation as ``q`` (quaternions double-cover
+          rotations: ``q`` and ``-q`` in that sense both map to the
+          identical rotation matrix), used only to relabel which of the
+          two equivalent quaternions you're holding, never to undo
+          anything.
+
+        Reaching for the wrong one is an easy, quiet mistake: swapping
+        in :attr:`negation` where the true inverse was needed silently
+        produces "the same rotation" instead of "no rotation" once
+        composed; swapping in ``-q`` where a plain sign-flip was needed
+        (e.g. canonicalizing a freshly-extracted quaternion's sign, see
+        ``Angle.from_matrix``) silently produces the INVERSE rotation
+        instead of an equivalent relabeling of the intended one -- both
+        errors pass basic sanity checks (the result is always a valid
+        unit quaternion) and only show up as a wrong final orientation.
 
         :returns: Inverse quaternion.
         :rtype: :class:`Quaternion`
@@ -643,6 +677,40 @@ class Quaternion:
         q = self._data
 
         return Quaternion(*[float(item) for item in self.conj() / float(np.dot(q, q))])
+
+    @property
+    @_check_types.do
+    def negation(self) -> "Quaternion":
+        """
+        Return this quaternion with all four components negated --
+        ``(-w, -x, -y, -z)``.
+
+        This is NOT a compositional operation and has nothing to do
+        with undoing or removing a rotation -- it represents the exact
+        SAME rotation as this quaternion. Quaternions double-cover
+        rotations: for any unit quaternion ``q``, both ``q`` and its
+        full negation map to the identical 3x3 rotation matrix (this is
+        why :meth:`~harness_designer.geometry.angle.Angle.from_matrix`
+        can always find a positive-``w`` representative of whatever
+        rotation it was given -- there are always exactly two
+        quaternions for it, differing only by this negation, and either
+        is equally valid). Use this only when a rotation is already
+        fully determined and you need the OTHER valid quaternion for
+        that same rotation -- e.g. canonicalizing which sign convention
+        to keep after extracting one from a matrix -- never to undo,
+        remove, or compose away a rotation.
+
+        See :meth:`__neg__`'s own docstring for the full contrast with
+        the (compositional) inverse -- that one keeps ``w`` and flips
+        ``x/y/z`` to get a genuinely DIFFERENT rotation; this one flips
+        all four to stay on the SAME rotation.
+
+        :returns: Negated quaternion.
+        :rtype: :class:`Quaternion`
+        """
+
+        w, x, y, z = [float(str(item)) for item in self._data.tolist()]
+        return Quaternion(-w, -x, -y, -z)
 
     @classmethod
     @_check_types.do

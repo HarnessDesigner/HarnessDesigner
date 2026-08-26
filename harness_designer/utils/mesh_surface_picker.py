@@ -47,7 +47,7 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import Canvas3D as _Canvas3D
+    from ..gl.canvas_3d import Canvas3D as _Canvas3D
     from ..geometry import angle as _angle
     from ..geometry import point as _point
 

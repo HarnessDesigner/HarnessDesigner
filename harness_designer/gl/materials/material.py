@@ -52,9 +52,21 @@ class GLMaterial:
         a = color.rgba_scalar[-1]
         self._is_opaque = a == 1.0
 
-        self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
-        self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
-        self.specular = np.array(self._specular + (a,), dtype=np.float32)
+        if len(self._ambient) == 3:
+            self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
+        else:
+            self.ambient = np.array(self._ambient, dtype=np.float32)
+
+        if len(self._diffuse) == 3:
+            self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
+        else:
+            self.diffuse = np.array(self._diffuse, dtype=np.float32)
+
+        if len(self._specular) == 3:
+            self.specular = np.array(self._specular + (a,), dtype=np.float32)
+        else:
+            self.specular = np.array(self._specular, dtype=np.float32)
+
         self.shininess = self._shine
         self.emissive = np.array(self._emissive, dtype=np.float32)
 

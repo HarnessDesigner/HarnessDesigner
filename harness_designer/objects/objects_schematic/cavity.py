@@ -55,11 +55,12 @@ class Cavity(_base_schematic.BaseSchematic):
     ``Text.render()`` docstring).
 
     Owns two DB binds on itself: its own ``'name'`` (rebuilds this
-    cavity's own text mesh, and tells the housing to update its cached
-    copy -- see :meth:`_on_name_changed`) and the synthetic
-    ``'terminal_id'`` tag (tells the housing to reposition this
-    cavity's seated terminal -- see :meth:`_on_terminal_changed`). The
-    housing itself binds to neither; both flow from here instead.
+    cavity's own text mesh -- see :meth:`_on_name_changed`) and the
+    synthetic ``'terminal_id'`` tag (currently a no-op here -- see
+    :meth:`_on_terminal_changed`). The owning housing binds to both of
+    these same tags independently (see ``objects_schematic/housing.py``'s
+    ``Housing._bind_callbacks``) and does a full relayout itself, which
+    already covers repositioning this cavity's seated terminal.
     """
     _parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity"
@@ -120,37 +121,21 @@ class Cavity(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def _on_name_changed(self, _entry=None):
-        """Rebuild this cavity's own name mesh (see :meth:`_rebuild`)
-        and tell the owning housing to update its cached copy -- a
-        cavity rename can reorder its own slot and change the
-        housing-wide max-cavity-name-width, so the housing does a full
-        rebuild (see ``objects_schematic/housing.py``'s ``Housing.
-        update_cavity_name``).
+        """Rebuild this cavity's own name mesh (see :meth:`_rebuild`).
+        The owning housing has its own direct bind on this same
+        ``'name'`` tag (see ``objects_schematic/housing.py``'s
+        ``Housing._bind_callbacks``/``_rebuild``) and does its own full
+        relayout independently -- nothing further needed from here.
         """
         self._rebuild()
 
-        housing = self.housing
-        if housing is not None:
-            housing.update_cavity_name(self.db_obj.db_id, self.db_obj.name)
-
     @_check_types.do
     def _on_terminal_changed(self, _entry=None):
-        """Tell the owning housing to (re)position this cavity's own
-        seated terminal -- see ``objects_schematic/housing.py``'s ``Housing.
-        update_terminal_name``. Never a full housing rebuild -- seating
-        a terminal doesn't affect sort order or the housing's own
-        layout constants, only whether this one row shows a bracket and
-        wire-stub line at all.
+        """No-op: the owning housing has its own direct bind on this
+        same ``'terminal_id'`` tag (see ``objects_schematic/housing.py``'s
+        ``Housing._bind_callbacks``/``_rebuild``) and repositions this
+        cavity's seated terminal itself as part of its own full relayout.
         """
-        housing = self.housing
-        if housing is None:
-            return
-
-        terminal = self.db_obj.terminal
-        if terminal is None:
-            housing.update_terminal_name(self.db_obj.db_id, None, None)
-        else:
-            housing.update_terminal_name(self.db_obj.db_id, terminal.db_id, terminal.name)
 
     @staticmethod
     @_check_types.do

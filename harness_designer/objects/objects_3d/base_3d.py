@@ -325,7 +325,8 @@ class Base3D(_objectsvar.BaseVar):
         from ...rotation_handlers import rotation_rings as _rotation_rings
 
         if isinstance(self._active_handler, _rotation_rings.RotationRings):
-            return self._handle_rotation_interaction(current_pos, interaction_type, clicked_object)
+            return self._handle_rotation_interaction(
+                current_pos, had_motion, interaction_type, clicked_object)
 
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -335,7 +336,12 @@ class Base3D(_objectsvar.BaseVar):
             if interaction_type is _interaction.MouseInteraction.LEFT_UP:
                 self._active_handler.delete()
                 self._active_handler = None
-                return True
+                # No real drag happened -- a plain click-release on an
+                # already-selected object arms this handler (selection is
+                # required to arm), but a click with no motion should still
+                # fall through to the default select/deselect toggle below,
+                # not get eaten here.
+                return had_motion
 
             return False
 
@@ -346,11 +352,13 @@ class Base3D(_objectsvar.BaseVar):
             self.can_rotate()
         ):
             self._active_handler = _rotation_rings.RotationRings(self.editor3d.editor, self.parent)
+            self._rotation_just_armed = True
             return True
 
         if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
+            self.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
             from ...drag_handlers.editor_3d import generic as _drag_generic  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> this module)
@@ -362,24 +370,54 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def _handle_rotation_interaction(
-        self, current_pos: _point.Point, interaction_type: "_interaction.MouseInteraction",
-        clicked_object
+        self, current_pos: _point.Point, had_motion: bool,
+        interaction_type: "_interaction.MouseInteraction", clicked_object
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo
         (:attr:`_active_handler`, a RotationRings) -- see that class's
         own docstring for the full torus-pick -> protractor-activate ->
         inner-drag/outer-snap flow this drives.
 
-        Right-clicking again while active toggles the gizmo off; clicking
-        somewhere that hits neither a torus ring nor (while an axis is
-        active) the inner/outer protractor closes the gizmo too, but
-        leaves the event unconsumed so normal selection handling still
-        runs for that click.
+        A plain right-click (no motion between RIGHT_DOWN and RIGHT_UP)
+        toggles the gizmo off, decided on RIGHT_UP rather than RIGHT_DOWN
+        so a right-drag (the default binding for truck/pedestal-ing the
+        camera) is never mistaken for the toggle-off click -- RIGHT_DOWN
+        itself always leaves the event unconsumed, letting the camera's
+        own right-button-drag handling arm normally; if that drag never
+        materializes, RIGHT_UP still closes the gizmo. Clicking somewhere
+        that hits neither a torus ring nor (while an axis is active) the
+        inner/outer protractor closes the gizmo too, but leaves the event
+        unconsumed so normal selection handling still runs for that click.
+
+        Every branch below only ever consumes (returns True for) an event
+        that actually did something to the gizmo -- everything else
+        (a plain hover, a miss on the protractor, a drag on a button not
+        bound to a ring) returns False so the camera's own mouse controls
+        (e.g. the default pan/tilt-on-left-drag, truck/pedestal-on-right-
+        drag bindings) still work while the rings/protractor are on
+        screen, letting the camera be repositioned without having to
+        close the gizmo first.
         """
         rings = self._active_handler
         camera = self.editor3d.editor.camera
 
         if interaction_type is _interaction.MouseInteraction.RIGHT_DOWN:
+            return False
+
+        if interaction_type is _interaction.MouseInteraction.RIGHT_UP:
+            if self._rotation_just_armed:
+                # This release belongs to the same click that just armed
+                # the gizmo on RIGHT_DOWN, not a later toggle-off click --
+                # both look identical here (had_motion False), so only
+                # the very first RIGHT_UP after arming is exempt.
+                self._rotation_just_armed = False
+                return True
+
+            if had_motion:
+                # A right-drag happened -- that was the camera's own
+                # truck/pedestal control, not a toggle-off click.
+                return False
+
             rings.delete()
             self._active_handler = None
             return True
@@ -387,21 +425,42 @@ class Base3D(_objectsvar.BaseVar):
         if interaction_type is _interaction.MouseInteraction.MOVE:
             if rings.obj3d.is_inner_dragging:
                 rings.obj3d.update_inner_drag(current_pos)
-            elif rings.obj3d.active_axis is not None:
+                return True
+
+            if rings.obj3d.active_axis is not None:
                 rings.obj3d.update_outer_hover(current_pos, camera)
-            return True
+
+            return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_UP:
-            rings.obj3d.end_inner_drag()
-            return True
+            if rings.obj3d.is_inner_dragging:
+                rings.obj3d.end_inner_drag()
+                return True
+
+            return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
             if rings.obj3d.active_axis is not None:
                 if rings.obj3d.begin_inner_drag(current_pos, camera):
                     return True
 
-                rings.obj3d.click_outer_snap()
-                return True
+                if rings.obj3d.click_outer_snap():
+                    return True
+
+                # Missed both protractor bands -- a click on a SIBLING
+                # torus ring (still pickable while dimmed -- see
+                # RotationRing.set_dimmed) switches directly to that
+                # axis instead of requiring a miss-click first to close
+                # the current one.
+                axis = rings.obj3d.pick(current_pos, camera)
+                if axis is not None and axis != rings.obj3d.active_axis:
+                    rings.obj3d.activate(axis)
+                    return True
+
+                # Missed everything -- leave the gizmo exactly as it is
+                # (still active on this axis) and let the default
+                # click/drag behavior run.
+                return False
 
             axis = rings.obj3d.pick(current_pos, camera)
             if axis is not None:
@@ -486,6 +545,51 @@ class Base3D(_objectsvar.BaseVar):
             return
 
         self._render_overlay_group(shaders)
+
+    @_check_types.do
+    def render_handler(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Render whatever's currently armed on :attr:`_active_handler`
+        (a drag or rotation handler) -- e.g. the move-arrows axis-lock
+        gizmo, or the rotation-rings protractor.
+
+        Called directly by ``canvas_base.py``'s own selected-object
+        rendering, at the same point (and under the same depth/blend
+        handling) as ``render_selected_overlay`` above -- NOT an
+        automatic ``render()`` tail call, and the handler itself is
+        deliberately never registered as its own scene object via
+        ``mainframe.add_object`` (see ``drag_handlers/move_arrows.py``'s
+        and ``rotation_handlers/rotation_rings.py``'s own docstrings).
+        Rendering it mixed into the ordinary per-object pipeline instead
+        of alongside the selected object's own special handling is what
+        broke both the object's and the gizmo's own depth compositing in
+        the first place.
+
+        Same 4-attribute guard as ``render_selected_overlay`` -- an
+        armed handler that's tracking this object's own now-gone
+        transform has nothing valid to render relative to.
+        """
+        if self._active_handler is None:
+            return
+
+        if (
+            self._vbo is None or
+            self._position is None or
+            self._scale is None or
+            self._angle is None
+        ):
+            return
+
+        # Rotation handlers are a single facade shared across all 3
+        # views (obj3d/objschematic/objpegboard) -- see RotationRings'
+        # own docstring for why (the gizmo has to show correctly in
+        # whichever view the user is looking at, not just the one that
+        # armed it), so this view's own render() is reached through its
+        # own obj3d. Every other _active_handler is already a 3D-only
+        # drag handler (DragHandlerBase, see its own render() -- always
+        # defined, defaulting to a no-op for drags with nothing to draw)
+        # -- called directly, the same instance either way.
+
+        self._active_handler.obj3d.render(shaders)
 
     @_check_types.do
     def _render_overlay_group(self, shaders: "_shaders.ShaderProgram") -> None:

@@ -1,18 +1,23 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Interactive handlers for transitions and routed wire placement."""
+"""Interactive handlers for routed wire placement, plus the transition-
+placement helper functions reused by ``objects.objects_3d.transition.
+Transition.start_add`` (see ``add_handlers.editor_3d.transition`` for
+the actual interactive placement session, which replaced this
+module's own former ``AddTransitionHandler``). ``RouteThroughTransitionHandler``/
+``RouteThroughBundleHandler``/``RoutedWireHandler`` below have no UI
+entry point anywhere in the app -- kept as-is, not part of that
+migration.
+"""
 
 import math
 import numpy as np
-from PySide6.QtWidgets import QDialog
 from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
 from . import wire_handler as _wire_handler
 from ..geometry import point as _point
-from ..geometry import angle as _angle
 from ..gl import object_picker as _object_picker
-from ..objects import transition as _transition
 from ..objects import bundle as _bundle
 from ..objects import wire as _wire
 from ..objects import wire_layout as _wire_layout
@@ -20,13 +25,11 @@ from .. import utils as _utils
 from ..gl import materials as _materials
 from .. import config as _config
 from .. import color as _color
-from ..ui.dialogs import part_search as _part_search
-from ..ui.editor_db import transition as _trans_editor_page
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import camera as _camera
+    from ..gl.canvas_3d import camera as _camera
     from .. import ui as _ui
 
 
@@ -315,243 +318,6 @@ def _find_bundle(mouse_pos, camera, project) -> _bundle.Bundle | None:
             best_dist_sq, best = dist_sq, bndl
 
     return best
-
-
-# ===========================================================================
-# AddTransitionHandler
-# ===========================================================================
-
-class AddTransitionHandler(_handler_base.HandlerBase):
-    """Handle interactive placement of transition fittings onto bundles.
-
-    Workflow: hover snaps to the nearest bundle and shows a live preview.
-    Click finalises the placement, creating all required DB records (transition,
-    branches, concentrics, invisible wire layouts and pass-through wire segments).
-    """
-    obj: _transition.Transition = None
-
-    @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None = None):
-        if part_id is None:
-            part_id = mainframe.editor_db.editor.transitions.GetSelection()
-
-        if part_id is None:
-            dlg = _part_search.SearchDialog(
-                mainframe, _trans_editor_page.TransitionsPage,
-                title='Add Transition',
-                table=mainframe.global_db.transitions_table)
-            if dlg.exec() == QDialog.DialogCode.Accepted:
-                part_id = dlg.GetValue()
-            dlg.deleteLater()
-
-        super().__init__(mainframe, part_id)
-
-        self._snapped_bundle: _bundle.Bundle | None = None
-        self._highlight_material = _materials.Plastic(
-            _color.Color(*Config.add_object.bundle_highlight))
-
-        if part_id is None:
-            self._finalized = True
-            return
-
-        self.part = mainframe.global_db.transitions_table[part_id]
-
-        # Preview: build transition DB with all branch points at the origin.
-        # _build_model will fire in Transition.__init__ and position them locally.
-        center_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        init_angle = _angle.Angle()
-
-        name = f'{self.part.manufacturer.name} {self.part.part_number}'
-
-        transition_db = self.ptables.pjt_transitions_table.insert(
-            part_id, name, center_db.db_id, init_angle)
-
-        for branch_id in range(1, self.part.branch_count + 1):
-            g_br = self.part.branches[branch_id - 1]
-            pt_db = self.ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-            self.ptables.pjt_transition_branches_table.insert(
-                g_br.db_id, transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
-
-        self.obj = _transition.Transition(mainframe, transition_db)
-        self.obj.obj3d.is_visible = False
-
-    @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
-        if self._finalized:
-            return
-
-        bundle = _find_bundle(mouse_pos, self.camera, self.mainframe.project)
-
-        if bundle is None:
-            if self._snapped_bundle is not None:
-                self._snapped_bundle.identify(None)
-                self._snapped_bundle = None
-            self.obj.obj3d.is_visible = False
-            return
-
-        trunk_global = self.part.branches[0]
-        conc_wires = bundle.db_obj.wires
-        if effective_diameter(conc_wires, trunk_global) > float(trunk_global.max_dia):
-            if self._snapped_bundle is not None:
-                self._snapped_bundle.identify(None)
-                self._snapped_bundle = None
-            self.obj.obj3d.is_visible = False
-            return
-
-        # I have to make this available on the budles as well.
-        raw_pos, _, _ = _utils.get_closest_point_on_wire_endpoint(
-            mouse_pos, self.camera, bundle)
-        if not isinstance(raw_pos, _point.Point):
-            raw_pos = _point.Point(*raw_pos)
-
-        pos = self.obj.obj3d.position
-        pos += raw_pos - pos
-
-        if bundle is not self._snapped_bundle:
-            if self._snapped_bundle is not None:
-                self._snapped_bundle.identify(None)
-
-            bundle.identify(self._highlight_material)
-            _set_angle_from_bundle(self.obj.db_obj, bundle)
-            self.obj.obj3d.build()
-            self._snapped_bundle = bundle
-
-        self.obj.obj3d.is_visible = True
-
-    @_check_types.do
-    def release_capture(self):
-        if self._finalized or self._captured_position is None:
-            return
-
-        if self._snapped_bundle is None:
-            return
-
-        bundle = self._snapped_bundle
-        self._snapped_bundle.identify(None)
-        self._snapped_bundle = None
-
-        raw_pos, is_at_endpoint, endpoint = _utils.get_closest_point_on_wire_endpoint(
-            self._captured_position, self.camera, bundle)
-        if not isinstance(raw_pos, _point.Point):
-            raw_pos = _point.Point(*raw_pos)
-
-        self._finalize(bundle, raw_pos, is_at_endpoint, endpoint)
-
-    @_check_types.do
-    def _finalize(self, bundle, snap_pos, is_at_endpoint, endpoint):
-        project = self.mainframe.project
-        ptables = self.ptables
-        global_branches = self.part.branches
-        trunk_global = global_branches[0]
-        output_globals = global_branches[1:]
-
-        conc_wires = bundle.db_obj.wires
-        output_assignments = assign_wires_to_branches(conc_wires, output_globals)
-
-        self.obj.delete()
-        self.obj = None
-
-        # Trunk entry point: reuse existing bundle endpoint or create new split point
-        if is_at_endpoint:
-            ep_pt = (bundle.obj3d.start_position if endpoint == 'start'
-                     else bundle.obj3d.stop_position)
-            trunk_point_id = ep_pt.db_id[:-2]
-        else:
-            pt_db = ptables.pjt_points3d_table.insert(
-                float(snap_pos.x), float(snap_pos.y), float(snap_pos.z))
-            trunk_point_id = pt_db.db_id
-
-        center_db = ptables.pjt_points3d_table.insert(
-            float(snap_pos.x), float(snap_pos.y), float(snap_pos.z))
-        init_angle = _angle.Angle()
-        name = f'{self.part.manufacturer.name} {self.part.part_number}'
-        transition_db = ptables.pjt_transitions_table.insert(
-            self.part_id, name, center_db.db_id, init_angle)
-        _set_angle_from_bundle(transition_db, bundle)
-
-        # Branch 1 — trunk
-        trunk_dia = effective_diameter(conc_wires, trunk_global)
-        trunk_br_db = ptables.pjt_transition_branches_table.insert(
-            trunk_global.db_id, transition_db.db_id, trunk_point_id, 1, trunk_dia)
-        _create_branch_concentric(ptables, trunk_br_db, conc_wires, trunk_dia)
-
-        # Invisible wire layout at trunk entry point
-        trunk_wl_db = ptables.pjt_wire_layouts_table.insert(trunk_point_id)
-        trunk_wl_db.is_visible3d = False
-        project.add_wire_layout(_wire_layout.WireLayout(self.mainframe, trunk_wl_db))
-
-        # Output branches — placeholder points, resolved by Transition 3D ctor
-        branch_records = []
-        for i, (g_br, assigned) in enumerate(zip(output_globals, output_assignments)):
-            br_pt_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-            br_dia = effective_diameter(assigned, g_br)
-            br_db = ptables.pjt_transition_branches_table.insert(
-                g_br.db_id, transition_db.db_id, br_pt_db.db_id, i + 2, br_dia)
-            _create_branch_concentric(ptables, br_db, assigned, br_dia)
-            branch_records.append((br_db, br_pt_db.db_id, assigned))
-
-        # Build the real 3D Transition — this updates branch point positions in the DB
-        transition_obj = _transition.Transition(self.mainframe, transition_db)
-
-        # Wire layouts at output branch points + invisible wire segments through transition
-        for br_db, br_pt_id, assigned in branch_records:
-            wl_db = ptables.pjt_wire_layouts_table.insert(br_pt_id)
-            wl_db.is_visible3d = False
-            project.add_wire_layout(_wire_layout.WireLayout(self.mainframe, wl_db))
-
-            for cw in assigned:
-                pjt_wire = cw.wire
-                ptables.pjt_wires_table.insert(
-                    pjt_wire.part_id, pjt_wire.name, pjt_wire.circuit_id,
-                    trunk_point_id, br_pt_id,
-                    None, None, False, False, None, None, False)
-
-        if is_at_endpoint:
-            end = endpoint
-        else:
-            # Per the "a Transition never forks a bundle" rule, the bundle
-            # doesn't split into two rows here -- it simply shrinks to end
-            # exactly at the transition's own trunk point. Whatever lay
-            # past that point (waypoints and the original far endpoint)
-            # is abandoned entirely rather than replaced with a second
-            # bundle; wires that ran through the abandoned portion become
-            # bare/uncovered until a fresh bundle cover is wrapped over
-            # them later (see handlers.bundle_handler.AddBundleHandler).
-            from . import bundle_layout_handler as _blh
-
-            snap_np = np.array([float(snap_pos.x), float(snap_pos.y), float(snap_pos.z)])
-            split_idx = _blh._find_insertion_index(bundle, snap_np)
-
-            layouts_table = ptables.pjt_bundle_layouts_table
-            for point in bundle.db_obj.waypoints3d[split_idx:]:
-                for row in layouts_table.select('id', position3d_id=point.db_id):
-                    layout_db = layouts_table[row[0]]
-                    layout_obj = layout_db.get_object()
-                    if layout_obj is not None:
-                        layout_obj.delete()
-                    else:
-                        layout_db.delete()
-
-                point.delete()
-
-            bundle.db_obj.stop_position3d_id = trunk_point_id
-            bundle.obj3d.set_stop_position(pt_db.point)
-            end = 'stop'
-
-        transition_obj.add_bundle(bundle, end, 1)
-
-        project.add_transition(transition_obj)
-        self._finalized = True
-
-    @_check_types.do
-    def cancel(self):
-        if self._snapped_bundle is not None:
-            self._snapped_bundle.identify(None)
-            self._snapped_bundle = None
-
-        if self.obj is not None:
-            self.obj.delete()
-            self.obj = None
 
 
 # ===========================================================================

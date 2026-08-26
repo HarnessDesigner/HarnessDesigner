@@ -27,6 +27,7 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from ..gl.canvas_base import canvas_base as _canvas_base
     from .. import objects as _objects
+    from ..gl import shaders as _shaders
 
 
 class DragHandlerBase:
@@ -75,5 +76,19 @@ class DragHandlerBase:
 
         Called exactly once, on both a normal commit and an abort -- no
         distinction is made here. Default: no-op.
+        """
+        pass
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Render whatever visual aid this drag owns (a gizmo, an
+        overlay, ...), called via ``BaseVar.render_handler()`` -- see
+        that method's own docstring. Default: no-op, for every drag that
+        has nothing of its own to draw (every 2D-editor drag -- a locked
+        top-down projection has no ambiguous axis to lock, so there's no
+        move-arrows-equivalent gizmo to show -- see
+        :mod:`~.editor_schematic`/:mod:`~.editor_pegboard`'s own module
+        docstrings). :class:`~.editor_3d.DragHandler3D` overrides this
+        with real logic (the move-arrows axis-lock gizmo).
         """
         pass

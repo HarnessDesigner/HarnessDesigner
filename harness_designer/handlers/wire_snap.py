@@ -296,7 +296,7 @@ class SnapProbeSet:
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", wire_part: "_global_wire.Wire",
                  exclude_wire: "_wire.Wire | None" = None):
-        from ..gl.canvas3d import dragging as _dragging  # NOQA -- avoid a cycle at import time
+        from ..drag_handlers.editor_3d import wire as _dragging  # NOQA -- avoid a cycle at import time
 
         self.mainframe = mainframe
         self._probes: list[_wire_layout.WireLayout] = []

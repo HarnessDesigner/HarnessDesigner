@@ -33,6 +33,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
+    from ...gl import shaders as _shaders
     from ... import objects as _objects
 
 
@@ -124,3 +125,15 @@ class DragHandler3D(_base.DragHandlerBase):
             self.move_arrows.delete()
 
         self.move_arrows = None
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Render the move-arrows gizmo, if the axis lock has engaged
+        and built one yet -- called via ``BaseVar.render_handler()``,
+        not registered as its own scene object (see move_arrows.py's
+        own docstring for why).
+        """
+        if self.move_arrows is None:
+            return
+
+        self.move_arrows.obj3d.render(shaders)

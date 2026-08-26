@@ -22,12 +22,12 @@ import numpy as np
 from OpenGL import GL
 
 from . import _hit_test
-from ....geometry import point as _point
-from ....geometry import angle as _angle
-from ....gl import materials as _materials
-from ....gl import vbo as _vbo_handler
-from ....gl.canvas_base import rotation_mesh as _rotation_mesh
-from .... import check_types as _check_types
+from ...geometry import point as _point
+from ...geometry import angle as _angle
+from ...gl import materials as _materials
+from ...gl import vbo as _vbo_handler
+from .. import rotation_mesh as _rotation_mesh
+from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...gl.canvas_base import camera_base as _camera_base
@@ -100,19 +100,25 @@ class TorusRing:
             # Dimmed (a sibling axis's protractor is active) -- blend needs
             # to be explicitly enabled for the alpha RotationRing.set_dimmed()
             # wrote into materialDiffuse to actually show as transparency
-            # rather than just darker lighting math.
+            # rather than just darker lighting math. Depth-mask handling
+            # for this handler's whole render is the caller's
+            # responsibility now (canvas_base.py's _draw_scene renders
+            # the handler before the tracked object itself, rather than
+            # this method reasoning about what renders after it -- see
+            # that method's own docstring) -- this draw just uses
+            # whatever depth-mask state it's called with.
             dimmed = float(self.material.diffuse[3]) < 1.0
-            if dimmed:
-                GL.glEnable(GL.GL_BLEND)
-                GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
+            # if dimmed:
+            #     GL.glEnable(GL.GL_BLEND)
+            #     GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
             self._vbo.render(
                 faces_program,
                 self.position, self.angle,
                 _point.Point(self.radius, self.radius, self.radius), None)
 
-            if dimmed:
-                GL.glDisable(GL.GL_BLEND)
+            # if dimmed:
+            #     GL.glDisable(GL.GL_BLEND)
 
     @_check_types.do
     def hit_test(self, mouse_pos: _point.Point,
@@ -143,6 +149,12 @@ class TorusRing:
                 float(self.position.y) + float(world[1]),
                 float(self.position.z) + float(world[2]))
             screen = camera.ProjectPoint(world_pt)
+            if screen is None:
+                # Degenerate projection (behind the camera's own eye
+                # plane, w == 0) -- skip this sample rather than connect
+                # across it to a stale previous point.
+                prev = None
+                continue
 
             cur = (float(screen.x), float(screen.y))
             if prev is not None:

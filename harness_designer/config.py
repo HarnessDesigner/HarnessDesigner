@@ -657,12 +657,21 @@ class Config(metaclass=ConfigDB):
 
         class rotation_handler(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
-            # (the largest distance between two corners of the bounding box)
-            diameter_scale = 1.1
+            # (the largest distance between two corners of the bounding box).
+            # Needs enough headroom above the protractor gizmo's own inner
+            # margin (rotation_ring.RotationRing._INNER_ID_MARGIN) to leave
+            # real room for the inner protractor's tick labels, which sit
+            # just inside its ID, between the object and the band itself.
+            diameter_scale = 1.5
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
             # Ring color as scalar RGBA (0.0 - 1.0)
             y_color = [0.135, 0.684, 0.135, 0.8]
+            # Outer (world-fixed, click-to-snap) protractor color -- kept
+            # neutral, deliberately not matching any axis's own ring color
+            # (the inner protractor uses that instead), since this ring
+            # isn't tied to a specific axis's identity.
+            outer_ring_color = [0.75, 0.75, 0.75, 0.8]
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920
@@ -842,12 +851,21 @@ class Config(metaclass=ConfigDB):
 
         class rotation_handler(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
-            # (the largest distance between two corners of the bounding box)
-            diameter_scale = 1.1
+            # (the largest distance between two corners of the bounding box).
+            # Needs enough headroom above the protractor gizmo's own inner
+            # margin (rotation_ring.RotationRing._INNER_ID_MARGIN) to leave
+            # real room for the inner protractor's tick labels, which sit
+            # just inside its ID, between the object and the band itself.
+            diameter_scale = 1.5
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
             # Ring color as scalar RGBA (0.0 - 1.0)
             y_color = [0.135, 0.684, 0.135, 0.8]
+            # Outer (world-fixed, click-to-snap) protractor color -- kept
+            # neutral, deliberately not matching any axis's own ring color
+            # (the inner protractor uses that instead), since this ring
+            # isn't tied to a specific axis's identity.
+            outer_ring_color = [0.75, 0.75, 0.75, 0.8]
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920
@@ -969,14 +987,23 @@ class Config(metaclass=ConfigDB):
 
         class rotation_handler(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
-            # (the largest distance between two corners of the bounding box)
-            diameter_scale = 1.1
+            # (the largest distance between two corners of the bounding box).
+            # Needs enough headroom above the protractor gizmo's own inner
+            # margin (rotation_ring.RotationRing._INNER_ID_MARGIN) to leave
+            # real room for the inner protractor's tick labels, which sit
+            # just inside its ID, between the object and the band itself.
+            diameter_scale = 1.5
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
             # Per-axis ring colors as scalar RGBA (0.0 - 1.0)
             x_color = [0.684, 0.135, 0.135, 0.8]
             y_color = [0.135, 0.684, 0.135, 0.8]
             z_color = [0.135, 0.135, 0.684, 0.8]
+            # Outer (world-fixed, click-to-snap) protractor color -- kept
+            # neutral, deliberately not matching any axis's own ring color
+            # (the inner protractor uses that instead), since this ring
+            # isn't tied to a specific axis's identity.
+            outer_ring_color = [0.75, 0.75, 0.75, 0.8]
             # Enable snapping of ring-drag rotation to snap_angle increments
             snap_enable = False
             # Drag snap increment in degrees. Must have at most 2 decimal

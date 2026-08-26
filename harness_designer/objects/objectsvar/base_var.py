@@ -771,6 +771,16 @@ class BaseVar:
 
     _active_handler = None
 
+    # Set alongside _active_handler whenever a RIGHT_DOWN arms a fresh
+    # RotationRings (see e.g. Base3D.handle_interaction), and consumed by
+    # the very next RIGHT_UP: that release belongs to the same click that
+    # just armed the gizmo, not a later, separate click meant to toggle
+    # it off, and the two are otherwise indistinguishable -- both are a
+    # plain RIGHT_UP with had_motion False. Without this, the arming
+    # click's own release would immediately close the gizmo it just
+    # opened.
+    _rotation_just_armed = False
+
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
@@ -856,13 +866,17 @@ class BaseVar:
         call (the way it used to work) could never do, since ``render()``
         always runs before the floor, not after it.
         """
+        pass
+
+    def render_handler(self, shaders: "_shaders.ShaderProgram") -> None:
+        pass
 
     @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram"):
         """
         Execute the render operation.
 
-        :param shaders: The `ShaderProgram()` singleton, holding every
+        :param shaders: This canvas's own `ShaderProgram`, holding every
             compiled program (`.faces`/`.edges`/`.vertices`/etc.) -- handed
             down from the canvas rather than looked up here.
         """

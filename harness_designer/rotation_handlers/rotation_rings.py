@@ -3,11 +3,11 @@
 """Protractor-style rotation gizmo for mouse-driven angle changes.
 
 Right-clicking a selected object shows three always-on activation rings
-(one per Euler axis, :class:`~.editor_3d.rotation_ring.torus_ring.
+(one per Euler axis, :class:`~.rotation_ring.torus_ring.
 TorusRing`). Clicking anywhere on one shows that axis's protractor -- an
-object-space :class:`~.editor_3d.rotation_ring.inner_ring.InnerRing`
+object-space :class:`~.rotation_ring.inner_ring.InnerRing`
 (spins with the object, grab-and-drag anywhere on its band free-rotates
-about this axis) and a world-space :class:`~.editor_3d.rotation_ring.
+about this axis) and a world-space :class:`~.rotation_ring.
 outer_ring.OuterRing` (own spin fixed, hover a tick to highlight it,
 click to snap the object's local zero to that exact angle) -- and dims
 the other two axes' torus rings. The Euler value is the only thing ever
@@ -26,7 +26,7 @@ the old single-ring-per-axis gizmo this replaces:
 Each axis's outer (world-space) ring holds its OWN Euler slot at zero
 while still nesting under the other two, so its own tick-zero never
 moves even while the object (and the inner ring) spin past it -- see
-:meth:`.editor_3d.rotation_ring.outer_ring.OuterRing._disc_rotation`.
+:meth:`.rotation_ring.outer_ring.OuterRing._disc_rotation`.
 
 This module is just the facade -- ``RotationRings`` -- that ties one
 view-specific implementation per view together (mirrors the same
@@ -51,7 +51,19 @@ if TYPE_CHECKING:
 
 
 class RotationRings(_object_base.ObjectBase):
-    """Rotation gizmo shown around a selected object in angle mode."""
+    """Rotation gizmo shown around a selected object in angle mode.
+
+    Deliberately NOT registered via ``mainframe.add_object`` -- rendered
+    instead through ``BaseVar.render_handler()``, called directly by
+    ``canvas_base.py`` at the same point as the selected object's own
+    special rendering, not through the ordinary per-object scene
+    pipeline. Registering it there mixed its own translucent-washer
+    draws into the arbitrary per-object bucket order, ahead of the
+    selected object's own deferred translucent-shell/depth-only passes
+    -- since neither this gizmo's own draws nor those passes agreed on
+    who owned the depth buffer at that point in the frame, both ended up
+    with visibly wrong compositing.
+    """
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
@@ -70,7 +82,6 @@ class RotationRings(_object_base.ObjectBase):
         self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
         self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
         self._treeitem = None
-        self.mainframe.add_object(self)
 
     @_check_types.do
     def set_treeitem(self, treeitem):
@@ -105,11 +116,14 @@ class RotationRings(_object_base.ObjectBase):
 
     @_check_types.do
     def delete(self):
-        """Remove the gizmo from all 3 editors and unbind from the object."""
+        """Unbind from the tracked object and free each view's GL buffers
+        -- never registered via ``add_object`` (see this class's own
+        docstring), so there's nothing in the mainframe/tree/render loop
+        to unregister.
+        """
         self.obj3d.detach()
         self.objschematic.detach()
         self.objpegboard.detach()
-        self.mainframe.remove_object(self)
 
     @_check_types.do
     def close(self):

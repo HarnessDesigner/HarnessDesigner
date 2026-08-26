@@ -256,7 +256,7 @@ class KeyHandler:
             return
 
         dolly = self.config.dolly
-        key = _process_key_event(keycode, dolly.forward_key, dolly.backward_key)
+        key = _process_key_event(keycode, dolly.in_key, dolly.out_key)
 
         if key is not None:
             remove_from_queue(self._process_dolly_key, key)
@@ -380,7 +380,7 @@ class KeyHandler:
             return
 
         dolly = self.config.dolly
-        key = _process_key_event(keycode, dolly.forward_key, dolly.backward_key)
+        key = _process_key_event(keycode, dolly.in_key, dolly.out_key)
         if key is not None:
             add_to_queue(self._process_dolly_key, key)
             return
@@ -542,9 +542,9 @@ class KeyHandler:
         delta = 0.0
 
         for key in keys:
-            if key == self.config.dolly.forward_key:
+            if key == self.config.dolly.in_key:
                 delta += 1.0
-            elif key == self.config.dolly.backward_key:
+            elif key == self.config.dolly.out_key:
                 delta -= 1.0
 
         self.canvas.Dolly(delta * factor)

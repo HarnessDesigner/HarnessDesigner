@@ -290,5 +290,5 @@ class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        if obj.objpegboard is not None:
+        if obj.objpegboard is not None and obj.objpegboard.position is not None:
             self.camera.CenterOn(obj.objpegboard.position)

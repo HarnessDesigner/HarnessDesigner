@@ -2,8 +2,17 @@
 
 """Cylinder mesh generation helpers.
 
-The generated mesh is centered around the origin before being converted into a
-cached :class:`harness_designer.gl.vbo.PooledVBOHandler`.
+The generated mesh's local Z axis runs from the origin (the cylinder's
+*start*/base end, local Z=0) to ``length`` (the *tip* end, local Z=``length``)
+-- despite this module's raw per-ring vertex math (see ``create()``) building
+a Z-centered range first, ``create()`` then shifts every vertex by
+``+length / 2`` before returning, so the mesh actually cached and shared
+by :func:`create_vbo` (and any other caller) is base-anchored, not centered.
+A caller placing this mesh via a (position, rotation, scale) transform is
+therefore positioning the cylinder's *base*, not its middle -- code that
+wants the mesh centered on a given world point needs to offset that point
+back by ``length / 2`` along the mesh's own local +Z (post-rotation) before
+using it as the render position.
 """
 
 import math

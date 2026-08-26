@@ -23,6 +23,24 @@ harness spread out.
 
 ## Screenshots
 
+
+I reworked the rotation widget so it looks more professional and so it is a 
+more intuitive control. The original control looked almost cartoonish and
+it was not easily seen what anfle you were setting. This new control has 2 
+protractor style rings where the inner ring rotates with the object and the 
+outer ring is fixed. When the rotation widget gets initially shown it is 
+3 colored rings one for each axis and you click on the ring (axis) you want to 
+rotate. Once you select the axis then the protractor rings will appear. if you 
+move the mouse over the tick marks on the outer ring they will light up red. 
+Click on the red tick mark and that is the angle that the object will rotate to.
+this will align the 0 on the inner ring with the selected tick mark. You cn also 
+do a "free" rotate by clicking on the inner ring and dragging, this will 
+perform an unbounded rotation. Once again to keep up with the level of detail the  
+degree labels that are seen is locked to the camera position so no matter what 
+you will always be able to read those labels no matter the camera orientation 
+when the rotation is being performed.  
+![img_11.png](img_11.png)
+
 New screen shots that show the level of detail I went into with writing
 the code for the application. 
 ![img_8.png](img_8.png)
