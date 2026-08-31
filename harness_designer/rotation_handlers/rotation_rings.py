@@ -48,6 +48,7 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from ..gl.canvas_3d import canvas as _canvas
     from .. import objects as _objects
+    from ..gl import shaders as _shaders
 
 
 class RotationRings(_object_base.ObjectBase):
@@ -82,6 +83,57 @@ class RotationRings(_object_base.ObjectBase):
         self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
         self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
         self._treeitem = None
+
+        # Which one of the 3 view-specific gizmos above actually gets
+        # drawn by :meth:`render` -- resolved once, here, from *canvas*
+        # (whichever one of editor3d/editor2d/editor_pegboard's own
+        # canvas armed this instance -- see the 3 call sites in
+        # objects_3d/objects_schematic/objects_pegboard's own
+        # ``base_*.py``), rather than every call site reaching into a
+        # RotationRings-specific attribute (.obj3d/.objschematic/
+        # .objpegboard) itself. That reach-in is exactly what made a
+        # plain drag handler's own render() call site (which has no such
+        # attributes) crash -- see BaseVar.render_handler's own
+        # docstring: every handler type exposes the same render(shaders)
+        # entry point so the caller never needs to know which kind of
+        # handler is actually armed.
+        if canvas is mainframe.editor2d.editor:
+            self._render_target = self.objschematic
+        elif canvas is mainframe.editor_pegboard.editor:
+            self._render_target = self.objpegboard
+        else:
+            self._render_target = self.obj3d
+
+        # Some object types track a user-settable "is my angle locked,
+        # or does something else keep computing it for me" flag --
+        # currently only Note (see objects.note.Note's own
+        # is_angle_locked/lock_angle/unlock_angle, which delegate to
+        # objects_3d.note.Note's real camera-tracking logic), duck-typed
+        # here rather than checked by isinstance -- this class has no
+        # business knowing Note exists, and any future object type
+        # gaining the same three members picks up the same behavior for
+        # free.
+        #
+        # Opening the rings on one of these while it's still unlocked
+        # locks it immediately -- the angle it's about to be dragged
+        # from must be a real, persisted value, not whatever
+        # placeholder/computed value it happened to be showing -- and
+        # remembers what that angle was AT the moment of locking, so
+        # :meth:`delete` (the one method every close path actually
+        # calls, regardless of how the session ends) can undo the lock
+        # again if it turns out to have ended without the angle ever
+        # actually changing. An accidental open/close click must not
+        # leave the object stuck non-following for no reason. An object
+        # that was already locked before this session ever started is
+        # never touched by any of this -- the lock/snapshot only happen
+        # together, right here, so there's nothing to undo otherwise.
+        self._angle_lock_snapshot: tuple | None = None
+        if (
+            hasattr(selected, 'is_angle_locked') and hasattr(selected, 'lock_angle') and
+            hasattr(selected, 'unlock_angle') and not selected.is_angle_locked
+        ):
+            selected.lock_angle()
+            self._angle_lock_snapshot = tuple(selected.db_obj.angle3d.as_euler_float)
 
     @_check_types.do
     def set_treeitem(self, treeitem):
@@ -120,7 +172,22 @@ class RotationRings(_object_base.ObjectBase):
         -- never registered via ``add_object`` (see this class's own
         docstring), so there's nothing in the mainframe/tree/render loop
         to unregister.
+
+        The sole method every close path (a plain right-click toggle-off
+        or a miss-click that dismisses the gizmo -- see
+        ``objects_3d.base_3d.Base3D._handle_rotation_interaction``'s own
+        two branches, and its schematic/pegboard siblings) actually
+        calls -- which is exactly why the angle-lock revert check
+        belongs here rather than duplicated at each of those call sites
+        (or worse, inferred indirectly from before/after state around
+        them): see :meth:`__init__`'s own docstring for the full
+        reasoning.
         """
+        if self._angle_lock_snapshot is not None:
+            db_obj = self.selected.db_obj
+            if tuple(db_obj.angle3d.as_euler_float) == self._angle_lock_snapshot:
+                self.selected.unlock_angle()
+
         self.obj3d.detach()
         self.objschematic.detach()
         self.objpegboard.detach()
@@ -132,6 +199,18 @@ class RotationRings(_object_base.ObjectBase):
         :raises NotImplementedError: Raised when the operation cannot be completed.
         """
         raise NotImplementedError
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Render this gizmo -- called via ``BaseVar.render_handler()``,
+        same uniform entry point every handler type exposes (see
+        :meth:`drag_handlers.base.DragHandlerBase.render` and
+        :meth:`add_handlers.base.AddHandlerBase.render`). Delegates to
+        whichever one of :attr:`obj3d`/:attr:`objschematic`/
+        :attr:`objpegboard` matches the view that armed this instance
+        (see :attr:`_render_target`, resolved once in :meth:`__init__`).
+        """
+        self._render_target.render(shaders)
 
     @_check_types.do
     def set_selected(self, flag):

@@ -11,7 +11,7 @@ import warnings
 import threading
 
 from .. import config as _config
-from .. import gpu_mem as _gpu_mem
+from .. import gpu as _gpu
 from .. import check_types as _check_types
 
 
@@ -74,7 +74,7 @@ class Renderer:
         ctx = cl.Context([device])
         queue = cl.CommandQueue(ctx)
 
-        mem_manager = _gpu_mem.GPUMemoryManager(device)
+        mem_manager = _gpu.GPU(device)
         mem_manager.detect()
         chunk_size = mem_manager.get_chunk_size(self.scene.width, self.scene.height)
 

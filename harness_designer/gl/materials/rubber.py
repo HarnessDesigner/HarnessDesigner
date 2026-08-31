@@ -1,6 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from ... import utils as _utils
 from ... import color as _color
 from . import material as _material
 from ... import check_types as _check_types
@@ -9,61 +8,39 @@ from ... import check_types as _check_types
 class RubberMaterial(_material.GLMaterial):
     """Represent a rubber material in :mod:`harness_designer.gl.materials.rubber`.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    Rubber is a dielectric -- its own hue stays in ``diffuse`` (the
+    dominant term for a matte surface), while ``specular`` stays a fixed,
+    low, colorless sheen (rubber's highlight isn't tinted by its own
+    color, unlike a metal's -- see :class:`~.metallic.MetallicMaterial`).
+    A small additive floor on ambient/diffuse keeps even a fully black
+    rubber from looking like a flat, featureless void (matching the old
+    hardcoded black-rubber special case this replaced), without needing
+    a separate branch for it.
     """
     _ambient = (0.0, 0.0, 0.0)
     _diffuse = (0.0, 0.0, 0.0)
-    _specular = (0.0, 0.0, 0.0)
+    _specular = (0.06, 0.06, 0.06)
     _shine = 10.0
 
     _cl_ambient = 0.0
     _cl_diffuse = 0.0
-    _cl_specular = 0.0
+    _cl_specular = 0.06
     _cl_shininess = 10.0
     _cl_metallic = 0.0
-    _cl_roughness = 0.2
+    _cl_roughness = 0.8
 
     @_check_types.do
     def __init__(self, color: _color.Color):
         """Initialise the :class:`RubberMaterial` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param color: Value for ``color``.
+        :param color: The rubber's own color -- tints diffuse/ambient
+            directly (see class docstring), not remapped or discarded.
         :type color: :class:`_color.Color`
         """
-
         r, g, b = color.rgb_scalar
 
-        if r == g == b == 0.0:
-            ar, ag, ab = (0.02, 0.02, 0.02)
-            dr, dg, db = (0.01, 0.01, 0.01)
-            sr, sg, sb = (0.4, 0.4, 0.4)
-        else:
-            ar = _utils.remap(r, 0.0, 1.0,
-                              0.0, 0.05)
-            ag = _utils.remap(g, 0.0, 1.0,
-                              0.0, 0.05)
-            ab = _utils.remap(b, 0.0, 1.0,
-                              0.0, 0.05)
-
-            dr = _utils.remap(r, 0.0, 1.0,
-                              0.4, 0.5)
-            dg = _utils.remap(g, 0.0, 1.0,
-                              0.4, 0.5)
-            db = _utils.remap(b, 0.0, 1.0,
-                              0.4, 0.5)
-
-            sr = _utils.remap(r, 0.0, 1.0,
-                              0.04, 0.7)
-            sg = _utils.remap(g, 0.0, 1.0,
-                              0.04, 0.7)
-            sb = _utils.remap(b, 0.0, 1.0,
-                              0.04, 0.7)
-
-        self._ambient = (ar, ag, ab)
-        self._diffuse = (dr, dg, db)
-        self._specular = (sr, sg, sb)
+        self._diffuse = (0.02 + r * 0.5, 0.02 + g * 0.5, 0.02 + b * 0.5)
+        self._ambient = (0.02 + r * 0.03, 0.02 + g * 0.03, 0.02 + b * 0.03)
 
         self._cl_specular = sum(self._specular) / len(self._specular)
         self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)

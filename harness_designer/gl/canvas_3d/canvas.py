@@ -146,12 +146,31 @@ class Canvas(_canvas_base.CanvasBase):
             self._focal_target = _focal_target.FocalPoint(self)
             self.set_focal_target(self.config.focal_target.enable)
 
+            # Keep every camera-tracking Text (currently just unlocked
+            # notes) facing the camera -- see shapes.text.
+            # update_camera_tracking's own docstring. Bound once, here,
+            # rather than per-note, so a camera move recomputes every
+            # tracked Text's angle in one batched pass instead of each
+            # one independently redoing the same camera-position lookup
+            # and matrix math.
+            self.camera.position.bind(self._on_camera_moved_for_notes)
+
             self.update()
             self.repaint()
 
         except Exception as err:  # NOQA
             _logger.traceback(err, 'initializeGL')
             raise
+
+    @_check_types.do
+    def _on_camera_moved_for_notes(self, *_args) -> None:
+        """Bound to ``self.camera.position`` in :meth:`initializeGL` --
+        must be a real bound method (not a lambda/free function):
+        ``Point.bind()`` stores it as a ``weakref.WeakMethod``, which
+        only works against an actual bound method's own ``__self__``.
+        """
+        from ...shapes import text as _text
+        _text.update_camera_tracking(self.camera)
 
     @_check_types.do
     def set_focal_target(self, flag: bool):

@@ -579,17 +579,15 @@ class Base3D(_objectsvar.BaseVar):
         ):
             return
 
-        # Rotation handlers are a single facade shared across all 3
-        # views (obj3d/objschematic/objpegboard) -- see RotationRings'
-        # own docstring for why (the gizmo has to show correctly in
-        # whichever view the user is looking at, not just the one that
-        # armed it), so this view's own render() is reached through its
-        # own obj3d. Every other _active_handler is already a 3D-only
-        # drag handler (DragHandlerBase, see its own render() -- always
-        # defined, defaulting to a no-op for drags with nothing to draw)
-        # -- called directly, the same instance either way.
-
-        self._active_handler.obj3d.render(shaders)
+        # Every handler type (add/drag/rotation) exposes the same
+        # render(shaders) entry point -- see AddHandlerBase.render/
+        # DragHandlerBase.render/RotationRings.render's own docstrings --
+        # so this call site never needs to know which kind is actually
+        # armed. A RotationRings resolves internally to whichever of its
+        # own obj3d/objschematic/objpegboard matches the view that armed
+        # it; a drag handler with nothing to draw (or an add handler)
+        # just no-ops.
+        self._active_handler.render(shaders)
 
     @_check_types.do
     def _render_overlay_group(self, shaders: "_shaders.ShaderProgram") -> None:

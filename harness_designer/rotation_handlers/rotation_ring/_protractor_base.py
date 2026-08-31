@@ -12,13 +12,19 @@ short one every degree, a longer one with a numeric
 cylinder needs only one radius/length pair (vs. a box's three independent
 scale components) and, being rotationally symmetric about its own length
 axis, has no front/back face to worry about -- unlike the flat text
-label, which does, and is flipped 180 degrees about the tick's own radial
-axis (see :meth:`ProtractorRingBase._label_rotation`) whenever the camera
-is looking at this ring from its back side, so the numbers never render
-mirrored. What differs between the two protractor rings (whether the
-angle tracks the selected object or stays fixed, and what a click/hover/
-drag on the ring actually does) is left entirely to the two subclasses --
-this class only builds and draws the shared geometry.
+label, which does, but which never needs a front/back flip at all: each
+major tick's own label keeps a live camera-facing billboard angle instead
+(see :meth:`ProtractorRingBase._update_label_angles`, computed directly
+against ``shapes.text``'s own free ``_billboard_matrices`` function --
+not through that module's shared ``_CameraTrackingArena``, which exists
+for OBB/AABB-tracked owners like notes; a protractor label has neither),
+always turned to face the camera directly rather than sitting at a fixed
+orientation that would need flipping depending on viewing side. What
+differs between the two
+protractor rings (whether the angle tracks the selected object or stays
+fixed, and what a click/hover/drag on the ring actually does) is left
+entirely to the two subclasses -- this class only builds and draws the
+shared geometry.
 """
 
 import math
@@ -51,6 +57,19 @@ if TYPE_CHECKING:
 TICK_STEP_DEGREES = 1.0
 MAJOR_TICK_STEP_DEGREES = 10.0
 TICK_COUNT = int(360.0 / TICK_STEP_DEGREES)
+_MAX_TRACKED_LABELS = int(360.0 / MAJOR_TICK_STEP_DEGREES)
+
+# Shared, pre-allocated once at import time and reused by whichever
+# protractor ring's own reposition_all()/camera-move callback is
+# currently running (see ProtractorRingBase._update_label_angles) --
+# safe because only a single axis's ring pair is ever visible at a time
+# (RotationRing._ensure_protractor's own docstring: other axes stay
+# built but hidden), and this all runs synchronously on the Qt UI
+# thread, never concurrently, so there's no risk of two calls racing
+# over the same buffer. Sized for exactly one ring's own major-tick
+# count -- inner and outer are never updated in the same call, so this
+# never needs to hold both at once.
+_label_positions_scratch = np.zeros((_MAX_TRACKED_LABELS, 3), dtype=np.float64)
 
 # Fixed tick color -- deliberately independent of the washer's own
 # (axis- or outer-tinted) material so the ticks always read clearly
@@ -77,9 +96,12 @@ class _Tick:
     free-rotation drag), and one batched matrix multiply over a whole
     array is far cheaper than 360 individual ones.
 
-    The label's own rotation is separate again -- a live camera-facing
-    billboard, recomputed fresh every render() call (see
-    ``ProtractorRingBase._label_rotation``), never cached at all.
+    The label's own rotation is a live camera-facing billboard, kept
+    live directly by :meth:`ProtractorRingBase._update_label_angles`
+    (writing straight into this tick's own ``label._tracking_angle``)
+    rather than recomputed by this class itself --
+    ``ProtractorRingBase.render()`` just asks the label's own
+    ``render_angle()`` for whichever angle to actually draw with.
     """
 
     __slots__ = (
@@ -215,22 +237,16 @@ class ProtractorRingBase:
                 self._ticks.append(_Tick(degrees=degrees, is_major=is_major, label=label))
 
         # Fixed for the ring's whole lifetime (which ticks are major
-        # never changes) -- cached once so render()'s label pass and
-        # _label_rotations() don't re-filter all 360 ticks every frame.
+        # never changes) -- cached once so render()'s label pass doesn't
+        # re-filter all 360 ticks every frame.
         self._major_ticks = [t for t in self._ticks if t.label is not None]
-        self._major_indices = np.where(self._is_major_mask)[0]
-
-        # Filled in by reposition_all -- world-space label positions for
-        # every tick (only the major-tick rows are ever read), kept as a
-        # bulk array alongside the per-tick Point objects so
-        # _label_rotations() can batch its own vector math instead of
-        # unpacking 36 Points every render() call.
-        self._label_positions_np = np.zeros((TICK_COUNT, 3), dtype=np.float64)
 
         self._recompute_local_geometry()
 
         # subclasses must call reposition_all() once their own ring
-        # angle is established (after their own __init__ finishes)
+        # angle is established (after their own __init__ finishes), then
+        # start_camera_tracking() -- see that method's own docstring for
+        # why the ordering matters.
 
     @staticmethod
     @_check_types.do
@@ -292,6 +308,18 @@ class ProtractorRingBase:
 
     @_check_types.do
     def delete(self, context) -> None:
+        # Not strictly required (Point.bind() only ever holds a
+        # WeakMethod, so this callback goes inert on its own once this
+        # ring is collected) but explicit is cheap and avoids a stale
+        # callback firing spurious work while something else might still
+        # be keeping this instance alive a moment longer -- see
+        # Point.unbind's own docstring.
+        if self._camera is not None:
+            self._camera.position.unbind(self._on_camera_moved)
+
+        for tick in self._major_ticks:
+            tick.label._tracking_angle = None  # NOQA
+
         try:
             with context:
                 self._disc_vbo.release()
@@ -423,19 +451,19 @@ class ProtractorRingBase:
         # shapes/cylinder.py) pointed along this tick's own growth
         # direction -- no in-plane orientation to get right the way a
         # label needs (labels get their own live camera-facing billboard
-        # instead -- see _label_rotation -- not a rotation cached here).
-        # The mesh's local Z=0 (its base -- see shapes/cylinder.py's own
-        # docstring) sits at tick.position (this tick's start radius,
-        # from _recompute_local_geometry), so growth has to point AWAY
-        # from center for the outer protractor (ID -> OD) but TOWARD
-        # center for the inner one (OD -> ID) -- the opposite of the
-        # outward radial direction.
+        # instead, kept live by shapes.text's own shared tracking system
+        # -- not a rotation cached here). The mesh's local Z=0 (its base
+        # -- see shapes/cylinder.py's own docstring) sits at
+        # tick.position (this tick's start radius, from
+        # _recompute_local_geometry), so growth has to point AWAY from
+        # center for the outer protractor (ID -> OD) but TOWARD center
+        # for the inner one (OD -> ID) -- the opposite of the outward
+        # radial direction.
         radial_world = self._local_radials @ ring_matrix.T
         growth_world = radial_world if self._labels_outward else -radial_world
 
         world_label_offsets = self._label_local_offsets @ ring_matrix.T
         label_positions = center_np + world_label_offsets
-        self._label_positions_np = label_positions
 
         for i, tick in enumerate(self._ticks):
             tick.position = _point.Point(*[float(v) for v in positions[i]])
@@ -444,7 +472,117 @@ class ProtractorRingBase:
             if tick.label is not None:
                 tick.label_position = _point.Point(*[float(v) for v in label_positions[i]])
 
+        # Every label's own camera-facing angle is computed from its
+        # *position*, which every tick's label_position write above just
+        # changed -- without this, a label keeps whatever billboard angle
+        # it had from the last real camera move, which is now wrong for
+        # its new position, and stays wrong until the camera happens to
+        # move again (the only other thing that refreshes it). See
+        # _update_label_angles's own docstring -- it's the "no camera at
+        # all" gate itself, so nothing needed here.
+        self._update_label_angles()
+
         return True
+
+    @_check_types.do
+    def start_camera_tracking(self) -> None:
+        """Prime every major tick's label with a real (identity) angle,
+        bind this ring's own camera-move callback, then immediately
+        compute a real angle for each of them -- must be called AFTER
+        this ring's own first :meth:`reposition_all` (see each
+        subclass's own ``__init__``, where both calls happen back to
+        back), not from this class's own ``__init__``: a label's
+        tracking position comes from ``tick.label_position``, which only
+        holds its real, ring-relative value once ``reposition_all`` has
+        actually run -- computing any earlier would track the
+        ``_Tick.__init__`` placeholder position (0, 0, 0) instead.
+
+        ``render_angle()`` (see :class:`~harness_designer.shapes.text.Text`)
+        falls through to a label's raw, non-tracking angle whenever
+        ``_tracking_angle`` is ``None`` -- the priming write here (a real
+        identity ``Angle``, not ``None``) must happen before
+        :meth:`_update_label_angles` gets its first real chance to run,
+        or every label would render at its raw ``mesh_rotation`` fallback
+        (flat in the ring's own plane, not camera-facing) until whichever
+        of a ring drag or a real camera move happens to come first -- the
+        same gap notes have at the instant they're first placed (see
+        add_handlers.editor_3d.note.Note's own explicit priming call,
+        right after placement, for the identical reasoning).
+
+        No camera at all (the schematic/pegboard views' own protractor
+        -- a locked top-down projection has nothing to billboard toward)
+        leaves every label's ``render_angle()`` falling through to its
+        own ``tick.mesh_rotation`` instead, same as always.
+        """
+        if self._camera is None:
+            return
+
+        for tick in self._major_ticks:
+            tick.label._tracking_angle = _angle.Angle()  # NOQA
+
+        self._camera.position.bind(self._on_camera_moved)
+        self._update_label_angles()
+
+    @_check_types.do
+    def _update_label_angles(self) -> None:
+        """Recompute every major tick's own camera-facing billboard
+        angle directly, writing straight into each tick's own label --
+        no ``shapes.text._CameraTrackingArena`` involvement at all: that
+        class exists for OBB/AABB-tracked owners (notes), and computing
+        (then discarding) its 8-corner contraction for labels that have
+        neither was real, measured wasted work on exactly this hot path
+        (see this method's own call sites).
+
+        Called from :meth:`reposition_all` (so a ring drag only ever
+        recomputes THIS ring's own up-to-36 labels, not the whole
+        scene's worth of tracked notes too) and from
+        :meth:`_on_camera_moved` (so labels whose *position* didn't just
+        change still get their facing angle refreshed for the camera's
+        new position) -- the same two triggers routing labels through
+        ``shapes.text.update_camera_tracking`` used to cover, just
+        without that class's shared arena at all now.
+
+        Uses the shared, module-level :data:`_label_positions_scratch`
+        instead of allocating a fresh positions array on every call --
+        see that buffer's own comment for why reusing it here is safe.
+        A no-op with no camera at all (the schematic/pegboard views'
+        own protractor), or before this ring has any major ticks with
+        labels yet.
+        """
+        if self._camera is None:
+            return
+
+        count = len(self._major_ticks)
+        if count == 0:
+            return
+
+        positions = _label_positions_scratch[:count]
+        for i, tick in enumerate(self._major_ticks):
+            p = tick.label_position
+            positions[i, 0] = p.x
+            positions[i, 1] = p.y
+            positions[i, 2] = p.z
+
+        camera_pos = self._camera.position.as_numpy.astype(np.float64)
+        matrices, safe = _text._billboard_matrices(positions, camera_pos)  # NOQA
+
+        for i, tick in enumerate(self._major_ticks):
+            if not safe[i]:
+                continue
+
+            tick.label._tracking_angle = _angle.Angle.from_matrix(matrices[i])  # NOQA
+
+    @_check_types.do
+    def _on_camera_moved(self, *_args) -> None:
+        """Bound to ``self._camera.position`` in
+        :meth:`start_camera_tracking` -- must be a real bound method
+        (not a lambda/free function): ``Point.bind()`` stores it as a
+        ``weakref.WeakMethod``, which only works against an actual bound
+        method's own ``__self__`` (see ``gl.canvas_3d.canvas.Canvas.
+        _on_camera_moved_for_notes`` for the identical constraint on the
+        equivalent per-note callback).
+        """
+        self._update_label_angles()
 
     @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram") -> None:
@@ -517,118 +655,17 @@ class ProtractorRingBase:
 
             label_scale = _point.Point(1.0, 1.0, 1.0)
 
-            for tick, rotation in zip(self._major_ticks, self._label_rotations()):
+            for tick in self._major_ticks:
+                # render_angle() returns the label's own live camera-
+                # facing billboard while tracking is enabled (see
+                # __init__'s own enable_camera_tracking call), or falls
+                # straight through to tick.mesh_rotation (lying flat in
+                # the ring's own plane) when there's no camera to
+                # billboard toward at all (schematic/pegboard).
+                rotation = tick.label.render_angle(tick.mesh_rotation)
                 tick.label.render(
                     faces_program,
                     tick.label_position, rotation, label_scale, False)
-
-    @_check_types.do
-    def _label_rotations(self) -> list:
-        """Return one live camera-facing billboard :class:`Angle` per
-        major (labeled) tick, in the same order as :attr:`_major_ticks`
-        -- batched over all of them in one vectorized pass instead of
-        one from scratch per tick, since render() calls this every
-        single frame regardless of whether anything is actually
-        rotating (only the camera needs to have moved).
-
-        "Cylindrical" billboarding (text always stays upright against
-        world Y, never rolls with the camera) rather than full spherical
-        facing, which would tip labels this way and that as the camera
-        moves above/below the gizmo and read as arbitrarily tilted text
-        -- exactly what made the previous two-orientation (front/back
-        flip) approach look like it "went every which way" near its own
-        flip boundary. No camera means no way to billboard at all --
-        fall back to each tick's own mesh_rotation (lying flat in the
-        ring's own plane).
-        """
-        if self._camera is None or not len(self._major_ticks):
-            return [t.mesh_rotation for t in self._major_ticks]
-
-        label_pos = self._label_positions_np[self._major_indices]
-        camera_pos = self._camera.position.as_numpy.astype(np.float64)
-
-        to_camera = camera_pos - label_pos
-        dist = np.linalg.norm(to_camera, axis=1)
-
-        # A label directly at the camera's own position (dist ~ 0) has
-        # no direction to billboard toward at all -- keep its previous
-        # mesh_rotation rather than dividing by ~0; everything else
-        # gets a real forward vector.
-        safe = dist >= 1e-9
-        forward = np.zeros_like(to_camera)
-        forward[safe] = to_camera[safe] / dist[safe, None]
-
-        n = len(self._major_ticks)
-
-        # World Y degenerates (cross product -> ~0) whenever the camera
-        # looks close to straight down/up at a given label -- not a rare
-        # corner case: every label on a ring that lies flat (the Y-axis
-        # ring's own plane, see rotation_mesh.py) hits this constantly in
-        # the schematic/pegboard views (permanently top-down) and near it
-        # in the 3D view whenever the camera orbits close to overhead.
-        #
-        # Three earlier approaches, in order, each traded one problem for
-        # another:
-        #   - A fixed "is it below some threshold" cutoff leaves a
-        #     transitional band just above the threshold where the cross
-        #     product, while technically nonzero, is still small enough
-        #     that normalizing it is numerically unstable.
-        #   - Unconditionally picking whichever of World Y/World Z gives
-        #     the larger cross product fixes THAT, but switches reference
-        #     axis wherever the two happen to be equal -- a 45-degree-
-        #     wide locus that has nothing to do with either axis actually
-        #     being degenerate. Since Y and Z are perpendicular, crossing
-        #     that boundary flips "right" (and the label's rendered
-        #     rotation) by up to 90 degrees in one discrete jump, and
-        #     which labels sit on which side of it shifts with camera
-        #     angle/distance -- exactly the "some labels are ~90 degrees
-        #     off, and which ones changes as I move the camera" symptom.
-        #   - Blending smoothly from World Y toward World Z as *forward*
-        #     approaches the pole sounds like it should avoid both, but a
-        #     dense numeric sweep showed it doesn't: for azimuths where
-        #     the blend path itself happens to sweep close to *forward*'s
-        #     own direction, the cross product still gets small mid-blend
-        #     -- same instability, just relocated.
-        #
-        # A single fixed reference axis genuinely cannot stay non-
-        # degenerate at its own pole (this is the same fact as "you can't
-        # comb a hairy ball flat" -- a real topological singularity, not
-        # a bug to be engineered away). The pragmatic, standard fix (also
-        # what most engines' look-at/billboard code does) is a plain
-        # threshold swap with the threshold pushed very tight -- confines
-        # the unavoidable singularity to a cone within ~2.5 degrees of
-        # true vertical, rather than the ~25-degree band the smoothstep
-        # version above turned out to still have.
-        world_up = np.array([0.0, 1.0, 0.0])
-        dot_y = np.abs(forward @ world_up)
-        near_pole = dot_y > 0.999
-
-        up_reference = np.tile(world_up, (n, 1))
-        up_reference[near_pole] = [0.0, 0.0, 1.0]
-
-        right = np.cross(up_reference, forward)
-        right_norm = np.linalg.norm(right, axis=1)
-
-        # World Y and World Z are themselves perpendicular, so nothing
-        # can be near-parallel to both at once -- this guard only
-        # exists so a stray zero-length *forward* (already handled by
-        # *safe* above, but defensively kept here too) can never divide
-        # by exactly 0.
-        right_norm = np.where(right_norm < 1e-9, 1.0, right_norm)
-
-        right = right / right_norm[:, None]
-        true_up = np.cross(forward, right)
-
-        matrices = np.stack([right, true_up, forward], axis=-1).astype(np.float32)
-
-        results = []
-        for k, tick in enumerate(self._major_ticks):
-            if not safe[k]:
-                results.append(tick.mesh_rotation)
-            else:
-                results.append(_angle.Angle.from_matrix(matrices[k]))
-
-        return results
 
     @_check_types.do
     def _disc_rotation(self) -> "_angle.Angle":

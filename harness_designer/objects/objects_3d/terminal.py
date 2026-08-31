@@ -545,6 +545,12 @@ class Terminal(_base_3d.Base3D):
 
         ptables = mainframe.project.ptables
         part = ptables.global_db.terminals_table[part_id]
+
+        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
+        estimates, suggested = _terminal_handler.estimate_dimensions(mainframe, part)
+        if not ensure_dimensions(mainframe, part, part.part_number, estimates, suggested):
+            return None
+
         name = f'{part.manufacturer.name} {part.part_number}'
 
         from .. import terminal as _terminal_facade
@@ -590,7 +596,14 @@ class Terminal(_base_3d.Base3D):
                 cav.identify(compat_highlight)
                 project_cavities.append(cav)
         else:
-            # Mode 3 -- floating preview, snaps to any compatible cavity.
+            # Mode 3 -- floating preview, snaps to any empty cavity in the
+            # project. Compatibility (compat_terminals/terminal_sizes/blade
+            # size+gender) only decides the highlight color (compat_highlight
+            # vs plain_highlight) -- it's advisory, not a snap gate, since
+            # many real parts are missing enough DB data to ever match it,
+            # which would otherwise make plenty of genuinely empty cavities
+            # permanently unsnappable. Mirrors add_handlers.editor_schematic.
+            # terminal's own Mode 3 ("every empty cavity project-wide").
             is_male = _terminal_handler._resolve_is_male(part)  # NOQA
             part_number = part.part_number
             blade_size = part.blade_size
@@ -628,6 +641,7 @@ class Terminal(_base_3d.Base3D):
                         continue
 
                 cav.identify(plain_highlight)
+                project_cavities.append(cav)
 
         pos_obj = ptables.pjt_points3d_table.insert(0, 0, 0)
         db_obj = ptables.pjt_terminals_table.insert(part_id, name, None, pos_obj.db_id, None)

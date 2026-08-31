@@ -267,6 +267,23 @@ class CameraBase:
         self._focal_distance = _line.Line(self._position, self._focal_position).length()
         self._distance_from_center = _line.Line(ZERO_POINT, self._position).length()
 
+        # Set around the FIRST of a rigid dual-write to both _position
+        # and _focal_position together (Dolly/TruckPedestal/Walk/
+        # CenterOn -- both move by the same delta, so they're really one
+        # logical "moved the rig" event) -- checked by _update_camera
+        # itself, below, so its own internal recompute runs only once
+        # per such move (on the second write) instead of twice, WITHOUT
+        # suppressing anything else bound to _position (see this
+        # attribute's own history: the previous approach wrapped the
+        # first write in `with self._position:`, which -- via
+        # CallbackMixin's own __ref_count__ batching guard -- silently
+        # drops EVERY callback bound to _position for that write, not
+        # just this class's own internal one. shapes.text's own camera-
+        # tracking update, bound directly to a 3D camera's .position,
+        # was the first thing to ever actually depend on that write
+        # firing and surfaced this).
+        self._updating_rig: bool = False
+
         self._calculate_camera()
         self._position.bind(self._update_camera)
         self._focal_position.bind(self._update_camera)
@@ -527,6 +544,14 @@ class CameraBase:
 
         :type _: None
         """
+        if self._updating_rig:
+            # The first of a rigid dual-write to _position AND
+            # _focal_position together -- see _updating_rig's own
+            # comment in __init__. The second write (whichever method
+            # is currently running clears the flag before making it)
+            # runs this in full, covering both changes at once.
+            return
+
         self._camera_moved_since_last_cull = True
 
         if (
@@ -979,8 +1004,10 @@ class CameraBase:
         move = move_dir * (input_mag * speed)
 
         self._is_dirty = True
-        with self._position:
-            self._position += move
+
+        self._updating_rig = True
+        self._position += move
+        self._updating_rig = False
 
         self._focal_position += move
 
@@ -1011,8 +1038,10 @@ class CameraBase:
         move = self._forward * float(distance)
 
         self._is_dirty = True
-        with self._position:
-            self._position += move
+
+        self._updating_rig = True
+        self._position += move
+        self._updating_rig = False
 
         self._focal_position += move
 
@@ -1051,8 +1080,9 @@ class CameraBase:
 
         move = move_dir * (input_mag * speed)
 
-        with self._position:
-            self._position += move
+        self._updating_rig = True
+        self._position += move
+        self._updating_rig = False
 
         self._is_dirty = True
         self._focal_position += move
@@ -1078,8 +1108,10 @@ class CameraBase:
         move = world_position.as_numpy - self._focal_position.as_numpy
 
         self._is_dirty = True
-        with self._position:
-            self._position += move
+
+        self._updating_rig = True
+        self._position += move
+        self._updating_rig = False
 
         self._focal_position += move
 

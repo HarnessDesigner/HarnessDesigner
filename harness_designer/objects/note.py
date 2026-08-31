@@ -46,8 +46,45 @@ class Note(_ObjectBase):
         self.objpegboard = _note_pegboard.Note(self, db_obj)
         self.mainframe.add_object(self)
 
+        # Deferred until this facade is fully wired up (obj3d assigned,
+        # registered on every canvas above) -- see objects_3d.note.
+        # Note.__init__'s own comment for why starting this any earlier
+        # (from inside that constructor call) crashes: enable_camera_
+        # tracking's own refresh_canvas_registration() needs self.obj3d
+        # to already be this exact, real instance, not the class-level
+        # None default a not-yet-returned constructor call still leaves
+        # it at.
+        if not db_obj.angle3d_lock:
+            self.obj3d._start_camera_tracking()  # NOQA
+
     @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_note(self.db_obj.db_id)
         self.db_obj.delete()
+
+    @property
+    @_check_types.do
+    def is_angle_locked(self) -> bool:
+        """Whether this note's angle3d is user-locked rather than
+        continuously re-facing the 3D camera -- see :meth:`lock_angle`/
+        :meth:`unlock_angle`. Delegates to :attr:`obj3d` -- the 3D view
+        is the only one with a camera to face at all (2D/pegboard are
+        both a locked top-down projection).
+        """
+        return self.obj3d.is_angle_locked
+
+    @_check_types.do
+    def lock_angle(self) -> None:
+        """Freeze this note's current camera-facing angle as its new
+        real, persisted one, and stop tracking the camera -- see
+        ``objects_3d.note.Note.lock_angle``'s own docstring.
+        """
+        self.obj3d.lock_angle()
+
+    @_check_types.do
+    def unlock_angle(self) -> None:
+        """Clear the lock and resume tracking the camera -- see
+        ``objects_3d.note.Note.unlock_angle``.
+        """
+        self.obj3d.unlock_angle()

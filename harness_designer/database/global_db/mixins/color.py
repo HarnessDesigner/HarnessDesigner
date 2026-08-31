@@ -20,25 +20,20 @@ class ColorMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_color: _Union[DefaultStoredValueType, "_color.Color", None] = DefaultStoredValue
+    _stored_color: _Union[DefaultStoredValueType, "_color.Color"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def color(self) -> _Union["_color.Color", None]:
+    def color(self) -> "_color.Color":
         """Return the color.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_color.Color` | None
+        :rtype: :class:`_color.Color`
         """
         if self._stored_color is DefaultStoredValue:
-            color_id = self.color_id
-
-            if color_id == b'\x00' * 16:
-                self._stored_color = None
-            else:
-                self._stored_color = self._table.db.colors_table[color_id]
+            self._stored_color = self._table.db.colors_table[self.color_id]
 
         return self._stored_color
 

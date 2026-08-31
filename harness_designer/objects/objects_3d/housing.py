@@ -888,6 +888,11 @@ class Housing(_base_3d.Base3D):
 
         ptables = mainframe.project.ptables
         part = mainframe.project.gtables.housings_table[part_id]
+
+        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
+        if not ensure_dimensions(mainframe, part, part.part_number):
+            return None
+
         name = f'{part.manufacturer.name} {part.part_number}'
         position = ptables.pjt_points3d_table.insert(0, 0, 0)
 

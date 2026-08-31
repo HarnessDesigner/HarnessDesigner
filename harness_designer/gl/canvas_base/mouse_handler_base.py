@@ -975,6 +975,25 @@ class MouseHandlerBase:
         if self._dispatch_to_active_handler(
             mouse_pos, _interaction.MouseInteraction.MOVE, self._is_motion
         ):
+            # A consumed MOVE means a handler is actively armed and just
+            # did something with this motion (advanced a drag, updated a
+            # rotation gizmo) -- exactly what _is_motion exists to track,
+            # so it must be set here too, not just in the raw
+            # button-delta fallback below. Without this, _is_motion stays
+            # False for a handler's entire drag (every one of its MOVE
+            # events returns early right here), so the eventual LEFT_UP
+            # reports had_motion=False for a drag that very much had
+            # motion -- see Base3D.handle_interaction's own LEFT_UP
+            # branch, which returns that had_motion value straight
+            # through: a False there both lets the default click-toggle
+            # deselect the object that was just dragged, AND (returning
+            # False from handle_interaction) stops _dispatch_to_active_
+            # handler from ever reaching its own active_handler_obj=None
+            # cleanup, leaving the canvas permanently stuck routing every
+            # future click back to this now-dead handler instead of
+            # whatever gets freshly picked.
+            self._is_motion = True
+
             # A consumed MOVE (e.g. the inner ring's own free-rotation
             # drag advancing) has no button-drag delta of its own to
             # reach the refresh below -- repaint now so the drag's

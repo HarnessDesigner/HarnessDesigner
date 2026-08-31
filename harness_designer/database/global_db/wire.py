@@ -766,25 +766,20 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, num_conductors=value)
         self._populate('num_conductors')
 
-    _stored_core_material: _Union[DefaultStoredValueType, "_plating.Plating", None] = DefaultStoredValue
+    _stored_core_material: _Union[DefaultStoredValueType, "_plating.Plating"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def core_material(self) -> _Union["_plating.Plating", None]:
+    def core_material(self) -> "_plating.Plating":
         """Return the core material.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_plating.Plating` | None
+        :rtype: :class:`_plating.Plating`
         """
         if self._stored_core_material is DefaultStoredValue:
-            core_material_id = self.core_material_id
-
-            if core_material_id == b'\x00' * 16:
-                self._stored_core_material = None
-            else:
-                self._stored_core_material = self._table.db.platings_table[core_material_id]
+            self._stored_core_material = self._table.db.platings_table[self.core_material_id]
 
         return self._stored_core_material
 

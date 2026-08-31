@@ -98,6 +98,11 @@ class TPALock(_base_3d.Base3D):
 
         ptables = mainframe.project.ptables
         part = ptables.global_db.tpa_locks_table[part_id]
+
+        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
+        if not ensure_dimensions(mainframe, part, part.part_number):
+            return None
+
         name = f'{part.manufacturer.name} {part.part_number}'
 
         preview_material = _materials.Plastic(

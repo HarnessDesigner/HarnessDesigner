@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import angle3d as _angle3d
+from . import angle3d_lock as _angle3d_lock
 from . import angle2d as _angle2d
 from . import angle_pegboard as _angle_pegboard
 from . import position2d as _position2d
@@ -25,6 +26,9 @@ from . import color as _color
 
 Angle3DMixin = _angle3d.Angle3DMixin
 Angle3DControl = _angle3d.Angle3DControl
+
+Angle3DLockMixin = _angle3d_lock.Angle3DLockMixin
+Angle3DLockControl = _angle3d_lock.Angle3DLockControl
 
 Angle2DMixin = _angle2d.Angle2DMixin
 Angle2DControl = _angle2d.Angle2DControl
@@ -81,6 +85,7 @@ ColorControl = _color.ColorControl
 
 
 del _angle3d
+del _angle3d_lock
 del _angle2d
 del _angle_pegboard
 del _position3d

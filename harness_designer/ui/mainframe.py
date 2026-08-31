@@ -16,6 +16,7 @@ from ..gl.canvas_base import interaction as _interaction
 from .. import handlers as _handlers
 from .. import app as _app
 from .. import check_types as _check_types
+from .. import memory_diagnostics as _memory_diagnostics
 
 
 if TYPE_CHECKING:
@@ -57,6 +58,7 @@ class MainFrame(QtWidgets.QMainWindow):
     global_db: "_global_db.GLBTables" = None
     project_db: "_project_db.PJTTables" = None
     _project: "_project.Project" = None
+    _project_opened: bool = False
 
     @property
     @_check_types.do
@@ -72,6 +74,25 @@ class MainFrame(QtWidgets.QMainWindow):
     def project(self, value: Union["_project.Project", None]):
         self._project = value
 
+        if value is not None:
+            # A project's notes are bulk-constructed directly into
+            # Project._notes (see Project's own _load_objects helper),
+            # never through add_note() -- so, unlike a freshly PLACED
+            # note (see add_handlers.editor_3d.note.Note, which recomputes
+            # explicitly once right after placement), every note this
+            # project just loaded still only has whatever angle3d was
+            # last persisted, not a real camera-facing billboard angle,
+            # until something actually moves the camera. Nudging the 3D
+            # camera's own position by a negligible amount fires the
+            # exact same bound callback a real camera move would (see
+            # gl.canvas_3d.canvas.Canvas.initializeGL/
+            # _on_camera_moved_for_notes), which recomputes every
+            # unlocked note in one batched pass -- cheaper and simpler
+            # than a separate call here that would need its own import
+            # of objects_3d.note and would run before this project's own
+            # camera position/orientation has necessarily settled.
+            self.editor3d.editor.camera.position.x += 0.000001
+
     @_check_types.do
     def __init__(self, splash, logger: "_logger.Log"):
         """Initialise the :class:`MainFrame` instance.
@@ -84,6 +105,11 @@ class MainFrame(QtWidgets.QMainWindow):
         :type logger: :class:`_logger.Log`
         """
         QtWidgets.QMainWindow.__init__(self)
+
+        # As early as possible so tracemalloc (when Config.debug.memory.enabled)
+        # catches allocations from the rest of startup, including the database
+        # opens below -- see memory_diagnostics.py's own docstring.
+        _memory_diagnostics.start()
 
         self.config = _config.Config
         self._is_closing = False
@@ -760,6 +786,9 @@ class MainFrame(QtWidgets.QMainWindow):
         close_dlg.show()
 
         self.logger.info('Harness Designer shutting down')
+
+        _memory_diagnostics.stop()
+
         self.logger.info('Stopping Process Manager...')
         close_dlg.set_message('Stopping Process Manager...')
 
@@ -956,49 +985,59 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _open_project(self):
-        # The per-object referents scan that used to run right here has
-        # been superseded by the gc.callbacks hook registered in
-        # harness_designer/__init__.py, which does the same scan
-        # automatically, right before the first *real* gen2 collection --
-        # wherever in the app that naturally ends up happening -- instead
-        # of only at this one manually-chosen point. See that module for
-        # the crash investigation this all traces back to.
-        from .. import shapes
+        # The one-time startup work below (VBO/glyph caching, tearing down
+        # the splash, loading editor_db) must run exactly once, from
+        # showEvent -- guarded here because the `project` property above
+        # re-enters this method any time self._project is still None (e.g.
+        # the user cancelled project selection below), and re-running the
+        # splash teardown on that second pass would hand cache_primitives
+        # an already-None self._splash and crash on splash.SetText(...).
+        if not self._project_opened:
+            self._project_opened = True
 
-        shapes.cache_primitives(self, self._splash)
+            # The per-object referents scan that used to run right here has
+            # been superseded by the gc.callbacks hook registered in
+            # harness_designer/__init__.py, which does the same scan
+            # automatically, right before the first *real* gen2 collection --
+            # wherever in the app that naturally ends up happening -- instead
+            # of only at this one manually-chosen point. See that module for
+            # the crash investigation this all traces back to.
+            from .. import shapes
 
-        if self._splash is not None:
-            import time
+            shapes.cache_primitives(self, self._splash)
 
-            # ---- show main window, hide splash ----
-            self._splash.SetText('DONE!')
-            time.sleep(0.50)
+            if self._splash is not None:
+                import time
 
-            self._splash.Destroy()
-            self._splash = None
+                # ---- show main window, hide splash ----
+                self._splash.SetText('DONE!')
+                time.sleep(0.50)
 
-            # Destroy() only schedules deferred deletion of the underlying
-            # Qt widget (self._window.deleteLater(), see splash.py) -- the
-            # actual C++ QLabel is freed on the next return to the event
-            # loop. Nothing must go on to hold a live reference to this
-            # same Splash instance past this point -- harness_designer.
-            # splash and App.splash (see app.py's _init, where both get
-            # set alongside this MainFrame's own self._splash) -- or a
-            # fully reachable Python object with an already-deleted C++
-            # backing sits in the object graph indefinitely, crashing the
-            # first time anything (e.g. gc.collect()'s tp_traverse walk)
-            # touches it. See the crash investigation this was moved from
-            # (originally in showEvent, right next to the old Destroy()
-            # call -- same reasoning, just relocated so the splash can
-            # stay up through cache_primitives() above).
-            import harness_designer as _hd
-            _hd.splash = None
-            if _hd._app is not None:
-                _hd._app.splash = None
+                self._splash.Destroy()
+                self._splash = None
+
+                # Destroy() only schedules deferred deletion of the underlying
+                # Qt widget (self._window.deleteLater(), see splash.py) -- the
+                # actual C++ QLabel is freed on the next return to the event
+                # loop. Nothing must go on to hold a live reference to this
+                # same Splash instance past this point -- harness_designer.
+                # splash and App.splash (see app.py's _init, where both get
+                # set alongside this MainFrame's own self._splash) -- or a
+                # fully reachable Python object with an already-deleted C++
+                # backing sits in the object graph indefinitely, crashing the
+                # first time anything (e.g. gc.collect()'s tp_traverse walk)
+                # touches it. See the crash investigation this was moved from
+                # (originally in showEvent, right next to the old Destroy()
+                # call -- same reasoning, just relocated so the splash can
+                # stay up through cache_primitives() above).
+                import harness_designer as _hd
+                _hd.splash = None
+                if _hd._app is not None:
+                    _hd._app.splash = None
+
+            self.editor_db.load_db(self.global_db)
 
         from ..objects import project as _proj
-
-        self.editor_db.load_db(self.global_db)
 
         self.project = _proj.Project.select_project(self)
 

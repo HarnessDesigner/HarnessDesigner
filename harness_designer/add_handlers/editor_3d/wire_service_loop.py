@@ -206,6 +206,7 @@ class WireServiceLoop(_base.AddHandlerBase):
 
         if position is None or wire_angle is None:
             self._teardown_preview()
+            self._finalized = True
             return
 
         with self.mainframe.editor3d.context:
@@ -216,6 +217,7 @@ class WireServiceLoop(_base.AddHandlerBase):
         self.mainframe.project.add_wire_service_loop(self.target)
         self.target = None
         self._split_state = None
+        self._finalized = True
 
     @_check_types.do
     def _teardown_preview(self) -> None:

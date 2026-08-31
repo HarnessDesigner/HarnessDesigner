@@ -507,6 +507,37 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         :type obj: UNKNOWN
         """
 
+        # This canvas's own view of *obj* (obj3d/objschematic/
+        # objpegboard) -- never hardcoded to obj3d specifically, since
+        # this base class is shared by all three canvases; see
+        # _get_view_object's own per-canvas override.
+        view_obj = self._get_view_object(obj)
+
+        # None here means *obj*'s own facade hasn't actually assigned
+        # this attribute yet -- reachable mid-construction, e.g. a
+        # Model3D that finishes loading synchronously fires its
+        # download_complete callback (see objects_pegboard.base_pegboard
+        # ._set_model) which calls straight back into add_object()
+        # before the constructor that's still running has stored the
+        # just-built view onto the facade. Nothing meaningful to
+        # register yet -- whatever outer construction is still in
+        # progress calls its own add_object() once everything is
+        # actually wired up, same as every object type's facade already
+        # does (see e.g. objects.note.Note.__init__).
+        if view_obj is None:
+            return
+
+        # A placeholder with no real geometry in THIS canvas at all --
+        # e.g. a note placed via the 3D editor is a real Base3D there,
+        # but an inert, position-less placeholder in the schematic/
+        # pegboard views it doesn't belong to (see objects_3d.note.Note
+        # .__init__'s own docstring) -- yet mainframe.add_object() fans
+        # every object out to all three canvases unconditionally,
+        # regardless of which one(s) it actually has real content in.
+        # Nothing to cull for a view that isn't really there.
+        if view_obj.position is None:
+            return
+
         found_container = self._object_data[0]
         container_len = 9999999999
 
@@ -515,9 +546,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                 found_container = container
                 container_len = len(container)
 
-        aabb_min, aabb_max = obj.obj3d.aabb
-        pos = obj.obj3d.position.as_numpy
-        is_opaque = obj.obj3d.is_opaque
+        aabb_min, aabb_max = view_obj.aabb
+        pos = view_obj.position.as_numpy
+        is_opaque = view_obj.is_opaque
 
         obj_ref = weakref.ref(obj, self.__remove_obj_ref)
         obj_address = id(obj_ref)

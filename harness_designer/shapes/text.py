@@ -17,6 +17,7 @@ from typing import Callable, TYPE_CHECKING, Union as _Union
 
 import os
 import time
+import weakref
 
 import build123d
 import numpy as np
@@ -32,6 +33,8 @@ from ..gl import vbo as _vbo_handler
 
 if TYPE_CHECKING:
     from ..gl.shaders import program as _shader_program
+    from ..gl.canvas_base import camera_base as _camera_base
+    from ..objects.objectsvar import base_var as _base_var
 
 
 # Neither of these comes from a font metric this harness has access to
@@ -499,6 +502,368 @@ def build_chars(mainframe, on_progress: Callable[[int, int], None] | None = None
         f'({tessellate_time:.3f}s in build123d/OCCT tessellation) -- {status}')
 
 
+def _billboard_matrices(positions: np.ndarray, camera_pos: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Return one cylindrical camera-facing rotation matrix per row of
+    *positions* (N, 3), plus a same-length ``safe`` boolean mask (False
+    for any row sitting exactly at *camera_pos*, with no direction to
+    face at all -- kept at whatever it already was, by every caller).
+
+    "Cylindrical" billboarding (stays upright against world Y, never
+    rolls with the camera) rather than full spherical facing, which
+    would tip labels this way and that as the camera moves above/below
+    and read as arbitrarily tilted text -- exactly what an earlier,
+    two-orientation (front/back flip) approach looked like near its own
+    flip boundary.
+
+    World Y degenerates (cross product -> ~0) whenever the camera looks
+    close to straight down/up at a given position -- not a rare corner
+    case: a rotation-rings protractor label on a ring that lies flat
+    (the Y-axis ring's own plane) hits this constantly in the
+    schematic/pegboard views (permanently top-down) and near it in the
+    3D view whenever the camera orbits close to overhead. Three earlier
+    approaches, in order, each traded one problem for another:
+
+    - A fixed "is it below some threshold" cutoff leaves a transitional
+      band just above the threshold where the cross product, while
+      technically nonzero, is still small enough that normalizing it is
+      numerically unstable.
+    - Unconditionally picking whichever of World Y/World Z gives the
+      larger cross product fixes THAT, but switches reference axis
+      wherever the two happen to be equal -- a 45-degree-wide locus that
+      has nothing to do with either axis actually being degenerate.
+      Since Y and Z are perpendicular, crossing that boundary flips
+      "right" (and the rendered rotation) by up to 90 degrees in one
+      discrete jump, and which rows sit on which side of it shifts with
+      camera angle/distance -- exactly the "some labels are ~90 degrees
+      off, and which ones changes as I move the camera" symptom.
+    - Blending smoothly from World Y toward World Z as *forward*
+      approaches the pole sounds like it should avoid both, but a dense
+      numeric sweep showed it doesn't: for azimuths where the blend path
+      itself happens to sweep close to *forward*'s own direction, the
+      cross product still gets small mid-blend -- same instability, just
+      relocated.
+
+    A single fixed reference axis genuinely cannot stay non-degenerate
+    at its own pole (this is the same fact as "you can't comb a hairy
+    ball flat" -- a real topological singularity, not a bug to be
+    engineered away). The pragmatic, standard fix (also what most
+    engines' look-at/billboard code does) is a plain threshold swap with
+    the threshold pushed very tight -- confines the unavoidable
+    singularity to a cone within ~2.5 degrees of true vertical, rather
+    than the ~25-degree band the smoothstep version above turned out to
+    still have.
+    """
+    to_camera = camera_pos - positions
+    dist = np.linalg.norm(to_camera, axis=1)
+
+    safe = dist >= 1e-9
+    forward = np.zeros_like(to_camera)
+    forward[safe] = to_camera[safe] / dist[safe, None]
+
+    n = len(positions)
+    world_up = np.array([0.0, 1.0, 0.0])
+    # forward @ world_up, but world_up is the fixed unit vector [0, 1, 0]
+    # -- the dot product against it is just forward's own Y column, no
+    # multiply-and-sum (let alone a BLAS dispatch for a matrix-vector
+    # product) required at all.
+    dot_y = np.abs(forward[:, 1])
+    near_pole = dot_y > 0.999
+
+    up_reference = np.tile(world_up, (n, 1))
+    up_reference[near_pole] = [0.0, 0.0, 1.0]
+
+    right = np.cross(up_reference, forward)
+    right_norm = np.linalg.norm(right, axis=1)
+    right_norm = np.where(right_norm < 1e-9, 1.0, right_norm)
+    right = right / right_norm[:, None]
+    true_up = np.cross(forward, right)
+
+    matrices = np.stack([right, true_up, forward], axis=-1).astype(np.float32)
+    return matrices, safe
+
+
+class _CameraTrackingArena:
+    """Growable, view-backed storage for every currently camera-tracking
+    :class:`Text`'s own world-space OBB/AABB.
+
+    Registering a Text here (see :meth:`register`) hands its *owner*
+    (the ``objectsvar.base_var.BaseVar`` this Text is set as its own
+    ``_vbo`` on -- e.g. ``objects_3d.note.Note``) a VIEW into this
+    arena's own buffers as its real ``_obb``/``_aabb``, not a copy --
+    basic (single-integer) numpy indexing of a shared buffer is a real
+    view, sharing memory, unlike ``np.array([arr1, arr2, ...])`` (which
+    always copies regardless of the inputs already being ndarrays). That
+    is what lets :meth:`update` recompute every tracked Text's rotation
+    AND write the resulting world OBB/AABB straight into every tracked
+    owner's own attribute simultaneously, in one vectorized pass, with
+    zero per-note Python loop on this -- the expensive, frequent (fires
+    on every camera move) -- side. A harness can carry 1000+ notes (one
+    at nearly every splice), so that distinction is the difference
+    between this scaling flat and this degrading linearly with note
+    count on every camera drag.
+
+    IMPORTANT: reassigning an owner's ``_obb``/``_aabb`` to a new array
+    (:meth:`register`, an owner's own disable path, and the growth
+    fixup below all do this) is only safe because each one also calls
+    the owner's own ``refresh_canvas_registration()`` right after --
+    a duck-typed hook (see ``objects_3d.note.Note`` for the concrete
+    implementation) that removes the owner from its canvas and
+    immediately re-adds it. ``gl.canvas_base.canvas_base.CanvasBase.
+    add_object`` captures a live reference to an object's own
+    ``_obb``/``_aabb`` exactly once, the moment it's added to the scene,
+    and holds onto that same array forever afterward for its own
+    culling (it never re-reads the ``.obb``/``.aabb`` property again)
+    -- so swapping either array's own identity without also refreshing
+    that captured reference would permanently disconnect the object
+    from its own culling entry, silently, for the rest of its life.
+    Remove+re-add is a comparatively expensive (linear-scan) operation,
+    and (per the user who caught this) doesn't itself trigger a canvas
+    repaint, so there's nothing to even flicker -- either way, it's rare
+    enough (the two user-triggered lock/unlock toggle points, plus an
+    occasional arena growth) to not matter, never happening on the
+    frequent, camera-move-driven path this class's own batching exists
+    for.
+
+    A CPU-only buffer like this one has none of gl.vbo.py's own vertex
+    arena's reasons to ever compact holes back together -- an unused row
+    here costs nothing the way GPU buffer fragmentation would -- so this
+    only ever grows, tracking a plain free-list for reuse.
+
+    Growing (reallocating bigger and copying old rows across) DOES
+    invalidate every existing view -- the canvas captured the actual
+    array *object*, not a row index, so this needs the exact same
+    refresh-the-canvas-registration treatment as register()/disable, not
+    just a silent pointer swap -- so it also walks every still-live
+    owner, reassigns its ``_obb``/``_aabb`` to a view into the new
+    buffers, and refreshes each one's canvas registration in turn. An
+    O(N) fixup, same shape as the update it's avoiding elsewhere, but
+    one that only ever happens on the rare occasions the arena actually
+    grows (a couple of doublings covers 1000+ notes), never on a routine
+    camera-move update.
+    """
+
+    _INITIAL_CAPACITY = 256
+    _GROWTH_FACTOR = 2
+
+    def __init__(self):
+        self._capacity = 0
+        self._obb: np.ndarray | None = None
+        self._aabb: np.ndarray | None = None
+        self._local_obb: np.ndarray | None = None
+        self._local_aabb_corners: np.ndarray | None = None
+        self._owners: list = []
+        self._has_bounds: list = []
+        self._free: list = []
+        self._grow(self._INITIAL_CAPACITY)
+
+    def _grow(self, capacity: int) -> None:
+        old_capacity = self._capacity
+
+        obb = np.zeros((capacity, 8, 3), dtype=np.float32)
+        aabb = np.zeros((capacity, 2, 3), dtype=np.float32)
+        local_obb = np.zeros((capacity, 8, 3), dtype=np.float32)
+        local_aabb_corners = np.zeros((capacity, 8, 3), dtype=np.float32)
+
+        if self._obb is not None:
+            obb[:old_capacity] = self._obb
+            aabb[:old_capacity] = self._aabb
+            local_obb[:old_capacity] = self._local_obb
+            local_aabb_corners[:old_capacity] = self._local_aabb_corners
+
+        self._obb = obb
+        self._aabb = aabb
+        self._local_obb = local_obb
+        self._local_aabb_corners = local_aabb_corners
+
+        for row, owner_ref in enumerate(self._owners):
+            if owner_ref is None or not self._has_bounds[row]:
+                continue
+
+            owner = owner_ref()
+            if owner is None:
+                continue
+
+            owner._obb = self._obb[row]  # NOQA
+            owner._aabb = self._aabb[row]  # NOQA
+
+            if hasattr(owner, 'refresh_canvas_registration'):
+                owner.refresh_canvas_registration()
+
+        self._owners.extend([None] * (capacity - old_capacity))
+        self._has_bounds.extend([False] * (capacity - old_capacity))
+        self._free.extend(range(old_capacity, capacity))
+        self._capacity = capacity
+
+    def register(self, owner, local_obb: np.ndarray | None = None,
+                 local_aabb: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray] | None:
+        """Claim a row for *owner* and start including it in every
+        future :meth:`update`.
+
+        *owner* only strictly needs a real ``.position`` -- everything
+        else here is optional, gated on *local_obb*/*local_aabb* both
+        being given (both or neither -- there's no meaningful "OBB but
+        no AABB" case): a full ``objectsvar.base_var.BaseVar`` (e.g.
+        ``objects_3d.note.Note``) gets its own world OBB/AABB tracked
+        and written back too, returned here as the ``(obb_view,
+        aabb_view)`` pair the caller must assign onto ``owner._obb``/
+        ``owner._aabb`` itself (bracketed with a refresh of *owner*'s
+        own canvas registration, per this class's own docstring) --
+        while something with no real geometry of its own at all (e.g. a
+        rotation-rings protractor label, which has no OBB/AABB or
+        canvas entry to begin with, only ever wants its own facing angle
+        kept live) can register with *local_obb*/*local_aabb* left
+        ``None`` and just gets its rotation computed in the exact same
+        batched pass, with the OBB/AABB portion of that pass skipped
+        for its own row -- see :meth:`update`'s own docstring for how
+        that split actually works.
+        """
+        if not self._free:
+            self._grow(self._capacity * self._GROWTH_FACTOR)
+
+        row = self._free.pop()
+        self._owners[row] = weakref.ref(owner)
+
+        has_bounds = local_obb is not None and local_aabb is not None
+        self._has_bounds[row] = has_bounds
+
+        if not has_bounds:
+            return None
+
+        self._local_obb[row] = local_obb
+        self._local_aabb_corners[row] = _utils.compute_obb(
+            _point.Point(*local_aabb[0]), _point.Point(*local_aabb[1]))
+
+        if owner._obb is not None:
+            self._obb[row] = owner._obb
+        if owner._aabb is not None:
+            self._aabb[row] = owner._aabb
+
+        return self._obb[row], self._aabb[row]
+
+    def unregister(self, owner) -> bool:
+        """Release *owner*'s row back to the free-list, returning
+        whether that row was tracking real OBB/AABB (see
+        :meth:`register`) -- callers use that to decide whether they
+        need to give *owner* an independent ``_obb``/``_aabb`` of its
+        own again, or there was never one to give back in the first
+        place. A no-op (returning ``False``) if *owner* was never
+        registered, or already released.
+        """
+        for row, owner_ref in enumerate(self._owners):
+            if owner_ref is not None and owner_ref() is owner:
+                had_bounds = self._has_bounds[row]
+                self._owners[row] = None
+                self._has_bounds[row] = False
+                self._free.append(row)
+                return had_bounds
+
+        return False
+
+    def update(self, camera: "_camera_base.CameraBase") -> None:
+        """Recompute every currently-tracked Text's own camera-facing
+        angle, in one batched vectorized pass covering every registered
+        row regardless of whether it's tracking OBB/AABB at all -- the
+        rotation math itself doesn't care, and running it uniformly
+        over everyone is simpler (and no slower in any way that
+        matters) than splitting the batch in two first. Only the
+        OBB/AABB world-space write-back is gated per row on
+        :meth:`register`'s own ``has_bounds`` -- writing straight into
+        the arena, which, since every bounds-tracked owner's own
+        ``_obb``/``_aabb`` is a view into these exact rows, updates
+        every one of them simultaneously with no per-note Python loop
+        on this side. Reading each owner's own current position first
+        is still an unavoidable per-note gather (``Point`` objects
+        aren't arena-backed the way OBB/AABB are here), but that is a
+        plain read, not a write -- far cheaper than either the matrix
+        math or an equivalent per-note scatter-write would be.
+
+        Also lazily prunes any row whose owner (or its own Text) has
+        been garbage-collected without ever calling :meth:`unregister`
+        -- cheap insurance, not the primary cleanup path.
+        """
+        rows = []
+        owners = []
+        texts = []
+
+        for row, owner_ref in enumerate(self._owners):
+            if owner_ref is None:
+                continue
+
+            owner = owner_ref()
+            if owner is None or getattr(owner, '_vbo', None) is None:
+                self._owners[row] = None
+                self._has_bounds[row] = False
+                self._free.append(row)
+                continue
+
+            rows.append(row)
+            owners.append(owner)
+            texts.append(owner._vbo)  # NOQA
+
+        if not rows:
+            return
+
+        positions = np.array([o.position.as_numpy for o in owners], dtype=np.float64)
+        camera_pos = camera.position.as_numpy.astype(np.float64)
+
+        matrices, safe = _billboard_matrices(positions, camera_pos)
+
+        positions_f32 = positions.astype(np.float32)[:, None, :]
+
+        # Only bounds-tracked rows (unlocked notes) need the 8-corner
+        # OBB/AABB einsum contraction below -- an angle-only row (every
+        # rotation-rings protractor tick label; routinely the large
+        # majority of a batch now that reposition_all() also triggers
+        # this update on every ring-drag frame, not just camera moves)
+        # only ever needs its own facing angle, from `matrices` below,
+        # which every row gets regardless. Filtering first, instead of
+        # always contracting local_obb/local_aabb_corners for every row
+        # and discarding the all-zero result for angle-only ones, turns
+        # the actual matrix contraction from O(all rows) into O(bounds-
+        # tracked rows).
+        bound_positions = [idx for idx, row in enumerate(rows) if self._has_bounds[row]]
+
+        if bound_positions:
+            bound_rows = [rows[idx] for idx in bound_positions]
+
+            local_obb = self._local_obb[bound_rows]
+            local_aabb_corners = self._local_aabb_corners[bound_rows]
+            bound_matrices = matrices[bound_positions]
+            bound_positions_f32 = positions_f32[bound_positions]
+
+            world_obb = np.einsum('nij,nkj->nki', bound_matrices, local_obb) + bound_positions_f32
+            world_aabb_corners = np.einsum(
+                'nij,nkj->nki', bound_matrices, local_aabb_corners) + bound_positions_f32
+
+            for out_idx, idx in enumerate(bound_positions):
+                if not safe[idx]:
+                    continue
+
+                row = rows[idx]
+                self._obb[row] = world_obb[out_idx]
+                self._aabb[row][0] = world_aabb_corners[out_idx].min(axis=0)
+                self._aabb[row][1] = world_aabb_corners[out_idx].max(axis=0)
+
+        for idx, row in enumerate(rows):
+            if not safe[idx]:
+                continue
+
+            texts[idx]._tracking_angle = _angle.Angle.from_matrix(matrices[idx])  # NOQA
+
+
+_tracking_arena = _CameraTrackingArena()
+
+
+def update_camera_tracking(camera: "_camera_base.CameraBase") -> None:
+    """Recompute every currently camera-tracking :class:`Text`'s own
+    facing angle -- see :meth:`_CameraTrackingArena.update`. Bind this
+    to a 3D camera's own ``position`` (see ``gl.canvas_3d.canvas.Canvas.
+    initializeGL``) so it fires automatically on every camera move,
+    regardless of which movement method actually caused it.
+    """
+    _tracking_arena.update(camera)
+
+
 class Text:
     """*text* is composed from shapes/glyph.py's cached per-character
     glyphs at *style* (must already be built -- see
@@ -854,9 +1219,122 @@ class Text:
     # the end of __init__, see its own docstring), not placeholders.
     # ------------------------------------------------------------------
 
+    # None -- not camera-tracking -- until enable_camera_tracking() sets
+    # a real, live-updated value (see that method and render_angle
+    # below).
+    _tracking_angle: "_angle.Angle | None" = None
+
     @property
     def is_dirty(self) -> bool:
         return False
+
+    def render_angle(self, angle: "_angle.Angle") -> "_angle.Angle":
+        """*angle* (the owner's own real, stored angle) unchanged, or
+        this Text's own live camera-facing angle while tracking is
+        enabled -- see :meth:`enable_camera_tracking`'s own docstring
+        for the full mechanism, and ``gl.vbo.VBOHandlerBase.
+        render_angle`` (this method's own default-passthrough sibling on
+        every ordinary mesh VBO) for the calling contract every handler
+        type shares.
+        """
+        if self._tracking_angle is not None:
+            return self._tracking_angle
+
+        return angle
+
+    def enable_camera_tracking(self, owner, track_bounds: bool = True) -> None:
+        """Start continuously re-facing the 3D camera instead of
+        rendering at *owner*'s own real, stored angle.
+
+        *owner* only strictly needs a real ``.position`` -- e.g. a
+        rotation-rings protractor label, which has no OBB/AABB or
+        canvas entry of its own at all, can track with *track_bounds*
+        ``False`` and just get :meth:`render_angle` kept live, nothing
+        else. The default (``True``) is for a full ``objectsvar.
+        base_var.BaseVar`` (e.g. ``objects_3d.note.Note``) -- registered
+        with :class:`_CameraTrackingArena`, which reassigns *owner*'s
+        own ``_obb``/``_aabb`` to a view into its own buffers (see that
+        class's own docstring for the full mechanism, and for why
+        *owner* must expose a ``refresh_canvas_registration()`` method,
+        called here right after the reassignment, so its canvas's own
+        culling data doesn't silently go stale). Either way, this class
+        itself is never told about drags/scale changes/etc. -- see
+        ``objectsvar.base_var.BaseVar._update_position``'s own comment
+        for why a plain position change needs nothing from here at all
+        -- and ``_render_geometry`` is the one place that still asks
+        :meth:`render_angle` for the angle to actually draw with.
+
+        A no-op if tracking is already enabled -- callers are expected
+        to check ``_tracking_angle is None`` (or track their own lock
+        state, as ``objects_3d.note.Note`` does) rather than relying on
+        this to silently ignore a redundant call, but it's harmless
+        either way.
+        """
+        if self._tracking_angle is not None:
+            return
+
+        if track_bounds:
+            result = _tracking_arena.register(owner, self.local_obb, self.local_aabb)
+            owner._obb, owner._aabb = result  # NOQA
+
+            if hasattr(owner, 'refresh_canvas_registration'):
+                owner.refresh_canvas_registration()
+        else:
+            _tracking_arena.register(owner)
+
+        # A real (identity) Angle, not None, from the moment tracking
+        # starts -- render_angle() must never see None here (that would
+        # fall through this class's own "not tracking" contract) even
+        # for the brief window before the very first real update() ever
+        # runs.
+        self._tracking_angle = _angle.Angle()
+
+    def disable_camera_tracking(self, owner) -> None:
+        """Stop tracking the camera.
+
+        If *owner* was tracking real OBB/AABB (see
+        :meth:`enable_camera_tracking`'s own *track_bounds*), it's
+        currently still sitting on views into :class:`
+        _CameraTrackingArena`'s own buffer, about to be handed straight
+        back out to some other registration -- so it needs genuinely
+        independent arrays of its own again, not a renewed in-place
+        write into memory it's about to stop owning. ``_obb`` is reset
+        to ``None`` (the real "nothing computed yet" sentinel -- see
+        ``objectsvar.base_var.BaseVar.__init__``'s own comment) and
+        ``_aabb`` to a fresh zeroed array, so ``_compute_obb``/
+        ``_compute_aabb`` each allocate/fill a real, detached array of
+        their own instead of writing into the soon-to-be-reused arena
+        row -- then :meth:`refresh_canvas_registration` (if *owner* has
+        one) re-captures those new arrays for the canvas's own culling
+        data, same as :meth:`enable_camera_tracking`. An *owner* that
+        was never tracking bounds in the first place (nothing to give
+        back or recompute) skips all of this entirely.
+
+        Callers that mean to freeze the camera-facing angle this Text
+        was just showing as *owner*'s new real, persisted one (rather
+        than reverting to whatever ``_angle`` already held) must copy
+        :attr:`_tracking_angle` into it themselves, BEFORE calling this
+        -- see ``objects_3d.note.Note.lock_angle``.
+
+        A no-op if tracking isn't currently enabled.
+        """
+        if self._tracking_angle is None:
+            return
+
+        had_bounds = _tracking_arena.unregister(owner)
+        self._tracking_angle = None
+
+        if not had_bounds:
+            return
+
+        owner._obb = None  # NOQA
+        owner._aabb = np.ascontiguousarray(np.zeros((2, 3), dtype=np.float32))  # NOQA
+
+        owner._compute_obb()  # NOQA
+        owner._compute_aabb()  # NOQA
+
+        if hasattr(owner, 'refresh_canvas_registration'):
+            owner.refresh_canvas_registration()
 
     @property
     def data(self):

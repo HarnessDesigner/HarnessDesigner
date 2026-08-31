@@ -212,6 +212,11 @@ class Seal(_base_3d.Base3D):
 
         ptables = mainframe.project.ptables
         part = ptables.global_db.seals_table[part_id]
+
+        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
+        if not ensure_dimensions(mainframe, part, part.part_number):
+            return None
+
         name = f'{part.manufacturer.name} {part.part_number}'
         type_name = part.type.name.lower()
         is_dummy_pin = 'dummy' in type_name

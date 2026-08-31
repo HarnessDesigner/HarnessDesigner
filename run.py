@@ -3,6 +3,21 @@
 import os
 import sys
 
+# Must be set before numpy is imported anywhere (including transitively, by
+# the "import harness_designer" below) -- numpy's OpenBLAS backend reads
+# these once, at import time, to size its thread-pool workspace buffers.
+# Left unset, OpenBLAS reserves buffers for its build's max thread count
+# (24 in this build) regardless of how many cores this machine has or
+# whether anything here ever runs a large enough matrix operation to want
+# that many threads -- measured at ~742MB of address-space reservation for
+# a codebase that (checked directly) has no bulk matrix-matrix operations
+# large enough to benefit from it. 2 threads measured ~41MB reserved (and a
+# real speedup, not just less memory -- thread-coordination overhead on
+# small ops was apparently costing more than any parallelism gained); 1
+# thread measured ~9MB.
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+
 # Installs a low-level signal handler that fires at the moment of a hard
 # native crash (segfault/access violation/stack overflow) -- independent of
 # normal Python exception propagation, so it still fires when a crash

@@ -94,6 +94,29 @@ class Note(_base_3d.Base3D):
         db_obj.bind(self._on_label_changed, 'h_align')
         db_obj.bind(self._on_label_changed, 'style')
 
+        # Camera tracking is NOT started here, even for an unlocked note
+        # -- see objects.note.Note.__init__, which starts it right after
+        # this constructor returns instead. enable_camera_tracking's own
+        # refresh_canvas_registration() reads self.parent.obj3d.aabb
+        # (via CanvasBase.add_object), but self.parent.obj3d is only
+        # ever assigned once THIS __init__ call returns -- starting
+        # tracking from in here would read that attribute while it's
+        # still None, straight from the object's own constructor.
+
+    @_check_types.do
+    def _delete(self):
+        """Release this note's own arena row, if it's still holding one,
+        before the base teardown runs -- ``_CameraTrackingArena.update``
+        would otherwise only notice this note is gone the next time the
+        camera moves (it prunes dead owners lazily -- see its own
+        docstring), which is harmless but leaves the row held longer
+        than it needs to be.
+        """
+        if self._vbo is not None and self._vbo._tracking_angle is not None:  # NOQA
+            self._vbo.disable_camera_tracking(self)
+
+        super()._delete()
+
     @_check_types.do
     def _on_label_changed(self, *_, **__):
         with self.editor3d.context:
@@ -146,14 +169,108 @@ class Note(_base_3d.Base3D):
             build123d.TextAlign(self.db_obj.h_align),
             center_anchor=True)
 
+    @property
+    @_check_types.do
+    def is_angle_locked(self) -> bool:
+        """Whether this note's ``angle3d`` is user-locked rather than
+        continuously re-facing the camera -- see :meth:`lock_angle`/
+        :meth:`unlock_angle`.
+        """
+        return self.db_obj.angle3d_lock
+
+    @_check_types.do
+    def refresh_canvas_registration(self) -> None:
+        """Re-capture this note's own (just-changed-identity)
+        ``_obb``/``_aabb`` into the 3D canvas's own culling data.
+
+        Duck-typed hook called by ``shapes.text.Text.
+        enable_camera_tracking``/``disable_camera_tracking`` (and
+        ``_CameraTrackingArena``'s own growth fixup) right after either
+        reassigns this note's ``_obb``/``_aabb`` to a new array --
+        ``gl.canvas_base.canvas_base.CanvasBase.add_object`` captures a
+        live reference to whichever array those attributes point to
+        exactly once, when the note is first added to the scene, and
+        never re-reads them again, so any later identity change needs
+        this to keep the canvas's own culling data from silently going
+        stale. ``remove_object``/``add_object`` are each an O(N) linear
+        scan over the canvas's full object list, and neither one
+        triggers a repaint of its own -- acceptable cost precisely
+        because this only ever runs at the rare, user-triggered lock/
+        unlock toggle points (or an occasional arena growth), never on
+        the frequent camera-move-driven update.
+        """
+        self.editor3d.editor.remove_object(self.parent)
+        self.editor3d.editor.add_object(self.parent)
+
+    @_check_types.do
+    def _start_camera_tracking(self) -> None:
+        """Begin (or resume) continuously re-facing the camera -- called
+        once from :meth:`__init__` for a note that starts out unlocked,
+        again from :meth:`unlock_angle`, and again from :meth:`_rebuild`
+        for a note whose label just got rebuilt while already tracking.
+        A no-op for a placeholder note (no real ``_vbo``/geometry at
+        all -- see :meth:`__init__`'s own early return).
+        """
+        if self._vbo is None:
+            return
+
+        self._vbo.enable_camera_tracking(self)
+
+    @_check_types.do
+    def lock_angle(self) -> None:
+        """Freeze this note's current camera-facing angle as its new
+        real, persisted ``angle3d``, and stop tracking the camera.
+
+        Called both from the Angle-lock property-panel checkbox (via
+        the facade's own :meth:`~objects.note.Note.lock_angle`) and from
+        this note's own rotation-rings session coming up (see
+        ``rotation_handlers.rotation_rings.RotationRings.__init__``,
+        duck-typed off exactly this method plus :attr:`is_angle_locked`/
+        :meth:`unlock_angle` -- that class has no business knowing Note
+        exists).
+        """
+        if self._vbo is not None and self._vbo._tracking_angle is not None:  # NOQA
+            tracked = self._vbo._tracking_angle  # NOQA
+            angle = self.db_obj.angle3d
+            angle.x = tracked.x
+            angle.y = tracked.y
+            angle.z = tracked.z
+
+            self._vbo.disable_camera_tracking(self)
+
+        self.db_obj.angle3d_lock = True
+
+    @_check_types.do
+    def unlock_angle(self) -> None:
+        """Clear the lock and resume tracking the camera -- see
+        :meth:`lock_angle`'s own docstring for who calls this.
+        """
+        self.db_obj.angle3d_lock = False
+        self._start_camera_tracking()
+
     @_check_types.do
     def _rebuild(self):
         """Rebuild this note's label from its current db_obj fields and
         re-derive its OBB/AABB -- called by every ``set_*`` method below.
+
+        A camera-tracking note's old ``_vbo`` is releasing its own arena
+        row here (see ``shapes.text.Text.disable_camera_tracking``) and
+        the freshly built one is claiming a new one (immediately reused
+        -- the free-list hands back exactly the row just released, since
+        nothing else runs in between) rather than trying to carry the
+        old row's registration over: its own local OBB/AABB are keyed to
+        the old label's glyph layout, which is exactly what's changing.
         """
+        was_tracking = self._vbo is not None and self._vbo._tracking_angle is not None  # NOQA
+        if was_tracking:
+            self._vbo.disable_camera_tracking(self)
+
         self._vbo = self._build_label()
         self._compute_obb()
         self._compute_aabb()
+
+        if was_tracking:
+            self._start_camera_tracking()
 
     @_check_types.do
     def set_size(self, size):
@@ -233,6 +350,15 @@ class Note(_base_3d.Base3D):
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
+
+        Locking this note when its rotation rings come up (so it isn't
+        dragged from a stale/still-camera-following angle) and undoing
+        that lock again if the session closes without the angle ever
+        actually changing both happen generically, in
+        ``RotationRings.__init__``/``delete`` -- duck-typed off the
+        facade's own ``is_angle_locked``/``lock_angle``/``unlock_angle``
+        (see ``objects.note.Note``), not anything specific to this
+        class. Nothing extra needed here.
         """
         from ...add_handlers.editor_3d import note as _add_note_handler  # NOQA -- avoid a cycle at import time
 

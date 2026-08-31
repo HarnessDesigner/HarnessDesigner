@@ -430,6 +430,26 @@ class VBOHandlerBase:
         return False
 
     @_check_types.do
+    def render_angle(self, angle: "_angle.Angle") -> "_angle.Angle":
+        """Return the angle this handler's owner should actually render/
+        derive its OBB and AABB with -- *angle* (the owner's own real
+        ``_angle``) unchanged, for every ordinary mesh VBO.
+
+        Consulted by ``objects.objectsvar.base_var.BaseVar``'s own
+        ``_render_geometry``/``_compute_obb``/``_compute_aabb`` instead
+        of reading ``self._angle`` directly, so a handler that needs to
+        show a different orientation than the object's own real, stored
+        angle (currently only ``shapes.text.Text``, while camera
+        tracking is enabled -- see its own docstring) can override this
+        one place and have rendering AND hit-testing/picking (which both
+        ultimately come from the OBB/AABB) automatically agree, no
+        matter what triggered the recompute (a camera move, a drag, a
+        scale change -- anything that ends up calling
+        ``_compute_obb``/``_compute_aabb`` already goes through here).
+        """
+        return angle
+
+    @_check_types.do
     def _attribute_offsets(self) -> tuple[int, int, int, int]:
         raise NotImplementedError
 

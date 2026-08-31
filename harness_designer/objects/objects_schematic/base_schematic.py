@@ -301,7 +301,11 @@ class BaseSchematic(_objectsvar.BaseVar):
         ):
             return
 
-        self._active_handler.objschematic.render(shaders)
+        # Every handler type exposes the same render(shaders) entry
+        # point -- see objects_3d.base_3d.Base3D.render_handler's own
+        # docstring for the full reasoning (same shape, this view's own
+        # single Y-axis ring instead of 3 axes).
+        self._active_handler.render(shaders)
 
     @property
     @_check_types.do

@@ -11,6 +11,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     Angle3DMixin, Angle3DControl,
+    Angle3DLockMixin, Angle3DLockControl,
     Angle2DMixin, Angle2DControl,
     AnglePegboardMixin,
     Position3DMixin, Position3DControl,
@@ -188,7 +189,8 @@ class PJTNotesTable(PJTTableBase):
         return PJTNote(self, db_id)
 
 
-class PJTNote(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin, NotesMixin, ColorMixin,
+class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AnglePegboardMixin,
+              NotesMixin, ColorMixin,
               Position3DMixin, Position2DMixin, PositionPegboardMixin,
               Visible2DMixin, Visible3DMixin, VisiblePegboardMixin,
               Scale3DMixin, SmoothMixin):
@@ -476,6 +478,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         elif page is self._angle_page:
             self.angle2d_ctrl.set_obj(self.db_obj)
             self.angle3d_ctrl.set_obj(self.db_obj)
+            self.angle3d_lock_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
@@ -565,9 +568,11 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
+        self.angle3d_lock_ctrl = Angle3DLockControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
+        angle_page.addWidget(self.angle3d_lock_ctrl)
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)

@@ -81,6 +81,14 @@ pjt_table = _con.SQLTable(
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
 
+    # Default unlocked (0) -- an unlocked note continuously re-faces the
+    # 3D camera instead of holding a fixed angle3d (see objects.objects_3d
+    # .note's own camera-follow batch update); locking (the Angle3D
+    # property panel checkbox, or bringing up the note's own rotation
+    # rings) freezes whatever angle3d/quat3d it's currently showing and
+    # flips this to 1, same as any ordinary rotatable object from then on.
+    _con.IntField('angle3d_lock', default='0', no_null=True),
+
     _con.TextField('quat_pegboard', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle_pegboard', default='"[0.0, 0.0, 0.0]"', no_null=True),
 

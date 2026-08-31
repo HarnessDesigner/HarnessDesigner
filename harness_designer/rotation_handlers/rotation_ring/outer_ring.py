@@ -111,6 +111,7 @@ class OuterRing(ProtractorRingBase):
                 self._tick_by_pick_obj[facade] = tick
 
         self.reposition_all(self._disc_rotation())
+        self.start_camera_tracking()
 
     def _get_label_color(self):
         return _LABEL_COLOR

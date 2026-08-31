@@ -30,6 +30,7 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from ..gl.canvas_base import canvas_base as _canvas_base
     from .. import objects as _objects
+    from ..gl import shaders as _shaders
 
 
 class AddHandlerBase:
@@ -80,5 +81,19 @@ class AddHandlerBase:
         acquired (snap probes, an overlay, ...). Called exactly once,
         on both a normal finish and a cancel -- no distinction is made
         here. Default: no-op.
+        """
+        pass
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Render whatever visual aid this add session owns, called via
+        ``BaseVar.render_handler()`` the same as a drag/rotation handler
+        -- see :meth:`drag_handlers.base.DragHandlerBase.render`'s own
+        docstring for the full calling contract. Default: no-op, for
+        every add session with nothing of its own to draw (the
+        in-progress preview object itself already renders through the
+        normal per-object pipeline, not here). Override only where an
+        add session needs its own extra overlay (a snap highlight, a
+        placement guide, ...).
         """
         pass

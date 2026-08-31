@@ -37,6 +37,30 @@ class Cavity(_base_3d.Base3D):
         super().set_selected(state)
 
     @_check_types.do
+    def identify(self, material: _materials.GLMaterial | None) -> None:
+        """Highlight (or un-highlight) this cavity for an interactive
+        add/snap session.
+
+        A cavity's own outline box/cylinder is invisible by default
+        (``is_visible3d`` defaults to 0 -- see
+        ``database.create_database.cavities.pjt_table`` -- the housing's
+        own mesh is what's normally shown; this shape only exists to
+        make the cavity itself pick/snap-able while a session needs it
+        highlighted). ``BaseVar.identify`` only ever swaps the display
+        material, never touches visibility, so a cavity ``identify()``-d
+        by e.g. ``objects.objects_3d.terminal.Terminal.start_add``
+        stayed invisible the whole time -- invisible objects never reach
+        ``camera.objects_in_view`` (see ``gl.canvas_base.canvas_base.
+        Canvas._draw_scene``), so ``is_in_3dview`` was always False for
+        every cavity and the interactive snap-to-cavity pool
+        (``add_handlers.editor_3d.terminal.Terminal.snap_pool``) was
+        always empty. Show the cavity while it carries an override
+        material, hide it again once the override clears.
+        """
+        super().identify(material)
+        self.is_visible = material is not None
+
+    @_check_types.do
     def get_context_menu(self):
         """Return the context menu."""
         return CavityMenu(self)

@@ -980,7 +980,7 @@ class Config(metaclass=ConfigDB):
         class focal_target(metaclass=ConfigDB):
             enable = True
             color = [1.0, 0.4, 0.4, 1.0]
-            radius = 0.25
+            radius = 0.5
 
         class drag_handler(metaclass=ConfigDB):
             mode = ''
@@ -1141,6 +1141,28 @@ class Config(metaclass=ConfigDB):
             with ``connector.dump_query_profile()``.
             """
             profile_queries = False
+
+        class memory(metaclass=ConfigDB):
+            """Live memory-diagnostics toggle.
+
+            When enabled, starts ``tracemalloc`` at process launch plus a
+            localhost-only debug listener (see
+            :mod:`harness_designer.memory_diagnostics`) that answers
+            on-demand queries from an external client: current Python
+            allocation sites (``tracemalloc``), a live object census by type
+            (``pympler``), object-count growth since the last query
+            (``objgraph``), every live thread's current call stack
+            (``stacks``), OS-reported process memory vs what tracemalloc can
+            actually see (``rss``), a heap snapshot saved to
+            ``snapshot_dir`` for later offline diffing (``heap_snapshot``),
+            and known application cache sizes (VBO arenas, etc). Left off,
+            this is a single boolean check at startup and costs nothing
+            else.
+            """
+            enabled = False
+            tracemalloc_frames = 25
+            listener_port = 47441
+            snapshot_dir = os.path.join(_utils.get_appdata(), 'memory_snapshots')
 
         class rendering3d(metaclass=ConfigDB):
             """3D debug rendering overlays and colours."""

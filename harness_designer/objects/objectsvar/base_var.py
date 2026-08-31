@@ -93,6 +93,15 @@ class BaseVar:
         self._aabb: np.ndarray = np.ascontiguousarray(np.array(
             [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32))
 
+        # None is a real, load-bearing sentinel here -- gl.object_picker
+        # ._pick_candidates_at_mouse skips any object whose .obb is None
+        # outright (a placeholder with no real geometry at all, e.g. a
+        # Note with no position3d_id -- _compute_obb below always early-
+        # returns for one of those, so this never gets replaced). It is
+        # NOT pre-allocated to a real (8, 3) array the way _aabb is
+        # above -- see _compute_obb's own comment for why every object
+        # that DOES get a real one only ever mutates that same array in
+        # place from then on, instead of rebinding this name.
         self._obb: np.ndarray = None
 
         self._compute_obb()
@@ -172,7 +181,25 @@ class BaseVar:
 
         local_obb = self._vbo.local_obb * self._scale
         local_obb @= self._angle
-        self._obb = local_obb + self._position
+        result = local_obb + self._position
+
+        # The very first real computation still has to create the array
+        # (see __init__'s own comment -- None is a real sentinel meaning
+        # "no geometry at all" until this point); every call after that
+        # mutates the SAME array in place instead of rebinding this name
+        # -- see the same comment for why that distinction matters now
+        # (a tracking-enabled Text hands out a view into its own arena
+        # as this exact array, and only stays connected to it -- through
+        # an ordinary drag, a scale change, anything -- as long as
+        # nothing ever rebinds the name out from under it). A pure
+        # position change never reaches this method at all any more --
+        # see _update_position's own comment for why a plain translate
+        # of the existing (already correctly rotated, tracked or not)
+        # box is both cheaper and exactly as correct.
+        if self._obb is None:
+            self._obb = result
+        else:
+            self._obb[:] = result
 
     @_check_types.do
     def _compute_aabb(self):
@@ -257,6 +284,20 @@ class BaseVar:
         """
         if self._vbo is None:
             return False
+
+        # A Text-backed VBO (e.g. objects_*.note.Note) always reports an
+        # empty vertices array -- see shapes.text.Text's own
+        # VBOHandlerBase-compatible interface, deliberately a stub since
+        # a multi-glyph label has no single real mesh to hand back. Zero
+        # triangles means _ray_triangles_intersect_vectorized below can
+        # never register a hit no matter where the ray actually lands,
+        # so an object like this was permanently unselectable -- accept
+        # the OBB/AABB envelope hit that already got this call made as
+        # good enough on its own, same as a user visually judges "did I
+        # click the label" by its bounding box rather than individual
+        # letter strokes.
+        if self._vbo.vertex_count == 0:
+            return True
 
         ray_object = ray_origin - self._position
 
@@ -398,14 +439,30 @@ class BaseVar:
 
         Internal Use.
 
+        A pure position change never touches rotation or scale, so
+        whatever rotation is already baked into ``_obb``/``_aabb`` --
+        this object's own real angle, or (for a camera-tracking
+        ``shapes.text.Text``) its own live billboard angle, entirely
+        unknown to this class and not something it needs to know about
+        -- stays exactly as valid as it already was. Translating the
+        existing box by the same delta this position just moved by is
+        mathematically identical to (and far cheaper than) rebuilding it
+        from scratch via ``_compute_obb``/``_compute_aabb``'s own
+        rotation-matrix multiply -- those two are still used for a real
+        angle/scale change, where a fresh rebuild is unavoidable.
+
         :type position: :class:`_point.Point`
         """
         with self.editor.context:
+            delta = position.as_numpy - self._o_position.as_numpy
+
             self._o_position = position.copy()
             self.numpy_position[:] = position.as_numpy
 
-            self._compute_obb()
-            self._compute_aabb()
+            if self._obb is not None:
+                self._obb += delta
+
+            self._aabb += delta
 
         self.editor.Refresh(False)
 
@@ -846,8 +903,10 @@ class BaseVar:
         if self._vbo is None:
             return
 
+        angle = self._vbo.render_angle(self._angle)
+
         self._vbo.render(
-            program, self._position, self._angle, self._scale, self.smooth)
+            program, self._position, angle, self._scale, self.smooth)
 
     def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw this object's selection debug overlay (AABB/OBB boxes,

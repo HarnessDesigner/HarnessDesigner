@@ -59,6 +59,20 @@ class Note(_base.AddHandlerBase):
             self.mainframe.project.add_note(self.target)
             self.target.identify(None)
 
+            # A freshly placed note starts unlocked (see the notes.py
+            # schema's own angle3d_lock default) and already registered
+            # for camera tracking (see objects_3d.note.Note.__init__'s
+            # own call to _start_camera_tracking), but hasn't had a real
+            # billboard angle computed for it yet -- that only happens
+            # the next time the camera moves (see shapes.text.
+            # update_camera_tracking). Running that same recompute once,
+            # right here, means it faces the camera correctly starting
+            # with its very first rendered frame instead of however it
+            # happens to be oriented until the user next nudges the
+            # camera.
+            from ...shapes import text as _text
+            _text.update_camera_tracking(self.camera)
+
             self._finalized = True
             return True
 

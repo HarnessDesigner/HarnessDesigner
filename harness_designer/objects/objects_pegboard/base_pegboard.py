@@ -271,13 +271,25 @@ class BasePegboard(_objectsvar.BaseVar):
             self._compute_obb()
             self._compute_aabb()
 
-        # Already registered from construction time (is_active was already
-        # True with the placeholder vbo) -- add_object()/add_anchor() is
-        # idempotent, so this is only ever a real registration for the
-        # rare case _set_model fires before mainframe.add_object() ever
-        # ran (e.g. a synchronous, already-cached model.load() call during
-        # __init__ itself).
-        self.pegboard.add_object(self.parent)
+        # No re-registration needed -- this anchor was already added to
+        # the canvas at construction time with the placeholder box/
+        # cylinder's own real (if now stale) OBB/AABB; _compute_obb/
+        # _compute_aabb above mutate self._obb/self._aabb in place
+        # rather than rebinding them, so whatever the canvas already
+        # captured a reference to at that first add_object() call stays
+        # correct automatically -- see objectsvar.base_var.BaseVar's own
+        # comments on why that in-place-mutation contract matters, and
+        # Base3D._set_model, which never re-registers either. Calling
+        # add_object() again here (the previous version of this method
+        # did, believing it "idempotent") is wrong regardless of timing:
+        # a genuinely later call just silently double-registers this
+        # anchor (gl.canvas_base.canvas_base.CanvasBase.add_object
+        # appends a fresh entry with no matching removal, orphaning the
+        # old one), and a synchronous, already-cached model.load() (this
+        # callback firing before the constructor above has even
+        # returned, let alone before mainframe.add_object() ever ran)
+        # crashes outright, since self.parent.objpegboard isn't assigned
+        # yet at that point.
         self.pegboard.Refresh()
 
     @property
@@ -461,11 +473,8 @@ class BasePegboard(_objectsvar.BaseVar):
         ):
             return
 
-        # Rotation handlers are a single facade shared across all 3
-        # views -- reached through this view's own objpegboard. Every
-        # other _active_handler is already a pegboard-only drag handler
-        # (DragHandlerBase, see its own render() -- always defined,
-        # defaulting to a no-op here since this view has no gizmo to
-        # draw) -- called directly, the same instance either way.
-
-        self._active_handler.objpegboard.render(shaders)
+        # Every handler type exposes the same render(shaders) entry
+        # point -- see objects_3d.base_3d.Base3D.render_handler's own
+        # docstring for the full reasoning (same shape, this view's own
+        # single Y-axis ring instead of 3 axes).
+        self._active_handler.render(shaders)

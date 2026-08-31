@@ -74,6 +74,7 @@ class InnerRing(ProtractorRingBase):
         super().__init__(axis, center, inner_radius, outer_radius, depth, material, label_size, context,
                          camera, labels_outward=False)
         self.reposition_all(self._disc_rotation())
+        self.start_camera_tracking()
 
     def _get_label_color(self):
         return _LABEL_COLORS[self.axis]

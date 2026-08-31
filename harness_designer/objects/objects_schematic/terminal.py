@@ -507,6 +507,13 @@ class Terminal(_base_schematic.BaseSchematic):
 
         ptables = mainframe.project.ptables
         part = ptables.global_db.terminals_table[part_id]
+
+        from ...handlers import terminal_handler as _terminal_handler
+        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
+        estimates, suggested = _terminal_handler.estimate_dimensions(mainframe, part)
+        if not ensure_dimensions(mainframe, part, part.part_number, estimates, suggested):
+            return None
+
         name = f'{part.manufacturer.name} {part.part_number}'
 
         pos3d = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)

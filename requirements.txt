@@ -16,6 +16,7 @@ keyring==25.7.0
 pyopencl==2026.1.2
 pandas==3.0.3
 apple_smi==0.1.4; sys_platform == "darwin"
-nvidia-ml-py==13.610.43; sys_platform != "darwin"
-amdsmi==7.0.2; sys_platform != "darwin"
+nvapi @ git+https://github.com/kdschlosser/nvapi.git ; sys_platform != "darwin"
+pyamd_adl @ git+https://github.com/kdschlosser/ati_radeon.git ; sys_platform != "darwin"
+comtypes==1.4.13; sys_platform == "win32"
 PySide6==6.11.1

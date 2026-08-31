@@ -262,10 +262,25 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         """
         if self._stored_terminal_sizes is DefaultStoredValue:
             value = self._table.select('terminal_sizes', id=self._db_id)[0][0]
-            if not value.startswith('['):
-                value = f'[{value}]'
 
-            self._stored_terminal_sizes = eval(value)
+            # Never-set cavities carry the schema default '""' (a literal
+            # two-quote-char string), and an explicitly-cleared list is
+            # stored as '' (see the setter's str(value)[1:-1]) -- both mean
+            # "no sizes recorded", not a one-element list containing an
+            # empty string. Without this check, `not value.startswith('[')`
+            # wraps either into '[""]'/'[]', and eval('[""]') == [''] --
+            # a truthy singleton that made every caller checking
+            # `if terminal_sizes:` (e.g. Terminal._get_cavity_compat_pns)
+            # believe real size data existed, then run a doomed exact-match
+            # blade_size='' query instead of going straight to their own
+            # width/height-based fallback.
+            if value.strip('"'):
+                if not value.startswith('['):
+                    value = f'[{value}]'
+
+                self._stored_terminal_sizes = eval(value)
+            else:
+                self._stored_terminal_sizes = []
 
         return list(self._stored_terminal_sizes)
 
