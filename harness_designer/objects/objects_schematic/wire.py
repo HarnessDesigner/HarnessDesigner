@@ -558,9 +558,14 @@ class Wire(_base_schematic.BaseSchematic):
             compat_pns = None
 
         dlg = _part_search.SearchDialog(
-            mainframe, _editor_db.WiresPage, title='Add Wire',
-            table=mainframe.global_db.wires_table, initial_results=compat_pns)
-        part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+            mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire',
+            initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            part_id = dlg.GetValue()
+        else:
+            part_id = None
+
         dlg.deleteLater()
 
         if part_id is None:

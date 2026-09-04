@@ -19,16 +19,18 @@ from ...geometry import point as _point
 from .mixins import (
     PartMixin,
     Position2DMixin, Position2DControl,
-    PositionPegboardMixin,
     AnglePegboardMixin,
     StartStopPosition3DMixin, StartStopPosition3DControl,
+    StartStopPositionPegboardMixin, StartStopPositionPegboardControl,
+    TablePositionPegMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
     VisiblePegboardMixin,
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
-    Scale3DMixin, Scale3DControl
+    Scale3DMixin, Scale3DControl,
+    ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
 
@@ -173,15 +175,26 @@ class PJTSplicesTable(PJTTableBase):
 
 
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
-                PositionPegboardMixin, AnglePegboardMixin,
+                StartStopPositionPegboardMixin, TablePositionPegMixin, AnglePegboardMixin,
                 Visible3DMixin, Visible2DMixin, VisiblePegboardMixin,
-                NameMixin, NotesMixin, SmoothMixin, Scale3DMixin):
+                NameMixin, NotesMixin, SmoothMixin, Scale3DMixin, ScalePegboardMixin):
     """Represent a PJT splice in :mod:`harness_designer.database.project_db.pjt_splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     _table: PJTSplicesTable = None
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this splice row -- cascading first to its own
+        peg-board data-table overlay row, if it has one (Phase 4 of the
+        point-safety-check rollout, 2026-09-02, see TODO.md and
+        ``TablePositionPegMixin.delete_table_overlay``'s own docstring).
+        """
+        self.delete_table_overlay()
+
+        super().delete()
 
     @_check_types.do
     def get_object(self) -> "_splice_obj.Splice":
@@ -340,6 +353,62 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         self._table.update(self._db_id, branch_point3d_id=value)
         self._populate('branch_position3d_id')
+
+    _stored_branch_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def branch_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`branch_position3d`.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_branch_position_pegboard is DefaultStoredValue:
+            point_id = self.branch_position_pegboard_id
+            self._stored_branch_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+        if self._obj is not None:
+            self._stored_branch_position_pegboard.add_object(self._obj())
+
+        return self._stored_branch_position_pegboard.point
+
+    _stored_branch_position_pegboard_id: bytes | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def branch_position_pegboard_id(self) -> bytes:
+        """Return the ``pjt_points_pegboard`` row id for the peg-board
+        mirror of :attr:`branch_position3d_id`, lazily creating and
+        persisting it (at the origin) on first access.
+
+        :returns: Property value.
+        :rtype: bytes
+        """
+        if self._stored_branch_position_pegboard_id is DefaultStoredValue:
+            point_id = self._table.select('branch_point_pegboard_id', id=self._db_id)[0][0]
+            if point_id is None:
+                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, branch_point_pegboard_id=point_id)
+
+            self._stored_branch_position_pegboard_id = point_id
+
+        return self._stored_branch_position_pegboard_id
+
+    @branch_position_pegboard_id.setter
+    @_check_types.do
+    def branch_position_pegboard_id(self, value: bytes):
+        """Set the peg-board mirror of :attr:`branch_position3d_id`.
+
+        :param value: Value to store or process.
+        :type value: bytes
+        """
+        self._stored_branch_position_pegboard_id = value
+        self._stored_branch_position_pegboard = DefaultStoredValue
+
+        self._table.update(self._db_id, branch_point_pegboard_id=value)
+        self._populate('branch_position_pegboard_id')
 
     _stored_circuit: "_pjt_circuit.PJTCircuit | DefaultStoredValueType" = DefaultStoredValue
 

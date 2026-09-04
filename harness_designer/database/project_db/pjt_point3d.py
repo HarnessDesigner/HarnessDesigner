@@ -520,3 +520,211 @@ class PJTPoint3D(PJTEntryBase):
         """
         delta = parent_point - self._stored_point3d
         self._stored_point3d += delta
+
+    @_check_types.do
+    def is_referenced(self) -> bool:
+        """Whether anything still references this point row -- checked by
+        :meth:`delete` before actually removing it.
+
+        **Phased rollout (see TODO.md's "Safe point-deletion / ownership
+        design spec" entry) -- wired in so far:**
+
+        - Phase 1 (2026-09-02): ``pjt_notes``.
+        - Phase 2 (2026-09-02): ``pjt_boots``/``pjt_covers``/
+          ``pjt_cpa_locks``/``pjt_tpa_locks`` (each accessory's own
+          ``point3d_id``/``scale3d_id``) and ``pjt_housings``' own
+          ``boot_point3d_id``/``cover_point3d_id``/``cpa_lock_point3d_id``/
+          ``tpa_lock_1_point3d_id``/``tpa_lock_2_point3d_id`` -- the
+          accessory's ``point3d_id`` and the owning housing's own column
+          are always the SAME shared point id (the housing owns it, the
+          accessory reuses it directly, never a clone), so in practice
+          either check alone would already catch it; both are checked
+          anyway for defensiveness/completeness rather than relying on
+          that invariant never being violated.
+        - Phase 3 (2026-09-02): ``pjt_seals`` (its own ``point3d_id``/
+          ``scale3d_id``) and both possible owners' own columns --
+          ``pjt_housings.seal_point3d_id`` (a housing-level MAT seal) and
+          ``pjt_terminals.seal_point3d_id`` (a terminal-seated SWS/
+          single-wire-seal) -- same shared-id reasoning as Phase 2.
+        - Phase 5 (2026-09-02): the hub tables' own remaining point
+          columns -- ``pjt_housings.point3d_id`` (its own identity
+          anchor, never shared with anything else); ``pjt_cavities``'
+          own ``point3d_id`` (identity anchor), ``terminal_point3d_id``
+          (shared with ``pjt_terminals.point3d_id`` -- a cavity's own
+          pre-visualization guess at where a terminal will sit, before
+          one is actually seated) and ``wire_point3d_id`` (the cavity's
+          wire-exit routing point, reused as an interior waypoint on any
+          wire routed through it -- see ``Terminal.add_wire``; the wire
+          side of this sharing isn't wired in here until Phase 6);
+          ``pjt_terminals``' own ``point3d_id`` (identity anchor, shared
+          with ``pjt_cavities.terminal_point3d_id``), ``wire_point3d_id``
+          (the terminal's own back-routing point, same interior-waypoint
+          reuse as the cavity's), and ``attach_point3d_id`` (the crimp
+          point, reused directly as a wire's own start/stop -- the wire
+          side isn't wired in until Phase 6 either).
+        - Phase 6 (2026-09-02): ``pjt_wires``/``pjt_bundles`` -- both
+          their own start/stop endpoints (forward references, named
+          directly by ``start_point3d_id``/``stop_point3d_id``) AND the
+          backward, count-unknown case that started this whole design
+          spec -- a point's own ``wire_id``/``bundle_id`` tag, checked
+          for whether that wire/bundle still actually EXISTS (not just
+          whether the tag is set -- see the inline comment at the check
+          itself for why a stale tag must not read as "referenced").
+        - Phase 7 (2026-09-02): ``pjt_transitions`` (its own identity
+          anchor ``point3d_id``) and ``pjt_transition_branches`` (its own
+          ``point3d_id`` -- a branch's own row is itself the same
+          backward, count-unknown shape against its owning transition
+          that Phase 6 covers for wire/bundle waypoints, just via a whole
+          row's ``transition_id`` instead of a point's own tag -- see
+          ``PJTTransition.delete()``'s own docstring).
+        - Phase 8 (2026-09-02): the remaining markers/multi-point
+          objects -- ``pjt_wire_layouts``/``pjt_bundle_layouts`` (own
+          ``point3d_id``), ``pjt_wire_markers`` (own ``point3d_id``),
+          ``pjt_splices`` (own ``start_point3d_id``/``stop_point3d_id``/
+          ``branch_point3d_id`` -- often the SAME id as a wire's own
+          start/stop, already caught by Phase 6, checked again for
+          defensiveness), and ``pjt_wire_service_loops`` (own
+          ``start_point3d_id``/``stop_point3d_id``, an ordinary forward
+          reference -- no self-tagging column exists for service loops).
+
+        Until every phase lands, this can still return ``False`` for a
+        point that's actually in live use via a column this method
+        doesn't know about yet -- do not treat a ``False`` result as a
+        global guarantee of safety before the rollout is complete.
+        """
+        db = self._table.db
+
+        if db.pjt_notes_table.select(
+            'id', OR=True, point3d_id=self.db_id, scale3d_id=self.db_id
+        ):
+            return True
+
+        for table in (
+            db.pjt_boots_table, db.pjt_covers_table,
+            db.pjt_cpa_locks_table, db.pjt_tpa_locks_table,
+            db.pjt_seals_table,
+        ):
+            if table.select('id', OR=True, point3d_id=self.db_id, scale3d_id=self.db_id):
+                return True
+
+        if db.pjt_housings_table.select(
+            'id', OR=True,
+            boot_point3d_id=self.db_id, cover_point3d_id=self.db_id,
+            cpa_lock_point3d_id=self.db_id,
+            tpa_lock_1_point3d_id=self.db_id, tpa_lock_2_point3d_id=self.db_id,
+            seal_point3d_id=self.db_id, point3d_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_cavities_table.select(
+            'id', OR=True, point3d_id=self.db_id,
+            terminal_point3d_id=self.db_id, wire_point3d_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_terminals_table.select(
+            'id', OR=True, seal_point3d_id=self.db_id, point3d_id=self.db_id,
+            wire_point3d_id=self.db_id, attach_point3d_id=self.db_id,
+        ):
+            return True
+
+        # Phase 6 (2026-09-02): backward, count-unknown references -- a
+        # wire/bundle has no fixed column naming each of its own interior
+        # waypoints (there can be any number of them), so a waypoint
+        # point instead self-identifies via its OWN wire_id/bundle_id
+        # column (see create_database/points3d.py). wire_id/bundle_id
+        # being set does NOT by itself mean still-in-use: PJTWire.delete()/
+        # PJTBundle.delete() deliberately never clear a waypoint's own
+        # wire_id/bundle_id tag when they delete the wire/bundle itself
+        # (see their own docstrings -- the point may still be owned by a
+        # terminal/cavity, already covered above), so a stale tag
+        # pointing at an already-deleted wire/bundle must NOT read as
+        # "referenced" here -- hence the existence check, not just a
+        # None check.
+        if self.wire_id is not None and self.wire_id in db.pjt_wires_table:
+            return True
+
+        if self.bundle_id is not None and self.bundle_id in db.pjt_bundles_table:
+            return True
+
+        # A wire/bundle's own start/stop endpoint is a forward reference
+        # (unlike its interior waypoints above) -- named directly by
+        # start_point3d_id/stop_point3d_id, not self-tagged.
+        if db.pjt_wires_table.select(
+            'id', OR=True, start_point3d_id=self.db_id, stop_point3d_id=self.db_id
+        ):
+            return True
+
+        if db.pjt_bundles_table.select(
+            'id', OR=True, start_point3d_id=self.db_id, stop_point3d_id=self.db_id
+        ):
+            return True
+
+        # Phase 7 (2026-09-02): pjt_transitions' own identity anchor, and
+        # pjt_transition_branches' own point (each branch is itself a
+        # backward, count-unknown reference against its OWNING
+        # transition -- transition_id, no fixed branch1_id..branch6_id
+        # columns -- but its own point3d_id here is an ordinary forward
+        # reference, same shape as everything else in this block).
+        if db.pjt_transitions_table.select('id', point3d_id=self.db_id):
+            return True
+
+        if db.pjt_transition_branches_table.select('id', point3d_id=self.db_id):
+            return True
+
+        # Phase 8 (2026-09-02): markers and the remaining multi-point
+        # objects. WireLayout/BundleLayout are pure markers (a bend/seam
+        # already tagged as a waypoint elsewhere, or a snap-target) --
+        # their own point3d_id is a forward reference, same as always.
+        # WireMarker likewise (its own wire_id is a forward reference TO
+        # a wire, not a point self-tag -- unlike Phase 6's wire_id on the
+        # point itself). Splice's own start/stop/branch points are often
+        # literally the SAME point id as some wire's own start/stop
+        # (already caught by Phase 6's pjt_wires check), checked again
+        # here for defensiveness/completeness, same as every other
+        # shared-point pair in this design. Wire-service-loop start/stop
+        # are ordinary forward references, no self-tagging shape at all
+        # (no wire_service_loop_id column exists on the points tables).
+        if db.pjt_wire_layouts_table.select('id', point3d_id=self.db_id):
+            return True
+
+        if db.pjt_bundle_layouts_table.select('id', point3d_id=self.db_id):
+            return True
+
+        if db.pjt_wire_markers_table.select('id', point3d_id=self.db_id):
+            return True
+
+        if db.pjt_splices_table.select(
+            'id', OR=True, start_point3d_id=self.db_id,
+            stop_point3d_id=self.db_id, branch_point3d_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_wire_service_loops_table.select(
+            'id', OR=True, start_point3d_id=self.db_id, stop_point3d_id=self.db_id
+        ):
+            return True
+
+        return False
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this point row -- but only if :meth:`is_referenced`
+        says nothing still needs it. A safety-checked override of
+        ``PJTEntryBase.delete``, so nothing (including the many existing
+        call sites that already delete a stale/placeholder point
+        directly, e.g. after a hover/click moves a wire's growing point
+        on to a fresh one) can silently pull a point out from under some
+        other row's own stored reference to it.
+
+        No-op (not an exception) when still referenced -- a caller that
+        creates and immediately discards a throwaway placeholder point
+        already expects ``delete()`` to just work; a point that's still
+        genuinely in use shouldn't have been asked to delete itself at
+        all (that's a caller-side bug elsewhere), and raising here would
+        just crash on top of that instead of surfacing it usefully.
+        """
+        if self.is_referenced():
+            return
+
+        super().delete()

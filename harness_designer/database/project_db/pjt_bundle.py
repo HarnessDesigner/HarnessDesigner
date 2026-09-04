@@ -226,16 +226,24 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
     @_check_types.do
     def delete(self) -> None:
-        """Delete this bundle row, every interior waypoint row it owns,
-        and any BundleLayout marking one of those waypoints.
+        """Delete this bundle row and any BundleLayout marking one of its
+        interior waypoints. The waypoint point rows themselves are left
+        alone -- deliberately, not an oversight; see PJTWire.delete's own
+        docstring for why (a waypoint point isn't necessarily owned
+        exclusively by this bundle -- the same shared-anchor-point-reused-
+        as-a-waypoint hazard applies here too).
 
-        Mirrors PJTWire.delete -- bundle_id on pjt_points3d has no
-        DB-enforced FK (see create_database/points3d.py), so there is no
-        cascade delete to rely on; waypoint rows -- and any BundleLayout
-        referencing one -- are cleaned up here explicitly instead. Start/
-        stop themselves are never touched -- they're owned by whatever
-        transition/other bundle the endpoint is attached to, not by this
-        bundle.
+        bundle_id on pjt_points3d has no DB-enforced FK (see
+        create_database/points3d.py), so there is no cascade delete to
+        rely on for the BundleLayout markers either; those ARE still
+        cleaned up here explicitly. Start/stop themselves are never
+        touched -- they're owned by whatever transition/other bundle the
+        endpoint is attached to, not by this bundle.
+
+        Also cascades to this bundle's own peg-board data-table overlay
+        row, if it has one (Phase 4 of the point-safety-check rollout,
+        2026-09-02, see TODO.md and ``TablePositionPegMixin.
+        delete_table_overlay``'s own docstring).
         """
         layouts_table = self._table.db.pjt_bundle_layouts_table
 
@@ -248,8 +256,6 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
                 else:
                     layout_db.delete()
 
-            point.delete()
-
         for point in self.waypoints_pegboard:
             for row in layouts_table.select('id', point_pegboard_id=point.db_id):
                 layout_db = layouts_table[row[0]]
@@ -259,7 +265,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
                 else:
                     layout_db.delete()
 
-            point.delete()
+        self.delete_table_overlay()
 
         super().delete()
 

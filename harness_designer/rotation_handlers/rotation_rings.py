@@ -66,6 +66,20 @@ class RotationRings(_object_base.ObjectBase):
     with visibly wrong compositing.
     """
 
+    # Class-level defaults (not just documentation) -- if __init__ raises
+    # partway through constructing objschematic/objpegboard/obj3d (each
+    # a real, fallible view-specific gizmo build) or before reaching
+    # _angle_lock_snapshot, this instance still gets to __del__ -> delete()
+    # eventually. Without these, delete() would hit a plain AttributeError
+    # on whichever of these never got assigned -- raised from inside
+    # __del__, which Python can only report as a swallowed "Exception
+    # ignored in ..." with no useful traceback context, instead of a
+    # clean no-op for the parts that never got built.
+    objschematic = None
+    objpegboard = None
+    obj3d = None
+    _angle_lock_snapshot: tuple | None = None
+
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
         """Initialise the :class:`RotationRings` instance.
@@ -79,10 +93,10 @@ class RotationRings(_object_base.ObjectBase):
 
         _object_base.ObjectBase.__init__(self, mainframe, None)
         self.selected = selected
+        self._treeitem = None
         self.objschematic = _editor_schematic_generic.Rings2D(self, selected, mainframe)
         self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
         self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
-        self._treeitem = None
 
         # Which one of the 3 view-specific gizmos above actually gets
         # drawn by :meth:`render` -- resolved once, here, from *canvas*
@@ -188,9 +202,16 @@ class RotationRings(_object_base.ObjectBase):
             if tuple(db_obj.angle3d.as_euler_float) == self._angle_lock_snapshot:
                 self.selected.unlock_angle()
 
-        self.obj3d.detach()
-        self.objschematic.detach()
-        self.objpegboard.detach()
+        # Any of these can still be the class-level None default if
+        # __init__ raised before reaching it (see the class-level
+        # defaults' own comment) -- only detach whichever actually
+        # finished building.
+        if self.obj3d is not None:
+            self.obj3d.detach()
+        if self.objschematic is not None:
+            self.objschematic.detach()
+        if self.objpegboard is not None:
+            self.objpegboard.detach()
 
     @_check_types.do
     def close(self):

@@ -21,7 +21,8 @@ from .mixins import (
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
-    Scale3DMixin, Scale3DControl
+    Scale3DMixin, Scale3DControl,
+    ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
 
@@ -175,7 +176,8 @@ class PJTSealsTable(PJTTableBase):
 
 class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin,
               AnglePegboardMixin, VisiblePegboardMixin, NotesMixin, Scale3DMixin,
-              PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
+              ScalePegboardMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin,
+              SmoothMixin):
     """Represent a PJT seal in :mod:`harness_designer.database.project_db.pjt_seal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.

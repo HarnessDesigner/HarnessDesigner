@@ -104,14 +104,21 @@ class Terminal(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
+        # Snap by perpendicular distance from the actual mouse ray, not
+        # by distance from a point unprojected onto the camera's own
+        # (arbitrary, generally unrelated to any cavity's real depth)
+        # focal plane -- see SnapPool.query_ray's own docstring. Only
+        # the free-floating fallback (nothing snapped) still wants a
+        # single point, since there's nothing else to place the preview
+        # against.
         snap_pool = self.snap_pool
-        world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
-        snapped = snap_pool.query(world_pos)
+        origin, direction = self.camera.get_mouse_ray(mouse_pos)
+        snapped = snap_pool.query_ray(origin, direction) if origin is not None else None
 
         prev_snapped = self._snapped
 
         if snapped is None:
-            point = world_pos
+            point = self.camera.get_position_on_focal_plane(mouse_pos)
             self._snapped = None
 
             if prev_snapped is not None:

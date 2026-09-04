@@ -15,13 +15,13 @@ pjt_table = _con.SQLTable(
     _con.UUIDField('bundle_id', no_null=True,
                   references=_con.SQLFieldReference(_bundle_covers.pjt_table,
                                                     _bundle_covers.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                                                    on_delete=_con.REFERENCE_NO_ACTION,
+                                                    on_update=_con.REFERENCE_NO_ACTION)),
 
     _con.UUIDField('transition_branch_id', no_null=True,
                   references=_con.SQLFieldReference(_transition_branches.pjt_table,
                                                     _transition_branches.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+                                                    on_delete=_con.REFERENCE_NO_ACTION,
+                                                    on_update=_con.REFERENCE_NO_ACTION)),
     _con.TextField('notes', default='""', no_null=True)
 )

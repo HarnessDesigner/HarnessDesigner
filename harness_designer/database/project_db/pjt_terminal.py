@@ -10,6 +10,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from . import pjt_point3d as _pjt_point3d
 from . import pjt_point2d as _pjt_point2d
+from . import pjt_point_pegboard as _pjt_point_pegboard
 from . import pjt_seal as _pjt_seal
 from ...geometry import point as _point
 from . import pjt_circuit as _pjt_circuit
@@ -29,7 +30,8 @@ from .mixins import (
     NameMixin, NameControl,
     NotesMixin, NotesControl,
     SmoothMixin, SmoothControl,
-    Scale3DMixin, Scale3DControl
+    Scale3DMixin, Scale3DControl,
+    ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
 
@@ -195,7 +197,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
                   Position3DMixin, NotesMixin,
                   Position2DMixin, PositionPegboardMixin, PartMixin, Visible3DMixin,
                   Visible2DMixin, VisiblePegboardMixin, NameMixin,
-                  SmoothMixin, Scale3DMixin):
+                  SmoothMixin, Scale3DMixin, ScalePegboardMixin):
     """Represent a PJT terminal in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -205,10 +207,28 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @_check_types.do
     def delete(self) -> None:
-        """Delete this terminal, clearing its cavity's cached back-reference
-        first (see the cavity_id setter/PJTTerminalsTable.insert) so
-        PJTCavity.terminal doesn't keep pointing at a now-deleted row.
+        """Delete this terminal -- cascading first to its own seal (a
+        seal can't meaningfully exist without the terminal it's crimped
+        onto), then clearing its cavity's cached back-reference (see the
+        cavity_id setter/PJTTerminalsTable.insert) so PJTCavity.terminal
+        doesn't keep pointing at a now-deleted row.
+
+        The seal's own ``delete()`` (plain ``PJTEntryBase.delete()`` --
+        it has no override) never touches the shared point it reuses
+        from this terminal's own ``seal_point3d_id``/
+        ``seal_point_pegboard_id`` columns -- see
+        ``PJTPoint3D.is_referenced()``/``PJTPointPegboard.is_referenced()``'s
+        own Phase 3 entries. Deleted before this row itself for the same
+        FK-ordering reason ``PJTHousing.delete()`` documents.
+
+        Phase 3 of the point-safety-check rollout (2026-09-02, see
+        TODO.md). Does not yet cascade from/to the owning cavity --
+        later phase.
         """
+        seal = self.seal
+        if seal is not None:
+            seal.delete()
+
         cavity_id = self.cavity_id
 
         PJTEntryBase.delete(self)
@@ -631,6 +651,56 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
+    _stored_wire_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard" = None
+
+    @property
+    @_check_types.do
+    def wire_position_pegboard_id(self) -> bytes:
+        """Return the ``pjt_points_pegboard`` row id for the peg-board
+        mirror of :attr:`wire_position3d_id`, lazily creating and
+        persisting it (at the origin -- no equivalent OBB/geometry math on
+        the peg-board side) on first access when the
+        ``wire_point_pegboard_id`` column is NULL.
+        """
+        if self._stored_wire_position_pegboard is not None:
+            return self._stored_wire_position_pegboard.db_id
+
+        point_id = self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
+
+        if point_id is None:
+            point_id = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0).db_id
+            self._table.update(self._db_id, wire_point_pegboard_id=point_id)
+
+        return point_id
+
+    @property
+    @_check_types.do
+    def wire_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`wire_position3d`.
+
+        Lazily creates and persists the point (at the origin) on first
+        access when the ``wire_point_pegboard_id`` column is NULL.
+        """
+        if self._stored_wire_position_pegboard is None:
+            point_id = self.wire_position_pegboard_id
+            self._stored_wire_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+        return self._stored_wire_position_pegboard.point
+
+    @property
+    @_check_types.do
+    def wire_position_pegboard_id_raw(self) -> bytes | None:
+        """The raw ``wire_point_pegboard_id`` column value, ``None`` if
+        this terminal's peg-board layout point has never been computed.
+
+        Mirrors :attr:`wire_position3d_id_raw` -- never lazily creates
+        and persists a point.
+        """
+        if self._stored_wire_position_pegboard is not None:
+            return self._stored_wire_position_pegboard.db_id
+
+        return self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
+
     @property
     @_check_types.do
     def wire_position2d_id(self) -> bytes:
@@ -744,6 +814,56 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
             self._stored_attach_position3d = self._table.db.pjt_points3d_table[attach_point3d_id]
 
         return self._stored_attach_position3d.point
+
+    _stored_attach_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard" = None
+
+    @property
+    @_check_types.do
+    def attach_position_pegboard_id(self) -> bytes:
+        """Return the ``pjt_points_pegboard`` row id for the peg-board
+        mirror of :attr:`attach_position3d_id`, lazily creating and
+        persisting it (at the origin -- no equivalent OBB/geometry math on
+        the peg-board side) on first access when the
+        ``attach_point_pegboard_id`` column is NULL.
+        """
+        if self._stored_attach_position_pegboard is not None:
+            return self._stored_attach_position_pegboard.db_id
+
+        point_id = self._table.select('attach_point_pegboard_id', id=self._db_id)[0][0]
+
+        if point_id is None:
+            point_id = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0).db_id
+            self._table.update(self._db_id, attach_point_pegboard_id=point_id)
+
+        return point_id
+
+    @property
+    @_check_types.do
+    def attach_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`attach_position3d`.
+
+        Lazily creates and persists the point (at the origin) on first
+        access when the ``attach_point_pegboard_id`` column is NULL.
+        """
+        if self._stored_attach_position_pegboard is None:
+            attach_point_pegboard_id = self.attach_position_pegboard_id
+            self._stored_attach_position_pegboard = self._table.db.pjt_points_pegboard_table[attach_point_pegboard_id]
+
+        return self._stored_attach_position_pegboard.point
+
+    @property
+    @_check_types.do
+    def attach_position_pegboard_id_raw(self) -> bytes | None:
+        """The raw ``attach_point_pegboard_id`` column value, ``None`` if
+        this terminal's peg-board crimp point has never been computed.
+
+        Mirrors :attr:`attach_position3d_id_raw` -- never lazily creates
+        and persists a point.
+        """
+        if self._stored_attach_position_pegboard is not None:
+            return self._stored_attach_position_pegboard.db_id
+
+        return self._table.select('attach_point_pegboard_id', id=self._db_id)[0][0]
 
     @_check_types.do
     def _wire_side_extent(self) -> tuple[float, float] | None:
@@ -926,6 +1046,41 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         """Persist *value* as the seal position point id and invalidate the cache."""
         self._stored_seal_position3d = None
         self._table.update(self._db_id, seal_point3d_id=value)
+
+    _stored_seal_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard" = None
+
+    @property
+    @_check_types.do
+    def seal_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`seal_position3d`.
+
+        Returns ``None`` until the seal is created and
+        ``seal_point_pegboard_id`` is set via the
+        :attr:`seal_position_pegboard_id` setter.
+        """
+        if self._stored_seal_position_pegboard is None:
+            seal_position_pegboard_id = self.seal_position_pegboard_id
+            if seal_position_pegboard_id is None:
+                return None
+
+            self._stored_seal_position_pegboard = self._table.db.pjt_points_pegboard_table[seal_position_pegboard_id]
+
+        return self._stored_seal_position_pegboard.point
+
+    @property
+    @_check_types.do
+    def seal_position_pegboard_id(self) -> bytes | None:
+        if self._stored_seal_position_pegboard is not None:
+            return self._stored_seal_position_pegboard.db_id
+
+        return self._table.select('seal_point_pegboard_id', id=self._db_id)[0][0]
+
+    @seal_position_pegboard_id.setter
+    @_check_types.do
+    def seal_position_pegboard_id(self, value: bytes):
+        """Persist *value* as the peg-board seal position point id and invalidate the cache."""
+        self._stored_seal_position_pegboard = None
+        self._table.update(self._db_id, seal_point_pegboard_id=value)
 
     _stored_part: _terminal.Terminal = None
 

@@ -1,5 +1,16 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python C:/Users/drsch/PycharmProjects/harness_designer/.claude/hooks/session_start.py",
+            "statusMessage": "Loading project memory..."
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Write",
@@ -9,6 +20,36 @@
             "shell": "bash",
             "command": "python -c \"import sys, json; d = json.loads(sys.stdin.read()); print((d.get('tool_input') or {}).get('file_path') or '')\" | tr -d '\\r' | { read -r f; if [ -n \"$f\" ]; then git add \"$f\"; fi; } 2>/dev/null || true",
             "statusMessage": "Staging new file in git..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python C:/Users/drsch/PycharmProjects/harness_designer/.claude/hooks/mark_dep_trace_used.py"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python C:/Users/drsch/PycharmProjects/harness_designer/.claude/hooks/nudge_dep_trace.py"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python C:/Users/drsch/PycharmProjects/harness_designer/.claude/hooks/suppress_dep_trace_nudge.py"
           }
         ]
       }

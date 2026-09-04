@@ -3,8 +3,8 @@
 """Excel-like data-table overlay geometry and scroll state.
 
 One row per anchor that has a visible data table on the peg-board view.
-Keyed purely by ``point3d_id`` -- this table has no knowledge of what kind
-of anchor owns that 3D point.
+Keyed purely by ``point_pegboard_id`` -- this table has no knowledge of what
+kind of anchor owns that peg-board point.
 """
 
 from typing import Iterable as _Iterable, Union
@@ -14,7 +14,7 @@ from ... import check_types as _check_types
 
 
 class PJTPegboardTablesTable(PJTTableBase):
-    """Table of peg-board data-table overlays, one per anchor ``point3d_id``."""
+    """Table of peg-board data-table overlays, one per anchor ``point_pegboard_id``."""
 
     __table_name__ = 'pjt_pegboard_tables'
 
@@ -73,28 +73,28 @@ class PJTPegboardTablesTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_from_point3d_id(self, point3d_id: bytes) -> Union["PJTPegboardTable", None]:
-        """Return the data-table overlay row keyed by an anchor's ``point3d_id``.
+    def get_from_point_pegboard_id(self, point_pegboard_id: bytes) -> Union["PJTPegboardTable", None]:
+        """Return the data-table overlay row keyed by an anchor's ``point_pegboard_id``.
 
-        :param point3d_id: Identifier of the anchor's 3D point.
-        :type point3d_id: bytes
+        :param point_pegboard_id: Identifier of the anchor's peg-board point.
+        :type point_pegboard_id: bytes
         :returns: The matching row, or ``None`` when one has not been created yet.
         :rtype: :class:`PJTPegboardTable`
         """
-        rows = self.select('id', point3d_id=point3d_id)
+        rows = self.select('id', point_pegboard_id=point_pegboard_id)
         if rows:
             return self[rows[0][0]]
 
     @_check_types.do
-    def insert(self, point3d_id: bytes, x: float, z: float, width: float,
+    def insert(self, point_pegboard_id: bytes, x: float, z: float, width: float,
                height: float) -> "PJTPegboardTable":
         """Create a new data-table overlay for an anchor.
 
         ``h_scroll``, ``v_scroll`` and ``is_collapsed`` are left at their
         schema defaults (no scroll offset, not collapsed).
 
-        :param point3d_id: Identifier of the anchor's 3D point.
-        :type point3d_id: bytes
+        :param point_pegboard_id: Identifier of the anchor's peg-board point.
+        :type point_pegboard_id: bytes
         :param x: Peg-board (world) X coordinate of the table's top-left corner.
         :type x: float
         :param z: Peg-board (world) Z coordinate of the table's top-left corner.
@@ -106,7 +106,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         :returns: The newly created row.
         :rtype: :class:`PJTPegboardTable`
         """
-        db_id = PJTTableBase.insert(self, point3d_id=point3d_id, x=x, z=z,
+        db_id = PJTTableBase.insert(self, point_pegboard_id=point_pegboard_id, x=x, z=z,
                                     width=width, height=height)
 
         return PJTPegboardTable(self, db_id)
@@ -127,20 +127,20 @@ class PJTPegboardTable(PJTEntryBase):
         """
         return self._table
 
-    _stored_point3d_id: bytes | DefaultStoredValueType = DefaultStoredValue
+    _stored_point_pegboard_id: bytes | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def point3d_id(self) -> bytes:
-        """Return the id of the ``pjt_points3d`` row this row is keyed by.
+    def point_pegboard_id(self) -> bytes:
+        """Return the id of the ``pjt_points_pegboard`` row this row is keyed by.
 
-        :returns: The referenced 3D point's row id.
+        :returns: The referenced peg-board point's row id.
         :rtype: bytes
         """
-        if self._stored_point3d_id is DefaultStoredValue:
-            self._stored_point3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
+        if self._stored_point_pegboard_id is DefaultStoredValue:
+            self._stored_point_pegboard_id = self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
-        return self._stored_point3d_id
+        return self._stored_point_pegboard_id
 
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 

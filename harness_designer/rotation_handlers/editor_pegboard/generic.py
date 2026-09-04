@@ -68,8 +68,15 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         obj_angle.bind(self._on_obj_angle)
         self._obj_angle = obj_angle
 
-        obj_scale.bind(self._on_obj_scale)
+        # Some object types (e.g. objects_pegboard.cavity.Cavity -- "a
+        # cavity is a sub-feature of a housing, not an independently
+        # placed physical part") legitimately have no pegboard scale at
+        # all -- nothing to bind, and _compute_size() (what a scale
+        # change would trigger) already derives the ring's own size from
+        # self._obj_view.aabb, not from scale directly.
         self._obj_scale = obj_scale
+        if obj_scale is not None:
+            obj_scale.bind(self._on_obj_scale)
 
         scale = _point.Point(1.0, 1.0, 1.0)
         angle = _angle.Angle.from_euler(0, 0, 0)
@@ -160,7 +167,8 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         """Unbind from the tracked object and free the GL buffers."""
         self._position.unbind(self._update_position)
         self._obj_angle.unbind(self._on_obj_angle)
-        self._obj_scale.unbind(self._on_obj_scale)
+        if self._obj_scale is not None:
+            self._obj_scale.unbind(self._on_obj_scale)
 
         try:
             with self.pegboard.context:

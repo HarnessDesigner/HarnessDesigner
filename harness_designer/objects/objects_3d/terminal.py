@@ -7,7 +7,6 @@ from PySide6.QtWidgets import QMenu
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
-from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...gl.canvas_base import interaction as _interaction
@@ -27,6 +26,7 @@ if TYPE_CHECKING:
     from .. import cavity as _cavity
     from ...gl import shaders as _shaders
     from ... import ui as _ui
+    from ...ui.dialogs import part_search as _part_search
 
 
 Config = _config.Config.editor_3d
@@ -341,56 +341,6 @@ class Terminal(_base_3d.Base3D):
         if self._overlay_pin_surf_idx is not None:
             housing_3d.render_surface_overlay(shaders, self._overlay_pin_surf_idx, color)
 
-    @_check_types.do
-    def _update_position(self, position: _point.Point):
-        """Update the position.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param position: Position value.
-        :type position: :class:`_point.Point`
-        """
-
-        delta = position - self._o_position
-
-        for point in (
-            self.db_obj.wire_position3d,
-            self.db_obj.attach_position3d,
-            self.db_obj.seal_position3d
-        ):
-            point += delta
-
-        super()._update_position(position)
-
-    @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
-        """Update the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param angle: Value for ``angle``.
-        :type angle: :class:`_angle.Angle`
-        """
-        seal = self.db_obj.seal
-        delta = angle - self._o_angle
-        inverse = self._o_angle.inverse
-
-        if seal is not None:
-            t_angle = seal.angle3d
-            t_angle += delta
-
-        for point in (
-            self.db_obj.wire_position3d,
-            self.db_obj.attach_position3d,
-            self.db_obj.seal_position3d
-        ):
-            point -= self._o_position
-            point @= inverse
-            point @= angle
-            point += self._o_position
-
-        super()._update_angle(angle)
-
     @property
     @_check_types.do
     def seal_position(self) -> _point.Point:
@@ -417,72 +367,87 @@ class Terminal(_base_3d.Base3D):
 
     @classmethod
     @_check_types.do
-    def _get_cavity_compat_pns(cls, mainframe: "_ui.MainFrame", housing, cavity) -> list:
-        """Terminal part numbers compatible with *cavity*/*housing* (Mode
-        1) -- see handlers.terminal_handler.AddTerminalHandler's own
-        version of this method for the full priority-order rationale.
+    def _search_params_for_cavity(
+        cls, mainframe: "_ui.MainFrame", housing, cavity
+    ) -> "_part_search.SearchParameters":
+        """Search-box seed for Mode 1 (housing AND cavity both given).
+
+        The cavity's own manually-curated ``compat_terminals`` list, if
+        the catalog has one -- rendered as real ``part number: "PN1",
+        "PN2"`` search text, literally visible (and further editable)
+        in the search box. Otherwise the housing's actual gender plus
+        this cavity's actual expected blade size(s), same as if the
+        user had typed/clicked those filters themselves -- a LIVE
+        filter against current catalog data every time the dialog
+        opens, not a precomputed, staleness-prone part-number list.
+        This is what fixes the original bug (a part silently dropping
+        out of the default view after its own dimensions got filled in
+        the first time it was used) -- see
+        ``ui.dialogs.part_search``'s "Compat-seed integration"
+        design notes for the full reasoning.
         """
+        from ...ui.dialogs import part_search as _part_search
+
         g_cavity = cavity.db_obj.part
         g_housing = housing.db_obj.part
 
         compat = g_cavity.compat_terminals
         if compat:
-            return [t.part_number for t in compat]
+            params = _part_search.SearchParameters()
+            for t in compat:
+                params.add('part_number', _part_search.SearchTerm(phrase=t.part_number))
+            return params
 
-        housing_gender_id = g_housing.gender_id
-        table = mainframe.global_db.terminals_table
+        params = _part_search.SearchParameters()
+
+        gender = mainframe.global_db.genders_table[g_housing.gender_id]
+        params.add('gender_id', _part_search.SearchTerm(phrase=gender.name))
 
         terminal_sizes = g_cavity.terminal_sizes
         if terminal_sizes:
-            pns = []
             for size in terminal_sizes:
-                table.execute(
-                    'SELECT part_number FROM terminals WHERE blade_size=? AND gender_id=?;',
-                    (size, housing_gender_id))
-                pns.extend(row[0] for row in table.fetchall())
-
-            if pns:
-                return list(set(pns))
+                params.add('blade_size', _part_search.SearchTerm(value=str(size)))
+            return params
 
         max_dim = max(g_cavity.width or 0.0, g_cavity.height or 0.0)
         if max_dim > 0.0:
-            table.execute(
-                'SELECT part_number FROM terminals WHERE blade_size<=? AND gender_id=?;',
-                (max_dim, housing_gender_id))
-            return list(set(row[0] for row in table.fetchall()))
+            params.add('blade_size', _part_search.SearchTerm(operator='<=', value=str(max_dim)))
 
-        return []
+        return params
 
     @classmethod
     @_check_types.do
-    def _get_housing_compat_pns(cls, mainframe: "_ui.MainFrame", housing) -> list:
-        """Terminal part numbers compatible with *housing* (Mode 2) --
-        see handlers.terminal_handler.AddTerminalHandler's own version.
+    def _search_params_for_housing(
+        cls, mainframe: "_ui.MainFrame", housing
+    ) -> "_part_search.SearchParameters":
+        """Search-box seed for Mode 2 (housing only) -- see
+        :meth:`_search_params_for_cavity`, aggregated across every
+        cavity in the housing instead of just one.
         """
+        from ...ui.dialogs import part_search as _part_search
+
         g_housing = housing.db_obj.part
-        housing_gender_id = g_housing.gender_id
-        table = mainframe.global_db.terminals_table
 
         compat = g_housing.compat_terminals
         if compat:
-            return [t.part_number for t in compat]
+            params = _part_search.SearchParameters()
+            for t in compat:
+                params.add('part_number', _part_search.SearchTerm(phrase=t.part_number))
+            return params
+
+        params = _part_search.SearchParameters()
+
+        gender = mainframe.global_db.genders_table[g_housing.gender_id]
+        params.add('gender_id', _part_search.SearchTerm(phrase=gender.name))
 
         all_sizes = set()
         for g_cav in g_housing.cavities:
             all_sizes.update(g_cav.terminal_sizes)
 
         if all_sizes:
-            pns = []
             for size in all_sizes:
-                table.execute(
-                    'SELECT part_number FROM terminals '
-                    'WHERE blade_size=? '
-                    'AND gender_id=?;',
-                    (size, housing_gender_id))
-                pns.extend(row[0] for row in table.fetchall())
-
-            if pns:
-                return list(set(pns))
+                params.add('blade_size', _part_search.SearchTerm(value=str(size)))
+            return params
 
         max_dim = 0.0
         for pjt_cav in housing.db_obj.cavities:
@@ -490,15 +455,9 @@ class Terminal(_base_3d.Base3D):
             max_dim = max(max_dim, g_cav.width or 0.0, g_cav.height or 0.0)
 
         if max_dim > 0.0:
-            table.execute(
-                'SELECT part_number FROM terminals '
-                'WHERE blade_size<=? '
-                'AND gender_id=?;',
-                (max_dim, housing_gender_id))
+            params.add('blade_size', _part_search.SearchTerm(operator='<=', value=str(max_dim)))
 
-            return list(set(row[0] for row in table.fetchall()))
-
-        return []
+        return params
 
     @classmethod
     @_check_types.do
@@ -524,20 +483,26 @@ class Terminal(_base_3d.Base3D):
         canvas = mainframe.editor3d.editor
 
         if housing is not None and cavity is not None:
-            compat_ids = cls._get_cavity_compat_pns(mainframe, housing, cavity)
+            initial_params = cls._search_params_for_cavity(mainframe, housing, cavity)
         elif housing is not None:
-            compat_ids = cls._get_housing_compat_pns(mainframe, housing)
+            initial_params = cls._search_params_for_housing(mainframe, housing)
         else:
-            compat_ids = []
+            initial_params = None
 
         # Mode 3 checks the editor DB first; modes 1 & 2 always open the dialog.
-        part_id = mainframe.editor_db.editor.terminals.GetSelection() if housing is None else None
+        if housing is None:
+            part_id = mainframe.editor_db.editor.terminals.GetSelection()
+        else:
+            part_id = None
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.TerminalsPage, title='Add Terminal',
-                table=mainframe.global_db.terminals_table, initial_results=compat_ids)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.TerminalsPage, mainframe.global_db.terminals_table,
+                'Add Terminal', initial_params=initial_params)
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+
             dlg.deleteLater()
 
             if part_id is None:

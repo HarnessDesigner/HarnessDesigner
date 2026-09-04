@@ -876,9 +876,14 @@ class Housing(_base_3d.Base3D):
             from PySide6.QtWidgets import QDialog
 
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.HousingsPage, title='Add Housing',
-                table=mainframe.global_db.housings_table)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.HousingsPage, mainframe.global_db.housings_table,
+                'Add Housing')
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:
@@ -954,12 +959,11 @@ class HousingMenu(QMenu):
         self.canvas = mainframe.editor3d.editor
         self.obj = obj
 
-        if self.obj.db_obj.part.sealing:
+        part = self.obj.db_obj.part
+        seal_type = part.seal_type
+        if part.sealing and seal_type is not None and seal_type.category == 'MAT':
             action = self.addAction('Add Mat Seal')
             action.triggered.connect(self.on_add_mat_seal)
-
-        action = self.addAction('Add Cavity Seal')
-        action.triggered.connect(self.on_add_cavity_seal)
 
         action = self.addAction('Add Terminal')
         action.triggered.connect(self.on_add_terminal)
@@ -1041,21 +1045,6 @@ class HousingMenu(QMenu):
         QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_cavity_seal(self):
-        """Add a plug seal interactively to one of this housing's cavities."""
-        from PySide6.QtCore import QTimer
-        from . import seal as _seal_3d
-
-        mainframe = self.mainframe
-        housing = self.obj.parent
-
-        @_check_types.do
-        def _do():
-            _seal_3d.Seal.start_add(mainframe, housing=housing, for_cavity=True)
-
-        QTimer.singleShot(0, _do)
-
-    @_check_types.do
     def on_add_terminal(self):
         """Add terminals to this housing's cavities with a snapping preview."""
         from PySide6.QtCore import QTimer
@@ -1121,6 +1110,7 @@ class HousingMenu(QMenu):
         @_check_types.do
         def _do():
             from .. import boot as _boot_obj
+            from ...ui.dialogs import part_search as _part_search
 
             housing = self.obj.db_obj
 
@@ -1132,7 +1122,7 @@ class HousingMenu(QMenu):
             part_id = _menu_ops.get_part_id(
                 self.mainframe, 'boots',
                 self.mainframe.global_db.boots_table, 'Add Boot',
-                initial_results=compat_boots)
+                initial_params=_part_search.SearchParameters.from_part_numbers(compat_boots))
 
             if part_id is None:
                 return

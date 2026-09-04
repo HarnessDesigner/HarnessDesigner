@@ -820,16 +820,19 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     @_check_types.do
-    def seal_type(self) -> _seal_type.SealType:
-        """Return the seal type.
+    def seal_type(self) -> _seal_type.SealType | None:
+        """Return this housing's seal type, or ``None`` when it has none
+        set (a housing's own seal type is genuinely optional -- see
+        :attr:`seal_type_id`'s own docstring).
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_seal_type.SealType`
+        :rtype: :class:`_seal_type.SealType` | None
         """
         if self._stored_seal_type is DefaultStoredValue:
-            self._stored_seal_type = self._table.db.seal_types_table[self.seal_type_id]
+            seal_type_id = self.seal_type_id
+            if seal_type_id is None:
+                self._stored_seal_type = None
+            else:
+                self._stored_seal_type = self._table.db.seal_types_table[seal_type_id]
 
         return self._stored_seal_type
 
@@ -837,13 +840,13 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @property
     @_check_types.do
-    def seal_type_id(self) -> bytes:
-        """Return the seal type ID.
+    def seal_type_id(self) -> bytes | None:
+        """Return the seal type ID, or ``None`` when this housing has no
+        seal type set (genuinely optional, unlike this table's other
+        lookup FKs -- see the field's own definition in
+        ``create_database.housings``).
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: bytes
+        :rtype: bytes | None
         """
         if self._stored_seal_type_id is DefaultStoredValue:
             self._stored_seal_type_id = self._table.select('seal_type_id', id=self._db_id)[0][0]
@@ -852,7 +855,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @seal_type_id.setter
     @_check_types.do
-    def seal_type_id(self, value: bytes):
+    def seal_type_id(self, value: bytes | None):
         """Set the seal type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1562,7 +1565,18 @@ class HousingControl(QTabWidget, LazyTabMixin):
         if rows:
             db_id = rows[0][0]
         else:
-            db_obj = self.db_obj.table.db.seal_types_table.insert(name)
+            from ..create_database.seal_types import CATEGORIES as _seal_categories
+            from PySide6 import QtWidgets
+
+            category, ok = QtWidgets.QInputDialog.getItem(
+                self.seal_type_ctrl, 'New Seal Type',
+                f'"{name}" is a new seal type -- what category is it?',
+                list(_seal_categories), editable=False)
+
+            if not ok:
+                return
+
+            db_obj = self.db_obj.table.db.seal_types_table.insert(name, category)
             db_id = db_obj.db_id
 
             self.seal_type_choices.append(name)

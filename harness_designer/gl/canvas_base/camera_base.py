@@ -488,6 +488,15 @@ class CameraBase:
         way key_handler.py's own _send_event already derives a position
         for key events, which don't carry one) gives the current mouse
         position without needing to cache the last real motion event.
+
+        self.set() runs first so a handler's own hover math (e.g.
+        get_position_on_focal_plane/UnprojectPoint, both used by
+        placement handlers to track the mouse across the focal plane)
+        reads THIS move's forward/focal_distance/view matrices, not
+        whatever the last real _on_draw() paint frame left cached --
+        this call happens well before that next paint, otherwise it
+        would still be one frame stale (see canvas_3d.camera.Camera.set
+        for why a plain camera move doesn't already guarantee this).
         """
         target = self.canvas.active_handler_obj
         if target is None:
@@ -496,6 +505,8 @@ class CameraBase:
         mouse_handler = self.canvas._mouse_handler  # NOQA
         if mouse_handler is None:
             return
+
+        self.set()
 
         from PySide6.QtGui import QCursor
 
@@ -932,6 +943,8 @@ class CameraBase:
         :type delta: float
         """
 
+        delta = -delta
+
         min_distance = 0.1
         max_distance = 500.0
 
@@ -954,7 +967,7 @@ class CameraBase:
         move = self._forward * move_distance
 
         self._is_dirty = True
-        self._position += move
+        self._focal_position += move
 
         self._send_event(_events.EVT_GL_CAMERA_ZOOM)
 
@@ -1199,7 +1212,23 @@ class CameraBase:
         return world[:3]
 
     @_check_types.do
-    def get_position_on_focal_plane(self, point: _point.Point) -> _point.Point:
+    def get_mouse_ray(self, point: _point.Point) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+        """Return ``(origin, direction)`` for the world-space ray through
+        screen-space *point* -- *origin* is the camera's own eye
+        (:attr:`position`), *direction* a normalised unit vector.
+        ``(None, None)`` when *point* can't be unprojected (W=0 in clip
+        space -- see :meth:`unproject_from_ndc`).
+
+        Depth-independent -- unlike :meth:`get_position_on_focal_plane`,
+        which collapses this same ray down to a single point at
+        whatever depth the camera's own focal point currently happens
+        to be, this hands back the full ray so a caller can measure
+        against real geometry at ITS OWN actual depth instead (see
+        :meth:`~harness_designer.utils.snap_pool.SnapPool.query_ray`,
+        built for exactly this -- a cavity's true position rather than
+        an arbitrary focal-plane intersection is what a snap-to-cavity
+        session needs to compare against).
+        """
         vx, vy, vw, vh = self.viewport
 
         ndc_x = (2.0 * (point.x - vx) / vw) - 1.0
@@ -1208,11 +1237,22 @@ class CameraBase:
         # One unproject — ray origin is the camera position itself
         far_world = self.unproject_from_ndc(ndc_x, ndc_y, 1.0)
         if far_world is None:
-            return self.focal_position.copy()
+            return None, None
 
         origin = self.position.as_numpy.astype(np.float32)
         direction = np.asarray(far_world, dtype=np.float32) - origin
-        direction /= np.linalg.norm(direction)
+        norm = np.linalg.norm(direction)
+        if norm < 1e-6:
+            return None, None
+
+        direction /= norm
+        return origin, direction
+
+    @_check_types.do
+    def get_position_on_focal_plane(self, point: _point.Point) -> _point.Point:
+        origin, direction = self.get_mouse_ray(point)
+        if origin is None:
+            return self.focal_position.copy()
 
         # camera.forward  == plane normal (already normalised)
         # camera.focal_distance == dot(focal_pos - origin, plane_normal)

@@ -286,6 +286,17 @@ class ResourceState(EntryBase):
 
     @_check_types.do
     def set_error(self, step, allow_retry, **error_blob):
+        # This resource's own row can already be gone by the time this
+        # runs -- a straggling/duplicate worker message (see
+        # process.image_process.ImageProcess.recv's own docstring on the
+        # matching guard there) can arrive for a job whose successful
+        # completion already deleted this same row. Every property read
+        # below assumes the row still exists (`select(...)[0][0]`, which
+        # raises IndexError on zero rows) -- nothing useful to record an
+        # error against once it's gone.
+        if not self._table.select('id', id=self._db_id):
+            return
+
         self.error_host = _hostname()
         self.error_at = _now_iso()
         self.allow_retry = allow_retry

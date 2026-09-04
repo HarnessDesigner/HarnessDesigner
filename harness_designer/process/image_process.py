@@ -351,6 +351,13 @@ class ProcessWorker:
                 self.out_queue.put({'pong': True})
                 return
 
+            if self.running is None:
+                # A straggling/duplicate message for a job this side
+                # already considers finished (its own error/success
+                # handling below already ran and reset self.running to
+                # None) -- nothing left to attribute this message to.
+                return
+
             resource_state = self.running['resource_obj']
 
             if 'err_no' in message:

@@ -312,6 +312,28 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     _table: PJTCavitiesTable = None
 
     @_check_types.do
+    def delete(self) -> None:
+        """Delete this cavity row -- cascading first to its own seated
+        terminal, if any (``PJTTerminal.delete()`` itself further
+        cascades to that terminal's own seal). A cavity is structural
+        (fixed by its housing's own part definition) and is never
+        independently deletable by the user -- in practice the only
+        caller of this method is ``PJTHousing.delete()``'s own cascade
+        -- but this stays correct regardless of caller.
+
+        Phase 5 of the point-safety-check rollout (2026-09-02, see
+        TODO.md). Does not yet cascade to/from any wire attached through
+        this cavity's own terminal -- later phase (wires survive a
+        cavity/terminal delete, dangling; see the design spec's own
+        "Housing delete cascade, wires survive" worked example).
+        """
+        terminal = self.terminal
+        if terminal is not None:
+            terminal.delete()
+
+        super().delete()
+
+    @_check_types.do
     def get_object(self) -> "_cavity_obj.Cavity":
         """
         Return the object.
@@ -629,6 +651,158 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
             return self._stored_wire_position3d_id
 
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
+
+    _stored_terminal_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def terminal_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`terminal_position3d` -- same identity
+        role, lazily created (at the origin -- no equivalent OBB/geometry
+        math on the peg-board side) instead of computed from real geometry.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_terminal_position_pegboard is DefaultStoredValue:
+            point_id = self.terminal_position_pegboard_id
+
+            if point_id is None:
+                self._stored_terminal_position_pegboard = None
+            else:
+                self._stored_terminal_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+        if self._stored_terminal_position_pegboard is not None:
+            if self._obj is not None:
+                self._stored_terminal_position_pegboard.add_object(self._obj())
+
+            point = self._stored_terminal_position_pegboard.point
+        else:
+            point = None
+
+        return point
+
+    _stored_terminal_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def terminal_position_pegboard_id(self) -> bytes:
+        """Return the ``pjt_points_pegboard`` row id for the peg-board
+        mirror of :attr:`terminal_position3d_id`, lazily creating and
+        persisting it (at the origin) on first access when the
+        ``terminal_point_pegboard_id`` column is NULL.
+
+        :returns: Property value.
+        :rtype: bytes
+        """
+        if self._stored_terminal_position_pegboard_id is DefaultStoredValue:
+            point_id = self._table.select('terminal_point_pegboard_id', id=self._db_id)[0][0]
+            if point_id is None:
+                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, terminal_point_pegboard_id=point_id)
+
+            self._stored_terminal_position_pegboard_id = point_id
+
+        return self._stored_terminal_position_pegboard_id
+
+    @terminal_position_pegboard_id.setter
+    @_check_types.do
+    def terminal_position_pegboard_id(self, value: bytes):
+        """Set the peg-board mirror of :attr:`terminal_position3d_id`.
+
+        :param value: Value to store or process.
+        :type value: bytes
+        """
+        self._stored_terminal_position_pegboard_id = value
+        self._stored_terminal_position_pegboard = DefaultStoredValue
+
+        self._table.update(self._db_id, terminal_point_pegboard_id=value)
+        self._populate('terminal_position_pegboard_id')
+
+    _stored_wire_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def wire_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`wire_position3d` -- same identity
+        role (where a wire's WireLayout attaches on this cavity's wire-exit
+        side), lazily created (at the origin -- no equivalent mesh-surface/
+        OBB geometry on the peg-board side) instead of computed from real
+        geometry.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_wire_position_pegboard is DefaultStoredValue:
+            point_id = self.wire_position_pegboard_id
+
+            if point_id is None:
+                self._stored_wire_position_pegboard = None
+            else:
+                self._stored_wire_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+        if self._stored_wire_position_pegboard is not None:
+            if self._obj is not None:
+                self._stored_wire_position_pegboard.add_object(self._obj())
+
+            point = self._stored_wire_position_pegboard.point
+        else:
+            point = None
+
+        return point
+
+    _stored_wire_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def wire_position_pegboard_id(self) -> bytes:
+        """Return the ``pjt_points_pegboard`` row id for the peg-board
+        mirror of :attr:`wire_position3d_id`, lazily creating and
+        persisting it (at the origin) on first access when the
+        ``wire_point_pegboard_id`` column is NULL.
+
+        :returns: Property value.
+        :rtype: bytes
+        """
+        if self._stored_wire_position_pegboard_id is DefaultStoredValue:
+            point_id = self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
+            if point_id is None:
+                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+                point_id = point.db_id
+                self._table.update(self._db_id, wire_point_pegboard_id=point_id)
+
+            self._stored_wire_position_pegboard_id = point_id
+
+        return self._stored_wire_position_pegboard_id
+
+    @wire_position_pegboard_id.setter
+    @_check_types.do
+    def wire_position_pegboard_id(self, value: bytes):
+        """Set the peg-board mirror of :attr:`wire_position3d_id`.
+
+        :param value: Value to store or process.
+        :type value: bytes
+        """
+        self._stored_wire_position_pegboard_id = value
+        self._stored_wire_position_pegboard = DefaultStoredValue
+
+        self._table.update(self._db_id, wire_point_pegboard_id=value)
+        self._populate('wire_position_pegboard_id')
+
+    @property
+    @_check_types.do
+    def wire_position_pegboard_id_raw(self) -> bytes | None:
+        """The raw ``wire_point_pegboard_id`` column value, ``None`` if a
+        wire has never been routed to this cavity yet on the peg-board.
+
+        Unlike :attr:`wire_position_pegboard_id`, this never lazily creates
+        and persists a point -- mirrors :attr:`wire_position3d_id_raw`.
+        """
+        if self._stored_wire_position_pegboard_id is not DefaultStoredValue:
+            return self._stored_wire_position_pegboard_id
+
+        return self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
 
     @property
     @_check_types.do

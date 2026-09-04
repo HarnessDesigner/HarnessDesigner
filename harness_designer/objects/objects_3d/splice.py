@@ -176,9 +176,14 @@ class Splice(_base_3d.Base3D):
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.SplicesPage, title='Add Splice',
-                table=mainframe.global_db.splices_table)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.SplicesPage, mainframe.global_db.splices_table,
+                'Add Splice')
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:

@@ -13,6 +13,26 @@ FIELD_TYPE_UUID = 'BINARY(16)'
 
 REFERENCE_CASCADE = 'CASCADE'
 REFERENCE_DEFAULT = 'RESTRICT'
+# Every pjt_* row is backed by a live Python object (weakref-tracked,
+# singleton per db_id) with its own callback bindings and view objects --
+# the database engine must never remove or reassign a row's own foreign
+# keys on its own initiative behind Python's back, or a still-referenced
+# Python object is left pointing at a row that's silently gone/changed.
+# All cascade/cleanup logic is deliberately done in Python (see each
+# entry class's own delete()), never left to the DB engine -- this is
+# the "do nothing at all" action every FK in the schema uses.
+#
+# NOTE: InnoDB treats NO ACTION identically to RESTRICT (it has no
+# deferred-constraint-checking, unlike some other engines) -- it does
+# NOT silently do nothing the way SQLite does when this action is never
+# checked at all (FK enforcement is never turned on for the SQLite
+# connector, deliberately -- see that module's own comment). Under MySQL
+# this still means "the DB engine never cascades/nulls/resets anything
+# on its own" (satisfying the actual requirement), but a DELETE can
+# still be rejected with a real FK-violation error if Python's own
+# delete() ever fails to remove/detach every child row first -- a safety
+# net catching an incomplete cascade, not a contradiction of the rule.
+REFERENCE_NO_ACTION = 'NO ACTION'
 
 _EXPRESSION_DEFAULT_TYPES = ('LONGTEXT', 'TEXT', 'LONGBLOB', 'BLOB')
 

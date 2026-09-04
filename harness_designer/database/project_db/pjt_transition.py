@@ -18,6 +18,7 @@ from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
     PositionPegboardMixin,
+    TablePositionPegMixin,
     AnglePegboardMixin,
     PartMixin,
     NameMixin, NameControl,
@@ -164,7 +165,7 @@ class PJTTransitionsTable(PJTTableBase):
 
 
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin,
-                    AnglePegboardMixin, PartMixin,
+                    TablePositionPegMixin, AnglePegboardMixin, PartMixin,
                     NameMixin, Visible3DMixin, VisiblePegboardMixin, NotesMixin, SmoothMixin):
     """Represent a PJT transition in :mod:`harness_designer.database.project_db.pjt_transition`.
 
@@ -172,6 +173,34 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
     """
 
     _table: PJTTransitionsTable = None
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this transition row -- cascading first to every branch
+        it owns (``branch1``..``branch6`` via :attr:`branches`) and its
+        own peg-board data-table overlay row, if it has one.
+
+        A transition branch is the same "unknown count of children
+        referenced backward from the parent" shape as a wire/bundle's own
+        interior waypoints (Phase 6), just one level up: instead of a
+        point self-tagging via ``wire_id``/``bundle_id``, a whole
+        ``pjt_transition_branches`` ROW self-identifies via its own
+        ``transition_id`` column (there's no fixed ``branch1_id``..
+        ``branch6_id`` set of columns on this row to name each one).
+        ``PJTTransitionBranch.delete()`` itself never touches its own
+        ``point3d_id``/``point_pegboard_id`` points -- same "no object
+        deletes points directly" rule as everywhere else in this design
+        (see TODO.md).
+
+        Phases 4 (2026-09-02, peg-board table overlay) and 7 (2026-09-02,
+        branches) of the point-safety-check rollout.
+        """
+        for branch in self.branches:
+            branch.delete()
+
+        self.delete_table_overlay()
+
+        super().delete()
 
     @_check_types.do
     def get_object(self) -> "_transition_obj.Transition":

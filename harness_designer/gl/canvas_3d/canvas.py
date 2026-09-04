@@ -56,29 +56,6 @@ def _build_perspective_matrix(fov_deg: float, aspect: float,
     return matrix
 
 
-def _build_lookat_matrix(position: np.ndarray, forward: np.ndarray,
-                         up: np.ndarray) -> np.ndarray:
-    """
-    Row-major (``matrix @ column_vector``) view matrix for a camera at
-    *position* looking along *forward*, equivalent to what ``gluLookAt``
-    would produce -- built locally here instead of applied via GLU and
-    read back from GL. *up* is expected already orthogonal to *forward*
-    (as produced by ``Camera._calculate_camera()``).
-    """
-
-    side = np.cross(forward, up)  # NOQA
-
-    matrix = np.identity(4, dtype=np.float32)
-    matrix[0, 0:3] = side
-    matrix[1, 0:3] = up
-    matrix[2, 0:3] = -forward
-    matrix[0, 3] = -np.dot(side, position)
-    matrix[1, 3] = -np.dot(up, position)
-    matrix[2, 3] = np.dot(forward, position)
-
-    return matrix
-
-
 class Canvas(_canvas_base.CanvasBase):
     """
     3D perspective GL canvas -- the free-orbit camera view (housing/wire
@@ -114,7 +91,7 @@ class Canvas(_canvas_base.CanvasBase):
         self._mouse_handler = _mouse_handler3d.MouseHandler(self)
 
         self._headlight: _headlight.Headlight = None
-        self._focal_target: _focal_target.FocalPoint = None
+        self._focal_target: _focal_target.FocalTarget = None
 
     # ------------------------------------------------------------------
     # Properties / mode
@@ -143,7 +120,7 @@ class Canvas(_canvas_base.CanvasBase):
 
             self._headlight = _headlight.Headlight(self)
 
-            self._focal_target = _focal_target.FocalPoint(self)
+            self._focal_target = _focal_target.FocalTarget(self)
             self.set_focal_target(self.config.focal_target.enable)
 
             # Keep every camera-tracking Text (currently just unlocked
@@ -178,9 +155,9 @@ class Canvas(_canvas_base.CanvasBase):
         focal-target toggle button, and once at startup from
         initializeGL() with the persisted config value.
 
-        Sets Base3D.is_visible on the underlying 3D object; render()
-        already checks that internally (`if not self.is_visible: return`),
-        so nothing else needs to gate on it separately.
+        Sets FocalTarget.is_visible directly; render() already checks
+        that internally (`if not self.is_visible: return`), so nothing
+        else needs to gate on it separately.
 
         :param flag: Whether the focal target should be visible.
         :type flag: bool
@@ -210,7 +187,7 @@ class Canvas(_canvas_base.CanvasBase):
         far = float(math.sqrt(f_size * f_size))
 
         projection = _build_perspective_matrix(fov_deg, aspect, near, far)
-        modelview = _build_lookat_matrix(
+        modelview = _camera.build_lookat_matrix(
             self.camera.position.as_numpy, self.camera.forward, self.camera.up)
 
         self.camera.set_view(projection, modelview, fov_deg)

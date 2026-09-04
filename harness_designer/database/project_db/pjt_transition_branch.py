@@ -132,6 +132,17 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
     """
     _table: PJTTransitionBranchesTable = None
 
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this transition-branch row -- cascading first to its
+        own peg-board data-table overlay row, if it has one (Phase 4 of
+        the point-safety-check rollout, 2026-09-02, see TODO.md and
+        ``TablePositionPegMixin.delete_table_overlay``'s own docstring).
+        """
+        self.delete_table_overlay()
+
+        super().delete()
+
     @property
     @_check_types.do
     def table(self) -> PJTTransitionBranchesTable:

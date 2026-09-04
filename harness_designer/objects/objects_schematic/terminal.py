@@ -489,17 +489,26 @@ class Terminal(_base_schematic.BaseSchematic):
 
         canvas = mainframe.editor2d.editor
 
-        compat_ids = (
-            _terminal_3d.Terminal._get_housing_compat_pns(mainframe, housing)  # NOQA
-            if housing is not None else [])
+        if housing is not None:
+            initial_params = _terminal_3d.Terminal._search_params_for_housing(mainframe, housing)  # NOQA
+        else:
+            initial_params = None
 
-        part_id = mainframe.editor_db.editor.terminals.GetSelection() if housing is None else None
+        if housing is None:
+            part_id = mainframe.editor_db.editor.terminals.GetSelection()
+        else:
+            part_id = None
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.TerminalsPage, title='Add Terminal',
-                table=mainframe.global_db.terminals_table, initial_results=compat_ids)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.TerminalsPage, mainframe.global_db.terminals_table,
+                'Add Terminal', initial_params=initial_params)
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:

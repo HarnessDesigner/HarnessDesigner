@@ -595,9 +595,14 @@ class Housing(_base_schematic.BaseSchematic):
             from PySide6.QtWidgets import QDialog
 
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.HousingsPage, title='Add Housing',
-                table=mainframe.global_db.housings_table)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.HousingsPage, mainframe.global_db.housings_table,
+                'Add Housing')
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:

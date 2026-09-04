@@ -51,12 +51,12 @@ pjt_table = _con.SQLTable(
     _con.UUIDField('point2d_id', default='NULL',
                    references=_con.SQLFieldReference(_points2d.pjt_table,
                                                      _points2d.pjt_id_field,
-                                                     on_update=_con.REFERENCE_CASCADE)),
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
 
     _con.UUIDField('point3d_id', default='NULL',
                    references=_con.SQLFieldReference(_points3d.pjt_table,
                                                      _points3d.pjt_id_field,
-                                                     on_update=_con.REFERENCE_CASCADE)),
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     # Exactly one of point2d_id/point3d_id/point_pegboard_id is ever
     # non-NULL per row -- a waypoint's layout is keyed to the specific
     # view it was placed in, since waypoint counts differ per view (see
@@ -64,7 +64,7 @@ pjt_table = _con.SQLTable(
     _con.UUIDField('point_pegboard_id', default='NULL',
                    references=_con.SQLFieldReference(_points_pegboard.pjt_table,
                                                      _points_pegboard.pjt_id_field,
-                                                     on_update=_con.REFERENCE_CASCADE)),
+                                                     on_update=_con.REFERENCE_NO_ACTION)),
     _con.TextField('notes', default='""', no_null=True),
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),

@@ -188,6 +188,35 @@ class PseudoPJTWireLayout(PJTWireLayout):
     def is_visible3d(self, value: bool):
         pass
 
+    @property
+    def is_visible_pegboard(self) -> bool:
+        return False
+
+    @is_visible_pegboard.setter
+    def is_visible_pegboard(self, value: bool):
+        pass
+
+    @property
+    def position_pegboard(self) -> "_point.Point | None":
+        # None is a real, already-handled state here -- see
+        # objects_pegboard.wire_layout.WireLayout.__init__'s own comment
+        # ("position=None whenever position_pegboard_id is NULL...
+        # handled gracefully by BaseVar") -- unlike position2d, nothing
+        # downstream needs a fresh dummy Point for this one.
+        return None
+
+    @position_pegboard.setter
+    def position_pegboard(self, value):
+        pass
+
+    @property
+    def position_pegboard_id(self) -> bytes | None:
+        return None
+
+    @position_pegboard_id.setter
+    def position_pegboard_id(self, value: bytes):
+        pass
+
     _position2d: "_point.Point | None" = None
 
     @property

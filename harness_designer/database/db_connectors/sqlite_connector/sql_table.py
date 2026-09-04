@@ -13,6 +13,15 @@ FIELD_TYPE_UUID = 'BLOB'
 
 REFERENCE_CASCADE = 'CASCADE'
 REFERENCE_DEFAULT = 'SET DEFAULT'
+# Every pjt_* row is backed by a live Python object (weakref-tracked,
+# singleton per db_id) with its own callback bindings and view objects --
+# the database engine must never remove or reassign a row's own foreign
+# keys on its own initiative behind Python's back, or a still-referenced
+# Python object is left pointing at a row that's silently gone/changed.
+# All cascade/cleanup logic is deliberately done in Python (see each
+# entry class's own delete()), never left to the DB engine -- this is
+# the "do nothing at all" action every FK in the schema uses.
+REFERENCE_NO_ACTION = 'NO ACTION'
 
 
 class SQLTable:
@@ -259,6 +268,20 @@ class SQLField:
 
         """Add this field definition to an existing table.
 
+        SQLite refuses ``ALTER TABLE ... ADD COLUMN`` outright when the
+        new column carries a ``UNIQUE`` constraint inline -- a genuine
+        SQLite limitation (not specific to any one field; every
+        ``is_unique=True`` field added to an already-existing table hits
+        this the same way). Confirmed 2026-09-02: renaming
+        ``pjt_pegboard_tables.point3d_id`` to ``point_pegboard_id``
+        (keeping the ``is_unique=True`` it already had) made the
+        migration path add it as a brand-new column on existing project
+        databases, which raised ``sqlite3.OperationalError: Cannot add a
+        UNIQUE column``. Worked around the standard way: add the column
+        WITHOUT ``UNIQUE``, then create a separate ``UNIQUE INDEX`` --
+        same net constraint, just expressed as two statements instead of
+        the one SQLite won't allow inline here.
+
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
         :type db_cursor: UNKNOWN
         :param table_name: Name of the database table to inspect or update.
@@ -269,7 +292,16 @@ class SQLField:
         """
         field = str(self)
 
+        if self.is_unique:
+            field = field.replace(' UNIQUE', '', 1)
+
         db_cursor._con.execute(f'ALTER TABLE {table_name} ADD COLUMN {field}')
+
+        if self.is_unique:
+            index_name = f'idx_{table_name}_{self.name}_unique'
+            db_cursor._con.execute(
+                f'CREATE UNIQUE INDEX IF NOT EXISTS {index_name} ON {table_name}({self.name})')
+
         db_cursor._con.commit()
 
 

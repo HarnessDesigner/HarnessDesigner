@@ -81,16 +81,24 @@ class TPALock(_base_3d.Base3D):
 
         canvas = mainframe.editor3d.editor
 
-        compat_tpa_locks = [] if housing is None else housing.db_obj.part.compat_tpas_array
+        if housing is None:
+            compat_tpa_locks = []
+        else:
+            compat_tpa_locks = housing.db_obj.part.compat_tpas_array
 
         part_id = mainframe.editor_db.editor.tpa_locks.GetSelection()
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.CoversPage, title='Add TPA Lock',
-                table=mainframe.global_db.tpa_locks_table,
-                initial_results=compat_tpa_locks)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.CoversPage, mainframe.global_db.tpa_locks_table,
+                'Add TPA Lock',
+                initial_params=_part_search.SearchParameters.from_part_numbers(compat_tpa_locks))
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:

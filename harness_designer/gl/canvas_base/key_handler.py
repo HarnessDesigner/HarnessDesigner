@@ -180,7 +180,14 @@ class KeyHandler:
                         except KeyError:
                             pass
 
-            self._key_event.wait(0.05)
+            # 50Hz (was 20Hz/0.05s) -- the visible "hard steps" during a
+            # held-key camera move (dolly and every other keyboard-driven
+            # movement sharing this loop) come from this tick rate itself,
+            # not the per-tick distance -- see keyboard_settings' own
+            # comment (config.py) for the matching speed-factor scale-down
+            # that keeps overall speed/ramp-time the same at the faster
+            # tick rate.
+            self._key_event.wait(0.02)
 
     @_debug.logfunc
     @_check_types.do

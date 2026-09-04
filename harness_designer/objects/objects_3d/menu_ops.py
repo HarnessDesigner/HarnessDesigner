@@ -168,7 +168,7 @@ def run_attached_handler(handler_factory):
 
 @_check_types.do
 def get_part_id(mainframe, page_name: str, table, title: str,
-                initial_results=None) -> bytes | None:
+                initial_params=None) -> bytes | None:
     """Resolve a part id from the database editor's current selection or a
     part search dialog.
 
@@ -177,8 +177,9 @@ def get_part_id(mainframe, page_name: str, table, title: str,
         e.g. ``'wires'`` or ``'terminals'``.
     :param table: Global database table searched by the dialog.
     :param title: Title for the search dialog.
-    :param initial_results: Optional list of part numbers used to pre-filter
-        the search results.
+    :param initial_params: Optional ``part_search.SearchParameters``
+        (e.g. via ``SearchParameters.from_part_numbers(compat_pns)``) used
+        to pre-seed the search dialog's own search text.
     :returns: The selected part id or :data:`None` when cancelled.
     """
     from PySide6.QtWidgets import QDialog
@@ -188,12 +189,8 @@ def get_part_id(mainframe, page_name: str, table, title: str,
     part_id = page.GetSelection()
 
     if part_id is None:
-        if initial_results is None:
-            initial_results = []
-
         dlg = _part_search.SearchDialog(
-            mainframe, type(page), title=title, table=table,
-            initial_results=initial_results)
+            mainframe, type(page), table, title, initial_params=initial_params)
 
         if dlg.exec() == QDialog.DialogCode.Accepted:
             part_id = dlg.GetValue()

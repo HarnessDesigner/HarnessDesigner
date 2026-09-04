@@ -16,6 +16,7 @@ if Config.database.connector == CONNECTOR_SQLITE:
 
     REFERENCE_DEFAULT = sql_table.REFERENCE_DEFAULT
     REFERENCE_CASCADE = sql_table.REFERENCE_CASCADE
+    REFERENCE_NO_ACTION = sql_table.REFERENCE_NO_ACTION
     SQLTable = sql_table.SQLTable
     SQLFieldReference = sql_table.SQLFieldReference
     PrimaryKeyField = sql_table.PrimaryKeyField
@@ -32,6 +33,7 @@ elif Config.database.connector == CONNECTOR_MYSQL:
 
     REFERENCE_DEFAULT = sql_table.REFERENCE_DEFAULT
     REFERENCE_CASCADE = sql_table.REFERENCE_CASCADE
+    REFERENCE_NO_ACTION = sql_table.REFERENCE_NO_ACTION
     SQLTable = sql_table.SQLTable
     SQLFieldReference = sql_table.SQLFieldReference
     PrimaryKeyField = sql_table.PrimaryKeyField

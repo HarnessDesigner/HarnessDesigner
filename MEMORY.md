@@ -14,6 +14,45 @@ Compiled from prior auto-memory on 2026-07-28. Entries are point-in-time observa
 
 ---
 
+## MANDATORY: use `diagnostics/dep_trace.py` for "where/what/who" code questions
+
+This is a large (~530 file) codebase. Before reading files or grepping to answer "where is X
+defined," "what does this file import," "who calls this method," or "does this override call
+its superclass" — run `diagnostics/dep_trace.py` first. It's a static-AST tool built specifically
+for this: fast, cheap on tokens, and it won't miss a call site the way a guessed grep pattern can.
+Fall back to Read/Grep only once it's told you which file(s)/line(s) to actually look at.
+
+```
+python diagnostics/dep_trace.py <file_or_dir> [--depth shallow|deep] [--name PATTERN] [--local] [--json]
+python diagnostics/dep_trace.py <file_or_dir> --types       [--name PATTERN] [--json]
+python diagnostics/dep_trace.py <file_or_dir> --calls       [--name PATTERN] [--json]
+python diagnostics/dep_trace.py <file_or_dir> --overrides   [--name PATTERN] [--json]
+python diagnostics/dep_trace.py <file_or_dir> --imported-by [--name PATTERN] [--json]
+```
+
+- No mode flag, no `--name` — default import-trace: what a file imports and what's used from it.
+- No mode flag, `--name PATTERN` given — definition lookup: every class/function/method matching it.
+- `--types` — where a type is used as a param/return/variable annotation.
+- `--calls` — every call site of a function/method; resolves `self.`/`cls.`/`super().` receivers
+  against the class hierarchy to report which class's implementation actually runs.
+- `--overrides` — override chains: which ancestor defines the same method, and whether the
+  override calls `super()` (extends) or not (fully shadows) — check this before touching a mixin
+  method, since this codebase leans heavily on mixins (`DimensionMixin`, `NameMixin`,
+  `CallbackMixin`, etc.) and a method may not be defined where you'd expect.
+- `--imported-by` — reverse lookup: every file that imports a given file — check this before
+  renaming/moving/deleting a file or changing its public surface.
+- `--types`/`--calls`/`--overrides`/`--imported-by` can be combined in one run (share one
+  `--name`); `--calls`/`--overrides`/`--imported-by` need a directory target (usually
+  `harness_designer/`) for real cross-file resolution — a single file only resolves against
+  itself. `PATTERN` is always a regex (`re.search`); a plain literal behaves as a substring match.
+
+Full usage, every flag, and the reasoning behind the CLI design (why there's no `--find` or
+`--regex` flag, the argparse ambiguity that shaped the `--name` design) are in the module
+docstring at the top of `diagnostics/dep_trace.py` itself — read that if a flag's behavior is
+unclear rather than guessing from this summary.
+
+---
+
 ## Reference
 
 ### Codebase map
@@ -611,6 +650,19 @@ User plans to release harness_designer commercially, targeting a business-use pr
 **Why:** The user's read: the real SMB/mid-size pain isn't just enterprise CAD's price — it's being forced to pay for a "mess of things they don't use." Unbundling directly targets that: core covers the baseline, paid add-ons cover specialized capability (e.g. the wire-bundle-packing solver above could plausibly be one such add-on rather than core weight).
 
 **How to apply:** When prioritizing features, weigh value to the underserved SMB/DIY/small-manufacturer segment over matching every enterprise-suite feature — the wedge is "the only 3D option at this price," not feature parity. When a new capability comes up that's enterprise-suite-grade in scope (heavy solvers, certification/compliance workflows, PLM integration), consider flagging whether it belongs in core or a future à la carte module. Enterprise-tier sales (Tier-1 automotive, aerospace) are a plausible later target but face real moats (PLM integration, certification, support contracts) price alone won't overcome — don't assume the low price point converts them directly.
+
+### Part-search dialog rewrite (`ui/dialogs/new_part_search.py`, built + partially wired 2026-09-03) — confirmed win
+Full from-scratch rewrite of `ui/dialogs/part_search.py`'s `SearchDialog`, triggered by chasing a real bug (a terminal part silently vanishing from the dialog's default view the second time it was placed into the same housing — traced to `initial_results`, a hidden IN-clause side-channel that made it opaque *why* any given result set showed up). Rather than patch that one cause, the whole dialog got redesigned around one principle: what's shown is always exactly what's in the visible search-box text, nothing hidden.
+
+**What it is:** a real mini query language typed into the search box (`gender: "Male" blade size: >=2.8`) — column-scoped clauses (`label: `), quoted phrases vs. bare words, comma=OR/space=AND, and 7 whitelisted comparison operators (`== != ~= >= <= > <`, closed set, no arithmetic/assignment tokens ever given meaning — explicit user security requirement, values always bound `?` params, identifiers only ever from a schema whitelist, never raw text). Filter-assist panels and a "did you mean" typo-check both write into that same text rather than holding separate state. Explicit Search button (not live-filter-per-keystroke) with red-span validation highlighting, a zero-result diagnostic ("try removing X"), and Config-backed per-table search history (`Config.part_search.history`, mirrors the `recent_projects` MRU pattern).
+
+**Results panel:** reverted mid-build back to the SAME `EditorList`-based page-class widget (e.g. `TerminalsPage`) `part_search.py` already used, after an initial purpose-built `QTableView` attempt — user's explicit call. `do_search()` just builds a WHERE clause via the new query language and hands it to that widget's own `set_filter()`, same as today's `_push_filter_to_page`. This also meant dropping a "Searching..." progress popup that had been built around an async results query — once results go through `set_filter()` (synchronous from the caller's side), there was no async gap left for it to cover.
+
+**Status (2026-09-03): wired into ONE caller so far** — `Terminal.start_add` in both `objects/objects_3d/terminal.py` and `objects/objects_schematic/terminal.py` (the `_get_cavity_compat_pns`/`_get_housing_compat_pns` blade-size-guessing SQL that caused the original bug is replaced by `_search_params_for_cavity`/`_search_params_for_housing`, building a `SearchParameters` seed instead of a precomputed part-number list). `part_search.py` itself and every other caller (wire, cover, seal, cpa_lock, tpa_lock, boot via housing.py, menu_ops.get_part_id — ~11 more call sites) are still on the old dialog, deliberately untouched, both as an easy rollback and as the remaining migration targets.
+
+**User feedback (2026-09-03), unprompted, after actually trying it:** "I can say I like that a whole lot better. It's also a heck of a lot faster than it used to be" — confirms both the UX rework and the performance side (batched numeric-stats query instead of one round trip per filterable column, concurrent FK-value queries instead of chained) as real, validated wins, not just design-doc theory.
+
+**How to apply:** When migrating another caller, follow the `Terminal.start_add` pattern exactly — build a `SearchParameters` (compat list → `part_number` phrase terms; calculated fallback → whatever real attributes are known, e.g. `gender_id`/`blade_size`) instead of a raw SQL part-number list, then construct `new_part_search.SearchDialog(mainframe, page_class, table, title, initial_params=...)`. No GUI-automation harness exists for this app (per the "Don't launch the app yourself" rule above) — verification during the build relied on: a real-PySide6 import test (catches wrong Qt API references / import paths — this is how a wrong `_AutoCompleter` import path was caught), the pure query-language core exercised against a real in-memory SQLite DB, and a real round-trip through the live `Config` DB for the history feature. **Full design background:** the plan this was built from is at `C:\Users\drsch\.claude\plans\smooth-jumping-gosling.md`.
 
 ---
 

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_3d
 
 
-class FocalPoint(_ObjectBase):
+class FocalTarget(_ObjectBase):
     """Represent a focal point in :mod:`harness_designer.gl.canvas3d.focal_target`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -47,27 +47,27 @@ class FocalPoint(_ObjectBase):
         super().__init__(canvas.mainframe, None)
 
         self.canvas = canvas
-        self.objschematic = FocalPoint2D(self)
-        self.obj3d = FocalPoint3D(self)
-        self.objpegboard = FocalPointPeg(self)
+        self.objschematic = FocalTarget2D(self)
+        self.obj3d = FocalTarget3D(self)
+        self.objpegboard = FocalTargetPeg(self)
 
 
-class FocalPointPeg(_generic_pegboard.Generic):
+class FocalTargetPeg(_generic_pegboard.Generic):
     pass
 
 
-class FocalPoint2D(_generic_schematic.Generic):
+class FocalTarget2D(_generic_schematic.Generic):
     pass
 
 
-class FocalPoint3D(_generic_3d.Generic):
+class FocalTarget3D(_generic_3d.Generic):
     """Represent a focal point 3D in :mod:`harness_designer.gl.canvas3d.focal_target`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, parent: FocalPoint):
+    def __init__(self, parent: FocalTarget):
         """Initialise the :class:`FocalPoint3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

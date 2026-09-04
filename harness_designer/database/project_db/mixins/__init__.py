@@ -21,6 +21,7 @@ from . import visible_pegboard as _visible_pegboard
 from . import notes as _notes
 from . import smooth as _smooth
 from . import scale3d as _scale3d
+from . import scale_pegboard as _scale_pegboard
 from . import color as _color
 
 
@@ -80,6 +81,9 @@ SmoothControl = _smooth.SmoothControl
 Scale3DMixin = _scale3d.Scale3DMixin
 Scale3DControl = _scale3d.Scale3DControl
 
+ScalePegboardMixin = _scale_pegboard.ScalePegboardMixin
+ScalePegboardControl = _scale_pegboard.ScalePegboardControl
+
 ColorMixin = _color.ColorMixin
 ColorControl = _color.ColorControl
 
@@ -105,4 +109,5 @@ del _visible_pegboard
 del _notes
 del _smooth
 del _scale3d
+del _scale_pegboard
 del _color

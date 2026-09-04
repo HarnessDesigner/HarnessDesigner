@@ -1,26 +1,38 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Seal placement for the 3D editor -- five placement modes depending on
-what ``objects.objects_3d.seal.Seal.start_add`` was given, ported
-verbatim from ``handlers.seal_handler.AddSealHandler``:
+"""Seal placement for the 3D editor -- what
+``objects.objects_3d.seal.Seal.start_add`` was given (*housing*/
+*terminal*/*cavity*) decides which project-wide scope to search, but for
+*housing* specifically it's the picked part's own **category** (SWS/
+MAT/PLUG/ACC -- see ``database.global_db.seal_type.SealType.category``)
+that decides what happens next, not a separate flag chosen before the
+part is even known. See TODO.md's own "Seal placement design spec"
+entry for the full spec this was built against.
 
-Mode 1a -- *housing* only (for_cavity=False)
-    MAT seal on the housing's own pre-defined seal slot.
-Mode 1b -- *housing* only, for_cavity=True
-    Plug/dummy-pin preview snaps interactively to this housing's own
-    empty cavities.
-Mode 2 -- *terminal* only
-    SWS seal at the midpoint of the terminal's own cavity.
-Mode 3 -- *cavity* only
-    Plug or dummy pin placed on the cavity.
-Mode 4 -- nothing given
+*housing* given, category PLUG
+    Preview snaps interactively to this housing's own empty cavities.
+*housing* given, category SWS
+    Preview snaps interactively to this housing's own terminals that
+    are seated in a cavity (never a bare cavity) -- a terminal whose
+    seated wire doesn't fit this seal's own opening is still snappable,
+    just flagged with a distinct highlight color (see
+    ``handlers.seal_handler.wire_seal_fit_ok``).
+*housing* given, any other category (MAT/ACC)
+    Instant -- seated on the housing's own pre-defined seal slot,
+    no interactive session.
+*terminal* only
+    SWS seal at the midpoint of the terminal's own cavity. Instant.
+*cavity* only
+    Plug or dummy pin placed on the cavity. Instant.
+Nothing given
     Free interactive placement; snaps to housings, terminals, or empty
-    cavities depending on the chosen seal's own type.
+    cavities project-wide depending on the chosen seal's own category.
 
 Every mode still arms an interactive session and waits for a
 confirming click (see ``_finalize``'s own ``is_instant`` branch) --
-only the free mode (4) and the housing-for-cavity mode (1b) actually
-move the preview around during hover.
+only the two housing-interactive cases and the free mode actually move
+the preview around during hover (see ``hover``'s own early-return on
+``self._is_instant``).
 """
 
 from typing import TYPE_CHECKING
@@ -71,13 +83,13 @@ def cavity_plug_pns(mainframe, max_dim: float) -> list:
 
 
 class Seal(_base.AddHandlerBase):
-    """Five-mode seal placement -- see the module docstring."""
+    """Category-driven seal placement -- see the module docstring."""
 
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
         housing: "_housing.Housing | None", terminal: "_terminal.Terminal | None",
-        cavity, for_cavity: bool, snap_targets: list, is_dummy_pin: bool
+        cavity, is_instant: bool, snap_targets: list, is_dummy_pin: bool
     ):
         super().__init__(canvas, target)
 
@@ -87,7 +99,7 @@ class Seal(_base.AddHandlerBase):
         self._housing = housing
         self._terminal = terminal
         self._cavity = cavity
-        self._for_cavity = for_cavity
+        self._is_instant = is_instant
         self._snap_targets = snap_targets
         self._is_dummy_pin = is_dummy_pin
         self._snapped = None
@@ -156,22 +168,23 @@ class Seal(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        is_interactive = (
-            self._for_cavity or
-            (self._housing is None and self._terminal is None and self._cavity is None)
-        )
-
-        if not is_interactive:
+        if self._is_instant:
             return
 
+        # Snap by perpendicular distance from the actual mouse ray, not
+        # by distance from a point unprojected onto the camera's own
+        # arbitrary focal-plane depth -- see SnapPool.query_ray's own
+        # docstring (same fix as add_handlers.editor_3d.terminal.
+        # Terminal.hover). Only the free-floating fallback (nothing
+        # snapped) still wants a single point.
         snap_pool = self.snap_pool
-        world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
-        snapped = snap_pool.query(world_pos)
+        origin, direction = self.camera.get_mouse_ray(mouse_pos)
+        snapped = snap_pool.query_ray(origin, direction) if origin is not None else None
 
         prev_snapped = self._snapped
 
         if snapped is None:
-            point = world_pos
+            point = self.camera.get_position_on_focal_plane(mouse_pos)
             self._snapped = None
             if prev_snapped is not None:
                 _handler_base.HandlerBase.reset_angle(self.target)
@@ -215,13 +228,7 @@ class Seal(_base.AddHandlerBase):
 
     @_check_types.do
     def _finalize(self) -> None:
-        is_instant = (
-            (self._housing is not None and not self._for_cavity)
-            or self._terminal is not None
-            or self._cavity is not None
-        )
-
-        if not is_instant:
+        if not self._is_instant:
             if self._snapped is None:
                 return
 

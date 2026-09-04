@@ -21,12 +21,22 @@ class Splice(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a splice -- reuses the real 3D
     mesh/material/scale the 3D editor already holds, laid flat via its
-    part's OBB-derived "up" face. A single freely-rotatable anchor (like
-    Housing/Terminal/Transition), not the start/stop-pair connector
-    geometry ``objects_3d.splice.Splice`` derives from the two wires it
-    joins -- ``PJTSplice`` only has ``position_pegboard``/
-    ``angle_pegboard`` for this view, not a peg-board equivalent of
-    ``StartStopPosition3DMixin``.
+    part's OBB-derived "up" face. Currently still a single freely-
+    rotatable anchor (like Housing/Terminal/Transition), anchored at
+    ``start_position_pegboard`` (``PJTSplice`` no longer has a single
+    generic ``position_pegboard`` -- that column was removed once the
+    peg-board view gained the same start/stop/branch points the 3D view
+    has, see ``StartStopPositionPegboardMixin``/``branch_position_pegboard``
+    on ``PJTSplice``).
+
+    TODO (per the user, 2026-09-02): the peg-board editor is no longer
+    meant to be its own simplified single-anchor representation -- the
+    plan is for it to become the same thing as the 3D view (the same
+    start/stop-pair connector geometry ``objects_3d.splice.Splice``
+    derives from the two/three wires it joins), just viewed through an
+    orthogonal camera instead of perspective. This class hasn't been
+    reworked to that yet; it still renders the old single-anchor way,
+    just re-pointed at a real column instead of the removed one.
     """
     db_obj: "_pjt_splice.PJTSplice"
 
@@ -61,7 +71,7 @@ class Splice(_base_pegboard.BasePegboard):
                 parent, db_obj,
                 vbo=vbo,
                 angle=db_obj.angle_pegboard,
-                position=db_obj.position_pegboard,
+                position=db_obj.start_position_pegboard,
                 scale=db_obj.scale3d,
                 material=_materials.Rubber(self._part.color.ui),
             )
@@ -69,14 +79,13 @@ class Splice(_base_pegboard.BasePegboard):
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
         # keyed by this splice's own peg-board point, not its 3D one
         # (see housing.py's own comment on why).
-        self.point3d_id = db_obj.position_pegboard_id
+        self.point3d_id = db_obj.start_position_pegboard_id
 
         # Seed a sensible initial peg-board position from the real 3D
         # position -- only the first time ever, same sentinel convention
-        # housing.py/terminal.py use (position_pegboard starts at the
-        # (0.0, 0.0) fresh-row default). Splice has no single position3d
-        # of its own (StartStopPosition3DMixin -- start/stop, not one
-        # point), so start_position3d is the closest equivalent anchor.
+        # housing.py/terminal.py use (start_position_pegboard starts at
+        # the (0.0, 0.0) fresh-row default). start_position3d is the same
+        # anchor this mirrors on the 3D side.
         if self._position.x == 0.0 and self._position.z == 0.0:
             pos3d = db_obj.start_position3d
             self._position.x = float(pos3d.x)

@@ -432,3 +432,178 @@ class PJTPointPegboard(PJTEntryBase):
         """
         delta = parent_point - self._stored_point_pegboard
         self._stored_point_pegboard += delta
+
+    @_check_types.do
+    def is_referenced(self) -> bool:
+        """Whether anything still references this point row -- checked by
+        :meth:`delete` before actually removing it.
+
+        **Phased rollout (see TODO.md's "Safe point-deletion / ownership
+        design spec" entry) -- wired in so far:**
+
+        - Phase 1 (2026-09-02): ``pjt_notes``.
+        - Phase 2 (2026-09-02): none -- boot/cover/cpa_lock/tpa_lock have
+          no peg-board presence at all (3D-only accessories), so nothing
+          to add here for that phase.
+        - Phase 3 (2026-09-02): ``pjt_seals`` (its own
+          ``point_pegboard_id``/``scale_pegboard_id``) and both possible
+          owners' own columns -- ``pjt_housings.seal_point_pegboard_id``
+          and ``pjt_terminals.seal_point_pegboard_id`` -- same shared-id
+          reasoning as :meth:`pjt_point3d.PJTPoint3D.is_referenced`'s own
+          Phase 2/3 entries.
+        - Phase 4 (2026-09-02): ``pjt_pegboard_tables`` (its own
+          ``point_pegboard_id``, keyed 1:1 to whichever anchor's own
+          ``table_point_peg_id`` this same point id also is) and every
+          anchor type that can have a peg-board data-table overlay --
+          ``pjt_housings``/``pjt_transitions``/
+          ``pjt_transition_branches``/``pjt_bundles``/``pjt_splices``'
+          own ``table_point_peg_id`` columns (see
+          ``TablePositionPegMixin``).
+        - Phase 5 (2026-09-02): the hub tables' own remaining peg-board
+          columns -- ``pjt_housings.point_pegboard_id`` (identity
+          anchor); ``pjt_cavities``' own ``point_pegboard_id`` (identity
+          anchor), ``terminal_point_pegboard_id`` and
+          ``wire_point_pegboard_id`` (peg-board mirrors of
+          ``terminal_point3d_id``/``wire_point3d_id``, same sharing
+          reasoning); ``pjt_terminals``' own ``point_pegboard_id``
+          (identity anchor), ``wire_point_pegboard_id``, and
+          ``attach_point_pegboard_id`` -- see
+          :meth:`pjt_point3d.PJTPoint3D.is_referenced`'s own Phase 5
+          entry for the full reasoning, mirrored here for peg-board.
+        - Phase 6 (2026-09-02): ``pjt_wires``/``pjt_bundles`` -- own
+          start/stop (forward reference) plus this point's own
+          ``wire_id``/``bundle_id`` self-tag (checked for whether that
+          wire/bundle still actually exists) -- see
+          :meth:`pjt_point3d.PJTPoint3D.is_referenced`'s own Phase 6
+          entry for the full reasoning.
+        - Phase 7 (2026-09-02): ``pjt_transitions``' own identity anchor
+          and ``pjt_transition_branches``' own point -- see
+          :meth:`pjt_point3d.PJTPoint3D.is_referenced`'s own Phase 7
+          entry for the full reasoning.
+        - Phase 8 (2026-09-02): ``pjt_wire_layouts``/``pjt_bundle_layouts``/
+          ``pjt_wire_markers`` (own ``point_pegboard_id``), ``pjt_splices``
+          (own ``start_point_pegboard_id``/``stop_point_pegboard_id``/
+          ``branch_point_pegboard_id``), and ``pjt_wire_service_loops``
+          (own ``start_point_pegboard_id``/``stop_point_pegboard_id``).
+
+        Until every phase lands, this can still return ``False`` for a
+        point that's actually in live use via a column this method
+        doesn't know about yet -- do not treat a ``False`` result as a
+        global guarantee of safety before the rollout is complete.
+        """
+        db = self._table.db
+
+        if db.pjt_notes_table.select(
+            'id', OR=True, point_pegboard_id=self.db_id, scale_pegboard_id=self.db_id
+        ):
+            return True
+
+        if db.pjt_seals_table.select(
+            'id', OR=True, point_pegboard_id=self.db_id, scale_pegboard_id=self.db_id
+        ):
+            return True
+
+        if db.pjt_housings_table.select('id', seal_point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_terminals_table.select('id', seal_point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_pegboard_tables_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        for table in (
+            db.pjt_housings_table, db.pjt_transitions_table,
+            db.pjt_transition_branches_table, db.pjt_bundles_table,
+            db.pjt_splices_table,
+        ):
+            if table.select('id', table_point_peg_id=self.db_id):
+                return True
+
+        if db.pjt_housings_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_cavities_table.select(
+            'id', OR=True, point_pegboard_id=self.db_id,
+            terminal_point_pegboard_id=self.db_id, wire_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_terminals_table.select(
+            'id', OR=True, point_pegboard_id=self.db_id,
+            wire_point_pegboard_id=self.db_id, attach_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        # Phase 6 (2026-09-02): pjt_wires/pjt_bundles -- own start/stop
+        # (forward reference) plus the backward, count-unknown interior-
+        # waypoint case (this point's own wire_id/bundle_id tag, checked
+        # for whether that wire/bundle still actually exists -- see
+        # pjt_point3d.PJTPoint3D.is_referenced's own inline comment for
+        # the full reasoning).
+        if self.wire_id is not None and self.wire_id in db.pjt_wires_table:
+            return True
+
+        if self.bundle_id is not None and self.bundle_id in db.pjt_bundles_table:
+            return True
+
+        if db.pjt_wires_table.select(
+            'id', OR=True,
+            start_point_pegboard_id=self.db_id, stop_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_bundles_table.select(
+            'id', OR=True,
+            start_point_pegboard_id=self.db_id, stop_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        # Phase 7 (2026-09-02): pjt_transitions' own identity anchor, and
+        # pjt_transition_branches' own point -- see
+        # pjt_point3d.PJTPoint3D.is_referenced's own Phase 7 entry for
+        # the full reasoning.
+        if db.pjt_transitions_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_transition_branches_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        # Phase 8 (2026-09-02): the remaining markers/multi-point
+        # objects -- see pjt_point3d.PJTPoint3D.is_referenced's own
+        # Phase 8 entry for the full reasoning, mirrored here for
+        # peg-board.
+        if db.pjt_wire_layouts_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_bundle_layouts_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_wire_markers_table.select('id', point_pegboard_id=self.db_id):
+            return True
+
+        if db.pjt_splices_table.select(
+            'id', OR=True, start_point_pegboard_id=self.db_id,
+            stop_point_pegboard_id=self.db_id, branch_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        if db.pjt_wire_service_loops_table.select(
+            'id', OR=True,
+            start_point_pegboard_id=self.db_id, stop_point_pegboard_id=self.db_id,
+        ):
+            return True
+
+        return False
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this point row -- but only if :meth:`is_referenced`
+        says nothing still needs it. See
+        :meth:`pjt_point3d.PJTPoint3D.delete`'s own docstring for the
+        full reasoning (same safety-checked override, mirrored here).
+        """
+        if self.is_referenced():
+            return
+
+        super().delete()

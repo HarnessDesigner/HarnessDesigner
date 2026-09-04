@@ -288,33 +288,63 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
     @_check_types.do
     def delete(self) -> None:
-        """Delete this wire row, every interior waypoint row it owns, and
-        any WireLayout marking one of those waypoints.
+        """Delete this wire row and any WireLayout marking one of its
+        interior waypoints. The waypoint point rows themselves are left
+        alone -- deliberately, not an oversight.
+
+        A waypoint point is not necessarily owned by this wire alone: a
+        terminal's/cavity's own back-routing point is tagged as a
+        waypoint on whichever wire is its terminal's/cavity's *first*
+        attached wire (see Terminal.add_wire/_own_or_cloned_point_id --
+        the first wire reuses that shared point directly, no clone), so
+        deleting it here would silently corrupt the terminal's/cavity's
+        own stored point reference the next time a wire is attached
+        (confirmed 2026-09-01: deleting a wire left a terminal's
+        wire_point3d_id pointing at a now-deleted row, crashing the next
+        add-wire attempt on that same terminal with an IndexError deep in
+        Terminal.add_wire). No general way to tell "this wire's own
+        exclusive waypoint" from "a shared anchor point borrowed as a
+        waypoint" apart at delete time -- so neither gets deleted here.
+
+        Orphaned points are swept up later instead (see TODO.md), not
+        deleted eagerly per-object -- a project-wide pass that checks
+        whether a point is still referenced by anything before removing
+        it, run at project close or on an interval, not written yet.
 
         wire_id on pjt_points2d/pjt_points3d has no DB-enforced FK (see
         create_database/points2d.py/points3d.py -- a real FK back to
         pjt_wires would be a circular module import), so there is no
-        cascade delete to rely on; waypoint rows -- and any WireLayout
-        that references one -- are cleaned up here explicitly instead
-        (deleting the point but leaving its layout behind would orphan a
-        row referencing a now-deleted point3d/point2d id). Start/stop
-        themselves are never touched -- they're owned by whatever
-        terminal/splice/service-loop/other wire the endpoint is attached
-        to, not by this wire.
+        cascade delete to rely on for the WireLayout markers either;
+        those ARE still cleaned up here explicitly (deleting a wire but
+        leaving a WireLayout referencing one of its waypoints would leave
+        a dangling, meaningless marker -- unlike the underlying point,
+        nothing else can ever come along and reuse a WireLayout row).
+        Start/stop themselves are never touched -- they're owned by
+        whatever terminal/splice/service-loop/other wire the endpoint is
+        attached to, not by this wire.
+
+        Also cascades to every ``WireMarker`` attached to this wire (see
+        :attr:`wire_markers`) -- a marker is meaningless without the wire
+        it labels. Each marker's own ``delete()`` (plain
+        ``PJTEntryBase.delete()`` -- no override) never touches its own
+        ``point3d_id``/``point2d_id``/``point_pegboard_id``, same "no
+        object deletes points directly" rule as everywhere else in this
+        design (Phase 8 of the point-safety-check rollout, 2026-09-02,
+        see TODO.md).
         """
         layouts_table = self._table.db.pjt_wire_layouts_table
 
         for point in self.waypoints3d:
             delete_layouts_at(layouts_table, 'point3d_id', point.db_id)
-            point.delete()
 
         for point in self.waypoints2d:
             delete_layouts_at(layouts_table, 'point2d_id', point.db_id)
-            point.delete()
 
         for point in self.waypoints_pegboard:
             delete_layouts_at(layouts_table, 'point_pegboard_id', point.db_id)
-            point.delete()
+
+        for marker in self.wire_markers:
+            marker.delete()
 
         super().delete()
 

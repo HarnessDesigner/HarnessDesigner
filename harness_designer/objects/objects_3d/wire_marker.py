@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
 
@@ -57,15 +59,24 @@ class WireMarker(_base_3d.Base3D):
             self._part = db_obj.part
             position = db_obj.position3d
             wire = db_obj.wire
-            wire_p1 = wire.start_position3d
-            wire_p2 = wire.stop_position3d
+
+            # Bound by whichever of the wire's sub-segments (start<->first
+            # waypoint, waypoint<->waypoint, ..., last waypoint<->stop) the
+            # marker actually sits on -- a bent wire's own start/stop
+            # endpoints alone would put the marker on the wrong straight
+            # chord (see _segment_for_point).
+            wire_p1, wire_p2 = self._segment_for_point(wire, position)
 
             # self._position is the marker's CENTER, and the marker itself
             # spans self._marker_length along the wire, so its center can
             # never come closer to either endpoint than half that length --
             # otherwise it hangs off the end of a short enough wire. _buffer
             # adds a further 3mm of clearance on top of that half-length.
-            self._marker_length = 5.0
+
+            diameter = wire.part.od_mm
+
+            self._marker_length = diameter * 5.0
+
             self._buffer = self._marker_length / 2.0 + 3.0
 
             line = _line.Line(wire_p2, wire_p1)
@@ -92,10 +103,9 @@ class WireMarker(_base_3d.Base3D):
             color = _color.Color(0.05, 0.05, 0.05, 1.0)
 
             length = self._marker_length
-            diameter = wire.part.od_mm
 
             if wire.has_stripe:
-                scale = _point.Point(diameter + 0.22, diameter + 0.22, length)
+                scale = _point.Point(diameter + 0.26, diameter + 0.26, length)
             else:
                 scale = _point.Point(diameter + 0.05, diameter + 0.05, length)
 
@@ -127,6 +137,46 @@ class WireMarker(_base_3d.Base3D):
             self.db_obj.smooth = value
         except AttributeError:
             pass
+
+    @staticmethod
+    @_check_types.do
+    def _segment_for_point(
+        wire: "_pjt_wire.PJTWire", position: _point.Point
+    ) -> tuple[_point.Point, _point.Point]:
+        """Return the (p1, p2) Points bounding whichever sub-segment of
+        *wire*'s current path -- start, through each interior waypoint in
+        idx order, to stop -- *position* sits closest to.
+
+        Mirrors objects_3d.mixins.wire_type.WireTypeMixin._segments'/
+        _point_on_wire's own walk over the same start->waypoints->stop
+        path, needed here as a standalone helper because a WireMarker
+        binds directly to a PJTWire row, not to that wire's own 3D facade
+        object.
+        """
+        points = [wire.start_position3d]
+        for waypoint in wire.waypoints3d:
+            points.append(waypoint.point)
+        points.append(wire.stop_position3d)
+
+        best_pair = (points[0], points[1])
+        best_dist = None
+
+        for p1, p2 in zip(points, points[1:]):
+            seg = p2.as_numpy - p1.as_numpy
+            seg_len_sq = float(np.dot(seg, seg))
+            if seg_len_sq < 1e-12:
+                continue
+
+            t = max(0.0, min(1.0, float(np.dot(
+                position.as_numpy - p1.as_numpy, seg)) / seg_len_sq))
+            closest = p1.as_numpy + t * seg
+            dist = float(np.sum((position.as_numpy - closest) ** 2))
+
+            if best_dist is None or dist < best_dist:
+                best_dist = dist
+                best_pair = (p1, p2)
+
+        return best_pair
 
     @_check_types.do
     def _wire_too_short(self, length: float) -> bool:
@@ -256,8 +306,7 @@ class WireMarker(_base_3d.Base3D):
         self._p1.unbind(self._update_position)
         self._p2.unbind(self._update_position)
 
-        self._p1 = wire_db_obj.start_position3d
-        self._p2 = wire_db_obj.stop_position3d
+        self._p1, self._p2 = self._segment_for_point(wire_db_obj, self._position)
 
         self._p1.bind(self._update_position)
         self._p2.bind(self._update_position)

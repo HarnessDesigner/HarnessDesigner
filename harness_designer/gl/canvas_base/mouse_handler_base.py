@@ -20,6 +20,7 @@ import math
 from typing import TYPE_CHECKING
 
 from PySide6 import QtCore
+from PySide6 import QtGui
 
 from .. import object_picker as _object_picker
 from ...geometry import point as _point
@@ -48,6 +49,41 @@ MOUSE_REVERSE_WHEEL_AXIS = _config.MOUSE_REVERSE_WHEEL_AXIS
 MOUSE_SWAP_AXIS = _config.MOUSE_SWAP_AXIS
 
 _EPSILON = 1e-6
+
+# Mouse-wheel easing (see on_mouse_wheel/_on_wheel_tick): a physical wheel
+# notch is one discrete hardware event with nothing to interpolate between
+# notches on its own, so applying its full step instantly always reads as
+# a visible "hard step" no matter how small the per-notch step is -- the
+# fix is to ease each notch's contribution in over several frames instead
+# of applying it in one shot, the same way a trackpad/smooth-scroll wheel
+# already feels continuous.
+_WHEEL_TICK_MS = 16          # ~60Hz easing tick rate
+_WHEEL_EASE_RATIO = 0.35     # fraction of the still-pending distance applied per tick
+_WHEEL_STOP_THRESHOLD = 0.01  # pending distance below which the ease-out is done
+
+# Caps how much distance can ever sit in the pending buffer at once --
+# without this, a long/fast scroll burst keeps adding to the same pending
+# total (see on_mouse_wheel) and the ease-out then keeps "coasting" for
+# proportionally longer the more you scrolled, so the camera visibly
+# keeps moving well after you've actually stopped turning the wheel.
+# Capping it bounds the coast-after-stop tail to a short, fixed length
+# (roughly the time to ease out this many notches) regardless of how
+# long or fast the scroll burst was -- it still smooths out a notch (or
+# a couple of notches landing close together), it just can never build
+# into an open-ended glide.
+_WHEEL_MAX_PENDING = 2.0
+
+# Hard stop, tied directly to wheel input specifically (not whatever
+# movement type the wheel happens to be bound to -- a mouse-button+drag
+# rebound onto the same movement doesn't have this discrete-notch problem
+# at all, so it gets none of this wheel-only machinery): reset on every
+# wheel event, and if this much time passes with no new wheel event, the
+# easing timer is stopped outright and any still-pending distance is
+# dropped, rather than left to keep decaying on its own. _WHEEL_MAX_PENDING
+# already keeps the natural decay short, but this guarantees motion never
+# continues past a point genuinely tied to "the user stopped scrolling",
+# not just "the buffer happened to empty out around when they stopped".
+_WHEEL_IDLE_MS = 500
 
 
 @_check_types.do
@@ -113,6 +149,20 @@ class MouseHandlerBase:
         # bookkeeping below), so a handler always gets a real previous
         # position even across a plain hover with no button held.
         self._last_dispatch_pos: _point.Point | None = None
+
+        # Wheel easing state -- see on_mouse_wheel/_on_wheel_tick.
+        self._wheel_pending = 0.0
+        self._wheel_timer = QtCore.QTimer()
+        self._wheel_timer.setInterval(_WHEEL_TICK_MS)
+        self._wheel_timer.timeout.connect(self._on_wheel_tick)
+
+        # Idle-stop watchdog -- restarted on every wheel event, fires
+        # (once, see _WHEEL_IDLE_MS's own comment) only once that much
+        # time has passed with no further wheel input.
+        self._wheel_idle_timer = QtCore.QTimer()
+        self._wheel_idle_timer.setInterval(_WHEEL_IDLE_MS)
+        self._wheel_idle_timer.setSingleShot(True)
+        self._wheel_idle_timer.timeout.connect(self._on_wheel_idle)
 
     # ------------------------------------------------------------------
     # Qt event filter dispatcher
@@ -376,13 +426,96 @@ class MouseHandlerBase:
             self.config.dolly.mouse is not None and
             self.config.dolly.mouse & code
         ):
-            def _wrapper(dx, dy):
 
-                if self.config.dolly.mouse & MOUSE_SWAP_AXIS:
-                    dy, dx = dx, dy
+            if (
+                self.config.walk.mouse is not None and
+                self.config.walk.mouse & code
+            ):
+                def _wrapper(dx, dy):
 
-                sens = self.config.dolly.sensitivity
-                self.canvas.camera.Dolly(dx * sens)
+                    if dy == 0.0:
+                        # dy == 0.0 here means this call came from the
+                        # wheel (see on_mouse_wheel/_on_wheel_tick, which
+                        # only ever pass (step, 0.0)) -- dolly and walk
+                        # are BOTH bound to MOUSE_WHEEL in editor_3d's
+                        # config, dolly claims the code first (checked
+                        # above walk in this if/elif chain), so this is
+                        # where that overlap has to be handled explicitly:
+                        # dolly the camera AND turn it, together, on the
+                        # same wheel tick.
+                        #
+                        # Edge-relative turn: driven by where the cursor
+                        # CURRENTLY sits relative to the viewport's own
+                        # center, not by dx (the wheel's own eased delta,
+                        # which only drives the dolly amount below) --
+                        # scaled by walk.sensitivity, same as every other
+                        # movement type in this file. No smoothing/timer
+                        # of its own needed here either: since this
+                        # branch is reached once per already-eased wheel
+                        # tick (see _on_wheel_tick), the turn naturally
+                        # arcs in smoothly right along with the dolly
+                        # instead of jumping to the full deflection in
+                        # one step.
+                        global_pos = QtGui.QCursor.pos()  # QPoint, screen coordinates
+                        local_pos = self.canvas.mapFromGlobal(global_pos)  # QPoint, widget-local coordinates
+
+                        vx, vy, vw, vh = self.canvas.camera.viewport
+                        center_x = vx + (vw / 2.0)
+                        center_y = vy + (vh / 2.0)
+
+                        lx = local_pos.x()
+                        ly = local_pos.y()
+
+                        if self.config.walk.mouse & MOUSE_SWAP_AXIS:
+                            lx, ly = ly, lx
+
+                        walk_sens = self.config.walk.sensitivity * 0.005
+                        yaw = (lx - center_x) * walk_sens
+                        pitch = (ly - center_y) * walk_sens
+
+                        if self.config.walk.mouse & MOUSE_REVERSE_X_AXIS:
+                            yaw = -yaw
+
+                        if self.config.walk.mouse & MOUSE_REVERSE_Y_AXIS:
+                            pitch = -pitch
+
+                        self.canvas.PanTilt(yaw, pitch)
+
+                        if self.config.dolly.mouse & MOUSE_SWAP_AXIS:
+                            dy, dx = dx, dy
+
+                        sens = self.config.dolly.sensitivity
+                        self.canvas.camera.Dolly(dx * sens)
+
+                        return
+
+                    if self.config.walk.mouse & MOUSE_SWAP_AXIS:
+                        dy, dx = dx, dy
+
+                    look_dx = dx
+                    if self.config.walk.mouse & MOUSE_REVERSE_X_AXIS:
+                        dx = -dx
+
+                    if self.config.walk.mouse & MOUSE_REVERSE_Y_AXIS:
+                        dy = -dy
+
+                    sens = self.config.walk.sensitivity
+                    self.canvas.camera.Walk(
+                        dx * sens, dy * sens, self.config.walk.speed
+                    )
+
+                    self.canvas.PanTilt(look_dx * 2.0, 0.0)
+
+                return _wrapper
+
+            else:
+                def _wrapper(dx, dy):
+
+                    if self.config.dolly.mouse & MOUSE_SWAP_AXIS:
+                        dy, dx = dx, dy
+
+                    sens = self.config.dolly.sensitivity
+                    self.canvas.camera.Dolly(dx * sens)
 
             return _wrapper
 
@@ -888,7 +1021,57 @@ class MouseHandlerBase:
         if self.config.walk.mouse is not None and self.config.walk.mouse & MOUSE_WHEEL:
             self._orient_to_mouse_on_focal_plane(_qt_pos(evt), delta)
 
-        self._process_mouse(MOUSE_WHEEL)(delta, 0.0)
+        # Accumulate rather than apply instantly -- _on_wheel_tick eases
+        # this notch's contribution in over several frames instead of
+        # moving the camera the full step in one shot (see the module-
+        # level comment on _WHEEL_TICK_MS/_WHEEL_EASE_RATIO for why).
+        # Clamped to _WHEEL_MAX_PENDING (see its own comment) so a long
+        # scroll burst can't build up an ever-growing tail that keeps
+        # the camera coasting well after the wheel itself stops moving.
+        if (
+            (delta < 0 < self._wheel_pending) or
+            (delta > 0 > self._wheel_pending)
+        ):
+            self._wheel_pending = delta
+        else:
+            self._wheel_pending += delta
+
+        if not self._wheel_timer.isActive():
+            self._wheel_timer.start()
+
+        # (Re)start the idle watchdog on every wheel event -- calling
+        # start() on an already-running QTimer resets its countdown, so
+        # this only actually fires _WHEEL_IDLE_MS after the LAST wheel
+        # event, not the first.
+        self._wheel_idle_timer.start()
+
+    @_check_types.do
+    def _on_wheel_idle(self) -> None:
+        """Stop the wheel-easing timer outright once no new wheel event
+        has arrived for `_WHEEL_IDLE_MS` -- see that constant's own
+        comment for why this exists alongside `_WHEEL_MAX_PENDING`.
+        """
+        self._wheel_pending = 0.0
+        self._wheel_timer.stop()
+
+    @_check_types.do
+    def _on_wheel_tick(self) -> None:
+        """Apply one eased-out slice of the accumulated wheel movement.
+
+        Ease-out: each tick consumes a fixed fraction of whatever's still
+        pending, so motion starts at roughly the speed a plain instant
+        apply would have and decays smoothly to a stop instead of
+        cutting off abruptly the moment the wheel itself stops moving.
+        """
+        if abs(self._wheel_pending) < _WHEEL_STOP_THRESHOLD:
+            self._wheel_pending = 0.0
+            self._wheel_timer.stop()
+            return
+
+        step = self._wheel_pending * _WHEEL_EASE_RATIO
+        self._wheel_pending -= step
+
+        self._process_mouse(MOUSE_WHEEL)(step, 0.0)
         self.canvas.repaint()
 
     @_check_types.do

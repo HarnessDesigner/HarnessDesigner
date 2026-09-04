@@ -119,15 +119,23 @@ class Cover(_base_3d.Base3D):
 
         canvas = mainframe.editor3d.editor
 
-        compat_covers = [] if housing is None else housing.db_obj.part.compat_covers_array
+        if housing is None:
+            compat_covers = []
+        else:
+            compat_covers = housing.db_obj.part.compat_covers_array
 
         part_id = mainframe.editor_db.editor.covers.GetSelection()
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.CoversPage, title='Add Cover',
-                table=mainframe.global_db.covers_table, initial_results=compat_covers)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.CoversPage, mainframe.global_db.covers_table, 'Add Cover',
+                initial_params=_part_search.SearchParameters.from_part_numbers(compat_covers))
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:

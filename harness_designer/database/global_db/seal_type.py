@@ -2,7 +2,7 @@
 
 from typing import Iterable as _Iterable
 
-from .bases import EntryBase, TableBase
+from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin
 from ... import check_types as _check_types
 
@@ -90,18 +90,19 @@ class SealTypesTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, name: str) -> "SealType":
-        """Execute the insert operation.
+    def insert(self, name: str, category: str) -> "SealType":
+        """Insert a new seal type row.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param name: Name value.
-        :type name: str
-        :returns: Return value. UNKNOWN details.
+        :param name: Manufacturer-facing type name (unique).
+        :param category: One of ``create_database.seal_types.CATEGORIES``
+            -- required, since this is what a placement session actually
+            branches on (see ``add_handlers.editor_3d.seal``), independent
+            of whatever free-text *name* a manufacturer happens to use.
+        :returns: The newly-inserted row.
         :rtype: :class:`SealType`
         """
 
-        db_id = TableBase.insert(self, name=name)
+        db_id = TableBase.insert(self, name=name, category=category)
         return SealType(self, db_id)
 
     @property
@@ -123,3 +124,33 @@ class SealType(EntryBase, NameMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: SealTypesTable = None
+
+    _stored_category: DefaultStoredValueType | str = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def category(self) -> str:
+        """Return this type's category (one of
+        ``create_database.seal_types.CATEGORIES``) -- what placement
+        logic (see ``add_handlers.editor_3d.seal``) actually branches
+        on, independent of this type's own manufacturer-facing
+        :attr:`name`.
+
+        :rtype: str
+        """
+        if self._stored_category is DefaultStoredValue:
+            self._stored_category = self._table.select('category', id=self._db_id)[0][0]
+
+        return self._stored_category
+
+    @category.setter
+    @_check_types.do
+    def category(self, value: str):
+        """Set this type's category.
+
+        :param value: One of ``create_database.seal_types.CATEGORIES``.
+        :type value: str
+        """
+        self._stored_category = value
+        self._table.update(self._db_id, category=value)
+        self._populate('category')

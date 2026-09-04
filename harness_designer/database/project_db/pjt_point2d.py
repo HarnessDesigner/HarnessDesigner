@@ -282,3 +282,95 @@ class PJTPoint2D(PJTEntryBase):
         self._stored_x = x
         self._stored_y = y
         self._table.update(self._db_id, x=x, y=y)
+
+    @_check_types.do
+    def is_referenced(self) -> bool:
+        """Whether anything still references this point row -- checked by
+        :meth:`delete` before actually removing it.
+
+        **Phased rollout (see TODO.md's "Safe point-deletion / ownership
+        design spec" entry) -- wired in so far:**
+
+        - Phase 1 (2026-09-02): ``pjt_concentric_wires``/``pjt_notes``.
+        - Phase 5 (2026-09-02): the hub tables' own 2D columns --
+          ``pjt_housings.point2d_id`` (identity anchor), ``pjt_cavities.
+          point2d_id`` (identity anchor), ``pjt_terminals.point2d_id``
+          (identity anchor -- this terminal's own name-anchor position,
+          distinct from ``wire_point2d_id`` below) and
+          ``pjt_terminals.wire_point2d_id`` (the far end of the wire-stub
+          line in the schematic view -- see ``objects/terminal.py``'s own
+          docstring on why that's a separate point from ``point2d_id``).
+        - Phase 6 (2026-09-02): ``pjt_wires`` -- own start/stop (forward
+          reference) plus this point's own ``wire_id`` self-tag (checked
+          for whether that wire still actually exists). No ``bundle_id``
+          here -- bundles have no 2D/schematic presence at all.
+        - Phase 8 (2026-09-02): ``pjt_wire_layouts``/``pjt_wire_markers``
+          (own ``point2d_id``) and ``pjt_splices`` (own ``point2d_id``).
+
+        See :meth:`pjt_point3d.PJTPoint3D.is_referenced`'s own docstring
+        for the full caveat about later phases still to land.
+        """
+        db = self._table.db
+
+        if db.pjt_concentric_wires_table.select('id', point2d_id=self.db_id):
+            return True
+
+        if db.pjt_notes_table.select(
+            'id', OR=True, point2d_id=self.db_id, scale2d_id=self.db_id
+        ):
+            return True
+
+        if db.pjt_housings_table.select('id', point2d_id=self.db_id):
+            return True
+
+        if db.pjt_cavities_table.select('id', point2d_id=self.db_id):
+            return True
+
+        if db.pjt_terminals_table.select(
+            'id', OR=True, point2d_id=self.db_id, wire_point2d_id=self.db_id
+        ):
+            return True
+
+        # Phase 6 (2026-09-02): pjt_wires -- own start/stop (forward
+        # reference) plus the backward, count-unknown interior-waypoint
+        # case (this point's own wire_id tag, checked for whether that
+        # wire still actually exists -- see
+        # pjt_point3d.PJTPoint3D.is_referenced's own inline comment for
+        # the full reasoning). No bundle_id here -- bundles have no 2D/
+        # schematic presence at all.
+        if self.wire_id is not None and self.wire_id in db.pjt_wires_table:
+            return True
+
+        if db.pjt_wires_table.select(
+            'id', OR=True, start_point2d_id=self.db_id, stop_point2d_id=self.db_id
+        ):
+            return True
+
+        # Phase 8 (2026-09-02): pjt_wire_layouts/pjt_wire_markers (own
+        # point2d_id, ordinary forward references) and pjt_splices (own
+        # point2d_id -- often the same id as a wire's own start/stop
+        # point2d, already caught above, checked again for
+        # defensiveness). No bundle_layouts/wire_service_loops here --
+        # neither has any 2D/schematic presence at all.
+        if db.pjt_wire_layouts_table.select('id', point2d_id=self.db_id):
+            return True
+
+        if db.pjt_wire_markers_table.select('id', point2d_id=self.db_id):
+            return True
+
+        if db.pjt_splices_table.select('id', point2d_id=self.db_id):
+            return True
+
+        return False
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this point row -- but only if :meth:`is_referenced`
+        says nothing still needs it. See
+        :meth:`pjt_point3d.PJTPoint3D.delete`'s own docstring for the
+        full reasoning (same safety-checked override, mirrored here).
+        """
+        if self.is_referenced():
+            return
+
+        super().delete()

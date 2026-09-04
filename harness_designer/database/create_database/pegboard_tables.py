@@ -4,14 +4,17 @@
 
 One row per anchor that has a visible Excel-like data table overlaid on the
 peg-board view. Stores the table's geometry (in world units, not pixels --
-``x``/``z``, matching ``pjt_points3d``'s own axis names, since this is a
-real world position with Y pinned to 0, not a generic 2D x/y pair) and its
-scroll/collapse state. Keyed purely by ``point3d_id`` -- the same identity
-key an anchor's own ``objects.objects_pegboard.base_pegboard.BasePegboard.point3d_id`` uses.
+``x``/``z``, matching ``pjt_points_pegboard``'s own axis names, since this is
+a real world position with Y pinned to 0, not a generic 2D x/y pair) and its
+scroll/collapse state. Keyed purely by ``point_pegboard_id`` -- the same
+identity key an anchor's own
+``objects.objects_pegboard.base_pegboard.BasePegboard.point3d_id`` uses (that
+Python attribute is misleadingly named -- it always holds a
+``pjt_points_pegboard`` row id, never a ``pjt_points3d`` one).
 """
 
 from . import projects as _projects
-from . import points3d as _points3d
+from . import points_pegboard as _points_pegboard
 
 from .. import db_connectors as _con
 
@@ -21,11 +24,11 @@ pjt_id_field = _con.UUIDField('id', is_primary=True)
 pjt_table = _con.SQLTable(
     'pjt_pegboard_tables',
     pjt_id_field,
-    _con.UUIDField('point3d_id', no_null=True, is_unique=True,
-                  references=_con.SQLFieldReference(_points3d.pjt_table,
-                                                    _points3d.pjt_id_field,
-                                                    on_delete=_con.REFERENCE_CASCADE,
-                                                    on_update=_con.REFERENCE_CASCADE)),
+    _con.UUIDField('point_pegboard_id', no_null=True,
+                  references=_con.SQLFieldReference(_points_pegboard.pjt_table,
+                                                    _points_pegboard.pjt_id_field,
+                                                    on_delete=_con.REFERENCE_NO_ACTION,
+                                                    on_update=_con.REFERENCE_NO_ACTION)),
     _con.FloatField('x', no_null=True),
     _con.FloatField('z', no_null=True),
     _con.FloatField('width', no_null=True),

@@ -84,5 +84,5 @@ table = _con.SQLTable(
     _con.UUIDField('mfg_id', default="X'00000000000000000000000000000000'", no_null=True,
                   references=_con.SQLFieldReference(_manufacturers.table,
                                                     _manufacturers.id_field,
-                                                    on_update=_con.REFERENCE_CASCADE))
+                                                    on_update=_con.REFERENCE_NO_ACTION))
 )

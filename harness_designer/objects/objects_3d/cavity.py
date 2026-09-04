@@ -159,16 +159,16 @@ class Cavity(_base_3d.Base3D):
             return _point.Point(float(center[0]), float(center[1]), float(center[2]))
 
         return None
-
-    @_check_types.do
-    def _update_position(self, position: _point.Point):
-        accessory = self.db_obj.terminal or self.db_obj.seal
-        if accessory is not None:
-            delta = position - self._o_position
-            pos = accessory.position3d
-            pos += delta
-
-        super()._update_position(position)
+    #
+    # @_check_types.do
+    # def _update_position(self, position: _point.Point):
+    #     accessory = self.db_obj.terminal or self.db_obj.seal
+    #     if accessory is not None:
+    #         delta = position - self._o_position
+    #         pos = accessory.position3d
+    #         pos += delta
+    #
+    #     super()._update_position(position)
 
     @property
     @_check_types.do

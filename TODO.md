@@ -10,6 +10,202 @@ be intentional/non-issue.
 
 ## Open
 
+- **Safe point-deletion / ownership design spec (given verbatim by the
+  user, 2026-09-02) -- not started, captured before implementing so it
+  survives context compaction.** Grew out of the wire-add-to-terminal bug
+  (`PJTWire.delete()` was deleting a terminal's own shared back-routing
+  point when a wire got deleted, orphaning the terminal's `wire_point3d_id`
+  -- see the "Resolved" section below once this lands, and the schema
+  audit entries already done 2026-09-02 for the full column inventory).
+
+  **Ground rule already implemented:** no object's own `delete()` method
+  is ever allowed to delete a `pjt_points3d`/`pjt_points2d`/
+  `pjt_points_pegboard` row directly (`PJTWire.delete()`/`PJTBundle.delete()`
+  fixed 2026-09-02 to stop doing this). Points are only ever removed by a
+  future project-wide orphan sweep (not written yet -- run at project
+  close or on an interval) that checks whether *anything* still
+  references a point before deleting it.
+
+  **Still to design/implement -- the actual "is this point safe to
+  delete" check, and the cascade-delete rules between OBJECT rows (never
+  point rows) that the sweep and delete() methods need to respect:**
+
+  1. **Implementation shape (per the user):** the check has to live on
+     the point row classes themselves (`PJTPoint3D`/`PJTPoint2D`/
+     `PJTPointPegboard`), and it has to use real SQL so all the
+     information needed for one point can be pulled in one round trip --
+     not N separate `.select()` calls across ~20 tables per point.
+  2. **Two distinct reference shapes to check:**
+     - **Forward FK columns** -- a table has a named column pointing at
+       a point's id (the full inventory of these, all ~70 columns across
+       ~20 `pjt_*` tables, was catalogued and made schema-complete
+       2026-09-02 -- see the two schema-audit TODO entries above/below
+       this one... actually see git history/MEMORY.md for that pass,
+       since this entry doesn't re-list them).
+     - **Backward, count-unknown references** -- the *point itself*
+       carries the tag, because the owner can have an unknown number of
+       these and there's no fixed column to name each one:
+       - Wire waypoints: `pjt_points3d/2d/pegboard.wire_id` (+`idx`) on
+         the point row itself, pointing at `pjt_wires`.
+       - Bundle waypoints: same shape, `bundle_id` pointing at
+         `pjt_bundles`.
+       - Transition branches: not a point-level tag, but the same
+         "unknown count of children" shape one level up --
+         `pjt_transition_branches.transition_id` points backward at the
+         owning `pjt_transitions` row (a transition has no fixed list of
+         branch columns); each branch row then has its own ordinary
+         forward-referencing points (`point3d_id`/`point_pegboard_id`/
+         `table_point_peg_id`), already covered by the forward-FK case.
+         (Confirmed 2026-09-02: `PJTTransitionBranch` has no custom
+         `delete()` at all, so it doesn't have the same "deletes its own
+         shared point" bug `PJTWire`/`PJTBundle` had -- nothing to fix
+         there, just noting it for the safety-check design.)
+
+  3. **Ownership model, with the user's own worked examples verbatim:**
+     A point can be *owned* by one entity (whichever entity's column is
+     where the point was originally created/persisted) while being
+     *borrowed*/shared by others. Ownership drives which OBJECT rows
+     cascade-delete together -- it never means the point itself gets
+     deleted as part of that cascade.
+
+     - **Cover/Housing:** "a cover is attached to a housing point and if
+       the housing is deleted the cover should be deleted as well. BUT
+       the cover is able to be deleted separately from the housing and
+       when it is deleted its position should not be deleted because the
+       housing technically owns that position." -- i.e. `PJTHousing`
+       owns `cover_point3d_id`; `PJTCover.point3d_id` is the same shared
+       point id. Housing delete -> cascade-delete the cover row. Cover
+       delete (standalone, housing untouched) -> never delete the shared
+       point.
+     - **Wire/Terminal (2 owned points):** "when deleting a wire we have
+       to be careful of the attachment points to a terminal. There are
+       actually 2 of them, one is a waypoint that has a layout and the
+       other attached at the end of the wire. In this case the terminal
+       owns both of those positions so they should not be deleted." --
+       `PJTTerminal.attach_point3d_id` (the crimp point, reused directly
+       as the wire's own start/stop) and `PJTTerminal.wire_point3d_id`
+       (the back-routing point, tagged as an interior waypoint with its
+       own `WireLayout` marker). Both terminal-owned; a wire delete must
+       never delete either (already true today since wire delete never
+       touches points at all -- this example is about *why*, for when
+       the real safety-check/sweep logic gets written).
+     - **Wire/Terminal-in-Cavity (a 3rd point):** "When a wire is
+       attached to a terminal inside a housing there is an additional
+       waypoint attachment and that is to the cavity. this position is
+       owned by the cavity and should not be deleted." --
+       `PJTCavity.wire_point3d_id`, also tagged as an interior waypoint
+       on the wire when the terminal is seated in a cavity. Cavity-owned,
+       same never-delete-on-wire-delete rule.
+     - **Housing delete cascade, wires survive, points survive, stripped
+       ends revert:** "When a housing is deleted all terminals and
+       cavities inside the housing should also be deleted and if there
+       are wire attached then the points do not get deleted because they
+       are needed for the wires. The stripped ends on the wires need to
+       revert back to a normal wire end as well." -- Housing delete
+       cascades to its own `PJTCavity`/`PJTTerminal` rows (they get
+       deleted along with it), but any `PJTWire` attached to one of those
+       terminals is NOT deleted -- it survives, now dangling. The
+       terminal-/cavity-owned points that wire was using as its own
+       start/stop/waypoints must survive too (this is really just the
+       general "never delete a point on cascade" rule again, but stated
+       here because the *owning* row is what's being deleted this time,
+       not the wire). New requirement, not yet designed: whatever visual/
+       state concept currently makes a wire's end look "stripped"/crimped
+       (searched 2026-09-02 -- no existing `stripped`/similar column or
+       rendering flag found anywhere in `objects_3d/wire.py`,
+       `objects_3d/terminal.py`, or the `pjt_wires` schema; this appears
+       to be new behavior, not an existing feature with a bug) needs to
+       revert that end to a plain/normal (non-attached) wire end once its
+       terminal is gone this way. Needs clarification: is this purely a
+       render-time derived state (wire end already "looks stripped"
+       whenever `start_position3d_id`/`stop_position3d_id` happens to sit
+       on a terminal's own attach point, so reverting is automatic once
+       the wire's own start/stop point id is repointed away) or does it
+       need an explicit persisted flag/column?
+
+  4. **Not yet given -- still gathering:** cascade-delete rules for other
+     object types beyond housing/cavity/terminal/wire/cover (seals,
+     boots, cpa/tpa locks, splices, transitions, transition branches,
+     bundles, wire service loops), and the exact SQL query shape for the
+     consolidated forward-FK check. Do not start implementing the
+     safety-check methods or any cascade-delete rewiring until the user
+     confirms the spec is complete.
+
+- **Peg-board editor is meant to become the same view as 3D, just with an
+  orthogonal camera (design direction given by the user, 2026-09-02)** --
+  the peg-board editor was originally going to be its own simplified
+  representation (e.g. `objects_pegboard/splice.py`'s `Splice` rendering
+  a splice as one freely-rotatable anchor point, not the start/stop-pair
+  connector geometry `objects_3d/splice.py`'s `Splice` derives from the
+  two/three wires it joins). The user has since shifted direction: the
+  peg-board view should become the same thing as the 3D view -- same
+  geometry/connector logic -- with only the camera swapped to orthogonal
+  projection instead of perspective. Not started. `PJTSplice` now has the
+  schema/property parity needed for this (`StartStopPositionPegboardMixin`
+  + `branch_position_pegboard`, mirroring the 3D `start/stop/branch_position3d`
+  trio -- added 2026-09-02 as part of a broader project_db pegboard-column
+  audit), but `objects_pegboard/splice.py` itself still renders the old
+  single-anchor way (temporarily re-pointed at `start_position_pegboard`
+  so it doesn't crash, not reworked to the connector geometry). Likely the
+  first candidate to actually rework once this is picked up, since it's
+  the one object type where the two rendering models most visibly diverge
+  today -- but confirm with the user whether other `objects_pegboard/*`
+  types (housing/terminal/transition/wire/bundle) need the same treatment
+  or already match closely enough.
+
+- **Seal placement design spec (given verbatim by user, 2026-08-31)** --
+  audit `objects/objects_3d/seal.py` (`Seal.start_add`) and
+  `add_handlers/editor_3d/seal.py` against this and fix any deviation.
+  Currently investigating; this is the full spec as given, captured
+  before doing anything else so it isn't lost to context compaction
+  mid-audit (see MEMORY.md's own "write down a detailed verbal spec
+  immediately" lesson).
+
+  A housing has one seal type. **MAT** is whichever type is NOT one of:
+  dummy terminal, plug, sws, single wire seal (sws and "single wire
+  seal" may be the same type named two ways -- confirm against the DB
+  enum).
+
+  Two housing-level entry points:
+  1. **Right-click housing -> "Add Seal" context-menu item.** Only
+     appears/is enabled when the housing's seal type is MAT (not one of
+     the 4 listed above) AND the housing's own `sealing` column is
+     true. Places a MAT seal.
+  2. **Housing selected -> "Seal" toolbar/panel button.** Available
+     regardless of the housing's seal type. Behavior depends on what
+     part the user picks in the search dialog:
+     - **Dummy terminal or plug** selected -> snap points are the
+       housing's own CAVITIES (empty ones only -- a cavity already
+       occupied by a terminal is not a valid snap target). Highlight
+       candidate cavities.
+     - **SWS / single wire seal** selected -> snap points are
+       TERMINALS that are seated in a cavity (never bare cavities).
+       For each candidate terminal: compute the size of the wire(s)
+       attached to it (wire's `od_mm`), compare against the seal's own
+       opening/ID size. Mismatch (opening too large or too small for
+       the wire) is NOT a placement-blocking error -- still snappable
+       -- but highlight that terminal RED to flag the issue. A
+       terminal with no size issue gets a distinct highlight color
+       that is NOT green (green is already used for housing
+       selection) -- pick something else.
+     - **Any other type** (i.e. MAT) selected -> instant snap to the
+       housing's own seal location, no interactive cavity/terminal
+       session (matches the existing Mode 1a "housing only,
+       not-for_cavity" docstring in add_handlers/editor_3d/seal.py).
+
+  Cavity-level entry point: right-click cavity -> "Add Seal" in its
+  context menu.
+  - Cavity is EMPTY -> part-search dialog's initial results should be
+    seals of type plug or dummy terminal only.
+  - Cavity HAS a terminal seated -> initial results should be seals of
+    type sws or single wire seal only.
+  - Both terminals and housings have their own `compat_seals` concept
+    (mirrors `compat_terminals`) -- when a compat_seals list exists on
+    the relevant terminal/housing, USE THAT to populate the initial
+    results INSTEAD OF (takes priority over) filtering by seal type.
+    Type-based filtering above is the fallback when compat_seals is
+    empty/unset.
+
 - **`Config.layout`/`wire_routing` naming mismatch** in `auto_arrange.py`/
   `housing_layout.py`/`wire_routing.py` (they reference `Config.layout.*`,
   but no `layout` class exists in `config.py` -- the real class is named

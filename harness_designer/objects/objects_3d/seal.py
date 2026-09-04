@@ -50,16 +50,20 @@ def _build_sws(length, o_dia, i_dia):
     """
     o_radius = round(o_dia / 2.0, 6)
     i_radius = round(i_dia / 2.0, 6)
-    i_length = round(length * 1.10, 6)
-    move_dist = round((i_length - length) / 2.0, 6)
 
-    model = build123d.Cylinder(o_radius, length)
-    hole = build123d.Cylinder(i_radius, i_length)
-    hole = hole.move(build123d.Location())
-    hole.position -= (0.0, 0.0, -move_dist)
-    model -= hole
+    model1 = build123d.Cylinder(o_radius, length)
+    hole1 = build123d.Cylinder(i_radius, length)
+    model1 -= hole1
 
-    vertices, faces = _utils.convert_model_to_mesh(model)
+    hole_radius = o_radius * 0.66
+    length *= 0.33
+
+    model2 = build123d.Cylinder(o_radius, length)
+    hole2 = build123d.Cylinder(hole_radius, length)
+    model2 -= hole2
+
+    model1 -= model2
+    vertices, faces = _utils.convert_model_to_mesh(model1)
     return vertices, faces
 
 
@@ -93,16 +97,17 @@ class Seal(_base_3d.Base3D):
             self._part = db_obj.part
 
             model = self._part.model3d
-            type_ = self._part.type.name
+            category = self._part.type.category
 
-            if type_.lower() in ('sws', 'single wire seal'):
+            if category == 'SWS':
                 vbo_id = self._part.manufacturer.name
                 vbo_id += ':' + self._part.part_number
+                vbo_id += ':3d'
                 self._vbo_id = vbo_id
 
                 length = self._part.length
                 o_dia = self._part.o_dia
-                scale = _point.Point(o_dia, o_dia, length)
+                scale = _point.Point(1.0, 1.0, 1.0)
 
                 if vbo_id in _vbo.PooledVBOHandler:
                     vbo = _vbo.PooledVBOHandler(vbo_id)
@@ -119,7 +124,7 @@ class Seal(_base_3d.Base3D):
 
                     vbo = _vbo.PooledVBOHandler(vbo_id, packed, count, aabb=aabb, obb=obb)
 
-            elif type_.lower() == 'plug':
+            elif category == 'PLUG':
                 self._vbo_id = None
                 vbo = _cylinder.create_vbo()
                 length = self._part.length
@@ -162,16 +167,26 @@ class Seal(_base_3d.Base3D):
     def start_add(
         cls, mainframe: "_ui.MainFrame", housing: "_housing_facade.Housing | None" = None,
         terminal: "_terminal_facade.Terminal | None" = None,
-        cavity: "_cavity_facade.Cavity | None" = None, for_cavity: bool = False
+        cavity: "_cavity_facade.Cavity | None" = None
     ) -> "_seal.Seal | None":
-        """Five placement modes -- see add_handlers.editor_3d.seal's own
+        """Four placement modes -- see add_handlers.editor_3d.seal's own
         module docstring; ported from handlers.seal_handler.AddSealHandler.
+
+        *housing* alone no longer branches on a separate ``for_cavity``
+        flag decided before the user even picks a part -- what the user
+        actually selects in the search dialog now decides the session
+        (MAT/ACC -> instant; PLUG -> this housing's own empty cavities;
+        SWS -> this housing's own seated terminals), matching the
+        housing "Seal" toolbar button's own design (see TODO.md's own
+        "Seal placement design spec" entry for the full spec this was
+        built against).
         """
         from ...handlers import handler_base as _handler_base
         from ...handlers import seal_handler as _seal_handler
         from ...ui.dialogs import part_search as _part_search
         from ...ui import editor_db as _editor_db
         from ...add_handlers.editor_3d import seal as _add_seal
+        from ...database.create_database import seal_types as _seal_types
         from .. import seal as _seal_facade
         from .. import housing as _housing_obj
         from .. import terminal as _terminal_obj
@@ -179,19 +194,28 @@ class Seal(_base_3d.Base3D):
 
         canvas = mainframe.editor3d.editor
 
-        if housing is not None and not for_cavity:
-            compat_pns = housing.db_obj.part.compat_seals_array
+        if housing is not None:
+            # Filtered, not the raw array -- an unset compat_seals column
+            # parses to [''] (one blank entry), not [] (see
+            # CompatSealsMixin.compat_seals_array's own split(', ')), and
+            # an unfiltered [''] passed to SearchParameters.from_part_numbers
+            # would seed an exact `part_number = ''` search (matches
+            # nothing) instead of from_part_numbers correctly recognizing
+            # an empty list and falling back to "show everything".
+            compat_pns = [pn for pn in housing.db_obj.part.compat_seals_array if pn]
         elif terminal is not None:
             compat_pns = _seal_handler._get_terminal_seal_pns(mainframe, terminal)  # NOQA
         elif cavity is not None:
-            g_cav = cavity.db_obj.part
-            max_dim = max(g_cav.width or 0.0, g_cav.height or 0.0)
-            compat_pns = _add_seal.cavity_plug_pns(mainframe, max_dim)
-        elif housing is not None and for_cavity:
-            max_dim = 0.0
-            for g_cav in housing.db_obj.part.cavities:
-                max_dim = max(max_dim, g_cav.width or 0.0, g_cav.height or 0.0)
-            compat_pns = _add_seal.cavity_plug_pns(mainframe, max_dim)
+            # Housing's own compat_seals takes priority over the
+            # size-based fallback (Terminals and housings alike carry
+            # compat_seals; a bare cavity has none of its own).
+            g_housing = cavity.db_obj.housing.part
+            compat_pns = [pn for pn in g_housing.compat_seals_array if pn]
+
+            if not compat_pns:
+                g_cav = cavity.db_obj.part
+                max_dim = max(g_cav.width or 0.0, g_cav.height or 0.0)
+                compat_pns = _add_seal.cavity_plug_pns(mainframe, max_dim)
         else:
             compat_pns = []
 
@@ -202,9 +226,14 @@ class Seal(_base_3d.Base3D):
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.SealsPage, title='Add Seal',
-                table=mainframe.global_db.seals_table, initial_results=compat_pns)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _editor_db.SealsPage, mainframe.global_db.seals_table, 'Add Seal',
+                initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:
@@ -219,6 +248,7 @@ class Seal(_base_3d.Base3D):
 
         name = f'{part.manufacturer.name} {part.part_number}'
         type_name = part.type.name.lower()
+        category = part.type.category
         is_dummy_pin = 'dummy' in type_name
 
         preview_material = _materials.Plastic(
@@ -227,12 +257,52 @@ class Seal(_base_3d.Base3D):
             _color.Color(*_config.Config.colors.add_object.housing_highlight))
         compat_highlight_material = _materials.Plastic(
             _color.Color(*_config.Config.colors.add_object.splice_highlight))
+        mismatch_material = _materials.Plastic(
+            _color.Color(*_config.Config.colors.add_object.seal_size_mismatch_highlight))
 
         snap_targets = []
 
-        if housing is not None and not for_cavity:
-            # Mode 1a: MAT seal on housing -- shares the housing's own
-            # seal slot point from the start.
+        if housing is not None and category == _seal_types.CATEGORY_PLUG:
+            # This housing's own empty cavities -- one already occupied
+            # by a terminal is not a valid snap target.
+            for cav in housing.cavities:
+                if cav.db_obj.terminal is not None:
+                    continue
+
+                cav.identify(compat_highlight_material)
+                snap_targets.append(cav)
+
+            pos_obj = ptables.pjt_points3d_table.insert(0, 0, 0)
+            db_obj = ptables.pjt_seals_table.insert(
+                part_id, name, pos_obj.db_id, None, None, None)
+
+        elif housing is not None and category == _seal_types.CATEGORY_SWS:
+            # This housing's own terminals that are actually seated in a
+            # cavity -- never a bare cavity. Flag (not block) a wire
+            # size that doesn't fit this seal's own opening.
+            for cav in housing.cavities:
+                pjt_terminal = cav.db_obj.terminal
+                if pjt_terminal is None:
+                    continue
+
+                term_obj = pjt_terminal.get_object()
+                if term_obj is None:
+                    continue
+
+                if _seal_handler.wire_seal_fit_ok(mainframe, term_obj, part):
+                    term_obj.identify(highlight_material)
+                else:
+                    term_obj.identify(mismatch_material)
+
+                snap_targets.append(term_obj)
+
+            pos_obj = ptables.pjt_points3d_table.insert(0, 0, 0)
+            db_obj = ptables.pjt_seals_table.insert(
+                part_id, name, pos_obj.db_id, None, None, None)
+
+        elif housing is not None:
+            # MAT (or anything else not PLUG/SWS -- e.g. ACC) -- instant,
+            # shares the housing's own seal slot point from the start.
             pos_id = housing.db_obj.seal_position3d_id
             db_obj = ptables.pjt_seals_table.insert(
                 part_id, name, pos_id, housing.db_obj.db_id, None, None)
@@ -264,28 +334,12 @@ class Seal(_base_3d.Base3D):
             db_obj = ptables.pjt_seals_table.insert(
                 part_id, name, p3d.db_id, None, None, pjt_cavity.db_id)
 
-        elif housing is not None and for_cavity:
-            # Mode 1b: interactive preview locked to this housing's cavities.
-            housing_db_id = housing.db_obj.db_id
-            for cav in mainframe.project.cavities:
-                if cav.db_obj.housing.db_id != housing_db_id:
-                    continue
-                if cav.db_obj.terminal is not None:
-                    continue
-
-                cav.identify(compat_highlight_material)
-                snap_targets.append(cav)
-
-            pos_obj = ptables.pjt_points3d_table.insert(0, 0, 0)
-            db_obj = ptables.pjt_seals_table.insert(
-                part_id, name, pos_obj.db_id, None, None, None)
-
         else:
-            # Mode 4: free interactive -- target type depends on seal type.
+            # Mode 4: free interactive -- target type depends on category.
             compat_pns_h = set(part.compat_housings_array)
             compat_pns_t = set(part.compat_terminals_array)
-            is_sws = type_name in ('sws', 'single wire seal')
-            is_mat = type_name == 'mat'
+            is_sws = category == _seal_types.CATEGORY_SWS
+            is_mat = category == _seal_types.CATEGORY_MAT
 
             if is_sws:
                 for t in mainframe.project.terminals:
@@ -327,10 +381,21 @@ class Seal(_base_3d.Base3D):
             db_obj = ptables.pjt_seals_table.insert(
                 part_id, name, pos_obj.db_id, None, None, None)
 
+        # Instant == a single already-known target (housing MAT/ACC,
+        # a specific terminal, or a specific cavity) -- everything else
+        # (housing PLUG/SWS, or Mode 4's free placement) needs the user
+        # to hover/click a snap target first.
+        is_instant = (
+            (housing is not None and category not in
+             (_seal_types.CATEGORY_PLUG, _seal_types.CATEGORY_SWS))
+            or terminal is not None
+            or cavity is not None
+        )
+
         facade = _seal_facade.Seal(mainframe, db_obj)
         facade.identify(preview_material)
 
-        if housing is not None and not for_cavity:
+        if housing is not None and is_instant:
             _handler_base.HandlerBase.set_angle_from_housing(facade, housing)
         elif terminal is not None:
             pjt_cavity = terminal.db_obj.cavity
@@ -340,7 +405,7 @@ class Seal(_base_3d.Base3D):
             _handler_base.HandlerBase.set_angle_from_cavity(facade, cavity.db_obj)
 
         handler = _add_seal.Seal(
-            canvas, facade, housing, terminal, cavity, for_cavity, snap_targets, is_dummy_pin)
+            canvas, facade, housing, terminal, cavity, is_instant, snap_targets, is_dummy_pin)
         facade.obj3d._active_handler = handler  # NOQA
         canvas.active_handler_obj = facade.obj3d
 

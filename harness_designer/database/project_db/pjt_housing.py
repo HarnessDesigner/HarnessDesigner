@@ -40,7 +40,8 @@ from .mixins import (
     Angle3DMixin, Angle3DControl,
     AnglePegboardMixin,
     SmoothMixin, SmoothControl,
-    Scale3DMixin, Scale3DControl
+    Scale3DMixin, Scale3DControl,
+    ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
 
@@ -272,13 +273,67 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                  PositionPegboardMixin, TablePositionPegMixin, TableHiddenMixin,
                  Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NotesMixin,
                  Angle2DMixin, Angle3DMixin, AnglePegboardMixin,
-                 SmoothMixin, Scale3DMixin):
+                 SmoothMixin, Scale3DMixin, ScalePegboardMixin):
     """Represent a PJT housing in :mod:`harness_designer.database.project_db.pjt_housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     _table: PJTHousingsTable = None
+
+    @_check_types.do
+    def delete(self) -> None:
+        """Delete this housing row -- first cascading to every accessory
+        attached directly to it (boot/cover/cpa_lock/tpa_locks/seal),
+        since none of those can meaningfully exist without their own
+        housing.
+
+        Each accessory's own ``delete()`` (plain ``PJTEntryBase.delete()``
+        for boot/cover/cpa_lock/tpa_lock; ``PJTSeal`` also has no
+        override) never touches the shared point it reuses from this
+        housing's own ``boot_point3d_id``/``cover_point3d_id``/
+        ``cpa_lock_point3d_id``/``tpa_lock_1_point3d_id``/
+        ``tpa_lock_2_point3d_id``/``seal_point3d_id``/
+        ``seal_point_pegboard_id`` columns -- see
+        ``PJTPoint3D.is_referenced()``/``PJTPointPegboard.is_referenced()``'s
+        own Phase 2/3 entries. Accessories are deleted BEFORE this
+        housing's own row (not after): with every FK in the schema set
+        to ``NO ACTION`` (see the "Safe point-deletion" design spec in
+        TODO.md), a backend that actually enforces foreign keys (MySQL/
+        InnoDB, unlike this project's SQLite connector) would reject
+        deleting a still-referenced parent row out from under its
+        children's own ``housing_id`` column.
+
+        This housing's own seal is only ever the housing-level (MAT)
+        kind -- a terminal-seated seal (SWS/single-wire-seal) lives on
+        ``PJTTerminal.seal`` instead, cascaded from ``PJTCavity.delete()``
+        -> ``PJTTerminal.delete()`` below.
+
+        Also cascades to every cavity this housing owns (each cavity's
+        own ``delete()`` further cascades to its seated terminal, and
+        that terminal's own seal) -- a cavity is structural and never
+        independently deletable by the user, but always goes away when
+        its housing does. Also cascades to this housing's own peg-board
+        data-table overlay row, if it has one (Phase 4, see
+        ``TablePositionPegMixin.delete_table_overlay``'s own docstring).
+
+        Phases 2 (2026-09-02, boot/cover/cpa_lock/tpa_locks), 3
+        (2026-09-02, seal), 4 (2026-09-02, peg-board table overlay), and
+        5 (2026-09-02, cavities/terminals) of the point-safety-check
+        rollout, see TODO.md.
+        """
+        for accessory in (
+            self.boot, self.cover, self.cpa_lock, self.tpa_lock1, self.tpa_lock2, self.seal,
+        ):
+            if accessory is not None:
+                accessory.delete()
+
+        for cavity in self.cavities:
+            cavity.delete()
+
+        self.delete_table_overlay()
+
+        super().delete()
 
     @_check_types.do
     def update_cavities(self):
@@ -288,17 +343,44 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         from ...objects import cavity as _cavity
 
-        # add the cavities from the part to the project
-        for cavity in self.part.cavities:
-            if cavity is None:
+        # Insert every pjt_cavities row FIRST, in its own pass, before
+        # constructing any cavity facade object below -- and invalidate
+        # _stored_cavities immediately after, still before any facade
+        # exists. A facade's own construction (objects.cavity.Cavity.
+        # __init__ -> its schematic view -> Housing.housing ->
+        # objects_schematic.Housing's own _recompute) reads this
+        # housing's own db_obj.cavities to lay out every cavity slot at
+        # once. If that schematic housing view happens to get built for
+        # the very first time PARTWAY through the old single loop (only
+        # some rows inserted so far), it permanently caches an
+        # incomplete cavity list -- nothing later tells it to rebuild
+        # once the rest finish inserting (see objects_schematic/
+        # housing.py's own _bind_callbacks, which can only ever bind a
+        # callback to a cavity that already exists by the time it runs).
+        # Confirmed 2026-09-02: this produced a real "cavity is not in
+        # list" ValueError from get_cavity_aabb the first time a
+        # terminal was added on a brand-new project -- purely because
+        # the schematic housing view happened to get built for the
+        # first time partway through this same loop, on some earlier
+        # cavity's own facade construction.
+        db_objs = []
+        for cavity_part in self.part.cavities:
+            if cavity_part is None:
                 continue
 
-            db_obj = self._table.db.pjt_cavities_table.insert(cavity.db_id, self.db_id, cavity.name)
-
-            cavity = _cavity.Cavity(self._table.db.mainframe, db_obj)
-            self._table.db.mainframe.project.add_cavity(cavity)
+            db_objs.append(self._table.db.pjt_cavities_table.insert(
+                cavity_part.db_id, self.db_id, cavity_part.name))
 
         self._stored_cavities = None
+
+        # NOW build every cavity's own facade -- every pjt_cavities row
+        # for this housing already exists, so no matter which cavity's
+        # own view construction happens to trigger this housing's own
+        # schematic (or 3D/peg-board) view for the first time,
+        # self.cavities/db_obj.cavities already sees the complete set.
+        for db_obj in db_objs:
+            cavity = _cavity.Cavity(self._table.db.mainframe, db_obj)
+            self._table.db.mainframe.project.add_cavity(cavity)
 
     @_check_types.do
     def get_object(self) -> "_housing_obj.Housing":
@@ -605,6 +687,72 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         self._table.update(self._db_id, seal_point3d_id=value)
         self._populate('seal_position3d_id')
+
+    _stored_seal_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValue" = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def seal_position_pegboard(self) -> _point.Point:
+        """Peg-board mirror of :attr:`seal_position3d`, lazily created (at
+        the origin) instead of computed from real geometry.
+
+        :returns: Property value.
+        :rtype: :class:`_point.Point`
+        """
+        if self._stored_seal_position_pegboard is DefaultStoredValue:
+            point_id = self.seal_position_pegboard_id
+            if point_id is None:
+                self._stored_seal_position_pegboard = None
+            else:
+                self._stored_seal_position_pegboard = self._table.db.pjt_points_pegboard_table[point_id]
+
+        if self._stored_seal_position_pegboard is not None:
+            if self._obj is not None:
+                self._stored_seal_position_pegboard.add_object(self._obj())
+
+            point = self._stored_seal_position_pegboard.point
+        else:
+            point = None
+
+        return point
+
+    _stored_seal_position_pegboard_id: bytes | None | DefaultStoredValue = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def seal_position_pegboard_id(self) -> bytes:
+        """Return the ``pjt_points_pegboard`` row id for the peg-board
+        mirror of :attr:`seal_position3d_id`, lazily creating and
+        persisting it (at the origin) on first access.
+
+        :returns: Property value.
+        :rtype: bytes
+        """
+        if self._stored_seal_position_pegboard_id is DefaultStoredValue:
+            point_id = self._table.select('seal_point_pegboard_id', id=self._db_id)[0][0]
+
+            if point_id is None:
+                point_id = self._table.db.pjt_points_pegboard_table.insert(0.0, 0.0, 0.0).db_id
+
+                self.seal_position_pegboard_id = point_id
+
+            self._stored_seal_position_pegboard_id = point_id
+
+        return self._stored_seal_position_pegboard_id
+
+    @seal_position_pegboard_id.setter
+    @_check_types.do
+    def seal_position_pegboard_id(self, value: bytes):
+        """Set the peg-board mirror of :attr:`seal_position3d_id`.
+
+        :param value: Value to store or process.
+        :type value: bytes
+        """
+        self._stored_seal_position_pegboard_id = value
+        self._stored_seal_position_pegboard = DefaultStoredValue
+
+        self._table.update(self._db_id, seal_point_pegboard_id=value)
+        self._populate('seal_position_pegboard_id')
 
     _stored_boot_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
 

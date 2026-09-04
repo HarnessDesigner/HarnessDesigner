@@ -11,6 +11,21 @@ from ..objects import terminal as _terminal
 from .. import check_types as _check_types
 
 
+# A housing's own seal_type is MAT whenever it's none of these -- see
+# objects.objects_3d.seal.Seal.start_add's housing dispatch and
+# objects.objects_3d.housing.HousingMenu's "Add Mat Seal" visibility
+# gate, both of which need the same classification.
+NON_MAT_SEAL_TYPE_NAMES = frozenset({'dummy terminal', 'plug', 'sws', 'single wire seal'})
+
+
+@_check_types.do
+def is_mat_seal_type(type_name: str) -> bool:
+    """Whether *type_name* (a seal or housing seal-type's own ``.name``)
+    counts as MAT -- i.e. is none of :data:`NON_MAT_SEAL_TYPE_NAMES`.
+    """
+    return type_name.strip().lower() not in NON_MAT_SEAL_TYPE_NAMES
+
+
 @_check_types.do
 def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
     """Return the global wire part attached to *terminal*'s wire pin, or None."""
@@ -104,3 +119,46 @@ def _get_terminal_seal_pns(mainframe, terminal: _terminal.Terminal):
             tuple(params))
 
     return [row[0] for row in table.fetchall()]
+
+
+@_check_types.do
+def wire_seal_fit_ok(mainframe, terminal: _terminal.Terminal, seal_part) -> bool:
+    """Whether *seal_part* (an SWS/single-wire-seal global part) fits
+    the wire actually attached to *terminal*'s pin.
+
+    Same bounds :func:`_get_terminal_seal_pns` already uses to build
+    its own SQL ``WHERE`` clause (explicit ``wire_size_dia_min``/``max``
+    when set, otherwise a range derived from the seal's own ID/OD) --
+    kept here as the equivalent Python-side per-part check, since this
+    is evaluated once per candidate terminal DURING an interactive snap
+    session (to decide its highlight color), not as a SQL filter over
+    the whole catalog.
+
+    ``True`` when *terminal* has no wire attached yet -- nothing to
+    flag as a mismatch against.
+    """
+    wire_part = _find_attached_wire_part(mainframe, terminal)
+    if wire_part is None:
+        return True
+
+    wire_od = wire_part.od_mm
+    if wire_od is None:
+        return True
+
+    dia_min = seal_part.wire_size_dia_min
+    if dia_min is not None:
+        if wire_od < dia_min:
+            return False
+    elif wire_od <= seal_part.i_dia:
+        return False
+
+    dia_max = seal_part.wire_size_dia_max
+    if dia_max is not None:
+        if wire_od > dia_max:
+            return False
+    else:
+        derived_high = seal_part.i_dia + (seal_part.o_dia - seal_part.i_dia) / 2.0
+        if wire_od >= derived_high:
+            return False
+
+    return True

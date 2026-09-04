@@ -379,9 +379,14 @@ class Transition(_base_3d.Base3D):
 
         if part_id is None:
             dlg = _part_search.SearchDialog(
-                mainframe, _trans_editor_page.TransitionsPage, title='Add Transition',
-                table=mainframe.global_db.transitions_table)
-            part_id = dlg.GetValue() if dlg.exec() == QDialog.DialogCode.Accepted else None
+                mainframe, _trans_editor_page.TransitionsPage, mainframe.global_db.transitions_table,
+                'Add Transition')
+
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
             dlg.deleteLater()
 
             if part_id is None:

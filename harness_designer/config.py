@@ -1,6 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Persistent application configuration backed by SQLite tables."""
+"""
+Persistent application configuration backed by SQLite tables.
+"""
+
 import inspect
 import binascii
 import sqlite3
@@ -21,11 +24,13 @@ DEBUG_CONFIG = False
 
 @_check_types.do
 def DEBUG(*args):
-    """Print config debug output when :data:`DEBUG_CONFIG` is enabled.
+    """
+    Print config debug output when :data:`DEBUG_CONFIG` is enabled.
 
     :param args: Values to print.
     :type args: tuple
     """
+
     if DEBUG_CONFIG:
         args = ' '.join(str(item) for item in args)
         print(args)
@@ -41,25 +46,31 @@ class _ConfigTable:
 
     @_check_types.do
     def __init__(self, con, name):
-        """Initialise a table wrapper.
+        """
+        Initialise a table wrapper.
 
         :param con: Open SQLite connection.
         :type con: sqlite3.Connection
+
         :param name: Table name.
         :type name: str
         """
+
         self._con = con
         self.name = name
 
     @_check_types.do
     def __contains__(self, item):
-        """Return whether a key exists in the table.
+        """
+        Return whether a key exists in the table.
 
         :param item: Setting key.
         :type item: str
+
         :returns: ``True`` when the key exists.
         :rtype: bool
         """
+
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -75,13 +86,16 @@ class _ConfigTable:
 
     @_check_types.do
     def __getitem__(self, item):
-        """Fetch and deserialize a stored value.
+        """
+        Fetch and deserialize a stored value.
 
         :param item: Setting key.
         :type item: str
+
         :returns: Stored value.
         :rtype: UNKNOWN
         """
+
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -103,13 +117,16 @@ class _ConfigTable:
 
     @_check_types.do
     def __setitem__(self, key, value):
-        """Insert or update a stored value.
+        """
+        Insert or update a stored value.
 
         :param key: Setting key.
         :type key: str
+
         :param value: Value to persist.
         :type value: UNKNOWN
         """
+
         value = str(value)
 
         if '"' in value or "'" in value:
@@ -145,11 +162,13 @@ class _ConfigTable:
 
     @_check_types.do
     def __delitem__(self, key):
-        """Delete a stored key from the table.
+        """
+        Delete a stored key from the table.
 
         :param key: Setting key.
         :type key: str
         """
+
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -172,17 +191,20 @@ class _ConfigDB:
 
     @_check_types.do
     def __init__(self):
-        """Initialise the backing database wrapper.
-
         """
+        Initialise the backing database wrapper.
+        """
+
         self._con = None
 
     @_check_types.do
     def open(self):
-        """Open the configuration database file.
+        """
+        Open the configuration database file.
 
         :raises RuntimeError: If the database is already open.
         """
+
         if self._con is not None:
             raise RuntimeError('The config database is already open')
 
@@ -194,13 +216,16 @@ class _ConfigDB:
 
     @_check_types.do
     def __contains__(self, item):
-        """Return whether a table exists in the database.
+        """
+        Return whether a table exists in the database.
 
         :param item: Table name.
         :type item: str
+
         :returns: ``True`` when the table exists.
         :rtype: bool
         """
+
         with _lock:
             with self._con:
                 cur = self._con.cursor()
@@ -232,13 +257,16 @@ class _ConfigDB:
 
     @_check_types.do
     def __getitem__(self, item):
-        """Return a table wrapper, creating the table on demand.
+        """
+        Return a table wrapper, creating the table on demand.
 
         :param item: Table name.
         :type item: str
+
         :returns: Table wrapper for the requested table.
         :rtype: _ConfigTable
         """
+
         with _lock:
             if item not in self:
                 with self._con:
@@ -258,43 +286,54 @@ class _ConfigDB:
 
     @_check_types.do
     def close(self):
-        """Close the configuration database connection.
-
         """
+        Close the configuration database connection.
+        """
+
         with _lock:
             self._con.close()
 
 
 class ConfigDB(type):
-    """Metaclass that persists class attributes to configuration tables."""
+    """
+    Metaclass that persists class attributes to configuration tables.
+    """
+
     __db__ = _ConfigDB()
     __classes__ = []
     __callbacks__ = {}
 
     @_check_types.do
     def __init__(cls, name, bases, dct):
-        """Register a configuration class with the metaclass registry.
+        """
+        Register a configuration class with the metaclass registry.
 
         :param name: Class name.
         :type name: str
+
         :param bases: Base classes.
         :type bases: tuple[type, ...]
+
         :param dct: Class namespace.
         :type dct: dict
         """
+
         super().__init__(name, bases, dct)
         ConfigDB.__classes__.append(cls)
         ConfigDB.__callbacks__[cls] = {}
 
     @_check_types.do
     def bind(cls, callback, setting_name):
-        """Bind a callback to a persisted setting name.
+        """
+        Bind a callback to a persisted setting name.
 
         :param callback: Bound method notified when the setting changes.
         :type callback: collections.abc.Callable
+
         :param setting_name: Setting name to observe.
         :type setting_name: str
         """
+
         if setting_name not in ConfigDB.__callbacks__[cls]:
             ConfigDB.__callbacks__[cls][setting_name] = []
 
@@ -310,11 +349,13 @@ class ConfigDB(type):
 
     @_check_types.do
     def _remove_ref(cls, ref):
-        """Remove a dead callback weak reference.
+        """
+        Remove a dead callback weak reference.
 
         :param ref: Weak reference to remove.
         :type ref: weakref.ReferenceType
         """
+
         for refs in ConfigDB.__callbacks__[cls].values():
             if ref in refs:
                 refs.remove(ref)
@@ -322,9 +363,10 @@ class ConfigDB(type):
 
     @_check_types.do
     def _load(cls, save_all):
-        """Load persisted values back onto the configuration class.
-
         """
+        Load persisted values back onto the configuration class
+        """
+
         for key in dir(cls):
             if key.startswith('_'):
                 continue
@@ -343,9 +385,10 @@ class ConfigDB(type):
 
     @_check_types.do
     def _save(cls):
-        """Persist current class attributes to the database.
-
         """
+        Persist current class attributes to the database.
+        """
+
         for key in dir(cls):
             if key.startswith('_'):
                 continue
@@ -360,11 +403,13 @@ class ConfigDB(type):
 
     @_check_types.do
     def _process_change(cls, setting_name):
-        """Notify callbacks that a setting changed.
+        """
+        Notify callbacks that a setting changed.
 
         :param setting_name: Changed setting name.
         :type setting_name: str
         """
+
         if setting_name in ConfigDB.__callbacks__[cls]:
             for ref in ConfigDB.__callbacks__[cls][setting_name][:]:
                 cb = ref()
@@ -376,11 +421,13 @@ class ConfigDB(type):
     @property
     @_check_types.do
     def __table_name__(cls):
-        """Return the SQLite table name for this configuration class.
+        """
+        Return the SQLite table name for this configuration class.
 
         :returns: Derived table name.
         :rtype: str
         """
+
         name = cls.__qualname__
         name = name.replace('Config.', '')
         return name
@@ -388,22 +435,27 @@ class ConfigDB(type):
     @property
     @_check_types.do
     def __table__(cls):
-        """Return the table wrapper for this configuration class.
+        """
+        Return the table wrapper for this configuration class.
 
         :returns: Backing table wrapper.
         :rtype: _ConfigTable
         """
+
         return ConfigDB.__db__[cls.__table_name__]
 
     @_check_types.do
     def __getitem__(cls, item):
-        """Return a configuration attribute by key.
+        """
+        Return a configuration attribute by key.
 
         :param item: Setting name.
         :type item: str
+
         :returns: Stored attribute value.
         :rtype: UNKNOWN
         """
+
         DEBUG('__getitem__:', cls.__table_name__, cls.__name__, item)
         value = getattr(cls, item)
 
@@ -411,14 +463,18 @@ class ConfigDB(type):
 
     @_check_types.do
     def __getattribute__(cls, item):
-        """Fetch an attribute, falling back to persisted table values.
+        """
+        Fetch an attribute, falling back to persisted table values.
 
         :param item: Attribute name.
         :type item: str
+
         :returns: Attribute value.
         :rtype: UNKNOWN
+
         :raises AttributeError: If the attribute is not defined anywhere.
         """
+
         if item.startswith('_'):
             return type.__getattribute__(cls, item)
 
@@ -439,26 +495,32 @@ class ConfigDB(type):
 
     @_check_types.do
     def __setitem__(cls, key, value):
-        """Assign a configuration attribute by key.
+        """
+        Assign a configuration attribute by key.
 
         :param key: Setting name.
         :type key: str
+
         :param value: Value to store.
         :type value: UNKNOWN
         """
+
         DEBUG('__setitem__:', cls.__table_name__, cls.__name__, key, repr(value))
 
         setattr(cls, key, value)
 
     @_check_types.do
     def __setattr__(cls, key, value):
-        """Assign and persist a configuration attribute.
+        """
+        Assign and persist a configuration attribute.
 
         :param key: Attribute name.
         :type key: str
+
         :param value: Value to store.
         :type value: UNKNOWN
         """
+
         if key.startswith('_'):
             type.__setattr__(cls, key, value)
 
@@ -471,20 +533,24 @@ class ConfigDB(type):
 
     @_check_types.do
     def __delitem__(cls, key):
-        """Delete a configuration attribute by key.
+        """
+        Delete a configuration attribute by key.
 
         :param key: Setting name.
         :type key: str
         """
+
         delattr(cls, key)
 
     @_check_types.do
     def __delattr__(cls, item):
-        """Delete a configuration attribute and its persisted value.
+        """
+        Delete a configuration attribute and its persisted value.
 
         :param item: Attribute name.
         :type item: str
         """
+
         if item in cls.__table__:
             del cls.__table__[item]
 
@@ -493,9 +559,10 @@ class ConfigDB(type):
     @staticmethod
     @_check_types.do
     def open():
-        """Open the config database and load all registered classes.
-
         """
+        Open the config database and load all registered classes.
+        """
+
         save_all = ConfigDB.__db__.open()
 
         for cls in ConfigDB.__classes__:
@@ -504,9 +571,10 @@ class ConfigDB(type):
     @staticmethod
     @_check_types.do
     def close():
-        """Save all registered configuration classes and close the database.
-
         """
+        Save all registered configuration classes and close the database.
+        """
+
         for cls in ConfigDB.__classes__:
             cls._save()
 
@@ -528,10 +596,14 @@ MOUSE_SWAP_AXIS = 0x10000000
 
 
 class Config(metaclass=ConfigDB):
-    """Root container for persisted application settings."""
+    """
+    Root container for persisted application settings.
+    """
 
     class ray_trace(metaclass=ConfigDB):
-        """Ray-tracing renderer defaults and quality presets."""
+        """
+        Ray-tracing renderer defaults and quality presets.
+        """
 
         enable_reflections = True
         enable_depth_of_field = True
@@ -582,31 +654,46 @@ class Config(metaclass=ConfigDB):
         default_resolution = '7680x3268 (UW 8K UHD) (21:9)'
 
         class background:
-            """Background colour and gradient settings for ray tracing."""
+            """
+            Background colour and gradient settings for ray tracing.
+            """
+
             color1 = [0.18, 0.20, 0.22]
             color2 = [0.18, 0.20, 0.22]
 
             enable_gradient = True
 
         class environment_map(metaclass=ConfigDB):
-            """Environment-map settings for ray tracing."""
+            """
+            Environment-map settings for ray tracing.
+            """
+
             enable = True
             generate = True
             path = ''
 
         class shadows(metaclass=ConfigDB):
-            """Shadow settings for ray tracing."""
+            """
+            Shadow settings for ray tracing.
+            """
+
             enable = True
             softness = 1.0
 
         class ambient_occlusion(metaclass=ConfigDB):
-            """Ambient occlusion settings for ray tracing."""
+            """
+            Ambient occlusion settings for ray tracing.
+            """
+
             enable = False
             samples = 8.0
             radius = 0.5
 
         class lighting(metaclass=ConfigDB):
-            """Light source defaults for ray tracing."""
+            """
+            Light source defaults for ray tracing.
+            """
+
             ambient_intensity = 0.2
             lights = [
                 {
@@ -638,15 +725,19 @@ class Config(metaclass=ConfigDB):
             smooth_wire_markers = True
 
         class layout(metaclass=ConfigDB):
-            """Orthogonal auto-router geometry (mm) --
+            """
+            Orthogonal auto-router geometry (mm) --
             objects_schematic.wire_routing/wire_reroute/auto_arrange.
             """
+
             # Clearance kept between a routed path and a housing's own
             # footprint (also the routing grid's search margin beyond
             # the two endpoints being routed).
             housing_spacing = 10.0
+
             # Grid pitch A* samples at when jogging around obstacles.
             routing_grid = 5.0
+
             # Minimum gap kept between two wires running parallel to
             # each other -- wires may cross (a perpendicular crossing is
             # always fine), but never run the same lane closer than this.
@@ -663,10 +754,13 @@ class Config(metaclass=ConfigDB):
             # real room for the inner protractor's tick labels, which sit
             # just inside its ID, between the object and the band itself.
             diameter_scale = 1.5
+
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
+
             # Ring color as scalar RGBA (0.0 - 1.0)
             y_color = [0.135, 0.684, 0.135, 0.8]
+
             # Outer (world-fixed, click-to-snap) protractor color -- kept
             # neutral, deliberately not matching any axis's own ring color
             # (the inner protractor uses that instead), since this ring
@@ -694,9 +788,17 @@ class Config(metaclass=ConfigDB):
                 strength = 50.0
 
         class keyboard_settings(metaclass=ConfigDB):
-            max_speed_factor = 10.0
-            speed_factor_increment = 0.1
-            start_speed_factor = 1.0
+            # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
+            # key_handler.KeyHandler._key_loop's own tick interval going
+            # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
+            # max speed and time-to-reach-max-speed as before, just spread
+            # across more, smaller per-tick steps so held-key camera
+            # movement (dolly/zoom/rotate/pan-tilt/truck-pedestal/walk --
+            # all share this one loop) reads as smooth motion instead of
+            # visibly-discrete jumps.
+            max_speed_factor = 4.0
+            speed_factor_increment = 0.04
+            start_speed_factor = 0.4
 
         class input(metaclass=ConfigDB):
             class rotate:
@@ -750,11 +852,15 @@ class Config(metaclass=ConfigDB):
                 mouse = MOUSE_NONE
 
         class colors(metaclass=ConfigDB):
-            """Part colours for the 2D schematic editor."""
+            """
+            Part colours for the 2D schematic editor.
+            """
 
             housing = [0.55, 0.75, 0.95, 1.0]
             housing_outline = [0.15, 0.25, 0.45, 1.0]
-            # Selection highlight -- mirrors Config.editor_pegboard.selected_color's role.
+
+            # Selection highlight -- mirrors
+            # Config.editor_pegboard.selected_color's role.
             selected = [0.2, 0.6, 0.2, 0.25]
             label = [0.1, 0.1, 0.1, 1.0]
             splice = [0.0, 0.0, 0.0, 1.0]
@@ -781,30 +887,39 @@ class Config(metaclass=ConfigDB):
                 name_font_size = 3.0
 
             class splice(metaclass=ConfigDB):
-                """Fixed splice sizing for the 2D schematic editor -- a
+                """
+                Fixed splice sizing for the 2D schematic editor -- a
                 splice renders as the same shared sphere mesh
                 objects_3d/splice.py's Splice uses (schematic2d's shader
                 already does the full 3D lighting/transform before
                 projecting to 2D, so there's no need for a flat-only mesh
-                here)."""
-                diameter = 2.0  # mm
+                here).
+                """
+
+                diameter = 2.0
 
             class wire(metaclass=ConfigDB):
-                """Fixed diameter (mm) for both the 2D wire itself and its
+                """
+                Fixed diameter (mm) for both the 2D wire itself and its
                 own WireLayout drag handle -- objects_schematic/wire.py's
                 Wire and objects_schematic/wire_layout.py's WireLayout both
                 read this SAME value (never two separate sizes), regardless
-                of the wire part's real od_mm."""
+                of the wire part's real od_mm.
+                """
+
                 diameter = 1.0
 
             class cavity(metaclass=ConfigDB):
-                """Cavity sizing for the 2D schematic editor. Cavities are
+                """
+                Cavity sizing for the 2D schematic editor. Cavities are
                 never individually drawn as boxes -- only their own name
                 label. The cavity slot height itself is no longer a fixed
                 config value -- see ``objects_schematic/housing.py``'s
                 ``Housing.__init__``, which derives it from
                 ``Config.object_sizes.terminal.name_font_size`` (the
-                driving/tallest label in a slot) instead."""
+                driving/tallest label in a slot) instead.
+                """
+
                 name_font_size = 1.5
 
                 # mm around text when it drives box sizing (corner label
@@ -814,12 +929,17 @@ class Config(metaclass=ConfigDB):
                 padding = 0.75
 
             class housing(metaclass=ConfigDB):
-                """Fixed housing rectangle sizing for the 2D schematic editor
+                """
+                Fixed housing rectangle sizing for the 2D schematic editor
                 -- width is constant regardless of cavity count or terminal-
                 name length; height is ``num_pins * Config.editor2d.cavity.height``.
                 """
-                width = 50.0  # mm
-                font_size = 3.0  # housing's own name/part number/manufacturer block
+
+                # mm
+                width = 50.0
+
+                # housing's own name/part number/manufacturer block
+                font_size = 3.0
 
     class editor_pegboard(metaclass=ConfigDB):
 
@@ -857,10 +977,13 @@ class Config(metaclass=ConfigDB):
             # real room for the inner protractor's tick labels, which sit
             # just inside its ID, between the object and the band itself.
             diameter_scale = 1.5
+
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
+
             # Ring color as scalar RGBA (0.0 - 1.0)
             y_color = [0.135, 0.684, 0.135, 0.8]
+
             # Outer (world-fixed, click-to-snap) protractor color -- kept
             # neutral, deliberately not matching any axis's own ring color
             # (the inner protractor uses that instead), since this ring
@@ -888,9 +1011,17 @@ class Config(metaclass=ConfigDB):
                 strength = 50.0
 
         class keyboard_settings(metaclass=ConfigDB):
-            max_speed_factor = 10.0
-            speed_factor_increment = 0.1
-            start_speed_factor = 1.0
+            # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
+            # key_handler.KeyHandler._key_loop's own tick interval going
+            # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
+            # max speed and time-to-reach-max-speed as before, just spread
+            # across more, smaller per-tick steps so held-key camera
+            # movement (dolly/zoom/rotate/pan-tilt/truck-pedestal/walk --
+            # all share this one loop) reads as smooth motion instead of
+            # visibly-discrete jumps.
+            max_speed_factor = 4.0
+            speed_factor_increment = 0.04
+            start_speed_factor = 0.4
 
         class input(metaclass=ConfigDB):
 
@@ -945,10 +1076,19 @@ class Config(metaclass=ConfigDB):
                 mouse = MOUSE_NONE
 
         class table(metaclass=ConfigDB):
-            """Excel-like wire-table overlay settings."""
-            default_width = 200.0    # world units
-            default_height = 120.0   # world units
-            base_font_size = 10.0    # world units, scaled by zoom at render time
+            """
+            Excel-like wire-table overlay settings.
+            """
+
+            # world units
+            default_width = 200.0
+
+            # world units
+            default_height = 120.0
+
+            # world units, scaled by zoom at render time
+            base_font_size = 10.0
+
             min_font_px = 6
             max_font_px = 48
 
@@ -993,19 +1133,24 @@ class Config(metaclass=ConfigDB):
             # real room for the inner protractor's tick labels, which sit
             # just inside its ID, between the object and the band itself.
             diameter_scale = 1.5
+
             # Ring tube diameter as a fraction of the ring diameter
             tube_diameter_scale = 0.01
+
             # Per-axis ring colors as scalar RGBA (0.0 - 1.0)
             x_color = [0.684, 0.135, 0.135, 0.8]
             y_color = [0.135, 0.684, 0.135, 0.8]
             z_color = [0.135, 0.135, 0.684, 0.8]
+
             # Outer (world-fixed, click-to-snap) protractor color -- kept
             # neutral, deliberately not matching any axis's own ring color
             # (the inner protractor uses that instead), since this ring
             # isn't tied to a specific axis's identity.
             outer_ring_color = [0.75, 0.75, 0.75, 0.8]
+
             # Enable snapping of ring-drag rotation to snap_angle increments
             snap_enable = False
+
             # Drag snap increment in degrees. Must have at most 2 decimal
             # places and divide the 360 degree range evenly (15, 22.5,
             # 0.45, ...) -- invalid values disable snapping
@@ -1030,8 +1175,10 @@ class Config(metaclass=ConfigDB):
                 primary_line_width = 0.8
                 secondary_line_width = 0.25
                 secondary_lines_per_tile = 4
-                secondary_line_pattern = 0x0B2664D0
+
                 # 0000 1011 0010 0110 0110 0100 1101 0000
+                secondary_line_pattern = 0x0B2664D0
+
                 secondary_line_shift = False
 
                 size = 80
@@ -1042,9 +1189,17 @@ class Config(metaclass=ConfigDB):
                 strength = 50.0
 
         class keyboard_settings(metaclass=ConfigDB):
-            max_speed_factor = 10.0
-            speed_factor_increment = 0.1
-            start_speed_factor = 1.0
+            # Scaled down 2.5x from the old 10.0/0.1/1.0 to match
+            # key_handler.KeyHandler._key_loop's own tick interval going
+            # from 0.05s (20Hz) to 0.02s (50Hz) -- same overall start/
+            # max speed and time-to-reach-max-speed as before, just spread
+            # across more, smaller per-tick steps so held-key camera
+            # movement (dolly/zoom/rotate/pan-tilt/truck-pedestal/walk --
+            # all share this one loop) reads as smooth motion instead of
+            # visibly-discrete jumps.
+            max_speed_factor = 4.0
+            speed_factor_increment = 0.04
+            start_speed_factor = 0.4
 
         class input(metaclass=ConfigDB):
 
@@ -1074,7 +1229,7 @@ class Config(metaclass=ConfigDB):
                 speed = 1.0
 
             class walk(metaclass=ConfigDB):
-                mouse = MOUSE_WHEEL | MOUSE_SWAP_AXIS
+                mouse = MOUSE_WHEEL | MOUSE_REVERSE_X_AXIS | MOUSE_REVERSE_Y_AXIS
                 forward_key = 16777235
                 backward_key = 16777237
                 left_key = 16777234
@@ -1086,7 +1241,7 @@ class Config(metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL
                 in_key = None
                 out_key = None
-                sensitivity = 3.0
+                sensitivity = 5.0
 
             class zoom(metaclass=ConfigDB):
                 mouse = MOUSE_NONE  # | MOUSE_REVERSE_WHEEL_AXIS
@@ -1099,20 +1254,29 @@ class Config(metaclass=ConfigDB):
                 mouse = MOUSE_NONE
 
         class headlight(metaclass=ConfigDB):
-            """Headlight settings for the 3D editor camera."""
+            """
+            Headlight settings for the 3D editor camera.
+            """
+
             enable = True
             cutoff = 8.0
             dissipate = 50.0
             color = [0.6, 0.6, 0.4, 0.8]
 
         class axis_overlay(metaclass=ConfigDB):
-            """Axis overlay visibility and placement settings."""
+            """
+            Axis overlay visibility and placement settings.
+            """
+
             is_visible = True
             size = None
             position = None
 
     class logging(metaclass=ConfigDB):
-        """Logging destinations and verbosity settings."""
+        """
+        Logging destinations and verbosity settings.
+        """
+
         save_path = os.path.join(_utils.get_appdata(), 'log')
         num_archives = 10
         num_logfiles = 10
@@ -1126,14 +1290,21 @@ class Config(metaclass=ConfigDB):
         log_file_transfers = True
 
     class debug(metaclass=ConfigDB):
-        """Debug feature toggles used throughout the application."""
+        """
+        Debug feature toggles used throughout the application.
+        """
+
         class functions(metaclass=ConfigDB):
-            """Function-call debug logging settings."""
+            """
+            Function-call debug logging settings.
+            """
+
             log_args = False
             log_duration = False
 
         class database(metaclass=ConfigDB):
-            """SQL query profiling toggle.
+            """
+            SQL query profiling toggle.
 
             When enabled, ``SQLConnector`` accumulates per-statement call
             counts and timing (keyed by normalized SQL text, literals
@@ -1143,7 +1314,8 @@ class Config(metaclass=ConfigDB):
             profile_queries = False
 
         class memory(metaclass=ConfigDB):
-            """Live memory-diagnostics toggle.
+            """
+            Live memory-diagnostics toggle.
 
             When enabled, starts ``tracemalloc`` at process launch plus a
             localhost-only debug listener (see
@@ -1172,15 +1344,30 @@ class Config(metaclass=ConfigDB):
             draw_edges = False
             draw_vertices = False
             draw_faces = True
-            edge_color_dark = [0.7, 0.7, 0.7]  # For dark materials
-            edge_color_light = [0.0, 0.0, 0.0]  # For light materials
-            edge_luminance_threshold = 0.5  # Brightness cutoff
+
+            # For dark materials
+            edge_color_dark = [0.7, 0.7, 0.7]
+
+            # For light materials
+            edge_color_light = [0.0, 0.0, 0.0]
+
+            # Brightness cutoff
+            edge_luminance_threshold = 0.5
             vertices_color = [1.0, 0.0, 0.0]
             normals_color = [1.0, 1.0, 1.0]
-            aabb_color = [1.0, 0.2, 0.2, 0.12]  # RGBA, translucent red
-            obb_color = [0.3, 0.5, 1.0, 0.12]  # RGBA, translucent blue -- deliberately not green (selection highlight color)
-            floor_projection_color = [1.0, 0.4, 0.4, 0.8]  # RGBA, floor footprint outline
-            box_edge_diameter = 0.1  # Diameter (mm) of the AABB/OBB edge cylinders and corner spheres
+
+            # RGBA, translucent red
+            aabb_color = [1.0, 0.2, 0.2, 0.12]
+
+            # RGBA, translucent blue -- deliberately not
+            # green (selection highlight color)
+            obb_color = [0.3, 0.5, 1.0, 0.12]
+
+            # RGBA, floor footprint outline
+            floor_projection_color = [1.0, 0.4, 0.4, 0.8]
+
+            # Diameter (mm) of the AABB/OBB edge cylinders and corner spheres
+            box_edge_diameter = 0.1
 
     class colors(metaclass=ConfigDB):
         """Colour customisation settings."""
@@ -1200,6 +1387,12 @@ class Config(metaclass=ConfigDB):
             cavity_highlight = [0.0, 0.8, 1.0, 0.6]
 
             splice_highlight = [0.0, 0.8, 1.0, 0.6]
+
+            # A candidate terminal whose seal opening doesn't fit the
+            # wire actually seated in it -- still snappable, just
+            # flagged (see add_handlers.editor_3d.seal / handlers.
+            # seal_handler.wire_seal_fit_ok).
+            seal_size_mismatch_highlight = [1.0, 0.1, 0.1, 0.6]
 
     class resources(metaclass=ConfigDB):
         model_watchdog_timeout = 120
@@ -1239,10 +1432,16 @@ class Config(metaclass=ConfigDB):
             force_ipv6 = False
             ssl_verify_identity = False
             ssl_verify_cert = False
-            ssl_key = ''  # path to ssl key file
+
+            # path to ssl key file
+            ssl_key = ''
             ssl_disabled = False
-            ssl_cert = ''  # path to ssl certificate file
-            ssl_ca = ''  # path to ssl certificate authority file
+
+            # path to ssl certificate file
+            ssl_cert = ''
+
+            # path to ssl certificate authority file
+            ssl_ca = ''
             tls_versions = ['TLSv1.2', 'TLSv1.3']
             buffered = False
             write_timeout = None
@@ -1251,7 +1450,9 @@ class Config(metaclass=ConfigDB):
             client_flags = None
             sql_mode = []
             auth_plugin = ''
-            openid_token_file = ''  # Path to the file containing the OpenID JWT formatted identity token.
+
+            # Path to the file containing the OpenID JWT formatted identity token.
+            openid_token_file = ''
 
             database_name = 'harness_designer'
             recent_projects = []
@@ -1334,6 +1535,13 @@ class Config(metaclass=ConfigDB):
         """Project-level defaults such as recent locations."""
         last_project = None
         model_dir = _utils.get_documents()
+
+    class part_search(metaclass=ConfigDB):
+        """Search-history for ui/dialogs/part_search.py's
+        SearchDialog. `history` is a dict of table name -> list of past
+        search-box strings (most-recent-last, capped at 50, no
+        duplicates -- see part_search.py's record_search())."""
+        history = {}
 
 
 Config.open()
