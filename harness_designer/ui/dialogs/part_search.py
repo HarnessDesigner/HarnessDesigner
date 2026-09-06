@@ -1778,8 +1778,54 @@ class RangeFilterPanel(_FilterPanelBase):
 
     @_check_types.do
     def sync_from_text(self) -> None:
-        # numeric spinboxes aren't re-derived from text; Apply is one-directional
-        pass
+        """
+        Re-derive Min/Max from the box's own current text for this
+        column, mirroring FKFilterPanel.sync_from_text -- manually
+        typing/deleting a range clause now updates the spinboxes the
+        same way clicking a checkbox updates an FK panel. `>`/`>=`
+        sets Min, `<`/`<=` sets Max, `==` sets both to the same value
+        (the panel has no way to distinguish strict from inclusive, so
+        both map to the same spinbox either way). `!=` has no min/max
+        window that represents "everything except one value", so it's
+        left out of this -- a term the panel can't represent just
+        doesn't move the spinboxes, rather than guessing at one. A
+        column with no clause at all (deleted from the text) reverts
+        both spinboxes to their original lo/hi defaults, same as
+        pressing Reset.
+        """
+
+        text = self.search_edit.toPlainText()
+        result = parse(text, self.search_edit._schema)  # NOQA
+        col_search = result.params.columns.get(self.col.field_name)
+
+        lo = self._lo_default
+        hi = self._hi_default
+
+        if col_search is not None:
+            for group in col_search.groups:
+                for term in group:
+                    if term.operator is None or term.value is None:
+                        continue
+
+                    try:
+                        value = float(term.value)
+                    except ValueError:
+                        continue
+
+                    if term.operator in ('>', '>='):
+                        lo = value
+                    elif term.operator in ('<', '<='):
+                        hi = value
+                    elif term.operator == '==':
+                        lo = value
+                        hi = value
+
+        self.min_ctrl.blockSignals(True)
+        self.max_ctrl.blockSignals(True)
+        self.min_ctrl.setValue(lo)
+        self.max_ctrl.setValue(hi)
+        self.min_ctrl.blockSignals(False)
+        self.max_ctrl.blockSignals(False)
 
     @_check_types.do
     def clear(self) -> None:
@@ -2013,6 +2059,7 @@ class SearchDialog(_dialog_base.BaseDialog):
             self.panel, self.schema, self._table_name)
 
         self.search_edit.searchRequested.connect(self.do_search)
+        self.search_edit.textChanged.connect(self._sync_filter_panels)
         top.addWidget(self.search_edit, 1)
 
         search_btn = QtWidgets.QPushButton('Search', self.panel)
@@ -2163,6 +2210,25 @@ class SearchDialog(_dialog_base.BaseDialog):
 
         self._filter_panels.insert(insert_at, panel)
         self.filter_sizer.insertWidget(insert_at, panel)
+
+    @_check_types.do
+    def _sync_filter_panels(self) -> None:
+        """
+        Re-derive every populated filter-assist panel's own control
+        state (checkboxes, Min/Max spinboxes) from the search box's
+        CURRENT text -- keeps a panel in sync whether the text changed
+        because of a manual edit, a panel click round-tripping through
+        apply_column_terms, or a history recall. A column removed
+        entirely from the text reverts its panel to its own defaults,
+        same as sync_from_text always did for FK/Enum panels; Range
+        panels now do the equivalent (see RangeFilterPanel.
+        sync_from_text). Panels not yet populated by _populate_filters
+        aren't in self._filter_panels yet, so this is a no-op for them
+        until they arrive.
+        """
+
+        for panel in self._filter_panels:
+            panel.sync_from_text()
 
     # ------------------------------------------------------------------
     # Explicit search action (plan §9)

@@ -152,9 +152,16 @@ class Housing(_base_3d.Base3D):
 
         canvas3d = parent.mainframe.editor3d.editor
         self._picker = _mesh_surface_picker.MeshSurfacePicker(self, canvas3d)
+        # Thin, derived surf_idx -> Cavity3D lookup used only to dispatch a
+        # ray-cast hit to the right cavity (on_surface_selected/
+        # try_pick_cavity below) -- rebuilt from scratch on every
+        # match_cavity_surfaces() pass, never treated as authoritative
+        # selection state. Each cavity's own selection/overlay/marker state
+        # lives on the Cavity3D itself (see objects_3d/cavity.py) -- driven
+        # by the same generic is_selected/render_selected_overlay()
+        # mechanism every other object type already uses, not by a
+        # housing-side side-channel.
         self._surf_to_cavity: dict = {}
-        self._cavity_markers: list = []
-        self._selected_marker_idx: int = -1
         # One persistent VBO per decal drawn by _draw_overlay_faces (keyed
         # by ('surf', surf_idx) / ('marker', marker_idx)) -- these decals
         # redraw every single frame (persistent cavity markers, every
@@ -172,12 +179,11 @@ class Housing(_base_3d.Base3D):
         #   in _draw_overlay_faces can skip the normal/pack/GPU-upload
         #   work entirely when the caller hands back the same object.
         # - _overlay_geom_cache[key]: (transform_stamp, positions_world) --
-        #   lets render_surface_overlay/render_marker_overlay/
-        #   _render_cavity_markers skip re-gathering + re-transforming a
-        #   decal's own local vertices (an indexed-array times a matrix,
-        #   done fresh every call previously) whenever this housing's own
-        #   rotation/scale/position haven't changed since. See
-        #   _overlay_transform_stamp.
+        #   lets render_surface_overlay/render_marker_overlay skip
+        #   re-gathering + re-transforming a decal's own local vertices (an
+        #   indexed-array times a matrix, done fresh every call previously)
+        #   whenever this housing's own rotation/scale/position haven't
+        #   changed since. See _overlay_transform_stamp.
         self._overlay_vbos: dict = {}
         self._overlay_positions: dict = {}
         self._overlay_geom_cache: dict = {}
@@ -292,8 +298,14 @@ class Housing(_base_3d.Base3D):
         surfaces = self._picker.surfaces
         cavities = self.cavities
 
-        self._cavity_markers = []
         self._surf_to_cavity = {}
+
+        # Idempotent: clear each cavity's own prior marker/surface
+        # assignment before recomputing, since this pass can legitimately
+        # rerun (e.g. a model re-simplification).
+        for cavity_3d in cavities:
+            cavity_3d._terminal_marker = None  # NOQA
+            cavity_3d._wire_marker = None  # NOQA
 
         # Cavities with no distinguishable recessed mesh surface of their own
         # (single-plane housings) get a synthetic marker instead, built
@@ -329,10 +341,10 @@ class Housing(_base_3d.Base3D):
             local_verts = _build_marker_local_verts(
                 kind, center, u_dir, v_dir, half_w, half_h)
 
-            self._cavity_markers.append(_CavityMarker(
+            cavity_3d._terminal_marker = _CavityMarker(  # NOQA
                 cavity_3d=cavity_3d, kind=kind, normal=normal, u=u_dir,
                 v=v_dir, center=center, half_w=half_w, half_h=half_h,
-                local_verts=local_verts, side='terminal'))
+                local_verts=local_verts, side='terminal')
 
         # Cavities whose terminal side has real, distinguishable mesh
         # geometry but whose wire side is one continuous surface shared
@@ -373,11 +385,10 @@ class Housing(_base_3d.Base3D):
             local_verts = _build_marker_local_verts(
                 kind, center, u_dir, v_dir, half_w, half_h)
 
-            cavity_3d.wire_marker_idx = len(self._cavity_markers)
-            self._cavity_markers.append(_CavityMarker(
+            cavity_3d._wire_marker = _CavityMarker(  # NOQA
                 cavity_3d=cavity_3d, kind=kind, normal=normal, u=u_dir,
                 v=v_dir, center=center, half_w=half_w, half_h=half_h,
-                local_verts=local_verts, side='wire'))
+                local_verts=local_verts, side='wire')
 
         if not surfaces or not normal_cavities:
             return
@@ -510,80 +521,90 @@ class Housing(_base_3d.Base3D):
             self._surf_to_cavity.setdefault(si, cavity_3d)
 
     @_check_types.do
-    def _pick_marker(self, x: int, y: int) -> int:
-        """Ray-cast against synthetic cavity-marker decals.
+    def _pick_marker(self, x: int, y: int):
+        """Ray-cast against every one of this housing's cavities' own
+        synthetic marker decals (``Cavity3D._terminal_marker``/
+        ``_wire_marker``).
 
-        Returns an index into ``self._cavity_markers``, or -1 on miss.
-        Checked before the real mesh surfaces in ``try_pick_cavity`` so
-        markers act as the click target for cavities with no distinguishable
-        recessed geometry of their own.
+        Returns ``(cavity_3d, marker)`` for the closest hit, or
+        ``(None, None)`` on a miss. Checked before the real mesh surfaces
+        in ``try_pick_cavity`` so markers act as the click target for
+        cavities with no distinguishable recessed geometry of their own.
+        Pure lookup -- does not select/highlight anything itself, see
+        ``try_pick_cavity``.
         """
-        if not self._cavity_markers:
-            return -1
-
         origin_w, direction_w = self._picker.compute_ray_world(x, y)
         if origin_w is None:
-            return -1
+            return None, None
 
         origin_l, direction_l = self._picker.transform_ray_to_local(
             origin_w, direction_w)
         if origin_l is None:
-            return -1
+            return None, None
 
-        best_idx = -1
+        best_cavity = None
+        best_marker = None
         best_t = float('inf')
-        for i, marker in enumerate(self._cavity_markers):
-            denom = float(direction_l @ marker.normal)
-            if abs(denom) < 1e-9:
-                continue
-
-            t = float((marker.center - origin_l) @ marker.normal) / denom
-            if t < 0.0 or t >= best_t:
-                continue
-
-            hit = origin_l + t * direction_l
-            delta = hit - marker.center
-            du = float(delta @ marker.u)
-            dv = float(delta @ marker.v)
-
-            if marker.kind == 'circle':
-                if du * du + dv * dv > marker.half_w * marker.half_w:
+        for cavity_3d in self.cavities:
+            for marker in (cavity_3d._terminal_marker, cavity_3d._wire_marker):  # NOQA
+                if marker is None:
                     continue
-            elif abs(du) > marker.half_w or abs(dv) > marker.half_h:
-                continue
 
-            best_t = t
-            best_idx = i
+                denom = float(direction_l @ marker.normal)
+                if abs(denom) < 1e-9:
+                    continue
 
-        return best_idx
+                t = float((marker.center - origin_l) @ marker.normal) / denom
+                if t < 0.0 or t >= best_t:
+                    continue
 
-    @_check_types.do
-    def _select_marker(self, marker_idx: int):
-        marker = self._cavity_markers[marker_idx]
-        self._picker.clear_selection()
-        self._selected_marker_idx = marker_idx
-        marker.cavity_3d._selected_is_wire_side = (marker.side == 'wire')  # NOQA
-        return marker.cavity_3d
+                hit = origin_l + t * direction_l
+                delta = hit - marker.center
+                du = float(delta @ marker.u)
+                dv = float(delta @ marker.v)
+
+                if marker.kind == 'circle':
+                    if du * du + dv * dv > marker.half_w * marker.half_w:
+                        continue
+                elif abs(du) > marker.half_w or abs(dv) > marker.half_h:
+                    continue
+
+                best_t = t
+                best_cavity = cavity_3d
+                best_marker = marker
+
+        return best_cavity, best_marker
 
     @_check_types.do
     def on_surface_selected(self, idx: int):
+        """Resolve a real mesh-surface hit to the cavity it belongs to.
+
+        Pure lookup -- records which side was hit
+        (``cavity_3d._selected_is_wire_side``, read by ``CavityMenu`` to
+        decide whether "Add Wire" belongs on the menu) but otherwise
+        leaves selection/overlay state alone; the cavity's own
+        ``is_selected``/``render_selected_overlay()`` (driven generically
+        by whatever calls ``.set_selected(True)`` on the returned cavity's
+        facade) is what actually shows the highlight now.
+        """
         cavity_3d = self._surf_to_cavity.get(idx)
         if cavity_3d is not None:
-            self._picker.select(idx)
-            self._selected_marker_idx = -1
             cavity_3d._selected_is_wire_side = (idx != cavity_3d.surf_idx)  # NOQA
         return cavity_3d
 
     @_check_types.do
     def try_pick_cavity(self, x: int, y: int):
-        """Ray-cast at pixel (x, y); highlight the cavity (or its synthetic
-        marker) if hit.  Markers are checked first — they are the only click
-        target for cavities that have no distinguishable recessed mesh
-        surface of their own.
+        """Ray-cast at pixel (x, y); resolve to whichever cavity (real
+        surface or synthetic marker) was hit, if any. Markers are checked
+        first — they are the only click target for cavities that have no
+        distinguishable recessed mesh surface of their own. Pure lookup,
+        same as ``on_surface_selected`` -- the caller is responsible for
+        actually selecting the returned cavity (``.set_selected(True)``).
         """
-        marker_idx = self._pick_marker(x, y)
-        if marker_idx >= 0:
-            return self._select_marker(marker_idx)
+        cavity_3d, marker = self._pick_marker(x, y)
+        if cavity_3d is not None:
+            cavity_3d._selected_is_wire_side = (marker.side == 'wire')  # NOQA
+            return cavity_3d
 
         # Only ray-test surfaces already married to a cavity by
         # match_cavity_surfaces() at load time — the rest of the housing
@@ -593,12 +614,6 @@ class Housing(_base_3d.Base3D):
         if idx < 0:
             return None
         return self.on_surface_selected(idx)
-
-    @_check_types.do
-    def clear_cavity_overlay(self) -> None:
-        """Hide any active cavity-plane highlight for this housing."""
-        self._selected_marker_idx = -1
-        self._picker.clear_selection()
 
     @_check_types.do
     def _draw_overlay_faces(self, shaders: "_shaders.ShaderProgram", key,
@@ -727,20 +742,25 @@ class Housing(_base_3d.Base3D):
         self._draw_overlay_faces(shaders, ('surf', surf_idx), positions, color)
 
     @_check_types.do
-    def render_marker_overlay(self, shaders: "_shaders.ShaderProgram", marker_idx: int, color) -> None:
-        """Draw an override-color overlay on one of this housing's synthetic
-        cavity markers -- the marker equivalent of ``render_surface_overlay``.
-        Used by a placed terminal to color-match its cavity's synthetic
-        wire-side marker (Cavity.render_wire_marker) the same way it does
-        for a real wire-side surface.
+    def render_marker_overlay(self, shaders: "_shaders.ShaderProgram", marker: "_CavityMarker", color) -> None:
+        """Draw an override-color overlay on one synthetic cavity marker --
+        the marker equivalent of ``render_surface_overlay``. Used by a
+        placed terminal to color-match its cavity's synthetic wire-side
+        marker (Cavity.render_wire_marker) the same way it does for a real
+        wire-side surface, and by ``Cavity3D`` itself for its own
+        persistent/selected marker decals.
+
+        *marker* is the ``_CavityMarker`` instance itself (owned by the
+        ``Cavity3D`` it belongs to -- ``_terminal_marker``/``_wire_marker``),
+        not an index -- markers no longer live in a shared list on this
+        housing. Cached by ``id(marker)`` (a ``_CavityMarker`` is a plain
+        ``@dataclass``, unhashable by default) -- stable for the marker's
+        lifetime since it's built once by ``match_cavity_surfaces()`` and
+        held by its owning cavity.
         """
-        if marker_idx is None or marker_idx < 0:
+        if marker is None:
             return
 
-        if marker_idx >= len(self._cavity_markers):
-            return
-
-        marker = self._cavity_markers[marker_idx]
         picker = self._picker
         rot = picker.rot_mat
         scale = picker.scale_arr
@@ -749,31 +769,7 @@ class Housing(_base_3d.Base3D):
         positions = ((marker.local_verts.astype(np.float64) * scale) @
                      rot + pos).astype(np.float32)
 
-        self._draw_overlay_faces(shaders, ('marker', marker_idx), positions, color)
-
-    @_check_types.do
-    def _render_cavity_markers(self, shaders: "_shaders.ShaderProgram") -> None:
-        """Draw every synthetic cavity-marker decal — persistent, not just
-        on selection, since these are the only visual cue for cavities that
-        have no real recessed mesh geometry of their own.
-        """
-        if not self._cavity_markers:
-            return
-
-        picker = self._picker
-        rot = picker.rot_mat
-        scale = picker.scale_arr
-        pos = picker.pos_arr
-
-        default_color = (0.85, 0.85, 0.85, 0.35)
-        selected_color = (0.4, 0.9, 1.0, 0.55)
-
-        for i, marker in enumerate(self._cavity_markers):
-            positions = ((marker.local_verts.astype(np.float64) * scale) @
-                         rot + pos).astype(np.float32)
-
-            color = selected_color if i == self._selected_marker_idx else default_color
-            self._draw_overlay_faces(shaders, ('marker', i), positions, color)
+        self._draw_overlay_faces(shaders, ('marker', id(marker)), positions, color)
 
     @_check_types.do
     def render(self, shaders: "_shaders.ShaderProgram"):
@@ -798,17 +794,7 @@ class Housing(_base_3d.Base3D):
         if not any(GL.glGetBooleanv(GL.GL_COLOR_WRITEMASK)):
             return
 
-        self._render_cavity_markers(shaders)
         self._render_terminal_overlays(shaders)
-
-        picker = self._picker
-        if picker is None or picker.selected_surf_idx is None:
-            return
-
-        r, g, b, a = picker.overlay_color
-        self.render_surface_overlay(
-            shaders, picker.selected_surf_idx,
-            (r / 255.0, g / 255.0, b / 255.0, a / 255.0))
 
     @_check_types.do
     def _render_terminal_overlays(self, shaders: "_shaders.ShaderProgram") -> None:
@@ -938,7 +924,8 @@ class Housing(_base_3d.Base3D):
 
 
 class HousingMenu(QMenu):
-    """Represent a housing menu in :mod:`harness_designer.objects.objects_3d.housing`.
+    """
+    Represent a housing menu in :mod:`harness_designer.objects.objects_3d.housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """

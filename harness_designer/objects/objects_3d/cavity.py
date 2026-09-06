@@ -22,6 +22,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_cavity as _pjt_cavity
     from .. import cavity as _cavity
+    from . import housing as _housing3d
+    from ...gl import shaders as _shaders
 
 
 class Cavity(_base_3d.Base3D):
@@ -35,6 +37,30 @@ class Cavity(_base_3d.Base3D):
     @_check_types.do
     def set_selected(self, state: bool) -> None:
         super().set_selected(state)
+
+    @property
+    @_check_types.do
+    def _housing_3d(self) -> "_housing3d.Housing | None":
+        """This cavity's owning ``Housing3D``, or ``None``.
+
+        Resolved on demand (never cached) via ``self.parent.housing`` --
+        the same lazy lookup ``wire_surface_center`` already used before
+        this property existed. Shared by ``render_selected_overlay``/
+        ``render`` below, both of which need it every frame a cavity is
+        selected/has a persistent marker, to reach the housing's shared
+        mesh picker and overlay-drawing primitives
+        (``Housing3D._picker``/``render_surface_overlay``/
+        ``render_marker_overlay``) -- the raw ray-vs-mesh math and GPU
+        buffer caching stay owned by the housing since there is one mesh
+        shared by every cavity of that housing, but which surface/marker
+        to highlight, and whether to at all, is this cavity's own state.
+        """
+        housing_pjt = self.db_obj.housing
+        housing_obj = housing_pjt.get_object() if housing_pjt is not None else None
+        if housing_obj is None:
+            return None
+
+        return housing_obj.obj3d
 
     @_check_types.do
     def identify(self, material: _materials.GLMaterial | None) -> None:
@@ -96,16 +122,93 @@ class Cavity(_base_3d.Base3D):
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
             self.surf_idx: int = -1
             self.wire_surf_idx: int = -1
-            # Index into the owning Housing3D._cavity_markers, set instead of
-            # wire_surf_idx when Cavity.render_wire_marker is True (the wire
-            # side has no distinguishable real mesh surface of its own).
-            self.wire_marker_idx: int = -1
+            # Set instead of wire_surf_idx when Cavity.render_wire_marker is
+            # True (the wire side has no distinguishable real mesh surface
+            # of its own), and/or _terminal_marker when this cavity has no
+            # distinguishable recessed mesh surface at all -- both built and
+            # owned directly by Housing3D.match_cavity_surfaces(), which
+            # still needs the housing's whole mesh to compute them but
+            # assigns the result straight onto the cavity they belong to,
+            # not a housing-side list.
+            self._terminal_marker: "_housing3d._CavityMarker | None" = None
+            self._wire_marker: "_housing3d._CavityMarker | None" = None
 
             # Which side of this cavity the housing's last try_pick_cavity hit
-            # landed on -- set by Housing3D._select_marker/on_surface_selected,
+            # landed on -- set by Housing3D.on_surface_selected/try_pick_cavity,
             # read by CavityMenu to decide whether "Add Wire" belongs on the
-            # menu.
+            # menu, and by render_selected_overlay below to decide which
+            # side to highlight.
             self._selected_is_wire_side: bool = False
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Draw this cavity's own persistent marker decal(s), if it has
+        any -- the always-on visual cue for a cavity with no real recessed
+        mesh surface of its own (``_terminal_marker``) and/or a shared
+        wire-side wall (``_wire_marker``). Drawn regardless of selection,
+        same as before this state moved here from ``Housing3D.
+        _render_cavity_markers`` -- only the highlighted-on-selection color
+        is ``render_selected_overlay``'s job below.
+        """
+        super().render(shaders)
+
+        housing_3d = self._housing_3d
+        if housing_3d is None:
+            return
+
+        default_color = (0.85, 0.85, 0.85, 0.35)
+        for marker in (self._terminal_marker, self._wire_marker):
+            if marker is not None:
+                housing_3d.render_marker_overlay(shaders, marker, default_color)
+
+    @_check_types.do
+    def render_selected_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
+        """Highlight this cavity's own housing-mesh surface/marker while
+        selected -- driven purely by ``is_selected``, unlike the old
+        ``Housing3D``-side mechanism this replaces (see that class's own
+        history), so this lights up no matter how the cavity became
+        selected (a click on its own housing mesh, the object browser,
+        code -- all go through the same ``ObjectBase.set_selected()``).
+
+        Deliberately does NOT call ``Base3D.render_selected_overlay`` --
+        that default draws an AABB/OBB wireframe gated on ``self.is_visible``,
+        which is wrong here: a cavity's own placeholder box/cylinder is
+        deliberately invisible by design (see ``identify``'s own
+        docstring), so that guard would always suppress it.
+
+        Highlights whichever side (``_selected_is_wire_side``, set by
+        ``Housing3D.on_surface_selected``/``try_pick_cavity``) was actually
+        relevant to how this cavity got selected, falling back to the
+        terminal/pin side by default -- same per-side fidelity the old
+        mechanism had, just derived from state this object already owns
+        instead of a parallel housing-side copy of it.
+        """
+        if not self.is_selected:
+            return
+
+        housing_3d = self._housing_3d
+        if housing_3d is None:
+            return
+
+        picker = housing_3d._picker  # NOQA
+        if picker is None:
+            return
+
+        r, g, b, a = picker.overlay_color
+        color = (r / 255.0, g / 255.0, b / 255.0, a / 255.0)
+
+        if self._selected_is_wire_side:
+            if self.wire_surf_idx >= 0:
+                housing_3d.render_surface_overlay(shaders, self.wire_surf_idx, color)
+                return
+            if self._wire_marker is not None:
+                housing_3d.render_marker_overlay(shaders, self._wire_marker, color)
+                return
+
+        if self.surf_idx >= 0:
+            housing_3d.render_surface_overlay(shaders, self.surf_idx, color)
+        elif self._terminal_marker is not None:
+            housing_3d.render_marker_overlay(shaders, self._terminal_marker, color)
 
     @_check_types.do
     def wire_surface_center(self) -> _point.Point | None:
@@ -124,12 +227,10 @@ class Cavity(_base_3d.Base3D):
         nearest-surface matching -- not a true area-weighted centroid, but
         consistent with the rest of this analysis pipeline.
         """
-        housing_pjt = self.db_obj.housing
-        housing_obj = housing_pjt.get_object() if housing_pjt is not None else None
-        if housing_obj is None or housing_obj.obj3d is None:
+        housing_3d = self._housing_3d
+        if housing_3d is None:
             return None
 
-        housing_3d = housing_obj.obj3d
         picker = housing_3d._picker  # NOQA
         if picker is None:
             return None
@@ -147,14 +248,12 @@ class Cavity(_base_3d.Base3D):
             center = positions.mean(axis=0)
             return _point.Point(float(center[0]), float(center[1]), float(center[2]))
 
-        cavity_markers = housing_3d._cavity_markers  # NOQA
-        if 0 <= self.wire_marker_idx < len(cavity_markers):
-            marker = cavity_markers[self.wire_marker_idx]
+        if self._wire_marker is not None:
             rot = picker.rot_mat
             scale = picker.scale_arr
             pos = picker.pos_arr
 
-            positions = (marker.local_verts.astype(np.float64) * scale) @ rot + pos
+            positions = (self._wire_marker.local_verts.astype(np.float64) * scale) @ rot + pos
             center = positions.mean(axis=0)
             return _point.Point(float(center[0]), float(center[1]), float(center[2]))
 

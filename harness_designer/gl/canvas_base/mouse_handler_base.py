@@ -139,7 +139,6 @@ class MouseHandlerBase:
 
         self._is_motion = False
         self._mouse_pos = None
-        self._active_cavity_housing = None
 
         self._gl_mouse_event: _events.GLEvent | _events.GLObjectEvent | None = None
 
@@ -711,15 +710,14 @@ class MouseHandlerBase:
                 # user clicked.
                 self.canvas.mainframe._selection_source_editor = 'editor3d'  # NOQA
 
-                if self._active_cavity_housing is not None:
-                    self._active_cavity_housing.clear_cavity_overlay()
-                    self._active_cavity_housing = None
-
                 # If the clicked object is a Housing, check whether the click
-                # landed on a cavity face and highlight it.  Cavity interaction
-                # is intentionally separate from normal object selection: the
-                # housing itself gets selected; right-click on it (while a
-                # cavity is highlighted) opens the cavity context menu.
+                # landed on a cavity face and select that cavity instead --
+                # a cavity's own overlay/context menu are driven by its own
+                # is_selected/render_selected_overlay() (see objects_3d/
+                # cavity.py), same generic mechanism as every other object
+                # type, so no separate "which housing has an active cavity
+                # highlight" bookkeeping is needed here anymore: whichever
+                # object ends up (de)selected below owns its own overlay.
                 if isinstance(selected, _housing.Housing):
                     view_obj = self._get_view_object(selected)
                     if hasattr(view_obj, 'try_pick_cavity'):
@@ -727,7 +725,6 @@ class MouseHandlerBase:
                             int(mouse_pos.x), int(mouse_pos.y))
 
                         if cavity is not None:
-                            self._active_cavity_housing = view_obj
                             selected = cavity.parent
 
                 if cur_selected is None and selected is not None:
@@ -924,14 +921,13 @@ class MouseHandlerBase:
                     # A fresh pick at this exact position may not resolve
                     # to the same cavity that's actually selected (or to a
                     # cavity at all) -- try_pick_cavity re-derives it
-                    # directly, gated on the click having landed on the
-                    # housing that has an active cavity highlight in the
-                    # first place.
+                    # directly whenever the click landed on a housing, same
+                    # unconditional check on_left_up already uses (a
+                    # cavity's own is_selected is what actually decides
+                    # whether this counts as "already selected" below, not
+                    # separate per-housing bookkeeping).
                     cavity = None
-                    if (
-                        self._active_cavity_housing is not None and
-                        self._active_cavity_housing.parent is selected
-                    ):
+                    if isinstance(selected, _housing.Housing):
                         view_obj = self._get_view_object(selected)
                         if hasattr(view_obj, 'try_pick_cavity'):
                             cavity = view_obj.try_pick_cavity(

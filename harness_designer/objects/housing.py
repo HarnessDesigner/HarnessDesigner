@@ -41,6 +41,19 @@ class Housing(_ObjectBase):
         :type db_obj: :class:`_pjt_housing.PJTHousing`
         """
 
+        # Synchronous, not deferred -- see _construct_cavities' own
+        # docstring. Must run after self.objschematic (Cavity2D needs
+        # db_obj.housing.get_object().objschematic already set) and before
+        # self.obj3d (Housing3D.__init__ triggers this part's Model3D
+        # download, whose callback runs *synchronously* -- and so calls
+        # match_cavity_surfaces() synchronously -- whenever the model file
+        # is already cached on disk; match_cavity_surfaces() needs this
+        # housing's cavities to already exist as real Cavity objects or it
+        # permanently leaves every cavity unclickable/without a selection
+        # overlay until the project is reloaded).
+        if not project_load:
+            self._construct_cavities(mainframe, db_obj)
+
         # Pure DB-layer op -- doesn't touch/construct any Cavity/Terminal
         # object instances itself, just pre-seeds the PJTCavity/PJTTerminal
         # rows' own name/cross-reference caches -- so this runs unconditionally
@@ -50,29 +63,13 @@ class Housing(_ObjectBase):
         # (interactive add).
         db_obj.cache_names()
 
-        if not project_load:
-            # Deferred one Qt event-loop iteration past this housing's
-            # own construction (see _construct_cavities) -- Cavity2D
-            # looks up its owning Housing2D at its own construction time
-            # (via db_obj.housing.get_object().objschematic, see
-            # objects_schematic/cavity.py) to register for batched cavity/
-            # terminal name updates, which needs this housing already
-            # fully constructed and registered (db_obj.set_object/
-            # mainframe.add_object, below) by the time it runs -- not
-            # guaranteed yet at this point, this line included. Must be
-            # CallLater, not CallAfter -- CallAfter runs immediately
-            # (no deferral at all) when called from the main thread,
-            # which this always is, defeating the purpose entirely.
-            from .. import app as _app
-
-            _app.CallLater(self._construct_cavities)
-
         db_obj.set_object(self)
         db_obj.add_object(self)
 
         super().__init__(mainframe, db_obj)
 
         self.objschematic = _housing_schematic.Housing(self, db_obj)
+
         self.obj3d = _housing_3d.Housing(self, db_obj)
         self.objpegboard = _housing_pegboard.Housing(self, db_obj)
 
@@ -83,20 +80,32 @@ class Housing(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def _construct_cavities(self) -> None:
+    def _construct_cavities(self, mainframe, db_obj) -> None:
         """Construct every ``Cavity`` wrapper for this housing's own
-        existing cavity rows -- see the ``CallAfter`` call in
-        :meth:`__init__` for why this is deferred rather than run
-        directly there. ``__init__`` already called
-        ``db_obj.cache_names()``, so ``self.db_obj.cavities`` below
-        hits the pre-populated cache instead of querying per cavity.
+        existing cavity rows.
+
+        Called synchronously from :meth:`__init__` (interactive add only
+        -- project load builds every ``Cavity`` itself, before any
+        ``Housing`` loads, see ``objects.project.Project.__init__``) --
+        not deferred, unlike an earlier version of this method. Safe and
+        cheap to do inline: this housing's own ``PJTCavity`` rows already
+        exist by this point (``database.project_db.pjt_housing.
+        PJTHousingsTable.insert()`` batch-inserts them immediately,
+        alongside the housing row itself, before this ``Housing`` facade
+        is ever constructed), and building their Python wrappers here
+        (rather than after the fact) is what lets them track this
+        housing's position/angle for free during an interactive
+        add-and-drag preview, the same as they do for a committed housing
+        -- see the "Rigid-child positioning convention" note. ``__init__``
+        already called ``db_obj.cache_names()``, so ``self.db_obj.cavities``
+        below hits the pre-populated cache instead of querying per cavity.
         """
-        for cavity in self.db_obj.cavities:
+        for cavity in db_obj.cavities:
             if cavity is None:
                 continue
 
-            cavity_obj = _cavity.Cavity(self.mainframe, cavity)
-            self.mainframe.project.add_cavity(cavity_obj)
+            cavity_obj = _cavity.Cavity(mainframe, cavity)
+            mainframe.project.add_cavity(cavity_obj)
 
     @property
     @_check_types.do

@@ -148,7 +148,7 @@ class Terminal(_base_3d.Base3D):
             self._overlay_housing_3d = None
             self._overlay_cavity_obj = None
             self._overlay_wire_surf_idx: int = None
-            self._overlay_wire_marker_idx: int = None
+            self._overlay_wire_marker = None
             self._overlay_pin_surf_idx: int = None
 
         # model.load()'s callback (_set_model) always fires, whether the
@@ -229,12 +229,12 @@ class Terminal(_base_3d.Base3D):
         The cavity/housing object lookup (walking .get_object() chains) is
         cached by cavity_id -- cheap no-op once the owning cavity stops
         changing between calls. But cavity_3d.surf_idx/wire_surf_idx/
-        wire_marker_idx are re-read every call, uncached: match_cavity_
+        _wire_marker are re-read every call, uncached: match_cavity_
         surfaces() runs asynchronously (once the housing's model finishes
         loading) and can still be pending the first few times this terminal
         renders (e.g. on project load, where every object gets constructed
         before any housing's async model callback has had a chance to run)
-        -- caching a still -1 index against cavity_id would otherwise
+        -- caching a still -1/None value against cavity_id would otherwise
         permanently freeze the overlay off even after match_cavity_surfaces
         later resolves it.
         """
@@ -257,7 +257,7 @@ class Terminal(_base_3d.Base3D):
                         self._overlay_housing_3d = housing_obj.obj3d
 
         self._overlay_wire_surf_idx = None
-        self._overlay_wire_marker_idx = None
+        self._overlay_wire_marker = None
         self._overlay_pin_surf_idx = None
 
         if self._overlay_cavity_obj is None:
@@ -266,8 +266,8 @@ class Terminal(_base_3d.Base3D):
         cavity_3d = self._overlay_cavity_obj.obj3d
         if cavity_3d.wire_surf_idx >= 0:
             self._overlay_wire_surf_idx = cavity_3d.wire_surf_idx
-        elif cavity_3d.wire_marker_idx >= 0:
-            self._overlay_wire_marker_idx = cavity_3d.wire_marker_idx
+        elif cavity_3d._wire_marker is not None:  # NOQA
+            self._overlay_wire_marker = cavity_3d._wire_marker  # NOQA
 
         if self._pin_overlay_needed(pjt_cavity) and cavity_3d.surf_idx >= 0:
             self._overlay_pin_surf_idx = cavity_3d.surf_idx
@@ -335,8 +335,8 @@ class Terminal(_base_3d.Base3D):
 
         if self._overlay_wire_surf_idx is not None:
             housing_3d.render_surface_overlay(shaders, self._overlay_wire_surf_idx, color)
-        elif self._overlay_wire_marker_idx is not None:
-            housing_3d.render_marker_overlay(shaders, self._overlay_wire_marker_idx, color)
+        elif self._overlay_wire_marker is not None:
+            housing_3d.render_marker_overlay(shaders, self._overlay_wire_marker, color)
 
         if self._overlay_pin_surf_idx is not None:
             housing_3d.render_surface_overlay(shaders, self._overlay_pin_surf_idx, color)
