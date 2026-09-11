@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import multiprocessing
 import os
+import re
 import time
 import threading
 import numpy as np
@@ -24,6 +25,7 @@ from OCP.TopoDS import TopoDS
 
 from .. import utils as _utils
 from .. import resources as _resources
+from .. import config as _config
 
 import pyassimp  # NOQA
 
@@ -48,10 +50,10 @@ class ModelLoadError(ModelException):
     pass
 
 
-def _ocp_read_shape(shape):
+def _ocp_read_shape(shape, lin_deflection=0.001, is_relative=True, ang_deflection=0.1):
     BRepMesh_IncrementalMesh(
-        theShape=shape, theLinDeflection=0.001,
-        isRelative=True, theAngDeflection=0.1, isInParallel=True
+        theShape=shape, theLinDeflection=lin_deflection,
+        isRelative=is_relative, theAngDeflection=ang_deflection, isInParallel=True
     )
 
     vertices = []
@@ -116,8 +118,14 @@ def _load_with_assimp(path):
             faces.append(mesh.faces.copy() + offset)
             offset += len(v)
 
-    vertices = np.array(vertices, dtype=np.float32).reshape(-1, 3)
-    faces = np.array(faces, dtype=np.int32).reshape(-1, 3)
+    # np.array(vertices) would only work if every mesh in the file has the
+    # same vertex count -- a multi-object file (e.g. a 3MF with several
+    # build items) has meshes of differing sizes, which np.array() can't
+    # stack into a regular array ("inhomogeneous shape" ValueError).
+    # np.concatenate stacks the per-mesh (N, 3) arrays along axis 0
+    # regardless of each mesh's own N.
+    vertices = np.concatenate(vertices, axis=0).astype(np.float32).reshape(-1, 3)
+    faces = np.concatenate(faces, axis=0).astype(np.int32).reshape(-1, 3)
 
     return vertices, faces
 
@@ -142,16 +150,80 @@ def _load_vrml(file):
     return vertices, faces
 
 
-def _load_step(file):
+# STEP entities that only ever appear when a file is an ASSEMBLY (multiple
+# placed part instances, each with its own transform/style override) rather
+# than a single part. Confirmed empirically against the Bosch STP pool: the
+# two files that could never be simplified down to a sane triangle count no
+# matter what pyfqmr settings were thrown at them (1 928 405 765/782) are
+# the only two of 97 files carrying these entities alongside two other,
+# unrelated single-part files that just have very fine curved geometry
+# (over-tessellated by the tight/relative deflection settings, not actually
+# multi-body -- those are a separate problem, fixed by _ocp_read_shape's own
+# deflection choice, not this check). A part file has no legitimate reason
+# to reference an assembly-usage occurrence or an item-defined
+# transformation; if it does, pyfqmr's per-vertex edge-collapse has no way
+# to simplify across bodies it doesn't know are related, so anything that
+# tries to auto-simplify one of these silently produces a mesh far above
+# target instead of failing loudly -- catching it here, before the (slow)
+# tessellation step even runs, turns that into an immediate, actionable
+# error instead.
+_ASSEMBLY_MARKERS = (
+    'NEXT_ASSEMBLY_USAGE_OCCURRENCE',
+    'CONTEXT_DEPENDENT_SHAPE_REPRESENTATION',
+    'OVER_RIDING_STYLED_ITEM',
+)
+
+
+def _find_assembly_markers(file: str) -> list[str]:
+    """Return which (if any) of ``_ASSEMBLY_MARKERS`` appear in a STEP file.
+
+    STEP files are plain text, one entity definition per line
+    (``#123=ENTITY_NAME(...);``), so this is a straightforward text scan --
+    no need to actually parse the file through OCP just to answer this.
+    """
+    with open(file, 'r', errors='ignore') as f:
+        text = f.read()
+
+    return [marker for marker in _ASSEMBLY_MARKERS
+            if re.search(rf'=\s*{marker}\s*\(', text)]
+
+
+def _load_step(file, use_loose_tessellation: bool = False):
     """Load the step.
 
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param file: Value for ``file``.
-    :type file: UNKNOWN
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :param file: Path to the STEP file.
+    :type file: str
+    :param use_loose_tessellation: Skip the default (tight/relative)
+        tessellation pass entirely and go straight to the coarser
+        settings -- for a retry after the default pass hung the model
+        watchdog on a first attempt (see ThreadWorker.run).
+    :type use_loose_tessellation: bool
+    :returns: Packed vertices/faces arrays.
+    :rtype: tuple[numpy.ndarray, numpy.ndarray]
     """
+
+    cfg = _config.Config.model_processing
+
+    def _read_loose():
+        # A fresh STEPControl_Reader/shape, not a second
+        # BRepMesh_IncrementalMesh call against the shape already meshed
+        # below -- confirmed by direct test that re-meshing the same
+        # shape object a second time segfaults (OCP/OCCT does not support
+        # re-triangulating a shape in place like this). STEP parsing
+        # itself is cheap relative to meshing, so re-reading the file is
+        # the safe option, not a real cost.
+        loose_reader = STEPControl_Reader()
+        loose_reader.ReadFile(file)
+        loose_reader.TransferRoots()  # NOQA
+        loose_shape = loose_reader.Shape()
+
+        return _ocp_read_shape(
+            loose_shape, lin_deflection=cfg.loose_lin_deflection,
+            is_relative=cfg.loose_is_relative,
+            ang_deflection=cfg.loose_ang_deflection)
+
+    if use_loose_tessellation:
+        return _read_loose()
 
     step_reader = STEPControl_Reader()
     step_reader.ReadFile(file)
@@ -159,6 +231,15 @@ def _load_step(file):
     shape = step_reader.Shape()
 
     vertices, faces = _ocp_read_shape(shape)
+
+    if len(faces) > cfg.max_triangle_count:
+        # The default (tight/relative) tessellation is real BREP geometry
+        # tessellated more finely than needed -- re-tessellate the same
+        # BREP from scratch at a coarser tolerance rather than decimating
+        # the already-tessellated mesh (pyfqmr edge-collapse on a mesh
+        # like this visibly destroys the shape instead of simplifying it;
+        # re-tessellating the original surfaces coarsely does not).
+        vertices, faces = _read_loose()
 
     return vertices, faces
 
@@ -183,13 +264,14 @@ def _load_iges(file):
     return vertices, faces
 
 
-def _load(file: str) -> tuple[np.ndarray, np.ndarray]:
+def _load(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Execute the load operation.
-
-    UNKNOWN details are inferred from the callable name and signature.
 
     :param file: Value for ``file``.
     :type file: str
+    :param use_loose_tessellation: Forwarded to ``_load_step`` -- only
+        meaningful for STEP files, ignored for every other format.
+    :type use_loose_tessellation: bool
     :returns: Return value. UNKNOWN details.
     :rtype: tuple[np.ndarray, np.ndarray]
     :raises ModelLoadError: Raised when the operation cannot be completed.
@@ -199,7 +281,7 @@ def _load(file: str) -> tuple[np.ndarray, np.ndarray]:
     elif file.endswith('.iges') or file.endswith('.igs'):
         vertices, faces = _load_iges(file)
     elif file.endswith('.step') or file.endswith('stp'):
-        vertices, faces = _load_step(file)
+        vertices, faces = _load_step(file, use_loose_tessellation=use_loose_tessellation)
     else:
         try:
             vertices, faces = _load_with_assimp(file)
@@ -232,10 +314,10 @@ def _center_model(vertices):
 # a model
 def _reduce_triangles(
     verts: np.ndarray, faces: np.ndarray, target_count: int,
-    aggressiveness: float, update_rate: int = 1,
+    aggressiveness: float = 7.0, update_rate: int = 1,
     max_iterations: int = 150, lossless: bool = False,
     threshold_lossless: float = 1e-3, alpha: float = 1e-9,
-    K: int = 3
+    K: int = 3, preserve_border: bool = False
 ) -> tuple[np.ndarray, np.ndarray]:
 
     """
@@ -260,8 +342,19 @@ def _reduce_triangles(
         Parameter for controlling the threshold growth
     K : int
         Parameter for controlling the thresold growth
-    preserve_border : Bool
-        Flag for preserving vertices on open border
+    preserve_border : bool
+        Flag for preserving vertices on open border. Left False here --
+        BRepMesh_IncrementalMesh (see _ocp_read_shape) triangulates each
+        BREP face independently, so vertices along a shared edge between
+        two faces aren't welded into one index. pyfqmr treats every edge
+        used by only one triangle as an open border, so with the default
+        preserve_border=True almost every face-seam vertex in a STEP-
+        derived mesh reads as a protected border and barely gets
+        simplified regardless of target_count/aggressiveness/iterations
+        (confirmed: a real 8.5M-triangle housing mesh plateaued around
+        1.4M triangles no matter how those three were tuned, then hit
+        target_count exactly, in ~8s, once this was set to False). Solid
+        housing/part meshes have no real open borders to protect anyway.
     """
 
     mesh_simplifier = pyfqmr.Simplify()
@@ -275,6 +368,7 @@ def _reduce_triangles(
         threshold_lossless=threshold_lossless,
         alpha=alpha,
         K=K,
+        preserve_border=preserve_border,
         verbose=False
     )
 
@@ -426,7 +520,30 @@ class ThreadWorker(threading.Thread):
                 connector.close()
                 return
 
-            vertices, faces = _load(model_path)
+            if ext.lower() in ('step', 'stp'):
+                assembly_markers = _find_assembly_markers(model_path)
+
+                if assembly_markers:
+                    message['err_msg'] = (
+                        f'Manufacturer "{message["mfg"]}", part number '
+                        f'"{message["part_number"]}": this STEP file bundles multiple '
+                        f'assembled part instances instead of a single part (found: '
+                        f'{", ".join(assembly_markers)}). Mesh simplification has no '
+                        f'way to reduce triangle count across bodies it does not know '
+                        f'are related, so this file needs to be split into separate '
+                        f'model files -- one per part -- before it can be imported.'
+                    )
+                    message['err_no'] = -10006
+                    message['allow_retry'] = False
+                    message['model_path'] = model_path
+
+                    self.out_queue.put(message)
+                    connector.close()
+                    return
+
+            vertices, faces = _load(
+                model_path,
+                use_loose_tessellation=message.get('use_loose_tessellation', False))
 
             vertices = _center_model(vertices)
 

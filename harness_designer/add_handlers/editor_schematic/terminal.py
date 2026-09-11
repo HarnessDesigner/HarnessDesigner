@@ -3,10 +3,11 @@
 """Cavity-pick terminal placement for the schematic editor.
 
 Unlike the 3D editor, a schematic terminal has no free position of its
-own to preview -- its rendered position is entirely derived from its
-seated cavity's own row in the owning Housing's layout (see
-``objects_schematic.housing.Housing._layout_children``), so there is
-nothing meaningful to show following the cursor before a cavity is
+own to preview -- its own ``position2d`` is only ever computed once
+it's actually seated in a cavity (see
+``objects_schematic.terminal.Terminal.__init__``, which derives it
+from that cavity's own ``PJTHousing.cavity_geometry`` entry), so there
+is nothing meaningful to show following the cursor before a cavity is
 actually picked. The placeholder built by
 ``objects.objects_schematic.terminal.Terminal.start_add`` stays hidden
 the whole session; a click on any of this session's own eligible empty

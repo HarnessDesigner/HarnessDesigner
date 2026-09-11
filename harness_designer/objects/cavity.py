@@ -45,9 +45,9 @@ class Cavity(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _cavity_schematic.Cavity(self, db_obj)
         self.obj3d = _cavity_3d.Cavity(self, db_obj)
         self.objpegboard = _cavity_pegboard.Cavity(self, db_obj)
+        self.objschematic = _cavity_schematic.Cavity(self, db_obj)
 
         self.mainframe.add_object(self)
 

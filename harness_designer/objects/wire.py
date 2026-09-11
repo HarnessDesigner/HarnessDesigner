@@ -46,9 +46,9 @@ class Wire(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _wire_schematic.Wire(self, db_obj)
         self.obj3d = _wire_3d.Wire(self, db_obj)
         self.objpegboard = _wire_pegboard.Wire(self, db_obj)
+        self.objschematic = _wire_schematic.Wire(self, db_obj)
 
         # Sibling graph: whatever this wire's own start/stop end attaches to
         # -- a Terminal, Splice, or WireServiceLoop, never another Wire (two

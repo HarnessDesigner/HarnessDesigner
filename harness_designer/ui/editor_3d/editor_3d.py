@@ -189,3 +189,34 @@ class Editor3DPanel(_canvas3d.Canvas3D):
                 Config.virtual_canvas.height)
 
         super().__init__(parent, Config, size, True)
+
+    @_check_types.do
+    def center_on_object(self, obj) -> None:
+        """
+        Pan the 3D camera to bring *obj* into view, then zoom out (never
+        in) just enough to fit it if it wouldn't otherwise fit in the
+        visible window -- mirrors ``editor_pegboard.EditorPegboardPanel.
+        center_on_object``/``editor_schematic.EditorSchematicPanel.
+        center_on_object`` exactly. Replaces ``MainFrame._set_selected``'s
+        old direct ``editor3d.camera.CenterOn(obj.obj3d.position)`` call,
+        forwarded here for the same reason those two are on their own
+        panels rather than raw ``.camera`` calls at the mainframe level.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
+        if obj.obj3d is None or obj.obj3d.position is None:
+            return
+
+        self.camera.CenterOn(obj.obj3d.position)
+
+        aabb_min, aabb_max = obj.obj3d.aabb
+        scale = self.required_zoom_scale(aabb_min, aabb_max)
+        if scale > 1.0:
+            # CameraBase.Zoom(delta) negates delta internally before
+            # applying it (target_distance = current - (-delta) = current
+            # + delta), so -- unlike the schematic/peg board cameras'
+            # own Zoom() overrides -- a POSITIVE delta is what widens
+            # (zooms out) this camera's own focal_distance. Literally the
+            # same Zoom() the mouse wheel drives.
+            self.camera.Zoom(self.camera.focal_distance * (scale - 1.0))

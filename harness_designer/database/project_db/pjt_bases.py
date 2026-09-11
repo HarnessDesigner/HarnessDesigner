@@ -45,7 +45,6 @@ def _project_id_bounds(project_id: int) -> tuple[bytes, bytes]:
     return prefix + padding, prefix + (b'\xff' * len(padding))
 
 
-
 # These next 2 classes are for cached values.
 # declare the value as an instance variable using the following syntax
 # _stored_value: DefaultStoredValueType | float = DefaultStoredValue
@@ -271,6 +270,24 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         :raises NotImplementedError: Raised when the operation cannot be completed.
         """
         raise NotImplementedError
+
+    _bind_object_callbacks = {}
+
+    def bind_object(self, callback):
+        if self not in self._bind_object_callbacks:
+            self._bind_object_callbacks[self] = []
+
+        self._bind_object_callbacks[self].append(weakref.ref(callback))
+
+    def _process_bind_callbacks(self, obj):
+        if self in self._bind_object_callbacks:
+            refs = self._bind_object_callbacks.pop(self)
+            for ref in refs:
+                cb = ref()
+                if cb is None:
+                    continue
+
+                cb(obj)
 
     _selected: bool = False
 

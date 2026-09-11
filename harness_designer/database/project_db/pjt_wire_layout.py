@@ -133,17 +133,28 @@ class PJTWireLayoutsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: bytes) -> "PJTWireLayout":
-        """Execute the insert operation.
+    def insert(self, point3d_id: bytes = None,
+               point_pegboard_id: bytes = None) -> "PJTWireLayout":
+        """Create a wire-layout row marking a waypoint in exactly one
+        view -- pass whichever one point id the waypoint was placed in
+        (see the class docstring's exclusivity rule); the other stays
+        ``NULL``.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param point3d_id: Identifier for the point.
-        :type point3d_id: bytes
+        :param point3d_id: Identifier for the 3D waypoint point, when
+            this waypoint was placed in the 3D view.
+        :type point3d_id: bytes | None
+        :param point_pegboard_id: Identifier for the peg-board waypoint
+            point, when this waypoint was placed in the peg-board view.
+        :type point_pegboard_id: bytes | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWireLayout`
         """
-        db_id = PJTTableBase.insert(self, point3d_id=point3d_id)
+        if (point3d_id is None) == (point_pegboard_id is None):
+            raise ValueError(
+                'insert() takes exactly one of point3d_id/point_pegboard_id')
+
+        db_id = PJTTableBase.insert(
+            self, point3d_id=point3d_id, point_pegboard_id=point_pegboard_id)
         return PJTWireLayout(self, db_id)
 
     @_check_types.do
@@ -400,6 +411,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
+            self._process_bind_callbacks(obj)
         else:
             self._obj = obj
 

@@ -282,7 +282,8 @@ class ObjectBrowser(_dock_base.DockBase):
 
 
 class _BrowserTree(QtWidgets.QTreeWidget):
-    """Tree widget backing :class:`ObjectBrowserPanel`.
+    """
+    Tree widget backing :class:`ObjectBrowserPanel`.
 
     Moving to a different item -- by clicking it *or* by arrow-key
     navigation, Qt fires the same :attr:`currentItemChanged` signal either
@@ -319,12 +320,42 @@ class _BrowserTree(QtWidgets.QTreeWidget):
         super().__init__(panel)
         self._panel = panel
         self._pending_ref = None
+        self._suspend_current_changed = False
 
         self._select_timer = QtCore.QTimer(self)
         self._select_timer.setSingleShot(True)
         self._select_timer.timeout.connect(self._fire_pending_select)  # NOQA
 
         self.currentItemChanged.connect(self._on_current_item_changed)  # NOQA
+
+    @_check_types.do
+    def set_current_item_silently(self, item) -> None:
+        """
+        Move the tree's current item without arming the deferred
+        cross-editor select. Qt's ``currentItemChanged`` fires for a
+        programmatic ``setCurrentItem`` exactly the same as for a real
+        click or arrow-key press -- there is no way to tell them apart
+        from inside the signal itself. Used by ``ObjectBrowserPanel.
+        _focus_item`` (driven by ``set_selected``, reflecting a selection
+        that already happened elsewhere, not a fresh click of the user's
+        own) so that focusing an item programmatically never re-triggers
+        :meth:`_on_current_item_changed`'s own timer -- without this, a
+        selection already in progress would re-arm itself and fire
+        :meth:`_fire_pending_select` again once the wait window passed,
+        re-running ``select_object`` for whatever item happened to end up
+        current and re-showing the object editor's wait cursor for no
+        reason -- confirmed 2026-09-07 (Kevin) as the cause of the busy
+        cursor flickering on repeat during a single selection.
+
+        :param item: Item to make current.
+        :type item: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        self._suspend_current_changed = True
+        try:
+            self.setCurrentItem(item)
+        finally:
+            self._suspend_current_changed = False
 
     @_check_types.do
     def _on_current_item_changed(self, current, _previous):
@@ -337,6 +368,9 @@ class _BrowserTree(QtWidgets.QTreeWidget):
         :param _previous: Previously current item (unused).
         :type _previous: :class:`QtWidgets.QTreeWidgetItem` | None
         """
+
+        if self._suspend_current_changed:
+            return
 
         self._select_timer.stop()
         self._pending_ref = None
@@ -367,7 +401,10 @@ class _BrowserTree(QtWidgets.QTreeWidget):
 
         super().mouseDoubleClickEvent(event)
 
-        if event.button() != QtCore.Qt.MouseButton.LeftButton or pending_ref is None:
+        if (
+            event.button() != QtCore.Qt.MouseButton.LeftButton or
+            pending_ref is None
+        ):
             return
 
         obj = pending_ref()
@@ -376,7 +413,9 @@ class _BrowserTree(QtWidgets.QTreeWidget):
 
     @_check_types.do
     def _fire_pending_select(self):
-        """Run the deferred select once the double-click window has passed."""
+        """
+        Run the deferred select once the double-click window has passed.
+        """
 
         ref = self._pending_ref
         self._pending_ref = None
@@ -386,10 +425,14 @@ class _BrowserTree(QtWidgets.QTreeWidget):
         obj = ref()
         if obj is not None:
             self._panel.select_object(obj)
+            self._panel.mainframe.editor2d.Refresh()
+            self._panel.mainframe.editor3d.Refresh()
+            self._panel.mainframe.editor_pegboard.Refresh()
 
     @_check_types.do
     def _select_wait_ms(self) -> int:
-        """Return how long to wait for a possible second click before
+        """
+        Return how long to wait for a possible second click before
         propagating the selection to the other editors.
 
         :rtype: int
@@ -403,8 +446,41 @@ class _BrowserTree(QtWidgets.QTreeWidget):
         if not avg:
             return os_interval
 
-        return int(min(os_interval,
-                       max(self._SELECT_MIN_MS, avg * self._SELECT_MARGIN)))
+        return int(
+            min(os_interval, max(self._SELECT_MIN_MS, avg * self._SELECT_MARGIN)))
+
+
+class TreeItem:
+
+    def __init__(self, browser: "ObjectBrowserPanel",
+                 treeitem, obj: "_object_base.ObjectBase"):
+
+        self._treeitem = treeitem
+        self._obj = obj
+        self._browser = browser
+        self._treeitems = []
+
+    def add_treeitem(self, treeitem):
+        self._treeitems.append(treeitem)
+
+    @property
+    def treeitem(self):
+        return self._treeitem
+
+    @property
+    def obj(self):
+        return self._obj
+
+    def set_selected(self):
+        self._browser.set_selected(self._obj)
+
+    def delete(self):
+        self._browser.remove_object(self._obj)
+
+        for treeitem in self._treeitems:
+            self._browser.remove_treeitem(treeitem)
+
+        self._browser.remove_treeitem(self._treeitem)
 
 
 class ObjectBrowserPanel(QtWidgets.QWidget):
@@ -504,7 +580,6 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         h_layout.addWidget(self._treectrl)
         v_layout.addLayout(h_layout)
 
-        self._root: QtWidgets.QTreeWidgetItem = None
         self._boots: QtWidgets.QTreeWidgetItem = None
         self._bundles: QtWidgets.QTreeWidgetItem = None
         self._cavities: QtWidgets.QTreeWidgetItem = None
@@ -544,7 +619,49 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         if has_children:
             item.setChildIndicatorPolicy(
                 QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+
         return item
+
+    @_check_types.do
+    def _append_top_level_item(self, label: str,  # NOQA
+                               has_children: bool = False) -> QtWidgets.QTreeWidgetItem:
+        """
+        Same as :meth:`_append_item`, but for a category root -- one of
+        the 15 items directly under the tree's own (invisible) root,
+        rather than nested under another :class:`QTreeWidgetItem`. Kept
+        separate instead of loosening ``_append_item``'s own ``parent``
+        annotation, since that method is called far more often with a
+        real item parent and this case is rare (only :meth:`reset`).
+
+        :param label: Value for ``label``.
+        :type label: str
+        :param has_children: Boolean flag for whether children is available.
+        :type has_children: bool
+        :rtype: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        item = QtWidgets.QTreeWidgetItem(self._treectrl, [label])
+        if has_children:
+            item.setChildIndicatorPolicy(
+                QtWidgets.QTreeWidgetItem.ChildIndicatorPolicy.ShowIndicator)
+
+        return item
+
+    @property
+    @_check_types.do
+    def _tree_root(self) -> QtWidgets.QTreeWidgetItem:
+        """
+        The tree's own invisible root -- its children are exactly the 15
+        top-level category items (Boots, Bundles, ...) now that there is
+        no visible synthetic "root" item wrapping them. Used only by the
+        whole-tree walks (:meth:`remove_treeitem`, :meth:`__remove_refs`,
+        :meth:`_find_path_matches`, :meth:`_find_name_matches`) that used
+        to start from that synthetic item.
+
+        :rtype: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        return self._treectrl.invisibleRootItem()
 
     @_check_types.do
     def reset(self) -> None:
@@ -553,26 +670,45 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         """
 
         self._treectrl.clear()
-        self._root = QtWidgets.QTreeWidgetItem(self._treectrl, ['root'])
-        self._treectrl.addTopLevelItem(self._root)
 
-        self._boots = self._append_item(self._root, 'Boots', True)
-        self._bundles = self._append_item(self._root, 'Bundles', True)
-        self._cavities = self._append_item(self._root, 'Cavities', True)
-        self._circuits = self._append_item(self._root, 'Circuits', True)
-        self._covers = self._append_item(self._root, 'Covers', True)
-        self._cpa_locks = self._append_item(self._root, 'CPA Locks', True)
-        self._housings = self._append_item(self._root, 'Housings', True)
-        self._notes = self._append_item(self._root, 'Notes', True)
-        self._seals = self._append_item(self._root, 'Seals', True)
-        self._splices = self._append_item(self._root, 'Splices', True)
-        self._terminals = self._append_item(self._root, 'Terminals', True)
-        self._tpa_locks = self._append_item(self._root, 'TPA Locks', True)
-        self._transitions = self._append_item(self._root, 'Transitions', True)
-        self._wires = self._append_item(self._root, 'Wires', True)
-        self._wire_markers = self._append_item(self._root, 'Wire Markers', True)
+        self._boots = self._append_top_level_item('Boots', True)
+        self._bundles = self._append_top_level_item('Bundles', True)
+        self._cavities = self._append_top_level_item('Cavities', True)
+        self._circuits = self._append_top_level_item('Circuits', True)
+        self._covers = self._append_top_level_item('Covers', True)
+        self._cpa_locks = self._append_top_level_item('CPA Locks', True)
+        self._housings = self._append_top_level_item('Housings', True)
+        self._notes = self._append_top_level_item('Notes', True)
+        self._seals = self._append_top_level_item('Seals', True)
+        self._splices = self._append_top_level_item('Splices', True)
+        self._terminals = self._append_top_level_item('Terminals', True)
+        self._tpa_locks = self._append_top_level_item('TPA Locks', True)
+        self._transitions = self._append_top_level_item('Transitions', True)
+        self._wires = self._append_top_level_item('Wires', True)
+        self._wire_markers = self._append_top_level_item('Wire Markers', True)
 
         self._weakrefs = []
+
+    def remove_treeitem(self, treeitem):
+
+        def iter_tree(parent: QtWidgets.QTreeWidgetItem):
+            """
+            Iterate over the tree.
+
+            :param parent: Parent object.
+            :type parent: :class:`QtWidgets.QTreeWidgetItem`
+
+            :returns: Iterator or iterable result. UNKNOWN details.
+            """
+
+            for i in range(parent.childCount() - 1, -1, -1):
+                child = parent.child(i)
+                if child == treeitem:
+                    parent.removeChild(child)
+                elif child.childCount() > 0:
+                    iter_tree(child)
+
+        iter_tree(self._tree_root)
 
     @_check_types.do
     def __remove_refs(self, ref):
@@ -599,11 +735,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
                     if data is None:
                         parent.removeChild(child)
                         continue
+
                 if child.childCount() > 0:
                     iter_tree(child)
 
-        if self._root is not None:
-            iter_tree(self._root)
+        iter_tree(self._tree_root)
 
         try:
             self._weakrefs.remove(ref)
@@ -638,6 +774,178 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         item.setData(0, self._CANONICAL_ROLE, True)
 
+    @staticmethod
+    def _set_treeitem(db_obj, treeitem):
+        obj = db_obj.get_object()
+
+        if obj is None:
+            def _set_treeitem(obj_):
+                obj_.get_treeitem().add_treeitem(treeitem)
+
+            db_obj.bind_object(_set_treeitem)
+        else:
+            obj.get_treeitem().add_treeitem(treeitem)
+
+    # ── Reverse-lookup helpers ──────────────────────────────────────────
+    # None of these relationships have a FK the "child" side can read
+    # directly (a wire doesn't know its own bundle/splice, a bundle
+    # doesn't know its own transitions) -- only the "parent" side does
+    # (PJTBundle.wires, PJTSplice.wires, PJTTransitionBranch.bundle), so
+    # showing them from the child's own tree entry means scanning the
+    # project's full list of the parent type. Only run when building the
+    # tree (add_*, not a hot path), so an O(n) scan per lookup is fine.
+
+    @_check_types.do
+    def _bundles_containing_wire(self, wire_db_obj) -> list:
+        """Every bundle (as its ``pjt_bundles`` row) this wire is a
+        member of."""
+        wire_id = wire_db_obj.db_id
+        results = []
+        for bundle in self.mainframe.project.bundles:
+            bundle_db = bundle.db_obj
+            for w in bundle_db.wires:
+                if w.db_id == wire_id:
+                    results.append(bundle_db)
+                    break
+
+        return results
+
+    @_check_types.do
+    def _splices_containing_wire(self, wire_db_obj) -> list:
+        """Every splice (as its ``pjt_splices`` row) this wire is
+        attached to."""
+        wire_id = wire_db_obj.db_id
+        results = []
+        for splice in self.mainframe.project.splices:
+            splice_db = splice.db_obj
+            for w in splice_db.wires:
+                if w.db_id == wire_id:
+                    results.append(splice_db)
+                    break
+
+        return results
+
+    @_check_types.do
+    def _wires_for_terminal(self, terminal_db_obj) -> list:
+        """Every wire (as its ``pjt_wires`` row) attached to this
+        terminal."""
+        terminal_id = terminal_db_obj.db_id
+        results = []
+        for wire in self.mainframe.project.wires:
+            wire_db = wire.db_obj
+            for t in wire_db.terminals:
+                if t.db_id == terminal_id:
+                    results.append(wire_db)
+                    break
+
+        return results
+
+    @_check_types.do
+    def _transitions_for_bundle(self, bundle_db_obj) -> list:
+        """Every ``(transition db row, branch number)`` this bundle
+        occupies -- a bundle can occupy more than one branch of the same
+        transition, so a transition may appear more than once here."""
+        bundle_id = bundle_db_obj.db_id
+        results = []
+        for transition in self.mainframe.project.transitions:
+            t_db = transition.db_obj
+            branches = [t_db.branch1, t_db.branch2, t_db.branch3,
+                        t_db.branch4, t_db.branch5, t_db.branch6]
+
+            for i, branch in enumerate(branches):
+                if branch is None:
+                    continue
+
+                b = branch.bundle
+                if b is not None and b.db_id == bundle_id:
+                    results.append((t_db, i + 1))
+
+        return results
+
+    @_check_types.do
+    def _transitions_for_wire(self, wire_db_obj) -> dict:
+        """Map transition db-row-id -> ``[transition db row, [branch
+        numbers]]``, merged across every bundle this wire belongs to --
+        a wire whose bundle passes through the same transition on more
+        than one branch shows every branch nested under that one
+        transition entry (see :meth:`add_wire`)."""
+        grouped = {}
+        for bundle_db in self._bundles_containing_wire(wire_db_obj):
+            for t_db, branch_num in self._transitions_for_bundle(bundle_db):
+                entry = grouped.setdefault(t_db.db_id, [t_db, []])
+                entry[1].append(branch_num)
+
+        return grouped
+
+    # ── Shared cross-reference builders ─────────────────────────────────
+    # A cavity's seal/terminal children (and a terminal's own seal/wires
+    # children) are shown in two places -- the canonical Cavities/
+    # Terminals entry, and nested inside a housing's own Cavities group
+    # (see add_housing) -- built here once so both stay in sync.
+
+    @_check_types.do
+    def _build_cavity_children(self, parent_item: QtWidgets.QTreeWidgetItem,
+                               cavity_db_obj) -> None:
+        """Append *cavity_db_obj*'s own seal, then its seated terminal
+        (itself expanded via :meth:`_build_terminal_children`), under
+        *parent_item*.
+
+        :param parent_item: Item to append under.
+        :type parent_item: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        seal = cavity_db_obj.seal
+        if seal is not None:
+            ref2 = weakref.ref(seal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(parent_item, f'Seal: {seal.name}')
+            self._set_data(child, ref2)
+
+            self._set_treeitem(seal, child)
+
+        terminal = cavity_db_obj.terminal
+        if terminal is not None:
+            ref2 = weakref.ref(terminal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(
+                parent_item, f'Terminal: {terminal.name}', True)
+
+            self._set_data(child, ref2)
+            self._set_treeitem(terminal, child)
+
+            self._build_terminal_children(child, terminal)
+
+    @_check_types.do
+    def _build_terminal_children(self, parent_item: QtWidgets.QTreeWidgetItem,
+                                 terminal_db_obj) -> None:
+        """Append *terminal_db_obj*'s own seal, then every wire attached
+        to it, under *parent_item*.
+
+        :param parent_item: Item to append under.
+        :type parent_item: :class:`QtWidgets.QTreeWidgetItem`
+        """
+
+        seal = terminal_db_obj.seal
+        if seal is not None:
+            ref2 = weakref.ref(seal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(parent_item, f'Seal: {seal.name}')
+            self._set_data(child, ref2)
+
+            self._set_treeitem(seal, child)
+
+        wires = self._wires_for_terminal(terminal_db_obj)
+        if wires:
+            wires_treeitem = self._append_item(parent_item, 'Wires', True)
+
+            for wire in wires:
+                ref2 = weakref.ref(wire, self.__remove_refs)
+                self._weakrefs.append(ref2)
+                child = self._append_item(wires_treeitem, f'Wire: {wire.name}')
+                self._set_data(child, ref2)
+
+                self._set_treeitem(wire, child)
+
     @_check_types.do
     def add_boot(self, obj: _boot.Boot):
         """
@@ -651,16 +959,22 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._weakrefs.append(ref)
 
         treeitem = self._append_item(self._boots, obj.db_obj.name, True)
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
         ref2 = weakref.ref(housing, self.__remove_refs)
         self._weakrefs.append(ref2)
-        child = self._append_item(treeitem, f'Housing: {housing.name}')
-        self._set_data(child, ref2)
 
+        child = self._append_item(treeitem, f'Housing: {housing.name}')
+
+        self._set_treeitem(housing, child)
+
+        self._set_data(child, ref2)
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_bundle(self, obj: _bundle.Bundle):
@@ -675,16 +989,33 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._weakrefs.append(ref)
 
         treeitem = self._append_item(self._bundles, obj.db_obj.name, True)
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
+
+        transitions_treeitem = self._append_item(treeitem, 'Transitions', True)
+
+        for t_db, branch_num in self._transitions_for_bundle(obj.db_obj):
+            ref2 = weakref.ref(t_db, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(
+                transitions_treeitem, f'Transition: {t_db.name} : {branch_num}')
+
+            self._set_data(child, ref2)
+            self._set_treeitem(t_db, child)
+
+        wires_treeitem = self._append_item(treeitem, 'Wires', True)
 
         for wire in obj.db_obj.wires:
             ref2 = weakref.ref(wire, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Wire: {wire.name}')
+            child = self._append_item(wires_treeitem, f'Wire: {wire.name}')
             self._set_data(child, ref2)
 
+            self._set_treeitem(wire, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_cavity(self, obj: _cavity.Cavity):
@@ -698,31 +1029,32 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._cavities, obj.db_obj.name, True)
+        housing = obj.db_obj.housing
+
+        if housing is not None:
+            label = f'Cavity: {housing.name} : {obj.db_obj.name}'
+        else:
+            label = f'Cavity: {obj.db_obj.name}'
+
+        treeitem = self._append_item(self._cavities, label, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
-        housing = obj.db_obj.housing
-        ref2 = weakref.ref(housing, self.__remove_refs)
-        self._weakrefs.append(ref2)
-        child = self._append_item(treeitem, f'Housing: {housing.name}')
-        self._set_data(child, ref2)
+        self._build_cavity_children(treeitem, obj.db_obj)
 
-        terminal = obj.db_obj.terminal
-        if terminal is not None:
-            ref2 = weakref.ref(terminal, self.__remove_refs)
+        if housing is not None:
+            ref2 = weakref.ref(housing, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Terminal: {terminal.name}')
-            self._set_data(child, ref2)
+            child = self._append_item(treeitem, f'Housing: {housing.name}')
 
-        seal = obj.db_obj.seal
-        if seal is not None:
-            ref2 = weakref.ref(seal, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Seal: {seal.name}')
+            self._set_treeitem(housing, child)
             self._set_data(child, ref2)
 
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_circuit(self, obj: _circuit.Circuit):
@@ -736,39 +1068,67 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._circuits, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._circuits, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
-        wire_treeitem = self._append_item(treeitem, 'Wires', True)
+        wire_treeitem = self._append_item(
+            treeitem, 'Wires', True)
+
         for wire in obj.db_obj.wires:
             ref2 = weakref.ref(wire, self.__remove_refs)
             self._weakrefs.append(ref2)
-            wireitem = self._append_item(wire_treeitem, f'Wire: {wire.name}')
+            wireitem = self._append_item(
+                wire_treeitem, f'Wire: {wire.name}')
+
             self._set_data(wireitem, ref2)
 
-        loop_treeitem = self._append_item(treeitem, 'Wire Service Loops', True)
+            self._set_treeitem(wire, wireitem)
+
+        loop_treeitem = self._append_item(
+            treeitem, 'Wire Service Loops', True)
+
         for wire in obj.db_obj.wire_service_loops:
             ref2 = weakref.ref(wire, self.__remove_refs)
             self._weakrefs.append(ref2)
-            loopitem = self._append_item(loop_treeitem, f'Wire Loop: {wire.name}')
+            loopitem = self._append_item(
+                loop_treeitem, f'Wire Loop: {wire.name}')
+
             self._set_data(loopitem, ref2)
 
-        terminal_treeitem = self._append_item(treeitem, 'Terminals', True)
+            self._set_treeitem(wire, loopitem)
+
+        terminal_treeitem = self._append_item(
+            treeitem, 'Terminals', True)
+
         for terminal in obj.db_obj.terminals:
             ref2 = weakref.ref(terminal, self.__remove_refs)
             self._weakrefs.append(ref2)
-            terminalitem = self._append_item(terminal_treeitem, f'Terminal: {terminal.name}')
+            terminalitem = self._append_item(
+                terminal_treeitem, f'Terminal: {terminal.name}')
+
             self._set_data(terminalitem, ref2)
 
-        splice_treeitem = self._append_item(treeitem, 'Splices', True)
+            self._set_treeitem(terminal, terminalitem)
+
+        splice_treeitem = self._append_item(
+            treeitem, 'Splices', True)
+
         for splice in obj.db_obj.splices:
             ref2 = weakref.ref(splice, self.__remove_refs)
             self._weakrefs.append(ref2)
-            spliceitem = self._append_item(splice_treeitem, f'Splice: {splice.name}')
+            spliceitem = self._append_item(
+                splice_treeitem, f'Splice: {splice.name}')
+
             self._set_data(spliceitem, ref2)
 
+            self._set_treeitem(splice, spliceitem)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_cover(self, obj: _cover.Cover):
@@ -782,18 +1142,26 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._covers, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._covers, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
         if housing is not None:
             ref2 = weakref.ref(housing, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Housing: {housing.name}')
+            child = self._append_item(
+                treeitem, f'Housing: {housing.name}')
+
             self._set_data(child, ref2)
 
+            self._set_treeitem(housing, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_cpa_lock(self, obj: _cpa_lock.CPALock):
@@ -807,18 +1175,26 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._cpa_locks, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._cpa_locks, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
         if housing is not None:
             ref2 = weakref.ref(housing, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Housing: {housing.name}')
+            child = self._append_item(
+                treeitem, f'Housing: {housing.name}')
+
             self._set_data(child, ref2)
 
+            self._set_treeitem(housing, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_housing(self, obj: _housing.Housing):
@@ -832,20 +1208,28 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._housings, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._housings, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
-        seal = obj.db_obj.seal
+        boot = obj.db_obj.boot
         cover = obj.db_obj.cover
         cpa_lock = obj.db_obj.cpa_lock
-        tpa_locks = obj.db_obj.tpa_locks
+        tpa_lock1 = obj.db_obj.tpa_lock1
+        tpa_lock2 = obj.db_obj.tpa_lock2
+        seal = obj.db_obj.seal
         cavities = obj.db_obj.cavities
 
-        if seal is not None:
-            ref2 = weakref.ref(seal, self.__remove_refs)
+        if boot is not None:
+            ref2 = weakref.ref(boot, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Seal: {seal.name}')
+            child = self._append_item(treeitem, f'Boot: {boot.name}')
             self._set_data(child, ref2)
+
+            self._set_treeitem(boot, child)
 
         if cover is not None:
             ref2 = weakref.ref(cover, self.__remove_refs)
@@ -853,28 +1237,63 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             child = self._append_item(treeitem, f'Cover: {cover.name}')
             self._set_data(child, ref2)
 
+            self._set_treeitem(cover, child)
+
         if cpa_lock is not None:
             ref2 = weakref.ref(cpa_lock, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'CPA Lock: {cpa_lock.name}')
+            child = self._append_item(
+                treeitem, f'CPA Lock: {cpa_lock.name}')
+
             self._set_data(child, ref2)
 
-        tpa_locks_treeitem = self._append_item(treeitem, 'TPA Locks', True)
-        for lock in tpa_locks:
-            ref2 = weakref.ref(lock, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            lockitem = self._append_item(tpa_locks_treeitem, f'TPA Lock: {lock.name}')
-            self._set_data(lockitem, ref2)
+            self._set_treeitem(cpa_lock, child)
 
-        cavities_treeitem = self._append_item(treeitem, 'Cavities', True)
+        if tpa_lock1 is not None:
+            ref2 = weakref.ref(tpa_lock1, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(
+                treeitem, f'TPA Lock 1: {tpa_lock1.name}')
+
+            self._set_data(child, ref2)
+
+            self._set_treeitem(tpa_lock1, child)
+
+        if tpa_lock2 is not None:
+            ref2 = weakref.ref(tpa_lock2, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(
+                treeitem, f'TPA Lock 2: {tpa_lock2.name}')
+
+            self._set_data(child, ref2)
+
+            self._set_treeitem(tpa_lock2, child)
+
+        if seal is not None:
+            ref2 = weakref.ref(seal, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(treeitem, f'Seal: {seal.name}')
+            self._set_data(child, ref2)
+
+            self._set_treeitem(seal, child)
+
+        cavities_treeitem = self._append_item(
+            treeitem, 'Cavities', True)
+
         for cavity in cavities:
             ref2 = weakref.ref(cavity, self.__remove_refs)
             self._weakrefs.append(ref2)
-            cavityitem = self._append_item(cavities_treeitem, f'Cavity: {cavity.name}')
+            cavityitem = self._append_item(
+                cavities_treeitem, f'Cavity: {cavity.name}', True)
+
             self._set_data(cavityitem, ref2)
 
+            self._set_treeitem(cavity, cavityitem)
+
+            self._build_cavity_children(cavityitem, cavity)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_note(self, obj: _note.Note):
@@ -889,10 +1308,12 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._weakrefs.append(ref)
 
         treeitem = self._append_item(self._notes, obj.db_obj.notes)
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_seal(self, obj: _seal.Seal):
@@ -906,31 +1327,47 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._seals, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._seals, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
         cavity = obj.db_obj.cavity
         terminal = obj.db_obj.terminal
 
-        if housing is not None:
-            ref2 = weakref.ref(housing, self.__remove_refs)
+        if terminal is not None:
+            ref2 = weakref.ref(terminal, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Housing: {housing.name}')
+            child = self._append_item(
+                treeitem, f'Terminal: {terminal.name}')
+
             self._set_data(child, ref2)
+
+            self._set_treeitem(terminal, child)
+
         elif cavity is not None:
             ref2 = weakref.ref(cavity, self.__remove_refs)
             self._weakrefs.append(ref2)
             child = self._append_item(treeitem, f'Cavity: {cavity.name}')
             self._set_data(child, ref2)
-        elif terminal is not None:
-            ref2 = weakref.ref(terminal, self.__remove_refs)
+
+            self._set_treeitem(cavity, child)
+
+        elif housing is not None:
+            ref2 = weakref.ref(housing, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Terminal: {terminal.name}')
+            child = self._append_item(
+                treeitem, f'Housing: {housing.name}')
+
             self._set_data(child, ref2)
 
+            self._set_treeitem(housing, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_splice(self, obj: _splice.Splice):
@@ -944,7 +1381,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._splices, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._splices, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         for wire in obj.db_obj.wires:
@@ -953,8 +1394,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             child = self._append_item(treeitem, f'Wire: {wire.name}')
             self._set_data(child, ref2)
 
+            self._set_treeitem(wire, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_terminal(self, obj: _terminal.Terminal):
@@ -968,31 +1411,36 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._terminals, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._terminals, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
-        seal = obj.db_obj.seal
         cavity = obj.db_obj.cavity
         circuit = obj.db_obj.circuit
 
-        if seal is not None:
-            ref2 = weakref.ref(seal, self.__remove_refs)
-            self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Seal: {seal.name}')
-            self._set_data(child, ref2)
         if cavity is not None:
             ref2 = weakref.ref(cavity, self.__remove_refs)
             self._weakrefs.append(ref2)
             child = self._append_item(treeitem, f'Cavity: {cavity.name}')
             self._set_data(child, ref2)
+
+            self._set_treeitem(cavity, child)
+
+        self._build_terminal_children(treeitem, obj.db_obj)
+
         if circuit is not None:
             ref2 = weakref.ref(circuit, self.__remove_refs)
             self._weakrefs.append(ref2)
             child = self._append_item(treeitem, f'Circuit: {circuit.name}')
             self._set_data(child, ref2)
 
+            self._set_treeitem(circuit, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_tpa_lock(self, obj: _tpa_lock.TPALock):
@@ -1006,7 +1454,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._tpa_locks, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._tpa_locks, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         housing = obj.db_obj.housing
@@ -1015,8 +1467,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         child = self._append_item(treeitem, f'Housing: {housing.name}')
         self._set_data(child, ref2)
 
+        self._set_treeitem(housing, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_transition(self, obj: _transition.Transition):
@@ -1030,7 +1484,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._transitions, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._transitions, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         branches = [obj.db_obj.branch1, obj.db_obj.branch2, obj.db_obj.branch3,
@@ -1040,23 +1498,35 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             if branch is None:
                 continue
 
-            branch_treeitem = self._append_item(treeitem, f'Branch {i + 1}', True)
+            branch_treeitem = self._append_item(
+                treeitem, f'Branch {i + 1}', True)
+
             bundle = branch.bundle
             if bundle is not None:
                 ref2 = weakref.ref(bundle, self.__remove_refs)
                 self._weakrefs.append(ref2)
-                child = self._append_item(branch_treeitem, f'Bundle: {bundle.name}')
+                child = self._append_item(
+                    branch_treeitem, f'Bundle: {bundle.name}')
+
                 self._set_data(child, ref2)
 
-            wires_treeitem = self._append_item(branch_treeitem, 'Wires', True)
+                self._set_treeitem(bundle, child)
+
+            wires_treeitem = self._append_item(
+                branch_treeitem, 'Wires', True)
+
             for wire in branch.wires:
                 ref2 = weakref.ref(wire, self.__remove_refs)
                 self._weakrefs.append(ref2)
-                child = self._append_item(wires_treeitem, f'Wire: {wire.name}')
+                child = self._append_item(
+                    wires_treeitem, f'Wire: {wire.name}')
+
                 self._set_data(child, ref2)
 
+                self._set_treeitem(wire, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_wire(self, obj: _wire.Wire):
@@ -1070,7 +1540,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._wires, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._wires, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         terminals = obj.db_obj.terminals
@@ -1083,22 +1557,77 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             child = self._append_item(treeitem, f'Circuit: {circuit.name}')
             self._set_data(child, ref2)
 
-        terminals_treeitem = self._append_item(treeitem, 'Terminals', True)
+            self._set_treeitem(circuit, child)
+
+        terminals_treeitem = self._append_item(
+            treeitem, 'Terminals', True)
+
         for terminal in terminals:
             ref2 = weakref.ref(terminal, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(terminals_treeitem, f'Terminal: {terminal.name}')
+            child = self._append_item(
+                terminals_treeitem, f'Terminal: {terminal.name}')
+
             self._set_data(child, ref2)
 
-        markers_treeitem = self._append_item(treeitem, 'Wire Markers', True)
+            self._set_treeitem(terminal, child)
+
+        splices_treeitem = self._append_item(
+            treeitem, 'Splices', True)
+
+        for splice in self._splices_containing_wire(obj.db_obj):
+            ref2 = weakref.ref(splice, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(
+                splices_treeitem, f'Splice: {splice.name}')
+
+            self._set_data(child, ref2)
+
+            self._set_treeitem(splice, child)
+
+        bundles_treeitem = self._append_item(
+            treeitem, 'Bundles', True)
+
+        for bundle in self._bundles_containing_wire(obj.db_obj):
+            ref2 = weakref.ref(bundle, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            child = self._append_item(
+                bundles_treeitem, f'Bundle: {bundle.name}')
+
+            self._set_data(child, ref2)
+
+            self._set_treeitem(bundle, child)
+
+        transitions_treeitem = self._append_item(
+            treeitem, 'Transitions', True)
+
+        for t_db, branch_nums in self._transitions_for_wire(obj.db_obj).values():
+            ref2 = weakref.ref(t_db, self.__remove_refs)
+            self._weakrefs.append(ref2)
+            t_item = self._append_item(
+                transitions_treeitem, f'Transition: {t_db.name}', True)
+
+            self._set_data(t_item, ref2)
+            self._set_treeitem(t_db, t_item)
+
+            for branch_num in sorted(branch_nums):
+                self._append_item(t_item, f'Branch: {branch_num}')
+
+        markers_treeitem = self._append_item(
+            treeitem, 'Wire Markers', True)
+
         for marker in wire_markers:
             ref2 = weakref.ref(marker, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(markers_treeitem, f'Marker: {marker.name}')
+            child = self._append_item(
+                markers_treeitem, f'Marker: {marker.name}')
+
             self._set_data(child, ref2)
 
+            self._set_treeitem(marker, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_wire_marker(self, obj: _wire_marker.WireMarker):
@@ -1112,7 +1641,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(self._wire_markers, obj.db_obj.name, True)
+        treeitem = self._append_item(
+            self._wire_markers, obj.db_obj.name, True)
+
+        ti = TreeItem(self, treeitem, obj)
+
         self._set_data(treeitem, ref)
 
         wire = obj.db_obj.wire
@@ -1121,8 +1654,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         child = self._append_item(treeitem, f'Wire: {wire.name}')
         self._set_data(child, ref2)
 
+        self._set_treeitem(wire, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop):
@@ -1155,9 +1690,13 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         ref = weakref.ref(obj, self.__remove_refs)
         self._weakrefs.append(ref)
 
-        treeitem = self._append_item(
-            wire_treeitem, f'Wire Service Loop: {obj.db_obj.name}', True)
+        treeitem = self._append_item(wire_treeitem.treeitem,
+                                     f'Wire Service Loop: {obj.db_obj.name}',
+                                     True)
+
         self._set_data(treeitem, ref)
+
+        ti = TreeItem(self, treeitem, obj)
 
         terminal = obj.db_obj.terminal
         circuit = obj.db_obj.circuit
@@ -1165,8 +1704,12 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         if terminal is not None:
             ref2 = weakref.ref(terminal, self.__remove_refs)
             self._weakrefs.append(ref2)
-            child = self._append_item(treeitem, f'Terminal: {terminal.name}')
+            child = self._append_item(
+                treeitem, f'Terminal: {terminal.name}')
+
             self._set_data(child, ref2)
+
+            self._set_treeitem(terminal, child)
 
         if circuit is not None:
             ref2 = weakref.ref(circuit, self.__remove_refs)
@@ -1174,8 +1717,10 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             child = self._append_item(treeitem, f'Circuit: {circuit.name}')
             self._set_data(child, ref2)
 
+            self._set_treeitem(circuit, child)
+
         self._mark_canonical(treeitem)
-        obj.set_treeitem(treeitem)
+        obj.set_treeitem(ti)
 
     @_check_types.do
     def set_selected(self, obj: "_object_base.ObjectBase"):
@@ -1183,9 +1728,18 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         Reflect a selection made in one of the editors: expand the tree
         down to the object's item, highlight it, and scroll it into view.
         Called by ``mainframe._set_selected`` for every selection change,
-        including this panel's own (see :meth:`select_object`) -- driving
-        the tree here too keeps behavior identical no matter which editor
-        the click originated in.
+        including this panel's own (see :meth:`select_object`, which
+        calls this directly a second time after ``obj.set_selected(True)``
+        to guarantee the tree ends up reflecting the object actually
+        clicked, even if that object's own selection cascade redirects
+        the *real* selection elsewhere downstream, e.g. a seated
+        terminal's selection redirecting to its cavity/housing) -- being
+        called more than once per click is fine; :meth:`_focus_item`
+        moves the tree via ``_BrowserTree.set_current_item_silently``
+        instead of a plain ``setCurrentItem``, so none of these calls
+        re-arms the tree's own deferred cross-editor select timer (see
+        that method's docstring for why a plain ``setCurrentItem`` would
+        cause a reentrant, runaway busy-cursor flicker here).
 
         :param obj: Newly selected object, or ``None`` on deselect.
         :type obj: :class:`_object_base.ObjectBase` | None
@@ -1203,7 +1757,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             # gizmo objects (RotationRings, MoveArrows) never get one
             return
 
-        self._focus_item(treeitem)
+        self._focus_item(treeitem.treeitem)
 
     @_check_types.do
     def _expand_ancestors(self, item: QtWidgets.QTreeWidgetItem) -> None:
@@ -1231,7 +1785,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         """
 
         self._expand_ancestors(item)
-        self._treectrl.setCurrentItem(item)
+        self._treectrl.set_current_item_silently(item)
         self._treectrl.scrollToItem(item)
 
     @_check_types.do
@@ -1275,13 +1829,30 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         if obj is None:
             return
 
-        if obj is self.mainframe.get_selected():
+        curr_selected = self.mainframe.get_selected()
+
+        if obj is curr_selected:
             return
 
-        from ...objects.objects_3d import menu_ops as _menu_ops
-
         self.mainframe._selection_source_editor = 'object_browser'  # NOQA
-        _menu_ops.select_object_for_object(self.mainframe, obj)
+
+        if curr_selected is not None:
+            curr_selected.set_selected(False)
+
+        obj.set_selected(True)
+
+        # obj.set_selected(True)'s own cascade can end up reflecting a
+        # DIFFERENT object as the real selection than obj itself (e.g. a
+        # seated terminal's selection redirecting to its cavity/housing
+        # somewhere downstream) -- this call makes sure the tree still
+        # ends up showing the object actually clicked here, regardless
+        # of what the rest of the cascade decided. Calling set_selected
+        # twice for one click is fine; what actually caused the earlier
+        # busy-cursor flicker was setCurrentItem re-arming the tree's own
+        # deferred select timer each time -- fixed at the source in
+        # _focus_item/_BrowserTree.set_current_item_silently instead of
+        # here, so this stays.
+        self.set_selected(obj)
 
     @_check_types.do
     def open_properties(self, obj: "_object_base.ObjectBase") -> None:
@@ -1331,11 +1902,13 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         """
 
         roots = self._category_roots().values()
+
         parent = item.parent()
         while parent is not None:
             for root in roots:
                 if root is parent:
                     return parent
+
             parent = parent.parent()
 
         return None
@@ -1419,7 +1992,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         """
 
         category_root = self._category_roots().get(category_label)
-        start = category_root if category_root is not None else self._root
+        if category_root is not None:
+            start = category_root
+        else:
+            start = self._tree_root
+
         if start is None:
             return []
 
@@ -1462,6 +2039,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
                 _walk(child)
 
         _walk(root_item)
+
         return found
 
     @_check_types.do
@@ -1490,23 +2068,25 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             for i in range(parent.childCount()):
                 child = parent.child(i)
 
-                if (child.data(0, self._CANONICAL_ROLE) and
-                        keyword in child.text(0).lower() and
-                        (category_root is None or
-                         self._ancestor_category(child) is category_root)):
+                if (
+                    child.data(0, self._CANONICAL_ROLE) and
+                    keyword in child.text(0).lower() and
+                    (category_root is None or self._ancestor_category(child) is category_root)
+                ):
                     matches.append(child)
 
                 _walk(child)
 
-        if self._root is not None:
-            _walk(self._root)
+        _walk(self._tree_root)
 
         return matches
 
     @_check_types.do
     def _reset_search(self, *_) -> None:
-        """Clear search-cycling state after the keyword or category
-        changes, so the next Search click starts from the first match."""
+        """
+        Clear search-cycling state after the keyword or category
+        changes, so the next Search click starts from the first match.
+        """
 
         self._search_index = -1
         self._search_status.setText('')
@@ -1549,9 +2129,12 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._focus_item(item)
 
         ref = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        obj = ref() if ref is not None else None
-        if obj is not None:
-            self.select_object(obj)
+
+        if ref is not None:
+            obj = ref()
+
+            if obj is not None:
+                self.select_object(obj)
 
     @_check_types.do
     def add_object(self, obj):

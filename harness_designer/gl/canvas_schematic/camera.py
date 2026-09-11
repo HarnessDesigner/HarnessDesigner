@@ -63,8 +63,30 @@ class Camera(_camera_base.CameraBase):
         # change instead of once).
         with self._position:
             self._position.x = self._focal_position.x
-            self._position.y = 1000.0  # Default distance in "units"
-            self._position.z = self._focal_position.z
+            self._position.y = 300.0  # Default distance in "units"
+
+        self._position.z = self._focal_position.z
+
+    @_check_types.do
+    def CenterOn(self, world_position: _point.Point) -> None:
+        """Pan to bring *world_position* into view without changing zoom.
+
+        Overrides ``CameraBase.CenterOn`` -- see ``canvas_pegboard.camera.
+        Camera.CenterOn``'s own docstring for why the base version quietly
+        changes zoom on this permanently top-down-locked camera (its
+        "distance"/zoom is ``position.y`` directly, not a focal-relative
+        norm). Pan X/Z only, exactly like every other panning method on
+        this class.
+        """
+        move_x = world_position.x - self._focal_position.x
+        move_z = world_position.z - self._focal_position.z
+
+        with self._position:
+            self._position.x += move_x
+            self._position.z += move_z
+
+        self._focal_position.x += move_x
+        self._focal_position.z += move_z
 
     @property
     @_check_types.do
@@ -113,6 +135,25 @@ class Camera(_camera_base.CameraBase):
         # -- the setter clamps and updates position.y, which marks the
         # camera dirty and schedules a repaint on its own.
         self.distance = self.distance - delta
+
+    @_check_types.do
+    def Zoom(self, delta, *_):
+        """Mouse-wheel zoom (see ``mouse_handler_base.py``'s wheel-tick
+        dispatch, which calls ``camera.Zoom()`` unconditionally for every
+        canvas type). Without this override, ``CameraBase.Zoom()`` runs
+        instead -- it moves ``focal_position`` along ``forward`` inside a
+        free 3D camera's own hardcoded ``[0.1, 500]`` real-3D-distance
+        clamp, which has nothing to do with this permanently top-down-
+        locked camera's own ``[_min_distance, _max_distance]`` range
+        (backed by ``position.y``, not ``focal_distance`` -- see
+        :attr:`distance`). Driving ``focal_distance`` down toward that
+        unrelated clamp's near-zero floor is what leaves
+        ``_calculate_camera``'s ``forward`` vector normalization
+        degenerate (NaN) after a few zoom-in ticks. :meth:`Dolly` already
+        implements the correct distance-based zoom for this camera --
+        reuse it rather than duplicating the clamp logic.
+        """
+        self.Dolly(delta)
 
     @_check_types.do
     def zoom_at_point(self, screen_pos: _point.Point, delta: float):

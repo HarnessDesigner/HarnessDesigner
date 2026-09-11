@@ -98,7 +98,7 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle2d', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.UUIDField('point_pegboard_id', default="NULL",
+    _con.UUIDField('point_pegboard_id', no_null=True,
                    references=_con.SQLFieldReference(_points_pegboard.pjt_table,
                                                      _points_pegboard.pjt_id_field,
                                                      on_delete=_con.REFERENCE_NO_ACTION,
@@ -120,7 +120,7 @@ pjt_table = _con.SQLTable(
     _con.TextField('angle_pegboard', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible2d', default='1', no_null=True),
     _con.IntField('is_visible3d', default='0', no_null=True),
-    _con.IntField('is_visible_pegboard', default='1', no_null=True),
+    _con.IntField('is_visible_pegboard', default='0', no_null=True),
     _con.TextField('aabb', no_null=True),
     _con.TextField('obb', no_null=True)
 )

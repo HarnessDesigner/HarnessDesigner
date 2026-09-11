@@ -58,8 +58,34 @@ class Camera(_camera_base.CameraBase):
         # change instead of once).
         with self._position:
             self._position.x = self._focal_position.x
-            self._position.y = 1000.0  # Default distance in "units"
-            self._position.z = self._focal_position.z
+            self._position.y = 300.0  # Default distance in "units"
+
+        self._position.z = self._focal_position.z
+
+    @_check_types.do
+    def CenterOn(self, world_position: _point.Point) -> None:
+        """Pan to bring *world_position* into view without changing zoom.
+
+        Overrides ``CameraBase.CenterOn``, which moves ``position`` and
+        ``focal_position`` by the same ``world_position - focal_position``
+        delta -- a no-op on the free 3D camera's own zoom (its "distance"
+        is ``norm(position - focal_position)``, invariant under an equal
+        shift of both), but wrong here: this camera's "distance"/zoom
+        *is* ``position.y`` directly (see :attr:`distance`), so shifting
+        both points by a delta that includes ``world_position``'s own Y
+        component would shift ``position.y`` by that same amount, quietly
+        changing the zoom every time an object gets centered. Pan X/Z
+        only, exactly like every other panning method on this class.
+        """
+        move_x = world_position.x - self._focal_position.x
+        move_z = world_position.z - self._focal_position.z
+
+        with self._position:
+            self._position.x += move_x
+            self._position.z += move_z
+
+        self._focal_position.x += move_x
+        self._focal_position.z += move_z
 
     @property
     @_check_types.do
@@ -89,6 +115,25 @@ class Camera(_camera_base.CameraBase):
         class); it always stays 0.0.
         """
         self._position.y = max(self._min_distance, min(self._max_distance, float(value)))
+
+    @_check_types.do
+    def Zoom(self, delta, *_):
+        """Mouse-wheel zoom (see ``mouse_handler_base.py``'s wheel-tick
+        dispatch, which calls ``camera.Zoom()`` unconditionally for every
+        canvas type). Without this override, ``CameraBase.Zoom()`` runs
+        instead -- it moves ``focal_position`` along ``forward`` inside a
+        free 3D camera's own hardcoded ``[0.1, 500]`` real-3D-distance
+        clamp. That's meaningless here: this camera's focal position is
+        permanently fixed (no configured mouse interaction can ever move
+        it), and "zoom" is purely a matter of the camera-to-focal
+        *distance* (``position.y``, see :attr:`distance`) -- not
+        ``focal_distance``. Driving ``focal_distance`` down toward that
+        unrelated clamp's near-zero floor is what leaves
+        ``_calculate_camera``'s ``forward`` vector normalization
+        degenerate (NaN) after a few zoom-in ticks. Route straight
+        through :attr:`distance` instead, same as :meth:`zoom_at_point`.
+        """
+        self.distance = self.distance - delta
 
     @_check_types.do
     def zoom_at_point(self, screen_pos: _point.Point, delta: float):

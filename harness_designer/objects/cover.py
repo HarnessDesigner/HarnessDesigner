@@ -42,9 +42,10 @@ class Cover(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _cover_schematic.Cover(self, db_obj)
         self.obj3d = _cover_3d.Cover(self, db_obj)
         self.objpegboard = _cover_pegboard.Cover(self, db_obj)
+        self.objschematic = _cover_schematic.Cover(self, db_obj)
+
         self.mainframe.add_object(self)
 
     @_check_types.do

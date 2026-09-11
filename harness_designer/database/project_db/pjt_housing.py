@@ -10,9 +10,11 @@ from PySide6.QtWidgets import QTabWidget, QWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
+from .. import id_generator as _id_generator
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry import cavity_layout as _cavity_layout
 from . import pjt_cover as _pjt_cover
 from . import pjt_tpa_lock as _pjt_tpa_lock
 from . import pjt_cpa_lock as _pjt_cpa_lock
@@ -44,7 +46,6 @@ from .mixins import (
     ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
-
 
 if TYPE_CHECKING:
     # from . import pjt_accessory as _pjt_accessory
@@ -207,7 +208,7 @@ class PJTHousingsTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, part_id: bytes, name: str, position3d_id: bytes = None,
-               position2d_id: bytes = None) -> "PJTHousing":
+               position2d_id: bytes = None, position_pegboard_id: bytes = None) -> "PJTHousing":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -224,47 +225,218 @@ class PJTHousingsTable(PJTTableBase):
         :param position2d_id: 2D position id.
         :type position2d_id: bytes | None
 
+        :param position_pegboard_id: pegboard position id.
+        :type position_pegboard_id: bytes | None
+
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTHousing`
         """
 
         if position2d_id is None:
-            position2d_id = self.db.pjt_points2d_table.insert(0.0, 0.0).db_id
+            position2d = self.db.pjt_points2d_table.insert(0.0, 0.0)
+            position2d_id = position2d.db_id
+        else:
+            position2d = self.db.pjt_points2d_table[position2d_id]
 
         if position3d_id is None:
-            position3d_id = self.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+            position3d = self.db.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+            position3d_id = position3d.db_id
+
+        else:
+            position3d = self.db.pjt_points3d_table[position3d_id]
+
+        if position_pegboard_id is None:
+            position_pegboard = self.db.pjt_points_pegboard_table.insert(position3d.x, 0.0, position3d.z)
+            position_pegboard_id = position_pegboard.db_id
+        else:
+            position_pegboard = self.db.pjt_points_pegboard_table[position_pegboard_id]
 
         db_id = PJTTableBase.insert(self, name=name, point3d_id=position3d_id,
-                                    point2d_id=position2d_id, part_id=part_id)
+                                    point2d_id=position2d_id, point_pegboard_id=position_pegboard_id,
+                                    part_id=part_id)
 
         db_obj = PJTHousing(self, db_id)
 
-        pos3d = db_obj.position3d
+        point3d = _point.Point(position3d.x, position3d.y, position3d.z)
 
-        # add the cavities from the part to the project
-        for cavity in db_obj.part.cavities:
-            if cavity is None:
-                continue
+        # Add every cavity from the part to the project -- batched: one
+        # SELECT for every cavity this housing's own catalog part has
+        # (keyed by the housing's own part_id -- the global cavities
+        # table has no concept of a project housing at all, only global
+        # housing parts), two vectorized numpy arrays (position3d,
+        # position_pegboard) built from it, and one executemany() per
+        # table instead of a per-cavity PJTCavitiesTable.insert() loop
+        # (which does its own 4 individual round trips per cavity --
+        # a point3d insert, a point2d insert, a point_pegboard insert,
+        # and the cavity row insert itself). Confirmed 2026-09-07
+        # (Kevin): a housing can have 100+ cavities, so doing this one
+        # row at a time is real, measurable overhead.
+        self.db.global_db.cavities_table.execute(
+            'SELECT id, name, point3d, aabb, obb FROM cavities WHERE housing_id = ?;',
+            (part_id,))
+        g_rows = self.db.global_db.cavities_table.fetchall()
 
-            self.db.pjt_cavities_table.insert(cavity.db_id, db_id, cavity.name)
+        # Set the stack-geometry cache directly, same reasoning as the
+        # cavity_geometry cache below -- unconditionally (unlike that
+        # one, this is meaningful even with zero cavities, e.g. a
+        # housing part with none defined yet).
+        db_obj._stored_stack_geometry = _cavity_layout.compute_stack_geometry(len(g_rows))  # NOQA
+
+        if g_rows:
+            g_ids = [row[0] for row in g_rows]
+            g_names = [row[1] for row in g_rows]
+
+            # Local offset (housing-frame) for every cavity, straight
+            # from the catalog -- not a project pjt_*.position3d value.
+            local_point3d = np.array(
+                [eval(row[2]) for row in g_rows], dtype=np.float64)  # NOQA
+
+            local_aabbs = np.array(
+                [eval(row[3]) for row in g_rows], dtype=np.float64)  # NOQA
+
+            local_obbs = np.array(
+                [eval(row[4]) for row in g_rows], dtype=np.float64)  # NOQA
+
+            h_position3d = np.array(
+                [position3d.x, position3d.y, position3d.z], dtype=np.float64)
+
+            h_position_pegboard = np.array(
+                [position_pegboard.x, position_pegboard.y, position_pegboard.z],
+                dtype=np.float64)
+
+            h_position2d = np.array(
+                [position2d.x, position2d.y],
+                dtype=np.float64)
+
+            n = len(g_rows)
+
+            # Every cavity's own full schematic geometry (slot position,
+            # name-label position/hit-box, terminal hit-box, "("
+            # bracket/wire-stub-cylinder position -- see
+            # geometry.cavity_layout.compute_housing_cavity_geometry's
+            # own docstring for exactly what's knowable this early,
+            # before any terminal is ever seated) -- computed ONCE,
+            # here, and cached directly on db_obj (see PJTHousing.
+            # cavity_geometry) so objects_schematic/cavity.py's Cavity/
+            # objects_schematic/terminal.py's Terminal never need to
+            # compute or look any of this up themselves. g_names doesn't
+            # need to be pre-sorted -- natural-sort-by-name stacking
+            # order is handled inside compute_housing_cavity_geometry
+            # itself, and the result comes back in the SAME order as
+            # g_names (so cavity_geometries[i] is g_rows[i]'s own
+            # geometry, matching g_ids[i]/new_cavity_ids[i] below).
+            cavity_geometries = _cavity_layout.compute_housing_cavity_geometry(g_names)
+
+            # geo.name_position, NOT geo.position (this cavity's own SLOT
+            # center) -- objects_schematic/cavity.py's Cavity has no
+            # render() override, so whatever lands in point2d here IS
+            # this cavity's own literal render anchor for its name label
+            # (self._position, read straight from db_obj.position2d --
+            # see that class's own docstring). geo.position would put the
+            # label at the slot's own center instead of its own name
+            # anchor (outside the housing, on the pin-edge side).
+            local_point2d = np.array(
+                [geo.name_position for geo in cavity_geometries], dtype=np.float64)
+
+            # No rotation -- a housing has no rotation at the point its
+            # cavities are first created.
+            position3d_arr = local_point3d + h_position3d
+            position2d_arr = local_point2d + h_position2d
+            aabb_arr = local_aabbs + h_position3d
+            obb_arr = local_obbs + h_position3d
+
+            # Peg-board: X/Z pick up the housing's own peg-board X/Z;
+            # Y is NOT combined with the housing's own peg-board Y
+            # (always 0.0, board-locked) -- a cavity's real local
+            # height relative to its housing is honored as-is.
+            position_pegboard_arr = local_point3d.copy()
+            position_pegboard_arr[:, 0] += h_position_pegboard[0]
+            position_pegboard_arr[:, 2] += h_position_pegboard[2]
+
+            new_point3d_ids = [
+                _id_generator.generate_project_row_id(self._con, self.project_id).bytes
+                for _ in range(n)]
+
+            new_point2d_ids = [
+                _id_generator.generate_project_row_id(self._con, self.project_id).bytes
+                for _ in range(n)]
+
+            new_peg_ids = [
+                _id_generator.generate_project_row_id(self._con, self.project_id).bytes
+                for _ in range(n)]
+
+            new_cavity_ids = [
+                _id_generator.generate_project_row_id(self._con, self.project_id).bytes
+                for _ in range(n)]
+
+            point3d_rows = [
+                (new_point3d_ids[i], float(position3d_arr[i, 0]),
+                 float(position3d_arr[i, 1]), float(position3d_arr[i, 2]))
+                for i in range(n)]
+
+            self.db.pjt_points3d_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
+            self.db.pjt_points3d_table._con.commit()  # NOQA
+
+            point2d_rows = [
+                (new_point2d_ids[i], float(position2d_arr[i, 0]),
+                 float(position2d_arr[i, 1])) for i in range(n)]
+
+            self.db.pjt_points2d_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_points2d (id, x, y) VALUES (?, ?, ?);', point2d_rows)
+            self.db.pjt_points2d_table._con.commit()  # NOQA
+
+            peg_rows = [
+                (new_peg_ids[i], float(position_pegboard_arr[i, 0]),
+                 float(position_pegboard_arr[i, 1]), float(position_pegboard_arr[i, 2]))
+                for i in range(n)]
+
+            self.db.pjt_points_pegboard_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
+            self.db.pjt_points_pegboard_table._con.commit()  # NOQA
+
+            aabb_str = [str([[float(str(item)) for item in items] for items in aabb_arr[i].tolist()]) for i in range(n)]
+            obb_str = [str([[float(str(item)) for item in items] for items in obb_arr[i].tolist()]) for i in range(n)]
+
+            housing_ids = [db_id] * n
+
+            data = list(zip(new_cavity_ids, g_ids, g_names, new_point2d_ids,
+                            new_point3d_ids, new_peg_ids, housing_ids, aabb_str, obb_str))
+
+            self.db.pjt_cavities_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_cavities '
+                '(id, part_id, name, point2d_id, point3d_id, point_pegboard_id, housing_id, aabb, obb) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                data)
+
+            self.db.pjt_cavities_table._con.commit()  # NOQA
+
+            # Set the geometry cache directly -- see PJTHousing.
+            # cavity_geometry's own docstring for why: everything needed
+            # to build it was just computed above anyway, so there's no
+            # reason to let the lazy property recompute it from scratch
+            # (which would also mean re-measuring every cavity name's
+            # own rendered width/height a second time).
+            db_obj._stored_cavity_geometry = {  # NOQA
+                new_cavity_ids[i]: cavity_geometries[i] for i in range(n)}
 
         pos = db_obj.cover_position3d
-        pos += pos3d
+        pos += point3d
 
         pos = db_obj.seal_position3d
-        pos += pos3d
+        pos += point3d
 
         pos = db_obj.boot_position3d
-        pos += pos3d
+        pos += point3d
 
         pos = db_obj.tpa_lock_1_position3d
-        pos += pos3d
+        pos += point3d
 
         pos = db_obj.tpa_lock_2_position3d
-        pos += pos3d
+        pos += point3d
 
         pos = db_obj.cpa_lock_position3d
-        pos += pos3d
+        pos += point3d
 
         return db_obj
 
@@ -341,46 +513,248 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             if cavity is not None:
                 return
 
-        from ...objects import cavity as _cavity
+        position2d = self.position2d
+        position3d = self.position3d
+        position_pegboard = self.position_pegboard
 
-        # Insert every pjt_cavities row FIRST, in its own pass, before
-        # constructing any cavity facade object below -- and invalidate
-        # _stored_cavities immediately after, still before any facade
-        # exists. A facade's own construction (objects.cavity.Cavity.
-        # __init__ -> its schematic view -> Housing.housing ->
-        # objects_schematic.Housing's own _recompute) reads this
-        # housing's own db_obj.cavities to lay out every cavity slot at
-        # once. If that schematic housing view happens to get built for
-        # the very first time PARTWAY through the old single loop (only
-        # some rows inserted so far), it permanently caches an
-        # incomplete cavity list -- nothing later tells it to rebuild
-        # once the rest finish inserting (see objects_schematic/
-        # housing.py's own _bind_callbacks, which can only ever bind a
-        # callback to a cavity that already exists by the time it runs).
-        # Confirmed 2026-09-02: this produced a real "cavity is not in
-        # list" ValueError from get_cavity_aabb the first time a
-        # terminal was added on a brand-new project -- purely because
-        # the schematic housing view happened to get built for the
-        # first time partway through this same loop, on some earlier
-        # cavity's own facade construction.
-        db_objs = []
-        for cavity_part in self.part.cavities:
-            if cavity_part is None:
-                continue
+        db_obj = self
 
-            db_objs.append(self._table.db.pjt_cavities_table.insert(
-                cavity_part.db_id, self.db_id, cavity_part.name))
+        # Add every cavity from the part to the project -- batched: one
+        # SELECT for every cavity this housing's own catalog part has
+        # (keyed by the housing's own part_id -- the global cavities
+        # table has no concept of a project housing at all, only global
+        # housing parts), two vectorized numpy arrays (position3d,
+        # position_pegboard) built from it, and one executemany() per
+        # table instead of a per-cavity PJTCavitiesTable.insert() loop
+        # (which does its own 4 individual round trips per cavity --
+        # a point3d insert, a point2d insert, a point_pegboard insert,
+        # and the cavity row insert itself). Confirmed 2026-09-07
+        # (Kevin): a housing can have 100+ cavities, so doing this one
+        # row at a time is real, measurable overhead.
+        self.table.db.global_db.cavities_table.execute(
+            'SELECT id, name, point3d, aabb, obb FROM cavities WHERE housing_id = ?;',
+            (self.part_id,))
+        g_rows = self.table.db.global_db.cavities_table.fetchall()
 
-        self._stored_cavities = None
+        # Set the stack-geometry cache directly, same reasoning as the
+        # cavity_geometry cache below -- unconditionally (unlike that
+        # one, this is meaningful even with zero cavities, e.g. a
+        # housing part with none defined yet).
+        db_obj._stored_stack_geometry = _cavity_layout.compute_stack_geometry(len(g_rows))  # NOQA
 
-        # NOW build every cavity's own facade -- every pjt_cavities row
-        # for this housing already exists, so no matter which cavity's
-        # own view construction happens to trigger this housing's own
-        # schematic (or 3D/peg-board) view for the first time,
-        # self.cavities/db_obj.cavities already sees the complete set.
-        for db_obj in db_objs:
-            cavity = _cavity.Cavity(self._table.db.mainframe, db_obj)
-            self._table.db.mainframe.project.add_cavity(cavity)
+        if g_rows:
+            g_ids = [row[0] for row in g_rows]
+            g_names = [row[1] for row in g_rows]
+
+            # Local offset (housing-frame) for every cavity, straight
+            # from the catalog -- not a project pjt_*.position3d value.
+            local_point3d = np.array(
+                [eval(row[2]) for row in g_rows], dtype=np.float64)  # NOQA
+
+            local_aabbs = np.array(
+                [eval(row[3]) for row in g_rows], dtype=np.float64)  # NOQA
+
+            local_obbs = np.array(
+                [eval(row[4]) for row in g_rows], dtype=np.float64)  # NOQA
+
+            h_position3d = np.array(
+                [position3d.x, position3d.y, position3d.z], dtype=np.float64)
+
+            h_position_pegboard = np.array(
+                [position_pegboard.x, position_pegboard.y, position_pegboard.z],
+                dtype=np.float64)
+
+            h_position2d = np.array(
+                [position2d.x, position2d.z],
+                dtype=np.float64)
+
+            n = len(g_rows)
+
+            # Every cavity's own full schematic geometry (slot position,
+            # name-label position/hit-box, terminal hit-box, "("
+            # bracket/wire-stub-cylinder position -- see
+            # geometry.cavity_layout.compute_housing_cavity_geometry's
+            # own docstring for exactly what's knowable this early,
+            # before any terminal is ever seated) -- computed ONCE,
+            # here, and cached directly on db_obj (see PJTHousing.
+            # cavity_geometry) so objects_schematic/cavity.py's Cavity/
+            # objects_schematic/terminal.py's Terminal never need to
+            # compute or look any of this up themselves. g_names doesn't
+            # need to be pre-sorted -- natural-sort-by-name stacking
+            # order is handled inside compute_housing_cavity_geometry
+            # itself, and the result comes back in the SAME order as
+            # g_names (so cavity_geometries[i] is g_rows[i]'s own
+            # geometry, matching g_ids[i]/new_cavity_ids[i] below).
+            cavity_geometries = _cavity_layout.compute_housing_cavity_geometry(g_names)
+
+            # geo.name_position, NOT geo.position (this cavity's own SLOT
+            # center) -- objects_schematic/cavity.py's Cavity has no
+            # render() override, so whatever lands in point2d here IS
+            # this cavity's own literal render anchor for its name label
+            # (self._position, read straight from db_obj.position2d --
+            # see that class's own docstring). geo.position would put the
+            # label at the slot's own center instead of its own name
+            # anchor (outside the housing, on the pin-edge side).
+            local_point2d = np.array(
+                [geo.name_position for geo in cavity_geometries], dtype=np.float64)
+
+            # No rotation -- a housing has no rotation at the point its
+            # cavities are first created.
+            position3d_arr = local_point3d + h_position3d
+            position2d_arr = local_point2d + h_position2d
+            aabb_arr = local_aabbs + h_position3d
+            obb_arr = local_obbs + h_position3d
+
+            # Peg-board: X/Z pick up the housing's own peg-board X/Z;
+            # Y is NOT combined with the housing's own peg-board Y
+            # (always 0.0, board-locked) -- a cavity's real local
+            # height relative to its housing is honored as-is.
+            position_pegboard_arr = local_point3d.copy()
+            position_pegboard_arr[:, 0] += h_position_pegboard[0]
+            position_pegboard_arr[:, 2] += h_position_pegboard[2]
+
+            new_point3d_ids = [
+                _id_generator.generate_project_row_id(
+                    self.table._con, self.table.project_id).bytes  # NOQA
+                for _ in range(n)]
+
+            new_point2d_ids = [
+                _id_generator.generate_project_row_id(
+                    self.table._con, self.table.project_id).bytes  # NOQA
+                for _ in range(n)]
+
+            new_peg_ids = [
+                _id_generator.generate_project_row_id(
+                    self.table._con, self.table.project_id).bytes  # NOQA
+                for _ in range(n)]
+
+            new_cavity_ids = [
+                _id_generator.generate_project_row_id(
+                    self.table._con, self.table.project_id).bytes  # NOQA
+                for _ in range(n)]
+
+            point3d_rows = [
+                (new_point3d_ids[i], float(position3d_arr[i, 0]),
+                 float(position3d_arr[i, 1]), float(position3d_arr[i, 2]))
+                for i in range(n)]
+
+            self.table.db.pjt_points3d_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
+            self.table.db.pjt_points3d_table._con.commit()  # NOQA
+
+            point2d_rows = [
+                (new_point2d_ids[i], float(position2d_arr[i, 0]),
+                 float(position2d_arr[i, 1])) for i in range(n)]
+
+            self.table.db.pjt_points2d_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_points2d (id, x, y) VALUES (?, ?, ?);', point2d_rows)
+            self.table.db.pjt_points2d_table._con.commit()  # NOQA
+
+            peg_rows = [
+                (new_peg_ids[i], float(position_pegboard_arr[i, 0]),
+                 float(position_pegboard_arr[i, 1]), float(position_pegboard_arr[i, 2]))
+                for i in range(n)]
+
+            self.table.db.pjt_points_pegboard_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
+            self.table.db.pjt_points_pegboard_table._con.commit()  # NOQA
+
+            aabb_str = [str([
+                [float(str(item)) for item in items]
+                for items in aabb_arr[i].tolist()]) for i in range(n)]
+
+            obb_str = [str([
+                [float(str(item)) for item in items]
+                for items in obb_arr[i].tolist()]) for i in range(n)]
+
+            housing_ids = [self.db_id] * n
+
+            data = list(zip(new_cavity_ids, g_ids, g_names, new_point2d_ids,
+                            new_point3d_ids, new_peg_ids, housing_ids, aabb_str, obb_str))
+
+            self.table.db.pjt_cavities_table._con.executemany(  # NOQA
+                'INSERT INTO pjt_cavities '
+                '(id, part_id, name, point2d_id, point3d_id, point_pegboard_id, housing_id, aabb, obb) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                data)
+
+            self.table.db.pjt_cavities_table._con.commit()  # NOQA
+
+            # Set the geometry cache directly -- see PJTHousing.
+            # cavity_geometry's own docstring for why: everything needed
+            # to build it was just computed above anyway, so there's no
+            # reason to let the lazy property recompute it from scratch
+            # (which would also mean re-measuring every cavity name's
+            # own rendered width/height a second time).
+            db_obj._stored_cavity_geometry = {  # NOQA
+                new_cavity_ids[i]: cavity_geometries[i] for i in range(n)}
+
+            # Build every cavity's own PJTCavity/PJTPoint2D/PJTPoint3D/
+            # PJTPointPegboard directly from what's already sitting in
+            # the arrays above, pre-seeding every _stored_* cache the
+            # same way cache_names() does -- instead of letting
+            # table[id] (an existence-check query) or each lazy
+            # position/name property re-fetch a row this method itself
+            # just inserted. This housing's own db_obj is already known
+            # (self), so housing/housing_id cost nothing either.
+            #
+            # Constructing the facade Cavity objects and registering
+            # them with the project is NOT optional bookkeeping -- a
+            # PJTCavity row with no bound Cavity facade returns None
+            # from get_object(), which objects.housing.Housing.cavities
+            # silently filters out, which means match_cavity_surfaces()
+            # (this method's own caller in objects_3d/housing.py's
+            # _set_model) never sees these cavities at all -- they stay
+            # permanently unclickable/without a selection overlay until
+            # the project is reloaded.
+            from ...objects import cavity as _cavity
+
+            cavities_table = self.table.db.pjt_cavities_table
+            point2d_table = self.table.db.pjt_points2d_table
+            point3d_table = self.table.db.pjt_points3d_table
+            peg_table = self.table.db.pjt_points_pegboard_table
+
+            new_db_objs = []
+
+            for i in range(n):
+                cavity = _pjt_cavity.PJTCavity(cavities_table, new_cavity_ids[i])
+                cavity._stored_name = g_names[i]  # NOQA
+                cavity._stored_notes = ''  # NOQA
+                cavity._stored_part_id = g_ids[i]  # NOQA
+                cavity._stored_housing_id = self.db_id  # NOQA
+                cavity._stored_housing = self  # NOQA
+                cavity._stored_terminal = None  # NOQA
+                cavity._stored_aabb = aabb_arr[i].astype(np.float32)  # NOQA
+                cavity._stored_obb = obb_arr[i].astype(np.float32)  # NOQA
+
+                point2d = _pjt_point2d.PJTPoint2D(point2d_table, new_point2d_ids[i])
+                point2d._stored_x = float(position2d_arr[i, 0])  # NOQA
+                point2d._stored_y = float(position2d_arr[i, 1])  # NOQA
+                cavity._stored_position2d_id = new_point2d_ids[i]  # NOQA
+                cavity._stored_position2d = point2d  # NOQA
+
+                point3d = _pjt_point3d.PJTPoint3D(point3d_table, new_point3d_ids[i])
+                point3d._stored_x = float(position3d_arr[i, 0])  # NOQA
+                point3d._stored_y = float(position3d_arr[i, 1])  # NOQA
+                point3d._stored_z = float(position3d_arr[i, 2])  # NOQA
+                cavity._stored_position3d_id = new_point3d_ids[i]  # NOQA
+                cavity._stored_position3d = point3d  # NOQA
+
+                point_pegboard = _pjt_point_pegboard.PJTPointPegboard(peg_table, new_peg_ids[i])
+                point_pegboard._stored_x = float(position_pegboard_arr[i, 0])  # NOQA
+                point_pegboard._stored_y = float(position_pegboard_arr[i, 1])  # NOQA
+                point_pegboard._stored_z = float(position_pegboard_arr[i, 2])  # NOQA
+                cavity._stored_position_pegboard_id = new_peg_ids[i]  # NOQA
+                cavity._stored_position_pegboard = point_pegboard  # NOQA
+
+                new_db_objs.append(cavity)
+
+            for cavity in new_db_objs:
+                cavity_obj = _cavity.Cavity(self.table.db.mainframe, cavity)
+                self.table.db.mainframe.project.add_cavity(cavity_obj)
+
+            self._stored_cavities = new_db_objs
+
 
     @_check_types.do
     def get_object(self) -> "_housing_obj.Housing":
@@ -418,6 +792,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
+            self._process_bind_callbacks(obj)
         else:
             self._obj = obj
 
@@ -461,6 +836,93 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._stored_cavities = cavities
         return cavities
 
+    _stored_cavity_geometry: dict = None
+
+    @property
+    @_check_types.do
+    def cavity_geometry(self) -> dict:
+        """Every cavity's own schematic geometry (see
+        ``geometry.cavity_layout.CavityGeometry``) under this housing,
+        keyed by each cavity's own ``db_id`` -- ``objects_schematic/
+        cavity.py``'s ``Cavity``/``objects_schematic/terminal.py``'s
+        ``Terminal`` read straight from this instead of computing
+        anything themselves, so neither ever depends on the schematic
+        ``Housing`` VIEW object's own construction state (a real problem
+        before this cache existed -- a cavity's own geometry used to be
+        computed live from ``self.housing`` (the schematic view), which
+        is unresolvable at this cavity's own construction time, and
+        -- for a project-load housing whose cavity view objects already
+        exist before its own housing view does -- unresolvable even
+        later).
+
+        Lazily computed and cached here on first access -- the
+        project-load path, where this housing's cavity rows already
+        exist with no insert-time context available.
+        :meth:`PJTHousingsTable.insert` instead sets this cache directly
+        (bypassing this lazy path) since it already has everything
+        needed to build it as part of its own batched cavity insert.
+
+        Invalidated (forcing a recompute on next access) only by
+        :meth:`add_cavity`/:meth:`update_cavities` -- i.e. only when a
+        cavity ROW is inserted. Nothing currently invalidates it when an
+        EXISTING cavity is renamed, even though a rename changes that
+        cavity's own natural-sort stack position (and so every other
+        cavity's own geometry too) -- ``objects_schematic/housing.py``'s
+        ``Housing`` used to react to a cavity's own ``'name'`` tag and
+        force this recompute, but that whole reactive path was removed
+        (2026-09-10, Kevin) pending a proper design for where this
+        responsibility belongs -- see that class's own docstring. A
+        cavity's own name is treated as fixed once its row exists, for
+        now.
+        """
+        if self._stored_cavity_geometry is None:
+            self._stored_cavity_geometry = self._compute_cavity_geometry()
+
+        return self._stored_cavity_geometry
+
+    @_check_types.do
+    def _compute_cavity_geometry(self) -> dict:
+        """Batch-compute every one of this housing's own cavities' own
+        geometry via ``geometry.cavity_layout.
+        compute_housing_cavity_geometry`` -- the lazy-path counterpart
+        to :meth:`PJTHousingsTable.insert`'s own direct cache set (same
+        underlying function, so the two can never independently drift
+        apart). No pre-sorting needed -- natural-sort-by-name stacking
+        order is handled inside that function itself, and its result
+        comes back in the SAME order as the names passed in.
+        """
+        cavities = [c for c in self.cavities if c is not None]
+        names = [c.name for c in cavities]
+        geometries = _cavity_layout.compute_housing_cavity_geometry(names)
+
+        return {c.db_id: geometry for c, geometry in zip(cavities, geometries)}
+
+    _stored_stack_geometry: "_cavity_layout.CavityStackGeometry" = None
+
+    @property
+    @_check_types.do
+    def stack_geometry(self) -> "_cavity_layout.CavityStackGeometry":
+        """This housing's own font-driven cavity slot height and
+        cavity-axis/text-axis extents (see
+        ``geometry.cavity_layout.CavityStackGeometry``) -- everything
+        ``objects_schematic/housing.py``'s ``Housing`` needs to size its
+        own rectangle, cached here the same way :attr:`cavity_geometry`
+        is (and invalidated at exactly the same points -- see
+        :meth:`add_cavity`/:meth:`update_cavities`, and
+        :meth:`PJTHousingsTable.insert`, which sets this cache directly
+        as part of its own batched cavity insert, same as it does for
+        :attr:`cavity_geometry`) -- both depend on nothing but this
+        housing's own cavity COUNT, never any individual cavity's own
+        name, so a rename can never invalidate this one even though it
+        still can (once that's implemented) invalidate
+        :attr:`cavity_geometry`.
+        """
+        if self._stored_stack_geometry is None:
+            cavities = [c for c in self.cavities if c is not None]
+            self._stored_stack_geometry = _cavity_layout.compute_stack_geometry(len(cavities))
+
+        return self._stored_stack_geometry
+
     _stored_terminals: list = None
 
     @property
@@ -489,38 +951,51 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @_check_types.do
     def cache_names(self) -> None:
-        """Batch-fetch every cavity's/seated terminal's own name under
-        this housing, in a single query, and pre-seed the result
-        straight into the real (singleton) ``PJTCavity``/``PJTTerminal``
-        instances' own caches -- ``NameMixin._stored_name`` for each,
+        """Batch-fetch every cavity's own name/position2d and seated
+        terminal's own name under this housing, in a single query, and
+        pre-seed the result straight into the real (singleton)
+        ``PJTCavity``/``PJTPoint2D``/``PJTTerminal`` instances' own
+        caches -- ``NameMixin._stored_name`` and
+        ``Position2DMixin._stored_position2d_id``/
+        ``_stored_position2d`` (with the ``PJTPoint2D``'s own
+        ``_stored_x``/``_stored_y`` pre-seeded too) for each cavity,
         plus the ``PJTCavity.terminal``/``PJTTerminal.cavity``
         cross-reference caches -- so that later reading any of those
         never fires its own query.
 
         A housing can have several hundred cavities; the naive path
         (this housing's own ``cavities`` property, then each cavity's
-        ``.name``, ``.terminal``, and that terminal's own ``.name``) is
-        up to 4 queries per cavity. Constructs each ``PJTCavity``/
-        ``PJTTerminal`` by calling the class directly (``PJTCavity(table,
-        id)``/``PJTTerminal(table, id)``) rather than going through
-        ``table[id]`` -- the entry-singleton metaclass (see
-        ``database/global_db/bases.py``'s ``_EntrySingleton``) already
-        returns the existing cached instance for an id if one's alive,
-        so this never re-queries an existence check the way
-        ``TableBase.__getitem__`` does.
+        ``.name``, ``.position2d``, ``.terminal``, and that terminal's
+        own ``.name``) is several queries per cavity -- ``position2d``
+        alone is two (one for ``point2d_id``, one to construct the
+        ``PJTPoint2D`` row), before even reading ``.x``/``.y`` off it.
+        Constructs each ``PJTCavity``/``PJTPoint2D``/``PJTTerminal`` by
+        calling the class directly (``PJTCavity(table, id)``/etc.)
+        rather than going through ``table[id]`` -- the entry-singleton
+        metaclass (see ``database/global_db/bases.py``'s
+        ``_EntrySingleton``) already returns the existing cached
+        instance for an id if one's alive, so this never re-queries an
+        existence check the way ``TableBase.__getitem__`` does.
 
         Meant to run once, up front, before any per-cavity/per-terminal
         view object gets constructed -- see ``objects/housing.py``'s
-        ``Housing._construct_cavities``.
+        ``Housing._construct_cavities``, and
+        ``objects_schematic/housing.py``'s ``Housing``/
+        ``objects_schematic/cavity.py``'s ``Cavity``, both of which read
+        every cavity's own ``position2d`` while building/laying out the
+        schematic view.
         """
         from . import pjt_terminal as _pjt_terminal
 
         cavity_table = self._table.db.pjt_cavities_table
+        point2d_table = self._table.db.pjt_points2d_table
         terminal_table = self._table.db.pjt_terminals_table
 
         self._table.db.connector.execute(
-            'SELECT cavity.id, cavity.name, terminal.id, terminal.name '
+            'SELECT cavity.id, cavity.name, cavity.point2d_id, point2d.x, point2d.y, '
+            'terminal.id, terminal.name '
             'FROM pjt_cavities AS cavity '
+            'LEFT JOIN pjt_points2d AS point2d ON point2d.id = cavity.point2d_id '
             'LEFT JOIN pjt_terminals AS terminal ON terminal.cavity_id = cavity.id '
             'WHERE cavity.housing_id = ?;',
             (self._db_id,))
@@ -530,9 +1005,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         cavities = []
         terminals = []
 
-        for cavity_id, cavity_name, terminal_id, terminal_name in rows:
+        for (cavity_id, cavity_name, point2d_id, point2d_x, point2d_y,
+             terminal_id, terminal_name) in rows:
             cavity = _pjt_cavity.PJTCavity(cavity_table, cavity_id)
             cavity._stored_name = cavity_name  # NOQA
+
+            if point2d_id is not None:
+                point2d = _pjt_point2d.PJTPoint2D(point2d_table, point2d_id)
+                point2d._stored_x = point2d_x  # NOQA
+                point2d._stored_y = point2d_y  # NOQA
+                cavity._stored_position2d_id = point2d_id  # NOQA
+                cavity._stored_position2d = point2d  # NOQA
 
             if terminal_id is None:
                 cavity._stored_terminal = None  # NOQA
@@ -1060,6 +1543,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         cavity.name = name
         self._stored_cavities = None
+        self._stored_cavity_geometry = None
+        self._stored_stack_geometry = None
         return cavity
 
     @property
@@ -1300,13 +1785,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         Batch-cascades to every cavity's/terminal's ``position_pegboard``
         (plus any clones tracked via ``parent_point_id`` -- e.g. a wire
         attached directly to a terminal's peg-board point) -- mirrors
-        :meth:`_update_position3d` exactly, minus the housing-accessory
-        (cover/seal/boot/tpa-lock/cpa-lock) groups, since none of those
-        object types are viewable in the peg-board editor and so have no
-        ``position_pegboard`` of their own. The Y axis is always
-        honored/stored here -- locking Y to 0.0 for a housing (or
-        leaving it free for a cavity/terminal) is handled at the object
-        level, not here (see ``objects.objects_pegboard.base_pegboard``).
+        :meth:`_update_position3d`, minus the housing-accessory (cover/
+        boot/tpa-lock/cpa-lock) groups, since those object types have no
+        ``position_pegboard`` of their own (no peg-board presence at
+        all). Seal DOES have real peg-board presence (see
+        ``objects.objects_pegboard.seal.Seal``), so unlike those it must
+        cascade here: the housing's own seal, plus per-cavity either the
+        seated terminal's seal (SWS on a terminal) or the cavity's own
+        seal (PLUG/dummy-pin on an empty cavity) -- a cavity carries one
+        or the other, never both. The Y axis is always honored/stored
+        here -- locking Y to 0.0 for a housing (or leaving it free for a
+        cavity/terminal/seal) is handled at the object level, not here
+        (see ``objects.objects_pegboard.base_pegboard``).
 
         :param point: Point value.
         :type point: :class:`_point.Point`
@@ -1319,17 +1809,37 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         cavity_positions = [cavity.position_pegboard for cavity in cavities]
 
         terminal_positions = []
+        seal_positions = []
+
+        housing_seal = self.seal
+        if housing_seal is not None:
+            hsp = housing_seal.position_pegboard
+            if hsp is not None:
+                seal_positions.append(hsp)
+
         for cavity in cavities:
             terminal = cavity.terminal
 
             if terminal is None:
+                seal = cavity.seal
+                if seal is not None:
+                    sp = seal.position_pegboard
+                    if sp is not None:
+                        seal_positions.append(sp)
                 continue
 
             terminal_positions.append(terminal.position_pegboard)
 
-        child_positions = self._find_child_points_pegboard(cavity_positions + terminal_positions)
+            seal = terminal.seal
+            if seal is not None:
+                sp = seal.position_pegboard
+                if sp is not None:
+                    seal_positions.append(sp)
 
-        all_positions = cavity_positions + terminal_positions + child_positions
+        child_positions = self._find_child_points_pegboard(
+            cavity_positions + terminal_positions + seal_positions)
+
+        all_positions = cavity_positions + terminal_positions + seal_positions + child_positions
 
         seen = {}
         for pos in all_positions:
@@ -1579,13 +2089,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     def _update_position2d(self, point: _point.Point):
         """Update the position 2D.
 
-        Batch-cascades to every cavity's own ``position2d`` -- mirrors
-        :meth:`_update_position3d`/:meth:`_update_position_pegboard`'s
-        single vectorized delta + one batch DB write, replacing the old
-        per-cavity ``+=`` loop (one individual DB write per cavity per
-        drag frame). ``pjt_points2d`` stores only ``x``/``y`` columns,
-        mapped onto the ``Point``'s X/Z axes (Y locked to 0.0 -- see
-        ``PJTPoint2D.point``), so the batch row only carries those two.
+        Batch-cascades to every cavity's own ``position2d`` and (for a
+        cavity with a seated terminal) that terminal's own
+        ``position2d`` (name anchor) and ``wire_position2d`` (wire-stub
+        attachment point -- see ``PJTTerminal.wire_position2d``'s own
+        docstring) -- mirrors :meth:`_update_position3d`/
+        :meth:`_update_position_pegboard`'s single vectorized delta +
+        one batch DB write, replacing the old per-cavity ``+=`` loop
+        (one individual DB write per cavity/terminal per drag frame).
+        ``cavity.terminal_position2d`` is just an alias for
+        ``cavity.position2d`` (same row -- see ``PJTCavity``), so it
+        needs no separate entry here. No ``angle2d`` update for either
+        -- a cavity's own name / a terminal's own name-label text must
+        always render upright/axis-aligned no matter which way the
+        owning housing is rotated, only its anchor position follows the
+        rotation, so nothing in this pipeline ever writes a cavity's own
+        ``angle2d`` at all. ``pjt_points2d`` stores only ``x``/
+        ``y`` columns, mapped onto the ``Point``'s X/Z axes (Y locked to
+        0.0 -- see ``PJTPoint2D.point``), so the batch row only carries
+        those two.
 
         :param point: Point value.
         :type point: :class:`_point.Point`
@@ -1594,7 +2116,47 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._o_position2d = point.copy()
 
         cavities = [c for c in self.cavities if c is not None]
-        positions = [cavity.position2d for cavity in cavities]
+
+        positions = []
+        for cavity in cavities:
+            positions.append(cavity.position2d)
+
+            terminal = cavity.terminal
+            if terminal is None:
+                continue
+
+            # None here means this terminal's own name-anchor point has
+            # never been computed yet (see PJTTerminal.position2d's own
+            # docstring -- unlike every other Position2DMixin user, a
+            # terminal doesn't get one lazily/eagerly) -- e.g. its own
+            # schematic Terminal object hasn't been constructed yet this
+            # session, still-loading project. Nothing to cascade for it:
+            # whenever it IS constructed, it derives its own position
+            # fresh from this housing's CURRENT (already-updated by the
+            # time that happens) position/angle -- see
+            # objects_schematic/terminal.py's Terminal.__init__. Skipping
+            # also avoids force-creating wire_position2d (which, unlike
+            # position2d, still lazily auto-creates at the origin) for a
+            # terminal that was never going to be rendered yet anyway.
+            terminal_position2d = terminal.position2d
+            if terminal_position2d is None:
+                continue
+
+            # ORDER MATTERS: wire_position2d must be appended (and so
+            # updated + have its callbacks fired, in the loop below)
+            # BEFORE terminal_position2d, never after. Terminal's own
+            # _update_position (bound to terminal_position2d) reads
+            # this terminal's own wire_position2d to compute the wire-
+            # stub cylinder's own angle/length for this frame -- if
+            # terminal_position2d's callback fired first, it would read
+            # wire_position2d's still-STALE (pre-cascade) value, so the
+            # cylinder would render at the wrong angle until the NEXT
+            # position/angle push happened to correct it. Appending
+            # wire_position2d first guarantees it already holds its
+            # fresh value by the time terminal_position2d's own
+            # callback runs.
+            positions.append(terminal.wire_position2d)
+            positions.append(terminal_position2d)
 
         if not positions:
             return
@@ -1979,16 +2541,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """Update the peg-board angle.
 
         Mirrors :meth:`_update_angle3d`'s vectorized batch rotation of
-        every cavity/terminal position (plus clones) around the
-        housing's own :attr:`position_pegboard`, minus the housing-
-        accessory groups (out of peg-board scope, see
-        :meth:`_update_position_pegboard`) and minus the 3D-mesh
-        OBB-based face-alignment refinement used to reorient a cavity
-        within a real 3D part mesh -- the peg board has no such mesh
-        geometry, so each cavity's accumulated quaternion delta is
-        applied directly (``_euler_from_matrix_continuous`` on the raw
-        accumulated quaternion, same as ``_update_angle3d``'s own
-        fallback path for when no OBB face alignment is available).
+        every cavity/terminal/seal position (plus clones) around the
+        housing's own :attr:`position_pegboard`, minus the cover/boot/
+        tpa-lock/cpa-lock accessory groups (out of peg-board scope, see
+        :meth:`_update_position_pegboard` -- seal DOES cascade here,
+        same reasoning) and minus the 3D-mesh OBB-based face-alignment
+        refinement used to reorient a cavity within a real 3D part mesh
+        -- the peg board has no such mesh geometry, so each cavity's
+        accumulated quaternion delta is applied directly
+        (``_euler_from_matrix_continuous`` on the raw accumulated
+        quaternion, same as ``_update_angle3d``'s own fallback path for
+        when no OBB face alignment is available).
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
@@ -2024,14 +2587,35 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         cavity_positions = [cavity.position_pegboard for cavity in cavities]
 
         terminal_positions = []
+        seal_positions = []
+
+        housing_seal = self.seal
+        if housing_seal is not None:
+            hsp = housing_seal.position_pegboard
+            if hsp is not None:
+                seal_positions.append(hsp)
+
         for cavity in cavities:
             terminal = cavity.terminal
             if terminal is not None:
                 terminal_positions.append(terminal.position_pegboard)
 
-        child_positions = self._find_child_points_pegboard(cavity_positions + terminal_positions)
+                seal = terminal.seal
+                if seal is not None:
+                    sp = seal.position_pegboard
+                    if sp is not None:
+                        seal_positions.append(sp)
+            else:
+                seal = cavity.seal
+                if seal is not None:
+                    sp = seal.position_pegboard
+                    if sp is not None:
+                        seal_positions.append(sp)
 
-        all_positions = cavity_positions + terminal_positions + child_positions
+        child_positions = self._find_child_points_pegboard(
+            cavity_positions + terminal_positions + seal_positions)
+
+        all_positions = cavity_positions + terminal_positions + seal_positions + child_positions
 
         seen = {}
         for pos in all_positions:
@@ -2095,15 +2679,37 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             angle_results[0][0].table.batch_update(['quat_pegboard', 'angle_pegboard'], angle_rows)
 
-        # ── Terminal angle mirrors its cavity's angle exactly -- no seal
-        # exists in peg-board scope, so unlike _update_angle3d there is
-        # no separate seal_angle_results group here.
+        # ── Terminal angle mirrors its cavity's angle exactly. Seal angle
+        # (peg-board scope: housing seal, plus per-cavity either the
+        # seated terminal's seal or the cavity's own seal) mirrors
+        # whichever of those it rides along with, same reasoning as
+        # _update_angle3d's own seal_angle_results group -- just without
+        # that method's OBB face-alignment refinement (no peg-board mesh
+        # geometry to align against, same as the cavity/terminal angle
+        # computation above).
         terminal_angle_results = []  # [(terminal, q_acc_new, new_euler), ...]
+        seal_angle_results = []      # [(seal, q_acc_new, new_euler), ...]
 
         for cav, q_acc_new, new_euler in angle_results:
             terminal = cav.terminal
             if terminal is not None:
                 terminal_angle_results.append((terminal, q_acc_new, new_euler))
+
+                seal = terminal.seal
+                if seal is not None:
+                    seal_angle_results.append((seal, q_acc_new, new_euler))
+            else:
+                seal = cav.seal
+                if seal is not None:
+                    seal_angle_results.append((seal, q_acc_new, new_euler))
+
+        housing_seal = self.seal
+        if housing_seal is not None:
+            seal_angle = housing_seal.angle_pegboard
+            old_euler = seal_angle.as_euler_float
+            q_acc_new = seal_angle._q + actual_delta_q  # NOQA
+            new_euler = _euler_from_matrix_continuous(q_acc_new.as_matrix, old_euler)
+            seal_angle_results.append((housing_seal, q_acc_new, new_euler))
 
         for term, q_acc_new, new_euler in terminal_angle_results:
             term_angle = term.angle_pegboard
@@ -2124,6 +2730,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             terminal_angle_results[0][0].table.batch_update(
                 ['quat_pegboard', 'angle_pegboard'], terminal_angle_rows)
 
+        for seal, q_acc_new, new_euler in seal_angle_results:
+            seal_angle = seal.angle_pegboard
+            with seal_angle:
+                seal_angle.x = new_euler[0]
+                seal_angle.y = new_euler[1]
+                seal_angle.z = new_euler[2]
+                seal_angle._q.w = q_acc_new.w  # NOQA
+                seal_angle._q.x = q_acc_new.x  # NOQA
+                seal_angle._q.y = q_acc_new.y  # NOQA
+                seal_angle._q.z = q_acc_new.z  # NOQA
+                seal_angle._matrix[:] = q_acc_new.as_matrix  # NOQA
+
+        if seal_angle_results:
+            seal_angle_rows = [(str(list(q.as_float)), str(eu), seal._db_id)
+                               for seal, q, eu in seal_angle_results]
+
+            seal_angle_results[0][0].table.batch_update(
+                ['quat_pegboard', 'angle_pegboard'], seal_angle_rows)
+
         self._populate('angle_pegboard')
 
     _o_quat2d: list = None
@@ -2133,18 +2758,23 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     def _update_angle2d(self, angle: _angle.Angle):
         """Update the angle 2D.
 
-        Batch-cascades to every cavity's own ``position2d`` -- the
-        schematic rotation counterpart to :meth:`_update_position2d`,
-        rotating each cavity's schematic position around the housing's
-        own ``position2d`` by the same quaternion-delta vectorized
-        rotation :meth:`_update_angle3d`/:meth:`_update_angle_pegboard`
-        use. The schematic view only ever rotates about world Y (locked
-        to 90° increments -- see ``Angle2DControl._on_angle``), but the
+        Batch-cascades to every cavity's own ``position2d`` and (for a
+        cavity with a seated terminal) that terminal's own
+        ``position2d``/``wire_position2d`` -- the schematic rotation
+        counterpart to :meth:`_update_position2d` (see its own
+        docstring for why ``terminal_position2d`` needs no separate
+        entry), rotating each one around the housing's own
+        ``position2d`` by the same quaternion-delta vectorized rotation
+        :meth:`_update_angle3d`/:meth:`_update_angle_pegboard` use. The
+        schematic view only ever rotates about world Y (locked to 90°
+        increments -- see ``Angle2DControl._on_angle``), but the
         quaternion-delta rotation is dimension-agnostic, so the same
-        formula applies unchanged. No OBB-based cavity re-orientation
-        like :meth:`_update_angle3d` -- cavities have no ``angle2d`` of
-        their own (no ``Angle2DMixin`` on ``PJTCavity``), just a
-        schematic position that follows the housing.
+        formula applies unchanged. No OBB-based re-orientation like
+        :meth:`_update_angle3d` -- neither a cavity (no ``Angle2DMixin``
+        on ``PJTCavity``) nor a terminal has an ``angle2d`` of its own
+        that follows the housing's rotation -- nothing in this pipeline
+        ever drives either one's own ``angle2d`` from the housing's,
+        just a schematic position that does.
 
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
@@ -2172,7 +2802,31 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         position = self.position2d
 
         cavities = [c for c in self.cavities if c is not None]
-        positions = [cavity.position2d for cavity in cavities]
+
+        positions = []
+        for cavity in cavities:
+            positions.append(cavity.position2d)
+
+            terminal = cavity.terminal
+            if terminal is None:
+                continue
+
+            # See _update_position2d's own comment -- None means this
+            # terminal's own position2d has never been computed yet,
+            # nothing to cascade for it.
+            terminal_position2d = terminal.position2d
+            if terminal_position2d is None:
+                continue
+
+            # ORDER MATTERS -- see _update_position2d's own comment on
+            # this exact same pairing: wire_position2d must be appended
+            # (and so updated + have its callbacks fired, in the loop
+            # below) BEFORE terminal_position2d, so Terminal's own
+            # _update_position callback (bound to terminal_position2d)
+            # reads an already-fresh wire_position2d when it computes
+            # the wire-stub cylinder's own angle/length for this frame.
+            positions.append(terminal.wire_position2d)
+            positions.append(terminal_position2d)
 
         if positions:
             w_d, x_d, y_d, z_d = actual_delta_q.as_float

@@ -45,6 +45,7 @@ class Canvas(_canvas_base.CanvasBase):
     _floor: _floor2d.Floor = None
     camera: _camera.Camera = None
     _mouse_handler: _mouse_handler2d.MouseHandler = None
+    _editor_name = 'editor_pegboard'
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_pegboard = None,
@@ -74,6 +75,8 @@ class Canvas(_canvas_base.CanvasBase):
 
         super().initializeGL()
 
+        GL.glDepthFunc(GL.GL_LESS)
+
     @_check_types.do
     def resizeGL(self, width: int, height: int):
         """Called by Qt on resize. Context is already current here."""
@@ -81,7 +84,7 @@ class Canvas(_canvas_base.CanvasBase):
         GL.glViewport(0, 0, width, height)
         self.update()
 
-    def _render_floor_before(self):
+    def _render_floor_after(self):
         try:
             self._floor.render(self._shaders)
         except:  # NOQA
@@ -92,6 +95,20 @@ class Canvas(_canvas_base.CanvasBase):
     @staticmethod
     def _get_view_object(obj):
         return obj.objpegboard
+
+    @property
+    @_check_types.do
+    def light_position(self) -> np.ndarray:
+        """Fixed light, angled off-vertical -- see ``CanvasBase.
+        light_position``'s own docstring for why the base's camera-eye
+        default (coincident with a permanently straight-down camera)
+        gives flat, shadeless lighting here. Offset from the current
+        focal point (not the camera eye) so panning doesn't leave it
+        behind, and independent of zoom (``camera.distance``) so it
+        doesn't dim/brighten as the user zooms.
+        """
+        focal = self.camera.focal_position.as_numpy
+        return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
     def _set_view(self):
         """Build the orthographic projection matrix for the current
@@ -128,12 +145,38 @@ class Canvas(_canvas_base.CanvasBase):
         right = focal_x + half_width
         bottom = focal_z - half_height
         top = focal_z + half_height
-        near, far = -1.0, 1.0
 
+        # modelview is identity (see below) -- world Y feeds directly into
+        # this near/far range with no camera-relative transform in between,
+        # so it's really just "how much of the world's Y axis is visible."
+        # `near` needs to clear the floor, drawn at y=-100.0 (see
+        # gl.shaders.grid2d's own vertex shader); `far` needs real headroom
+        # above it for real part geometry, inherited from canvas_schematic's
+        # own Phase 1 skeleton as a +1.0 placeholder that's invisible there
+        # (schematic draws small symbolic flat primitives) but clips away
+        # virtually all real geometry here, since the peg board reuses
+        # actual physical-scale 3D part meshes (tens to hundreds of mm
+        # tall) sitting above the floor -- widened to this file's own
+        # 1000-unit world-scale convention (see world_per_pixel above) so
+        # real part geometry is never clipped regardless of how tall it is.
+        near, far = -101.0, 1000.0
+
+        # modelview is identity, so this projection alone has to pick which
+        # world axis is "depth" -- gl_Position = projection * vec4(world, 1)
+        # in faces.py's vertex shader means matrix ROW 1 reads the vertex's
+        # Y component and ROW 2 reads its Z component, regardless of which
+        # world axis the bounds used to build that row came from. This used
+        # to put the Z-derived `top`/`bottom` bounds into row 1 (scaling Y)
+        # and the Y-derived `near`/`far` bounds into row 2 (scaling Z) --
+        # i.e. it mapped world Y to screen-vertical and world Z to depth,
+        # which is a camera looking down -Z (a front view), not -Y (top-
+        # down). Row/column now match the axis the bounds actually measure:
+        # row 1 (screen-vertical) reads column 2 (world Z), row 2 (depth)
+        # reads column 1 (world Y).
         projection = np.zeros((4, 4), dtype=np.float32)
         projection[0, 0] = 2.0 / (right - left)
-        projection[1, 1] = 2.0 / (top - bottom)
-        projection[2, 2] = -2.0 / (far - near)
+        projection[1, 2] = 2.0 / (top - bottom)
+        projection[2, 1] = -2.0 / (far - near)
         projection[0, 3] = -(right + left) / (right - left)
         projection[1, 3] = -(top + bottom) / (top - bottom)
         projection[2, 3] = -(far + near) / (far - near)

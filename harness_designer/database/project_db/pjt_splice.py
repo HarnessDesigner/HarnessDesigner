@@ -232,6 +232,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
+            self._process_bind_callbacks(obj)
         else:
             self._obj = obj
 

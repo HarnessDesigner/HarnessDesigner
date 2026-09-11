@@ -228,6 +228,12 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
 
         visual_lay.addWidget(vertices_box)
 
+        self.mesh_stats = _checkbox_ctrl.CheckboxCtrl(
+            visual_box, 'Show Mesh Stats Overlay (Part Orientation dialog):')
+
+        self.mesh_stats.SetValue(rendering3d.show_mesh_stats)
+        visual_lay.addWidget(self.mesh_stats)
+
         vsizer.addWidget(visual_box)
 
         # Function Settings group
@@ -302,6 +308,8 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         Config.debug.rendering3d.draw_vertices = self.vertices.GetValue()
         Config.debug.rendering3d.vertices_color = (
             _get_color(self.vertices_color))
+
+        Config.debug.rendering3d.show_mesh_stats = self.mesh_stats.GetValue()
 
         Config.debug.functions.log_args = self.log_args.GetValue()
         Config.debug.functions.log_duration = self.log_duration.GetValue()

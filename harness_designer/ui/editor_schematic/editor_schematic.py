@@ -164,3 +164,32 @@ class EditorSchematicPanel(_canvas_schematic.CanvasSchematic):
                 Config.virtual_canvas.height)
 
         super().__init__(parent, Config, size)
+
+    @_check_types.do
+    def center_on_object(self, obj) -> None:
+        """
+        Pan the schematic camera to bring *obj* into view, then zoom out
+        (never in) just enough to fit it if it wouldn't otherwise fit in
+        the visible window -- mirrors ``editor_pegboard.
+        EditorPegboardPanel.center_on_object``/``editor_3d.
+        Editor3DPanel.center_on_object`` exactly. Replaces
+        ``MainFrame._set_selected``'s old direct ``editor2d.editor.camera.
+        zoom_to_fit([obj])`` call, which always changed zoom (fits the
+        object exactly to the viewport) instead of just panning to it and
+        only widening zoom if actually needed.
+
+        :param obj: Object instance to operate on.
+        :type obj: UNKNOWN
+        """
+        if obj.objschematic is None or obj.objschematic.position is None:
+            return
+
+        self.camera.CenterOn(obj.objschematic.position)
+
+        aabb_min, aabb_max = obj.objschematic.aabb
+        scale = self.required_zoom_scale(aabb_min, aabb_max)
+        if scale > 1.0:
+            # Camera.Zoom(delta): distance = distance - delta, so a
+            # NEGATIVE delta is what widens (zooms out) this camera's own
+            # distance -- literally the same Zoom() the mouse wheel drives.
+            self.camera.Zoom(-(self.camera.distance * (scale - 1.0)))

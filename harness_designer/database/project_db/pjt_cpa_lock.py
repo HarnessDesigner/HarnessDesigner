@@ -197,6 +197,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
         """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
+            self._process_bind_callbacks(obj)
         else:
             self._obj = obj
 

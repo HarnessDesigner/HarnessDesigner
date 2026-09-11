@@ -44,9 +44,9 @@ class Splice(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _splice_schematic.Splice(self, db_obj)
         self.obj3d = _splice_3d.Splice(self, db_obj)
         self.objpegboard = _splice_pegboard.Splice(self, db_obj)
+        self.objschematic = _splice_schematic.Splice(self, db_obj)
 
         # Sibling graph: the fixed through-pair (start/stop -- exactly one
         # wire each, set together via set_siblings when this splice is

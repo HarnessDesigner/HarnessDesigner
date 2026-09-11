@@ -135,9 +135,42 @@ class Seal(_base_pegboard.BasePegboard):
                 scale = _point.Point(self._part.width, self._part.height, self._part.length)
 
             material = _materials.Rubber(self._part.color.ui)
-            angle = db_obj.angle3d
+            angle = db_obj.angle_pegboard
 
-            super().__init__(parent, db_obj, vbo, angle, db_obj.position3d, scale, material)
+            # Renders AT whichever already-seeded peg-board position this
+            # seal is actually part of -- its seated terminal's, its
+            # cavity's, or its housing's (mutually exclusive, same
+            # dispatch order as add_seal in ui.object_browser.
+            # objectbrowser) -- never this seal's own independent
+            # position_pegboard column, and never any pjt_*.position3d
+            # value: confirmed 2026-09-07 (Kevin), same reasoning as
+            # objects_pegboard.terminal.Terminal's identical fix (see its
+            # own comment) -- a sentinel-guarded "seed once" used to live
+            # here, deleted, since comparing position_pegboard.x/z
+            # against 0.0 to decide "never seeded" is simply wrong (a
+            # real local offset can genuinely BE (0.0, 0.0)). A housing-
+            # level (MAT/ACC) seal sits AT its housing (mirrors
+            # objects_3d.seal.Seal's own construction, which shares the
+            # housing's own seal-slot point directly, no offset). Y is
+            # still honored, not flattened to 0 like housing's own anchor
+            # seed -- it comes through automatically since it's whichever
+            # parent's own already-honored Y. A seal on a bare/unseated
+            # terminal keeps that terminal's own independent
+            # position_pegboard (see Terminal's own fallback).
+            terminal = db_obj.terminal
+            cavity = db_obj.cavity
+            housing = db_obj.housing
+
+            if terminal is not None:
+                pegboard_position = terminal.position_pegboard
+            elif cavity is not None:
+                pegboard_position = cavity.position_pegboard
+            elif housing is not None:
+                pegboard_position = housing.position_pegboard
+            else:
+                pegboard_position = db_obj.position_pegboard
+
+            super().__init__(parent, db_obj, vbo, angle, pegboard_position, scale, material)
 
         if model is not None:
             model.load(self._part.manufacturer.name,
@@ -147,11 +180,6 @@ class Seal(_base_pegboard.BasePegboard):
         # keyed by this seal's own peg-board point, not its 3D one (see
         # housing.py's own comment on why).
         self.point3d_id = db_obj.position_pegboard_id
-
-        if self._position.x == 0.0 and self._position.z == 0.0:
-            pos3d = db_obj.position3d
-            self._position.x = float(pos3d.x)
-            self._position.z = float(pos3d.z)
 
     @property
     @_check_types.do

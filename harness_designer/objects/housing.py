@@ -68,10 +68,9 @@ class Housing(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _housing_schematic.Housing(self, db_obj)
-
         self.obj3d = _housing_3d.Housing(self, db_obj)
         self.objpegboard = _housing_pegboard.Housing(self, db_obj)
+        self.objschematic = _housing_schematic.Housing(self, db_obj)
 
         self.seals = []
         self.tpa_locks = []

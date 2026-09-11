@@ -42,9 +42,9 @@ class WireMarker(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _wire_marker_schematic.WireMarker(self, db_obj)
         self.obj3d = _wire_marker_3d.WireMarker(self, db_obj)
         self.objpegboard = _wire_marker_pegboard.WireMarker(self, db_obj)
+        self.objschematic = _wire_marker_schematic.WireMarker(self, db_obj)
 
         self.mainframe.add_object(self)
 

@@ -86,7 +86,16 @@ class Rings2D(_base_schematic.BaseSchematic):
                     float(Config.rotation_handler.tube_diameter_scale),
                     self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
                     mainframe.editor2d.context, mainframe, _base_schematic.BaseSchematic,
-                    mainframe.editor2d.editor.camera)
+                    # No camera -- same reasoning as editor_pegboard.
+                    # generic's own identical change: this view's camera
+                    # is permanently locked top-down, the exact
+                    # gimbal-lock orientation ProtractorRingBase's
+                    # billboard math degenerates at. camera=None falls
+                    # every tick label through to its raw, non-tracking
+                    # mesh_rotation instead (see ProtractorRingBase's own
+                    # "no camera at all" fallback) -- confirmed
+                    # 2026-09-07 (Kevin) as the fix.
+                    None)
                 for axis in self._axes
             }
 

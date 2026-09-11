@@ -5,6 +5,7 @@ from typing import Self, TYPE_CHECKING
 from OpenGL import GL
 import ctypes
 import weakref
+import numpy as np
 
 from PySide6 import QtCore
 from PySide6 import QtGui
@@ -334,6 +335,14 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     _mouse_handler: _mouse_handler_base.MouseHandlerBase = None
     camera: _camera_base.CameraBase = None
 
+    # Set by each subclass to the exact string MainFrame._set_selected
+    # compares its own `source_editor` against ('editor3d'/'editor2d'/
+    # 'editor_pegboard') -- see MouseHandlerBase.on_left_up, which stamps
+    # `mainframe._selection_source_editor` with this so the editor a
+    # selection click originated in is skipped when the other two views
+    # decide whether to re-center on the newly selected object.
+    _editor_name: str = None
+
     # This attribute needs to be created in an overrided initializeGL function
     # created before calling super().initializeGL
     _floor: _floor_base.FloorBase = None
@@ -429,6 +438,23 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
     # Properties / mode
     # -----------------------------------------------------------------
+
+    @property
+    @_check_types.do
+    def light_position(self) -> np.ndarray:
+        """World-space position ``SceneLight.render()`` uploads as
+        ``light_position``.
+
+        Defaults to the camera's own eye position -- a light that moves
+        with the camera, which is what the free-orbit 3D camera wants
+        (paired with its own separate camera-mounted ``Headlight`` for
+        specular). Overridden by the permanently top-down canvases
+        (pegboard, schematic): a light coincident with a camera that's
+        always looking straight down means every surface is lit from
+        the same angle it's viewed from, which gives no shading
+        gradient to read shape by -- see their own overrides.
+        """
+        return self.camera.position.as_numpy
 
     @property
     @_check_types.do
@@ -901,6 +927,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             self._shaders.faces.view = view_matrix
             self._shaders.faces.floor_y = self.config.floor.ground_height
             self._shaders.faces.has_reflection = has_reflection
+            self._shaders.faces.show_depth = _debug_config.show_depth
 
         # ---------- Edges program
         with self._shaders.edges:

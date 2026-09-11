@@ -42,9 +42,9 @@ class TPALock(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _tpa_lock_schematic.TPALock(self, db_obj)
         self.obj3d = _tpa_lock_3d.TPALock(self, db_obj)
         self.objpegboard = _tpa_lock_pegboard.TPALock(self, db_obj)
+        self.objschematic = _tpa_lock_schematic.TPALock(self, db_obj)
 
         self.mainframe.add_object(self)
 

@@ -100,15 +100,26 @@ class Base3D(_objectsvar.BaseVar):
             angle.unbind(self._update_angle)
             scale.unbind(self._update_scale)
 
-            if (
-                not self._floor_lock_exempt and
-                self.editor3d.config.floor.enable_floor_lock and
-                self._aabb[0][1] < Config.floor.ground_height
-            ):
-                y = _d(position.y)
-                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
-
-                position.y = float(y)
+            # Floor-lock commented out (2026-09-06): every Base3D subclass
+            # that doesn't set _floor_lock_exempt (Cavity included) gets
+            # its OWN independent floor-lock re-applied here against its
+            # OWN small AABB, every time this position/angle/scale
+            # changes -- including when the housing's own cascade pushes
+            # a batch position update onto its cavities, which re-fires
+            # this same check per cavity using the cavity's own tiny
+            # AABB rather than the housing's. That's what was producing a
+            # constant ~2.4mm Y-only offset between cavities and their
+            # housing (confirmed: matches a cavity's own aabb[0][1]
+            # exactly) instead of drift.
+            # if (
+            #     not self._floor_lock_exempt and
+            #     self.editor3d.config.floor.enable_floor_lock and
+            #     self._aabb[0][1] < Config.floor.ground_height
+            # ):
+            #     y = _d(position.y)
+            #     y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+            #
+            #     position.y = float(y)
 
             position.bind(self._update_position)
             angle.bind(self._update_angle)
@@ -189,15 +200,17 @@ class Base3D(_objectsvar.BaseVar):
             self._compute_obb()
             self._compute_aabb()
 
-            if (
-                not self._floor_lock_exempt and
-                self.editor3d.config.floor.enable_floor_lock and
-                self._aabb[0][1] < Config.floor.ground_height
-            ):
-                y = _d(self.position.y)
-                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
-
-                self.position.y = float(y)
+            # Floor-lock commented out (2026-09-06) -- see __init__'s own
+            # comment above for why.
+            # if (
+            #     not self._floor_lock_exempt and
+            #     self.editor3d.config.floor.enable_floor_lock and
+            #     self._aabb[0][1] < Config.floor.ground_height
+            # ):
+            #     y = _d(self.position.y)
+            #     y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+            #
+            #     self.position.y = float(y)
 
             self.position.bind(self._update_position)
             self.angle.bind(self._update_angle)
@@ -216,26 +229,28 @@ class Base3D(_objectsvar.BaseVar):
 
         super()._update_position(position)
 
-        if (
-            not self._floor_lock_exempt and
-            self.editor3d.config.floor.enable_floor_lock and
-            self._aabb[0][1] < Config.floor.ground_height
-        ):
-            with self.editor3d.context:
-                y = _d(position.y)
-                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
-
-                position.unbind(self._update_position)
-                position.y = float(y)
-                position.bind(self._update_position)
-
-                self._o_position = position.copy()
-                self.numpy_position[:] = position.as_numpy
-
-                self._compute_obb()
-                self._compute_aabb()
-
-            self.editor3d.Refresh(False)
+        # Floor-lock commented out (2026-09-06) -- see __init__'s own
+        # comment above for why.
+        # if (
+        #     not self._floor_lock_exempt and
+        #     self.editor3d.config.floor.enable_floor_lock and
+        #     self._aabb[0][1] < Config.floor.ground_height
+        # ):
+        #     with self.editor3d.context:
+        #         y = _d(position.y)
+        #         y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+        #
+        #         position.unbind(self._update_position)
+        #         position.y = float(y)
+        #         position.bind(self._update_position)
+        #
+        #         self._o_position = position.copy()
+        #         self.numpy_position[:] = position.as_numpy
+        #
+        #         self._compute_obb()
+        #         self._compute_aabb()
+        #
+        #     self.editor3d.Refresh(False)
 
     @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
@@ -248,18 +263,20 @@ class Base3D(_objectsvar.BaseVar):
         """
         super()._update_angle(angle)
 
-        if (
-            not self._floor_lock_exempt and
-            self.editor3d.config.floor.enable_floor_lock and
-            self._aabb[0][1] < Config.floor.ground_height
-        ):
-            with self.editor3d.context:
-                y = _d(self._position.y)
-                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
-
-                self._position.unbind(self._update_position)
-                self._position.y = float(y)
-                self._position.bind(self._update_position)
+        # Floor-lock commented out (2026-09-06) -- see __init__'s own
+        # comment above for why.
+        # if (
+        #     not self._floor_lock_exempt and
+        #     self.editor3d.config.floor.enable_floor_lock and
+        #     self._aabb[0][1] < Config.floor.ground_height
+        # ):
+        #     with self.editor3d.context:
+        #         y = _d(self._position.y)
+        #         y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+        #
+        #         self._position.unbind(self._update_position)
+        #         self._position.y = float(y)
+        #         self._position.bind(self._update_position)
 
     @_check_types.do
     def _update_scale(self, scale: _point.Point):
@@ -273,18 +290,20 @@ class Base3D(_objectsvar.BaseVar):
 
         super()._update_scale(scale)
 
-        if (
-            not self._floor_lock_exempt and
-            self.editor3d.config.floor.enable_floor_lock and
-            self._aabb[0][1] < Config.floor.ground_height
-        ):
-            with self.editor3d.context:
-                y = _d(self._position.y)
-                y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
-
-                self._position.unbind(self._update_position)
-                self._position.y = float(y)
-                self._position.bind(self._update_position)
+        # Floor-lock commented out (2026-09-06) -- see __init__'s own
+        # comment above for why.
+        # if (
+        #     not self._floor_lock_exempt and
+        #     self.editor3d.config.floor.enable_floor_lock and
+        #     self._aabb[0][1] < Config.floor.ground_height
+        # ):
+        #     with self.editor3d.context:
+        #         y = _d(self._position.y)
+        #         y += _d(Config.floor.ground_height) - _d(float(self._aabb[0][1]))
+        #
+        #         self._position.unbind(self._update_position)
+        #         self._position.y = float(y)
+        #         self._position.bind(self._update_position)
 
     @_check_types.do
     def delete(self):

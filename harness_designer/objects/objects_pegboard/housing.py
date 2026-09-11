@@ -79,15 +79,6 @@ class Housing(_base_pegboard.BasePegboard):
         # start_position_pegboard_id/stop_position_pegboard_id reference.
         self.point3d_id = db_obj.position_pegboard_id
 
-        # Seed a sensible initial peg-board position from the real 3D
-        # position -- only the first time ever (position_pegboard starts at the
-        # (0.0, 0.0) fresh-row default, same sentinel convention
-        # _apply_flatten_if_untouched uses for rotation).
-        if self._position.x == 0.0 and self._position.z == 0.0:
-            pos3d = db_obj.position3d
-            self._position.x = float(pos3d.x)
-            self._position.z = float(pos3d.z)
-
         if self._model is not None:
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)

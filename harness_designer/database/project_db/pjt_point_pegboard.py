@@ -280,6 +280,15 @@ class PJTPointPegboard(PJTEntryBase):
             self._stored_y = DefaultStoredValue
             self._stored_z = DefaultStoredValue
             return
+        # KNOWN POTENTIAL ISSUE (2026-09-06) -- see PJTPoint3D._update_point's
+        # own comment for the full writeup: this early return also skips
+        # refreshing _stored_x/_stored_y/_stored_z, not just the redundant
+        # DB write, which can leave this singleton row's cache stale
+        # relative to the real DB row/live .point after a housing move/
+        # rotate. A fix was tried and reverted because it broke cavity
+        # selection right after a fresh housing placement (unrelated,
+        # pre-existing construction-ordering issue) -- don't re-attempt
+        # without also solving that.
         if PJTPointPegboard._skip_db_write:
             return
         x, y, z = point.as_float

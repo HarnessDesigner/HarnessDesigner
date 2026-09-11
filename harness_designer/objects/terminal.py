@@ -46,9 +46,9 @@ class Terminal(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _terminal_schematic.Terminal(self, db_obj)
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
         self.objpegboard = _terminal_pegboard.Terminal(self, db_obj)
+        self.objschematic = _terminal_schematic.Terminal(self, db_obj)
 
         # Sibling graph: every Wire currently crimped into this terminal
         # (open-ended -- a terminal has no fixed start/stop shape, any
@@ -101,10 +101,9 @@ class Terminal(_ObjectBase):
         waypoints are added -- the wire's 2D endpoint is simply this
         terminal's own ``wire_position2d_id`` (the far end of its
         wire-stub line, past every cavity name in the housing -- see
-        ``objects_schematic/housing.py``'s ``Housing._layout_children``/
-        ``objects_schematic/terminal.py``'s ``Terminal.render`` --
-        distinct from ``position2d_id``, this terminal's own name
-        anchor).
+        ``objects_schematic/terminal.py``'s ``Terminal.__init__``/
+        ``Terminal.render`` -- distinct from ``position2d_id``, this
+        terminal's own name anchor).
 
         When this is not the first wire on the terminal, the back/cavity
         points can't be shared directly (one point row can only carry one
@@ -137,31 +136,44 @@ class Terminal(_ObjectBase):
         is_first_wire = not existing_wires
 
         attach_point = ptables.pjt_points3d_table[self.db_obj.attach_position3d_id]
+        attach_point_pegboard = ptables.pjt_points_pegboard_table[
+            self.db_obj.attach_position_pegboard_id]
 
         if end == 'start':
             wire.db_obj.start_position3d_id = attach_point.db_id
             wire.db_obj.start_position2d_id = self.db_obj.wire_position2d_id
+            wire.db_obj.start_position_pegboard_id = attach_point_pegboard.db_id
             wire.obj3d.set_start_position(attach_point.point)
             wire.objschematic.set_start_position(self.db_obj.wire_position2d)
+            wire.objpegboard.set_start_position(attach_point_pegboard.point)
         else:
             wire.db_obj.stop_position3d_id = attach_point.db_id
             wire.db_obj.stop_position2d_id = self.db_obj.wire_position2d_id
+            wire.db_obj.stop_position_pegboard_id = attach_point_pegboard.db_id
             wire.obj3d.set_stop_position(attach_point.point)
             wire.objschematic.set_stop_position(self.db_obj.wire_position2d)
+            wire.objpegboard.set_stop_position(attach_point_pegboard.point)
 
         new_point_ids = [self._own_or_cloned_point_id(
-            ptables, self.db_obj.wire_position3d_id, is_first_wire)]
+            ptables.pjt_points3d_table, self.db_obj.wire_position3d_id, is_first_wire)]
+        new_point_pegboard_ids = [self._own_or_cloned_point_id(
+            ptables.pjt_points_pegboard_table, self.db_obj.wire_position_pegboard_id,
+            is_first_wire)]
 
         pjt_cavity = self.db_obj.cavity
         if pjt_cavity is not None:
             new_point_ids.append(self._own_or_cloned_point_id(
-                ptables, pjt_cavity.wire_position3d_id, is_first_wire))
+                ptables.pjt_points3d_table, pjt_cavity.wire_position3d_id, is_first_wire))
+            new_point_pegboard_ids.append(self._own_or_cloned_point_id(
+                ptables.pjt_points_pegboard_table, pjt_cavity.wire_position_pegboard_id,
+                is_first_wire))
 
         # Walking start->stop: a start-attach puts the back/cavity points
         # first (before whatever waypoints already exist); a stop-attach
         # puts them last, in the opposite order (cavity before back).
         if end == 'stop':
             new_point_ids.reverse()
+            new_point_pegboard_ids.reverse()
 
         existing_waypoints = wire.db_obj.waypoints3d
         n_new = len(new_point_ids)
@@ -179,11 +191,37 @@ class Terminal(_ObjectBase):
             point.wire_id = wire.db_obj.db_id
             point.idx = idx
 
-            layout_db = ptables.pjt_wire_layouts_table.insert(point_id)
+            layout_db = ptables.pjt_wire_layouts_table.insert(point3d_id=point_id)
+            layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
+            project.add_wire_layout(layout_obj)
+
+        # Peg-board waypoints are independent rows/idx sequence in their
+        # own points table (see database.create_database.points_pegboard's
+        # own module docstring on why waypoint counts genuinely differ
+        # per view) -- offsets computed the same way, against the
+        # peg-board view's own existing waypoint count, not the 3D one's.
+        existing_waypoints_pegboard = wire.db_obj.waypoints_pegboard
+        n_new_pegboard = len(new_point_pegboard_ids)
+
+        if end == 'start':
+            for point in existing_waypoints_pegboard:
+                point.idx = point.idx + n_new_pegboard
+            offsets_pegboard = range(n_new_pegboard)
+        else:
+            base = len(existing_waypoints_pegboard)
+            offsets_pegboard = range(base, base + n_new_pegboard)
+
+        for point_id, idx in zip(new_point_pegboard_ids, offsets_pegboard):
+            point = ptables.pjt_points_pegboard_table[point_id]
+            point.wire_id = wire.db_obj.db_id
+            point.idx = idx
+
+            layout_db = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=point_id)
             layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
             project.add_wire_layout(layout_obj)
 
         wire.obj3d.refresh_waypoints()
+        wire.objpegboard.refresh_waypoints()
 
         wire.set_sibling(self, end)
         self._wire_refs.append(weakref.ref(wire))
@@ -192,7 +230,7 @@ class Terminal(_ObjectBase):
 
     @staticmethod
     @_check_types.do
-    def _own_or_cloned_point_id(ptables, shared_point_id: int, is_first_wire: bool) -> int:
+    def _own_or_cloned_point_id(points_table, shared_point_id, is_first_wire: bool):
         """The first wire on a terminal reuses its shared back/cavity
         point row directly (so it keeps tracking the terminal/cavity if
         the housing moves); every subsequent wire gets its own fresh point
@@ -205,12 +243,18 @@ class Terminal(_ObjectBase):
         ``pjt_housing.PJTHousing._update_position3d``/``_update_angle3d``,
         which look up every clone of a terminal's/cavity's own wire-side
         points by this column and move them along with their parent.
+
+        :param points_table: The specific points table this shared point
+            belongs to (``pjt_points3d_table`` or
+            ``pjt_points_pegboard_table``) -- both share the same
+            ``x``/``y``/``z``/``insert``/``parent_point_id`` shape, so
+            this works unchanged for either.
         """
         if is_first_wire:
             return shared_point_id
 
-        shared = ptables.pjt_points3d_table[shared_point_id]
-        cloned = ptables.pjt_points3d_table.insert(shared.x, shared.y, shared.z)
+        shared = points_table[shared_point_id]
+        cloned = points_table.insert(shared.x, shared.y, shared.z)
         cloned.parent_point_id = shared_point_id
         return cloned.db_id
 

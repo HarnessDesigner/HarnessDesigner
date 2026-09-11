@@ -705,10 +705,14 @@ class MouseHandlerBase:
 
             if not self._is_motion:
                 # Read by MainFrame._set_selected: this click is what's about
-                # to trigger the selection change below, so the 3D view
-                # shouldn't re-center on it -- it's already right where the
-                # user clicked.
-                self.canvas.mainframe._selection_source_editor = 'editor3d'  # NOQA
+                # to trigger the selection change below, so whichever editor
+                # this click actually happened in shouldn't re-center on it
+                # -- it's already right where the user clicked. Was
+                # hardcoded to 'editor3d' from when this class was 3D-only;
+                # now shared by all three canvases, it has to read the
+                # actual originating canvas's own tag (see
+                # CanvasBase._editor_name) instead of assuming 3D.
+                self.canvas.mainframe._selection_source_editor = self.canvas._editor_name  # NOQA
 
                 # If the clicked object is a Housing, check whether the click
                 # landed on a cavity face and select that cavity instead --

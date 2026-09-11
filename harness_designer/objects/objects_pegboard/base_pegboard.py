@@ -226,70 +226,56 @@ class BasePegboard(_objectsvar.BaseVar):
     @_debug.logfunc
     @_check_types.do
     def _set_model(self, model: "_model3d.Model3D"):
-        """Async model-load callback -- mirrors
-        ``objects.objects_3d.base_3d.Base3D._set_model`` exactly (same
-        ``PooledVBOHandler``-by-UUID reuse), registered via
-        ``model.load(manufacturer, part_number, self._set_model)`` by the
-        real anchor subclasses (housing/splice/terminal -- transitions have
-        no catalog ``Model3D``, so never call this). Fires synchronously if
-        the model is already cached, asynchronously otherwise -- either way,
-        this is what swaps this anchor's placeholder box/cylinder ``vbo``
-        (already real, already ``is_active``, set at construction time --
-        see :meth:`__init__`) for the real catalog mesh.
-
-        :param model: The now-loaded model.
-        :type model: :class:`_model3d.Model3D`
-        """
         with self.pegboard.context:
             uuid = model.uuid
 
             if uuid in _vbo.PooledVBOHandler:
                 vbo = _vbo.PooledVBOHandler(uuid)
             else:
-                vbo = _vbo.create_model_vbo(model)
+                packed = np.load(model.data_path).reshape(-1, 3)
+
+                angle = model.angle3d
+                position = model.position3d
+                count = model.vertex_count
+
+                obb = model.obb
+                aabb = model.aabb
+
+                obb @= angle
+                aabb @= angle
+
+                obb += position
+                aabb += position
+
+                packed @= angle
+                packed[:count] += position
+
+                packed = packed.reshape(-1)
+
+                vbo = _vbo.PooledVBOHandler(uuid, packed, count, aabb=aabb, obb=obb)
 
             vbo.acquire()
 
             self._vbo = vbo
-
-            # Mirrors Base3D._set_model exactly: once the real mesh is in,
-            # swap the placeholder-derived scale (width/height/length, or
-            # diameter/length -- whatever the real subclass's __init__ built
-            # it from) for the row's own live, DB-backed scale3d, if it has
-            # one (Housing/Splice/Terminal all do, via Scale3DMixin). Without
-            # this, the peg board would keep rendering at the placeholder's
-            # frozen scale forever, never picking up scale3d or its live edits.
             try:
                 scale = self.db_obj.scale3d  # NOQA
                 self._scale.unbind(self._update_scale)
                 self._scale = scale
                 self._o_scale = self._scale.copy()
                 self._scale.bind(self._update_scale)
+
             except AttributeError:
                 pass
+
+            self.position.unbind(self._update_position)
+            self.angle.unbind(self._update_angle)
 
             self._compute_obb()
             self._compute_aabb()
 
-        # No re-registration needed -- this anchor was already added to
-        # the canvas at construction time with the placeholder box/
-        # cylinder's own real (if now stale) OBB/AABB; _compute_obb/
-        # _compute_aabb above mutate self._obb/self._aabb in place
-        # rather than rebinding them, so whatever the canvas already
-        # captured a reference to at that first add_object() call stays
-        # correct automatically -- see objectsvar.base_var.BaseVar's own
-        # comments on why that in-place-mutation contract matters, and
-        # Base3D._set_model, which never re-registers either. Calling
-        # add_object() again here (the previous version of this method
-        # did, believing it "idempotent") is wrong regardless of timing:
-        # a genuinely later call just silently double-registers this
-        # anchor (gl.canvas_base.canvas_base.CanvasBase.add_object
-        # appends a fresh entry with no matching removal, orphaning the
-        # old one), and a synchronous, already-cached model.load() (this
-        # callback firing before the constructor above has even
-        # returned, let alone before mainframe.add_object() ever ran)
-        # crashes outright, since self.parent.objpegboard isn't assigned
-        # yet at that point.
+            self.position.bind(self._update_position)
+            self.angle.bind(self._update_angle)
+
         self.pegboard.Refresh()
 
     @property
@@ -354,7 +340,7 @@ class BasePegboard(_objectsvar.BaseVar):
         if (
             interaction_type is _interaction.MouseInteraction.RIGHT_DOWN and
             clicked_object is self.parent and
-            self.mainframe.get_selected() is self.parent and
+            self.parent.mainframe.get_selected() is self.parent and
             self.can_rotate()
         ):
             self._active_handler = _rotation_rings.RotationRings(self.pegboard.editor, self.parent)
@@ -364,7 +350,7 @@ class BasePegboard(_objectsvar.BaseVar):
         if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
-            self.mainframe.get_selected() is self.parent and
+            self.parent.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
             from ...drag_handlers.editor_pegboard import generic as _drag_generic  # NOQA -- avoid a cycle at import time
@@ -377,7 +363,8 @@ class BasePegboard(_objectsvar.BaseVar):
     @_check_types.do
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: "_interaction.MouseInteraction",
+        clicked_object
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo --
         see objects_3d.base_3d.Base3D._handle_rotation_interaction (same

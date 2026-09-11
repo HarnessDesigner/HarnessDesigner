@@ -1213,6 +1213,51 @@ class SearchTextEdit(QtWidgets.QPlainTextEdit):
         self._fk_values[field_name] = list(values)
 
     @_check_types.do
+    def _handle_quote_key(self, event: QtGui.QKeyEvent) -> bool:
+        """
+        Auto-pair a typed ``"``: opening one inserts a closing mate
+        right after it (cursor left sitting between the two); typing
+        ``"`` again to close manually just skips over the mate already
+        there instead of inserting a second one. Whether a given ``"``
+        press is an "open" or a "close" is decided by the parity of
+        the number of ``"`` already in the text from the very start up
+        to the cursor -- even means nothing is currently open (this
+        one opens a new pair), odd means one is (this one closes it).
+        Returns True if the key was fully handled (caller should not
+        fall through to the normal insert).
+        """
+
+        cursor = self.textCursor()
+        if cursor.hasSelection():
+            return False
+
+        text = self.toPlainText()
+        pos = cursor.position()
+        quotes_before = text[:pos].count('"')
+        next_char = text[pos] if pos < len(text) else ''
+
+        if next_char == '"':
+            if quotes_before % 2 == 1:
+                event.accept()
+                cursor.setPosition(pos + 1)
+                self.setTextCursor(cursor)
+                return True
+
+            return False
+
+        if next_char == '' or next_char.isspace():
+            if quotes_before % 2 == 0:
+                event.accept()
+                cursor.insertText('""')
+                cursor.setPosition(pos + 1)
+                self.setTextCursor(cursor)
+                return True
+
+            return False
+
+        return False
+
+    @_check_types.do
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if (
             self._completer.popup().isVisible() and
@@ -1251,6 +1296,10 @@ class SearchTextEdit(QtWidgets.QPlainTextEdit):
             event.text() or event.matches(QtGui.QKeySequence.StandardKey.Paste)
         ):
             event.ignore()
+            return
+
+        if event.text() == '"' and self._handle_quote_key(event):
+            self._update_completer()
             return
 
         super().keyPressEvent(event)

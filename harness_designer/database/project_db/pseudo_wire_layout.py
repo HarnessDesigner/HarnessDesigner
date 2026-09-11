@@ -134,14 +134,17 @@ class PseudoPJTWireLayout(PJTWireLayout):
     snap_splice: "_splice.Splice | None" = None
 
     _position: "_point.Point | None" = None
+    _position_pegboard: "_point.Point | None" = None
     _wire_part: "_global_wire.Wire | None" = None
 
     def configure(self, position: "_point.Point", wire_part: "_global_wire.Wire",
                   terminal: "_terminal.Terminal | None" = None,
                   wire: "_wire.Wire | None" = None,
                   end: str | None = None,
-                  splice: "_splice.Splice | None" = None) -> None:
+                  splice: "_splice.Splice | None" = None,
+                  position_pegboard: "_point.Point | None" = None) -> None:
         self._position = position
+        self._position_pegboard = position_pegboard
         self._wire_part = wire_part
         self.snap_terminal = terminal
         self.snap_wire = wire
@@ -190,6 +193,11 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     @property
     def is_visible_pegboard(self) -> bool:
+        # False (invisible, same as is_visible3d/is_visible2d) unless a
+        # real peg-board position was actually configured -- a probe
+        # built for a 3D-only session (position_pegboard never passed to
+        # configure()) still has no business existing in the peg-board
+        # view at all, same as it never existed in 2D.
         return False
 
     @is_visible_pegboard.setter
@@ -198,12 +206,15 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     @property
     def position_pegboard(self) -> "_point.Point | None":
-        # None is a real, already-handled state here -- see
-        # objects_pegboard.wire_layout.WireLayout.__init__'s own comment
-        # ("position=None whenever position_pegboard_id is NULL...
-        # handled gracefully by BaseVar") -- unlike position2d, nothing
-        # downstream needs a fresh dummy Point for this one.
-        return None
+        # Real, configured position now (mirrors position3d) when this
+        # probe was built for a peg-board session -- see configure()'s
+        # own position_pegboard parameter. Still None otherwise: a real,
+        # already-handled state (see objects_pegboard.wire_layout.
+        # WireLayout.__init__'s own comment -- "position=None whenever
+        # position_pegboard_id is NULL... handled gracefully by
+        # BaseVar"), unlike position2d, nothing downstream needs a fresh
+        # dummy Point for this one.
+        return self._position_pegboard
 
     @position_pegboard.setter
     def position_pegboard(self, value):
@@ -211,7 +222,11 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     @property
     def position_pegboard_id(self) -> bytes | None:
-        return None
+        if self._position_pegboard is None:
+            return None
+
+        db_id = self._position_pegboard.db_id
+        return db_id[:-2] if db_id is not None else None
 
     @position_pegboard_id.setter
     def position_pegboard_id(self, value: bytes):

@@ -41,9 +41,9 @@ class BundleLayout(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _bundle_layout_schematic.BundleLayout(self, db_obj)
         self.obj3d = _bundle_layout_3d.BundleLayout(self, db_obj)
         self.objpegboard = _bundle_layout_pegboard.BundleLayout(self, db_obj)
+        self.objschematic = _bundle_layout_schematic.BundleLayout(self, db_obj)
 
     @_check_types.do
     def delete(self):

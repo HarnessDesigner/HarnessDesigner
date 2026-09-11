@@ -244,34 +244,33 @@ class PJTCavitiesTable(PJTTableBase):
         c_position3d = g_cavity.position3d
 
         c_angle2d = g_cavity.angle2d
-        c_angle3d = g_cavity.angle3d
 
         housing = self.db.pjt_housings_table[housing_id]
 
         h_angle2d = housing.angle2d
-        h_angle3d = housing.angle3d
 
         h_position2d = housing.position2d
         h_position3d = housing.position3d
+        h_position_pegboard = housing.position_pegboard
 
+        # 2D is left alone -- unchanged from before.
         position2d = h_position2d + c_position2d
-
-        # c_position3d/obb/aabb are all housing-local (the housing-editor's
-        # own mesh frame has the housing at identity position/rotation, per
-        # Housing3D's pre-baked-VBO convention) and obb/aabb already have
-        # the cavity's own local placement (c_position3d/c_angle3d) baked
-        # into their corner coordinates from Cavity3D.apply_analysis(). The
-        # only transform still needed to reach world space is the housing
-        # instance's own position/rotation -- NOT a further combination
-        # with c_position3d/c_angle3d, which would double-apply them.
-        position3d = c_position3d @ h_angle3d
-        position3d += h_position3d
-
         angle2d = h_angle2d + c_angle2d
-        angle3d = h_angle3d + c_angle3d
 
-        aabb @= h_angle3d
-        obb @= h_angle3d
+        # No rotation applied for 3D/peg-board -- a housing has no
+        # rotation yet at the point its cavities are first created
+        # (confirmed 2026-09-07, Kevin), so this is a plain translate,
+        # not the `@= h_angle3d` rotate-then-translate the old code did.
+        position3d = c_position3d + h_position3d
+
+        # Peg-board: X/Z pick up the housing's own peg-board X/Z, but Y
+        # is NOT combined with the housing's peg-board Y (always 0.0,
+        # board-locked) -- a cavity's real local height relative to its
+        # housing is honored as-is, per pjt_points_pegboard's own schema
+        # docs and objects_pegboard.cavity.Cavity's own docstring.
+        position_pegboard = c_position3d.copy()
+        position_pegboard.x += float(h_position_pegboard.x)
+        position_pegboard.z += float(h_position_pegboard.z)
 
         aabb += h_position3d
         obb += h_position3d
@@ -285,17 +284,16 @@ class PJTCavitiesTable(PJTTableBase):
         quat2d = list(angle2d.as_quat_float)
         angle2d = list(angle2d.as_euler_float)
 
-        quat3d = list(angle3d.as_quat_float)
-        angle3d = list(angle3d.as_euler_float)
-
         position2d = self.db.pjt_points2d_table.insert(*position2d.as_float[:-1])
         position3d = self.db.pjt_points3d_table.insert(*position3d.as_float)
+        position_pegboard = self.db.pjt_points_pegboard_table.insert(*position_pegboard.as_float)
 
         db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id,
                                     name=name, quat2d=str(quat2d), angle2d=str(angle2d),
-                                    quat3d=str(quat3d), angle3d=str(angle3d),
                                     point3d_id=position3d.db_id,
-                                    point2d_id=position2d.db_id, aabb=str(aabb), obb=str(obb),
+                                    point2d_id=position2d.db_id,
+                                    point_pegboard_id=position_pegboard.db_id,
+                                    aabb=str(aabb), obb=str(obb),
                                     is_visible3d=0)
 
         return PJTCavity(self, db_id)
@@ -366,6 +364,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
+            self._process_bind_callbacks(obj)
         else:
             self._obj = obj
 
@@ -380,7 +379,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         """
 
         return self._table
-    
+
     _stored_aabb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
 
     @property
@@ -388,31 +387,31 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     def aabb(self) -> np.ndarray:
         if self._stored_aabb is DefaultStoredValue:
             value = self._table.select('aabb', id=self._db_id)[0][0]
-            value = np.array(eval(value), dtype=np.float32)
-            self._stored_aabb = value
-            
+
+            self._stored_aabb = np.array(eval(value), dtype=np.float32)
+
         return self._stored_aabb
 
     @aabb.setter
     @_check_types.do
     def aabb(self, value: np.ndarray):
         self._stored_aabb = value
-        
+
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
         self._table.update(self._db_id, aabb=str(value))
 
     _stored_obb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
-    
+
     @property
     @_check_types.do
     def obb(self) -> np.ndarray:
         if self._stored_obb is DefaultStoredValue:
             value = self._table.select('obb', id=self._db_id)[0][0]
-            value = np.array(eval(value), dtype=np.float32)
-            self._stored_obb = value
-        
+
+            self._stored_obb = np.array(eval(value), dtype=np.float32)
+
         return self._stored_obb
 
     @obb.setter
@@ -425,7 +424,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         self._table.update(self._db_id, obb=str(value))
 
-    _stored_terminal: "DefaultStoredValueType | _pjt_terminal.PJTTerminal | None" = DefaultStoredValue
+    _stored_terminal: "_pjt_terminal.PJTTerminal | DefaultStoredValueType | None" = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -698,7 +697,21 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         if self._stored_terminal_position_pegboard_id is DefaultStoredValue:
             point_id = self._table.select('terminal_point_pegboard_id', id=self._db_id)[0][0]
             if point_id is None:
-                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+                # Mirrors terminal_position3d_id's own formula exactly
+                # (this cavity's own seated-terminal midpoint, rotated by
+                # this cavity's own angle and offset by its own position)
+                # but in the peg-board frame -- angle_pegboard/
+                # position_pegboard in place of angle3d/position3d.
+                # Honors Y naturally through that same rotation, same as
+                # position_pegboard's own seed in objects_pegboard/
+                # cavity.py.
+                length = float(self.part.length)
+                ref = _point.Point(0.0, 0.0, length)
+                position = self.position_pegboard
+                ref @= self.angle_pegboard
+                ref += position
+                x, y, z = (position + ((ref - position) / 2.0)).as_float
+                point = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z)
                 point_id = point.db_id
                 self._table.update(self._db_id, terminal_point_pegboard_id=point_id)
 
@@ -768,7 +781,25 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         if self._stored_wire_position_pegboard_id is DefaultStoredValue:
             point_id = self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
             if point_id is None:
-                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+                # Mirrors wire_position3d_id's own no-live-object fallback
+                # formula exactly (this cavity's own wire-side/back face
+                # center, local -Z per the cavity-frame convention,
+                # rotated by this cavity's own angle and offset by its
+                # own position) but in the peg-board frame --
+                # angle_pegboard/position_pegboard in place of angle3d/
+                # position3d. This is the waypoint where a wire exits the
+                # back plane of the cavity (Terminal.add_wire gives it its
+                # own pjt_wire_layouts row, same as the terminal's own
+                # wire_position_pegboard) -- honors Y naturally through
+                # that same rotation; the very next waypoint made on the
+                # wire past this one is free-space and gets Y=0 from
+                # Camera.screen_to_world() as usual.
+                cav_length = float(self.part.length)
+                center = _point.Point(0.0, 0.0, -cav_length / 2.0)
+                center @= self.angle_pegboard
+                center += self.position_pegboard
+                x, y, z = center.as_float
+                point = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z)
                 point_id = point.db_id
                 self._table.update(self._db_id, wire_point_pegboard_id=point_id)
 

@@ -59,6 +59,22 @@ class Housing(_base.AddHandlerBase):
             self._follow(current_pos)
 
             self.mainframe.project.add_housing(self.target)
+
+            # This housing's own peg-board position must be finalized
+            # BEFORE update_cavities() runs -- update_cavities() creates
+            # every cavity row via PJTCavitiesTable.insert(), which reads
+            # this housing's CURRENT position_pegboard to compute each
+            # cavity's own peg-board position at creation time. Doing it
+            # in the other order (as this used to) meant every cavity was
+            # created against the housing's stale pre-placement peg-board
+            # position instead of its real, just-finalized one --
+            # confirmed 2026-09-07 (Kevin).
+            pos = self.target.obj3d.position.copy()
+            pos.y = 0.0
+
+            peg_pos = self.target.objpegboard.position
+            peg_pos += pos
+
             self.target.db_obj.update_cavities()
             self.target.obj3d.match_cavity_surfaces()
 

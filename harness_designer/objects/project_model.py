@@ -30,9 +30,10 @@ class ProjectModel(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _project_model_schematic.ProjectModel(self, db_obj)
         self.obj3d = _project_model_3d.ProjectModel(self, db_obj, vbo)
         self.objpegboard = _project_model_pegboard.ProjectModel(self, db_obj)
+        self.objschematic = _project_model_schematic.ProjectModel(self, db_obj)
+
         self.mainframe.add_object(self)
 
     @_check_types.do

@@ -98,10 +98,20 @@ def _make_probe(mainframe: "_ui.MainFrame", position, wire_part: "_global_wire.W
                  terminal: "_terminal.Terminal | None" = None,
                  wire: "_wire.Wire | None" = None,
                  end: str | None = None,
-                 splice: "_splice.Splice | None" = None) -> _wire_layout.WireLayout:
-    """Construct and register one invisible snap probe at *position*."""
+                 splice: "_splice.Splice | None" = None,
+                 position_pegboard=None) -> _wire_layout.WireLayout:
+    """Construct and register one invisible snap probe.
+
+    *position* (3D) and *position_pegboard* are independent -- pass only
+    the one matching whichever view's ``SnapProbeSet`` this probe is for
+    (``None`` for the other), same as any other object type: a facade
+    with a ``None`` position in a given view just has no presence
+    there (see ``CanvasBase.add_object``), so the probe naturally never
+    shows up as pickable in the view it wasn't built for.
+    """
     db_obj = _pseudo_wire_layout.PseudoPJTWireLayout(None, _uuid_module.uuid4().bytes)
-    db_obj.configure(position, wire_part, terminal=terminal, wire=wire, end=end, splice=splice)
+    db_obj.configure(position, wire_part, terminal=terminal, wire=wire, end=end, splice=splice,
+                     position_pegboard=position_pegboard)
 
     return _wire_layout.WireLayout(mainframe, db_obj)
 
@@ -295,11 +305,26 @@ class SnapProbeSet:
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", wire_part: "_global_wire.Wire",
-                 exclude_wire: "_wire.Wire | None" = None):
+                 exclude_wire: "_wire.Wire | None" = None, view: str = '3d'):
+        """
+        :param view: ``'3d'`` (default) builds probes at every target's
+            own ``*_position3d`` point, pickable only in the 3D view --
+            unchanged from before this parameter existed. ``'pegboard'``
+            builds them at ``*_position_pegboard`` instead, pickable only
+            in the peg-board view (see ``_make_probe``'s own docstring on
+            why passing only one of ``position``/``position_pegboard``
+            is what makes that so). Wire-end anchoring/openness
+            (``wire_end_anchors``/``_is_open_wire_end``) is checked via
+            the 3D endpoints regardless of *view* -- anchoring is a
+            project-wide topology fact (is this end connected to
+            anything at all), not a per-view rendering detail.
+        """
         from ..drag_handlers.editor_3d import wire as _dragging  # NOQA -- avoid a cycle at import time
 
         self.mainframe = mainframe
         self._probes: list[_wire_layout.WireLayout] = []
+
+        pegboard = view == 'pegboard'
 
         project = mainframe.project
 
@@ -309,8 +334,11 @@ class SnapProbeSet:
                 # probe instead, below.
                 continue
 
+            point = (terminal.db_obj.wire_position_pegboard if pegboard
+                     else terminal.db_obj.wire_position3d)
             probe = _make_probe(
-                mainframe, terminal.db_obj.wire_position3d, wire_part, terminal=terminal)
+                mainframe, None if pegboard else point, wire_part, terminal=terminal,
+                position_pegboard=point if pegboard else None)
             self._probes.append(probe)
 
         for cavity in project.cavities:
@@ -326,13 +354,19 @@ class SnapProbeSet:
             if not ok:
                 continue
 
+            point = (cavity.db_obj.wire_position_pegboard if pegboard
+                     else cavity.db_obj.wire_position3d)
             probe = _make_probe(
-                mainframe, cavity.db_obj.wire_position3d, wire_part, terminal=terminal)
+                mainframe, None if pegboard else point, wire_part, terminal=terminal,
+                position_pegboard=point if pegboard else None)
             self._probes.append(probe)
 
         for splice in project.splices:
+            point = (splice.db_obj.branch_position_pegboard if pegboard
+                     else splice.db_obj.branch_position3d)
             probe = _make_probe(
-                mainframe, splice.db_obj.branch_position3d, wire_part, splice=splice)
+                mainframe, None if pegboard else point, wire_part, splice=splice,
+                position_pegboard=point if pegboard else None)
             self._probes.append(probe)
 
         for wire in project.wires:
@@ -344,16 +378,20 @@ class SnapProbeSet:
             start_anchored, stop_anchored = _dragging.wire_end_anchors(project, wire)
 
             if not start_anchored:
-                point = wire.obj3d.start_position
-                if _is_open_wire_end(project, point):
-                    self._probes.append(
-                        _make_probe(mainframe, point, wire_part, wire=wire, end='start'))
+                point3d = wire.obj3d.start_position
+                if _is_open_wire_end(project, point3d):
+                    point = wire.objpegboard.start_position if pegboard else point3d
+                    self._probes.append(_make_probe(
+                        mainframe, None if pegboard else point, wire_part, wire=wire, end='start',
+                        position_pegboard=point if pegboard else None))
 
             if not stop_anchored:
-                point = wire.obj3d.stop_position
-                if _is_open_wire_end(project, point):
-                    self._probes.append(
-                        _make_probe(mainframe, point, wire_part, wire=wire, end='stop'))
+                point3d = wire.obj3d.stop_position
+                if _is_open_wire_end(project, point3d):
+                    point = wire.objpegboard.stop_position if pegboard else point3d
+                    self._probes.append(_make_probe(
+                        mainframe, None if pegboard else point, wire_part, wire=wire, end='stop',
+                        position_pegboard=point if pegboard else None))
 
     @_check_types.do
     def close(self) -> None:

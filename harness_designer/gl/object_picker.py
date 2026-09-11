@@ -327,7 +327,17 @@ def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.
     for _, obj in candidates:
         wrapped = get_view(obj)
         obb = wrapped.obb
-        hit, t_hit = _ray_intersect_obb(origin, direc, obb) if obb is not None else (False, None)
+        # _ray_intersect_obb indexes obb[0]/[1]/[3]/[4] -- a real 8-corner
+        # box (see utils.bounding_boxes.compute_obb) always has enough
+        # rows for that. A malformed OBB (fewer than 5 rows -- seen from
+        # Model3D.obb, which is read fresh from a DB column written by a
+        # separate background CAD-conversion process this code has no
+        # control over) used to crash click-picking outright instead of
+        # just falling back to the looser AABB test below, same as the
+        # documented "no real oriented box" case already does for a
+        # multi-segment Wire/Bundle.
+        has_obb = obb is not None and len(obb) >= 5
+        hit, t_hit = _ray_intersect_obb(origin, direc, obb) if has_obb else (False, None)
         if hit:
             if wrapped.hit_test_step3(origin, direc):
                 hits.append((t_hit, obj))

@@ -44,9 +44,9 @@ class Transition(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _transition_schematic.Transition(self, db_obj)
         self.obj3d = _transition_3d.Transition(self, db_obj)
         self.objpegboard = _transition_pegboard.Transition(self, db_obj)
+        self.objschematic = _transition_schematic.Transition(self, db_obj)
 
         # Sibling graph: at most one Bundle per branch slot (1-6), keyed by
         # branch_id -- mirrors PJTTransitionBranch.bundle's own point-id

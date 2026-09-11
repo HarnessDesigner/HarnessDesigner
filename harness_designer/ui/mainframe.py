@@ -2891,31 +2891,42 @@ class MainFrame(QtWidgets.QMainWindow):
         self._selection_source_editor = None
 
         # Bring the newly selected object into view in any editor where
-        # it isn't already visible -- pan/zoom only when off-screen, so
-        # clicking something already in view doesn't jerk the camera
-        # around. 3D pans only (keeps current zoom, per user preference);
-        # 2D has no equivalent "pan only" primitive yet so it reuses its
-        # existing zoom_to_fit; the peg board's own center_on_object is
-        # pan-only, matching 3D. Whichever editor the click that caused
-        # this selection originated in is skipped entirely -- the object
-        # is already exactly where the user put it on screen there, and
+        # it isn't actually visible -- pan, and zoom out (never in) only
+        # as far as needed to fit it, so clicking something already
+        # visible doesn't jerk the camera around, and centering never
+        # surprises the user by zooming in. All three editors share the
+        # same center_on_object shape now (2D used to reuse zoom_to_fit
+        # here, which always changed zoom -- fixed to match 3D/peg
+        # board). "Actually visible" is checked via each editor's own
+        # objects_in_window(), not the raw is_in_Xview frustum test --
+        # the GL canvas is a fixed, oversized "virtual" surface that the
+        # surrounding dock only crops/recenters into (see
+        # CanvasWindowBase.objects_in_window's own docstring), so
+        # something can be in the camera's frustum while sitting in the
+        # cropped-away part the user can't actually see; is_in_Xview
+        # itself is left alone since other callers (accessory placement,
+        # wire/bundle handlers) genuinely mean the frustum, not the
+        # visible window. Whichever editor the click that caused this
+        # selection originated in is skipped entirely -- the object is
+        # already exactly where the user put it on screen there, and
         # re-centering that editor just makes the click feel like it
         # teleported the view.
         if (
             source_editor != 'editor3d' and
-            obj.obj3d is not None and not obj.is_in_3dview
+            obj.obj3d is not None and obj not in self.editor3d.editor.objects_in_window()
         ):
-            self.editor3d.camera.CenterOn(obj.obj3d.position)
+            self.editor3d.editor.center_on_object(obj)
 
         if (
             source_editor != 'editor2d' and
-            obj.objschematic is not None and not obj.is_in_2dview
+            obj.objschematic is not None and obj not in self.editor2d.editor.objects_in_window()
         ):
-            # Editor2D (unlike Editor3D) has no .camera of its own --
-            # go through .editor (the Canvas2D panel), which does.
-            self.editor2d.editor.camera.zoom_to_fit([obj])
+            self.editor2d.editor.center_on_object(obj)
 
-        if source_editor != 'editor_pegboard' and not obj.is_in_pegboardview:
+        if (
+            source_editor != 'editor_pegboard' and
+            obj not in self.editor_pegboard.editor.objects_in_window()
+        ):
             self.editor_pegboard.editor.center_on_object(obj)
 
     @_check_types.do

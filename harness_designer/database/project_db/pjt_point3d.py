@@ -346,6 +346,29 @@ class PJTPoint3D(PJTEntryBase):
             self._stored_y = DefaultStoredValue
             self._stored_z = DefaultStoredValue
             return
+        # KNOWN POTENTIAL ISSUE (2026-09-06): this early return skips
+        # refreshing _stored_x/_stored_y/_stored_z (below), not just the
+        # redundant self._table.update() call. PJTPoint3D is a singleton
+        # keyed by db_id (see the class docstring), so if anything has
+        # ever read .x/.y/.z directly on this same row (warming the
+        # cache) before a housing move/rotate batch-writes through here
+        # again, this row's cached x/y/z go stale relative to the real
+        # DB row and the live .point Point (which stays correct -- the
+        # batch cascade mutates it directly) -- a real bug class,
+        # confirmed present, that could bite anywhere something reads
+        # .x/.y/.z directly instead of through .point.
+        #
+        # Tried moving the cache refresh above this check (so only the
+        # DB write is skipped) -- that fix broke cavity selection
+        # immediately after a fresh housing placement (a pre-existing,
+        # already-worked-around construction-ordering issue, see
+        # MEMORY.md's "Confirmed bug (2026-07-25)" entry), so it was
+        # reverted. The actual 2-5mm cavity/terminal offset this was
+        # originally chasing turned out to be unrelated (see
+        # objects/objects_3d/base_3d.py's floor-lock comments and
+        # objects/objects_pegboard/cavity.py's peg-board seeding fix).
+        # Left as-is for now -- don't "fix" this again without also
+        # working out why it breaks fresh-housing cavity selection.
         if PJTPoint3D._skip_db_write:
             return
         x, y, z = point.as_float

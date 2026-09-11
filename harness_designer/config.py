@@ -706,12 +706,12 @@ class Config(metaclass=ConfigDB):
     class editor_schematic(metaclass=ConfigDB):
         # Selection highlight material color -- mirrors
         # Config.editor_3d.selected_color's role exactly.
-        background_color = [0.20, 0.20, 0.20, 1.0]
+        background_color = [0.60, 0.60, 0.60, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.25]
 
         class lighting(metaclass=ConfigDB):
             position = [100.0, 100.0, 100.0]
-            ambient = [0.4, 0.4, 0.4, 1.0]
+            ambient = [0.6, 0.6, 0.6, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
@@ -779,7 +779,7 @@ class Config(metaclass=ConfigDB):
             snap = False
 
             target_dot_pixel_spacing = 40.0
-            dot_color = [0.45, 0.45, 0.45, 1.0]
+            dot_color = [0.25, 0.25, 0.25, 1.0]
 
             manual_snap_spacing = None
 
@@ -845,7 +845,7 @@ class Config(metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
                 in_key = 16777235
                 out_key = 16777237
-                sensitivity = 2.0
+                sensitivity = 8.0
 
             class reset(metaclass=ConfigDB):
                 key = 16777232
@@ -866,17 +866,6 @@ class Config(metaclass=ConfigDB):
             splice = [0.0, 0.0, 0.0, 1.0]
 
         class object_sizes(metaclass=ConfigDB):
-            # Shared padding (mm) used throughout the cavity/terminal
-            # pin-edge layout: how far the cavity name sits outside the
-            # housing's pin edge, how far the terminal's "(" bracket sits
-            # outside it (the two land at the same X for this reason --
-            # not because one is aligned to the other, they're both
-            # independently pin_edge - pin_edge_padding), and how far the
-            # terminal's own name is inset from its cavity's AABB on all
-            # 4 sides. One shared value for now (confirmed with the user
-            # 2026-08-20) -- split into separate per-purpose values later
-            # if that turns out to be needed.
-            pin_edge_padding = 3.0
 
             class terminal(metaclass=ConfigDB):
                 # Maximum -- a housing's own cavity_height (see
@@ -884,7 +873,7 @@ class Config(metaclass=ConfigDB):
                 # always derived from this value, but an individual
                 # terminal may render smaller than this to fit its own
                 # name inside that computed slot height.
-                name_font_size = 3.0
+                name_font_size = 2.0
 
             class splice(metaclass=ConfigDB):
                 """
@@ -939,18 +928,18 @@ class Config(metaclass=ConfigDB):
                 width = 50.0
 
                 # housing's own name/part number/manufacturer block
-                font_size = 3.0
+                font_size = 1.5
 
     class editor_pegboard(metaclass=ConfigDB):
 
         # Selection highlight material color -- mirrors
         # Config.editor_3d.selected_color's role exactly.
-        background_color = [0.20, 0.20, 0.20, 1.0]
+        background_color = [0.60, 0.60, 0.60, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.25]
 
         class lighting(metaclass=ConfigDB):
             position = [100.0, 100.0, 100.0]
-            ambient = [0.4, 0.4, 0.4, 1.0]
+            ambient = [0.6, 0.6, 0.6, 1.0]
             diffuse = [0.8, 0.8, 0.8, 1.0]
             specular = [1.0, 1.0, 1.0, 1.0]
 
@@ -1002,7 +991,7 @@ class Config(metaclass=ConfigDB):
             snap = False
 
             target_dot_pixel_spacing = 40.0
-            dot_color = [0.45, 0.45, 0.45, 1.0]
+            dot_color = [0.25, 0.25, 0.25, 1.0]
 
             manual_snap_spacing = None
 
@@ -1069,7 +1058,7 @@ class Config(metaclass=ConfigDB):
                 mouse = MOUSE_WHEEL  # | MOUSE_REVERSE_WHEEL_AXIS
                 in_key = 16777235
                 out_key = 16777237
-                sensitivity = 2.0
+                sensitivity = 8.0
 
             class reset(metaclass=ConfigDB):
                 key = 16777232
@@ -1345,6 +1334,21 @@ class Config(metaclass=ConfigDB):
             draw_vertices = False
             draw_faces = True
 
+            # Shows a vertex/triangle count HUD in the top-right corner of
+            # part_orientation.py's canvas -- used to correlate stuttering
+            # camera movement with actual mesh complexity when tracking
+            # down rendering performance issues.
+            show_mesh_stats = True
+
+            # Replaces every faces-shader fragment's normal lit color with
+            # a grayscale visualization of its own gl_FragCoord.z (the
+            # actual value written to/tested against the depth buffer) --
+            # for diagnosing depth-ordering bugs by seeing the real,
+            # GPU-computed depth directly instead of hand-deriving it from
+            # the projection matrix. Always compiled in (see faces.py's
+            # own FRAGMENT_SHADER), toggled at zero cost via a uniform.
+            show_depth = False
+
             # For dark materials
             edge_color_dark = [0.7, 0.7, 0.7]
 
@@ -1542,6 +1546,43 @@ class Config(metaclass=ConfigDB):
         search-box strings (most-recent-last, capped at 50, no
         duplicates -- see part_search.py's record_search())."""
         history = {}
+
+    class model_processing(metaclass=ConfigDB):
+        """Settings for the STEP/IGES/mesh import pipeline
+        (process/model_process.py)."""
+
+        # Above this raw triangle count, a freshly-tessellated STEP model
+        # is re-tessellated from the original BREP using the coarser
+        # settings below, instead of being kept as-is -- see the Bosch
+        # 1 928 405 455 housing investigation: BRepMesh_IncrementalMesh
+        # with isRelative=True and a tight linear deflection produced an
+        # 8.5M-triangle mesh for that part, driven by a small number of
+        # pathological curved faces rather than part size/cavity count.
+        # This re-tessellates the real BREP geometry at a coarser
+        # tolerance -- it is NOT mesh decimation/simplification (pyfqmr
+        # edge-collapse on an already-tessellated mesh produces visibly
+        # worse results than tessellating the original surfaces more
+        # coarsely to begin with). Rows with `simplify=1` still use their
+        # own configured pyfqmr target_count/aggressiveness/iterations
+        # unchanged -- unrelated, separate feature.
+        max_triangle_count = 250_000
+
+        # Coarser BREP tessellation settings used when the default
+        # (isRelative=True, lin=0.001, ang=0.1) pass exceeds
+        # max_triangle_count, or when the default pass hangs the model
+        # watchdog outright (see ThreadWorker's use_loose_tessellation
+        # handling) -- isRelative=False removes per-face size-relative
+        # tolerance scaling (the actual driver of the explosion on
+        # pathological faces), and the looser absolute/angular tolerances
+        # cut triangle counts meaningfully on ordinary models too.
+        # Confirmed: cut a real 8.5M-triangle mesh to 458,994 (18.5x) and
+        # a real 2.49M-triangle mesh to 181,164 (13.8x, landing under
+        # max_triangle_count with no further action needed) in ~4-8s each
+        # (vs. 95-461s for the original tight/relative pass on those same
+        # files).
+        loose_lin_deflection = 0.1
+        loose_is_relative = False
+        loose_ang_deflection = 0.5
 
 
 Config.open()

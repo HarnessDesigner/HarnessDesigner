@@ -477,8 +477,7 @@ class ProcessManager(threading.Thread):
                         self._model_processes_running[i - offset] = None
 
                         is_primary = message['is_primary']
-
-                        from ..ui.dialogs import error as _error
+                        already_tried_loose = message.get('use_loose_tessellation', False)
 
                         if 'step' not in message:
                             if job_id in self._model_progress:
@@ -487,17 +486,44 @@ class ProcessManager(threading.Thread):
                             else:
                                 message['step'] = 0
 
-                        def _do(msg, rdb):
-                            rdb.set_error(**msg)
+                        if already_tried_loose:
+                            # Both tessellation parameter sets hung the
+                            # watchdog -- genuine failure, same handling
+                            # as before this retry existed.
+                            from ..ui.dialogs import error as _error
 
-                            dlg = _error.ErrorDialog(
-                                self.mainframe,
-                                json.dumps(msg, indent=4, default=str),
-                                '3D Model Conversion Watchdog timeout')
+                            def _do(msg, rdb):
+                                rdb.set_error(**msg)
 
-                            dlg.exec()
+                                dlg = _error.ErrorDialog(
+                                    self.mainframe,
+                                    json.dumps(msg, indent=4, default=str),
+                                    '3D Model Conversion Watchdog timeout')
 
-                        _app.CallAfter(_do, message, resource_db)
+                                dlg.exec()
+
+                            _app.CallAfter(_do, message, resource_db)
+                        else:
+                            # First attempt (default/high-quality
+                            # tessellation) hung the watchdog -- retry once
+                            # with the coarser tessellation settings before
+                            # giving up. Silent from the user's perspective;
+                            # only a second timeout (coarser settings too)
+                            # is treated as a real failure above.
+                            _logger.info(
+                                f'MODEL PROCESS: watchdog timeout on default '
+                                f'tessellation for part '
+                                f'"{message["part_number"]}" -- retrying with '
+                                f'coarser tessellation settings.')
+
+                            def _do(mdb, rdb, mfg, pn, path):
+                                self.get_model(
+                                    mdb, rdb, mfg, pn, path,
+                                    use_loose_tessellation=True)
+
+                            _app.CallAfter(
+                                _do, model_db, resource_db,
+                                message['mfg'], message['part_number'], message['path'])
 
                         if job_id in self._model_progress:
                             del self._model_progress[job_id]
@@ -644,13 +670,15 @@ class ProcessManager(threading.Thread):
             self._wait_event.clear()
 
     def get_model(self, model_db: "_model3d.Model3D", resource_db: "_resource_state.ResourceState",
-                  mfg: str, part_number: str, path: str):
+                  mfg: str, part_number: str, path: str,
+                  use_loose_tessellation: bool = False):
 
         message = {
             'id': model_db.db_id,
             'mfg': mfg,
             'part_number': part_number,
-            'path': path
+            'path': path,
+            'use_loose_tessellation': use_loose_tessellation,
         }
 
         with self._model_lock:

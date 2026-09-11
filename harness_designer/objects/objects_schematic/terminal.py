@@ -1,36 +1,53 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
-import math
-
-import numpy as np
 import build123d
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from . import base_schematic as _base_schematic
-from ...ui.widgets import context_menus as _context_menus
+from . import housing as _housing_schematic
+from . import wire as _wire_schematic
+from .. import housing as _housing
 from ... import config as _config
 from ... import color as _color
+from ... import check_types as _check_types
+from ..objects_3d import terminal as _terminal_3d
+from ...ui import editor_db as _editor_db
+from ...ui.widgets import context_menus as _context_menus
+from ...ui.dialogs import part_search as _part_search
+from ...ui.dialogs.dimensions_dialog import ensure_dimensions
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
 from ...geometry import angle as _angle
+from ...geometry import line as _line
 from ...shapes import text as _text
 from ...shapes import cylinder as _cylinder
-from ... import utils as _utils
-from ... import check_types as _check_types
+from ...handlers import terminal_handler as _terminal_handler
 
 
 if TYPE_CHECKING:
-    from ...database.project_db import pjt_terminal as _pjt_terminal
     from .. import terminal as _terminal
-    from . import housing as _housing_schematic
-    from .. import housing as _housing_facade
+    from ...database.project_db import pjt_terminal as _pjt_terminal
     from ... import ui as _ui
 
 
 Config = _config.Config.editor_schematic
+
+
+def _is_180(degrees: float) -> bool:
+    """Whether *degrees* (this terminal's own live ``angle2d.y``) is
+    the 180 special case -- rotating this terminal's own name glyph a
+    full half-turn would render it upside-down, so at that one angle
+    the glyph itself renders upright instead (see :meth:`Terminal.render`)
+    and the name's own internal line-justification flips to the
+    opposite side instead (see :meth:`Terminal.__init__`/
+    :meth:`Terminal._update_angle`) to keep reading in the same
+    direction relative to its own anchor.
+    """
+    return round(degrees) % 360 == 180
 
 
 class Terminal(_base_schematic.BaseSchematic):
@@ -82,38 +99,202 @@ class Terminal(_base_schematic.BaseSchematic):
     the literal anchor value the way every other ``BaseVar`` subclass
     uses them.
     """
+
     _parent: "_terminal.Terminal" = None
-    db_obj: "_pjt_terminal.PJTTerminal"
+    db_obj: "_pjt_terminal.PJTTerminal" = None
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
-        """Initialise the :class:`Terminal` instance.
+        """
+        Initialise the :class:`Terminal` instance.
 
         :param parent: Parent object.
         :type parent: :class:`_terminal.Terminal`
+
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_terminal.PJTTerminal`
         """
+
         self._part = db_obj.part
         self.db_obj = db_obj
 
-        self._name_lines: list = []
-        self._name_local_positions: list = []
-
         position = db_obj.position2d
         angle = db_obj.angle2d
-        scale = _point.Point(1.0, 1.0, 1.0)
-        material = _materials.Generic(_color.Color(*Config.colors.label))
 
-        with parent.mainframe.editor2d.editor.context:
-            # No vbo of its own -- render() swaps self._vbo between the
-            # name line(s), the "(" bracket, and the wire-stub cylinder
-            # in turn (see the class docstring).
-            super().__init__(parent, db_obj, None, angle, position, scale, material)
-            self._rebuild_geometry()
+        cavity = db_obj.cavity
+        if cavity is not None:
+            housing = cavity.housing
 
-        self._name_cb = self.db_obj.bind(self._rebuild, 'name')
+            cavity_geometry = housing.cavity_geometry.get(cavity.db_id)
+            if cavity_geometry is None:
+                raise RuntimeError('This should not happen')
+
+            # The terminal's own hit-test box (geometry.cavity_layout.
+            # terminal_hit_box, "the text area inside the cavity rectangle")
+            # doubles as the fitting constraint its own name text shrinks to
+            # fit inside -- so the rendered name never overflows its own
+            # hit-test region.
+            avail_width = cavity_geometry.term_text_width
+            avail_height = cavity_geometry.term_text_height
+
+            # --- Name: shrink-to-fit, possibly multi-line (assumes explicit
+            # newlines in the name string -- no auto-wrap). ---
+            max_font_size = Config.object_sizes.terminal.name_font_size
+
+            if self.db_obj.name:
+                lines = self.db_obj.name.split('\n')
+            else:
+                lines = ['']
+
+            built = [_text.Text(line, max_font_size,
+                                build123d.FontStyle.REGULAR,
+                                local_tilt=_text.TOP_DOWN_TILT)
+                     for line in lines]
+
+            max_line_width = max((t.width for t in built), default=0.0)
+            total_height = len(built) * _text.CHARACTER_HEIGHT * max_font_size
+
+            width_scale = 1.0
+            if max_line_width > avail_width > 0.0:
+                width_scale = avail_width / max_line_width
+
+            height_scale = 1.0
+            if total_height > avail_height > 0.0:
+                height_scale = avail_height / total_height
+
+            name_font_size = max_font_size * min(width_scale, height_scale, 1.0)
+
+            # Stashed so _update_angle can rebuild this same Text (at
+            # this same shrink-to-fit size) with a different h_align,
+            # without re-running the shrink-to-fit measurement above --
+            # that depends on this terminal's own name/available box,
+            # neither of which change just because the angle crossed
+            # into/out of 180.
+            self._name_font_size = name_font_size
+
+            # center_anchor=True -- local (0, 0, 0) (and so whatever position
+            # this Text is rendered at) is this block's own CENTER, not its
+            # bottom-left-of-widest-line corner (matching how every other
+            # position in this system already means "center" -- see
+            # geometry.cavity_layout's own docstring).
+            #
+            # h_align -- LEFT-justified normally (0/90/270, following
+            # this terminal's own angle2d -- see render()), explicit
+            # rather than relying on Text's own LEFT default. Flipped to
+            # RIGHT at 180, where the glyph itself renders upright
+            # instead of rotating with it (see _is_180's own docstring),
+            # so a multi-line name's own internal line-justification
+            # flips to the opposite side to keep reading in the same
+            # direction relative to its own (center) anchor -- a no-op
+            # visually for the common single-line-name case (see
+            # shapes/text.py's own h_align docstring).
+            if _is_180(angle.y):
+                name_h_align = build123d.TextAlign.RIGHT
+            else:
+                name_h_align = build123d.TextAlign.LEFT
+
+            vbo = _text.Text(self.db_obj.name, name_font_size,
+                             build123d.FontStyle.REGULAR,
+                             local_tilt=_text.TOP_DOWN_TILT,
+                             h_align=name_h_align,
+                             center_anchor=True)
+
+            if position is None:
+                # The fitting box (avail_width wide, term_text_width) is centered
+                # on the cavity's own center (cavity_geometry.position) -- its
+                # own LEFT edge is box_left_x. Since *text* is center-anchored
+                # (above), the CENTER we hand it has to sit half its own
+                # (possibly shrunk-to-fit, so not necessarily == avail_width)
+                # measured width to the right of that edge, not at box_left_x
+                # itself -- otherwise a text block narrower than avail_width
+                # would end up straddling box_left_x (half hanging off the left
+                # of the fitting area) instead of flush against it.
+                box_left_x = cavity_geometry.position[0] - (avail_width / 2.0)
+                name_x = box_left_x + (vbo.width / 2.0)
+
+                position2d = cavity.table.db.pjt_points2d_table.insert(
+                    name_x, cavity_geometry.position[1])
+
+                db_obj.position2d_id = position2d.db_id
+                position = db_obj.position2d
+
+                with position:
+                    position @= housing.angle2d
+
+                position += housing.position2d
+
+                position2d = cavity.table.db.pjt_points2d_table.insert(
+                    *cavity_geometry.cylinder_stop)
+
+                db_obj.wire_position2d_id = position2d.db_id
+
+                wire_position = db_obj.wire_position2d
+                with wire_position:
+                    wire_position @= housing.angle2d
+
+                wire_position += housing.position2d
+            else:
+                wire_position = db_obj.wire_position2d
+
+            # The "(" bracket's own position/font size are both precomputed
+            # (see geometry.cavity_layout.compute_cavity_geometry) -- still
+            # need a real Text VBO to actually render it, built at that
+            # exact font size so it matches the precomputed position/cylinder
+            # geometry exactly. center_anchor=True -- cavity_geometry's own
+            # bracket_position/bracket_z is derived as this glyph's own
+            # CENTER (see compute_housing_cavity_geometry's own docstring),
+            # so the Text has to be built the same way every other label in
+            # this system is, or its default (non-center) anchor renders at
+            # that point instead -- shifting the glyph away from where the
+            # geometry actually placed it.
+            self._bracket = _text.Text('(', cavity_geometry.bracket_font_size,
+                                       build123d.FontStyle.REGULAR,
+                                       local_tilt=_text.TOP_DOWN_TILT,
+                                       center_anchor=True)
+
+            bracket_position = _point.Point(
+                cavity_geometry.bracket_position[0],
+                0.0, cavity_geometry.bracket_position[1])
+
+            with bracket_position:
+                bracket_position @= self.housing.angle
+                bracket_position += housing.position2d
+
+            cylinder_start = _point.Point(
+                cavity_geometry.cylinder_start[0],
+                0.0, cavity_geometry.cylinder_start[1])
+
+            with cylinder_start:
+                cylinder_start @= self.housing.angle
+                cylinder_start += housing.position2d
+
+            line = _line.Line(cylinder_start, wire_position)
+            self._cylinder_angle = line.get_angle(cylinder_start)
+
+            cylinder_length = line.length()
+            self._cylinder_scale = _point.Point(Config.object_sizes.wire.diameter,
+                                                Config.object_sizes.wire.diameter,
+                                                cylinder_length)
+
+            self._bracket_position = bracket_position
+            self._cylinder_start = cylinder_start
+            self._wire_position = wire_position
+
+            scale = _point.Point(1.0, 1.0, 1.0)
+            material = _materials.Generic(_color.Color(*Config.colors.label))
+
+            with parent.mainframe.editor2d.editor.context:
+                super().__init__(parent, db_obj, vbo, angle,
+                                 position, scale, material)
+
+        else:
+
+            super().__init__(parent, db_obj, None, None,
+                             None, None, None)
+
+        # TODO: add in recalculating the positions based on the name
+        # self._name_cb = self.db_obj.bind(self._rebuild, 'name')
 
     @property
     @_check_types.do
@@ -135,11 +316,13 @@ class Terminal(_base_schematic.BaseSchematic):
 
     @property
     @_check_types.do
-    def housing(self):
-        """This terminal's own seated cavity's owning ``Housing2D``, or
+    def housing(self) -> _housing_schematic.Housing | None:
+        """
+        This terminal's own seated cavity's owning ``Housing2D``, or
         ``None`` if not resolvable yet (e.g. at this object's own
         construction time -- see :meth:`_rebuild_geometry`'s own guard).
         """
+
         cavity = self.db_obj.cavity
         if cavity is None:
             return None
@@ -155,237 +338,92 @@ class Terminal(_base_schematic.BaseSchematic):
         return housing_obj.objschematic
 
     @_check_types.do
-    def _local_to_world(self, local_x: float, local_z: float) -> _point.Point:
-        """Rotate+translate a housing-local ``(local_x, 0, local_z)``
-        point by the owning housing's own LIVE position/angle -- same
-        math as ``objects_schematic/housing.py``'s own ``_place_child``/
-        ``_world_offset``. Called fresh every :meth:`render`, so this
-        always reflects the housing's current transform without needing
-        its own change-tracking.
-        """
-        housing = self.housing
-
-        points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
-        wx, wy, wz = _base_schematic._rotate_about_y(points, housing.angle.y)[0]  # NOQA
-
-        return _point.Point(
-            housing.position.x + float(wx),
-            housing.position.y + float(wy),
-            housing.position.z + float(wz))
-
-    @_check_types.do
-    def _rebuild_geometry(self):
-        """(Re)build the name line(s), "(" bracket, and wire-stub
-        cylinder -- their own vbos and housing-LOCAL transforms (world
-        conversion happens later, live, in :meth:`render`/
-        :meth:`_compute_obb`/:meth:`_compute_aabb` via
-        :meth:`_local_to_world`) -- from scratch.
-
-        No-ops if :attr:`housing` isn't resolvable yet (this terminal's
-        own construction time -- the owning housing may not be fully
-        linked yet, mirroring ``objects_schematic/cavity.py``'s Cavity's
-        own ``housing`` property docstring) -- a later
-        :meth:`_update_position`/:meth:`_update_angle` (fired once the
-        housing actually lays this terminal out) picks up the rebuild
-        then instead.
-        """
-        housing = self.housing
-        if housing is None:
-            return
-
-        cavity = self.db_obj.cavity
-
-        cavity_aabb = housing.get_cavity_aabb(cavity)
-        padding = Config.object_sizes.pin_edge_padding
-
-        pin_local_x = float(cavity_aabb[0][0])
-        slot_top = float(cavity_aabb[0][2])
-
-        name_min_x = pin_local_x + padding
-        name_max_x = float(cavity_aabb[1][0]) - padding
-        name_min_z = slot_top + padding
-        name_max_z = float(cavity_aabb[1][2]) - padding
-
-        avail_width = max(0.0, name_max_x - name_min_x)
-        avail_height = max(0.0, name_max_z - name_min_z)
-
-        # --- Name: shrink-to-fit, possibly multi-line (assumes explicit
-        # newlines in the name string -- no auto-wrap). ---
-        max_font_size = Config.object_sizes.terminal.name_font_size
-        lines = self.db_obj.name.split('\n') if self.db_obj.name else ['']
-
-        built = [
-            _text.Text(line, max_font_size, build123d.FontStyle.REGULAR,
-                       local_tilt=_text.TOP_DOWN_TILT)
-            for line in lines
-        ]
-        max_line_width = max((t.width for t in built), default=0.0)
-        total_height = len(built) * _text.CHARACTER_HEIGHT * max_font_size
-
-        width_scale = 1.0
-        if max_line_width > avail_width > 0.0:
-            width_scale = avail_width / max_line_width
-
-        height_scale = 1.0
-        if total_height > avail_height > 0.0:
-            height_scale = avail_height / total_height
-
-        name_font_size = max_font_size * min(width_scale, height_scale, 1.0)
-
-        if name_font_size != max_font_size:
-            built = [
-                _text.Text(line, name_font_size, build123d.FontStyle.REGULAR,
-                           local_tilt=_text.TOP_DOWN_TILT)
-                for line in lines
-            ]
-
-        self._name_lines = built
-
-        line_height = _text.CHARACTER_HEIGHT * name_font_size
-        # LEFT/TOP-anchored within the padded box -- each line's own
-        # baseline sits one more line_height down from the box's own
-        # top edge (a Text's local z=0 is already its own baseline).
-        self._name_local_positions = [
-            (name_min_x, name_min_z + (i + 1) * line_height)
-            for i in range(len(built))
-        ]
-
-        # --- "(" bracket: fully separate size/position from the name. ---
-        cavity_font_size = Config.object_sizes.cavity.name_font_size
-        cavity_char_height = _text.CHARACTER_HEIGHT * cavity_font_size
-        remaining_height = max(0.0, housing.cavity_height - cavity_char_height)
-        bracket_font_size = remaining_height / _text.CHARACTER_HEIGHT
-
-        self._bracket = _text.Text(
-            '(', bracket_font_size, build123d.FontStyle.REGULAR,
-            local_tilt=_text.TOP_DOWN_TILT)
-
-        # Independently pin_edge - padding -- lands at the same X as the
-        # cavity name's own right edge (see the class docstring), not
-        # because it's aligned to it.
-        bracket_right_x = pin_local_x - padding
-        bracket_left_x = bracket_right_x - self._bracket.width
-
-        # Starts exactly at the cavity name's own baseline (rendered
-        # below it), extends down by its own full height.
-        bracket_top_z = slot_top + cavity_char_height
-        bracket_bottom_z = bracket_top_z + remaining_height
-
-        self._bracket_local_position = (bracket_left_x, bracket_bottom_z)
-
-        # --- Wire-stub cylinder. ---
-        max_cavity_name_width = housing.get_max_cavity_name_width()
-        cylinder_z = (bracket_top_z + bracket_bottom_z) / 2.0
-
-        self._cylinder_local_start = (bracket_left_x, cylinder_z)
-        self._cylinder_local_stop = (
-            bracket_right_x - max_cavity_name_width, cylinder_z)
-
-        # Keep this terminal's own persisted 2D wire attachment point
-        # (database/project_db/pjt_terminal.py's PJTTerminal.wire_position2d
-        # -- where a wire actually connects in the schematic, distinct
-        # from position2d, this terminal's own name anchor) in sync with
-        # the cylinder's own stop point -- that property already lazily
-        # creates the row (at the origin) on first access, "the caller
-        # repositions it immediately" per its own docstring; this is
-        # that repositioning, done unconditionally every rebuild (not
-        # just once) so a housing move/rotate or another cavity's name
-        # changing (shifting the shared stop X for every terminal in
-        # the housing) keeps this point current too.
-        stop_world = self._local_to_world(*self._cylinder_local_stop)
-        wire_point = self.db_obj.wire_position2d
-        with wire_point:
-            wire_point.x = stop_world.x
-            wire_point.z = stop_world.z
-
-        self._compute_obb()
-        self._compute_aabb()
-
-    @_check_types.do
-    def _local_bounds(self) -> tuple:
-        """``(min_x, min_z, max_x, max_z)``, housing-local, encompassing
-        the name line(s), the "(" bracket, and the wire-stub cylinder --
-        used for :meth:`_compute_obb`/:meth:`_compute_aabb`.
-        """
-        xs = []
-        zs = []
-
-        for line, (local_x, local_z) in zip(self._name_lines, self._name_local_positions):
-            xs.extend([local_x, local_x + line.width])
-            zs.extend([local_z - line.height, local_z])
-
-        bracket_x, bracket_z = self._bracket_local_position
-        xs.extend([bracket_x, bracket_x + self._bracket.width])
-        zs.extend([bracket_z - self._bracket.height, bracket_z])
-
-        start_x, start_z = self._cylinder_local_start
-        stop_x, stop_z = self._cylinder_local_stop
-        xs.extend([start_x, stop_x])
-        zs.extend([start_z, stop_z])
-
-        return min(xs), min(zs), max(xs), max(zs)
-
-    @_check_types.do
-    def _compute_obb(self):
-        """Derive this object's OBB from :meth:`_local_bounds`, rotated
-        by the owning housing's own current angle (this terminal's own
-        ``self._angle`` plays no part -- see the class docstring)."""
-        if not self._name_lines:
-            return
-
-        housing = self.housing
-        if housing is None:
-            return
-
-        min_x, min_z, max_x, max_z = self._local_bounds()
-
-        local = np.array([
-            [min_x, 0.0, min_z], [min_x, 0.0, max_z],
-            [max_x, 0.0, min_z], [max_x, 0.0, max_z],
-        ], dtype=np.float32)
-
-        local @= housing.angle
-        self._obb = local + housing.position
-
-    @_check_types.do
-    def _compute_aabb(self):
-        """Same bounds as :meth:`_compute_obb` -- see its docstring."""
-        if not self._name_lines:
-            return
-
-        housing = self.housing
-        if housing is None:
-            return
-
-        min_x, min_z, max_x, max_z = self._local_bounds()
-
-        corners = np.array([
-            [min_x, 0.0, min_z], [min_x, 0.0, max_z],
-            [max_x, 0.0, min_z], [max_x, 0.0, max_z],
-        ], dtype=np.float32)
-
-        corners @= housing.angle
-        corners += housing.position.as_numpy
-
-        aabb = _utils.adjust_aabb(corners)
-
-        for i in range(2):
-            for j in range(3):
-                self._aabb[i][j] = aabb[i][j]
-
-    @_check_types.do
     def _update_position(self, position: _point.Point):
+        """
+        Re-derive the "(" bracket's own world position and the
+        wire-stub cylinder's own world start/angle/scale from this
+        cavity's own precomputed housing-local geometry, rotated and
+        translated by the owning housing's CURRENT position/angle --
+        mirrors the same bracket/cylinder math ``__init__`` runs once
+        at construction. Needed because a housing move pushes a new
+        ``position2d`` here (see
+        ``database/project_db/pjt_housing.py``'s
+        ``PJTHousing._update_position2d``), but the bracket/cylinder
+        aren't bound to that Point themselves -- unlike this
+        terminal's own name label (``self._position``), they'd
+        otherwise go stale.
+        """
+
+        delta = position - self._o_position
+
+        with self._bracket_position:
+            self._bracket_position += delta
+
+        with self._cylinder_start:
+            self._cylinder_start += delta
+
+        line = _line.Line(self._cylinder_start, self._wire_position)
+        self._cylinder_angle = line.get_angle(self._cylinder_start)
+
+        cylinder_length = line.length()
+        self._cylinder_scale = _point.Point(1.0, 1.0, cylinder_length)
+
         super()._update_position(position)
-        self._rebuild_geometry()
 
     @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
+        """
+        Same reason/logic as :meth:`_update_position` -- a housing
+        rotation pushes a new ``position2d`` for a seated terminal (see
+        ``PJTHousing._update_angle2d``), not a new ``angle2d``, so this
+        rarely fires from a housing rotate in practice -- included
+        defensively anyway.
+        """
+
+        inverse_angle = self._o_angle.inverse
+        housing = self.housing
+
+        with self._bracket_position:
+            self._bracket_position -= housing.position
+            self._bracket_position @= inverse_angle
+            self._bracket_position @= angle
+            self._bracket_position += housing.position
+
+        with self._cylinder_start:
+            self._cylinder_start -= housing.position
+            self._cylinder_start @= inverse_angle
+            self._cylinder_start @= angle
+            self._cylinder_start += housing.position
+
+        line = _line.Line(self._cylinder_start, self._wire_position)
+        self._cylinder_angle = line.get_angle(self._cylinder_start)
+
+        cylinder_length = line.length()
+        self._cylinder_scale = _point.Point(1.0, 1.0, cylinder_length)
+
+        # h_align is baked into the name Text's own vertex layout at
+        # construction time -- unlike angle/position, render() can't
+        # just swap it live -- so only rebuild when actually crossing
+        # into/out of the 180 special case (see _is_180's own
+        # docstring), not on every angle push.
+        if _is_180(angle.y) != _is_180(self._o_angle.y):
+            if _is_180(angle.y):
+                name_h_align = build123d.TextAlign.RIGHT
+            else:
+                name_h_align = build123d.TextAlign.LEFT
+
+            self._vbo = _text.Text(self.db_obj.name, self._name_font_size,
+                                   build123d.FontStyle.REGULAR,
+                                   local_tilt=_text.TOP_DOWN_TILT,
+                                   h_align=name_h_align,
+                                   center_anchor=True)
+
         super()._update_angle(angle)
-        self._rebuild_geometry()
 
     @_check_types.do
     def render(self, shaders):
-        """Render the name line(s), the "(" bracket, and the wire-stub
+        """
+        Render the name line(s), the "(" bracket, and the wire-stub
         cylinder -- swapping ``self._vbo``/``self._angle``/
         ``self._scale``/``self._position`` for each piece in turn and
         delegating to the inherited pipeline -- the same
@@ -401,96 +439,90 @@ class Terminal(_base_schematic.BaseSchematic):
         ``Text.render()``'s own docstring), so those (not just
         ``self._vbo``) get swapped and restored around the name/bracket
         passes too -- same as the cylinder pass already does.
+
+        Every world-space value used here (``_name_world_position``/
+        ``_bracket_world_position``/``_cylinder_world_start``/
+        ``_cylinder_world_angle``/``_cylinder_length``) is read straight
+        off ``self`` -- NOT recomputed via ``_local_to_world``/the
+        cylinder's own angle-from-direction math here, which this method
+        used to do on every single call. :meth:`_rebuild_geometry`
+        already recomputes all of those, but only when something that
+        could actually change one of them fires (this terminal's own
+        name, or -- via :meth:`_update_position`/:meth:`_update_angle`,
+        both of which call it -- the owning housing's own live position/
+        angle) -- a housing can carry thousands of terminals, and this
+        method runs every frame, so redoing that rotation/angle math
+        here unconditionally would repeat real, non-trivial work for
+        (in the overwhelmingly common case) an unchanged result.
         """
         if not self.is_visible:
             return
 
-        real_vbo, real_angle, real_scale, real_position = (
-            self._vbo, self._angle, self._scale, self._position)
-        identity_angle = _angle.Angle()
+        real_angle = self._angle
 
-        for line, (local_x, local_z) in zip(self._name_lines, self._name_local_positions):
-            self._vbo = line
-            self._angle = identity_angle
-            self._scale = real_scale
-            self._position = self._local_to_world(local_x, local_z)
-            super().render(shaders)
+        # Follows this terminal's own angle2d at 0/90/270, same as
+        # always -- except at 180, where a full half-turn would render
+        # the name glyph upside-down, so the angle is forced back to
+        # identity instead (see _is_180's own docstring -- __init__/
+        # _update_angle already flip this same Text's own h_align to
+        # compensate, whenever this last crossed into/out of 180).
+        if _is_180(real_angle.y):
+            self._angle = _angle.Angle()
 
-        if hasattr(self, '_bracket'):
-            bracket_x, bracket_z = self._bracket_local_position
+        super().render(shaders)
+
+        self._angle = real_angle
+
+        if self._bracket is not None:
+            real_vbo, real_scale, real_position = (
+                self._vbo, self._scale, self._position)
+
             self._vbo = self._bracket
-            self._angle = identity_angle
-            self._scale = real_scale
-            self._position = self._local_to_world(bracket_x, bracket_z)
+            self._position = self._bracket_position
             super().render(shaders)
 
-        self._angle, self._scale, self._position = real_angle, real_scale, real_position
+            self._vbo = _cylinder.create_vbo()
+            self._angle = self._cylinder_angle
+            self._scale = self._cylinder_scale
+            self._position = self._cylinder_start
 
-        if hasattr(self, '_cylinder_local_start'):
-            start_x, start_z = self._cylinder_local_start
-            stop_x, stop_z = self._cylinder_local_stop
-            dx = stop_x - start_x
-            dz = stop_z - start_z
-            length = math.hypot(dx, dz)
+            super().render(shaders)
 
-            if length > 1e-6:
-                real_angle, real_scale, real_position = self._angle, self._scale, self._position
-
-                housing = self.housing
-                local_cylinder_angle = _angle.Angle.from_euler(
-                    0.0, math.degrees(math.atan2(dx, dz)), 0.0)
-
-                self._vbo = _cylinder.create_vbo()
-                self._angle = local_cylinder_angle + housing.angle
-                self._scale = _point.Point(
-                    Config.object_sizes.wire.diameter,
-                    Config.object_sizes.wire.diameter, length)
-                self._position = self._local_to_world(start_x, start_z)
-
-                super().render(shaders)
-
-                self._angle, self._scale, self._position = real_angle, real_scale, real_position
-
-        self._vbo = real_vbo
-
-    @_check_types.do
-    def _rebuild(self, _entry=None):
-        """Rebuild everything (see :meth:`_rebuild_geometry`) from this
-        terminal's current name. Bound to fire whenever this terminal's
-        own name changes.
-        """
-        with self.editor2d.editor.context:
-            self._rebuild_geometry()
-
-        self.editor2d.Refresh()
+            self._vbo = real_vbo
+            self._angle = real_angle
+            self._scale = real_scale
+            self._position = real_position
 
     @_check_types.do
     def _delete(self):
-        self._name_cb.unbind()
+        # self._name_cb.unbind()
         self._detach_extra_wires_at_position2d()
         super()._delete()
 
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: "_housing_facade.Housing | None" = None
-    ) -> "_terminal.Terminal | None":
-        """Cavity-pick placement, schematic-native -- see
+        cls, mainframe: "_ui.MainFrame",
+        housing: _housing.Housing | None = None
+    ) -> Union["_terminal.Terminal", None]:
+
+        """
+        Cavity-pick placement, schematic-native -- see
         add_handlers.editor_schematic.terminal's own module docstring
         for why there's no cursor-following preview here, unlike the 3D
         editor's own Terminal.start_add.
         """
-        from ...objects.objects_3d import terminal as _terminal_3d
-        from ...ui.dialogs import part_search as _part_search
-        from ...ui import editor_db as _editor_db
+
+        # avoid a cycle at import time
         from ...add_handlers.editor_schematic import terminal as _add_terminal
-        from .. import terminal as _terminal_facade
-        from PySide6.QtWidgets import QDialog
+        from .. import terminal as _terminal_obj
 
         canvas = mainframe.editor2d.editor
 
         if housing is not None:
-            initial_params = _terminal_3d.Terminal._search_params_for_housing(mainframe, housing)  # NOQA
+            initial_params = _terminal_3d.Terminal._search_params_for_housing(  # NOQA
+                mainframe, housing)
+
         else:
             initial_params = None
 
@@ -500,11 +532,12 @@ class Terminal(_base_schematic.BaseSchematic):
             part_id = None
 
         if part_id is None:
-            dlg = _part_search.SearchDialog(
-                mainframe, _editor_db.TerminalsPage, mainframe.global_db.terminals_table,
-                'Add Terminal', initial_params=initial_params)
+            dlg = _part_search.SearchDialog(mainframe, _editor_db.TerminalsPage,
+                                            mainframe.global_db.terminals_table,
+                                            'Add Terminal',
+                                            initial_params=initial_params)
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -517,10 +550,13 @@ class Terminal(_base_schematic.BaseSchematic):
         ptables = mainframe.project.ptables
         part = ptables.global_db.terminals_table[part_id]
 
-        from ...handlers import terminal_handler as _terminal_handler
-        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
-        estimates, suggested = _terminal_handler.estimate_dimensions(mainframe, part)
-        if not ensure_dimensions(mainframe, part, part.part_number, estimates, suggested):
+        estimates, suggested = (
+            _terminal_handler.estimate_dimensions(mainframe, part))
+
+        ed = ensure_dimensions(
+            mainframe, part, part.part_number, estimates, suggested)
+
+        if not ed:
             return None
 
         name = f'{part.manufacturer.name} {part.part_number}'
@@ -528,9 +564,10 @@ class Terminal(_base_schematic.BaseSchematic):
         pos3d = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
         pos2d = ptables.pjt_points2d_table.insert(0.0, 0.0)
 
-        db_obj = ptables.pjt_terminals_table.insert(part_id, name, pos2d.db_id, pos3d.db_id, None)
+        db_obj = ptables.pjt_terminals_table.insert(
+            part_id, name, pos2d.db_id, pos3d.db_id, None)
 
-        facade = _terminal_facade.Terminal(mainframe, db_obj)
+        facade = _terminal_obj.Terminal(mainframe, db_obj)
         facade.obj3d.is_visible = False
 
         handler = _add_terminal.Terminal(canvas, facade, part, housing)
@@ -544,10 +581,14 @@ class Terminal(_base_schematic.BaseSchematic):
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: "_interaction.MouseInteraction", clicked_object
     ) -> bool:
-        """Forwards to an active add-session (see start_add); falls back
+
+        """
+        Forwards to an active add-session (see start_add); falls back
         to BaseSchematic's own generic drag handling otherwise.
         """
-        from ...add_handlers.editor_schematic import terminal as _add_terminal  # NOQA -- avoid a cycle at import time
+
+        # avoid a cycle at import time
+        from ...add_handlers.editor_schematic import terminal as _add_terminal
 
         if isinstance(self._active_handler, _add_terminal.Terminal):
             handled = self._active_handler(
@@ -563,17 +604,20 @@ class Terminal(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def get_context_menu(self):
-        """Return this terminal's own right-click context menu (see
+        """
+        Return this terminal's own right-click context menu (see
         ``ui/mainframe.py``'s ``_on_obj_right_click_2d``, which calls
         this on whatever ``objschematic`` was right-clicked) -- notably the
         entry point for drawing a wire from the schematic editor (see
         :meth:`TerminalMenu.on_add_wire`).
         """
+
         return TerminalMenu(self.editor2d.editor, self)
 
     @_check_types.do
     def _detach_extra_wires_at_position2d(self):
-        """Give every wire but the first one attached at this terminal's
+        """
+        Give every wire but the first one attached at this terminal's
         own 2D point its own new point at the same coordinates.
 
         Unlike 3D, a terminal has no separate crimp/layout-point chain
@@ -585,6 +629,7 @@ class Terminal(_base_schematic.BaseSchematic):
         otherwise stay joined to it through a point that no longer
         represents a real connection.
         """
+
         ptables = self.mainframe.project.ptables
         point_id = self.db_obj.position2d_id
 
@@ -607,24 +652,24 @@ class Terminal(_base_schematic.BaseSchematic):
                 setattr(wire_db, attr, new_point.db_id)
 
 
-class TerminalMenu(QMenu):
-    """Represent a terminal menu in :mod:`harness_designer.objects.objects_schematic.terminal`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+class TerminalMenu(QtWidgets.QMenu):
+    """
+    Represent a terminal menu in :mod:`harness_designer.objects.objects_schematic.terminal`.
     """
 
     @_check_types.do
     def __init__(self, canvas, selected):
-        """Initialise the :class:`TerminalMenu` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`TerminalMenu` instance.
 
         :param canvas: Canvas instance.
         :type canvas: UNKNOWN
+
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -665,12 +710,11 @@ class TerminalMenu(QMenu):
 
     @_check_types.do
     def on_add_wire(self):
-        """Start the interactive 2D wire-drawing flow (see
+        """
+        Start the interactive 2D wire-drawing flow (see
         add_handlers.editor_schematic.wire), pinned to this terminal as
         the start end.
         """
-        from PySide6.QtCore import QTimer
-        from . import wire as _wire_schematic
 
         mainframe = self.selected.mainframe
         terminal_obj = self.selected.parent
@@ -679,60 +723,60 @@ class TerminalMenu(QMenu):
         def _do():
             _wire_schematic.Wire.start_add(mainframe, terminal=terminal_obj)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
     def on_add_wire_service_loop(self):
-        """Handle the add wire service loop event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the add wire service loop event.
+        """
+
         pass
 
     @_check_types.do
     def on_add_seal(self):
-        """Handle the add seal event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the add seal event.
+        """
+
         pass
 
     @_check_types.do
     def on_trace_circuit(self):
-        """Handle the trace circuit event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the trace circuit event.
+        """
+
         pass
 
     @_check_types.do
     def on_select(self):
-        """Handle the select event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the select event.
+        """
+
         pass
 
     @_check_types.do
     def on_clone(self):
-        """Handle the clone event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the clone event.
+        """
+
         pass
 
     @_check_types.do
     def on_delete(self):
-        """Handle the delete event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the delete event.
+        """
+
         pass
 
     @_check_types.do
     def on_properties(self):
-        """Handle the properties event.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Handle the properties event.
+        """
+
         pass

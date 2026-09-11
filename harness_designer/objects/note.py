@@ -41,9 +41,10 @@ class Note(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _note_schematic.Note(self, db_obj)
         self.obj3d = _note_3d.Note(self, db_obj)
         self.objpegboard = _note_pegboard.Note(self, db_obj)
+        self.objschematic = _note_schematic.Note(self, db_obj)
+
         self.mainframe.add_object(self)
 
         # Deferred until this facade is fully wired up (obj3d assigned,

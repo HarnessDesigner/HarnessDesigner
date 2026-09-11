@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ..gl import materials as _materials
 from .. import check_types as _check_types
@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from .objects_schematic import base_schematic as _base_schematic
     from .objects_pegboard import base_pegboard as _base_pegboard
     from ..database import project_db as _project_db
+    from ..ui.object_browser import objectbrowser as _objectbrowser
 
 
 class ObjectBase:
@@ -61,7 +62,7 @@ class ObjectBase:
             self.objpegboard.identify(material)
 
     @_check_types.do
-    def set_treeitem(self, treeitem) -> None:
+    def set_treeitem(self, treeitem: "_objectbrowser.TreeItem") -> None:
         """Set the treeitem.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -72,7 +73,7 @@ class ObjectBase:
         self._treeitem = treeitem
 
     @_check_types.do
-    def get_treeitem(self):
+    def get_treeitem(self) -> Union["_objectbrowser.TreeItem", None]:
         """Return the treeitem.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,6 +93,10 @@ class ObjectBase:
             return
 
         self._deleted = True
+
+        treeitem = self.get_treeitem()
+        if treeitem is not None:
+            treeitem.delete()
 
         if self.objschematic is not None:
             self.objschematic._delete()  # NOQA
@@ -140,6 +145,10 @@ class ObjectBase:
 
         if flag:
             self.mainframe._set_selected(self)  # NOQA
+
+            treeitem = self.get_treeitem()
+            if treeitem is not None:
+                treeitem.set_selected()
         else:
             self.mainframe._set_selected(None)  # NOQA
 

@@ -42,9 +42,9 @@ class CPALock(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _cpa_lock_schematic.CPALock(self, db_obj)
         self.obj3d = _cpa_lock_3d.CPALock(self, db_obj)
         self.objpegboard = _cpa_lock_pegboard.CPALock(self, db_obj)
+        self.objschematic = _cpa_lock_schematic.CPALock(self, db_obj)
 
         self.mainframe.add_object(self)
 

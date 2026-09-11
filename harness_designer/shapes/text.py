@@ -85,7 +85,7 @@ CHARACTER_HEIGHT: float = 0.0
 # itself is never rotated to compensate. Every schematic/peg-board-view
 # Text needs this passed at construction (not the 3D view, whose own
 # world-up already matches the glyph's native Y-height with no tilt).
-TOP_DOWN_TILT = _angle.Angle.from_euler(-90.0, 0.0, 0.0)
+TOP_DOWN_TILT = _angle.Angle.from_euler(90.0, 0.0, 0.0)
 
 # --- Real, kerning-aware character advances -- read directly from the
 # same font FILE build123d/OCCT itself resolves "Arial"+style to (see

@@ -184,7 +184,22 @@ uniform float emissiveRimPower;      // Controls glow width (2.0-5.0, default 3.
 uniform float emissiveRimIntensity;  // Controls glow brightness (1.0-10.0, default 4.0)
 // ==================================
 
+// Depth-debug view (Config.debug.rendering3d.show_depth, see
+// FacesProgram.show_depth in program.py): when nonzero, every fragment
+// this program draws replaces its normal lit color with a grayscale
+// visualization of its own gl_FragCoord.z -- the actual value the GPU
+// compares/writes against the depth buffer, straight from hardware, not
+// a value hand-derived from the projection matrix on the Python side.
+// Always compiled in; costs one uniform read + branch per fragment when
+// left off (the default).
+uniform int showDepth;
+
 void main() {
+    if (showDepth != 0) {
+        FragColor = vec4(vec3(gl_FragCoord.z), 1.0);
+        return;
+    }
+
     if (stripeClipStop > 0.0 &&
         (fragLocalZGeom > stripeClipStop || fragLocalZGeom < stripeClipStart)) {
         discard;

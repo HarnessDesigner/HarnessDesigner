@@ -623,6 +623,78 @@ class Line:
         return -tolerance <= dot_product <= line_length_squared + tolerance
 
     @_check_types.do
+    def bow_midpoint(self, target_length: float) -> _point.Point | None:
+        """
+        Return a single waypoint on this line's perpendicular bisector,
+        offset just far enough that the two-segment path
+        ``p1 -> waypoint -> p2`` totals *target_length* -- used to
+        automatically add slack to a wire when its straight-line distance
+        alone falls short of some length it needs to match (see
+        ``handlers.wire_slack`` -- the peg board's own real length is
+        locked to whatever the 3D view's real path comes out to, and
+        vice versa when the peg board still has leftover slack after
+        that).
+
+        Returns ``None`` if *target_length* is already less than or
+        equal to this line's own straight :meth:`length` -- there's
+        nothing to bow; a straight line already satisfies it.
+
+        The waypoint sits on an isosceles triangle with this line as its
+        base: both new segments are exactly ``target_length / 2`` long,
+        so the perpendicular offset is the height of that triangle
+        (``sqrt((target_length/2)**2 - (base/2)**2)``). The perpendicular
+        direction is ``cross(world_up, direction)`` -- world Y for a
+        flat peg-board line (both endpoints already share Y) keeps the
+        whole bow flat automatically, with no separate flat-vs-3D case
+        needed; a line running parallel to world Y itself (the one
+        degenerate case that cross product can't resolve) falls back to
+        world X.
+        """
+        base = self.length()
+        if target_length <= base:
+            return None
+
+        half_target = target_length / 2.0
+        h_squared = (half_target * half_target) - ((base / 2.0) * (base / 2.0))
+        h = math.sqrt(max(h_squared, 0.0))
+
+        p1 = self._p1.as_numpy
+        p2 = self._p2.as_numpy
+
+        direction = p2 - p1
+        dn = float(np.linalg.norm(direction))
+        if dn < 1e-9:
+            direction = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        else:
+            direction = direction / dn
+
+        world_up = np.array([0.0, 1.0, 0.0], dtype=np.float32)
+        perp = np.cross(world_up, direction)  # NOQA
+        pn = float(np.linalg.norm(perp))
+
+        if pn < 1e-6:
+            # direction is parallel to world up -- cross product is
+            # degenerate, fall back to world X.
+            fallback = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+            perp = np.cross(fallback, direction)  # NOQA
+            pn = float(np.linalg.norm(perp))
+
+            if pn < 1e-6:
+                fallback = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+                perp = np.cross(fallback, direction)  # NOQA
+                pn = float(np.linalg.norm(perp))
+
+        perp = perp / pn
+
+        center = self.center
+        offset = perp * h
+
+        return _point.Point(
+            float(center.x) + float(offset[0]),
+            float(center.y) + float(offset[1]),
+            float(center.z) + float(offset[2]))
+
+    @_check_types.do
     def project_to_line(self, world_point: _point.Point):
         """
         Project a world space point onto a line defined by two endpoints.

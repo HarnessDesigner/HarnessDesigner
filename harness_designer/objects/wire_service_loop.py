@@ -44,9 +44,9 @@ class WireServiceLoop(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _wire_service_loop_schematic.WireServiceLoop(self, db_obj)
         self.obj3d = _wire_service_loop_3d.WireServiceLoop(self, db_obj)
         self.objpegboard = _wire_service_loop_pegboard.WireServiceLoop(self, db_obj)
+        self.objschematic = _wire_service_loop_schematic.WireServiceLoop(self, db_obj)
 
         # Sibling graph: a service loop always sits inline between exactly
         # two lengths of the same physical wire -- never a branch, never

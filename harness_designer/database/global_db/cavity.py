@@ -455,6 +455,10 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
             value = self._table.select('aabb', id=self._db_id)[0][0]
 
             if value is None:
+                # Legacy fallback -- a row from before this column
+                # existed. Recompute fresh (same formula the old aabb
+                # property itself used to fall back to) rather than
+                # trusting the old column's own possibly-stale cache.
                 x, y, z = self.position3d.as_float
                 width, height, length = self.size
                 hw, hh, hl = width / 2.0, height / 2.0, length / 2.0

@@ -44,5 +44,14 @@ class Cavity(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, db_obj.angle_pegboard,
                          db_obj.position_pegboard, None, None)
 
+        # position_pegboard is explicitly written once, at housing-
+        # placement time, by add_handlers.editor_3d.housing.Housing's own
+        # LEFT_UP finalize handler (added to the housing's own finalized
+        # peg-board position, from the catalog's declared local offset)
+        # -- not lazily guessed here from "is x/z still 0.0" (a real
+        # local offset can genuinely BE (0.0, 0.0), which that guard
+        # can't tell apart from "never seeded" -- confirmed 2026-09-07,
+        # Kevin, hence deleted).
+
     def render(self, shaders):
         pass

@@ -43,9 +43,9 @@ class Bundle(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _bundle_schematic.Bundle(self, db_obj)
         self.obj3d = _bundle_3d.Bundle(self, db_obj)
         self.objpegboard = _bundle_pegboard.Bundle(self, db_obj)
+        self.objschematic = _bundle_schematic.Bundle(self, db_obj)
 
         # Sibling graph: whatever this bundle's own start/stop end attaches
         # to -- always a Transition (a bundle's trunk end can only ever

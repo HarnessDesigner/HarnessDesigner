@@ -51,12 +51,7 @@ class Terminal(_base_pegboard.BasePegboard):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_terminal.PJTTerminal`
         """
-        if db_obj.cavity_id is not None:
-            # Seated -- no independent peg-board presence.
-            super().__init__(parent, db_obj)
-            return
 
-        obj3d = parent.obj3d
         self._part = db_obj.part
         self._model = self._part.model3d
 
@@ -71,6 +66,26 @@ class Terminal(_base_pegboard.BasePegboard):
         # the database (db_obj.scale3d); material is rebuilt from the
         # catalog part's own plating color, mirroring
         # objects_3d.terminal.Terminal.__init__'s own construction.
+        # A seated terminal renders AT its cavity's own peg-board
+        # position, not an independent one of its own -- cavity is the
+        # PJTCavity.position_pegboard row a housing's own add-handler
+        # (add_handlers.editor_3d.housing.Housing) explicitly writes once,
+        # at placement time (added to the housing's own finalized
+        # peg-board position, from the catalog's declared local offset --
+        # see that handler's own comment). This terminal's OWN
+        # position_pegboard column is left untouched/unused for a seated
+        # terminal -- no separate seed is needed or wanted here (a
+        # sentinel-guarded "seed once from cavity" used to live in this
+        # __init__, deleted: comparing position_pegboard.x/z against
+        # 0.0 to decide "never seeded" is simply wrong, since a real
+        # local offset can genuinely BE (0.0, 0.0)). A bare (unseated)
+        # terminal has no cavity to derive from, so it keeps its own
+        # independent position_pegboard, same as a housing's own anchor
+        # (see Housing.start_add's own comment) -- placed by the user's
+        # own interactive placement/drag on the board.
+        cavity = db_obj.cavity
+        pegboard_position = cavity.position_pegboard if cavity is not None else db_obj.position_pegboard
+
         with parent.mainframe.editor_pegboard.context:
             if self._part.round_terminal:
                 vbo = _cylinder.create_vbo()
@@ -81,7 +96,7 @@ class Terminal(_base_pegboard.BasePegboard):
                 parent, db_obj,
                 vbo=vbo,
                 angle=db_obj.angle_pegboard,
-                position=db_obj.position_pegboard,
+                position=pegboard_position,
                 scale=db_obj.scale3d,
                 material=_materials.Polished(self._part.plating.color.ui),
             )
@@ -91,14 +106,10 @@ class Terminal(_base_pegboard.BasePegboard):
         # (see housing.py's own comment on why).
         self.point3d_id = db_obj.position_pegboard_id
 
-        if self._position.x == 0.0 and self._position.z == 0.0:
-            pos3d = db_obj.position3d
-            self._position.x = float(pos3d.x)
-            self._position.z = float(pos3d.z)
-
         if self._model is not None:
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
+
     @property
     @_check_types.do
     def smooth(self) -> bool:

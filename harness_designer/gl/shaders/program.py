@@ -59,6 +59,7 @@ class FacesProgram(Program):
             self._headlight_diffuse = GL.glGetUniformLocation(program, "headlightDiffuse")
             self._headlight_diameter = GL.glGetUniformLocation(program, "headlightDiameter")
             self._headlight_enabled = GL.glGetUniformLocation(program, "headlightEnabled")
+            self._show_depth = GL.glGetUniformLocation(program, "showDepth")
 
     @property
     def position(self):
@@ -115,6 +116,14 @@ class FacesProgram(Program):
     @view.setter
     def view(self, value: np.ndarray):
         GL.glUniformMatrix4fv(self._view, 1, GL.GL_TRUE, value)
+
+    @property
+    def show_depth(self):
+        raise NotImplementedError
+
+    @show_depth.setter
+    def show_depth(self, value: bool):
+        GL.glUniform1i(self._show_depth, int(value))
 
     @property
     def floor_y(self):

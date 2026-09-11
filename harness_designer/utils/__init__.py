@@ -9,6 +9,7 @@ from . import mesh_normals as _mn
 from . import bounding_boxes as _bb
 from . import model_utils as _mu
 from . import window_geometry as _wg
+from . import natural_sort as _ns
 
 
 mm2_to_awg = _wc.mm2_to_awg
@@ -49,6 +50,8 @@ convert_model_to_mesh = _mu.convert_model_to_mesh
 
 safe_center = _wg.safe_center
 
+natural_sort_key = _ns.natural_sort_key
+
 
 del _wc
 del _remap
@@ -59,3 +62,4 @@ del _mn
 del _bb
 del _mu
 del _wg
+del _ns

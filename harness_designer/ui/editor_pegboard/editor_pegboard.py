@@ -206,20 +206,23 @@ class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
     @_check_types.do
     def set_selected(self, obj):
         """
-        Repaint so the peg board's selection highlight picks up a
-        cross-editor selection change.
+        Record *obj* as the canvas's selected object and repaint so the
+        peg board's selection highlight picks up a cross-editor selection
+        change.
 
-        The inner ``Canvas``'s ``_render_scene`` derives highlight state
-        live from each anchor's ``anchor.obj.is_selected`` on every frame
-        (see ``gl.canvas_pegboard.canvas.Canvas._render_scene`` and
-        ``gl.canvas_pegboard.mouse_handler._find_selected_anchor``), so no
-        bookkeeping is needed here -- just a repaint, since Qt won't
-        repaint on its own just because some unrelated Python attribute
-        (``ObjectBase._is_selected``) changed elsewhere.
+        ``gl.canvas_base.canvas_base.CanvasBase._draw_scene``/
+        ``_render_selected_overlay`` key off a single ``self._selected``
+        attribute (set only via ``Canvas.set_selected``), not a per-object
+        ``is_selected`` flag read live during the render loop -- without
+        the ``self._canvas.set_selected(obj)`` call below, that attribute
+        never changes, so the previously-selected anchor keeps being
+        treated as "the selected one" (and never repainted back to its
+        unselected color) even after a different object is selected.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
+        self._canvas.set_selected(obj)
         self._canvas.update()
 
     @_check_types.do
@@ -279,16 +282,27 @@ class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
     @_check_types.do
     def center_on_object(self, obj) -> None:
         """
-        Pan the peg board camera to bring *obj* into view, without
-        changing zoom -- mirrors
-        ``mainframe.MainFrame._set_selected``'s direct
-        ``editor3d.camera.CenterOn(obj.obj3d.position)`` call for the 3D
-        view, forwarded here (rather than exposed as a raw ``.camera``
-        call at the mainframe level) since the peg board's own anchor
-        position lives on ``obj.objpegboard``, not on ``obj`` itself.
+        Pan the peg board camera to bring *obj* into view, then zoom out
+        (never in) just enough to fit it if it wouldn't otherwise fit in
+        the visible window -- mirrors ``editor_schematic.
+        EditorSchematicPanel.center_on_object``/``editor_3d.
+        Editor3DPanel.center_on_object`` exactly, forwarded here (rather
+        than exposed as a raw ``.camera`` call at the mainframe level)
+        since the peg board's own anchor position lives on
+        ``obj.objpegboard``, not on ``obj`` itself.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
-        if obj.objpegboard is not None and obj.objpegboard.position is not None:
-            self.camera.CenterOn(obj.objpegboard.position)
+        if obj.objpegboard is None or obj.objpegboard.position is None:
+            return
+
+        self.camera.CenterOn(obj.objpegboard.position)
+
+        aabb_min, aabb_max = obj.objpegboard.aabb
+        scale = self.required_zoom_scale(aabb_min, aabb_max)
+        if scale > 1.0:
+            # Camera.Zoom(delta): distance = distance - delta, so a
+            # NEGATIVE delta is what widens (zooms out) this camera's own
+            # distance -- literally the same Zoom() the mouse wheel drives.
+            self.camera.Zoom(-(self.camera.distance * (scale - 1.0)))

@@ -7,7 +7,8 @@ from PySide6.QtWidgets import QTabWidget
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
-from .pjt_bases import PJTEntryBase, PJTTableBase
+from .pjt_bases import (PJTEntryBase, PJTTableBase,
+                        DefaultStoredValue, DefaultStoredValueType)
 from . import pjt_point3d as _pjt_point3d
 from . import pjt_point2d as _pjt_point2d
 from . import pjt_point_pegboard as _pjt_point_pegboard
@@ -274,6 +275,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         """
         if obj is not None:
             self._obj = weakref.ref(obj, self.__release_obj_ref)
+            self._process_bind_callbacks(obj)
         else:
             self._obj = obj
 
@@ -595,6 +597,81 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @property
     @_check_types.do
+    def position2d(self) -> _point.Point | None:
+        """Return this terminal's own 2D name-anchor point, or ``None``
+        if it's never been computed (``point2d_id`` still NULL).
+
+        Overrides ``Position2DMixin.position2d`` -- that mixin's own
+        ``position2d_id`` getter lazily creates a point at the origin
+        the first time it's read (see its own docstring). For every
+        OTHER ``Position2DMixin`` user (a cavity/housing, always given
+        a real point up front -- see
+        ``PJTHousingsTable.insert``/``PJTCavity``) that lazy-create
+        never actually fires in practice. A terminal is different:
+        nothing computes its own ``position2d`` until it's actually
+        seated in a cavity (see ``objects_schematic/terminal.py``'s
+        ``Terminal._rebuild_geometry``), so that same
+        lazy-create-at-origin behavior would silently mask "never
+        computed yet" behind a real (wrong) point instead of exposing
+        it -- this override returns ``None`` honestly in that case, so
+        a caller (:attr:`position2d_id`, or ``Terminal`` itself) knows
+        to compute this terminal's real position from scratch rather
+        than trusting a stale origin point. Once a real point IS set
+        (via :attr:`position2d_id`'s setter, inherited unchanged from
+        ``Position2DMixin``), it's left alone -- this override only
+        changes the "nothing set yet" case.
+        """
+        if self._stored_position2d is DefaultStoredValue:
+            point_id = self.position2d_id
+
+            if point_id is None:
+                self._stored_position2d = None
+            else:
+                self._stored_position2d = self._table.db.pjt_points2d_table[point_id]
+
+        if self._stored_position2d is None:
+            return None
+
+        if self._obj is not None:
+            self._stored_position2d.add_object(self._obj())
+
+        return self._stored_position2d.point
+
+    @property
+    @_check_types.do
+    def position2d_id(self) -> bytes | None:
+        """Raw ``point2d_id`` column value, ``None`` if this terminal's
+        own name-anchor point has never been computed.
+
+        Overrides ``Position2DMixin.position2d_id`` -- see
+        :attr:`position2d`'s own docstring for why. Never lazily
+        creates a point the way the base mixin's version does; the
+        setter below (identical to the inherited one) is still how a
+        real point gets attached the first time.
+        """
+        if self._stored_position2d_id is DefaultStoredValue:
+            self._stored_position2d_id = self._table.select(
+                'point2d_id', id=self._db_id)[0][0]
+
+        return self._stored_position2d_id
+
+    @position2d_id.setter
+    @_check_types.do
+    def position2d_id(self, value: bytes):
+        """Set the position 2D ID -- same as ``Position2DMixin``'s own
+        setter, redefined here only because overriding the getter
+        above (see its own docstring) also requires redefining the
+        setter (a property completely shadows its parent's, setter
+        included).
+        """
+        self._stored_position2d_id = value
+        self._stored_position2d = DefaultStoredValue
+
+        self._table.update(self._db_id, point2d_id=value)
+        self._populate('position2d_id')
+
+    @property
+    @_check_types.do
     def wire_position3d_id(self) -> bytes | None:
         """Return the ``pjt_points3d`` row id for the wire layout point
         (see :attr:`wire_position3d`), lazily creating and persisting it on
@@ -668,7 +745,27 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         point_id = self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0).db_id
+            # Mirrors _compute_wire_position3d's own formula exactly (this
+            # terminal's own back-face-center local point, rotated by this
+            # terminal's own angle and offset by its own position) but in
+            # the peg-board frame -- angle_pegboard/position_pegboard in
+            # place of angle3d/position3d. Honors Y naturally through that
+            # same rotation, not flattened to 0.0, since a wire routed
+            # from here needs to leave at this terminal's real height
+            # before dropping to the board (see handlers.wire_slack's
+            # module docstring / Terminal.add_wire's own peg-board
+            # waypoint cascade).
+            extent = self._wire_side_extent()
+            if extent is None:
+                point_id = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0).db_id
+            else:
+                _, back_z = extent
+                back_pt = _point.Point(0.0, 0.0, back_z)
+                back_pt @= self.angle_pegboard
+                back_pt += self.position_pegboard
+                x, y, z = back_pt.as_float
+                point_id = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z).db_id
+
             self._table.update(self._db_id, wire_point_pegboard_id=point_id)
 
         return point_id
@@ -730,6 +827,18 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
             self._table.update(self._db_id, wire_point2d_id=wire_point2d_id)
 
         return wire_point2d_id
+
+    @wire_position2d_id.setter
+    @_check_types.do
+    def wire_position2d_id(self, value: bytes):
+        """Persist *value* as the ``wire_point2d_id`` column and
+        invalidate the cache -- same shape as :attr:`position2d_id`'s
+        own setter.
+        """
+        self._stored_wire_position2d = None
+
+        self._table.update(self._db_id, wire_point2d_id=value)
+        self._populate('wire_position2d_id')
 
     _stored_wire_position2d: "_pjt_point2d.PJTPoint2D" = None
 
@@ -832,7 +941,26 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         point_id = self._table.select('attach_point_pegboard_id', id=self._db_id)[0][0]
 
         if point_id is None:
-            point_id = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0).db_id
+            # Mirrors _compute_attach_position3d's own formula exactly
+            # (1/3 up from the back face, rotated by this terminal's own
+            # angle and offset by its own position) but in the peg-board
+            # frame. This is the wire's own true outer endpoint
+            # (Terminal.add_wire uses it directly as start/stop_position,
+            # never as a layout waypoint), so it must land at the
+            # terminal's real crimp height, not the board surface --
+            # honors Y naturally through that same rotation.
+            extent = self._wire_side_extent()
+            if extent is None:
+                point_id = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0).db_id
+            else:
+                front_z, back_z = extent
+                length = front_z - back_z
+                attach_pt = _point.Point(0.0, 0.0, back_z + length / 3.0)
+                attach_pt @= self.angle_pegboard
+                attach_pt += self.position_pegboard
+                x, y, z = attach_pt.as_float
+                point_id = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z).db_id
+
             self._table.update(self._db_id, attach_point_pegboard_id=point_id)
 
         return point_id

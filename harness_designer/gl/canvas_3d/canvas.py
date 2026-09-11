@@ -70,6 +70,7 @@ class Canvas(_canvas_base.CanvasBase):
     camera: _camera.Camera = None
     _floor: _floor3d.Floor = None
     _mouse_handler: _mouse_handler3d.MouseHandler = None
+    _editor_name = 'editor3d'
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",

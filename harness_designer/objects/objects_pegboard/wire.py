@@ -427,6 +427,197 @@ class Wire(_base_pegboard.BasePegboard):
         """Wire stop position (Point instance)."""
         return self._p2
 
+    @classmethod
+    @_check_types.do
+    def start_add(
+        cls, mainframe, terminal=None, splice=None, preset_part_id: bytes = None
+    ) -> "_wire.Wire | None":
+        """Entry point for every way a peg-board wire-placement session
+        can start -- a raw click-to-start (all args ``None``: the first
+        click itself resolves the start end, mirroring
+        ``objects_3d.wire.Wire.start_add``'s own free-space case) or
+        pinned to a terminal/splice already chosen elsewhere (e.g. the
+        housing context menu's own "Add Terminal Seal"/"Add Wire" dialog
+        picks the terminal by cavity number first, so the session only
+        needs one more click for the stop end -- same shape as 3D's own
+        ``_start_from_terminal``/``_start_from_splice``, just without the
+        extend/add-to-wire modes this simpler, no-waypoints session has
+        no equivalent of -- see ``add_handlers.editor_pegboard.wire``'s
+        own module docstring).
+
+        :param preset_part_id: Skip the part-search dialog entirely and
+            start with this part -- mirrors 3D's own parameter of the
+            same name.
+        """
+        canvas = mainframe.editor_pegboard.editor
+
+        if terminal is not None or splice is not None:
+            if preset_part_id is not None:
+                part_id = preset_part_id
+            else:
+                from ...handlers import wire_handler as _wire_handler
+                from ...ui.dialogs import part_search as _part_search
+                from ...ui import editor_db as _editor_db
+                from PySide6.QtWidgets import QDialog
+
+                if terminal is not None:
+                    compat_pns = _wire_handler._get_terminal_compat_pns(mainframe, terminal)  # NOQA
+                else:
+                    compat_pns = _wire_handler._get_splice_compat_pns(mainframe, splice)  # NOQA
+
+                dlg = _part_search.SearchDialog(
+                    mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire',
+                    initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+
+                if dlg.exec() == QDialog.DialogCode.Accepted:
+                    part_id = dlg.GetValue()
+                else:
+                    part_id = None
+
+                dlg.deleteLater()
+
+                if part_id is None:
+                    return None
+
+            if terminal is not None:
+                return cls._start_from_terminal(mainframe, canvas, terminal, part_id)
+
+            return cls._start_from_splice(mainframe, canvas, splice, part_id)
+
+        if preset_part_id is not None:
+            part_id = preset_part_id
+        else:
+            from ...ui.dialogs import part_search as _part_search
+            from ...ui import editor_db as _editor_db
+            from PySide6.QtWidgets import QDialog
+
+            part_id = mainframe.editor_db.editor.wires.GetSelection()
+            if part_id is None:
+                dlg = _part_search.SearchDialog(
+                    mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire')
+
+                if dlg.exec() == QDialog.DialogCode.Accepted:
+                    part_id = dlg.GetValue()
+                else:
+                    part_id = None
+
+                dlg.deleteLater()
+
+                if part_id is None:
+                    return None
+
+        return cls._start_free_space(mainframe, canvas, part_id)
+
+    @classmethod
+    @_check_types.do
+    def _start_from_terminal(cls, mainframe, canvas, terminal, part_id: bytes) -> "_wire.Wire | None":
+        """Pin the preview wire's start to *terminal* and enter phase 1
+        directly -- mirrors ``objects_3d.wire.Wire._start_from_terminal``.
+        """
+        from ...handlers import wire_snap as _wire_snap
+        from .. import wire as _wire_facade
+        from PySide6.QtWidgets import QMessageBox
+
+        ptables = mainframe.project.ptables
+        wire_part = mainframe.global_db.wires_table[part_id]
+
+        ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, wire_part)
+        if not ok:
+            block_msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
+            if button == QMessageBox.StandardButton.No:
+                return None
+
+        facade = cls._insert_placeholder(mainframe, part_id)
+        terminal.add_wire(facade, 'start')
+
+        return cls._arm(canvas, facade, part_id, phase=1, growing_end='stop')
+
+    @classmethod
+    @_check_types.do
+    def _start_from_splice(cls, mainframe, canvas, splice, part_id: bytes) -> "_wire.Wire | None":
+        """Pin the preview wire's start to *splice*'s own branch point
+        and enter phase 1 directly -- mirrors
+        ``objects_3d.wire.Wire._start_from_splice``.
+        """
+        from ...handlers import wire_snap as _wire_snap
+        from PySide6.QtWidgets import QMessageBox
+
+        wire_part = mainframe.global_db.wires_table[part_id]
+
+        ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(splice, wire_part)
+        if not ok:
+            block_msg += '\n\nDo you want to use this wire?'
+            button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
+            if button == QMessageBox.StandardButton.No:
+                return None
+
+        facade = cls._insert_placeholder(mainframe, part_id)
+
+        branch_pegboard = splice.db_obj.branch_position_pegboard
+        branch3d = splice.db_obj.branch_position3d
+
+        facade.db_obj.start_position_pegboard_id = splice.db_obj.branch_position_pegboard_id
+        facade.objpegboard.set_start_position(branch_pegboard)
+        facade.db_obj.start_position3d_id = splice.db_obj.branch_position3d_id
+        facade.obj3d.set_start_position(branch3d)
+
+        splice.add_wire(facade)
+        facade.set_sibling(splice, 'start')
+
+        return cls._arm(canvas, facade, part_id, phase=1, growing_end='stop')
+
+    @classmethod
+    @_check_types.do
+    def _start_free_space(cls, mainframe, canvas, part_id: bytes) -> "_wire.Wire | None":
+        """Build the preview wire eagerly, at placeholder points the
+        first hover call immediately relocates to the cursor -- mirrors
+        ``objects_3d.wire.Wire._start_free_space``.
+        """
+        facade = cls._insert_placeholder(mainframe, part_id)
+        return cls._arm(canvas, facade, part_id, phase=0, growing_end='start')
+
+    @staticmethod
+    @_check_types.do
+    def _insert_placeholder(mainframe, part_id: bytes) -> "_wire.Wire":
+        """Insert a fresh ``PJTWire`` row at placeholder 3D points (the
+        same shape every wire-placement entry point needs regardless of
+        how its start end ends up attached) and build its facade --
+        peg-board start/stop points are never pre-created here, unlike
+        3D's own placeholder pair: ``StartStopPositionPegboardMixin``
+        lazily creates them (at the origin) the first time anything
+        reads ``start_position_pegboard``/``stop_position_pegboard``,
+        same as every other peg-board position in this app.
+        """
+        from .. import wire as _wire_facade
+
+        ptables = mainframe.project.ptables
+        wire_part = mainframe.global_db.wires_table[part_id]
+
+        start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+
+        name = f'{wire_part.manufacturer.name} {wire_part.part_number}'
+
+        wire_db = ptables.pjt_wires_table.insert(
+            part_id, name, None,
+            start_db.db_id, stop_db.db_id,
+            None, None, True, False, None, None, False)
+
+        return _wire_facade.Wire(mainframe, wire_db)
+
+    @classmethod
+    @_check_types.do
+    def _arm(cls, canvas, facade, part_id: bytes, phase: int, growing_end: str) -> "_wire.Wire":
+        from ...add_handlers.editor_pegboard import wire as _add_wire
+
+        handler = _add_wire.Wire(canvas, facade, part_id, phase=phase, growing_end=growing_end)
+
+        facade.objpegboard._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.objpegboard
+
+        return facade
+
     @_check_types.do
     def get_context_menu(self):
         """Return this wire's own right-click context menu (see

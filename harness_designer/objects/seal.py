@@ -42,9 +42,9 @@ class Seal(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.objschematic = _seal_schematic.Seal(self, db_obj)
         self.obj3d = _seal_3d.Seal(self, db_obj)
         self.objpegboard = _seal_pegboard.Seal(self, db_obj)
+        self.objschematic = _seal_schematic.Seal(self, db_obj)
 
         self.mainframe.add_object(self)
 

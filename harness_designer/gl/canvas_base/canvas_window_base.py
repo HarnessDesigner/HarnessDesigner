@@ -177,6 +177,97 @@ class CanvasWindowBase(QWidget):
         return self._canvas.objects_in_view
 
     @_check_types.do
+    def objects_in_window(self) -> list:
+        """Objects from :attr:`objects_in_view` that are actually visible
+        through this wrapper's on-screen window -- not just anywhere in
+        the camera's frustum.
+
+        ``objects_in_view`` is culled against the full, fixed-size
+        *virtual* canvas (``self._virtual_size``) -- but the inner canvas
+        is never resized to match this wrapper; it's recentered inside it
+        via ``move()`` (see ``__init__``/``resizeEvent`` above) and
+        whatever doesn't fit is simply clipped by Qt at this wrapper's own
+        (usually much smaller) bounds. So an object can be squarely inside
+        the camera's frustum while sitting in the cropped-away part of the
+        virtual canvas the user can't actually see. This re-checks each
+        candidate's projected screen position against the real visible
+        rectangle. Used only for the "should this editor re-center on the
+        newly selected object" decision (see ``MainFrame._set_selected``)
+        -- everywhere else that cares about "is this in view" genuinely
+        means the frustum, not the visible window (e.g. accessory
+        placement gating on ``is_in_3dview``), so this is deliberately a
+        separate method rather than a change to ``objects_in_view`` itself.
+        """
+        vw = self._virtual_size.width()
+        vh = self._virtual_size.height()
+
+        w = self.width()
+        h = self.height()
+
+        left = (vw - w) // 2
+        top = (vh - h) // 2
+        right = left + w
+        bottom = top + h
+
+        camera = self._canvas.camera
+        get_view_object = self._canvas._get_view_object  # NOQA
+
+        result = []
+        for obj in self.objects_in_view:
+            view_obj = get_view_object(obj)
+            if view_obj is None or view_obj.position is None:
+                continue
+
+            screen = camera.ProjectPoint(view_obj.position)
+            if screen is None:
+                continue
+
+            if left <= screen.x <= right and top <= screen.y <= bottom:
+                result.append(obj)
+
+        return result
+
+    @_check_types.do
+    def required_zoom_scale(self, aabb_min, aabb_max) -> float:
+        """Scale factor (>= 1.0) the current zoom needs to widen by so an
+        object with this world-space AABB fits inside the actually-
+        visible window (see :meth:`objects_in_window`'s own docstring on
+        why that's not the same as the camera's full frustum), with a 30%
+        margin. Returns ``1.0`` when it already fits at the current zoom
+        -- callers must never scale down (in) with this, only up (out),
+        matching ``center_on_object``'s "never surprise the user by
+        changing how zoomed in they are, beyond what's needed to actually
+        see the thing" rule.
+        """
+        camera = self._canvas.camera
+
+        xs = []
+        ys = []
+        for x in (float(aabb_min[0]), float(aabb_max[0])):
+            for y in (float(aabb_min[1]), float(aabb_max[1])):
+                for z in (float(aabb_min[2]), float(aabb_max[2])):
+                    screen = camera.ProjectPoint((x, y, z))
+                    if screen is None:
+                        return 1.0
+
+                    xs.append(screen.x)
+                    ys.append(screen.y)
+
+        proj_w = max(xs) - min(xs)
+        proj_h = max(ys) - min(ys)
+
+        w = self.width()
+        h = self.height()
+
+        if proj_w <= 0.0 or proj_h <= 0.0 or w <= 0 or h <= 0:
+            return 1.0
+
+        margin = 1.30
+        scale = max((proj_w * margin) / w, (proj_h * margin) / h)
+
+        return max(scale, 1.0)
+
+    @_check_types.do
     def get_selected(self):
         """Forwarded from the inner canvas -- see :attr:`mainframe`'s own
         docstring.

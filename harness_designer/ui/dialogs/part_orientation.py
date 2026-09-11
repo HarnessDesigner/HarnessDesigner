@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QSize
+from PySide6 import QtCore
 from PySide6 import QtWidgets
 
 from . import dialog_base as _dialog_base
@@ -281,6 +282,52 @@ class AxisLabel3D(_base_3d.Base3D):
         pass
 
 
+class MeshStatsOverlay(QtWidgets.QLabel):
+    """Debug HUD showing the part model's vertex/triangle count.
+
+    Static text -- the mesh doesn't change while this dialog is open, so
+    this is set once at construction rather than redrawn every frame (see
+    housing_editor.py's SurfaceOverlay for the per-frame-cost alternative
+    this deliberately avoids). Only ever constructed when
+    ``Config.debug.rendering3d.show_mesh_stats`` is on.
+
+    Parented to the Canvas3D *wrapper* (``dialog.canvas``), not its inner
+    ``._canvas`` GL widget -- the inner widget is a fixed, deliberately
+    oversized "virtual canvas" (see MEMORY.md's fixed-virtual-size canvas
+    entry; this dialog's own is 1600x900) that the wrapper clips down to
+    the actually-visible size, so positioning against the inner widget's
+    own width/height places this far outside the visible area. See
+    axis_overlay.py's ``Overlay`` for the same wrapper-relative pattern.
+    """
+
+    @_check_types.do
+    def __init__(self, canvas_wrapper, vertex_count: int):
+        super().__init__(canvas_wrapper)
+        triangle_count = vertex_count // 3
+        self.setText(f'Vertices: {vertex_count}\nTriangles: {triangle_count}')
+        self.setStyleSheet(
+            'color: white; background-color: rgba(0, 0, 0, 140); '
+            'padding: 4px; font-family: monospace;')
+
+        self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        self.adjustSize()
+        canvas_wrapper.installEventFilter(self)
+        self._reposition(canvas_wrapper)
+        self.show()
+        self.raise_()
+
+    @_check_types.do
+    def _reposition(self, canvas_wrapper) -> None:
+        self.move(canvas_wrapper.width() - self.width() - 10, 10)
+
+    @_check_types.do
+    def eventFilter(self, obj, event):
+        if event.type() == QtCore.QEvent.Type.Resize:
+            self._reposition(obj)
+
+        return False
+
+
 class PartOrientationDialog(_dialog_base.BaseDialog):
     """Dialog for setting the canonical orientation and position offset of a 3D part model.
 
@@ -304,6 +351,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self.o_angle: _angle.Angle = None
         self.o_position: _point.Point = None
         self._obj_handler = None
+        self._mesh_stats_overlay: "MeshStatsOverlay | None" = None
 
         # Passes *self* (not self.panel) as the canvas's "mainframe" --
         # Qt widget-parenting is unaffected (the layout's addWidget()
@@ -400,6 +448,11 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._model_db = model_db
         with self._mainframe.editor3d.context:
             self._part_model = PartModel(self, model_db)
+
+            vbo = self._part_model.obj3d.vbo
+            if _config.Config.debug.rendering3d.show_mesh_stats and vbo is not None:
+                self._mesh_stats_overlay = MeshStatsOverlay(
+                    self.canvas, vbo.vertex_count)
 
             self.o_angle = self._model_db.angle3d.copy()
             self.o_position = self._model_db.position3d.copy()
