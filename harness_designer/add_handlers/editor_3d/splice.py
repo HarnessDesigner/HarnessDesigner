@@ -71,7 +71,7 @@ class Splice(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False
@@ -126,7 +126,7 @@ class Splice(_base.AddHandlerBase):
         self.target.obj3d.is_visible = True
 
     @_check_types.do
-    def _recreate_preview(self, wire: "_wire.Wire") -> None:
+    def _recreate_preview(self, wire: _wire.Wire) -> None:
         """Tear down the current preview (if any -- the placeholder
         built at arm time, or whichever wire's preview this replaces)
         and build a new one locked to *wire*, re-arming this same

@@ -188,7 +188,7 @@ class ExportDialog(_dialog_base.BaseDialog):
     """Non-modal dialog for exporting all visible 3-D model data."""
 
     @_check_types.do
-    def __init__(self, parent: '_ui.MainFrame'):
+    def __init__(self, parent: "_ui.MainFrame"):
         super().__init__(
             parent, 'Export Models', size=(720, 560),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Close)

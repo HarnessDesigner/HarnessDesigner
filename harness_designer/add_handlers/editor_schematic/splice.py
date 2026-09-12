@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def closest_point_on_wire_2d(wire: "_wire.Wire", world_x: float, world_z: float):
+def closest_point_on_wire_2d(wire: _wire.Wire, world_x: float, world_z: float):
     """Closest point on *wire*'s full 2D polyline (true start, through
     every waypoint, to true stop) to ``(world_x, world_z)``.
 
@@ -128,7 +128,7 @@ class Splice(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False
@@ -179,7 +179,7 @@ class Splice(_base.AddHandlerBase):
         self.target.objschematic.is_visible = True
 
     @_check_types.do
-    def _recreate_preview(self, wire: "_wire.Wire") -> None:
+    def _recreate_preview(self, wire: _wire.Wire) -> None:
         from ...objects import splice as _splice_facade
 
         if self.target is not None:

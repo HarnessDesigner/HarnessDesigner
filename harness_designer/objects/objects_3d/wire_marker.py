@@ -350,7 +350,7 @@ class WireMarker(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Along-the-wire drag -- overrides Base3D's generic single-
         position drag so the specific WireMarker handler (a rotated,

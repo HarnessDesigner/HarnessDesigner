@@ -430,7 +430,7 @@ class VBOHandlerBase:
         return False
 
     @_check_types.do
-    def render_angle(self, angle: "_angle.Angle") -> "_angle.Angle":
+    def render_angle(self, angle: _angle.Angle) -> _angle.Angle:
         """Return the angle this handler's owner should actually render/
         derive its OBB and AABB with -- *angle* (the owner's own real
         ``_angle``) unchanged, for every ordinary mesh VBO.
@@ -550,7 +550,7 @@ class VBOHandlerBase:
 
     @_check_types.do
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
-               position: _point.Point, angle: "_angle.Angle", scale: _point.Point,
+               position: _point.Point, angle: _angle.Angle, scale: _point.Point,
                smooth: bool | None):
         """Set this mesh's own per-draw transform uniforms, then draw it.
 
@@ -752,7 +752,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 
     @_check_types.do
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
-               position: _point.Point, angle: "_angle.Angle", scale: _point.Point,
+               position: _point.Point, angle: _angle.Angle, scale: _point.Point,
                smooth: bool | None):
         self._rebuild()
 

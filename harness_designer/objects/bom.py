@@ -57,7 +57,7 @@ class WireCutRow:
     shielded: bool
     exact_length_mm: float
     length_with_excess_mm: float
-    icon: "_image.Image"
+    icon: _image.Image
 
 
 @dataclass
@@ -73,7 +73,7 @@ class BundleCutRow:
 
 
 @_check_types.do
-def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> "_image.Image":
+def resolve_wire_icon(pjt_wire: "_pjt_wire.PJTWire") -> _image.Image:
     """Return a 100x25 wire-color swatch for *pjt_wire*, falling back to
     ``images.no_image`` for shielded wires or when resolution fails --
     the color-image module only supports single-conductor, unshielded

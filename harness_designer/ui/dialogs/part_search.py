@@ -121,7 +121,7 @@ class SearchParameters:
     side-channel -- see ``SearchDialog.__init__``).
     """
 
-    columns: "collections.OrderedDict[str, ColumnSearch]" = (  # NOQA
+    columns: collections.OrderedDict[str, ColumnSearch] = (  # NOQA
         dataclasses.field(default_factory=collections.OrderedDict))
 
     @_check_types.do
@@ -598,7 +598,7 @@ def parse(text: str, schema: TableSchema) -> ParseResult:
     """
 
     problems: list[ParseProblem] = []
-    columns: "collections.OrderedDict[str, ColumnSearch]" = collections.OrderedDict()
+    columns: collections.OrderedDict[str, ColumnSearch] = collections.OrderedDict()
 
     pattern = _trigger_pattern(schema)
     if pattern is not None:

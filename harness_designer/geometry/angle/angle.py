@@ -605,7 +605,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self.from_quat(q)
 
     @_check_types.do
-    def __rmatmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
+    def __rmatmul__(self, other: np.ndarray | _point.Point) -> np.ndarray | _point.Point:
         """
         Apply this angle to ``other`` in place when supported.
 
@@ -642,7 +642,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         # return other
 
     @_check_types.do
-    def __matmul__(self, other: Union[np.ndarray, _point.Point]) -> np.ndarray | _point.Point:
+    def __matmul__(self, other: np.ndarray | _point.Point) -> np.ndarray | _point.Point:
         """
         Return ``other`` rotated by this angle.
 
@@ -1019,8 +1019,8 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @classmethod
     @_check_types.do
-    def from_frame(cls, pos: "_point.Point", fwd_ref: "_point.Point",
-                   up_ref: "_point.Point",
+    def from_frame(cls, pos: _point.Point, fwd_ref: _point.Point,
+                   up_ref: _point.Point,
                    db_id: bytes | None = None) -> "Angle":
         """
         Create an angle from a full orientation frame (position + forward + up).

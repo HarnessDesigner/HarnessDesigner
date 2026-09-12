@@ -752,7 +752,7 @@ class FoldWindowItem:
     """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
     @_check_types.do
-    def __init__(self, parent: 'FoldPanelItem', window: QtWidgets.QWidget | None, **kw):
+    def __init__(self, parent: "FoldPanelItem", window: QtWidgets.QWidget | None, **kw):
         """Initialise the :class:`FoldWindowItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

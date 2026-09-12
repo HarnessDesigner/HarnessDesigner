@@ -50,7 +50,7 @@ def _build_quad(left: float | _d, right: float | _d, bottom: float, top: float |
 class Floor(_floor_base.FloorBase):
     """Procedural top-down dot grid."""
 
-    def __init__(self, canvas: '_canvas.Canvas'):
+    def __init__(self, canvas: "_canvas.Canvas"):
         super().__init__(canvas)
 
         self.grid_spacing = 1.0

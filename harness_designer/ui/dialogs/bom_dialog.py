@@ -95,7 +95,7 @@ class _FlatListTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def load(self, rows: list["_bom.BomLineItem"]):
+    def load(self, rows: list[_bom.BomLineItem]):
         self.clear()
         for row in rows:
             qty_text = f'{row.quantity:.1f} mm' if row.is_length else str(int(row.quantity))
@@ -116,7 +116,7 @@ class _HousingTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def _add_node(self, parent, node: "_bom.HousingTreeNode", bold: bool):
+    def _add_node(self, parent, node: _bom.HousingTreeNode, bold: bool):
         awg_min = '' if node.awg_min is None else str(node.awg_min)
         awg_max = '' if node.awg_max is None else str(node.awg_max)
         label = _HOUSING_KIND_LABELS.get(node.kind, node.kind)
@@ -136,7 +136,7 @@ class _HousingTree(QtWidgets.QTreeWidget):
         return item
 
     @_check_types.do
-    def load(self, nodes: list["_bom.HousingTreeNode"]):
+    def load(self, nodes: list[_bom.HousingTreeNode]):
         self.clear()
         for node in nodes:
             item = self._add_node(self, node, bold=True)
@@ -162,7 +162,7 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def load(self, rows: list["_bom.WireCutRow"]):
+    def load(self, rows: list[_bom.WireCutRow]):
         self.clear()
         for row in rows:
             item = QtWidgets.QTreeWidgetItem(self, [
@@ -190,7 +190,7 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def load(self, rows: list["_bom.BundleCutRow"]):
+    def load(self, rows: list[_bom.BundleCutRow]):
         self.clear()
         for row in rows:
             QtWidgets.QTreeWidgetItem(self, [

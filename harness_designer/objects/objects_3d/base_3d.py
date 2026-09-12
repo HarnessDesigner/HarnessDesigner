@@ -330,7 +330,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Generic single-position drag arming/dispatch, plus rotation-
         gizmo arming/dispatch (see rotation_handlers.rotation_rings.
@@ -394,7 +394,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo
         (:attr:`_active_handler`, a RotationRings) -- see that class's
@@ -752,7 +752,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @staticmethod
     @_check_types.do
-    def _debug_box_corners(position: _point.Point, angle: "_angle.Angle", scale: _point.Point) -> np.ndarray:
+    def _debug_box_corners(position: _point.Point, angle: _angle.Angle, scale: _point.Point) -> np.ndarray:
         """Return the box's 8 world-space corners.
 
         *scale* is the box's full (not half) size along each local axis,
@@ -770,7 +770,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def _render_debug_box(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
-                          angle: "_angle.Angle", scale: _point.Point, color) -> None:
+                          angle: _angle.Angle, scale: _point.Point, color) -> None:
 
         material = _materials.Generic(_color.Color(*color))
         box_vbo = _box.create_vbo()
@@ -806,7 +806,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def _render_debug_box_edges(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
-                                angle: "_angle.Angle", scale: _point.Point, color) -> None:
+                                angle: _angle.Angle, scale: _point.Point, color) -> None:
         
         """Trace the box's real 12 edges (plus a sphere at each of its 8
         corners) on top of the translucent fill -- a thin cylinder run

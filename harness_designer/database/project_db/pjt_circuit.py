@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -291,7 +291,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def start_terminal(self) -> "_pjt_terminal.PJTTerminal":
+    def start_terminal(self) -> _pjt_terminal.PJTTerminal:
         """Return the start terminal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -322,7 +322,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def load_terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
+    def load_terminals(self) -> list[_pjt_terminal.PJTTerminal]:
         """Return the load terminals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -516,8 +516,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @_check_types.do
     def get_circuit_end_terminals(
-        self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
-                             "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list["_pjt_terminal.PJTTerminal"]:
+        self, target: _pjt_terminal.PJTTerminal | _pjt_wire.PJTWire | _pjt_splice.PJTSplice | _pjt_wire_service_loop.PJTWireServiceLoop) -> list[_pjt_terminal.PJTTerminal]:
         """Return the circuit end terminals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -591,8 +590,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return terminals
 
     @_check_types.do
-    def get_circuit(self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice",
-                                         "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list:
+    def get_circuit(self, target: _pjt_terminal.PJTTerminal | _pjt_wire.PJTWire | _pjt_splice.PJTSplice | _pjt_wire_service_loop.PJTWireServiceLoop) -> list:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -874,7 +872,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def wires(self) -> list["_pjt_wire.PJTWire"]:
+    def wires(self) -> list[_pjt_wire.PJTWire]:
         """Return the wires.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -890,7 +888,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def wire_service_loops(self) -> list["_pjt_wire_service_loop.PJTWireServiceLoop"]:
+    def wire_service_loops(self) -> list[_pjt_wire_service_loop.PJTWireServiceLoop]:
         """Return the wire service loops.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -906,7 +904,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def splices(self) -> list["_pjt_splice.PJTSplice"]:
+    def splices(self) -> list[_pjt_splice.PJTSplice]:
         """Return the splices.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -922,7 +920,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
+    def terminals(self) -> list[_pjt_terminal.PJTTerminal]:
         """Return the terminals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -938,7 +936,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def housings(self) -> list["_pjt_housing.PJTHousing"]:
+    def housings(self) -> list[_pjt_housing.PJTHousing]:
         """Return the housings.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -308,7 +308,7 @@ class BasePegboard(_objectsvar.BaseVar):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Generic locked-X/Z drag arming/dispatch, plus rotation-gizmo
         arming/dispatch (see rotation_handlers.rotation_rings.
@@ -367,7 +367,7 @@ class BasePegboard(_objectsvar.BaseVar):
     @_check_types.do
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction",
+        interaction_type: _interaction.MouseInteraction,
         clicked_object
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo --

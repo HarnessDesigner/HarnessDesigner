@@ -83,7 +83,7 @@ class Bundle(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False
@@ -104,7 +104,7 @@ class Bundle(_base.AddHandlerBase):
         return False
 
     @_check_types.do
-    def _bundle_diameter(self, wire: "_wire.Wire") -> float:
+    def _bundle_diameter(self, wire: _wire.Wire) -> float:
         if wire.db_obj.part:
             wire_od = float(wire.db_obj.part.od_mm or 0.0)
         else:
@@ -133,7 +133,7 @@ class Bundle(_base.AddHandlerBase):
             self.target.obj3d.is_visible = True
 
     @_check_types.do
-    def _recreate_preview(self, wire: "_wire.Wire") -> None:
+    def _recreate_preview(self, wire: _wire.Wire) -> None:
         from ...objects import bundle as _bundle_facade
 
         if self.target is not None:

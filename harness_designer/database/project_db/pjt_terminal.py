@@ -525,11 +525,11 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
             new_cavity._stored_terminal = self  # NOQA
             new_cavity._populate('terminal_id')
 
-    _stored_circuit: "_pjt_circuit.PJTCircuit" = None
+    _stored_circuit: _pjt_circuit.PJTCircuit = None
 
     @property
     @_check_types.do
-    def circuit(self) -> "_pjt_circuit.PJTCircuit":
+    def circuit(self) -> _pjt_circuit.PJTCircuit:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -577,7 +577,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @property
     @_check_types.do
-    def seal(self) -> "_pjt_seal.PJTSeal":
+    def seal(self) -> _pjt_seal.PJTSeal:
         """Return the seal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -688,7 +688,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         return wire_point3d_id
 
-    _stored_wire_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_wire_position3d: _pjt_point3d.PJTPoint3D = None
 
     @property
     @_check_types.do
@@ -728,7 +728,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
-    _stored_wire_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard" = None
+    _stored_wire_position_pegboard: _pjt_point_pegboard.PJTPointPegboard = None
 
     @property
     @_check_types.do
@@ -840,7 +840,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._table.update(self._db_id, wire_point2d_id=value)
         self._populate('wire_position2d_id')
 
-    _stored_wire_position2d: "_pjt_point2d.PJTPoint2D" = None
+    _stored_wire_position2d: _pjt_point2d.PJTPoint2D = None
 
     @property
     @_check_types.do
@@ -903,7 +903,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         return self._table.select('attach_point3d_id', id=self._db_id)[0][0]
 
-    _stored_attach_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_attach_position3d: _pjt_point3d.PJTPoint3D = None
 
     @property
     @_check_types.do
@@ -924,7 +924,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         return self._stored_attach_position3d.point
 
-    _stored_attach_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard" = None
+    _stored_attach_position_pegboard: _pjt_point_pegboard.PJTPointPegboard = None
 
     @property
     @_check_types.do
@@ -1134,7 +1134,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         return seal_point3d_id
 
-    _stored_seal_position3d: "_pjt_point3d.PJTPoint3D" = None
+    _stored_seal_position3d: _pjt_point3d.PJTPoint3D = None
 
     @property
     @_check_types.do
@@ -1175,7 +1175,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._stored_seal_position3d = None
         self._table.update(self._db_id, seal_point3d_id=value)
 
-    _stored_seal_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard" = None
+    _stored_seal_position_pegboard: _pjt_point_pegboard.PJTPointPegboard = None
 
     @property
     @_check_types.do

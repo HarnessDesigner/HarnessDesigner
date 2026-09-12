@@ -220,7 +220,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
 
     @_check_types.do
     def __init__(self, parent,
-                 db_table: Union['_global_db.TableBase', '_project_db.PJTTableBase']):
+                 db_table: Union["_global_db.TableBase", "_project_db.PJTTableBase"]):
         """Initialise the :class:`_SearchPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -47,7 +47,7 @@ ARROW_OFFSET_SCALE = 1.40
 
 
 @_check_types.do
-def angle_for_direction(direction: np.ndarray) -> "_angle.Angle":
+def angle_for_direction(direction: np.ndarray) -> _angle.Angle:
     """Return the :class:`Angle` that rotates the arrow mesh's local
     forward axis (+X, per ``shapes.arrow.create_vbo``'s geometry) onto
     world-space *direction*.

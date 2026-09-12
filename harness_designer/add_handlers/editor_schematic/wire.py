@@ -64,7 +64,7 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False
@@ -96,7 +96,7 @@ class Wire(_base.AddHandlerBase):
         self.mainframe.editor2d.Refresh(False)
 
     @_check_types.do
-    def _attach_splice(self, splice_obj: "_splice.Splice", end: str) -> None:
+    def _attach_splice(self, splice_obj: _splice.Splice, end: str) -> None:
         """Attach this wire's *end* ('start' or 'stop') to *splice_obj*'s
         branch point -- sets both 2D and 3D position, same as the
         original handler's own ``_attach_splice``."""
