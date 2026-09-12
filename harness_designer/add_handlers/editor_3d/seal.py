@@ -104,7 +104,7 @@ class Seal(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-        housing: "_housing.Housing | None", terminal: "_terminal.Terminal | None",
+        housing: _housing.Housing | None, terminal: _terminal.Terminal | None,
         cavity, is_instant: bool, snap_targets: list, is_dummy_pin: bool
     ):
         super().__init__(canvas, target)
@@ -129,7 +129,7 @@ class Seal(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False

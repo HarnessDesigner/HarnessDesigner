@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -221,7 +221,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         """
         return self._table
 
-    _stored_wire: "_pjt_wire.PJTWire | DefaultStoredValueType" = DefaultStoredValue
+    _stored_wire: Union["_pjt_wire.PJTWire", DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -275,7 +275,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         self._table.update(self._db_id, wire_id=value)
         self._populate('wire_id')
 
-    _stored_part: "_wire_marker.WireMarker | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _wire_marker.WireMarker | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

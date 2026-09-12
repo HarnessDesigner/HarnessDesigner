@@ -17,7 +17,7 @@ Repositions and re-rotates every housing/splice unconditionally --
 this is a deliberate, user-triggered whole-project command.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from . import wire_routing as _wire_routing
 from . import wire_reroute as _wire_reroute
@@ -64,7 +64,7 @@ def _node_center(node) -> tuple[float, float]:
 
 
 @_check_types.do
-def _node_housing(terminal) -> "_housing_obj.Housing | None":
+def _node_housing(terminal) -> Union["_housing_obj.Housing", None]:
     """Resolve a ``Terminal`` wrapper up to its owning ``Housing``
     wrapper -- via its seated cavity's own ``HousingMixin``
     (``PJTCavity.housing``); ``PJTTerminal`` has no ``housing_id`` of its

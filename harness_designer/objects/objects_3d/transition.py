@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import weakref
 import numpy as np
@@ -360,7 +360,7 @@ class Transition(_base_3d.Base3D):
     @_check_types.do
     def start_add(
         cls, mainframe: "_ui.MainFrame", part_id: bytes | None = None
-    ) -> "_transition.Transition | None":
+    ) -> Union["_transition.Transition", None]:
         """Bundle-snapping transition placement, ported from
         handlers.transition_handler.AddTransitionHandler -- always
         free/interactive (no housing/bundle argument, matching the
@@ -426,7 +426,7 @@ class Transition(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

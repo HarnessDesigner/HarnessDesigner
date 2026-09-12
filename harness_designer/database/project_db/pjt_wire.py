@@ -205,7 +205,7 @@ class PJTWiresTable(PJTTableBase):
         return PJTWire(self, db_id)
 
     @_check_types.do
-    def find_by_start_point3d_id(self, point3d_id: bytes) -> "PJTWire | None":
+    def find_by_start_point3d_id(self, point3d_id: bytes) -> Union["PJTWire", None]:
         """Return the wire whose ``start_point3d_id`` matches ``point3d_id``.
 
         Used to find "the next wire in the chain" from a wire's own
@@ -221,7 +221,7 @@ class PJTWiresTable(PJTTableBase):
         return self[db_ids[0][0]]
 
     @_check_types.do
-    def find_by_stop_point3d_id(self, point3d_id: bytes) -> "PJTWire | None":
+    def find_by_stop_point3d_id(self, point3d_id: bytes) -> Union["PJTWire", None]:
         """Return the wire whose ``stop_point3d_id`` matches ``point3d_id``.
 
         Used at wire-creation time to find "the predecessor" for a new
@@ -392,7 +392,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         return res
 
-    _stored_layer_view_position: "_pjt_point2d.PJTPoint2D | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_layer_view_position: Union["_pjt_point2d.PJTPoint2D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -638,11 +638,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """
         return self._table
 
-    _stored_circuit: Union["_pjt_circuit.PJTCircuit", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_circuit: _pjt_circuit.PJTCircuit | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def circuit(self) -> Union["_pjt_circuit.PJTCircuit", None]:
+    def circuit(self) -> _pjt_circuit.PJTCircuit | None:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -697,7 +697,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
 
-    _stored_part: "_wire.Wire | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

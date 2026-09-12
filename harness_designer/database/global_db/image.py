@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 import os
 from PySide6 import QtGui
@@ -279,7 +279,7 @@ class Image(EntryBase):
 
         return self._stored_uuid
 
-    _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
+    _stored_file_type: Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
 
     @property
     @_check_types.do

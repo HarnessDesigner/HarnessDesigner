@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -250,11 +250,11 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
         """
         return self._table
 
-    _stored_part: "_seal.Seal | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _seal.Seal | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def part(self) -> "_seal.Seal":
+    def part(self) -> _seal.Seal:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -276,7 +276,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
                 
         return self._stored_part
 
-    _stored_terminal: "_pjt_terminal.PJTTerminal | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_terminal: Union["_pjt_terminal.PJTTerminal", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

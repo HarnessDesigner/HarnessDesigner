@@ -14,7 +14,7 @@ class AnglePegboardMixin(BaseMixin):
     same pattern as ``quat2d``/``angle2d`` and ``quat3d``/``angle3d``.
     """
     _angle_pegboard_db_id: bytes | None = None
-    _stored_angle_pegboard: "_angle.Angle | DefaultStoredValueType" = DefaultStoredValue
+    _stored_angle_pegboard: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
     # Per-instance flag: set True during bulk angle batch-writes so the individual
     # DB callback is suppressed while pegboard render callbacks still fire.
     _skip_db_write: bool = False

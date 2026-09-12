@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 from math import inf
@@ -136,7 +136,7 @@ def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
 
 
 @_check_types.do
-def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera3d.Camera | _camera2d.Camera"):
+def _aabb_screen_bbox_and_depth(bboxes, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
     """
     Build a 2D screen bbox from projecting ALL 8 AABB corners.
     This is necessary for stability across camera yaw/pitch.
@@ -194,7 +194,7 @@ def _aabb_screen_bbox_and_depth(bboxes, camera: "_camera3d.Camera | _camera2d.Ca
 @_debug.logfunc
 @_check_types.do
 def _pick_candidates_at_mouse(mx, my, scene_objects,
-                              camera: "_camera3d.Camera | _camera2d.Camera",
+                              camera: Union["_camera3d.Camera", "_camera2d.Camera"],
                               get_view, tol_pixels=3.0):  # NOQA
     """
     scene_objects: iterable of objects exposing a wrapper view object,
@@ -237,7 +237,7 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
 @_debug.logfunc
 @_check_types.do
-def find_object(mouse_pos, scene_objects, camera: "_camera3d.Camera | _camera2d.Camera",
+def find_object(mouse_pos, scene_objects, camera: Union["_camera3d.Camera", "_camera2d.Camera"],
                 get_view, current_selection=None):
     """Ray-cast from *mouse_pos* against every object in *scene_objects*
     and return the closest hit (or the next-closest, if the closest is

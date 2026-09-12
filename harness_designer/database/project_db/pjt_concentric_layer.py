@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
@@ -165,7 +165,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
 
         return res
 
-    _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_concentric: Union["_pjt_concentric.PJTConcentric", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

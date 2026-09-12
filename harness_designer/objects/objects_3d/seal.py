@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 from PySide6.QtWidgets import QMenu
@@ -165,10 +165,10 @@ class Seal(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: "_housing_facade.Housing | None" = None,
-        terminal: "_terminal_facade.Terminal | None" = None,
-        cavity: "_cavity_facade.Cavity | None" = None
-    ) -> "_seal.Seal | None":
+        cls, mainframe: "_ui.MainFrame", housing: Union["_housing_facade.Housing", None] = None,
+        terminal: Union["_terminal_facade.Terminal", None] = None,
+        cavity: Union["_cavity_facade.Cavity", None] = None
+    ) -> Union["_seal.Seal", None]:
         """Four placement modes -- see add_handlers.editor_3d.seal's own
         module docstring; ported from handlers.seal_handler.AddSealHandler.
 
@@ -442,7 +442,7 @@ class Seal(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

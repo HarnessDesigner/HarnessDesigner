@@ -15,7 +15,7 @@ class ScalePegboardMixin(BaseMixin):
     time it's needed.
     """
 
-    _stored_scale_pegboard: "_pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_scale_pegboard: _pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do

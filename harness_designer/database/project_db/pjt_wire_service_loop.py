@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import math
 import numpy as np
@@ -219,7 +219,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         else:
             self._obj = obj
 
-    _stored_terminal: "_pjt_terminal.PJTTerminal | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_terminal: Union["_pjt_terminal.PJTTerminal", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -250,7 +250,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
 
         return self._stored_terminal
 
-    _stored_wire: "_pjt_wire.PJTWire | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_wire: Union["_pjt_wire.PJTWire", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -379,11 +379,11 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         """
         return self._table
 
-    _stored_circuit: "_pjt_circuit.PJTCircuit | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_circuit: _pjt_circuit.PJTCircuit | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def circuit(self) -> "_pjt_circuit.PJTCircuit":
+    def circuit(self) -> _pjt_circuit.PJTCircuit:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -469,7 +469,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         self._table.update(self._db_id, is_visible=int(value))
         self._populate('is_visible')
 
-    _stored_part: "_wire.Wire | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

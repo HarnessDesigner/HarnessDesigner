@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -164,7 +164,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         return PJTBundleLayout(self, db_id)
 
     @_check_types.do
-    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> "PJTBundleLayout | None":
+    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> Union["PJTBundleLayout", None]:
         """Return the bundle-layout row whose peg-board position is
         *point_pegboard_id*, or ``None`` if no row references it.
 
@@ -196,7 +196,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
     """
     _table: PJTBundleLayoutsTable = None
 
-    _stored_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -252,7 +252,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         self._populate('position3d_id')
         self._populate('position_pegboard_id')
 
-    _stored_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

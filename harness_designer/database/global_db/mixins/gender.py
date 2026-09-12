@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -18,7 +18,7 @@ class GenderMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_gender: "DefaultStoredValueType | _gender.Gender" = DefaultStoredValue
+    _stored_gender: Union[DefaultStoredValueType, "_gender.Gender"] = DefaultStoredValue
 
     @property
     @_check_types.do

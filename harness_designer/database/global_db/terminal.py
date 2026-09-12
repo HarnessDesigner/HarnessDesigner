@@ -852,7 +852,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return cavity.width, cavity.height, cavity.length / 2.0
 
     _scale_id: bytes | None = None
-    _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
+    _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
     def _update_scale(self, scale: _point.Point):

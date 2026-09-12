@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 import uuid
 import weakref
@@ -33,6 +33,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import pjt_seal as _pjt_seal
     from . import pjt_terminal as _pjt_terminal
+    from . import pjt_point3d as _pjt_point3d
+    from . import pjt_point_pegboard as _pjt_point_pegboard
     from ..global_db import cavity as _cavity
     from ...objects import cavity as _cavity_obj
 
@@ -424,7 +426,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         self._table.update(self._db_id, obb=str(value))
 
-    _stored_terminal: "_pjt_terminal.PJTTerminal | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_terminal: Union["_pjt_terminal.PJTTerminal", DefaultStoredValueType, None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -448,7 +450,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         return self._stored_terminal
 
-    _stored_terminal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_terminal_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -533,7 +535,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._table.update(self._db_id, terminal_point3d_id=value)
         self._populate('terminal_position3d_id')
 
-    _stored_wire_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_wire_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -651,7 +653,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
-    _stored_terminal_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_terminal_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -733,7 +735,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._table.update(self._db_id, terminal_point_pegboard_id=value)
         self._populate('terminal_position_pegboard_id')
 
-    _stored_wire_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_wire_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -872,7 +874,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self.position2d_id = value
         self._populate('terminal_position2d_id')
 
-    _stored_seal: "_pjt_seal.PJTSeal | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_seal: Union["_pjt_seal.PJTSeal", DefaultStoredValueType, None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -918,7 +920,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         return self.terminal.position3d_id
 
-    _stored_part: "_cavity.Cavity | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: Union["_cavity.Cavity", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

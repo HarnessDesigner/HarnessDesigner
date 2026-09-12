@@ -19,7 +19,7 @@ class StartStopPositionPegboardMixin(BaseMixin):
     bundle-layout position columns are.
     """
 
-    _stored_start_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_start_position_pegboard: _pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -90,7 +90,7 @@ class StartStopPositionPegboardMixin(BaseMixin):
         self._table.update(self._db_id, start_point_pegboard_id=value)
         self._populate('start_position_pegboard_id')
 
-    _stored_stop_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_stop_position_pegboard: _pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do

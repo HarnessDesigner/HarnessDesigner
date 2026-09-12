@@ -2,7 +2,7 @@
 
 """Lazy image and cursor loading helpers for :mod:`harness_designer.image`."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import sys
 import os
@@ -351,7 +351,7 @@ class ImageLoader:
     def __build_wire(
         self,
         primary_color: "_color.Color",
-        stripe_color: "_color.Color | None",
+        stripe_color: Union["_color.Color", None],
         conductor_color: "_color.Color"
     ) -> Image:
         primary_name = primary_color.name
@@ -563,7 +563,7 @@ if TYPE_CHECKING:
         @_check_types.do
         def build_wire(
             primary_color: "_color.Color",  # NOQA
-            stripe_color: "_color.Color | None",  # NOQA
+            stripe_color: Union["_color.Color", None],  # NOQA
             conductor_color: "_color.Color"  # NOQA
         ) -> Image:
             pass

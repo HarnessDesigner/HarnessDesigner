@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 import uuid
 import numpy as np
@@ -181,7 +181,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     """
     _table: CavitiesTable = None
 
-    _stored_housing: "DefaultStoredValueType | _housing.Housing" = DefaultStoredValue
+    _stored_housing: Union[DefaultStoredValueType, "_housing.Housing"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -789,7 +789,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         self._populate('height')
 
     _scale_id: bytes | None = None
-    _stored_scale: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
+    _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
     def _update_scale(self, scale: _point.Point):

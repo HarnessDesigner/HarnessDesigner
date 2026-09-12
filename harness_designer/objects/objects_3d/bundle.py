@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import weakref
 from PySide6.QtWidgets import QMenu
@@ -105,7 +105,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> "_bundle.Bundle | None":
+    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_bundle.Bundle", None]:
         """Wire-snapping bundle-cover placement, ported from
         handlers.bundle_handler.AddBundleHandler -- always free/
         interactive, no housing/wire argument (see
@@ -180,7 +180,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Add-session check first (see start_add), then falls through
         to this class's own existing rigid whole-path drag handling

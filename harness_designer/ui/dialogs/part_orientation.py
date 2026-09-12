@@ -2,7 +2,7 @@
 
 import numpy as np
 import build123d
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QSize
@@ -344,14 +344,14 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
             self, parent, 'Part Orientation', size=(1100, 650),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)
 
-        self._model_db: "_Model3D | None" = None
+        self._model_db: Union["_Model3D", None] = None
         self._part_model: PartModel | None = None
         self._mainframe = parent
         self._selected_obj = None
         self.o_angle: _angle.Angle = None
         self.o_position: _point.Point = None
         self._obj_handler = None
-        self._mesh_stats_overlay: "MeshStatsOverlay | None" = None
+        self._mesh_stats_overlay: MeshStatsOverlay | None = None
 
         # Passes *self* (not self.panel) as the canvas's "mainframe" --
         # Qt widget-parenting is unaffected (the layout's addWidget()

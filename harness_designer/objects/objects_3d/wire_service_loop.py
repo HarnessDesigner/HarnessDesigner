@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import math
 import numpy as np
@@ -858,7 +858,7 @@ class WireServiceLoop(_base_3d.Base3D):
     @_check_types.do
     def start_add(
         cls, mainframe: "_ui.MainFrame", wire: "_wire.Wire", mouse_pos: _point.Point
-    ) -> "_wire_service_loop.WireServiceLoop | None":
+    ) -> Union["_wire_service_loop.WireServiceLoop", None]:
         """Fixed-wire service-loop placement, ported from
         handlers.wire_service_loop_handler.AddWireServiceLoopHandler --
         only ever started from a wire's own context menu, never a
@@ -916,7 +916,7 @@ class WireServiceLoop(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

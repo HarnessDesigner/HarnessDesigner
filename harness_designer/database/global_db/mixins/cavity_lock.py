@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -18,7 +18,7 @@ class CavityLockMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_cavity_lock: "DefaultStoredValueType | _cavity_lock.CavityLock" = DefaultStoredValue
+    _stored_cavity_lock: Union[DefaultStoredValueType, "_cavity_lock.CavityLock"] = DefaultStoredValue
 
     @property
     @_check_types.do

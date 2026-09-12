@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
@@ -172,7 +172,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
 
         return res
 
-    _stored_bundle: "_pjt_bundle.PJTBundle | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_bundle: Union["_pjt_bundle.PJTBundle", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -197,7 +197,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
 
         return self._stored_bundle
 
-    _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_concentric: Union["_pjt_concentric.PJTConcentric", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -219,7 +219,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
 
         return self._stored_concentric
 
-    _stored_transition: "_pjt_transition.PJTTransition | DefaultStoredValueType" = DefaultStoredValue
+    _stored_transition: Union["_pjt_transition.PJTTransition", DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -332,7 +332,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         self._table.update(self._db_id, diameter=value)
         self._populate('diameter')
 
-    _stored_part: "_transition_branch.TransitionBranch | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _transition_branch.TransitionBranch | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
     def reload_from_db(self):

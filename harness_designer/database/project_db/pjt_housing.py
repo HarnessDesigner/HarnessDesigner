@@ -812,7 +812,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def cavities(self) -> list["_pjt_cavity.PJTCavity"]:
+    def cavities(self) -> list[_pjt_cavity.PJTCavity]:
         """Return the cavities.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -897,11 +897,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return {c.db_id: geometry for c, geometry in zip(cavities, geometries)}
 
-    _stored_stack_geometry: "_cavity_layout.CavityStackGeometry" = None
+    _stored_stack_geometry: _cavity_layout.CavityStackGeometry = None
 
     @property
     @_check_types.do
-    def stack_geometry(self) -> "_cavity_layout.CavityStackGeometry":
+    def stack_geometry(self) -> _cavity_layout.CavityStackGeometry:
         """This housing's own font-driven cavity slot height and
         cavity-axis/text-axis extents (see
         ``geometry.cavity_layout.CavityStackGeometry``) -- everything
@@ -1031,7 +1031,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._stored_cavities = cavities
         self._stored_terminals = terminals
 
-    _stored_cover_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_cover_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1101,7 +1101,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, cover_point3d_id=value)
         self._populate('cover_position3d_id')
 
-    _stored_seal_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_seal_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1171,7 +1171,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, seal_point3d_id=value)
         self._populate('seal_position3d_id')
 
-    _stored_seal_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_seal_position_pegboard: _pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValue = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1237,7 +1237,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, seal_point_pegboard_id=value)
         self._populate('seal_position_pegboard_id')
 
-    _stored_boot_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_boot_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1307,7 +1307,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, boot_point3d_id=value)
         self._populate('boot_position3d_id')
 
-    _stored_tpa_lock_1_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_tpa_lock_1_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1377,7 +1377,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
         self._populate('tpa_lock_1_position3d_id')
 
-    _stored_tpa_lock_2_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_tpa_lock_2_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1447,7 +1447,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
         self._populate('tpa_lock_2_position3d_id')
 
-    _stored_cpa_lock_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_cpa_lock_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1549,7 +1549,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def seal(self) -> Union["_pjt_seal.PJTSeal", None]:
+    def seal(self) -> _pjt_seal.PJTSeal | None:
         """Return the seal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1569,7 +1569,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def cpa_lock(self) -> Union["_pjt_cpa_lock.PJTCPALock", None]:
+    def cpa_lock(self) -> _pjt_cpa_lock.PJTCPALock | None:
         """Return the CPA lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1589,7 +1589,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def tpa_lock1(self) -> Union["_pjt_tpa_lock.PJTTPALock", None]:
+    def tpa_lock1(self) -> _pjt_tpa_lock.PJTTPALock | None:
         """Return the TPA lock 1.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1605,7 +1605,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def tpa_lock2(self) -> Union["_pjt_tpa_lock.PJTTPALock", None]:
+    def tpa_lock2(self) -> _pjt_tpa_lock.PJTTPALock | None:
         """Return the TPA lock 2.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1621,7 +1621,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def tpa_locks(self) -> list["_pjt_tpa_lock.PJTTPALock"]:
+    def tpa_locks(self) -> list[_pjt_tpa_lock.PJTTPALock]:
         """Return the TPA locks.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1643,7 +1643,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def cover(self) -> Union["_pjt_cover.PJTCover", None]:
+    def cover(self) -> _pjt_cover.PJTCover | None:
         """Return the cover.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1663,7 +1663,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @property
     @_check_types.do
-    def boot(self) -> Union["_pjt_boot.PJTBoot", None]:
+    def boot(self) -> _pjt_boot.PJTBoot | None:
         """Return the boot.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1696,7 +1696,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     #         res.append(accessory)
     #     return res
 
-    _stored_part: "_housing.Housing | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_part: Union["_housing.Housing", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do

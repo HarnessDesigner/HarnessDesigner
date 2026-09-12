@@ -137,7 +137,7 @@ class IPRating(EntryBase):
 
         return self._stored_name
 
-    _stored_ip_solid: "DefaultStoredValueType | _solid.IPSolid" = DefaultStoredValue
+    _stored_ip_solid: DefaultStoredValueType | _solid.IPSolid = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -204,7 +204,7 @@ class IPRating(EntryBase):
 
         self._table.update(self._db_id, solid_id=value)
 
-    _stored_ip_fluid: "DefaultStoredValueType | _fluid.IPFluid" = DefaultStoredValue
+    _stored_ip_fluid: DefaultStoredValueType | _fluid.IPFluid = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -271,7 +271,7 @@ class IPRating(EntryBase):
 
         self._table.update(self._db_id, fluid_id=value)
 
-    _stored_ip_supp: "DefaultStoredValueType | _supp.IPSupp | None" = DefaultStoredValue
+    _stored_ip_supp: DefaultStoredValueType | _supp.IPSupp | None = DefaultStoredValue
 
     @property
     @_check_types.do

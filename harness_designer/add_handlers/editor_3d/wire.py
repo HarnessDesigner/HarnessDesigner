@@ -95,15 +95,15 @@ class Wire(_base.AddHandlerBase):
         self._extension_mode = extension_mode
         self._source_wire = source_wire
         self._source_endpoint = source_endpoint
-        self._extension_dir: "np.ndarray | None" = None
-        self._extension_origin: "np.ndarray | None" = None
-        self._extension_original_pos: "np.ndarray | None" = None
+        self._extension_dir: np.ndarray | None = None
+        self._extension_origin: np.ndarray | None = None
+        self._extension_original_pos: np.ndarray | None = None
 
         self._committed_layouts: list = []
         self._has_committed_waypoint = False
         self._session_waypoint_count = 0
 
-        self._snap_probes: "_wire_snap.SnapProbeSet | None" = None
+        self._snap_probes: _wire_snap.SnapProbeSet | None = None
         self._snap_probes_part_id: bytes | None = None
 
         self._extension_snap_kind: str | None = None
@@ -127,7 +127,7 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False

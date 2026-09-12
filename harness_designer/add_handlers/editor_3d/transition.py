@@ -46,7 +46,7 @@ class Transition(_base.AddHandlerBase):
         self._part_id = part_id
         self._part = part
         self._highlight_material = highlight_material
-        self._snapped_bundle: "_bundle.Bundle | None" = None
+        self._snapped_bundle: _bundle.Bundle | None = None
         self._finalized = False
 
     @property
@@ -57,7 +57,7 @@ class Transition(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False
@@ -143,7 +143,7 @@ class Transition(_base.AddHandlerBase):
         self._finalized = True
 
     @_check_types.do
-    def _commit(self, bundle: "_bundle.Bundle", snap_pos: _point.Point,
+    def _commit(self, bundle: _bundle.Bundle, snap_pos: _point.Point,
                 is_at_endpoint: bool, endpoint) -> None:
         from ...geometry import angle as _angle
         from ...handlers import transition_handler as _transition_handler

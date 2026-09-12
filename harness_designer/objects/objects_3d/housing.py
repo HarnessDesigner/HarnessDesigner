@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from dataclasses import dataclass
 
 from PySide6.QtWidgets import QMenu
@@ -742,7 +742,7 @@ class Housing(_base_3d.Base3D):
         self._draw_overlay_faces(shaders, ('surf', surf_idx), positions, color)
 
     @_check_types.do
-    def render_marker_overlay(self, shaders: "_shaders.ShaderProgram", marker: "_CavityMarker", color) -> None:
+    def render_marker_overlay(self, shaders: "_shaders.ShaderProgram", marker: _CavityMarker, color) -> None:
         """Draw an override-color overlay on one synthetic cavity marker --
         the marker equivalent of ``render_surface_overlay``. Used by a
         placed terminal to color-match its cavity's synthetic wire-side
@@ -845,7 +845,7 @@ class Housing(_base_3d.Base3D):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> "_housing.Housing | None":
+    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_housing.Housing", None]:
         """Resolve the part (a preselected part-library row wins over the
         dialog, same as every other Add* entry point), build the real
         facade at a placeholder position, and arm its single-click
@@ -901,7 +901,7 @@ class Housing(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add) the same way
         every migrated object type does -- falls back to Base3D's own

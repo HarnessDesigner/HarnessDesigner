@@ -20,7 +20,7 @@ class ColorMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_color: "DefaultStoredValueType | _color.Color" = DefaultStoredValue
+    _stored_color: Union[DefaultStoredValueType, "_color.Color"] = DefaultStoredValue
 
     @property
     @_check_types.do

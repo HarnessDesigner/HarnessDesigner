@@ -212,11 +212,11 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
         """
         return self._table
 
-    _stored_part: "_cover.Cover | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _cover.Cover | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def part(self) -> "_cover.Cover":
+    def part(self) -> _cover.Cover:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

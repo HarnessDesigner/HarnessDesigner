@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -18,7 +18,7 @@ class DirectionMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_direction: "DefaultStoredValueType | _direction.Direction" = DefaultStoredValue
+    _stored_direction: Union[DefaultStoredValueType, "_direction.Direction"] = DefaultStoredValue
 
     @property
     @_check_types.do

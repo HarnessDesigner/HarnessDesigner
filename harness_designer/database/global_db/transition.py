@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -344,7 +344,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         """
         self._stored_branches = DefaultStoredValue
 
-    _stored_shape: "DefaultStoredValueType | _shape.Shape" = DefaultStoredValue
+    _stored_shape: Union[DefaultStoredValueType, "_shape.Shape"] = DefaultStoredValue
 
     @property
     @_check_types.do

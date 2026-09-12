@@ -10,7 +10,7 @@ the cover with the project -- ``hover`` only ever moves anything in the
 free-placement case.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...handlers import handler_base as _handler_base
@@ -31,7 +31,7 @@ class Cover(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-        housing: "_housing.Housing | None", project_housings: list
+        housing: Union["_housing.Housing", None], project_housings: list
     ):
         super().__init__(canvas, target)
 
@@ -51,7 +51,7 @@ class Cover(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False

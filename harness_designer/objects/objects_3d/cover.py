@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtWidgets import QMenu
 
@@ -103,8 +103,8 @@ class Cover(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing | None" = None
-    ) -> "_cover.Cover | None":
+        cls, mainframe: "_ui.MainFrame", housing: Union["_housing.Housing", None] = None
+    ) -> Union["_cover.Cover", None]:
         """Ported from handlers.cover_handler.AddCoverHandler -- always
         interactive (even the housing-given case waits for a confirming
         click, it just has nothing to move -- see
@@ -198,7 +198,7 @@ class Cover(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

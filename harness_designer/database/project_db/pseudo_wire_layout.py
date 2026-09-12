@@ -45,7 +45,7 @@ below for why that has to be a real subclass) while never touching a
 real database row.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 
 from .pjt_wire_layout import PJTWireLayout
@@ -128,21 +128,21 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     _table = None
 
-    snap_terminal: "_terminal.Terminal | None" = None
-    snap_wire: "_wire.Wire | None" = None
+    snap_terminal: Union["_terminal.Terminal", None] = None
+    snap_wire: Union["_wire.Wire", None] = None
     snap_end: str | None = None
-    snap_splice: "_splice.Splice | None" = None
+    snap_splice: Union["_splice.Splice", None] = None
 
-    _position: "_point.Point | None" = None
-    _position_pegboard: "_point.Point | None" = None
-    _wire_part: "_global_wire.Wire | None" = None
+    _position: _point.Point | None = None
+    _position_pegboard: _point.Point | None = None
+    _wire_part: Union["_global_wire.Wire", None] = None
 
-    def configure(self, position: "_point.Point", wire_part: "_global_wire.Wire",
-                  terminal: "_terminal.Terminal | None" = None,
-                  wire: "_wire.Wire | None" = None,
+    def configure(self, position: _point.Point, wire_part: "_global_wire.Wire",
+                  terminal: Union["_terminal.Terminal", None] = None,
+                  wire: Union["_wire.Wire", None] = None,
                   end: str | None = None,
-                  splice: "_splice.Splice | None" = None,
-                  position_pegboard: "_point.Point | None" = None) -> None:
+                  splice: Union["_splice.Splice", None] = None,
+                  position_pegboard: _point.Point | None = None) -> None:
         self._position = position
         self._position_pegboard = position_pegboard
         self._wire_part = wire_part
@@ -205,7 +205,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         pass
 
     @property
-    def position_pegboard(self) -> "_point.Point | None":
+    def position_pegboard(self) -> _point.Point | None:
         # Real, configured position now (mirrors position3d) when this
         # probe was built for a peg-board session -- see configure()'s
         # own position_pegboard parameter. Still None otherwise: a real,
@@ -232,10 +232,10 @@ class PseudoPJTWireLayout(PJTWireLayout):
     def position_pegboard_id(self, value: bytes):
         pass
 
-    _position2d: "_point.Point | None" = None
+    _position2d: _point.Point | None = None
 
     @property
-    def position2d(self) -> "_point.Point":
+    def position2d(self) -> _point.Point:
         # A real Point, never None -- objects_schematic.wire_layout.WireLayout's
         # constructor unconditionally passes this straight into
         # BaseSchematic.__init__ (this probe never actually renders in the 2D
@@ -260,7 +260,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         pass
 
     @property
-    def position3d(self) -> "_point.Point | None":
+    def position3d(self) -> _point.Point | None:
         return self._position
 
     @property

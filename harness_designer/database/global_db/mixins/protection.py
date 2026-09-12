@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
@@ -49,7 +49,7 @@ class ProtectionMixin(BaseMixin):
         self._table.update(self._db_id, protection_id=value)
         self._populate('protection_id')
 
-    _stored_protections: "DefaultStoredValueType | _protection.Protection" = DefaultStoredValue
+    _stored_protections: Union[DefaultStoredValueType, "_protection.Protection"] = DefaultStoredValue
 
     @property
     @_check_types.do

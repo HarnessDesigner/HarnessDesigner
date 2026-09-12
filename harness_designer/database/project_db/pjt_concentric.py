@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
@@ -159,7 +159,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         """
         return self._table
 
-    _stored_bundle: "_pjt_bundle.PJTBundle | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_bundle: Union["_pjt_bundle.PJTBundle", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -213,7 +213,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         self._table.update(self._db_id, bundle_id=value)
         self._populate('bundle_id')
 
-    _stored_transition_branch: "_pjt_transition_branches.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_transition_branch: Union["_pjt_transition_branches.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

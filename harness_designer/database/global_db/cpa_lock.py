@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -321,7 +321,7 @@ class CPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     _table: CPALocksTable = None
 
-    _stored_type: "DefaultStoredValueType | _cpa_lock_type.CPALockType" = DefaultStoredValue
+    _stored_type: Union[DefaultStoredValueType, "_cpa_lock_type.CPALockType"] = DefaultStoredValue
 
     @property
     @_check_types.do

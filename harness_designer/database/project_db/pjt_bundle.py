@@ -338,7 +338,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return res
     
-    _stored_concentric: "_pjt_concentric.PJTConcentric | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_concentric: Union["_pjt_concentric.PJTConcentric", None, DefaultStoredValueType] = DefaultStoredValue
     
     @property
     @_check_types.do
@@ -390,7 +390,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return self._table.db.pjt_bundle_layouts_table[db_ids[0][0]]
 
-    _stored_part: "_bundle_cover.BundleCover | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_part: _bundle_cover.BundleCover | DefaultStoredValueType | None = DefaultStoredValue
     
     @property
     @_check_types.do

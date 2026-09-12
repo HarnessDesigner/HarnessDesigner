@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import math
 
@@ -529,9 +529,9 @@ class Wire(_base_schematic.BaseSchematic):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", terminal: "_terminal_facade.Terminal | None" = None,
-        splice: "_splice_facade.Splice | None" = None
-    ) -> "_wire.Wire | None":
+        cls, mainframe: "_ui.MainFrame", terminal: Union["_terminal_facade.Terminal", None] = None,
+        splice: Union["_splice_facade.Splice", None] = None
+    ) -> Union["_wire.Wire", None]:
         """Terminal/splice-pinned wire placement, ported from
         handlers.wire_handler_2d.AddWireHandler2D -- see
         add_handlers.editor_schematic.wire's own module docstring for why
@@ -629,7 +629,7 @@ class Wire(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Add-session check first (see start_add), then falls through
         to this class's own existing interior-segment drag handling

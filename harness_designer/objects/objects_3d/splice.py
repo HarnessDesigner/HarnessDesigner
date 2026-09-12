@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import math
 from PySide6.QtWidgets import QMenu
@@ -145,8 +145,8 @@ class Splice(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", wire: "_wire_facade.Wire | None" = None
-    ) -> "_splice.Splice | None":
+        cls, mainframe: "_ui.MainFrame", wire: Union["_wire_facade.Wire", None] = None
+    ) -> Union["_splice.Splice", None]:
         """Wire-snapping splice placement, ported from
         handlers.splice_handler.AddSpliceHandler. Always interactive --
         unlike Terminal's cavity-given Mode 1, there is no "everything
@@ -235,7 +235,7 @@ class Splice(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

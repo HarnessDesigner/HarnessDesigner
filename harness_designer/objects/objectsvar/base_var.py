@@ -41,7 +41,7 @@ class BaseVar:
     # narrower, to its own actual type, at the class level (not just in
     # __init__'s own parameter annotation, which every subclass shares
     # regardless of which one it actually ends up holding).
-    _vbo: "_vbo_base.VBOHandlerBase | None" = None
+    _vbo: _vbo_base.VBOHandlerBase | None = None
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
@@ -890,9 +890,7 @@ class BaseVar:
         return self._active_handler is not None
 
     @_check_types.do
-    def _render_geometry(self, program: Union["_shader_program.FacesProgram",
-                                               "_shader_program.EdgesProgram",
-                                               "_shader_program.VerticesProgram"]):
+    def _render_geometry(self, program: Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"]):
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).

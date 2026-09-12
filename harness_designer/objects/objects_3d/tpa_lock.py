@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtWidgets import QMenu
 
@@ -69,8 +69,8 @@ class TPALock(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing | None" = None
-    ) -> "_tpa_lock.TPALock | None":
+        cls, mainframe: "_ui.MainFrame", housing: Union["_housing.Housing", None] = None
+    ) -> Union["_tpa_lock.TPALock", None]:
         """Ported from handlers.tpa_lock_handler.AddTPALockHandler."""
         from ...handlers import handler_base as _handler_base
         from ...ui.dialogs import part_search as _part_search
@@ -167,7 +167,7 @@ class TPALock(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

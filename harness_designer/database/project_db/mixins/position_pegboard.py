@@ -14,7 +14,7 @@ class PositionPegboardMixin(BaseMixin):
     ``position3d``'s own lazy default) the first time it's needed.
     """
 
-    _stored_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_position_pegboard: _pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do

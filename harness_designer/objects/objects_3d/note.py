@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtWidgets import QMenu
 from PySide6.QtCore import QTimer
@@ -37,7 +37,7 @@ class Note(_base_3d.Base3D):
     # Narrower than BaseVar's own generic `_vbo.VBOHandlerBase | None`
     # -- this object's only visible content is the Text label it owns
     # (see __init__), never a real mesh VBO.
-    _vbo: "_text.Text | None" = None
+    _vbo: _text.Text | None = None
 
     @_check_types.do
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
@@ -143,7 +143,7 @@ class Note(_base_3d.Base3D):
             pass
 
     @_check_types.do
-    def _build_label(self) -> "_text.Text":
+    def _build_label(self) -> _text.Text:
         """Build this note's own text label, from this note's live
         db_obj fields.
 
@@ -298,7 +298,7 @@ class Note(_base_3d.Base3D):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> "_note.Note | None":
+    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_note.Note", None]:
         """Gather the note's text/formatting via the modal dialog (always
         shown -- unlike a part-search pick, there's no preselected-value
         shortcut), build the real facade at a placeholder position, and
@@ -346,7 +346,7 @@ class Note(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

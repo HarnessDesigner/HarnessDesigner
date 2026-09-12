@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -290,7 +290,7 @@ class Splice(EntryBase, PartNumberMixin, DescriptionMixin, ManufacturerMixin,
 
     _table: SplicesTable = None
 
-    _stored_type: "DefaultStoredValueType | _splice_types.SpliceType" = DefaultStoredValue
+    _stored_type: Union[DefaultStoredValueType, "_splice_types.SpliceType"] = DefaultStoredValue
 
     @property
     @_check_types.do

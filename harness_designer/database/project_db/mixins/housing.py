@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
@@ -16,7 +16,7 @@ class HousingMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_housing: "DefaultStoredValueType | _pjt_housing.PJTHousing | None" = DefaultStoredValue
+    _stored_housing: Union[DefaultStoredValueType, "_pjt_housing.PJTHousing", None] = DefaultStoredValue
 
     @property
     @_check_types.do

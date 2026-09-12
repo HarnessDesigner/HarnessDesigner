@@ -228,11 +228,11 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
         """
         return self._table
 
-    _stored_part: "_boot.Boot | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_part: _boot.Boot | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
-    def part(self) -> "_boot.Boot":
+    def part(self) -> _boot.Boot:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

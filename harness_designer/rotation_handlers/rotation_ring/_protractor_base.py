@@ -714,7 +714,7 @@ class ProtractorRingBase:
                                   rotation, label_scale, False)
 
     @_check_types.do
-    def _disc_rotation(self) -> "_angle.Angle":
+    def _disc_rotation(self) -> _angle.Angle:
         """
         Subclasses provide whatever orientation the washer itself
         should render with -- the inner ring's tracks the object, the
@@ -730,7 +730,7 @@ class ProtractorRingBase:
     @staticmethod
     @_check_types.do
     def _set_solid_color(faces_program,
-                         color: "tuple[float, float, float]") -> None:
+                         color: tuple[float, float, float]) -> None:
 
         faces_program.material_diffuse = [color[0], color[1], color[2], 1.0]
         faces_program.material_emissive = [color[0], color[1], color[2], 1.0]
@@ -747,7 +747,7 @@ class ProtractorRingBase:
         return None
 
     @_check_types.do
-    def tick_at_angle(self, degrees: float) -> "_Tick | None":
+    def tick_at_angle(self, degrees: float) -> _Tick | None:
         """
         Return the tick nearest *degrees* (wrapped to 0-360), or
         ``None`` if there are no ticks (shouldn't happen -- present for

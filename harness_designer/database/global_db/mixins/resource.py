@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 
@@ -20,10 +20,10 @@ class ResourceMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_cad_obj: "DefaultStoredValueType | _cad_mod.CAD | None" = DefaultStoredValue
+    _stored_cad_obj: Union[DefaultStoredValueType, "_cad_mod.CAD", None] = DefaultStoredValue
 
     @_check_types.do
-    def _get_cad_obj(self) -> "_cad_mod.CAD | None":
+    def _get_cad_obj(self) -> Union["_cad_mod.CAD", None]:
         """Return (and cache) the related CAD row, shared by ``cad``/``cad_type``."""
         if self._stored_cad_obj is DefaultStoredValue:
             cad_id = self.cad_id
@@ -98,10 +98,10 @@ class ResourceMixin(BaseMixin):
         self._table.update(self._db_id, cad_id=value)
         self._populate('cad_id')
 
-    _stored_image_obj: "DefaultStoredValueType | _image_mod.Image | None" = DefaultStoredValue
+    _stored_image_obj: Union[DefaultStoredValueType, "_image_mod.Image", None] = DefaultStoredValue
 
     @_check_types.do
-    def _get_image_obj(self) -> "_image_mod.Image | None":
+    def _get_image_obj(self) -> Union["_image_mod.Image", None]:
         """Return (and cache) the related Image row, shared by ``image``/``image_type``."""
         if self._stored_image_obj is DefaultStoredValue:
             image_id = self.image_id
@@ -176,10 +176,10 @@ class ResourceMixin(BaseMixin):
         self._table.update(self._db_id, image_id=value)
         self._populate('image_id')
 
-    _stored_datasheet_obj: "DefaultStoredValueType | _datasheet_mod.Datasheet | None" = DefaultStoredValue
+    _stored_datasheet_obj: Union[DefaultStoredValueType, "_datasheet_mod.Datasheet", None] = DefaultStoredValue
 
     @_check_types.do
-    def _get_datasheet_obj(self) -> "_datasheet_mod.Datasheet | None":
+    def _get_datasheet_obj(self) -> Union["_datasheet_mod.Datasheet", None]:
         """Return (and cache) the related Datasheet row, shared by ``datasheet``/``datasheet_type``."""
         if self._stored_datasheet_obj is DefaultStoredValue:
             datasheet_id = self.datasheet_id

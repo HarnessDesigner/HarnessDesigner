@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 
 from .... import utils as _utils
@@ -20,7 +20,7 @@ class Model3DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_model3d: "DefaultStoredValueType | _model3d.Model3D | None" = DefaultStoredValue
+    _stored_model3d: Union[DefaultStoredValueType, "_model3d.Model3D", None] = DefaultStoredValue
 
     @property
     @_check_types.do

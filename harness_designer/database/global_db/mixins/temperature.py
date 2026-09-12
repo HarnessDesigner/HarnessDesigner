@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
@@ -17,7 +17,7 @@ class TemperatureMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_min_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
+    _stored_min_temp: Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -71,7 +71,7 @@ class TemperatureMixin(BaseMixin):
         self._table.update(self._db_id, min_temp_id=value)
         self._populate('min_temp_id')
 
-    _stored_max_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
+    _stored_max_temp: Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
 
     @property
     @_check_types.do

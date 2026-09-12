@@ -97,7 +97,7 @@ def _closest_segment_index(positions: list, click_x: float, click_z: float) -> i
 
 
 @_check_types.do
-def plan_segment_drag(project, chain_db_obj, click_pos: _point.Point) -> "SegmentDragPlan | None":
+def plan_segment_drag(project, chain_db_obj, click_pos: _point.Point) -> SegmentDragPlan | None:
     """Work out what a click on *chain_db_obj*'s rendered strand at
     *click_pos* should drag.
 

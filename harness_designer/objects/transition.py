@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -61,7 +61,7 @@ class Transition(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def bundle_at(self, branch_id: int) -> "_bundle_obj.Bundle | None":
+    def bundle_at(self, branch_id: int) -> Union["_bundle_obj.Bundle", None]:
         """Return the Bundle attached at *branch_id* (1-6), or None."""
         ref = self._bundle_refs.get(branch_id)
         return None if ref is None else ref()

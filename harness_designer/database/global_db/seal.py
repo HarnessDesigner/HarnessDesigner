@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import uuid
 
@@ -493,7 +493,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, i_dia=self._stored_i_dia)
         self._populate('i_dia')
 
-    _stored_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
+    _stored_type: Union[DefaultStoredValueType, "_seal_type.SealType"] = DefaultStoredValue
 
     @property
     @_check_types.do

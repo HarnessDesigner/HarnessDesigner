@@ -31,7 +31,7 @@ second line of defense).
 """
 
 import uuid as _uuid_module
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt
@@ -95,10 +95,10 @@ class SnapOverlay(QLabel):
 
 @_check_types.do
 def _make_probe(mainframe: "_ui.MainFrame", position, wire_part: "_global_wire.Wire",
-                 terminal: "_terminal.Terminal | None" = None,
-                 wire: "_wire.Wire | None" = None,
+                 terminal: Union["_terminal.Terminal", None] = None,
+                 wire: Union["_wire.Wire", None] = None,
                  end: str | None = None,
-                 splice: "_splice.Splice | None" = None,
+                 splice: Union["_splice.Splice", None] = None,
                  position_pegboard=None) -> _wire_layout.WireLayout:
     """Construct and register one invisible snap probe.
 
@@ -305,7 +305,7 @@ class SnapProbeSet:
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", wire_part: "_global_wire.Wire",
-                 exclude_wire: "_wire.Wire | None" = None, view: str = '3d'):
+                 exclude_wire: Union["_wire.Wire", None] = None, view: str = '3d'):
         """
         :param view: ``'3d'`` (default) builds probes at every target's
             own ``*_position3d`` point, pickable only in the 3D view --

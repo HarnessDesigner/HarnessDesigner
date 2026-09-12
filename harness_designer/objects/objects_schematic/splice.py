@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtWidgets import QMenu
 
@@ -90,8 +90,8 @@ class Splice(_base_schematic.BaseSchematic):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", wire: "_wire_facade.Wire | None" = None
-    ) -> "_splice.Splice | None":
+        cls, mainframe: "_ui.MainFrame", wire: Union["_wire_facade.Wire", None] = None
+    ) -> Union["_splice.Splice", None]:
         """Wire-snapping splice placement, schematic-native -- see
         add_handlers.editor_schematic.splice's own module docstring for
         how the cut position is derived. Mirrors
@@ -168,7 +168,7 @@ class Splice(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to BaseSchematic's own generic drag handling otherwise.

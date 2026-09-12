@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import math
 import numpy as np
@@ -194,7 +194,7 @@ class Wire(_base_pegboard.BasePegboard):
 
     @staticmethod
     @_check_types.do
-    def _rotation_from_direction(direction) -> "_angle.Angle":
+    def _rotation_from_direction(direction) -> _angle.Angle:
         """Rotate the unit cylinder's local +Z axis to point along
         *direction* -- mirrors objects_3d.wire.Wire._rotation_from_
         direction exactly (same math, same reasoning); duplicated
@@ -259,7 +259,7 @@ class Wire(_base_pegboard.BasePegboard):
         self._compute_aabb()
 
     @_check_types.do
-    def _update_position(self, _: "_point.Point | None"):
+    def _update_position(self, _: _point.Point | None):
         """Recompute geometry immediately, not deferred to the next
         render pass -- bound to the start/stop endpoints and every
         interior waypoint (see :meth:`_bind_waypoints`).
@@ -371,7 +371,7 @@ class Wire(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Segment drag -- overrides BasePegboard's generic single-
         position drag outright: a click on the wire's rendered strand
@@ -431,7 +431,7 @@ class Wire(_base_pegboard.BasePegboard):
     @_check_types.do
     def start_add(
         cls, mainframe, terminal=None, splice=None, preset_part_id: bytes = None
-    ) -> "_wire.Wire | None":
+    ) -> Union["_wire.Wire", None]:
         """Entry point for every way a peg-board wire-placement session
         can start -- a raw click-to-start (all args ``None``: the first
         click itself resolves the start end, mirroring
@@ -510,7 +510,7 @@ class Wire(_base_pegboard.BasePegboard):
 
     @classmethod
     @_check_types.do
-    def _start_from_terminal(cls, mainframe, canvas, terminal, part_id: bytes) -> "_wire.Wire | None":
+    def _start_from_terminal(cls, mainframe, canvas, terminal, part_id: bytes) -> Union["_wire.Wire", None]:
         """Pin the preview wire's start to *terminal* and enter phase 1
         directly -- mirrors ``objects_3d.wire.Wire._start_from_terminal``.
         """
@@ -535,7 +535,7 @@ class Wire(_base_pegboard.BasePegboard):
 
     @classmethod
     @_check_types.do
-    def _start_from_splice(cls, mainframe, canvas, splice, part_id: bytes) -> "_wire.Wire | None":
+    def _start_from_splice(cls, mainframe, canvas, splice, part_id: bytes) -> Union["_wire.Wire", None]:
         """Pin the preview wire's start to *splice*'s own branch point
         and enter phase 1 directly -- mirrors
         ``objects_3d.wire.Wire._start_from_splice``.
@@ -569,7 +569,7 @@ class Wire(_base_pegboard.BasePegboard):
 
     @classmethod
     @_check_types.do
-    def _start_free_space(cls, mainframe, canvas, part_id: bytes) -> "_wire.Wire | None":
+    def _start_free_space(cls, mainframe, canvas, part_id: bytes) -> Union["_wire.Wire", None]:
         """Build the preview wire eagerly, at placeholder points the
         first hover call immediately relocates to the cursor -- mirrors
         ``objects_3d.wire.Wire._start_free_space``.

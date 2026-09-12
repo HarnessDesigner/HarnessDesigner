@@ -43,7 +43,7 @@ class Note(_base_schematic.BaseSchematic):
     # Narrower than BaseVar's own generic `_vbo.VBOHandlerBase | None`
     # -- this object's only visible content is the Text label it owns
     # (see __init__), never a real mesh VBO.
-    _vbo: "_text.Text | None" = None
+    _vbo: _text.Text | None = None
 
     @_check_types.do
     def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
@@ -119,7 +119,7 @@ class Note(_base_schematic.BaseSchematic):
             pass
 
     @_check_types.do
-    def _build_label(self) -> "_text.Text":
+    def _build_label(self) -> _text.Text:
         """Build this note's own text label, from this note's live
         db_obj fields -- see objects_3d.note.Note._build_label's own
         docstring for the one real behavior change from the old

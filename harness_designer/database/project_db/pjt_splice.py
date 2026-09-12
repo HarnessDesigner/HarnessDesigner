@@ -5,7 +5,7 @@
 #       single splice point and the number of connected wires would be
 #       dictated by the diameter of the splice
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
 from PySide6.QtWidgets import QTabWidget
@@ -37,6 +37,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
+    from . import pjt_point3d as _pjt_point3d
+    from . import pjt_point_pegboard as _pjt_point_pegboard
     from ...objects import splice as _splice_obj
 
 
@@ -295,7 +297,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return [start_wires, stop_wires, branch_wires]
 
-    _stored_branch_position3d: "_pjt_point3d.PJTPoint3D | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -355,7 +357,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         self._table.update(self._db_id, branch_point3d_id=value)
         self._populate('branch_position3d_id')
 
-    _stored_branch_position_pegboard: "_pjt_point_pegboard.PJTPointPegboard | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -411,11 +413,11 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         self._table.update(self._db_id, branch_point_pegboard_id=value)
         self._populate('branch_position_pegboard_id')
 
-    _stored_circuit: "_pjt_circuit.PJTCircuit | DefaultStoredValueType" = DefaultStoredValue
+    _stored_circuit: _pjt_circuit.PJTCircuit | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
-    def circuit(self) -> "_pjt_circuit.PJTCircuit":
+    def circuit(self) -> _pjt_circuit.PJTCircuit:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -474,7 +476,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         """
         return self.part.resistance
 
-    _stored_part: "_splice.Splice | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _splice.Splice | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

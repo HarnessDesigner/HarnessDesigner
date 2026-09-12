@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
@@ -151,7 +151,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         """
         return self._table
 
-    _stored_layer: "_pjt_concentric_layer.PJTConcentricLayer | DefaultStoredValueType" = DefaultStoredValue
+    _stored_layer: Union["_pjt_concentric_layer.PJTConcentricLayer", DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -264,7 +264,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         self._table.update(self._db_id, is_filler=int(value))
         self._populate('is_filler')
 
-    _stored_wire: "_pjt_wire.PJTWire | DefaultStoredValueType" = DefaultStoredValue
+    _stored_wire: Union["_pjt_wire.PJTWire", DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

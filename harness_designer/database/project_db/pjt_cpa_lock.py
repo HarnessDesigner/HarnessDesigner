@@ -213,11 +213,11 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
         """
         return self._table
 
-    _stored_part: "_cpa_lock.CPALock | None | DefaultStoredValue" = DefaultStoredValue
+    _stored_part: _cpa_lock.CPALock | None | DefaultStoredValue = DefaultStoredValue
 
     @property
     @_check_types.do
-    def part(self) -> "_cpa_lock.CPALock":
+    def part(self) -> _cpa_lock.CPALock:
         """Return the part.
 
         UNKNOWN details are inferred from the callable name and signature.

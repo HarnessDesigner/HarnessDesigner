@@ -244,7 +244,7 @@ class PJTTPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3D
         """
         return self._table
 
-    _stored_part: "_tpa_lock.TPALock | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _tpa_lock.TPALock | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

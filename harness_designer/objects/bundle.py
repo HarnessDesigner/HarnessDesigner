@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -61,20 +61,20 @@ class Bundle(_ObjectBase):
 
     @property
     @_check_types.do
-    def start_sibling(self) -> "_transition_obj.Transition | None":
+    def start_sibling(self) -> Union["_transition_obj.Transition", None]:
         """Whatever this bundle's start end attaches to (a Transition), or
         None for a dangling/free-space end."""
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
     @_check_types.do
-    def stop_sibling(self) -> "_transition_obj.Transition | None":
+    def stop_sibling(self) -> Union["_transition_obj.Transition", None]:
         """Whatever this bundle's stop end attaches to (a Transition), or
         None for a dangling/free-space end."""
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @_check_types.do
-    def set_sibling(self, other: "_transition_obj.Transition | None", end: str) -> None:
+    def set_sibling(self, other: Union["_transition_obj.Transition", None], end: str) -> None:
         """Record *other* as what this bundle's *end* ('start' or 'stop')
         attaches to.
 

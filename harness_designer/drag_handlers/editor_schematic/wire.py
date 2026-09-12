@@ -114,7 +114,7 @@ def _find_layout(project, point) -> object | None:
 
 
 @_check_types.do
-def plan_wire_segment_drag(wire: "_objects.ObjectBase", world_click: tuple) -> "WireSegmentDragPlan | None":
+def plan_wire_segment_drag(wire: "_objects.ObjectBase", world_click: tuple) -> WireSegmentDragPlan | None:
     """Work out what a click on *wire*'s rendered strand at *world_click*
     (an ``(x, z)`` world position) should drag -- see the module
     docstring for the full rule. None if the click's nearest segment

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -144,7 +144,7 @@ class TransitionBranch(EntryBase, NameMixin):
     """
     _table: TransitionBranchesTable = None
 
-    _stored_transition: "DefaultStoredValueType | _transition.Transition" = DefaultStoredValue
+    _stored_transition: Union[DefaultStoredValueType, "_transition.Transition"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -213,7 +213,7 @@ class TransitionBranch(EntryBase, NameMixin):
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
 
-    _stored_bulb_offset: "_point.Point | DefaultStoredValueType" = DefaultStoredValue
+    _stored_bulb_offset: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -430,7 +430,7 @@ class TransitionBranch(EntryBase, NameMixin):
         self._table.update(self._db_id, angle=float(value))
         self._populate('angle')
 
-    _stored_offset: "_point.Point | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_offset: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

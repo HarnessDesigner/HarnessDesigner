@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import ColorMixin
@@ -312,7 +312,7 @@ class Project(PJTEntryBase, ColorMixin):
 
         self._table.update(self._db_id, model_id=value)
 
-    _stored_model: "_model3d.Model3D | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_model: Union["_model3d.Model3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do

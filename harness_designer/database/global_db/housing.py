@@ -716,7 +716,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._table.update(self._db_id, compat_tpas=value)
         self._populate('compat_tpas_array')
 
-    _stored_ip_rating: "DefaultStoredValueType | _ip.IPRating" = DefaultStoredValue
+    _stored_ip_rating: DefaultStoredValueType | _ip.IPRating = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -766,7 +766,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._table.update(self._db_id, ip_rating_id=value)
         self._populate('ip_rating_id')
 
-    _stored_cavity_lock: "DefaultStoredValueType | _cavity_lock.CavityLock" = DefaultStoredValue
+    _stored_cavity_lock: DefaultStoredValueType | _cavity_lock.CavityLock = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -816,7 +816,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._table.update(self._db_id, cavity_lock_id=value)
         self._populate('cavity_lock_id')
 
-    _stored_seal_type: "DefaultStoredValueType | _seal_type.SealType" = DefaultStoredValue
+    _stored_seal_type: DefaultStoredValueType | _seal_type.SealType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -869,7 +869,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._table.update(self._db_id, seal_type_id=value)
         self._populate('seal_type_id')
 
-    _stored_cpa_lock_type: "DefaultStoredValueType | _cpa_lock_type.CPALockType" = DefaultStoredValue
+    _stored_cpa_lock_type: DefaultStoredValueType | _cpa_lock_type.CPALockType = DefaultStoredValue
 
     @property
     @_check_types.do

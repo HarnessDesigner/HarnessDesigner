@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 import weakref
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 import os
 import uuid
@@ -317,7 +317,7 @@ class Model3D(EntryBase):
         self._stored_size = DefaultStoredValue
         self._table.update(self._db_id, obb=str(value))
 
-    _stored_file_type: "DefaultStoredValueType | _file_types.FileType | None" = DefaultStoredValue
+    _stored_file_type: Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
 
     @property
     @_check_types.do

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import os
 from PySide6.QtWidgets import QMenu
@@ -464,7 +464,7 @@ class Terminal(_base_3d.Base3D):
     def start_add(
         cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing" = None,
         cavity: "_cavity.Cavity" = None
-    ) -> "_terminal.Terminal | None":
+    ) -> Union["_terminal.Terminal", None]:
         """Three placement modes, exactly matching
         handlers.terminal_handler.AddTerminalHandler's own docstring:
 
@@ -640,7 +640,7 @@ class Terminal(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.

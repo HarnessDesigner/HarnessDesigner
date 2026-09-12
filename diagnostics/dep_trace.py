@@ -7,13 +7,14 @@ overrides relate to their superclass implementation.
 Usage::
 
     python diagnostics/dep_trace.py <file_or_dir> [--depth shallow|deep] [--name PATTERN] [--local] [--json]
-    python diagnostics/dep_trace.py <file_or_dir> --types       [--name PATTERN] [--json]
-    python diagnostics/dep_trace.py <file_or_dir> --calls       [--name PATTERN] [--json]
-    python diagnostics/dep_trace.py <file_or_dir> --overrides   [--name PATTERN] [--json]
-    python diagnostics/dep_trace.py <file_or_dir> --imported-by [--name PATTERN] [--json]
+    python diagnostics/dep_trace.py <file_or_dir> --types        [--name PATTERN] [--json]
+    python diagnostics/dep_trace.py <file_or_dir> --string-types [--name PATTERN] [--json]
+    python diagnostics/dep_trace.py <file_or_dir> --calls        [--name PATTERN] [--json]
+    python diagnostics/dep_trace.py <file_or_dir> --overrides    [--name PATTERN] [--json]
+    python diagnostics/dep_trace.py <file_or_dir> --imported-by  [--name PATTERN] [--json]
 
-``target`` (a file or directory) and the four mode flags (``--types``, ``--calls``,
-``--overrides``, ``--imported-by``) can appear in any order on the command line. The filter
+``target`` (a file or directory) and the five mode flags (``--types``, ``--string-types``,
+``--calls``, ``--overrides``, ``--imported-by``) can appear in any order on the command line. The filter
 pattern for whichever mode(s) are active is always given via the separate ``--name PATTERN``
 flag, never attached to a mode flag itself -- this is deliberate: an early version let the mode
 flags optionally take their own trailing value (``--imported-by [NAME]``), but that is ambiguous
@@ -23,7 +24,7 @@ positional ``target``, and silently consumes it as the former, leaving ``target`
 Splitting the filter into its own always-named flag removes the ambiguity entirely, independent
 of argument order.
 
-Any combination of the four mode flags can be given together in one run, sharing the one
+Any combination of the five mode flags can be given together in one run, sharing the one
 ``--name`` filter -- e.g. ``--calls --overrides --name __init__`` runs both and reports both.
 Each mode still runs exactly as it would alone (results are identical either way); only the
 output shape changes once more than one mode is active: text output prints one ``== --mode ==``
@@ -65,7 +66,23 @@ and variable (``AnnAssign``) annotations and reports every location a given
 type is used, e.g. "every function that takes a ``Housing3D`` parameter" --
 handy when changing a class and needing to find every call site that would
 need updating. Pass ``--types`` alone to dump the whole index, or add
-``--name SomeClass`` to filter to types matching that pattern.
+``--name SomeClass`` to filter to types matching that pattern. Note that
+``--types`` normalizes a quoted forward reference (``x: "Housing3D"``) and a
+plain one (``x: Housing3D``) into the same entry -- it answers "where is
+``Housing3D`` used as a type," not "was it quoted." Use ``--string-types``
+when the quoting itself is what you're after.
+
+String-type mode (``--string-types``) scans the exact same annotation
+locations as ``--types`` (parameter/return annotations, ``AnnAssign``
+variable annotations) but reports only the ones where a string literal is
+doing the work of a type -- a forward reference, whether bare
+(``x: "Housing3D"``) or nested inside a subscript (``Optional["Housing3D"]``,
+``Dict[str, "Housing3D"]``, ``Union["A", "B"]``). Each result gives the
+file:line of the literal itself, the enclosing function/variable, and the
+full annotation source so you can see the quoting in context. Pass
+``--string-types`` alone to dump every such site under the target, or add
+``--name PATTERN`` to filter by the literal's text (e.g. ``--name Housing3D``)
+or by anything else appearing in the unparsed annotation source.
 
 Definition-lookup mode (no mode flag, but ``--name`` given) finds every
 class/function/method definition whose name matches it, with its file:line
@@ -398,6 +415,73 @@ def collect_type_usages(tree: ast.Module, file_path: str) -> list[TypeUsage]:
     return usages
 
 
+@dataclass
+class StringTypeUsage:
+    file: str
+    qualname: str
+    role: str
+    member: str | None
+    lineno: int
+    literal: str
+    annotation_source: str
+
+
+def _string_constants_in_annotation(annotation: ast.AST) -> list[ast.Constant]:
+    return [
+        node for node in ast.walk(annotation)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+
+
+def collect_string_type_usages(tree: ast.Module, file_path: str) -> list[StringTypeUsage]:
+    usages: list[StringTypeUsage] = []
+
+    def _record(annotation: ast.AST, qualname: str, role: str, member: str | None) -> None:
+        try:
+            annotation_source = ast.unparse(annotation)
+        except Exception:
+            annotation_source = ''
+        for const in _string_constants_in_annotation(annotation):
+            usages.append(StringTypeUsage(
+                file=file_path,
+                qualname=qualname,
+                role=role,
+                member=member,
+                lineno=getattr(const, 'lineno', annotation.lineno),
+                literal=const.value,
+                annotation_source=annotation_source,
+            ))
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            qualname = _qualname(node)
+            args = node.args
+            all_args = [*args.posonlyargs, *args.args, *args.kwonlyargs]
+            if args.vararg:
+                all_args.append(args.vararg)
+            if args.kwarg:
+                all_args.append(args.kwarg)
+
+            for arg in all_args:
+                if arg.annotation is not None:
+                    _record(arg.annotation, qualname, 'param', arg.arg)
+
+            if node.returns is not None:
+                _record(node.returns, qualname, 'return', None)
+
+        elif isinstance(node, ast.AnnAssign):
+            qualname = _qualname(node.parent) if getattr(node, 'parent', None) is not None else ''
+            if isinstance(node.target, ast.Name):
+                target_name = node.target.id
+            elif isinstance(node.target, ast.Attribute):
+                target_name = node.target.attr
+            else:
+                target_name = None
+            _record(node.annotation, qualname, 'variable', target_name)
+
+    return usages
+
+
 def _find_getattr_setattr(tree: ast.Module) -> list[int]:
     lines: list[int] = []
     for node in ast.walk(tree):
@@ -580,6 +664,57 @@ def type_usages_to_json(all_usages: list[TypeUsage], name_filter: str | None) ->
             'lineno': usage.lineno,
         }
         for usage in matches
+    ]
+
+
+def _matches_string_type_filter(usage: StringTypeUsage, name_filter: str) -> bool:
+    pattern = re.compile(name_filter)
+    return pattern.search(usage.literal) is not None or pattern.search(usage.annotation_source) is not None
+
+
+def print_string_type_report(usages: list[StringTypeUsage], name_filter: str | None) -> None:
+    if name_filter:
+        matches = [u for u in usages if _matches_string_type_filter(u, name_filter)]
+    else:
+        matches = usages
+
+    if not matches:
+        print(
+            f'no string-literal type annotations found matching {name_filter!r}'
+            if name_filter else 'no string-literal type annotations found'
+        )
+        return
+
+    for u in sorted(matches, key=lambda u: (u.file, u.lineno)):
+        if u.role == 'param':
+            desc = f'{u.qualname}(param {u.member})'
+        elif u.role == 'return':
+            desc = f'{u.qualname}(return)'
+        else:
+            desc = f'{u.qualname} (variable {u.member})'
+        print(f'{u.file}:{u.lineno}  {desc}')
+        print(f'    {u.annotation_source}   -- literal: {u.literal!r}')
+
+    print()
+
+
+def string_type_usages_to_json(usages: list[StringTypeUsage], name_filter: str | None) -> list[dict]:
+    if name_filter:
+        matches = [u for u in usages if _matches_string_type_filter(u, name_filter)]
+    else:
+        matches = usages
+
+    return [
+        {
+            'file': u.file,
+            'qualname': u.qualname,
+            'role': u.role,
+            'member': u.member,
+            'lineno': u.lineno,
+            'literal': u.literal,
+            'annotation_source': u.annotation_source,
+        }
+        for u in matches
     ]
 
 
@@ -1138,6 +1273,20 @@ def _run_types(paths: list[Path], name_filter: str | None) -> tuple[str, list[di
     return text, data
 
 
+def _run_string_types(paths: list[Path], name_filter: str | None) -> tuple[str, list[dict]]:
+    all_usages: list[StringTypeUsage] = []
+    for path in paths:
+        tree = _parse_file(path)
+        if tree is None:
+            continue
+        _attach_parents(tree)
+        all_usages.extend(collect_string_type_usages(tree, str(path)))
+
+    text = _capture(print_string_type_report, all_usages, name_filter)
+    data = string_type_usages_to_json(all_usages, name_filter)
+    return text, data
+
+
 def _run_calls(paths: list[Path], name_filter: str | None, registry: dict[str, list[ClassInfo]]) -> tuple[str, list[dict]]:
     call_sites = collect_calls(paths, name_filter or '', registry)
     text = _capture(print_calls_report, call_sites, name_filter)
@@ -1182,6 +1331,13 @@ def main() -> None:
         '--types', action='store_true', help='switch to type-usage index mode',
     )
     parser.add_argument(
+        '--string-types', action='store_true',
+        help='switch to string-type mode: find every place a string literal is used as a '
+             'type annotation (forward references), bare or nested in a subscript '
+             '(Optional["X"], Dict[str, "X"], Union["A", "B"]), scanning the same param/'
+             'return/variable annotation sites as --types',
+    )
+    parser.add_argument(
         '--calls', action='store_true',
         help='switch to call-site mode: find every call to a function/method, '
              'resolving self./super. receivers against the class hierarchy',
@@ -1200,8 +1356,9 @@ def main() -> None:
     parser.add_argument(
         '--name', default=None, metavar='PATTERN',
         help='regex pattern (matched with re.search) filtering the results of --types/'
-             '--calls/--overrides/--imported-by (any combination of these four can be given '
-             'together, sharing this one filter); omit for a full unfiltered dump. A plain '
+             '--string-types/--calls/--overrides/--imported-by (any combination of these five '
+             'can be given together, sharing this one filter); omit for a full unfiltered '
+             'dump. A plain '
              'literal name works fine here too -- it behaves as a substring match. If no mode '
              'flag is given at all, --name switches from the default import-trace mode to '
              'definition-lookup mode: find class/function/method definitions matching it.',
@@ -1224,6 +1381,8 @@ def main() -> None:
     active_modes: list[str] = []
     if args.types:
         active_modes.append('types')
+    if args.string_types:
+        active_modes.append('string-types')
     if args.calls:
         active_modes.append('calls')
     if args.overrides:
@@ -1275,6 +1434,8 @@ def main() -> None:
     for mode in active_modes:
         if mode == 'types':
             text, data = _run_types(paths, args.name)
+        elif mode == 'string-types':
+            text, data = _run_string_types(paths, args.name)
         elif mode == 'calls':
             text, data = _run_calls(paths, args.name, registry)
         elif mode == 'overrides':

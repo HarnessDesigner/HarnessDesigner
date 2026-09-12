@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 import weakref
 import numpy as np
@@ -565,7 +565,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         finally:
             _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
 
-    _stored_branch1: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch1: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -588,7 +588,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
         return self._stored_branch1
 
-    _stored_branch2: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch2: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -611,7 +611,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
         return self._stored_branch2
 
-    _stored_branch3: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch3: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -634,7 +634,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
         return self._stored_branch3
 
-    _stored_branch4: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch4: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -657,7 +657,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
         return self._stored_branch4
 
-    _stored_branch5: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch5: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -680,7 +680,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
         return self._stored_branch5
 
-    _stored_branch6: "_pjt_transition_branch.PJTTransitionBranch | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_branch6: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -703,7 +703,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
 
         return self._stored_branch6
 
-    _stored_part: "_transition.Transition | None | DefaultStoredValueType" = DefaultStoredValue
+    _stored_part: _transition.Transition | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do

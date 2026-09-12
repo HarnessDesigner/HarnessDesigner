@@ -83,7 +83,7 @@ class InnerRing(ProtractorRingBase):
         return _LABEL_COLORS[self.axis]
 
     @_check_types.do
-    def _disc_rotation(self) -> "_angle.Angle":
+    def _disc_rotation(self) -> _angle.Angle:
         """
         This axis's own Euler value, applied as an extra spin about
         the ring's own local-Z normal, composed UNDER

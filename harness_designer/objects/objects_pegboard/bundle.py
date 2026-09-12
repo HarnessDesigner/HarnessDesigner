@@ -222,7 +222,7 @@ class Bundle(_base_pegboard.BasePegboard):
 
     @staticmethod
     @_check_types.do
-    def _rotation_from_direction(direction) -> "_angle.Angle":
+    def _rotation_from_direction(direction) -> _angle.Angle:
         """Rotate the unit cylinder's local +Z axis to point along
         *direction* -- mirrors
         objects_3d.bundle.Bundle._rotation_from_direction exactly (same
@@ -292,7 +292,7 @@ class Bundle(_base_pegboard.BasePegboard):
         self._compute_aabb()
 
     @_check_types.do
-    def _update_position(self, _: "_point.Point | None"):
+    def _update_position(self, _: _point.Point | None):
         """Recompute geometry immediately, not deferred to the next
         render pass -- bound to the start/stop endpoints and every
         interior waypoint (see :meth:`_bind_waypoints`).
@@ -404,7 +404,7 @@ class Bundle(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Segment drag -- identical rationale to
         objects_pegboard.wire.Wire.handle_interaction (a PJTBundle row

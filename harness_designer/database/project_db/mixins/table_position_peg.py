@@ -19,7 +19,7 @@ class TablePositionPegMixin(BaseMixin):
     independently draggable away from its anchor.
     """
 
-    _stored_table_position_peg: "_pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None" = DefaultStoredValue
+    _stored_table_position_peg: _pjt_point_pegboard.PJTPointPegboard | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do

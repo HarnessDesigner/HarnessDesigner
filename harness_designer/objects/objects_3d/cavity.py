@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from PySide6.QtWidgets import QMenu, QMessageBox
 from PySide6.QtCore import QTimer
@@ -40,7 +40,7 @@ class Cavity(_base_3d.Base3D):
 
     @property
     @_check_types.do
-    def _housing_3d(self) -> "_housing3d.Housing | None":
+    def _housing_3d(self) -> Union["_housing3d.Housing", None]:
         """This cavity's owning ``Housing3D``, or ``None``.
 
         Resolved on demand (never cached) via ``self.parent.housing`` --
@@ -130,8 +130,8 @@ class Cavity(_base_3d.Base3D):
             # still needs the housing's whole mesh to compute them but
             # assigns the result straight onto the cavity they belong to,
             # not a housing-side list.
-            self._terminal_marker: "_housing3d._CavityMarker | None" = None
-            self._wire_marker: "_housing3d._CavityMarker | None" = None
+            self._terminal_marker: Union["_housing3d._CavityMarker", None] = None
+            self._wire_marker: Union["_housing3d._CavityMarker", None] = None
 
             # Which side of this cavity the housing's last try_pick_cavity hit
             # landed on -- set by Housing3D.on_surface_selected/try_pick_cavity,

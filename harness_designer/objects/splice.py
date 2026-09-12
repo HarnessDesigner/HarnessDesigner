@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -62,12 +62,12 @@ class Splice(_ObjectBase):
 
     @property
     @_check_types.do
-    def start_sibling(self) -> "_wire_obj.Wire | None":
+    def start_sibling(self) -> Union["_wire_obj.Wire", None]:
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
     @_check_types.do
-    def stop_sibling(self) -> "_wire_obj.Wire | None":
+    def stop_sibling(self) -> Union["_wire_obj.Wire", None]:
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @property

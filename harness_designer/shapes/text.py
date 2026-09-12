@@ -963,10 +963,10 @@ class Text:
 
         # Per-glyph world position cache -- see render()'s own docstring
         # for why. ``None`` means "never rendered yet" (always a miss).
-        self._cached_position: "_point.Point | None" = None
-        self._cached_angle: "_angle.Angle | None" = None
-        self._cached_scale: "_point.Point | None" = None
-        self._cached_glyph_scale: "_point.Point | None" = None
+        self._cached_position: _point.Point | None = None
+        self._cached_angle: _angle.Angle | None = None
+        self._cached_scale: _point.Point | None = None
+        self._cached_glyph_scale: _point.Point | None = None
         self._cached_world_positions: list = []
 
         lines = text.split('\n')
@@ -1141,7 +1141,7 @@ class Text:
         return vbo, dims
 
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
-               position: "_point.Point", angle: "_angle.Angle", scale: "_point.Point",
+               position: _point.Point, angle: _angle.Angle, scale: _point.Point,
                smooth: bool | None) -> None:
         """Draw every character in this string as its own shared glyph
         VBO, computing each glyph's own world position/rotation/scale
@@ -1226,13 +1226,13 @@ class Text:
     # None -- not camera-tracking -- until enable_camera_tracking() sets
     # a real, live-updated value (see that method and render_angle
     # below).
-    _tracking_angle: "_angle.Angle | None" = None
+    _tracking_angle: _angle.Angle | None = None
 
     @property
     def is_dirty(self) -> bool:
         return False
 
-    def render_angle(self, angle: "_angle.Angle") -> "_angle.Angle":
+    def render_angle(self, angle: _angle.Angle) -> _angle.Angle:
         """*angle* (the owner's own real, stored angle) unchanged, or
         this Text's own live camera-facing angle while tracking is
         enabled -- see :meth:`enable_camera_tracking`'s own docstring

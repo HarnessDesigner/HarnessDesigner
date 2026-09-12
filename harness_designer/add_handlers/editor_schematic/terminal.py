@@ -18,7 +18,7 @@ male/female 3D attach position 3D's own Mode 1/2/3 already do (reused
 directly, not duplicated).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
@@ -39,7 +39,7 @@ class Terminal(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part,
-        housing: "_housing.Housing | None"
+        housing: Union["_housing.Housing", None]
     ):
         super().__init__(canvas, target)
 
@@ -62,7 +62,7 @@ class Terminal(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self, last_pos, current_pos, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
             return False

@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -348,7 +348,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._table.update(self._db_id, rigidity=value)
         self._populate('rigidity')
 
-    _stored_shrink_temp: "DefaultStoredValueType | _temperature.Temperature" = DefaultStoredValue
+    _stored_shrink_temp: Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
 
     @property
     @_check_types.do

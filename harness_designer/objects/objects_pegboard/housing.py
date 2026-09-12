@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from . import base_pegboard as _base_pegboard
 # from ...gl.canvas_pegboard import flatten as _flatten
@@ -85,7 +85,7 @@ class Housing(_base_pegboard.BasePegboard):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> "_housing.Housing | None":
+    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_housing.Housing", None]:
         """Single-click free placement, pegboard-native -- mirrors
         objects_3d.housing.Housing.start_add/objects_schematic.housing.
         Housing.start_add. Unlike those two, this housing's own
@@ -138,7 +138,7 @@ class Housing(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to BasePegboard's own generic drag handling otherwise.

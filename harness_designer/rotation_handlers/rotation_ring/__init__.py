@@ -192,8 +192,8 @@ class RotationRing:
         # (schematic) + 1x2 (pegboard) = 10 protractor rings nobody may
         # ever look at. Only the GL objects themselves are deferred --
         # the sizes/offsets above are already known.
-        self.inner: "InnerRing | None" = None
-        self.outer: "OuterRing | None" = None
+        self.inner: InnerRing | None = None
+        self.outer: OuterRing | None = None
 
     @_check_types.do
     def _ensure_protractor(self) -> None:
