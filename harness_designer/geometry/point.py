@@ -747,7 +747,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 / x2, y1 / y2, z1 / z2)
 
     @_check_types.do
-    def __matmul__(self, other: np.ndarray | _angle.Angle) -> "Point":
+    def __matmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
         """
         Return a new Point (no db_id) rotated by *other*.
 
@@ -777,7 +777,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return p
 
     @_check_types.do
-    def __imatmul__(self, other: np.ndarray | _angle.Angle) -> "Point":
+    def __imatmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
         """
         In-place rotation by *other*.
 
@@ -823,7 +823,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def set_angle(self, angle: _angle.Angle, origin: "Point"):
+    def set_angle(self, angle: "_angle.Angle", origin: "Point"):
         """
         Rotate this Point around *origin* by *angle*, in-place.
 
@@ -965,7 +965,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
                     PointMeta._instances[self._db_id] = weakref.ref(self)
 
     @_check_types.do
-    def get_angle(self, origin: "Point") -> _angle.Angle:
+    def get_angle(self, origin: "Point") -> "_angle.Angle":
         """Return the Angle from *origin* to this Point."""
 
         return _angle.Angle.from_points(origin, self)

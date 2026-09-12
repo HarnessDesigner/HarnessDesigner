@@ -107,7 +107,18 @@ def _posix_compile_cmd(c_path, obj_path, include_dirs):
         cmd += ccshared.split()
 
     if sys.platform.startswith('linux'):
-        cmd.append('-Wno-error=maybe-uninitialized')
+        # Cython's own generated ctuple to/from Python-tuple conversion
+        # helpers (__pyx_convert__from_py___pyx_ctuple_...) box a stack
+        # struct field-by-field and `return` it by value even on their
+        # error path, before every field is set -- the caller always
+        # discards that returned struct when an exception is pending, so
+        # it's never actually read, but gcc's flow analysis can't see
+        # that and flags it anyway. Confirmed by regenerating the .c
+        # ourselves and reproducing the warning at exactly this helper.
+        # gcc is alone in flagging it (clang/MSVC don't), so it's a
+        # gcc-only, Cython-only false positive -- nothing in this
+        # project's own source can silence it.
+        cmd.append('-Wno-maybe-uninitialized')
 
     for macro, value in _DEFINES:
         cmd.append(f'-D{macro}={value}')

@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
+import ast
 import math
 
 import numpy as np
@@ -289,13 +290,13 @@ class PJTHousingsTable(PJTTableBase):
             # Local offset (housing-frame) for every cavity, straight
             # from the catalog -- not a project pjt_*.position3d value.
             local_point3d = np.array(
-                [eval(row[2]) for row in g_rows], dtype=np.float64)  # NOQA
+                [ast.literal_eval(row[2]) for row in g_rows], dtype=np.float64)  # NOQA
 
             local_aabbs = np.array(
-                [eval(row[3]) for row in g_rows], dtype=np.float64)  # NOQA
+                [ast.literal_eval(row[3]) for row in g_rows], dtype=np.float64)  # NOQA
 
             local_obbs = np.array(
-                [eval(row[4]) for row in g_rows], dtype=np.float64)  # NOQA
+                [ast.literal_eval(row[4]) for row in g_rows], dtype=np.float64)  # NOQA
 
             h_position3d = np.array(
                 [position3d.x, position3d.y, position3d.z], dtype=np.float64)
@@ -549,13 +550,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             # Local offset (housing-frame) for every cavity, straight
             # from the catalog -- not a project pjt_*.position3d value.
             local_point3d = np.array(
-                [eval(row[2]) for row in g_rows], dtype=np.float64)  # NOQA
+                [ast.literal_eval(row[2]) for row in g_rows], dtype=np.float64)  # NOQA
 
             local_aabbs = np.array(
-                [eval(row[3]) for row in g_rows], dtype=np.float64)  # NOQA
+                [ast.literal_eval(row[3]) for row in g_rows], dtype=np.float64)  # NOQA
 
             local_obbs = np.array(
-                [eval(row[4]) for row in g_rows], dtype=np.float64)  # NOQA
+                [ast.literal_eval(row[4]) for row in g_rows], dtype=np.float64)  # NOQA
 
             h_position3d = np.array(
                 [position3d.x, position3d.y, position3d.z], dtype=np.float64)
@@ -2231,8 +2232,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """
 
         if self._o_quat3d is None:
-            self._o_quat3d = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-            self._o_euler3d = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+            self._o_quat3d = ast.literal_eval(self._table.select('quat3d', id=self._db_id)[0][0])
+            self._o_euler3d = ast.literal_eval(self._table.select('angle3d', id=self._db_id)[0][0])
 
         o_angle = _angle.Angle.from_quat(self._o_quat3d, self._o_euler3d)
 
@@ -2558,8 +2559,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """
 
         if self._o_quat_pegboard is None:
-            self._o_quat_pegboard = eval(self._table.select('quat_pegboard', id=self._db_id)[0][0])
-            self._o_euler_pegboard = eval(self._table.select('angle_pegboard', id=self._db_id)[0][0])
+            self._o_quat_pegboard = ast.literal_eval(self._table.select('quat_pegboard', id=self._db_id)[0][0])
+            self._o_euler_pegboard = ast.literal_eval(self._table.select('angle_pegboard', id=self._db_id)[0][0])
 
         o_angle = _angle.Angle.from_quat(self._o_quat_pegboard, self._o_euler_pegboard)
 
@@ -2780,8 +2781,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :type angle: :class:`_angle.Angle`
         """
         if self._o_quat2d is None:
-            self._o_quat2d = eval(self._table.select('quat2d', id=self._db_id)[0][0])
-            self._o_euler2d = eval(self._table.select('angle2d', id=self._db_id)[0][0])
+            self._o_quat2d = ast.literal_eval(self._table.select('quat2d', id=self._db_id)[0][0])
+            self._o_euler2d = ast.literal_eval(self._table.select('angle2d', id=self._db_id)[0][0])
 
         o_angle = _angle.Angle.from_quat(self._o_quat2d, self._o_euler2d)
 
