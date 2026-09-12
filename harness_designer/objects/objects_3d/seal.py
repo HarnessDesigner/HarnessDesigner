@@ -307,6 +307,14 @@ class Seal(_base_3d.Base3D):
             db_obj = ptables.pjt_seals_table.insert(
                 part_id, name, pos_id, housing.db_obj.db_id, None, None)
 
+            # Peg-board equivalent -- same shared-point .attach(), on
+            # position_pegboard/seal_position_pegboard instead. This
+            # branch is instant (add_handlers.editor_3d.seal.Seal._finalize
+            # skips its own snap-resolution block for an instant session),
+            # so this is the only place it can be seeded. Confirmed
+            # 2026-09-11 (Kevin).
+            housing.db_obj.seal_position_pegboard.attach(db_obj.position_pegboard)
+
         elif terminal is not None:
             # Mode 2: SWS on terminal -- independent point seeded at the
             # terminal's current back-point coordinates (see
@@ -317,6 +325,12 @@ class Seal(_base_3d.Base3D):
                 float(wire_pos.x), float(wire_pos.y), float(wire_pos.z))
             db_obj = ptables.pjt_seals_table.insert(
                 part_id, name, p3d.db_id, None, terminal.db_obj.db_id, None)
+
+            # Peg-board equivalent -- same reasoning as the housing branch
+            # above (this mode is also instant).
+            wire_pos_pegboard = terminal.db_obj.wire_position_pegboard
+            pegboard_position = db_obj.position_pegboard
+            pegboard_position += wire_pos_pegboard - pegboard_position
 
         elif cavity is not None:
             # Mode 3: PLUG or dummy pin on cavity.
@@ -333,6 +347,20 @@ class Seal(_base_3d.Base3D):
             p3d = ptables.pjt_points3d_table.insert(tx, ty, tz)
             db_obj = ptables.pjt_seals_table.insert(
                 part_id, name, p3d.db_id, None, None, pjt_cavity.db_id)
+
+            # Peg-board equivalent -- same reasoning as the housing branch
+            # above (this mode is also instant).
+            if is_dummy_pin:
+                gender = pjt_cavity.housing.part.gender.name.lower()
+                if gender == 'male':
+                    px, py, pz = pjt_cavity.position_pegboard.as_float
+                else:
+                    px, py, pz = _add_seal.cavity_midpoint_pegboard(pjt_cavity)
+            else:
+                px, py, pz = _add_seal.cavity_midpoint_pegboard(pjt_cavity)
+
+            pegboard_position = db_obj.position_pegboard
+            pegboard_position += _point.Point(px, py, pz) - pegboard_position
 
         else:
             # Mode 4: free interactive -- target type depends on category.

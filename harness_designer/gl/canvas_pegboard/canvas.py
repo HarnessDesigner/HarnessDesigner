@@ -165,20 +165,32 @@ class Canvas(_canvas_base.CanvasBase):
         # world axis is "depth" -- gl_Position = projection * vec4(world, 1)
         # in faces.py's vertex shader means matrix ROW 1 reads the vertex's
         # Y component and ROW 2 reads its Z component, regardless of which
-        # world axis the bounds used to build that row came from. This used
-        # to put the Z-derived `top`/`bottom` bounds into row 1 (scaling Y)
-        # and the Y-derived `near`/`far` bounds into row 2 (scaling Z) --
-        # i.e. it mapped world Y to screen-vertical and world Z to depth,
-        # which is a camera looking down -Z (a front view), not -Y (top-
-        # down). Row/column now match the axis the bounds actually measure:
-        # row 1 (screen-vertical) reads column 2 (world Z), row 2 (depth)
-        # reads column 1 (world Y).
+        # world axis the bounds used to build that row came from. Row 1
+        # (screen-vertical) reads column 2 (world Z), row 2 (depth) reads
+        # column 1 (world Y).
+        #
+        # Row 1 only is negated (both the scale AND the paired translation
+        # term, to keep a valid [-1,1] range) -- this camera is permanently
+        # locked looking straight down -Y. Verified against the actual
+        # render-matrix vectors the free 3D camera uses (`side = cross(
+        # forward, up)`/`up = cross(forward, right)` from gl.canvas_3d.
+        # camera.build_lookat_matrix/CameraBase._calculate_camera -- NOT
+        # camera.right directly, which is the negative of `side` and is a
+        # separate, distinct inconsistency in this codebase), taken to
+        # their continuous limit as forward approaches straight down (-Y)
+        # from the same +Z side the app's default camera sits on: side
+        # stays (1,0,0) (row 0 was already correct, confirmed 2026-09-11
+        # against a real dragged-object test in the 3D editor), up becomes
+        # (0,0,-1) for a camera ABOVE looking down. The un-negated row 1
+        # below matched up=(0,0,1) instead -- exactly what the same limit
+        # gives for a camera BELOW the board looking up, which is why
+        # housings rendered showing their underside instead of their top.
         projection = np.zeros((4, 4), dtype=np.float32)
         projection[0, 0] = 2.0 / (right - left)
-        projection[1, 2] = 2.0 / (top - bottom)
+        projection[1, 2] = -2.0 / (top - bottom)
         projection[2, 1] = -2.0 / (far - near)
         projection[0, 3] = -(right + left) / (right - left)
-        projection[1, 3] = -(top + bottom) / (top - bottom)
+        projection[1, 3] = (top + bottom) / (top - bottom)
         projection[2, 3] = -(far + near) / (far - near)
         projection[3, 3] = 1.0
 

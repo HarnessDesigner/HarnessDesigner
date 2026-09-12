@@ -818,7 +818,7 @@ class Config(metaclass=ConfigDB):
                 sensitivity = None
 
             class truck_pedestal(metaclass=ConfigDB):
-                mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS | MOUSE_REVERSE_Y_AXIS
+                mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS
                 up_key = ord('8')
                 down_key = ord('2')
                 left_key = ord('4')
@@ -1031,7 +1031,7 @@ class Config(metaclass=ConfigDB):
                 sensitivity = None
 
             class truck_pedestal(metaclass=ConfigDB):
-                mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS | MOUSE_REVERSE_Y_AXIS
+                mouse = MOUSE_LEFT | MOUSE_REVERSE_X_AXIS
                 up_key = ord('8')
                 down_key = ord('2')
                 left_key = ord('4')

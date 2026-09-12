@@ -140,6 +140,48 @@ def _male_terminal_position(part, pjt_cavity):
 
 
 @_check_types.do
+def _female_terminal_position_pegboard(part, pjt_cavity):
+    """
+    Peg-board equivalent of :func:`_female_terminal_position` -- same
+    local Z offset (``_terminal_extent`` is a pure measurement of the
+    terminal part's own canonical-frame geometry, unrelated to which
+    view it's being placed in, so it's reused as-is), rotated/translated
+    by the cavity's own ``angle_pegboard``/``position_pegboard`` instead
+    of ``angle3d``/``position3d``.
+    """
+
+    cav_length = float(pjt_cavity.part.length)
+    front_z, _ = _terminal_extent(part, pjt_cavity)
+
+    z_offset = cav_length / 2.0 - front_z
+
+    pos = _point.Point(0.0, 0.0, z_offset)
+    pos @= pjt_cavity.angle_pegboard
+    pos += pjt_cavity.position_pegboard
+
+    return pos.as_float
+
+
+@_check_types.do
+def _male_terminal_position_pegboard(part, pjt_cavity):
+    """Peg-board equivalent of :func:`_male_terminal_position` -- see
+    :func:`_female_terminal_position_pegboard`.
+    """
+
+    cav_length = float(pjt_cavity.part.length)
+    front_z, back_z = _terminal_extent(part, pjt_cavity)
+    length = front_z - back_z
+
+    z_offset = cav_length / 2.0 - front_z + length / 3.0
+
+    pos = _point.Point(0.0, 0.0, z_offset)
+    pos @= pjt_cavity.angle_pegboard
+    pos += pjt_cavity.position_pegboard
+
+    return pos.as_float
+
+
+@_check_types.do
 def _resolve_is_male(part, g_housing=None) -> bool:
     """
     Return True when *part* should be positioned/treated as male.

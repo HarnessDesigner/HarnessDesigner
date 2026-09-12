@@ -538,6 +538,21 @@ class Terminal(_base_3d.Base3D):
             facade = _terminal_facade.Terminal(mainframe, db_obj)
             _handler_base.HandlerBase.set_angle_from_cavity(facade, pjt_cavity)
 
+            # Peg-board equivalent of the position3d seed above -- same
+            # reasoning as position3d itself: this terminal needs its own
+            # real, absolute position_pegboard the moment it's seated, not
+            # just whatever PJTHousing._update_position_pegboard's cascade
+            # happens to leave it at on a later housing move (that only
+            # ever adds a delta, it never seeds an initial absolute
+            # value). Confirmed 2026-09-11 (Kevin).
+            if is_male:
+                px, py, pz = _terminal_handler._male_terminal_position_pegboard(part, pjt_cavity)  # NOQA
+            else:
+                px, py, pz = _terminal_handler._female_terminal_position_pegboard(part, pjt_cavity)  # NOQA
+
+            pegboard_position = db_obj.position_pegboard
+            pegboard_position += _point.Point(px, py, pz) - pegboard_position
+
             mainframe.project.add_terminal(facade)
             return facade
 

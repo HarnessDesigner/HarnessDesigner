@@ -220,8 +220,12 @@ class Camera(_camera_base.CameraBase):
 
         # World coordinates -- world_y lands in the returned Point's .z
         # (schematic-plane vertical axis, matching position2d/position_pegboard).
+        # Subtracted (not added) -- this locked top-down camera renders
+        # -Z toward screen-up/+Z toward screen-down (see canvas.py's own
+        # _set_view), the opposite of offset_y's own screen-up-is-positive
+        # sense, so mouse-up has to map to -Z. Confirmed 2026-09-11 (Kevin).
         world_x = self._focal_position.x + (offset_x * world_per_pixel)
-        world_y = self._focal_position.z + (offset_y * world_per_pixel)
+        world_y = self._focal_position.z - (offset_y * world_per_pixel)
 
         return _point.Point(world_x, 0.0, world_y)
 
@@ -242,9 +246,11 @@ class Camera(_camera_base.CameraBase):
         # Convert to pixels based on distance
         pixels_per_world = 1000.0 / self._position.y
 
-        # Screen coordinates
+        # Screen coordinates -- added (not subtracted) for the same reason
+        # as screen_to_world's own world_y: +Z renders toward screen-
+        # bottom here, not screen-top.
         screen_x = (width / 2.0) + (offset.x * pixels_per_world)
-        screen_y = (height / 2.0) - (offset.z * pixels_per_world)  # Invert Y
+        screen_y = (height / 2.0) + (offset.z * pixels_per_world)
 
         return _point.Point(int(screen_x), int(screen_y))
 

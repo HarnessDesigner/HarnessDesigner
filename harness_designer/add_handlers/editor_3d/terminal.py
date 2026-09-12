@@ -149,6 +149,23 @@ class Terminal(_base.AddHandlerBase):
         self.target.db_obj.cavity_id = self._snapped.db_obj.db_id
         _handler_base.HandlerBase.set_angle_from_cavity(self.target, self._snapped.db_obj)
 
+        # Peg-board equivalent of position3d's own live-tracked hover
+        # position above -- position3d already ended up correct via
+        # hover()'s own _male_terminal_position/_female_terminal_position
+        # calls, but nothing tracks position_pegboard during an
+        # interactive session (the pegboard view isn't even shown while
+        # placing from the 3D editor), so it needs this one absolute seed
+        # at finalize time instead. Confirmed 2026-09-11 (Kevin).
+        if self._is_male:
+            px, py, pz = _terminal_handler._male_terminal_position_pegboard(  # NOQA
+                self._part, self._snapped.db_obj)
+        else:
+            px, py, pz = _terminal_handler._female_terminal_position_pegboard(  # NOQA
+                self._part, self._snapped.db_obj)
+
+        pegboard_position = self.target.db_obj.position_pegboard
+        pegboard_position += _point.Point(px, py, pz) - pegboard_position
+
         self.target.identify(None)
         self.mainframe.project.add_terminal(self.target)
 

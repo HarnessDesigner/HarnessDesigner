@@ -137,38 +137,19 @@ class Seal(_base_pegboard.BasePegboard):
             material = _materials.Rubber(self._part.color.ui)
             angle = db_obj.angle_pegboard
 
-            # Renders AT whichever already-seeded peg-board position this
-            # seal is actually part of -- its seated terminal's, its
-            # cavity's, or its housing's (mutually exclusive, same
-            # dispatch order as add_seal in ui.object_browser.
-            # objectbrowser) -- never this seal's own independent
-            # position_pegboard column, and never any pjt_*.position3d
-            # value: confirmed 2026-09-07 (Kevin), same reasoning as
-            # objects_pegboard.terminal.Terminal's identical fix (see its
-            # own comment) -- a sentinel-guarded "seed once" used to live
-            # here, deleted, since comparing position_pegboard.x/z
-            # against 0.0 to decide "never seeded" is simply wrong (a
-            # real local offset can genuinely BE (0.0, 0.0)). A housing-
-            # level (MAT/ACC) seal sits AT its housing (mirrors
-            # objects_3d.seal.Seal's own construction, which shares the
-            # housing's own seal-slot point directly, no offset). Y is
-            # still honored, not flattened to 0 like housing's own anchor
-            # seed -- it comes through automatically since it's whichever
-            # parent's own already-honored Y. A seal on a bare/unseated
-            # terminal keeps that terminal's own independent
-            # position_pegboard (see Terminal's own fallback).
-            terminal = db_obj.terminal
-            cavity = db_obj.cavity
-            housing = db_obj.housing
-
-            if terminal is not None:
-                pegboard_position = terminal.position_pegboard
-            elif cavity is not None:
-                pegboard_position = cavity.position_pegboard
-            elif housing is not None:
-                pegboard_position = housing.position_pegboard
-            else:
-                pegboard_position = db_obj.position_pegboard
+            # Always this seal's OWN position_pegboard -- exactly the
+            # same pattern objects_3d.seal.Seal.__init__ uses for
+            # position3d (unconditionally db_obj.position3d, regardless
+            # of whether it's seated on a terminal/cavity/housing). Y is
+            # honored (not locked to 0 like a housing's own anchor).
+            # Previously branched on db_obj.terminal/cavity/housing to
+            # substitute that parent's own position_pegboard instead --
+            # inconsistent with position3d's own pattern and with
+            # PJTHousing._update_position_pegboard, which already
+            # cascades this seal's own position_pegboard on every housing
+            # move (see that method's own docstring) as if it were always
+            # the authoritative value. Confirmed 2026-09-11 (Kevin).
+            pegboard_position = db_obj.position_pegboard
 
             super().__init__(parent, db_obj, vbo, angle, pegboard_position, scale, material)
 

@@ -77,15 +77,19 @@ CHARACTER_HEIGHT: float = 0.0
 
 # Shared ``local_tilt`` (see Text.__init__) for every Text rendered in the
 # schematic or peg-board view. Both views' locked cameras use world Z as
-# screen-vertical (see gl/shaders/schematic2d.py's own top-down projection
-# comment), while a Text's own raw glyph mesh has its height on Y, matching
-# build123d's native sketch axes and this application's own 3D view (world
-# X=right, Y=up, Z=forward -- see gl/canvas_base/camera_base.py's
+# screen-vertical, with -Z toward screen-top/+Z toward screen-bottom (see
+# gl/canvas_schematic/canvas.py and gl/canvas_pegboard/canvas.py's own
+# _set_view), while a Text's own raw glyph mesh has its height on Y,
+# matching build123d's native sketch axes and this application's own 3D
+# view (world X=right, Y=up, Z=forward -- see gl/canvas_base/camera_base.py's
 # _WORLD_UP) -- see _tessellate_char's own docstring for why the glyph mesh
 # itself is never rotated to compensate. Every schematic/peg-board-view
 # Text needs this passed at construction (not the 3D view, whose own
 # world-up already matches the glyph's native Y-height with no tilt).
-TOP_DOWN_TILT = _angle.Angle.from_euler(90.0, 0.0, 0.0)
+# -90 deg (not +90) so the glyph's own +Y (top of the text) ends up on
+# the -Z side, matching -Z being screen-up in that locked camera.
+# Confirmed 2026-09-11 (Kevin).
+TOP_DOWN_TILT = _angle.Angle.from_euler(-90.0, 0.0, 0.0)
 
 # --- Real, kerning-aware character advances -- read directly from the
 # same font FILE build123d/OCCT itself resolves "Arial"+style to (see

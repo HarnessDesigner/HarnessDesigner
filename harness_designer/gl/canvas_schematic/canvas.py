@@ -154,25 +154,31 @@ class Canvas(_canvas_base.CanvasBase):
         # * vec4(world, 1) in faces.py's vertex shader means matrix ROW 1
         # reads the vertex's Y component and ROW 2 reads its Z component,
         # regardless of which world axis the bounds used to build that row
-        # came from. This used to put the Z-derived `top`/`bottom` bounds
-        # into row 1 (scaling Y) and the Y-derived `near`/`far` bounds into
-        # row 2 (scaling Z) -- i.e. it mapped world Y to screen-vertical and
-        # world Z to depth, a camera looking down -Z (front view) instead of
-        # -Y (top-down). Invisible here since schematic's own flat rectangle
-        # symbols (objects_schematic/*) have no real depth extent to reveal
-        # it, but BaseVar.render() (objectsvar/base_var.py) renders them
-        # through this same shared faces.py pipeline as canvas_pegboard/
-        # canvas_3d, so it's the same bug -- fixed the same way for
-        # consistency across all three canvases. Near/far widened to match
-        # canvas_pegboard's own fix too, for the same reason (near/far now
-        # bounds world Y, not world Z, and real geometry can sit well above
-        # the +/-1 the old placeholder allowed).
+        # came from. Row 1 (screen-vertical) reads column 2 (world Z), row 2
+        # (depth) reads column 1 (world Y).
+        #
+        # Row 1 only is negated (both the scale AND the paired translation
+        # term, to keep a valid [-1,1] range) for the same reason as
+        # canvas_pegboard's own fix: this locked top-down camera's correct
+        # screen mapping is side=(1,0,0)/up=(0,0,-1) (verified against the
+        # free 3D camera's actual render-matrix vectors, `side = cross(
+        # forward, up)`, taken to their continuous limit approaching
+        # straight down -- row 0 was already correct), not the un-negated
+        # up=(0,0,1) this used to encode (which is what a camera BELOW the
+        # view looking up would need). Confirmed 2026-09-11 (Kevin).
+        # Previously "invisible" here because schematic's own flat
+        # rectangle symbols (objects_schematic/*) have no real depth
+        # extent to reveal a Y/Z mixup -- but this Z-axis flip DOES change
+        # screen-space vertical placement, so every schematic symbol
+        # position/rotation computed assuming the old (backwards) mapping
+        # needs re-deriving against this corrected one -- tracked
+        # separately, not fixed as part of this change.
         projection = np.zeros((4, 4), dtype=np.float32)
         projection[0, 0] = 2.0 / (right - left)
-        projection[1, 2] = 2.0 / (top - bottom)
+        projection[1, 2] = -2.0 / (top - bottom)
         projection[2, 1] = -2.0 / (far - near)
         projection[0, 3] = -(right + left) / (right - left)
-        projection[1, 3] = -(top + bottom) / (top - bottom)
+        projection[1, 3] = (top + bottom) / (top - bottom)
         projection[2, 3] = -(far + near) / (far - near)
         projection[3, 3] = 1.0
 

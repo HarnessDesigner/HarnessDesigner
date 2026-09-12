@@ -15,15 +15,23 @@ padding term.
 
 Convention (matches ``objects_schematic/housing.py``'s ``Housing`` --
 local X = text/width axis, local Z = cavity/height axis; this housing's
-own local frame is centered on (0, 0, 0), UP is the POSITIVE-Z
-direction (the schematic editor's own camera renders Z+ up, Z- down)
--- cavity slots stack top-to-bottom in ascending natural-sort-by-name
-order, the first name at the most-positive Z): a cavity's own anchor is
-its own slot's horizontal CENTER (not the pin edge itself -- the
-cavity band spans from the housing's own physical left edge,
-``-housing_width / 2``, inward by ``cavity_width``, so the center sits
-at ``-cavity_width / 2``). The rendered housing rectangle is exactly
+own local frame is centered on (0, 0, 0), UP is the NEGATIVE-Z
+direction (the schematic editor's own camera renders Z- up, Z+ down --
+see ``gl.canvas_schematic.canvas.Canvas._set_view``) -- cavity slots
+stack top-to-bottom in ascending natural-sort-by-name order, the first
+name at the most-negative Z): a cavity's own anchor is its own slot's
+horizontal CENTER (not the pin edge itself -- the cavity band spans
+from the housing's own physical left edge, ``-housing_width / 2``,
+inward by ``cavity_width``, so the center sits at
+``-cavity_width / 2``). The rendered housing rectangle is exactly
 ``housing_width`` wide, flush with the pin edge on the left.
+
+All the stacking math below is still worked out in the OLD
+"Z+ is up" sense internally (kept as-is so the stacking order/spacing
+logic doesn't need re-deriving) -- every local Z value is negated once,
+at the point it's written into a returned position/OBB, to land in the
+NEGATIVE-Z-is-up frame the schematic camera actually renders (confirmed
+2026-09-11, Kevin).
 """
 
 from typing import NamedTuple
@@ -260,24 +268,33 @@ def compute_housing_cavity_geometry(cavity_names: list[str]) -> list[CavityGeome
         # slot's own top edge, so its own top edge lands exactly on it.
         name_center_z = slot_top - (name_height / 2.0)
 
-        name_obb = _box_corners(name_center_x, name_center_z, name_width, name_height)
-        terminal_obb = _box_corners(cavity_x, cavity_z, term_width, term_height)
+        # name_obb/terminal_obb/bracket_position/cylinder_start/cylinder_stop
+        # and the position/name_position tuples below all negate their Z
+        # component at this final point of use -- see the module docstring
+        # ("UP is the NEGATIVE-Z direction"). Every Z value computed above
+        # this point (cavity_z, slot_top, name_center_z, bracket_bottom_z,
+        # bracket_z) is still in the OLD "Z+ is up" sense; negating each one
+        # only once it's written into a returned value keeps the stacking
+        # math above unchanged while landing in the correct frame.
+        name_obb = _box_corners(name_center_x, -name_center_z, name_width, name_height)
+        terminal_obb = _box_corners(cavity_x, -cavity_z, term_width, term_height)
 
         # Starts exactly at the cavity name's own baseline (rendered
-        # below it, i.e. further DOWN -- more negative Z, Z+ is up),
-        # extends down by its own full height.
+        # below it, i.e. further DOWN -- more negative Z in the OLD
+        # "Z+ is up" sense used above, before the final negation), extends
+        # down by its own full height.
         bracket_bottom_z = cavity_z - (stack_geometry.cavity_height / 2.0) + stack_geometry.text_padding
         bracket_z = bracket_bottom_z + (par_height / 2.0)
-        bracket_position = (bracket_left_x + (par_width / 4.0), bracket_z)
+        bracket_position = (bracket_left_x + (par_width / 4.0), -bracket_z)
 
-        cylinder_start = (bracket_left_x,
-                          bracket_z - (stack_geometry.text_padding * 1.5))
+        cylinder_z = -(bracket_z - (stack_geometry.text_padding * 1.5))
 
-        cylinder_stop = (name_center_x - (max_cavity_name_width * 2.0),
-                         bracket_z - (stack_geometry.text_padding * 1.5))
+        cylinder_start = (bracket_left_x, cylinder_z)
+
+        cylinder_stop = (name_center_x - (max_cavity_name_width * 2.0), cylinder_z)
 
         results[original_index] = CavityGeometry(
-            name, text, original_index, (cavity_x, cavity_z), (name_center_x, name_center_z),
+            name, text, original_index, (cavity_x, -cavity_z), (name_center_x, -name_center_z),
             name_obb, terminal_obb, bracket_position, bracket_font_size,
             cylinder_start, cylinder_stop, stack_geometry.cavity_height,
             stack_geometry.cavity_width, term_height, term_width,

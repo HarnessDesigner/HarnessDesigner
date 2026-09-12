@@ -67,6 +67,22 @@ def cavity_midpoint(pjt_cavity):
 
 
 @_check_types.do
+def cavity_midpoint_pegboard(pjt_cavity):
+    """Peg-board equivalent of :func:`cavity_midpoint` -- same insertion-
+    axis-midpoint math, using the cavity's own ``position_pegboard``/
+    ``angle_pegboard`` instead of ``position3d``/``angle3d``.
+    """
+    cpos_np = pjt_cavity.position_pegboard.as_numpy.astype(np.float64)
+    cav_ang = pjt_cavity.angle_pegboard
+    length = float(pjt_cavity.part.length)
+    ref_local = np.array([[0.0, 0.0, length]], dtype=np.float64)
+    ref_world = np.asarray(ref_local @ cav_ang, dtype=np.float64)[0] + cpos_np
+    mid = (cpos_np + ref_world) / 2.0
+
+    return float(mid[0]), float(mid[1]), float(mid[2])
+
+
+@_check_types.do
 def cavity_plug_pns(mainframe, max_dim: float) -> list:
     """PLUG and dummy-pin seal part numbers whose dimensions fit *max_dim*."""
     if max_dim <= 0.0:
@@ -237,6 +253,11 @@ class Seal(_base.AddHandlerBase):
                     h.identify(None)
 
                 self._snapped.db_obj.seal_position3d.attach(self.target.db_obj.position3d)
+                # Peg-board equivalent -- same shared-point .attach(), just
+                # on position_pegboard/seal_position_pegboard instead of
+                # position3d/seal_position3d. Confirmed 2026-09-11 (Kevin).
+                self._snapped.db_obj.seal_position_pegboard.attach(
+                    self.target.db_obj.position_pegboard)
                 self.target.db_obj.housing_id = self._snapped.db_obj.db_id
                 _handler_base.HandlerBase.set_angle_from_housing(self.target, self._snapped)
 
@@ -250,12 +271,35 @@ class Seal(_base.AddHandlerBase):
 
                 self.target.db_obj.terminal_id = self._snapped.db_obj.db_id
 
+                # Peg-board equivalent of position3d's own wire_position3d
+                # seed (see hover() above) -- position3d already ended up
+                # correct via hover(), but nothing tracks position_pegboard
+                # during an interactive session. Confirmed 2026-09-11 (Kevin).
+                wire_pos_pegboard = self._snapped.db_obj.wire_position_pegboard
+                pegboard_position = self.target.db_obj.position_pegboard
+                pegboard_position += wire_pos_pegboard - pegboard_position
+
             else:  # Cavity
                 for cav in self.mainframe.project.cavities:
                     cav.identify(None)
 
                 _handler_base.HandlerBase.set_angle_from_cavity(self.target, self._snapped.db_obj)
                 self.target.db_obj.cavity_id = self._snapped.db_obj.db_id
+
+                # Peg-board equivalent of hover()'s own dummy-pin/gender
+                # branch above.
+                pjt_cav = self._snapped.db_obj
+                if self._is_dummy_pin:
+                    gender = pjt_cav.housing.part.gender.name.lower()
+                    if gender == 'male':
+                        px, py, pz = pjt_cav.position_pegboard.as_float
+                    else:
+                        px, py, pz = cavity_midpoint_pegboard(pjt_cav)
+                else:
+                    px, py, pz = cavity_midpoint_pegboard(pjt_cav)
+
+                pegboard_position = self.target.db_obj.position_pegboard
+                pegboard_position += _point.Point(px, py, pz) - pegboard_position
 
         self._finalized = True
         self.mainframe.project.add_seal(self.target)

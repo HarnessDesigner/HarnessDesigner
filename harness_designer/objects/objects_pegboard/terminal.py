@@ -66,25 +66,19 @@ class Terminal(_base_pegboard.BasePegboard):
         # the database (db_obj.scale3d); material is rebuilt from the
         # catalog part's own plating color, mirroring
         # objects_3d.terminal.Terminal.__init__'s own construction.
-        # A seated terminal renders AT its cavity's own peg-board
-        # position, not an independent one of its own -- cavity is the
-        # PJTCavity.position_pegboard row a housing's own add-handler
-        # (add_handlers.editor_3d.housing.Housing) explicitly writes once,
-        # at placement time (added to the housing's own finalized
-        # peg-board position, from the catalog's declared local offset --
-        # see that handler's own comment). This terminal's OWN
-        # position_pegboard column is left untouched/unused for a seated
-        # terminal -- no separate seed is needed or wanted here (a
-        # sentinel-guarded "seed once from cavity" used to live in this
-        # __init__, deleted: comparing position_pegboard.x/z against
-        # 0.0 to decide "never seeded" is simply wrong, since a real
-        # local offset can genuinely BE (0.0, 0.0)). A bare (unseated)
-        # terminal has no cavity to derive from, so it keeps its own
-        # independent position_pegboard, same as a housing's own anchor
-        # (see Housing.start_add's own comment) -- placed by the user's
-        # own interactive placement/drag on the board.
-        cavity = db_obj.cavity
-        pegboard_position = cavity.position_pegboard if cavity is not None else db_obj.position_pegboard
+        # Always this terminal's OWN position_pegboard -- exactly the
+        # same pattern objects_3d.terminal.Terminal.__init__ uses for
+        # position3d (unconditionally db_obj.position3d, seated or not;
+        # a seated terminal is a rigid child of its cavity there too, but
+        # still gets its own real, independently-stored position). Y is
+        # honored (not locked to 0 like a housing's own anchor).
+        # Previously substituted the cavity's own position_pegboard for a
+        # seated terminal instead -- inconsistent with position3d's own
+        # pattern and with PJTHousing._update_position_pegboard, which
+        # already cascades this terminal's own position_pegboard on every
+        # housing move (see that method's own docstring) as if it were
+        # always the authoritative value. Confirmed 2026-09-11 (Kevin).
+        pegboard_position = db_obj.position_pegboard
 
         with parent.mainframe.editor_pegboard.context:
             if self._part.round_terminal:
