@@ -179,11 +179,11 @@ class Adhesive(EntryBase, DescriptionMixin):
         self._table.update(self._db_id, accessory_part_nums=db_value)
         self._populate('accessory_part_nums')
 
-    _stored_accessories: DefaultStoredValueType | list[_accessory.Accessory] = DefaultStoredValue
+    _stored_accessories: DefaultStoredValueType | list["_accessory.Accessory"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def accessories(self) -> list[_accessory.Accessory]:
+    def accessories(self) -> list["_accessory.Accessory"]:
         """Return the accessories.
 
         UNKNOWN details are inferred from the callable name and signature.
