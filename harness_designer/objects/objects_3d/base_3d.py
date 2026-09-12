@@ -320,6 +320,10 @@ class Base3D(_objectsvar.BaseVar):
         """
         Any object specific taredown should occur in this function
         """
+        if self._active_handler is not None:
+            self._active_handler.delete()
+            self._active_handler = None
+
         self._is_deleted = True
         self.editor3d.Refresh()
 

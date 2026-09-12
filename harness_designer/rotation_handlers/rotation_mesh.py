@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Geometry helpers shared by the rotation-ring gizmo
+"""
+Geometry helpers shared by the rotation-ring gizmo
 (``rotation_handlers/rotation_rings.py`` and ``rotation_handlers/
 rotation_ring/*``): per-axis ring-plane orientation math and the unit
 torus mesh the always-on activation ring renders.
@@ -48,8 +49,9 @@ AXES = ('x', 'y', 'z')
 
 
 @_check_types.do
-def slot_ring_angle(axis: str, euler: tuple) -> "_angle.Angle":
-    """Return the world-space orientation of *axis*'s ring plane, given
+def slot_ring_angle(axis: str, euler: tuple) -> _angle.Angle:
+    """
+    Return the world-space orientation of *axis*'s ring plane, given
     the tracked object's current ``(ex, ey, ez)`` Euler value -- see the
     module docstring for the full derivation. Applying this to local Z
     (this gizmo's shared "ring normal is local Z" convention) gives the
@@ -57,6 +59,7 @@ def slot_ring_angle(axis: str, euler: tuple) -> "_angle.Angle":
     gives the tangential/radial directions ``_Tick.local_radial``
     (``rotation_ring/_protractor_base.py``) places ticks with.
     """
+
     ex, ey, ez = euler
 
     if axis == 'z':
@@ -73,22 +76,26 @@ def slot_ring_angle(axis: str, euler: tuple) -> "_angle.Angle":
 
 @_check_types.do
 def slot_normal(axis: str, euler: tuple) -> np.ndarray:
-    """Return *axis*'s current world-space ring-plane normal (unit
-    vector) -- :func:`slot_ring_angle` applied to local Z.
     """
+    Return *axis*'s current world-space ring-plane normal (unit vector) --
+    :func:`slot_ring_angle` applied to local Z.
+    """
+
     local_z = np.array([0.0, 0.0, 1.0], dtype=np.float32)
     return np.asarray(slot_ring_angle(axis, euler) @ local_z, dtype=np.float32)
 
 
 @_check_types.do
 def wrap_angle(degrees: float) -> float:
-    """Wrap *degrees* into ``(-180, 180]`` -- applied to every Euler
+    """
+    Wrap *degrees* into ``(-180, 180]`` -- applied to every Euler
     value this gizmo writes back (a free-rotation drag's accumulated
     total, and a snapped tick's own degree value), so a long drag past
     +/-180 degrees, or a tick past 180, doesn't leave the object's own
     stored Euler value growing unbounded or landing outside the range
     every other Euler write in this codebase already assumes.
     """
+
     wrapped = math.fmod(degrees + 180.0, 360.0)
     if wrapped < 0.0:
         wrapped += 360.0
@@ -98,9 +105,13 @@ def wrap_angle(degrees: float) -> float:
 
 @_check_types.do
 def build_ring_mesh(
-    tube_diameter_scale: float, major_segments: int = 96, tube_segments: int = 16
+    tube_diameter_scale: float,
+    major_segments: int = 96,
+    tube_segments: int = 16
 ) -> tuple[np.ndarray, int]:
-    """Build a unit torus (major radius 1.0, lying in the local XY plane,
+
+    """
+    Build a unit torus (major radius 1.0, lying in the local XY plane,
     centered on the origin, tube axis normal = local Z) -- the always-on
     activation ring's own mesh (:class:`~..rotation_ring.torus_ring.
     TorusRing`), rendered with a uniform ``Point(radius, radius, radius)``
@@ -117,16 +128,21 @@ def build_ring_mesh(
     ``utils.compute_normals`` for the final packed vertex/normal buffer.
 
     :param tube_diameter_scale: Tube diameter as a fraction of the
-        (unit, i.e. 1.0) major radius.
+                                (unit, i.e. 1.0) major radius.
+
     :param major_segments: Samples around the main ring.
+
     :param tube_segments: Samples around the tube's own circular
-        cross-section.
+                          cross-section.
+
     :returns: ``(packed, count)`` -- see ``utils.compute_normals``.
     """
+
     major_radius = 1.0
     tube_radius = tube_diameter_scale / 2.0
 
-    vertices = np.zeros((major_segments * tube_segments, 3), dtype=np.float32)
+    vertices = np.zeros(
+        (major_segments * tube_segments, 3), dtype=np.float32)
 
     for i in range(major_segments):
         u = 2.0 * math.pi * i / major_segments
@@ -137,7 +153,8 @@ def build_ring_mesh(
             cv, sv = math.cos(v), math.sin(v)
 
             radial = major_radius + tube_radius * cv
-            vertices[i * tube_segments + j] = (radial * cu, radial * su, tube_radius * sv)
+            vertices[i * tube_segments + j] = (
+                radial * cu, radial * su, tube_radius * sv)
 
     faces = []
     for i in range(major_segments):

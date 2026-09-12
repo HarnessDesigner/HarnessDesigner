@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""The world-space protractor ring -- ticks, text and washer, with its
+"""
+The world-space protractor ring -- ticks, text and washer, with its
 own-slot spin held fixed regardless of drag.
 
 Its plane orientation still nests under the *other* two axes exactly
@@ -16,7 +17,7 @@ real ray-cast against each tick's own oriented box (see
 hand-rolled screen-space nearest-point search.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from . import tick_pick_object as _tick_pick_object
 from ._protractor_base import ProtractorRingBase
@@ -25,10 +26,11 @@ from ...geometry import angle as _angle
 from ...gl import object_picker as _object_picker
 from .. import rotation_mesh as _rotation_mesh
 from ... import check_types as _check_types
+from ...objects.objectsvar import base_var as _base_var
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-    from ...objects.objectsvar import base_var as _base_var
     from ...gl.canvas_base import camera_base as _camera_base
     from ._protractor_base import _Tick
 
@@ -42,29 +44,33 @@ _LABEL_COLOR = (0.4, 0.4, 0.4, 1.0)
 
 
 class OuterRing(ProtractorRingBase):
-    """One axis's world-space, fixed-spin protractor ring.
+    """
+    One axis's world-space, fixed-spin protractor ring.
 
     :param axis: ``'x'``, ``'y'`` or ``'z'`` -- which Euler slot this
-        ring displays a snap target for.
+                 ring displays a snap target for.
+
     :param obj_angle: The tracked object's own :class:`Angle` instance,
-        read (not written) to keep this ring's plane nested under the
-        other two axes' current values.
+                      read (not written) to keep this ring's plane nested
+                      under the other two axes' current values.
+
     :param mainframe: Needed only to satisfy
-        :class:`.tick_pick_object.TickPickObject`'s own ``ObjectBase``
-        constructor -- ticks are never registered with it (see that
-        module's docstring).
-    :param base_cls: Whichever of ``Base3D``/``BaseSchematic``/
-        ``BasePegboard`` matches the view this ring actually belongs to
-        -- every tick's own pickable view instance is built from this,
-        since a tick (unlike the ring assembler classes) only ever
-        exists in one view at a time.
+                      :class:`.tick_pick_object.TickPickObject`'s own
+                      ``ObjectBase`` constructor -- ticks are never registered
+                      with it (see that module's docstring).
+
+    :param base_cls: Whichever of ``Base3D``/``BaseSchematic``/ ``BasePegboard``
+                     matches the view this ring actually belongs to -- every
+                     tick's own pickable view instance is built from this,
+                     since a tick (unlike the ring assembler classes) only ever
+                     exists in one view at a time.
     """
 
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
-                outer_radius: float, depth: float, material, label_size: float,
-                obj_angle: _angle.Angle, context, mainframe: "_ui.MainFrame",
-                base_cls: "type[_base_var.BaseVar]", camera=None):
+                 outer_radius: float, depth: float, material, label_size: float,
+                 obj_angle: _angle.Angle, context, mainframe: "_ui.MainFrame",
+                 base_cls: type[_base_var.BaseVar], camera=None):
 
         self._obj_angle = obj_angle
         self._hovered_tick = None
@@ -72,8 +78,8 @@ class OuterRing(ProtractorRingBase):
         # The outer protractor's ID sits at the torus ring -- the only
         # side clear of it is the OD, away from the object -- see
         # ProtractorRingBase's own docstring.
-        super().__init__(axis, center, inner_radius, outer_radius, depth, material, label_size, context,
-                         camera, labels_outward=True)
+        super().__init__(axis, center, inner_radius, outer_radius, depth,
+                         material, label_size, context, camera, labels_outward=True)
 
         self._pick_objects: list[_tick_pick_object.TickPickObject] = []
         self._tick_by_pick_obj: dict[_tick_pick_object.TickPickObject, "_Tick"] = {}
@@ -95,16 +101,22 @@ class OuterRing(ProtractorRingBase):
             # TICK_COUNT (360) individual tick boxes just to find that
             # out.
             self._ring_pick_facade = _tick_pick_object.TickPickObject(mainframe)
+
             ring_view_obj = base_cls(
-                self._ring_pick_facade, None, self._disc_vbo, self._disc_rotation(),
-                self.center, _point.Point(1.0, 1.0, 1.0), None)
+                self._ring_pick_facade, None, self._disc_vbo,
+                self._disc_rotation(), self.center,
+                _point.Point(1.0, 1.0, 1.0), None)
+
             self._ring_pick_facade.set_view(ring_view_obj)
 
             for tick in self._ticks:
                 facade = _tick_pick_object.TickPickObject(mainframe)
+
                 view_obj = base_cls(
                     facade, None, self._tick_vbo, tick.mesh_rotation,
-                    tick.position, _point.Point(1.0, 1.0, 1.0), None)
+                    tick.position, _point.Point(1.0, 1.0, 1.0),
+                    None)
+
                 facade.set_view(view_obj)
 
                 self._pick_objects.append(facade)
@@ -117,7 +129,7 @@ class OuterRing(ProtractorRingBase):
         return _LABEL_COLOR
 
     @_check_types.do
-    def _disc_rotation(self) -> "_angle.Angle":
+    def _disc_rotation(self) -> _angle.Angle:
         ex, ey, ez = self._obj_angle.as_euler_float
 
         if self.axis == 'x':
@@ -131,15 +143,18 @@ class OuterRing(ProtractorRingBase):
 
     @_check_types.do
     def on_object_angle_changed(self) -> None:
-        """Refresh tick/label placement when either of the *other* two
+        """
+        Refresh tick/label placement when either of the *other* two
         axes changes (this ring's own axis never moves it -- see
         :meth:`_disc_rotation`).
         """
+
         self.reposition_all(self._disc_rotation())
 
     @_check_types.do
-    def reposition_all(self, ring_angle: "_angle.Angle") -> bool:
-        """Reposition every tick (see the base class) then re-sync each
+    def reposition_all(self, ring_angle: _angle.Angle) -> bool:
+        """
+        Reposition every tick (see the base class) then re-sync each
         tick's pickable view instance to match -- its obb/aabb has to
         track the same position/angle/length the tick itself just got,
         or a stale one would let picks land on where a tick used to be.
@@ -160,6 +175,7 @@ class OuterRing(ProtractorRingBase):
         frame where this ring's orientation genuinely didn't change
         doesn't still pay for 360 individual obb/aabb recomputes.
         """
+
         if not super().reposition_all(ring_angle):
             return False
 
@@ -191,8 +207,9 @@ class OuterRing(ProtractorRingBase):
 
     @_check_types.do
     def pick_tick(self, mouse_pos: _point.Point,
-                 camera: "_camera_base.CameraBase") -> "_Tick | None":
-        """Ray-cast *mouse_pos* against every tick's own oriented box
+                  camera: "_camera_base.CameraBase") -> Union["_Tick", None]:
+        """
+        Ray-cast *mouse_pos* against every tick's own oriented box
         (see :mod:`~...gl.object_picker`) and return whichever ``_Tick``
         it actually landed on, or ``None``.
 
@@ -203,11 +220,13 @@ class OuterRing(ProtractorRingBase):
         boxes to find that out, on every single mouse move, is wasted
         work the ring-level test already rules out far more cheaply.
         """
+
         if not self.is_visible or not self._pick_objects:
             return None
 
-        ring_hit = _object_picker.find_object(
-            mouse_pos, [self._ring_pick_facade], camera, get_view=lambda t: t.obj3d)
+        ring_hit = _object_picker.find_object(mouse_pos,
+                                              [self._ring_pick_facade],
+                                              camera, get_view=lambda t: t.obj3d)
         if ring_hit is None:
             return None
 
@@ -222,23 +241,28 @@ class OuterRing(ProtractorRingBase):
     @_check_types.do
     def update_hover(self, mouse_pos: _point.Point,
                      camera: "_camera_base.CameraBase") -> bool:
-        """Find the tick under *mouse_pos* and mark it hovered, clearing
+
+        """
+        Find the tick under *mouse_pos* and mark it hovered, clearing
         the hover if none is under it.
 
         :returns: Whether a tick is now hovered.
         """
+
         tick = self.pick_tick(mouse_pos, camera)
         self._hovered_tick = tick
         return tick is not None
 
     @_check_types.do
     def click_hovered(self) -> float | None:
-        """Return the Euler value the hovered tick snaps this axis to,
+        """
+        Return the Euler value the hovered tick snaps this axis to,
         or ``None`` if nothing is currently hovered. The caller writes
         the value back to ``obj_angle`` (same reasoning as
         :meth:`.inner_ring.InnerRing.update_drag` -- this class only
         computes, the assembler owns the write/unbind-rebind).
         """
+
         if self._hovered_tick is None:
             return None
 
@@ -249,6 +273,7 @@ class OuterRing(ProtractorRingBase):
     def hovered_degrees(self) -> float | None:
         if self._hovered_tick is None:
             return None
+
         return self._hovered_tick.degrees
 
     @_check_types.do
@@ -256,9 +281,13 @@ class OuterRing(ProtractorRingBase):
         self._hovered_tick = None
 
     @_check_types.do
-    def _tick_override_color(self, degrees: float) -> "tuple[float, float, float] | None":
-        if self._hovered_tick is not None and self._hovered_tick.degrees == degrees:
+    def _tick_override_color(self, degrees: float) -> tuple[float, float, float] | None:
+        if (
+            self._hovered_tick is not None and
+            self._hovered_tick.degrees == degrees
+        ):
             return _HOVER_TICK_COLOR
+
         return None
 
     @_check_types.do

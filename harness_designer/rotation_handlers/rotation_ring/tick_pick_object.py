@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""A single outer-protractor tick mark, wrapped just enough to be handed
+"""
+A single outer-protractor tick mark, wrapped just enough to be handed
 to :func:`~harness_designer.gl.object_picker.find_object` -- reuses
 :class:`~harness_designer.objects.objectsvar.base_var.BaseVar`'s own
 obb/aabb math instead of a hand-rolled screen-space hit-test.
@@ -36,7 +37,8 @@ if TYPE_CHECKING:
 
 
 class TickPickObject(_object_base.ObjectBase):
-    """Facade for one tick mark.
+    """
+    Facade for one tick mark.
 
     ``obj3d``/``objschematic``/``objpegboard`` all alias the SAME
     underlying view instance (see :meth:`set_view`) -- a tick only ever
@@ -60,7 +62,8 @@ class TickPickObject(_object_base.ObjectBase):
 
     @_check_types.do
     def delete(self) -> None:
-        """No-op -- never registered via ``add_object``, so there's
+        """
+        No-op -- never registered via ``add_object``, so there's
         nothing in the mainframe/tree/render loop to unregister; the
         owning :class:`.outer_ring.OuterRing` just drops its reference.
         """

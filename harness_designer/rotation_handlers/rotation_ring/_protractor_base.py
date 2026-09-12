@@ -28,11 +28,8 @@ shared geometry.
 """
 
 import math
-from typing import TYPE_CHECKING
-
 import build123d
 import numpy as np
-from OpenGL import GL
 
 from ...shapes import disc_ring as _disc_ring
 from ...shapes import cylinder as _cylinder
@@ -45,11 +42,8 @@ from ... import utils as _utils
 from ... import check_types as _check_types
 from .. import rotation_mesh as _rotation_mesh
 from ... import color as _color
-
-
-if TYPE_CHECKING:
-    from ...gl import shaders as _shaders
-    from ...gl.canvas_base import camera_base as _camera_base
+from ...gl import shaders as _shaders
+from ...gl.canvas_base import camera_base as _camera_base
 
 
 # One minor (unlabeled) tick every degree; every 10th is a longer, labeled
@@ -69,7 +63,8 @@ _MAX_TRACKED_LABELS = int(360.0 / MAJOR_TICK_STEP_DEGREES)
 # over the same buffer. Sized for exactly one ring's own major-tick
 # count -- inner and outer are never updated in the same call, so this
 # never needs to hold both at once.
-_label_positions_scratch = np.zeros((_MAX_TRACKED_LABELS, 3), dtype=np.float64)
+_label_positions_scratch = np.zeros(
+    (_MAX_TRACKED_LABELS, 3), dtype=np.float64)
 
 # Fixed tick color -- deliberately independent of the washer's own
 # (axis- or outer-tinted) material so the ticks always read clearly
@@ -78,7 +73,8 @@ _TICK_COLOR = (0.0, 0.0, 0.0)
 
 
 class _Tick:
-    """One tick mark (+ numeric label, major ticks only).
+    """
+    One tick mark (+ numeric label, major ticks only).
 
     Holds only genuinely per-tick state -- ``degrees``/``is_major`` are
     fixed for its whole lifetime; ``tick_len`` is fixed for as long as
@@ -104,11 +100,10 @@ class _Tick:
     ``render_angle()`` for whichever angle to actually draw with.
     """
 
-    __slots__ = (
-        'degrees', 'is_major', 'tick_len', 'scale',
-        'position', 'mesh_rotation', 'label', 'label_position')
+    __slots__ = ('degrees', 'is_major', 'tick_len', 'scale',
+                 'position', 'mesh_rotation', 'label', 'label_position')
 
-    def __init__(self, degrees: float, is_major: bool, label: "_text.Text | None"):
+    def __init__(self, degrees: float, is_major: bool, label: _text.Text | None):
         self.degrees = degrees
         self.is_major = is_major
         self.tick_len = 0.0
@@ -128,25 +123,35 @@ class _Tick:
 
 
 class ProtractorRingBase:
-    """Shared washer + ticks + labels for one axis's protractor display.
+    """
+    Shared washer + ticks + labels for one axis's protractor display.
 
     :param center: World-space center -- shared reference (not copied),
         same as every other piece of this gizmo.
+
     :param inner_radius: Washer/tick-band inner radius (ID).
+
     :param outer_radius: Washer/tick-band outer radius (OD). Tick marks
-        hang inward from this edge.
+                         hang inward from this edge.
+
     :param depth: World-space thickness along the ring's normal axis.
+
     :param material: Material the translucent washer renders with.
+
     :param label_size: Font size passed to each major tick's :class:`Text`.
+
     :param labels_outward: Which side of this washer has open space for
-        labels to sit in, clear of the disc's own face -- ``True`` places
-        them just beyond the OD, ``False`` just inside the ID. The torus
-        ring sits exactly at the inner protractor's OD / outer
-        protractor's ID (see :mod:`~.rotation_ring`'s own docstring), so
-        :class:`.inner_ring.InnerRing` passes ``False`` (the object-ward
-        side, at its ID, is the only side clear of the torus) and
-        :class:`.outer_ring.OuterRing` passes ``True`` (the outward side,
-        at its OD, is the only side clear of the torus).
+                           labels to sit in, clear of the disc's own face
+                           -- ``True`` places them just beyond the OD,
+                           ``False`` just inside the ID. The torus ring sits
+                           exactly at the inner protractor's OD / outer
+                           protractor's ID (see :mod:`~.rotation_ring`'s own
+                           docstring), so :class:`.inner_ring.InnerRing` passes
+                           ``False`` (the object-ward side, at its ID, is the
+                           only side clear of the torus) and
+                           :class:`.outer_ring.OuterRing` passes ``True``
+                           (the outward side, at its OD, is the only side clear
+                           of the torus).
     """
 
     # Tick length, as a fraction of the band width (outer_radius -
@@ -155,13 +160,18 @@ class ProtractorRingBase:
     # at the same edge labels_outward points away from (see reposition_all).
     _MAJOR_TICK_LENGTH_FRAC = 0.75
     _MINOR_TICK_LENGTH_FRAC = 0.5
-    _TICK_DIAMETER_FRAC = 0.006  # tick diameter, as a fraction of outer_radius
-    _LABEL_GAP_FRAC = 0.12       # label standoff beyond the washer's own free edge, as a fraction of band width
+
+    # tick diameter, as a fraction of outer_radius
+    _TICK_DIAMETER_FRAC = 0.006
+
+    # label standoff beyond the washer's own free edge, as a fraction of band width
+    _LABEL_GAP_FRAC = 0.12
 
     @_check_types.do
-    def __init__(self, axis: str, center: _point.Point, inner_radius: float, outer_radius: float,
-                depth: float, material: _materials.GLMaterial, label_size: float, context,
-                camera: "_camera_base.CameraBase" = None, labels_outward: bool = True):
+    def __init__(self, axis: str, center: _point.Point, inner_radius: float,
+                 outer_radius: float, depth: float, material: _materials.GLMaterial,
+                 label_size: float, context, camera: _camera_base.CameraBase | None = None,
+                 labels_outward: bool = True):
 
         self.axis = axis
         self.center = center
@@ -200,13 +210,19 @@ class ProtractorRingBase:
         self._local_radials = np.zeros((TICK_COUNT, 3), dtype=np.float32)
         self._is_major_mask = np.zeros(TICK_COUNT, dtype=bool)
         self._local_offsets = np.zeros((TICK_COUNT, 3), dtype=np.float32)
-        self._label_local_offsets = np.zeros((TICK_COUNT, 3), dtype=np.float32)
+
+        self._label_local_offsets = np.zeros(
+            (TICK_COUNT, 3), dtype=np.float32)
+
         self._tick_lens = np.zeros(TICK_COUNT, dtype=np.float32)
 
-        self._label_material = _materials.Polished(_color.Color(*self._get_label_color()))
+        self._label_material = _materials.Polished(
+            _color.Color(*self._get_label_color()))
 
         with context:
-            self._disc_vbo = self._build_disc_vbo(inner_radius, outer_radius, depth)
+            self._disc_vbo = self._build_disc_vbo(
+                inner_radius, outer_radius, depth)
+
             self._disc_vbo.acquire()
 
             for i in range(TICK_COUNT):
@@ -230,11 +246,13 @@ class ProtractorRingBase:
                     # from -- tick.degrees stays the unwrapped value
                     # (angle-to-tick lookups elsewhere assume 0..360).
                     label_degrees = _rotation_mesh.wrap_angle(degrees)
-                    label = _text.Text(
-                        str(int(round(label_degrees))), label_size, build123d.FontStyle.ITALIC,
-                        center_anchor=True)
 
-                self._ticks.append(_Tick(degrees=degrees, is_major=is_major, label=label))
+                    label = _text.Text(str(int(round(label_degrees))),
+                                       label_size, build123d.FontStyle.ITALIC,
+                                       center_anchor=True)
+
+                self._ticks.append(
+                    _Tick(degrees=degrees, is_major=is_major, label=label))
 
         # Fixed for the ring's whole lifetime (which ticks are major
         # never changes) -- cached once so render()'s label pass doesn't
@@ -251,7 +269,7 @@ class ProtractorRingBase:
     @staticmethod
     @_check_types.do
     def _build_disc_vbo(inner_radius: float, outer_radius: float,
-                       depth: float) -> "_vbo_handler.NonPooledVBOHandler":
+                        depth: float) -> _vbo_handler.NonPooledVBOHandler:
         """Build a washer mesh baked directly to these exact real-world
         dimensions -- rendered with scale (1, 1, 1) (see render()), no
         render-time scaling involved at all. Unlike the fixed-ratio mesh
@@ -276,22 +294,31 @@ class ProtractorRingBase:
         return _vbo_handler.NonPooledVBOHandler(packed, count, aabb=aabb, obb=obb)
 
     @_check_types.do
-    def set_radii(self, inner_radius: float, outer_radius: float, depth: float, context) -> None:
-        """Update this ring's ID/OD/depth -- called whenever the tracked
+    def set_radii(self, inner_radius: float, outer_radius: float,
+                  depth: float, context) -> None:
+
+        """
+        Update this ring's ID/OD/depth -- called whenever the tracked
         object's size changes (see
         :meth:`~.rotation_ring.RotationRing.on_object_scale_changed`).
         Rebuilds the washer mesh directly to the new dimensions (no
         ratio/scale indirection -- see :meth:`_build_disc_vbo`) whenever
         any of them actually differ from the current mesh.
         """
-        if (inner_radius, outer_radius, depth) != (self.inner_radius, self.outer_radius, self.depth):
+
+        if (
+            (inner_radius, outer_radius, depth) !=
+            (self.inner_radius, self.outer_radius, self.depth)
+        ):
             with context:
                 try:
                     self._disc_vbo.release()
                 except Exception:  # NOQA
                     pass
 
-                self._disc_vbo = self._build_disc_vbo(inner_radius, outer_radius, depth)
+                self._disc_vbo = self._build_disc_vbo(
+                    inner_radius, outer_radius, depth)
+
                 self._disc_vbo.acquire()
 
         self.inner_radius = inner_radius
@@ -330,7 +357,8 @@ class ProtractorRingBase:
 
     @_check_types.do
     def _recompute_local_geometry(self) -> None:
-        """(Re)derive every tick's fixed LOCAL geometry -- length, and
+        """
+        (Re)derive every tick's fixed LOCAL geometry -- length, and
         the local-space (pre-``ring_angle``) offset vectors for both the
         tick mesh and its label -- from the current ID/OD/label size.
 
@@ -342,6 +370,7 @@ class ProtractorRingBase:
         run here and from :meth:`set_radii` (whenever the radii actually
         change), never on every angle-driven reposition.
         """
+
         band_width = self.outer_radius - self.inner_radius
         major_len = band_width * self._MAJOR_TICK_LENGTH_FRAC
         minor_len = band_width * self._MINOR_TICK_LENGTH_FRAC
@@ -385,8 +414,12 @@ class ProtractorRingBase:
         # the old per-tick ``tick.local_radial * start_radius`` loop.
         self._tick_lens = np.where(
             self._is_major_mask, major_len, minor_len).astype(np.float32)
-        self._local_offsets = (self._local_radials * start_radius).astype(np.float32)
-        self._label_local_offsets = (self._local_radials * label_radius).astype(np.float32)
+
+        self._local_offsets = (
+            (self._local_radials * start_radius).astype(np.float32))
+
+        self._label_local_offsets = (
+            (self._local_radials * label_radius).astype(np.float32))
 
         # cylinder's own unit mesh (shapes/cylinder.py) uses scale.x/
         # scale.y as diameter and scale.z as length -- see e.g.
@@ -399,11 +432,14 @@ class ProtractorRingBase:
 
         for i, tick in enumerate(self._ticks):
             tick.tick_len = float(self._tick_lens[i])
-            tick.scale = _point.Point(tick_diameter, tick_diameter, tick.tick_len)
+
+            tick.scale = _point.Point(
+                tick_diameter, tick_diameter, tick.tick_len)
 
     @_check_types.do
-    def reposition_all(self, ring_angle: "_angle.Angle") -> bool:
-        """Place every tick/label in world space by rotating their
+    def reposition_all(self, ring_angle: _angle.Angle) -> bool:
+        """
+        Place every tick/label in world space by rotating their
         already-fixed LOCAL geometry (see :meth:`_recompute_local_geometry`)
         through the ring's current *ring_angle* -- the only thing that
         ever changes here is the object's rotation, never a tick's own
@@ -428,6 +464,7 @@ class ProtractorRingBase:
             :class:`.outer_ring.OuterRing` uses this to also skip its own
             pick-object resync when nothing here changed either.
         """
+
         new_quat = ring_angle.as_quat_numpy
         if (
             self._last_ring_angle_quat is not None and
@@ -460,7 +497,11 @@ class ProtractorRingBase:
         # for the inner one (OD -> ID) -- the opposite of the outward
         # radial direction.
         radial_world = self._local_radials @ ring_matrix.T
-        growth_world = radial_world if self._labels_outward else -radial_world
+
+        if self._labels_outward:
+            growth_world = radial_world
+        else:
+            growth_world = -radial_world
 
         world_label_offsets = self._label_local_offsets @ ring_matrix.T
         label_positions = center_np + world_label_offsets
@@ -470,7 +511,8 @@ class ProtractorRingBase:
             tick.mesh_rotation = _angle.Angle.from_direction(growth_world[i])
 
             if tick.label is not None:
-                tick.label_position = _point.Point(*[float(v) for v in label_positions[i]])
+                tick.label_position = _point.Point(
+                    *[float(v) for v in label_positions[i]])
 
         # Every label's own camera-facing angle is computed from its
         # *position*, which every tick's label_position write above just
@@ -486,7 +528,8 @@ class ProtractorRingBase:
 
     @_check_types.do
     def start_camera_tracking(self) -> None:
-        """Prime every major tick's label with a real (identity) angle,
+        """
+        Prime every major tick's label with a real (identity) angle,
         bind this ring's own camera-move callback, then immediately
         compute a real angle for each of them -- must be called AFTER
         this ring's own first :meth:`reposition_all` (see each
@@ -514,6 +557,7 @@ class ProtractorRingBase:
         leaves every label's ``render_angle()`` falling through to its
         own ``tick.mesh_rotation`` instead, same as always.
         """
+
         if self._camera is None:
             return
 
@@ -525,7 +569,8 @@ class ProtractorRingBase:
 
     @_check_types.do
     def _update_label_angles(self) -> None:
-        """Recompute every major tick's own camera-facing billboard
+        """
+        Recompute every major tick's own camera-facing billboard
         angle directly, writing straight into each tick's own label --
         no ``shapes.text._CameraTrackingArena`` involvement at all: that
         class exists for OBB/AABB-tracked owners (notes), and computing
@@ -549,6 +594,7 @@ class ProtractorRingBase:
         own protractor), or before this ring has any major ticks with
         labels yet.
         """
+
         if self._camera is None:
             return
 
@@ -574,7 +620,8 @@ class ProtractorRingBase:
 
     @_check_types.do
     def _on_camera_moved(self, *_args) -> None:
-        """Bound to ``self._camera.position`` in
+        """
+        Bound to ``self._camera.position`` in
         :meth:`start_camera_tracking` -- must be a real bound method
         (not a lambda/free function): ``Point.bind()`` stores it as a
         ``weakref.WeakMethod``, which only works against an actual bound
@@ -582,10 +629,11 @@ class ProtractorRingBase:
         _on_camera_moved_for_notes`` for the identical constraint on the
         equivalent per-note callback).
         """
+
         self._update_label_angles()
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+    def render(self, shaders: _shaders.ShaderProgram) -> None:
         if not self.is_visible:
             return
 
@@ -608,10 +656,8 @@ class ProtractorRingBase:
             # self._disc_vbo is baked directly to this ring's real
             # ID/OD/depth (see _build_disc_vbo) -- no render-time scale
             # needed at all.
-            self._disc_vbo.render(
-                faces_program,
-                self.center, self._disc_rotation(),
-                _point.Point(1.0, 1.0, 1.0), None)
+            self._disc_vbo.render(faces_program, self.center, self._disc_rotation(),
+                                  _point.Point(1.0, 1.0, 1.0), None)
 
             # Ticks always render in a fixed color (black), independent of
             # the washer's own material -- inheriting the washer's own
@@ -663,17 +709,19 @@ class ProtractorRingBase:
                 # the ring's own plane) when there's no camera to
                 # billboard toward at all (schematic/pegboard).
                 rotation = tick.label.render_angle(tick.mesh_rotation)
-                tick.label.render(
-                    faces_program,
-                    tick.label_position, rotation, label_scale, False)
+
+                tick.label.render(faces_program, tick.label_position,
+                                  rotation, label_scale, False)
 
     @_check_types.do
     def _disc_rotation(self) -> "_angle.Angle":
-        """Subclasses provide whatever orientation the washer itself
+        """
+        Subclasses provide whatever orientation the washer itself
         should render with -- the inner ring's tracks the object, the
         outer ring's stays fixed. Ticks/labels get their own
         orientation from :meth:`reposition_all` regardless.
         """
+
         raise NotImplementedError
 
     def _get_label_color(self):
@@ -681,25 +729,31 @@ class ProtractorRingBase:
 
     @staticmethod
     @_check_types.do
-    def _set_solid_color(faces_program, color: "tuple[float, float, float]") -> None:
+    def _set_solid_color(faces_program,
+                         color: "tuple[float, float, float]") -> None:
+
         faces_program.material_diffuse = [color[0], color[1], color[2], 1.0]
         faces_program.material_emissive = [color[0], color[1], color[2], 1.0]
 
     @_check_types.do
-    def _tick_override_color(self, degrees: float) -> "tuple[float, float, float] | None":
-        """Per-tick color override for the current frame, or ``None`` for
+    def _tick_override_color(self, degrees: float) -> tuple[float, float, float] | None:
+        """
+        Per-tick color override for the current frame, or ``None`` for
         the default fixed tick color (:data:`_TICK_COLOR`). Base
         implementation never overrides -- :class:`.outer_ring.OuterRing`
         overrides this to highlight the currently-hovered tick red.
         """
+
         return None
 
     @_check_types.do
     def tick_at_angle(self, degrees: float) -> "_Tick | None":
-        """Return the tick nearest *degrees* (wrapped to 0-360), or
+        """
+        Return the tick nearest *degrees* (wrapped to 0-360), or
         ``None`` if there are no ticks (shouldn't happen -- present for
         the hover/click code in the subclasses to use defensively).
         """
+
         if not self._ticks:
             return None
 

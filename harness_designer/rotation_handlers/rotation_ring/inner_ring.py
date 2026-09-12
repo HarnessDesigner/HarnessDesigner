@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""The object-space protractor ring -- ticks, text and washer, rotating
+"""
+The object-space protractor ring -- ticks, text and washer, rotating
 with the tracked object.
 
 Its own-slot spin tracks the object's current Euler value for this axis
@@ -42,21 +43,22 @@ _LABEL_COLORS = {'x': (0.8, 0.2, 0.2, 1.0),
 
 
 class InnerRing(ProtractorRingBase):
-    """One axis's object-space protractor ring.
+    """
+    One axis's object-space protractor ring.
 
     :param axis: ``'x'``, ``'y'`` or ``'z'`` -- which Euler slot this
-        ring displays/drives.
+                 ring displays/drives.
+
     :param obj_angle: The tracked object's own :class:`Angle` instance
-        (shared reference, not copied -- read directly every time this
-        ring's orientation is needed, per the "just use the object's
-        angle" design).
+                      (shared reference, not copied -- read directly every
+                      time this ring's orientation is needed, per the "just
+                      use the object's angle" design).
     """
 
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
-                outer_radius: float, depth: float, material, label_size: float,
-                obj_angle: _angle.Angle, context, camera=None):
-
+                 outer_radius: float, depth: float, material, label_size: float,
+                 obj_angle: _angle.Angle, context, camera=None):
 
         self._obj_angle = obj_angle
 
@@ -71,8 +73,9 @@ class InnerRing(ProtractorRingBase):
         # The inner protractor's OD sits at the torus ring -- the only
         # side clear of it is the ID, toward the object -- see
         # ProtractorRingBase's own docstring.
-        super().__init__(axis, center, inner_radius, outer_radius, depth, material, label_size, context,
-                         camera, labels_outward=False)
+        super().__init__(axis, center, inner_radius, outer_radius, depth,
+                         material, label_size, context, camera, labels_outward=False)
+
         self.reposition_all(self._disc_rotation())
         self.start_camera_tracking()
 
@@ -81,7 +84,8 @@ class InnerRing(ProtractorRingBase):
 
     @_check_types.do
     def _disc_rotation(self) -> "_angle.Angle":
-        """This axis's own Euler value, applied as an extra spin about
+        """
+        This axis's own Euler value, applied as an extra spin about
         the ring's own local-Z normal, composed UNDER
         ``slot_ring_angle``'s nesting transform (spin first in local
         space, then place the already-spun ring into world space via
@@ -96,6 +100,7 @@ class InnerRing(ProtractorRingBase):
         value (that's the entire point of it being the free-rotate
         ring) -- so that spin has to be added back in here.
         """
+
         ex, ey, ez = self._obj_angle.as_euler_float
         own_degrees = {'x': ex, 'y': ey, 'z': ez}[self.axis]
 
@@ -104,32 +109,35 @@ class InnerRing(ProtractorRingBase):
 
         theta = math.radians(own_degrees)
         cos_t, sin_t = math.cos(theta), math.sin(theta)
-        local_spin = np.array([
-            [cos_t, -sin_t, 0.0],
-            [sin_t, cos_t, 0.0],
-            [0.0, 0.0, 1.0],
-        ], dtype=np.float32)
+
+        local_spin = np.array([[cos_t, -sin_t, 0.0], [sin_t, cos_t, 0.0],
+                               [0.0, 0.0, 1.0]], dtype=np.float32)
 
         total_matrix = (outer_matrix @ local_spin).astype(np.float32)
+
         return _angle.Angle.from_matrix(total_matrix)
 
     @_check_types.do
     def on_object_angle_changed(self) -> None:
-        """Refresh tick/label placement -- call whenever ``obj_angle``'s
+        """
+        Refresh tick/label placement -- call whenever ``obj_angle``'s
         callback fires (the assembler owns the bind/unbind lifecycle so
         this stays a plain method, not a callback itself).
         """
+
         self.reposition_all(self._disc_rotation())
 
     @_check_types.do
     def begin_drag(self, mouse_pos: _point.Point,
                    camera: "_camera_base.CameraBase") -> None:
-        """Start a free-rotation drag anywhere along the ring's band.
+        """
+        Start a free-rotation drag anywhere along the ring's band.
 
         Mirrors the retired ``DragRotate.__init__``'s screen-space
         angle-tracking approach, just re-homed onto this ring instance
         instead of a standalone drag-session object.
         """
+
         self._dragging = True
         self._drag_start_value = float(getattr(self._obj_angle, self.axis))
 
@@ -144,10 +152,18 @@ class InnerRing(ProtractorRingBase):
         self._drag_cx = float(center_screen.x)
         self._drag_cy = float(center_screen.y)
 
-        normal = _rotation_mesh.slot_normal(self.axis, self._obj_angle.as_euler_float)
+        normal = _rotation_mesh.slot_normal(
+            self.axis, self._obj_angle.as_euler_float)
+
         to_camera = (camera.position - self.center).as_numpy
-        facing = float(np.dot(normal, np.asarray(to_camera[:3], dtype=np.float32)))
-        self._drag_sign = 1.0 if facing >= 0.0 else -1.0
+
+        facing = float(
+            np.dot(normal, np.asarray(to_camera[:3], dtype=np.float32)))
+
+        if facing >= 0.0:
+            self._drag_sign = 1.0
+        else:
+            self._drag_sign = -1.0
 
         self._drag_prev_phi = None
         self._drag_total = 0.0
@@ -159,7 +175,8 @@ class InnerRing(ProtractorRingBase):
 
     @_check_types.do
     def update_drag(self, mouse_pos: _point.Point) -> float | None:
-        """Advance the active drag and return the new Euler value for
+        """
+        Advance the active drag and return the new Euler value for
         this axis, or ``None`` if no drag is active or this is the
         drag's first sample (matching ``DragRotate.__call__``'s own
         first-sample-establishes-baseline behavior).
@@ -170,6 +187,7 @@ class InnerRing(ProtractorRingBase):
         assembler can unbind/rebind its own change-tracking callback
         around the write exactly like the old ``apply_drag_angle`` did.
         """
+
         if not self._dragging:
             return None
 
@@ -181,6 +199,7 @@ class InnerRing(ProtractorRingBase):
 
         step = math.atan2(math.sin(phi - self._drag_prev_phi),
                           math.cos(phi - self._drag_prev_phi))
+
         self._drag_prev_phi = phi
         self._drag_total += step
 
@@ -200,9 +219,10 @@ class InnerRing(ProtractorRingBase):
 
     @_check_types.do
     def hit_test(self, mouse_pos: _point.Point,
-                camera: "_camera_base.CameraBase", tolerance: float = 8.0,
-                samples: int = 64) -> bool:
-        """Grab anywhere within the band's full radial extent (ID to OD),
+                 camera: "_camera_base.CameraBase", tolerance: float = 8.0,
+                 samples: int = 64) -> bool:
+        """
+        Grab anywhere within the band's full radial extent (ID to OD),
         not just a thin nominal circumference -- for each angular sample,
         projects both the outer- and inner-edge points and accepts a hit
         within *tolerance* screen pixels of either edge polyline or the
@@ -212,6 +232,7 @@ class InnerRing(ProtractorRingBase):
         for a thin ring, just applied to both edges of a wide one so it
         stays correct regardless of viewing angle).
         """
+
         if not self.is_visible:
             return False
 
@@ -227,21 +248,23 @@ class InnerRing(ProtractorRingBase):
             sin_t = math.sin(theta)
 
             local_outer = np.array(
-                [cos_t * self.outer_radius, sin_t * self.outer_radius, 0.0], dtype=np.float32)
+                [cos_t * self.outer_radius, sin_t * self.outer_radius, 0.0],
+                dtype=np.float32)
+
             local_inner = np.array(
-                [cos_t * self.inner_radius, sin_t * self.inner_radius, 0.0], dtype=np.float32)
+                [cos_t * self.inner_radius, sin_t * self.inner_radius, 0.0],
+                dtype=np.float32)
 
             world_outer = ring_angle @ local_outer
             world_inner = ring_angle @ local_inner
 
-            outer_pt = _point.Point(
-                float(self.center.x) + float(world_outer[0]),
-                float(self.center.y) + float(world_outer[1]),
-                float(self.center.z) + float(world_outer[2]))
-            inner_pt = _point.Point(
-                float(self.center.x) + float(world_inner[0]),
-                float(self.center.y) + float(world_inner[1]),
-                float(self.center.z) + float(world_inner[2]))
+            outer_pt = _point.Point(float(self.center.x) + float(world_outer[0]),
+                                    float(self.center.y) + float(world_outer[1]),
+                                    float(self.center.z) + float(world_outer[2]))
+
+            inner_pt = _point.Point(float(self.center.x) + float(world_inner[0]),
+                                    float(self.center.y) + float(world_inner[1]),
+                                    float(self.center.z) + float(world_inner[2]))
 
             screen_outer = camera.ProjectPoint(outer_pt)
             screen_inner = camera.ProjectPoint(inner_pt)
@@ -261,11 +284,14 @@ class InnerRing(ProtractorRingBase):
             if prev_outer is not None:
                 if (
                     _hit_test.point_near_segment(
-                        px, py, prev_outer[0], prev_outer[1], cur_outer[0], cur_outer[1], tolerance) or
+                        px, py, prev_outer[0], prev_outer[1],
+                        cur_outer[0], cur_outer[1], tolerance) or
                     _hit_test.point_near_segment(
-                        px, py, prev_inner[0], prev_inner[1], cur_inner[0], cur_inner[1], tolerance) or
+                        px, py, prev_inner[0], prev_inner[1],
+                        cur_inner[0], cur_inner[1], tolerance) or
                     _hit_test.point_near_segment(
-                        px, py, cur_outer[0], cur_outer[1], cur_inner[0], cur_inner[1], tolerance)
+                        px, py, cur_outer[0], cur_outer[1],
+                        cur_inner[0], cur_inner[1], tolerance)
                 ):
                     return True
 

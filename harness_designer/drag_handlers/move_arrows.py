@@ -80,7 +80,9 @@ class MoveArrows(_object_base.ObjectBase):
     def __del__(self):
         try:
             self.delete()
-        except RuntimeError:
+        except Exception:  # NOQA
+            # See RotationRings.__del__ -- same reference-cycle/shutdown
+            # reasoning applies here.
             pass
 
     @_check_types.do

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""The always-visible, click-to-activate ring for one rotation axis.
+"""
+The always-visible, click-to-activate ring for one rotation axis.
 
 Round-tube (torus) cross-section -- unlike the flat disc-ring shape used
 by :mod:`.inner_ring`/:mod:`.outer_ring`, a torus's tube only stays
@@ -16,10 +17,7 @@ and the protractor.
 """
 
 import math
-from typing import TYPE_CHECKING
-
 import numpy as np
-from OpenGL import GL
 
 from . import _hit_test
 from ...geometry import point as _point
@@ -28,23 +26,26 @@ from ...gl import materials as _materials
 from ...gl import vbo as _vbo_handler
 from .. import rotation_mesh as _rotation_mesh
 from ... import check_types as _check_types
-
-if TYPE_CHECKING:
-    from ...gl.canvas_base import camera_base as _camera_base
-    from ...gl import shaders as _shaders
+from ...gl.canvas_base import camera_base as _camera_base
+from ...gl import shaders as _shaders
 
 
 class TorusRing:
-    """One axis's activation ring.
+    """
+    One axis's activation ring.
 
-    :param position: World-space center -- shared with whatever it's
-        wrapped around (not copied), same reasoning as the rest of this
-        gizmo: always exactly centered with no follow-the-leader
-        callback needed.
+    :param position: World-space center -- shared with whatever it's wrapped
+                     around (not copied), same reasoning as the rest of this
+                     gizmo: always exactly centered with no follow-the-leader
+                     callback needed.
+
     :param angle: World-space orientation of the ring's plane.
+
     :param radius: World-space ring radius.
+
     :param tube_diameter_scale: Tube thickness as a fraction of *radius*
-        (see ``Config.rotation_rings.tube_diameter_scale``).
+                                (see ``Config.rotation_rings.tube_diameter_scale``).
+
     :param material: Material this ring renders with.
     """
 
@@ -59,6 +60,7 @@ class TorusRing:
         self.material = material
 
         self.is_visible = True
+
         # Only the torus rings that are NOT currently the active axis
         # stay pickable -- the assembler in rotation_ring/__init__.py
         # flips this off for the active one (and the other two once a
@@ -68,16 +70,19 @@ class TorusRing:
         self._tube_diameter_scale = tube_diameter_scale
 
         packed, count = _rotation_mesh.build_ring_mesh(tube_diameter_scale)
+
         with context:
             self._vbo = _vbo_handler.NonPooledVBOHandler(packed, count)
             self._vbo.acquire()
 
     @_check_types.do
     def rebuild(self, tube_diameter_scale: float, context) -> None:
-        """Rebuild the mesh -- only needed when the tube-thickness config
+        """
+        Rebuild the mesh -- only needed when the tube-thickness config
         value changes (the mesh bakes it in; radius/position/angle are
         all applied as render-time uniforms and never need a rebuild).
         """
+
         if tube_diameter_scale == self._tube_diameter_scale:
             return
 
@@ -88,7 +93,7 @@ class TorusRing:
             self._vbo.update(packed, count)
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+    def render(self, shaders: _shaders.ShaderProgram) -> None:
         if not self.is_visible:
             return
 
@@ -107,29 +112,31 @@ class TorusRing:
             # this method reasoning about what renders after it -- see
             # that method's own docstring) -- this draw just uses
             # whatever depth-mask state it's called with.
-            dimmed = float(self.material.diffuse[3]) < 1.0
+            # dimmed = float(self.material.diffuse[3]) < 1.0
             # if dimmed:
             #     GL.glEnable(GL.GL_BLEND)
             #     GL.glBlendFunc(GL.GL_SRC_ALPHA, GL.GL_ONE_MINUS_SRC_ALPHA)
 
-            self._vbo.render(
-                faces_program,
-                self.position, self.angle,
-                _point.Point(self.radius, self.radius, self.radius), None)
+            scale = _point.Point(self.radius, self.radius, self.radius)
+
+            self._vbo.render(faces_program, self.position, self.angle,
+                             scale, None)
 
             # if dimmed:
             #     GL.glDisable(GL.GL_BLEND)
 
     @_check_types.do
-    def hit_test(self, mouse_pos: _point.Point,
-                camera: "_camera_base.CameraBase", tolerance: float = 6.0,
-                samples: int = 64) -> bool:
-        """Sample points around the ring's circumference, project each to
+    def hit_test(self, mouse_pos: _point.Point, camera: _camera_base.CameraBase,
+                 tolerance: float = 6.0, samples: int = 64) -> bool:
+
+        """
+        Sample points around the ring's circumference, project each to
         screen space, and check whether *mouse_pos* falls within
         *tolerance* pixels of the resulting polyline -- there's no
         single fixed handle position to test against anymore, the whole
         band is the click target.
         """
+
         if not self.is_visible or not self.is_pickable:
             return False
 
@@ -139,15 +146,18 @@ class TorusRing:
         prev = None
         for i in range(samples + 1):
             theta = 2.0 * math.pi * i / samples
+
             local = np.array(
                 [math.cos(theta) * self.radius, math.sin(theta) * self.radius, 0.0],
                 dtype=np.float32)
+
             world = self.angle @ local
 
             world_pt = _point.Point(
                 float(self.position.x) + float(world[0]),
                 float(self.position.y) + float(world[1]),
                 float(self.position.z) + float(world[2]))
+
             screen = camera.ProjectPoint(world_pt)
             if screen is None:
                 # Degenerate projection (behind the camera's own eye
@@ -160,6 +170,7 @@ class TorusRing:
             if prev is not None:
                 if _hit_test.point_near_segment(
                         px, py, prev[0], prev[1], cur[0], cur[1], tolerance):
+
                     return True
 
             prev = cur

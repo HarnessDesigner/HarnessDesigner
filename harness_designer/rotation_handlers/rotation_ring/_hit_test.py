@@ -1,6 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Small screen-space hit-test helpers shared by the ring/tick pick tests."""
+"""
+Small screen-space hit-test helpers shared by the ring/tick pick tests.
+"""
 
 import math
 
@@ -13,14 +15,22 @@ def point_near_segment(px: float, py: float, ax: float, ay: float,
     """Return whether (px, py) is within *tolerance* pixels of segment A-B.
 
     :param px: Mouse X in screen pixels.
+
     :param py: Mouse Y in screen pixels.
+
     :param ax: Segment start X.
+
     :param ay: Segment start Y.
+
     :param bx: Segment end X.
+
     :param by: Segment end Y.
+
     :param tolerance: Maximum pixel distance still counted as a hit.
+
     :rtype: bool
     """
+
     dx = bx - ax
     dy = by - ay
     len_sq = dx * dx + dy * dy

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Assembles one axis's :class:`~.torus_ring.TorusRing` +
+"""
+Assembles one axis's :class:`~.torus_ring.TorusRing` +
 :class:`~.inner_ring.InnerRing` + :class:`~.outer_ring.OuterRing` into a
 single :class:`RotationRing`, and owns the show/hide/pickability state
 machine between them.
@@ -41,7 +42,8 @@ _NORMAL_ALPHA = 1.0
 
 
 class RotationRing:
-    """One axis's full protractor gizmo (torus + inner + outer rings).
+    """
+    One axis's full protractor gizmo (torus + inner + outer rings).
 
     Radial layout, object outward to screen edge::
 
@@ -63,30 +65,41 @@ class RotationRing:
     alignment is also where "the torus ring, at rest" visually sits.
 
     :param axis: ``'x'``, ``'y'`` or ``'z'``.
+
     :param center: World-space center -- shared with the tracked
-        object's position (not copied), same as every other piece of
-        this gizmo.
+                   object's position (not copied), same as every other
+                   piece of this gizmo.
+
     :param obj_angle: The tracked object's own :class:`Angle` (shared
-        reference) -- every sub-ring reads this directly rather than
-        keeping its own synced copy.
-    :param radius: Torus ring radius -- already includes whatever
-        clearance ``Config.rotation_handler.diameter_scale`` adds beyond
-        the object (see :meth:`~..generic.Rings3D._compute_size`).
-    :param object_radius: The tracked object's own raw corner-to-corner
-        reach (radius, i.e. half the full diagonal) -- *not*
-        clearance-scaled -- used only to size the inner protractor's ID.
-    :param tube_diameter_scale: Torus tube thickness, as a fraction of
-        *radius* -- ``Config.rotation_handler.tube_diameter_scale``.
+                      reference) -- every sub-ring reads this directly
+                      rather than keeping its own synced copy.
+
+    :param radius: Torus ring radius -- already includes whatever clearance
+                   ``Config.rotation_handler.diameter_scale`` adds beyond
+                   the object (see :meth:`~..generic.Rings3D._compute_size`).
+
+    :param object_radius: The tracked object's own raw corner-to-corner reach
+                          (radius, i.e. half the full diagonal) -- *not*
+                          clearance-scaled -- used only to size the inner
+                          protractor's ID.
+
+    :param tube_diameter_scale: Torus tube thickness, as a fraction of *radius*
+                                -- ``Config.rotation_handler.tube_diameter_scale``.
+
     :param color: Base RGB for this axis (muted, not the old gizmo's
-        saturated primaries -- see the docstring on
-        ``rotation_handlers/rotation_rings.py`` for the config knobs).
+                  saturated primaries -- see the docstring on
+                  ``rotation_handlers/rotation_rings.py`` for the config knobs).
+
     :param label_size: Font size for tick numbers.
+
     :param mainframe: Passed straight through to every outer-ring tick's
-        :class:`.tick_pick_object.TickPickObject` -- see that module's
-        docstring for why it's never actually registered with it.
-    :param base_cls: Whichever of ``Base3D``/``BaseSchematic``/
-        ``BasePegboard`` matches the view this ring belongs to -- see
-        :class:`.outer_ring.OuterRing`'s own docstring.
+                      :class:`.tick_pick_object.TickPickObject` -- see that
+                      module's docstring for why it's never actually registered
+                      with it.
+
+    :param base_cls: Whichever of ``Base3D``/``BaseSchematic``/``BasePegboard``
+                     matches the view this ring belongs to -- see
+                     :class:`.outer_ring.OuterRing`'s own docstring.
     """
 
     # How far outside the object's own corner-to-corner reach the inner
@@ -115,10 +128,10 @@ class RotationRing:
 
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point,
-                obj_angle: _angle.Angle, radius: float, object_radius: float,
-                tube_diameter_scale: float, color: "_color.Color",
-                outer_color: "_color.Color", label_size: float, context,
-                mainframe: "_ui.MainFrame", base_cls: "type[_base_var.BaseVar]", camera=None):
+                 obj_angle: _angle.Angle, radius: float, object_radius: float,
+                 tube_diameter_scale: float, color: _color.Color,
+                 outer_color: _color.Color, label_size: float, context,
+                 mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar], camera=None):
 
         self.axis = axis
         self.center = center
@@ -142,14 +155,19 @@ class RotationRing:
         # axis, dragged directly); the outer protractor is deliberately a
         # separate, neutral color (see outer_color) so it never reads as
         # "belonging to" any one axis -- it's the world-fixed snap ring.
-        self._inner_material = _materials.Glowing(_color.Color(cr, cg, cb, 40))
+        self._inner_material = _materials.Glowing(
+            _color.Color(cr, cg, cb, 40))
 
         ocr, ocg, ocb = outer_color.rgb
-        self._outer_material = _materials.Glowing(_color.Color(ocr, ocg, ocb, 40))
 
-        torus_angle = _rotation_mesh.slot_ring_angle(axis, obj_angle.as_euler_float)
-        self.torus = TorusRing(
-            center, torus_angle, radius, tube_diameter_scale, torus_material, context)
+        self._outer_material = _materials.Glowing(
+            _color.Color(ocr, ocg, ocb, 40))
+
+        torus_angle = _rotation_mesh.slot_ring_angle(
+            axis, obj_angle.as_euler_float)
+
+        self.torus = TorusRing(center, torus_angle, radius,
+                               tube_diameter_scale, torus_material, context)
 
         # Every protractor position/offset this axis will ever need is
         # derived here, up front, from the same (radius, object_radius)
@@ -159,7 +177,9 @@ class RotationRing:
         # this math to activation time the way building the actual
         # InnerRing/OuterRing GL objects still is (see below).
         (self._inner_id, self._inner_od,
-         self._outer_id, self._outer_od) = self._compute_radii(radius, object_radius, tube_diameter_scale)
+         self._outer_id, self._outer_od) = self._compute_radii(
+            radius, object_radius, tube_diameter_scale)
+
         self._protractor_depth = radius * self._PROTRACTOR_DEPTH_SCALE
 
         # The protractor (inner + outer rings, each owning its own
@@ -177,21 +197,25 @@ class RotationRing:
 
     @_check_types.do
     def _ensure_protractor(self) -> None:
-        """Build :attr:`inner`/:attr:`outer` on first use, from the
+        """
+        Build :attr:`inner`/:attr:`outer` on first use, from the
         positions/offsets already computed in :meth:`__init__` -- a
         no-op on every activation after the first.
         """
+
         if self.inner is not None:
             return
 
-        self.inner = InnerRing(
-            self.axis, self.center, self._inner_id, self._inner_od, self._protractor_depth,
-            self._inner_material, self._label_size, self.obj_angle, self._context, self._camera)
+        self.inner = InnerRing(self.axis, self.center, self._inner_id,
+                               self._inner_od, self._protractor_depth,
+                               self._inner_material, self._label_size,
+                               self.obj_angle, self._context, self._camera)
 
-        self.outer = OuterRing(
-            self.axis, self.center, self._outer_id, self._outer_od, self._protractor_depth,
-            self._outer_material, self._label_size, self.obj_angle, self._context,
-            self._mainframe, self._base_cls, self._camera)
+        self.outer = OuterRing(self.axis, self.center, self._outer_id,
+                               self._outer_od, self._protractor_depth,
+                               self._outer_material, self._label_size,
+                               self.obj_angle, self._context, self._mainframe,
+                               self._base_cls, self._camera)
 
     # Gap between the torus ring and the OUTER protractor, as a multiple
     # of the torus *tube's* own diameter (its cross-section -- radius *
@@ -206,7 +230,8 @@ class RotationRing:
     @_check_types.do
     def _compute_radii(cls, radius: float, object_radius: float,
                        tube_diameter_scale: float) -> tuple[float, float, float, float]:
-        """Derive (inner_id, inner_od, outer_id, outer_od) from the torus
+        """
+        Derive (inner_id, inner_od, outer_id, outer_od) from the torus
         radius and the object's own raw corner-to-corner reach -- see
         this class's own docstring for the radial layout these implement.
 
@@ -217,6 +242,7 @@ class RotationRing:
         *radius* by the tube's own half-thickness, on whichever side that
         protractor sits, so neither one intersects the torus at all.
         """
+
         tube_radius = radius * tube_diameter_scale / 2.0
 
         inner_od = radius - tube_radius
@@ -240,11 +266,13 @@ class RotationRing:
 
     @_check_types.do
     def on_object_angle_changed(self) -> None:
-        """Refresh every sub-ring's orientation -- call whenever
+        """
+        Refresh every sub-ring's orientation -- call whenever
         ``obj_angle``'s callback fires. Runs for all three axes'
         instances regardless of which is active, since the gyroscope
         nesting means any axis's change can move any ring's plane.
         """
+
         self.torus.angle = _rotation_mesh.slot_ring_angle(
             self.axis, self.obj_angle.as_euler_float)
 
@@ -253,19 +281,25 @@ class RotationRing:
             self.outer.on_object_angle_changed()
 
     @_check_types.do
-    def on_object_scale_changed(self, radius: float, object_radius: float) -> None:
-        """Resize when the tracked object's scale changes -- the caller
+    def on_object_scale_changed(self, radius: float,
+                                object_radius: float) -> None:
+
+        """
+        Resize when the tracked object's scale changes -- the caller
         (the owning ``RotationRings3D``-equivalent) recomputes *radius*/
         *object_radius* the same way ``Rings3D._compute_size`` always
         did; this method just re-derives everything downstream of it.
         """
+
         self.radius = radius
         self.object_radius = object_radius
 
         self.torus.radius = radius
 
         (self._inner_id, self._inner_od,
-         self._outer_id, self._outer_od) = self._compute_radii(radius, object_radius, self._tube_diameter_scale)
+         self._outer_id, self._outer_od) = self._compute_radii(
+            radius, object_radius, self._tube_diameter_scale)
+
         self._protractor_depth = radius * self._PROTRACTOR_DEPTH_SCALE
 
         if self.inner is None:
@@ -274,8 +308,11 @@ class RotationRing:
             # eventually gets built, so there's nothing further to do here.
             return
 
-        self.inner.set_radii(self._inner_id, self._inner_od, self._protractor_depth, self._context)
-        self.outer.set_radii(self._outer_id, self._outer_od, self._protractor_depth, self._context)
+        self.inner.set_radii(self._inner_id, self._inner_od,
+                             self._protractor_depth, self._context)
+
+        self.outer.set_radii(self._outer_id, self._outer_od,
+                             self._protractor_depth, self._context)
 
         if self.is_active:
             self.inner.reposition_all(self.inner._disc_rotation())  # NOQA
@@ -283,7 +320,8 @@ class RotationRing:
 
     @_check_types.do
     def set_dimmed(self, flag: bool) -> None:
-        """Dim/undim this axis's torus ring -- called on the two axes
+        """
+        Dim/undim this axis's torus ring -- called on the two axes
         that are NOT the one just activated.
 
         A dimmed torus stays pickable -- clicking it is exactly how the
@@ -293,17 +331,25 @@ class RotationRing:
         currently ACTIVE axis's own torus is excluded, since its
         protractor bands take over the click surface while it's shown.
         """
+
         self._dimmed = flag
-        self.torus.material.diffuse[3] = _DIMMED_ALPHA if flag else _NORMAL_ALPHA
+
+        if flag:
+            self.torus.material.diffuse[3] = _DIMMED_ALPHA
+        else:
+            self.torus.material.diffuse[3] = _NORMAL_ALPHA
+
         self.torus.is_pickable = not self.is_active
 
     @_check_types.do
     def activate(self) -> None:
-        """Show this axis's protractor (the torus itself stays visible --
+        """
+        Show this axis's protractor (the torus itself stays visible --
         it's still the seam the two protractor bands meet at) and stop
         the torus from being pickable (dragging now happens on the
         protractor bands instead).
         """
+
         self._ensure_protractor()
 
         self.is_active = True
@@ -315,8 +361,10 @@ class RotationRing:
 
     @_check_types.do
     def deactivate(self) -> None:
-        """Hide this axis's protractor and restore normal torus
-        visibility/picking."""
+        """
+        Hide this axis's protractor and restore normal torus visibility/picking.
+        """
+
         self.is_active = False
         self.torus.is_visible = True
         self.torus.is_pickable = not self._dimmed

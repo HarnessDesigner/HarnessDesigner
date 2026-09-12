@@ -177,7 +177,14 @@ class RotationRings(_object_base.ObjectBase):
         # been deleted and this causes a runtime error to occur
         try:
             self.delete()
-        except RuntimeError:
+        except Exception:  # NOQA
+            # Deletion should normally be handled explicitly by whichever
+            # object owns this gizmo (see BaseVar._delete()) before it ever
+            # becomes unreachable. If it still ends up finalized here --
+            # e.g. a reference cycle (self.selected <-> self._active_handler)
+            # only broken by the cyclic GC, possibly as late as interpreter
+            # shutdown -- the GL context/DB row it touches may already be
+            # gone, and not always with a RuntimeError.
             pass
 
     @_check_types.do
