@@ -367,7 +367,7 @@ class WireMarker(_base_schematic.BaseSchematic):
         if (
             interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
             clicked_object is not self.parent or
-            self.mainframe.get_selected() is not self.parent or
+            self.parent.mainframe.get_selected() is not self.parent or
             not self.can_drag()
         ):
             return False

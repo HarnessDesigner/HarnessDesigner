@@ -30,10 +30,11 @@ from typing import TYPE_CHECKING
 
 from ...objects import object_base as _object_base
 from ... import check_types as _check_types
+from ...objects.objectsvar import base_var as _base_var
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-    from ...objects.objectsvar import base_var as _base_var
 
 
 class TickPickObject(_object_base.ObjectBase):
@@ -55,7 +56,7 @@ class TickPickObject(_object_base.ObjectBase):
         _object_base.ObjectBase.__init__(self, mainframe, None)
 
     @_check_types.do
-    def set_view(self, view_obj: "_base_var.BaseVar") -> None:
+    def set_view(self, view_obj: _base_var.BaseVar) -> None:
         self.obj3d = view_obj
         self.objschematic = view_obj
         self.objpegboard = view_obj

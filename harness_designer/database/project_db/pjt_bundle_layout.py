@@ -147,19 +147,31 @@ class PJTBundleLayoutsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, coord_id: bytes, diameter: float) -> "PJTBundleLayout":
-        """Execute the insert operation.
+    def insert(self, point3d_id: bytes = None,
+               point_pegboard_id: bytes = None) -> "PJTBundleLayout":
+        """Create a bundle-layout row marking a waypoint in exactly one
+        view -- pass whichever one point id the waypoint was placed in
+        (see the class docstring's exclusivity rule); the other stays
+        ``NULL``. Mirrors ``PJTWireLayoutsTable.insert`` exactly -- no
+        ``diameter`` param, since a bundle layout's diameter is never a
+        stored column, always derived from its attached bundle (see
+        ``PJTBundleLayout.diameter``).
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param coord_id: Identifier for the coord.
-        :type coord_id: bytes
-        :param diameter: Value for ``diameter``.
-        :type diameter: float
-        :returns: Return value. UNKNOWN details.
+        :param point3d_id: Identifier for the 3D waypoint point, when
+            this waypoint was placed in the 3D view.
+        :type point3d_id: bytes | None
+        :param point_pegboard_id: Identifier for the peg-board waypoint
+            point, when this waypoint was placed in the peg-board view.
+        :type point_pegboard_id: bytes | None
+        :returns: Return value.
         :rtype: :class:`PJTBundleLayout`
         """
-        db_id = PJTTableBase.insert(self, coord_id=coord_id, diameter=diameter)
+        if (point3d_id is None) == (point_pegboard_id is None):
+            raise ValueError(
+                'insert() takes exactly one of point3d_id/point_pegboard_id')
+
+        db_id = PJTTableBase.insert(
+            self, point3d_id=point3d_id, point_pegboard_id=point_pegboard_id)
 
         return PJTBundleLayout(self, db_id)
 
@@ -402,38 +414,28 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         """
         return self._table
     
-    _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def diameter(self) -> float:
-        """Return the diameter.
+        """This waypoint's own diameter -- never a stored column (there
+        is no ``diameter`` column on ``pjt_bundle_layouts``), always
+        derived from whichever bundle it's attached to (see
+        :attr:`attached_bundles`): the outermost concentric layer's own
+        diameter, mirroring ``PJTWireLayout.diameter``'s own reasoning
+        for wires. Falls back to a bare default for a layout that isn't
+        (yet) attached to any real bundle -- mirrors the fallback
+        ``objects_pegboard.bundle_layout.BundleLayout``/
+        ``objects_3d.bundle_layout.BundleLayout`` already use inline in
+        their own ``__init__``.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
+        :returns: Property value.
         :rtype: float
         """
-        if self._stored_diameter is DefaultStoredValue:
-            
-            self._stored_diameter = self._table.select('diameter', id=self._db_id)[0][0]
-            
-        return self._stored_diameter
+        bundles = self.attached_bundles
+        if bundles:
+            return bundles[-1].concentric.layers[-1].diameter
 
-    @diameter.setter
-    @_check_types.do
-    def diameter(self, value: float):
-        """Set the diameter.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: float
-        """
-        self._stored_diameter = value
-        
-        self._table.update(self._db_id, diameter=value)
-        self._populate('diameter')
+        return 3.0
 
 
 class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):

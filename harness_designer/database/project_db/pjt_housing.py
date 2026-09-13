@@ -1762,14 +1762,14 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         """Peg-board equivalent of :meth:`_find_child_points` -- returns
         the live ``Point`` for every clone of any point in
         *canonical_positions*, using ``pjt_points_pegboard``/
-        ``PJTPointPegboard``'s own 8-byte ``b'pegboard'`` db_id suffix
+        ``PJTPointPegboard``'s own 2-byte ``b'pg'`` db_id suffix
         instead of ``PJTPoint3D``'s 2-byte ``b'3d'`` suffix. See
         :meth:`_find_child_points` for the full rationale.
         """
         if not canonical_positions:
             return []
 
-        parent_ids = [pos.db_id[:-8] for pos in canonical_positions]
+        parent_ids = [pos.db_id[:-2] for pos in canonical_positions]
         table = self._table.db.pjt_points_pegboard_table
         placeholders = ','.join('?' * len(parent_ids))
 
@@ -1811,6 +1811,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         terminal_positions = []
         seal_positions = []
+        wire_positions = []
 
         housing_seal = self.seal
         if housing_seal is not None:
@@ -1831,6 +1832,26 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             terminal_positions.append(terminal.position_pegboard)
 
+            # Wire attachment/routing points -- terminal.attach_position_
+            # pegboard (a wire's own true crimp-point end), terminal.
+            # wire_position_pegboard (its own back point), cavity.
+            # wire_position_pegboard (the housing's own back/exit point
+            # when seated) -- see objects.terminal.Terminal.add_wire.
+            # Without these, a wire attached to a terminal in this housing
+            # is left behind on move/rotate instead of following it, same
+            # as _update_position3d's own wire_positions group.
+            wp = terminal.wire_position_pegboard
+            if wp is not None:
+                wire_positions.append(wp)
+
+            ap = terminal.attach_position_pegboard
+            if ap is not None:
+                wire_positions.append(ap)
+
+            cwp = cavity.wire_position_pegboard
+            if cwp is not None:
+                wire_positions.append(cwp)
+
             seal = terminal.seal
             if seal is not None:
                 sp = seal.position_pegboard
@@ -1838,13 +1859,15 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                     seal_positions.append(sp)
 
         child_positions = self._find_child_points_pegboard(
-            cavity_positions + terminal_positions + seal_positions)
+            cavity_positions + terminal_positions + seal_positions + wire_positions)
 
-        all_positions = cavity_positions + terminal_positions + seal_positions + child_positions
+        all_positions = (
+            cavity_positions + terminal_positions + seal_positions +
+            wire_positions + child_positions)
 
         seen = {}
         for pos in all_positions:
-            key = pos.db_id[:-8]
+            key = pos.db_id[:-2]
             if key not in seen:
                 seen[key] = pos
         all_positions = list(seen.values())
@@ -1855,7 +1878,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         all_positions_array = np.array([pos.as_float for pos in all_positions], dtype=np.float32)
         new_pos_arr = all_positions_array + delta
 
-        db_ids = [p.db_id[:-8] for p in all_positions]
+        db_ids = [p.db_id[:-2] for p in all_positions]
         f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
         rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
@@ -2589,6 +2612,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         terminal_positions = []
         seal_positions = []
+        wire_positions = []
 
         housing_seal = self.seal
         if housing_seal is not None:
@@ -2600,6 +2624,21 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             terminal = cavity.terminal
             if terminal is not None:
                 terminal_positions.append(terminal.position_pegboard)
+
+                # Wire attachment/routing points -- see
+                # _update_position_pegboard's own comment on why these
+                # must rotate along with the housing too.
+                wp = terminal.wire_position_pegboard
+                if wp is not None:
+                    wire_positions.append(wp)
+
+                ap = terminal.attach_position_pegboard
+                if ap is not None:
+                    wire_positions.append(ap)
+
+                cwp = cavity.wire_position_pegboard
+                if cwp is not None:
+                    wire_positions.append(cwp)
 
                 seal = terminal.seal
                 if seal is not None:
@@ -2614,13 +2653,15 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                         seal_positions.append(sp)
 
         child_positions = self._find_child_points_pegboard(
-            cavity_positions + terminal_positions + seal_positions)
+            cavity_positions + terminal_positions + seal_positions + wire_positions)
 
-        all_positions = cavity_positions + terminal_positions + seal_positions + child_positions
+        all_positions = (
+            cavity_positions + terminal_positions + seal_positions +
+            wire_positions + child_positions)
 
         seen = {}
         for pos in all_positions:
-            key = pos.db_id[:-8]
+            key = pos.db_id[:-2]
             if key not in seen:
                 seen[key] = pos
 
@@ -2633,7 +2674,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
             f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-            db_ids = [p.db_id[:-8] for p in all_positions]
+            db_ids = [p.db_id[:-2] for p in all_positions]
             rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
             self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
 

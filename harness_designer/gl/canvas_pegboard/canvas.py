@@ -110,6 +110,30 @@ class Canvas(_canvas_base.CanvasBase):
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
+    @property
+    @_check_types.do
+    def view_position(self) -> np.ndarray:
+        """Fixed height directly above the current focal point, NOT
+        ``camera.position`` -- see ``CanvasBase.view_position``'s own
+        docstring for why the base's camera-eye default is wrong here:
+        this camera's ``position.y`` IS its zoom distance (``Camera.
+        distance``), so it can sit as little as 10 world units above the
+        board when zoomed in, close enough that ``viewDir`` (faces.py's
+        fragment shader) swings sharply across even a modest-length
+        surface instead of the near-constant direction a genuine
+        orthographic eye-at-infinity gives -- confirmed 2026-09-13 as
+        the cause of a wire's cylinder appearing to taper to a point at
+        each end when zoomed in. Reuses the exact same fixed offset
+        ``light_position`` already uses above, for the same
+        zoom-independence reason (that offset was already correct for a
+        genuinely-far, angled light; equally fine reused as a stand-in
+        "eye" here since a top-down view's specular highlight is a
+        rough shape cue, not a precise reflection this needs to get
+        exactly right).
+        """
+        focal = self.camera.focal_position.as_numpy
+        return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
+
     def _set_view(self):
         """Build the orthographic projection matrix for the current
         camera distance/focal_position and store it on the camera.

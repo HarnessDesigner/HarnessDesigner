@@ -1,51 +1,49 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Invisible sphere probes used to make wire-end/terminal/splice snapping
-reliable.
+"""Snap-compatibility checks and snap-hit resolution/commit -- shared,
+view-agnostic helpers used by both the two-click wire-placement flow
+(:mod:`~harness_designer.add_handlers.editor_3d.wire`/:mod:`~harness_designer.
+add_handlers.editor_pegboard.wire`) and the drag flow
+(:mod:`~harness_designer.handlers.wire_drag_base`):
 
-``gl.object_picker.find_object`` only ever registers a hit when the mouse
-ray actually intersects an object's real mesh -- a terminal's/splice's own
-tiny connection point (or a plain, marker-less dangling wire end) is
-genuinely hard to hit exactly, which is why snapping felt "hit or miss"
-before this.
+- :class:`SnapOverlay` -- floating, click-through compat-message label
+  shown near the cursor while hovering/dragging onto a snap target.
+- :func:`check_terminal_compat`/:func:`check_splice_compat`/
+  :func:`capacity_warning`/:func:`_awg_fits` -- whether a wire part may
+  connect to a given terminal/splice, and any non-blocking capacity
+  warning to show for it.
+- :func:`resolve_picked`/:func:`get_snap_info` -- unwrap a snap-probe pick
+  (see :mod:`~.snap_probe_set`) back to the real ``Terminal``/``Splice``/
+  ``(Wire, end)`` it stands in for.
+- :func:`snap_point`/:func:`commit_snap` -- the live position a resolved
+  snap target sits at, and finalizing a real connection for it once the
+  mouse releases on a snapped drag.
 
-The fix reuses ``objects.wire_layout.WireLayout`` itself as the hit-test
-target instead of inventing a new pickable object type: a real
-``WireLayout`` already renders as a sphere sized to its wire's own
-``od_mm`` (see ``objects.objects_3d.wire_layout.WireLayout.__init__``) and
-is already recognized by every hover/click branch in ``wire_handler.py``.
-One is placed at every location a wire is allowed to snap to (every
-terminal's own attach point, every splice's own branch point, every
-open/dangling same-part wire end), each sized to the wire currently being
-placed/dragged -- exactly the invisible snap sphere described by the
-person who asked for this.
-``database.project_db.pseudo_wire_layout.PseudoPJTWireLayout`` is the
-pseudo ``PJTWireLayout`` row backing one -- see that module for why it
-subclasses the real row type instead of duck-typing it.
-
-Never call ``.delete()`` on a probe's ``WireLayout`` wrapper -- that runs
-``_reconnect_wires()`` (assumes a real attached wire row). Tear probes
-down via ``SnapProbeSet.close()``, which removes them straight from the
-canvases instead (``PseudoPJTWireLayout.delete()`` is also a no-op, as a
-second line of defense).
+None of this is per-view -- every helper here operates on an already-
+resolved target object (a real ``Terminal``/``Splice``, or a resolved
+``(Wire, end)`` pair), never a raw view accessor, so it's safe to import
+directly from anywhere that needs it. The one genuinely per-view thing --
+which points a probe gets built at in the first place -- lives in
+:mod:`~.snap_probe_set`'s abstract ``SnapProbeSet`` and its two concrete
+per-editor subclasses (:class:`~harness_designer.drag_handlers.editor_3d.
+wire_snap.SnapProbeSet`/:class:`~harness_designer.drag_handlers.
+editor_pegboard.wire_snap.SnapProbeSet`) instead, kept in their own module
+specifically so nothing that only needs these helpers is forced to import
+the abstract probe-building class too (confirmed 2026-09-13).
 """
 
-import uuid as _uuid_module
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt
 
-from ..database.project_db import pseudo_wire_layout as _pseudo_wire_layout
 from ..objects import wire_layout as _wire_layout
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import ui as _ui
-    from ..objects import terminal as _terminal
     from ..objects import wire as _wire
-    from ..objects import splice as _splice
     from ..database.global_db import wire as _global_wire
 
 
@@ -94,29 +92,6 @@ class SnapOverlay(QLabel):
 
 
 @_check_types.do
-def _make_probe(mainframe: "_ui.MainFrame", position, wire_part: "_global_wire.Wire",
-                 terminal: Union["_terminal.Terminal", None] = None,
-                 wire: Union["_wire.Wire", None] = None,
-                 end: str | None = None,
-                 splice: Union["_splice.Splice", None] = None,
-                 position_pegboard=None) -> _wire_layout.WireLayout:
-    """Construct and register one invisible snap probe.
-
-    *position* (3D) and *position_pegboard* are independent -- pass only
-    the one matching whichever view's ``SnapProbeSet`` this probe is for
-    (``None`` for the other), same as any other object type: a facade
-    with a ``None`` position in a given view just has no presence
-    there (see ``CanvasBase.add_object``), so the probe naturally never
-    shows up as pickable in the view it wasn't built for.
-    """
-    db_obj = _pseudo_wire_layout.PseudoPJTWireLayout(None, _uuid_module.uuid4().bytes)
-    db_obj.configure(position, wire_part, terminal=terminal, wire=wire, end=end, splice=splice,
-                     position_pegboard=position_pegboard)
-
-    return _wire_layout.WireLayout(mainframe, db_obj)
-
-
-@_check_types.do
 def _awg_fits(part, wire_part: "_global_wire.Wire") -> bool:
     """True when *wire_part*'s own AWG falls within *part*'s (a terminal's
     or splice's global part row) crimp range -- a genuine physical
@@ -143,7 +118,13 @@ def _awg_fits(part, wire_part: "_global_wire.Wire") -> bool:
 
 
 @_check_types.do
-def capacity_warning(attached_wires, part, wire_part: "_global_wire.Wire", label: str) -> str | None:
+def capacity_warning(
+    attached_wires,
+    part,
+    wire_part: "_global_wire.Wire",
+    label: str
+) -> str | None:
+
     """Return a non-blocking capacity-warning message if adding
     *wire_part* to a terminal/splice already carrying *attached_wires*
     would push their combined cross-section past *part*'s own
@@ -238,169 +219,14 @@ def check_splice_compat(splice, wire_part: "_global_wire.Wire") -> tuple:
 
         return False, f'Wire {wire_awg} AWG — splice max is {awg_max} AWG', None
 
-    through_wire = splice.start_sibling if splice.start_sibling is not None else splice.stop_sibling
+    if splice.start_sibling is not None:
+        through_wire = splice.start_sibling
+    else:
+        through_wire = splice.stop_sibling
+
     attached = ([through_wire] if through_wire is not None else []) + splice.branch_wires
 
     return True, None, capacity_warning(attached, splice_part, wire_part, 'splice')
-
-
-@_check_types.do
-def _is_open_wire_end(project, point) -> bool:
-    """True when exactly one wire endpoint (project-wide) sits at *point*.
-
-    More than one means *point* is a junction/merge seam, not a free
-    dangling end -- not a valid snap target (mirrors the "must be an
-    endpoint, not a split mid-point" rule ``_wire_layout_end_wire`` already
-    applies to real WireLayout markers).
-    """
-    point_id = point.db_id[:-2]
-    count = 0
-
-    for w in project.wires:
-        if w.obj3d.start_position.db_id[:-2] == point_id:
-            count += 1
-        if w.obj3d.stop_position.db_id[:-2] == point_id:
-            count += 1
-
-    return count == 1
-
-
-class SnapProbeSet:
-    """Every invisible snap probe live for one wire placement/drag session.
-
-    Built once for the wire part being placed/dragged:
-
-    - One probe per free-standing terminal (``PJTTerminal.cavity is
-      None``), positioned at that terminal's own back point
-      (``PJTTerminal.wire_position3d`` -- the real physical location a
-      wire approaches and connects from outside the terminal; NOT
-      ``attach_position3d``, the bare-conductor crimp point further
-      inside the terminal's own body, which is never a sensible place to
-      aim the mouse at and is never used as a snap point). Confirmed
-      2026-08-06: ``Terminal.add_wire`` itself still always uses
-      ``attach_position3d`` as the wire's own true outer endpoint and
-      ``wire_position3d`` as an interior waypoint -- unchanged, already
-      correct -- this probe's *position* is purely a visual snap target;
-      the actual connection geometry ``add_wire`` writes is unaffected by
-      where the probe happened to sit.
-    - UNLESS the terminal is seated in a cavity, in which case NEITHER of
-      its own points is used at all -- the owning cavity gets the probe
-      instead, at the cavity's own wire-side/back connection point
-      (``PJTCavity.wire_position3d``) -- only when the seated terminal's
-      crimp range actually fits the wire part being placed/dragged (see
-      ``check_terminal_compat`` -- a combined-cross-section-only mismatch
-      does NOT skip the probe, since that never blocks the connection,
-      only warns; a genuine AWG-range mismatch does, since there's
-      nothing to snap onto if it can't ever connect). Both probe kinds
-      resolve to the exact same real ``Terminal`` once picked -- see
-      ``PseudoPJTWireLayout.snap_terminal`` -- so wire_handler.py's/
-      dragging.py's own commit logic (``Terminal.add_wire``) needs no
-      cavity-specific handling at all.
-    - One probe at every splice's own branch point.
-    - One at every OTHER open/dangling wire endpoint sharing that same
-      part_id (excluding *exclude_wire*, the wire currently being
-      placed/dragged, and any end already anchored to a terminal/cavity --
-      that point already gets a terminal/cavity probe above).
-    """
-
-    @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", wire_part: "_global_wire.Wire",
-                 exclude_wire: Union["_wire.Wire", None] = None, view: str = '3d'):
-        """
-        :param view: ``'3d'`` (default) builds probes at every target's
-            own ``*_position3d`` point, pickable only in the 3D view --
-            unchanged from before this parameter existed. ``'pegboard'``
-            builds them at ``*_position_pegboard`` instead, pickable only
-            in the peg-board view (see ``_make_probe``'s own docstring on
-            why passing only one of ``position``/``position_pegboard``
-            is what makes that so). Wire-end anchoring/openness
-            (``wire_end_anchors``/``_is_open_wire_end``) is checked via
-            the 3D endpoints regardless of *view* -- anchoring is a
-            project-wide topology fact (is this end connected to
-            anything at all), not a per-view rendering detail.
-        """
-        from ..drag_handlers.editor_3d import wire as _dragging  # NOQA -- avoid a cycle at import time
-
-        self.mainframe = mainframe
-        self._probes: list[_wire_layout.WireLayout] = []
-
-        pegboard = view == 'pegboard'
-
-        project = mainframe.project
-
-        for terminal in project.terminals:
-            if terminal.db_obj.cavity is not None:
-                # Seated -- see class docstring; the owning cavity gets the
-                # probe instead, below.
-                continue
-
-            point = (terminal.db_obj.wire_position_pegboard if pegboard
-                     else terminal.db_obj.wire_position3d)
-            probe = _make_probe(
-                mainframe, None if pegboard else point, wire_part, terminal=terminal,
-                position_pegboard=point if pegboard else None)
-            self._probes.append(probe)
-
-        for cavity in project.cavities:
-            pjt_terminal = cavity.db_obj.terminal
-            if pjt_terminal is None:
-                continue
-
-            terminal = pjt_terminal.get_object()
-            if terminal is None:
-                continue
-
-            ok, _block_msg, _warning_msg = check_terminal_compat(terminal, wire_part)
-            if not ok:
-                continue
-
-            point = (cavity.db_obj.wire_position_pegboard if pegboard
-                     else cavity.db_obj.wire_position3d)
-            probe = _make_probe(
-                mainframe, None if pegboard else point, wire_part, terminal=terminal,
-                position_pegboard=point if pegboard else None)
-            self._probes.append(probe)
-
-        for splice in project.splices:
-            point = (splice.db_obj.branch_position_pegboard if pegboard
-                     else splice.db_obj.branch_position3d)
-            probe = _make_probe(
-                mainframe, None if pegboard else point, wire_part, splice=splice,
-                position_pegboard=point if pegboard else None)
-            self._probes.append(probe)
-
-        for wire in project.wires:
-            if wire is exclude_wire:
-                continue
-            if wire.db_obj.part_id != wire_part.db_id:
-                continue
-
-            start_anchored, stop_anchored = _dragging.wire_end_anchors(project, wire)
-
-            if not start_anchored:
-                point3d = wire.obj3d.start_position
-                if _is_open_wire_end(project, point3d):
-                    point = wire.objpegboard.start_position if pegboard else point3d
-                    self._probes.append(_make_probe(
-                        mainframe, None if pegboard else point, wire_part, wire=wire, end='start',
-                        position_pegboard=point if pegboard else None))
-
-            if not stop_anchored:
-                point3d = wire.obj3d.stop_position
-                if _is_open_wire_end(project, point3d):
-                    point = wire.objpegboard.stop_position if pegboard else point3d
-                    self._probes.append(_make_probe(
-                        mainframe, None if pegboard else point, wire_part, wire=wire, end='stop',
-                        position_pegboard=point if pegboard else None))
-
-    @_check_types.do
-    def close(self) -> None:
-        """Tear down every probe -- see module docstring for why this
-        never calls ``.delete()`` on them."""
-        for probe in self._probes:
-            self.mainframe.remove_object(probe)
-
-        self._probes = []
 
 
 @_check_types.do
@@ -500,8 +326,9 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
     Mirrors exactly what wire_handler.py's own click-commit code already
     does for each case (Terminal.add_wire for a terminal, repointing onto
     the splice's own branch point + Splice.add_wire/Wire.set_sibling for a
-    splice, wire_handler.merge_wire_into for a wire-end -- collapsing both
-    rows into one with a real interior waypoint + WireLayout at the seam,
+    splice, wire_drag_base.WireDragMixin.merge_wire_into for a wire-end --
+    collapsing both rows into one with a real interior waypoint + WireLayout
+    at the seam,
     not just sharing a Point between two still-separate rows, confirmed
     2026-08-05 as the correct behavior after testing showed the initial
     share-a-Point version left two separate database entries where the
@@ -515,10 +342,10 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
         # on the merged row) -- none of the shared stale-point cleanup
         # below applies here, and running it anyway would wrongly delete
         # that seam point right back out from under the merge.
-        from . import wire_handler as _wire_handler  # NOQA -- avoid a cycle at import time
+        from ..drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
         other_wire, other_end = target
-        _wire_handler.merge_wire_into(
+        _wire_3d.Wire.merge_wire_into(
             mainframe.project, wire_obj, other_wire, other_end, own_end=end)
         return
 

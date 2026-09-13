@@ -109,7 +109,6 @@ def _create_bundle_layout_at_endpoint(
     project,
     bundle: _bundle.Bundle,
     endpoint: str,
-    diameter: float
 ) -> _bundle_layout.BundleLayout:
 
     if endpoint == 'start':
@@ -118,7 +117,7 @@ def _create_bundle_layout_at_endpoint(
         point = bundle.obj3d.stop_position
 
     coord_id = point.db_id[:-2]
-    db_obj = project.ptables.pjt_bundle_layouts_table.insert(coord_id, diameter)
+    db_obj = project.ptables.pjt_bundle_layouts_table.insert(point3d_id=coord_id)
     layout_obj = _bundle_layout.BundleLayout(project.mainframe, db_obj)
     project.add_bundle_layout(layout_obj)
 
@@ -130,7 +129,6 @@ def _create_bundle_layout_on_bundle(
     project,
     bundle: _bundle.Bundle,
     position: _point.Point,
-    diameter: float,
     insert_idx: int | None = None,
 ) -> _bundle_layout.BundleLayout:
     """Insert a new interior waypoint into *bundle*'s own path at
@@ -160,7 +158,7 @@ def _create_bundle_layout_on_bundle(
         float(position.x), float(position.y), float(position.z),
         bundle_id=bundle.db_obj.db_id, idx=insert_idx)
 
-    db_obj = ptables.pjt_bundle_layouts_table.insert(pos_db.db_id, diameter)
+    db_obj = ptables.pjt_bundle_layouts_table.insert(point3d_id=pos_db.db_id)
     layout_obj = _bundle_layout.BundleLayout(project.mainframe, db_obj)
     project.add_bundle_layout(layout_obj)
 

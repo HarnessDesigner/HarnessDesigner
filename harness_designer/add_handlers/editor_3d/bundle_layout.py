@@ -85,7 +85,6 @@ class BundleLayout(_base.AddHandlerBase):
         from ...handlers import bundle_layout_handler as _bundle_layout_handler
 
         raw_pos, is_at_endpoint, endpoint = self._bundle.obj3d.get_closest_endpoint(mouse_pos)
-        diameter = self._bundle.obj3d.diameter
 
         if is_at_endpoint:
             if endpoint == 'start':
@@ -94,14 +93,13 @@ class BundleLayout(_base.AddHandlerBase):
                 self._bundle.obj3d.stop_position.attach(self.target.obj3d.position)
 
             self.target.db_obj.position3d_id = self.target.obj3d.position.db_id[:-2]
-            self.target.db_obj.diameter = diameter
             self.target.obj3d.is_visible = True
             self.mainframe.project.add_bundle_layout(self.target)
         else:
             preview_position = _point.Point(*self.target.obj3d.position.as_float)
             self.target.delete()
             self.target = _bundle_layout_handler._create_bundle_layout_on_bundle(  # NOQA
-                self.mainframe.project, self._bundle, preview_position, diameter)
+                self.mainframe.project, self._bundle, preview_position)
             self.target.obj3d.is_visible = True
 
         self._finalized = True

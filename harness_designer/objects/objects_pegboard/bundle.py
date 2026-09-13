@@ -375,6 +375,36 @@ class Bundle(_base_pegboard.BasePegboard):
         return np.concatenate(all_corners, axis=0)
 
     @_check_types.do
+    def hit_test_step3(self, ray_origin, ray_dir):
+        """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
+        tests every sub-segment's own transformed triangles individually
+        instead of assuming one rigid transform for the whole bundle --
+        mirrors objects_3d.bundle.Bundle.hit_test_step3 exactly. Without
+        this override, picking falls back to BaseVar's default single-
+        transform test (self._position/self._angle/self._scale), which
+        for a multi-segment bundle is only ever correct for one running
+        exactly along +Z from its start point -- every other bundle was
+        silently unselectable in the peg-board view.
+        """
+        if self._vbo is None:
+            return False
+
+        vertices_local = self._vbo.vertices.reshape(-1, 3)
+        if len(vertices_local) % 3:
+            return False
+
+        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+            ray_object = ray_origin - seg_position.as_numpy
+
+            vertices = (vertices_local * seg_scale.as_numpy) @ seg_angle
+            verts = vertices.reshape(-1, 3, 3)
+
+            if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
+                return True
+
+        return False
+
+    @_check_types.do
     def render(self, shaders):
         """Render every sub-segment of the bundle's current path.
 
@@ -406,11 +436,14 @@ class Bundle(_base_pegboard.BasePegboard):
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
-        """Segment drag -- identical rationale to
-        objects_pegboard.wire.Wire.handle_interaction (a PJTBundle row
-        exposes the same chain shape plan_segment_drag needs); only the
-        armed handler class differs (drag_handlers.editor_pegboard.bundle.
-        Bundle, a thin reuse of the wire drag handler).
+        """Segment drag -- same shape ``objects_pegboard.wire.Wire``'s own
+        segment-drag case covers, via
+        ``drag_handlers.editor_pegboard.bundle.Bundle``'s own
+        self-contained implementation (not shared with ``wire``'s drag
+        handler -- see that module's own docstring for why: it's now
+        built on ``handlers.wire_drag_base.WireDragBase``, which assumes
+        a real wire catalog part for its snap-probe compat checks, a
+        shape ``PJTBundle.part`` doesn't have).
         """
         if self._active_handler is not None:
             if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -430,16 +463,15 @@ class Bundle(_base_pegboard.BasePegboard):
         if (
             interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
             clicked_object is not self.parent or
-            self.mainframe.get_selected() is not self.parent
+            self.parent.mainframe.get_selected() is not self.parent
         ):
             return False
 
-        from ...drag_handlers.editor_pegboard import wire as _drag_wire  # NOQA -- avoid a cycle at import time
         from ...drag_handlers.editor_pegboard import bundle as _drag_bundle  # NOQA -- avoid a cycle at import time
 
         canvas = self.pegboard.editor
         world_pos = canvas.camera.screen_to_world(current_pos)
-        plan = _drag_wire.plan_segment_drag(self.parent.mainframe.project, self.db_obj, world_pos)
+        plan = _drag_bundle.plan_segment_drag(self.parent.mainframe.project, self.db_obj, world_pos)
         if plan is None:
             return False
 
@@ -499,7 +531,7 @@ class BundleMenu(QMenu):
         from PySide6.QtCore import QTimer
         from . import bundle_layout as _bundle_layout_pegboard
 
-        mainframe = self.selected.mainframe
+        mainframe = self.selected.parent.mainframe
         bundle = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
@@ -518,7 +550,7 @@ class BundleMenu(QMenu):
     def on_select(self):
         """Make this bundle the active selection."""
         from ...objects.objects_3d import menu_ops as _menu_ops
-        _menu_ops.select_object_for_object(self.selected.mainframe, self.selected.parent)
+        _menu_ops.select_object_for_object(self.selected.parent.mainframe, self.selected.parent)
 
     @_check_types.do
     def on_delete(self):
@@ -530,4 +562,4 @@ class BundleMenu(QMenu):
     def on_properties(self):
         """Show this bundle's properties in the object editor."""
         from ...objects.objects_3d import menu_ops as _menu_ops
-        _menu_ops.show_properties_for_object(self.selected.mainframe, self.selected.parent)
+        _menu_ops.show_properties_for_object(self.selected.parent.mainframe, self.selected.parent)

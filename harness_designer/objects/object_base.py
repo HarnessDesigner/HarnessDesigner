@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Union
 
+import weakref
+
 from ..gl import materials as _materials
 from .. import check_types as _check_types
 
@@ -42,6 +44,7 @@ class ObjectBase:
         self._is_selected = False
         self._treeitem = None
         self.db_obj = db_obj
+        self.__tree_item_callbacks = []
 
     @_check_types.do
     def identify(self, material: _materials.GLMaterial | None) -> None:
@@ -61,6 +64,12 @@ class ObjectBase:
         if self.objpegboard is not None:
             self.objpegboard.identify(material)
 
+    def bind_for_treeitem(self, callback):
+        if self._treeitem is None:
+            self.__tree_item_callbacks.append(weakref.ref(callback))
+        else:
+            callback(self._treeitem)
+
     @_check_types.do
     def set_treeitem(self, treeitem: "_objectbrowser.TreeItem") -> None:
         """Set the treeitem.
@@ -71,6 +80,13 @@ class ObjectBase:
         :type treeitem: UNKNOWN
         """
         self._treeitem = treeitem
+
+        for ref in self.__tree_item_callbacks:
+            cb = ref()
+            if cb is not None:
+                cb(treeitem)
+
+        del self.__tree_item_callbacks[:]
 
     @_check_types.do
     def get_treeitem(self) -> Union["_objectbrowser.TreeItem", None]:

@@ -470,6 +470,28 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
 
     @property
     @_check_types.do
+    def diameter(self) -> float:
+        """This waypoint's own diameter -- never a stored column, always
+        derived from whichever wire it's attached to (see
+        :attr:`attached_wires`): every wire sharing one waypoint marks
+        the same physical bend, so the first is representative. Falls
+        back to a bare default for a layout that isn't (yet) attached
+        to any real wire -- mirrors the fallback
+        ``objects_pegboard.wire_layout.WireLayout``/
+        ``objects_3d.wire_layout.WireLayout`` already use inline in
+        their own ``__init__``.
+
+        :returns: Property value.
+        :rtype: float
+        """
+        wires = self.attached_wires
+        if wires:
+            return wires[0].part.od_mm
+
+        return 3.0
+
+    @property
+    @_check_types.do
     def table(self) -> PJTWireLayoutsTable:
         """Return the table.
 

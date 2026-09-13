@@ -3,15 +3,13 @@
 """Interactive bundle-waypoint placement for the pegboard editor.
 
 Mirrors ``add_handlers.editor_pegboard.wire_layout`` -- see its own
-module docstring for the full reasoning (context-menu-only entry point,
-3D-chord insertion mapping). Started from the target bundle's own "Add
-Waypoint" context-menu action (``objects_pegboard.bundle.BundleMenu.
-on_add_waypoint``), pinned to that one bundle for the whole session.
+module docstring for the full reasoning (context-menu-only entry
+point). Started from the target bundle's own "Add Waypoint" context-
+menu action (``objects_pegboard.bundle.BundleMenu.on_add_waypoint``),
+pinned to that one bundle for the whole session.
 """
 
 from typing import TYPE_CHECKING
-
-import numpy as np
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -24,6 +22,45 @@ if TYPE_CHECKING:
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import objects as _objects
     from ...objects import bundle as _bundle
+    from ...objects import bundle_layout as _bundle_layout_facade
+
+
+@_check_types.do
+def create_bundle_layout_on_bundle_pegboard(
+    project, bundle: "_bundle.Bundle", position: _point.Point, insert_idx: int
+) -> "_bundle_layout_facade.BundleLayout":
+    """Insert a new interior peg-board waypoint into *bundle*'s own
+    peg-board path at *position* and mark it with a BundleLayout --
+    peg-board equivalent of ``handlers.bundle_layout_handler.
+    _create_bundle_layout_on_bundle``, against ``pjt_points_pegboard``
+    instead of ``pjt_points3d``. Mirrors ``add_handlers.editor_pegboard.
+    wire_layout.create_wire_layout_on_wire_pegboard`` exactly -- see its
+    own docstring for the full rationale (a ``PJTBundleLayout`` row is
+    exclusive to exactly one view, so this never maps onto the bundle's
+    3D chord; the new row gets its own peg-board-only point, and its
+    diameter is derived automatically from the bundle it's now attached
+    to -- see ``PJTBundleLayout.diameter``, never passed in here).
+    """
+    from ...objects import bundle_layout as _bundle_layout_facade  # NOQA -- avoid a cycle at import time
+
+    ptables = project.ptables
+
+    existing = bundle.db_obj.waypoints_pegboard
+    for waypoint in reversed(existing[insert_idx:]):
+        waypoint.idx = waypoint.idx + 1
+
+    pos_db = ptables.pjt_points_pegboard_table.insert(
+        float(position.x), 0.0, float(position.z),
+        bundle_id=bundle.db_obj.db_id, idx=insert_idx)
+
+    db_obj = ptables.pjt_bundle_layouts_table.insert(point_pegboard_id=pos_db.db_id)
+
+    layout_obj = _bundle_layout_facade.BundleLayout(project.mainframe, db_obj)
+    project.add_bundle_layout(layout_obj)
+
+    bundle.objpegboard.refresh_waypoints()
+
+    return layout_obj
 
 
 class BundleLayout(_base.AddHandlerBase):
@@ -81,13 +118,9 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def _finalize(self, mouse_pos: _point.Point) -> None:
-        from ...handlers import bundle_layout_handler as _bundle_layout_handler
-
         world_pos = self.camera.screen_to_world(mouse_pos)
         raw_pos, is_at_endpoint, endpoint = _wire_layout_pegboard.closest_point_on_chain(
             self._bundle, world_pos.as_numpy)
-
-        diameter = self._bundle.obj3d.diameter
 
         if is_at_endpoint:
             if endpoint == 'start':
@@ -95,35 +128,25 @@ class BundleLayout(_base.AddHandlerBase):
             else:
                 self._bundle.objpegboard.stop_position.attach(self.target.objpegboard.position)
 
-            self.target.db_obj.position3d_id = self.target.objpegboard.position.db_id[:-2]
-            self.target.db_obj.diameter = diameter
+            self.target.db_obj.position_pegboard_id = self.target.objpegboard.position.db_id[:-2]
             self.target.objpegboard.is_visible = True
             self.mainframe.project.add_bundle_layout(self.target)
         else:
-            objpegboard = self._bundle.objpegboard
-            seg_start = objpegboard.start_position.as_numpy
-            seg_stop = objpegboard.stop_position.as_numpy
-            chord = seg_stop - seg_start
-            chord_len_sq = float(np.dot(chord, chord))
-
-            if chord_len_sq < 1e-12:
-                t = 0.0
-            else:
-                t = max(0.0, min(1.0, float(np.dot(raw_pos - seg_start, chord)) / chord_len_sq))
-
-            p1_3d = self._bundle.obj3d.start_position.as_numpy
-            p2_3d = self._bundle.obj3d.stop_position.as_numpy
-            position_3d = p1_3d + t * (p2_3d - p1_3d)
+            # A new interior waypoint gets its own peg-board-only point
+            # (see create_bundle_layout_on_bundle_pegboard's own
+            # docstring -- "a layout gets added ... specific to the view
+            # it was added in", explicit direction) -- never the
+            # bundle's 3D chord the way an earlier version of this
+            # branch mapped onto.
+            insert_idx = _wire_layout_pegboard.segment_insertion_index(self._bundle, raw_pos)
 
             self.target.delete()
 
-            new_obj = _bundle_layout_handler._create_bundle_layout_on_bundle(  # NOQA
+            new_obj = create_bundle_layout_on_bundle_pegboard(
                 self.mainframe.project, self._bundle,
-                _point.Point(*position_3d.tolist()), diameter)
+                _point.Point(*raw_pos.tolist()), insert_idx)
 
             new_obj.objpegboard.is_visible = True
-            pos = new_obj.objpegboard.position
-            pos += _point.Point(*raw_pos.tolist()) - pos
 
             self.target = new_obj
 

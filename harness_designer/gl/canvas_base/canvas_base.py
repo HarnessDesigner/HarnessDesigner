@@ -458,6 +458,36 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @property
     @_check_types.do
+    def view_position(self) -> np.ndarray:
+        """World-space position ``_set_shader_programs`` uploads as
+        ``viewPosition`` -- ``faces.py``'s fragment shader uses this for
+        ``viewDir = normalize(viewPosition - fragPositionGeom)``, driving
+        specular highlight direction and the emissive rim term.
+
+        Defaults to the camera's own eye position -- correct for the
+        free-orbit 3D camera, where that's a genuine, meaningfully-far
+        perspective eye point. Overridden by the permanently top-down,
+        orthographic canvases (pegboard, schematic -- see ``Camera.
+        distance``/``position.y`` on those cameras): there, ``camera.
+        position`` is only ever ``focal_position`` offset by the CURRENT
+        ZOOM distance, which can be as little as the camera's own
+        ``_min_distance`` (10 world units) -- a ``viewPosition`` that
+        close to the geometry makes ``viewDir`` swing sharply across
+        even a modest-length surface (a wire segment, say), instead of
+        the near-constant direction a true orthographic "eye at infinity"
+        would give. Confirmed 2026-09-13 as the actual mechanism behind a
+        live bug report: a peg-board wire's cylinder appeared to taper to
+        a point at each end when zoomed in -- not a geometry bug at all,
+        a specular falloff artifact from treating a zoom-close camera
+        point as if it were a real, far perspective eye. ``light_position``
+        already gets this same zoom-independence treatment for the exact
+        same reason (see its own docstring) -- this is the same fix
+        applied to the other camera-position-driven lighting uniform.
+        """
+        return self.camera.position.as_numpy
+
+    @property
+    @_check_types.do
     def objects_in_view(self) -> list:
         """Return the objects in view.
 
@@ -922,7 +952,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         # ---------- Faces program
         with self._shaders.faces:
-            self._shaders.faces.view_position = self.camera.position.as_numpy
+            self._shaders.faces.view_position = self.view_position
             self._shaders.faces.projection = projection_matrix
             self._shaders.faces.view = view_matrix
             self._shaders.faces.floor_y = self.config.floor.ground_height

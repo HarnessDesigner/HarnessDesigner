@@ -137,13 +137,21 @@ class PseudoPJTWireLayout(PJTWireLayout):
     _position_pegboard: _point.Point | None = None
     _wire_part: Union["_global_wire.Wire", None] = None
 
-    def configure(self, position: _point.Point, wire_part: "_global_wire.Wire",
-                  terminal: Union["_terminal.Terminal", None] = None,
-                  wire: Union["_wire.Wire", None] = None,
-                  end: str | None = None,
-                  splice: Union["_splice.Splice", None] = None,
-                  position_pegboard: _point.Point | None = None) -> None:
-        self._position = position
+    def configure(
+        self,
+        wire_part: "_global_wire.Wire",
+        terminal: Union["_terminal.Terminal", None] = None,
+        wire: Union["_wire.Wire", None] = None,
+        end: str | None = None,
+        splice: Union["_splice.Splice", None] = None,
+        position3d: _point.Point | None = None,
+        position2d: _point.Point | None = None,
+        position_pegboard: _point.Point | None = None,
+
+    ) -> None:
+
+        self._position3d = position3d
+        self._position2d = position2d
         self._position_pegboard = position_pegboard
         self._wire_part = wire_part
         self.snap_terminal = terminal
@@ -235,40 +243,33 @@ class PseudoPJTWireLayout(PJTWireLayout):
     _position2d: _point.Point | None = None
 
     @property
-    def position2d(self) -> _point.Point:
-        # A real Point, never None -- objects_schematic.wire_layout.WireLayout's
-        # constructor unconditionally passes this straight into
-        # BaseSchematic.__init__ (this probe never actually renders in the 2D
-        # view -- is_visible2d is always False above -- but BaseSchematic itself
-        # doesn't tolerate a None position; every other real WireLayout's
-        # own position2d getter lazily creates a real row rather than ever
-        # returning None, so this matches that same invariant). Fresh,
-        # unbound, never persisted -- created once and cached, same
-        # "unbound identity" pattern objects_schematic/splice.py's Splice uses for
-        # its own angle.
-        if self._position2d is None:
-            self._position2d = _point.Point(0.0, 0.0)
-
+    def position2d(self) -> _point.Point | None:
         return self._position2d
 
     @property
     def position2d_id(self) -> bytes | None:
-        return None
+        if self._position2d is None:
+            return None
+
+        db_id = self._position2d.db_id
+        return db_id[:-2] if db_id is not None else None
 
     @position2d_id.setter
     def position2d_id(self, value: bytes):
         pass
 
+    _position3d: _point.Point | None = None
+
     @property
     def position3d(self) -> _point.Point | None:
-        return self._position
+        return self._position3d
 
     @property
     def position3d_id(self) -> bytes | None:
-        if self._position is None:
+        if self._position3d is None:
             return None
 
-        db_id = self._position.db_id
+        db_id = self._position3d.db_id
         return db_id[:-2] if db_id is not None else None
 
     @position3d_id.setter

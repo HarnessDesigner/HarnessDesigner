@@ -371,7 +371,7 @@ class Base3D(_objectsvar.BaseVar):
         if (
             interaction_type is _interaction.MouseInteraction.RIGHT_DOWN and
             clicked_object is self.parent and
-            self.mainframe.get_selected() is self.parent and
+            self.parent.mainframe.get_selected() is self.parent and
             self.can_rotate()
         ):
             self._active_handler = _rotation_rings.RotationRings(self.editor3d.editor, self.parent)
@@ -381,7 +381,7 @@ class Base3D(_objectsvar.BaseVar):
         if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
-            self.mainframe.get_selected() is self.parent and
+            self.parent.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
             from ...drag_handlers.editor_3d import generic as _drag_generic  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> this module)

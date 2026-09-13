@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import objects as _objects
     from ...objects import wire as _wire
+    from ...objects import wire_layout as _wire_layout_facade
 
 
 _SNAP_THRESHOLD_MM = 5.0
@@ -73,6 +74,81 @@ def closest_point_on_chain(wire_or_bundle, world_pos: np.ndarray):
         return p2, True, 'stop'
 
     return best_point, False, None
+
+
+@_check_types.do
+def segment_insertion_index(wire_or_bundle, world_pos: np.ndarray) -> int:
+    """Which sub-segment of *wire_or_bundle*'s own pegboard chain
+    (``objpegboard._segments()``) *world_pos* falls closest to --
+    equivalently, how many of its existing interior peg-board waypoints
+    come before a new one inserted there. Peg-board-chain equivalent of
+    ``handlers.wire_layout_handler._find_insertion_index``, which walks
+    the wire's 3D path instead -- this view has its own, independent
+    waypoint set (see ``PJTWire.waypoints_pegboard``'s own docstring),
+    so the insertion index has to come from this view's own geometry,
+    not the 3D one.
+    """
+    objpegboard = wire_or_bundle.objpegboard
+    segments = objpegboard._segments()  # NOQA
+
+    best_idx = 0
+    best_dist = math.inf
+
+    for i, (p1, p2) in enumerate(segments):
+        seg = p2 - p1
+        seg_len_sq = float(np.dot(seg, seg))
+        if seg_len_sq < 1e-12:
+            continue
+
+        t = max(0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
+        closest = p1 + t * seg
+        dist = float(np.sum((world_pos - closest) ** 2))
+
+        if dist < best_dist:
+            best_dist = dist
+            best_idx = i
+
+    return best_idx
+
+
+@_check_types.do
+def create_wire_layout_on_wire_pegboard(
+    project, wire: "_wire.Wire", position: _point.Point, insert_idx: int
+) -> "_wire_layout_facade.WireLayout":
+    """Insert a new interior peg-board waypoint into *wire*'s own
+    peg-board path at *position* and mark it with a WireLayout --
+    peg-board equivalent of ``handlers.wire_layout_handler.
+    _create_wire_layout_on_wire``, against ``pjt_points_pegboard``
+    instead of ``pjt_points3d``.
+
+    A ``PJTWireLayout`` row is exclusive to exactly one view (see that
+    class's own docstring) and "a layout gets added ... specific to the
+    view it was added in" (explicit direction) -- so this never reuses
+    or maps onto the wire's 3D chord the way an earlier version of this
+    module's own ``_finalize`` did; the new row gets its own peg-board-
+    only point, with no ``position3d``/``position2d`` counterpart at
+    all.
+    """
+    from ...objects import wire_layout as _wire_layout_facade  # NOQA -- avoid a cycle at import time
+
+    ptables = project.ptables
+
+    existing = wire.db_obj.waypoints_pegboard
+    for waypoint in reversed(existing[insert_idx:]):
+        waypoint.idx = waypoint.idx + 1
+
+    pos_db = ptables.pjt_points_pegboard_table.insert(
+        float(position.x), 0.0, float(position.z),
+        wire_id=wire.db_obj.db_id, idx=insert_idx)
+
+    db_obj = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=pos_db.db_id)
+
+    layout_obj = _wire_layout_facade.WireLayout(project.mainframe, db_obj)
+    project.add_wire_layout(layout_obj)
+
+    wire.objpegboard.refresh_waypoints()
+
+    return layout_obj
 
 
 class WireLayout(_base.AddHandlerBase):
@@ -130,8 +206,6 @@ class WireLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def _finalize(self, mouse_pos: _point.Point) -> None:
-        from ...handlers import wire_layout_handler as _wire_layout_handler
-
         world_pos = self.camera.screen_to_world(mouse_pos)
         raw_pos, is_at_endpoint, endpoint = closest_point_on_chain(
             self._wire, world_pos.as_numpy)
@@ -142,44 +216,24 @@ class WireLayout(_base.AddHandlerBase):
             else:
                 self._wire.objpegboard.stop_position.attach(self.target.objpegboard.position)
 
-            self.target.db_obj.position3d_id = self.target.objpegboard.position.db_id[:-2]
+            self.target.db_obj.position_pegboard_id = self.target.objpegboard.position.db_id[:-2]
             self.target.objpegboard.is_visible = True
             self.mainframe.project.add_wire_layout(self.target)
         else:
-            # Per the same explicit direction covering schematic Splice:
-            # the actual DB insertion (which sub-segment, what idx) goes
-            # through the wire's own 3D path -- _find_insertion_index/
-            # _create_wire_layout_on_wire both only ever know how to walk
-            # obj3d's own geometry. The pegboard click's own fractional
-            # position along the pegboard chain is mapped onto the wire's
-            # 3D chord (straight line, ignoring interior 3D waypoints --
-            # an acceptable simplification, same as schematic's own) so
-            # the new row lands at a reasonable spot on both paths at
-            # once; the pegboard-visible position is then set explicitly
-            # from the real 2D click afterward, not reinterpolated.
-            objpegboard = self._wire.objpegboard
-            seg_start = objpegboard.start_position.as_numpy
-            seg_stop = objpegboard.stop_position.as_numpy
-            chord = seg_stop - seg_start
-            chord_len_sq = float(np.dot(chord, chord))
-
-            if chord_len_sq < 1e-12:
-                t = 0.0
-            else:
-                t = max(0.0, min(1.0, float(np.dot(raw_pos - seg_start, chord)) / chord_len_sq))
-
-            p1_3d = self._wire.obj3d.start_position.as_numpy
-            p2_3d = self._wire.obj3d.stop_position.as_numpy
-            position_3d = p1_3d + t * (p2_3d - p1_3d)
+            # A new interior waypoint gets its own peg-board-only point
+            # (see create_wire_layout_on_wire_pegboard's own docstring --
+            # "a layout gets added ... specific to the view it was added
+            # in", explicit direction) -- never the wire's 3D chord the
+            # way an earlier version of this branch mapped onto.
+            insert_idx = segment_insertion_index(self._wire, raw_pos)
 
             self.target.delete()
 
-            new_obj = _wire_layout_handler._create_wire_layout_on_wire(  # NOQA
-                self.mainframe.project, self._wire, _point.Point(*position_3d.tolist()))
+            new_obj = create_wire_layout_on_wire_pegboard(
+                self.mainframe.project, self._wire,
+                _point.Point(*raw_pos.tolist()), insert_idx)
 
             new_obj.objpegboard.is_visible = True
-            pos = new_obj.objpegboard.position
-            pos += _point.Point(*raw_pos.tolist()) - pos
 
             self.target = new_obj
 

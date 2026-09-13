@@ -534,6 +534,33 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 self._scale = seg_scale
                 self._material = real_material
 
+            # stripeClipStart/Stop are persistent uniform state on the
+            # shared faces/edges/vertices programs, not per-draw-call
+            # arguments -- WireStripe.render_segment() is the only place
+            # that ever sets them (to a real window) and resets them back
+            # to 0.0 afterward, and every other caller (this one included)
+            # implicitly relies on them already being 0.0. That contract
+            # breaks the moment render_segment() doesn't run for a given
+            # segment -- draw_stripe is False for this whole wire while
+            # selected, so its own reset never fires -- leaving whatever
+            # stripe (this wire's own from a moment ago, or a different
+            # wire's) last drew still active. With stripeClipStop > 0.0
+            # left over, the vertex shader takes the stripe branch for
+            # this cylinder's own vertices and skips objectScale.z
+            # entirely, stalling it near its unscaled unit length instead
+            # of stretching to seg_len -- confirmed 2026-09-13 as the
+            # actual mechanism behind a live bug report on the peg-board
+            # twin of this method (a wire's cylinder appearing to taper
+            # to a point, centered on each segment's own start, exactly
+            # what a short stuck-at-unit-length cylinder anchored there
+            # looks like). Never rely on a conditionally-skipped caller
+            # to have left this at 0.0 -- clear it unconditionally, every
+            # segment, right before this draw.
+            for program in (shaders.faces, shaders.edges, shaders.vertices):
+                with program:
+                    program.stripe_clip_start = 0.0
+                    program.stripe_clip_stop = 0.0
+
             super().render(shaders)
 
             if draw_stripe and not is_conductor:
@@ -1068,17 +1095,17 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         if (
             interaction_type is not _interaction.MouseInteraction.LEFT_DOWN or
             clicked_object is not self.parent or
-            self.mainframe.get_selected() is not self.parent
+            self.parent.mainframe.get_selected() is not self.parent
         ):
             return False
 
-        from ...drag_handlers.editor_3d import wire as _drag_wire  # NOQA -- avoid a cycle at import time (drag_handlers.editor_3d -> move_arrows -> base_3d)
+        from ...drag_handlers.editor_3d import wire as _wire_drag_handler
 
-        plan = _drag_wire.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
+        plan = _wire_drag_handler.Wire.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
         if plan is None:
             return False
 
-        self._active_handler = _drag_wire.Wire(self.editor3d.editor, self.parent, plan)
+        self._active_handler = _wire_drag_handler.Wire(self.editor3d.editor, self.parent, plan)
         return True
 
 
@@ -1365,11 +1392,11 @@ class WireMenu(QMenu):
 
         self.addSeparator()
 
-        from ...handlers import wire_handler as _wire_handler  # NOQA -- avoid a cycle at import time
+        from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
         wire = selected.parent
         click_pos = selected._context_menu_click_pos  # NOQA
-        free_end = _wire_handler._pick_free_end(selected.mainframe, wire, click_pos)
+        free_end = _wire_3d.Wire.pick_free_end(selected.mainframe, wire, click_pos)
 
         action = self.addAction('Extend Wire')
         action.setEnabled(free_end is not None)
@@ -1511,13 +1538,13 @@ class WireMenu(QMenu):
         waypoint/layout added -- see Wire.start_add's own
         extend_wire branch / add_handlers.editor_3d.wire's module
         docstring."""
-        from ...handlers import wire_handler as _wire_handler
+        from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
         mainframe = self.selected.mainframe
         wire = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
-        end = _wire_handler._pick_free_end(mainframe, wire, click_pos)
+        end = _wire_3d.Wire.pick_free_end(mainframe, wire, click_pos)
         if end is None:
             return
 
@@ -1532,13 +1559,13 @@ class WireMenu(QMenu):
         """Drop a waypoint + layout at this wire's free end and continue
         it from there, freely -- see Wire.start_add's own add_to_wire
         branch / add_handlers.editor_3d.wire's module docstring."""
-        from ...handlers import wire_handler as _wire_handler
+        from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
         mainframe = self.selected.mainframe
         wire = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
-        end = _wire_handler._pick_free_end(mainframe, wire, click_pos)
+        end = _wire_3d.Wire.pick_free_end(mainframe, wire, click_pos)
         if end is None:
             return
 

@@ -5,28 +5,27 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from ....geometry import point as _point
-from ....geometry import angle as _angle
 from .... import check_types as _check_types
+from ... import mixins as _wire_type_base
 
 
 if TYPE_CHECKING:
     from ....gl import canvas_3d as _canvas3d
 
 
-class WireTypeMixin:
-    start_position: _point.Point = None
-    stop_position: _point.Point = None
+class WireTypeMixin(_wire_type_base.WireTypeMixin):
+    """3D-editor specialization of the shared
+    ``objects.mixins.wire.WireTypeMixin`` -- see that module's own
+    docstring for the full rationale. Supplies this view's own
+    ``_waypoints``/``_point_on_wire``; ``_segments``/``get_closest_point``/
+    ``get_closest_endpoint`` are inherited unchanged.
+    """
     editor3d: "_canvas3d.Canvas3D" = None
-    db_obj = None
 
+    @staticmethod
     @_check_types.do
-    def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
-        """Every (p1, p2) sub-segment from start, through each interior
-        waypoint in idx order, to stop -- as numpy arrays. A wire with no
-        interior waypoints is just the one (start, stop) pair, same as
-        before this wire could have any bends of its own.
-
-        This mixin is also shared by objects.objects_3d.bundle.Bundle
+    def _waypoints(db_obj):
+        """This mixin is also shared by objects.objects_3d.bundle.Bundle
         (see get_closest_endpoint's callers in handlers.
         bundle_layout_handler) -- PJTBundle has no waypoints3d of its own
         (bundles haven't been given the same single-row/tagged-waypoint
@@ -34,12 +33,7 @@ class WireTypeMixin:
         assumed present; a bundle simply has zero interior waypoints
         today, same as it always has.
         """
-        points = [self.start_position.as_numpy]
-        for waypoint in getattr(self.db_obj, 'waypoints3d', ()):
-            points.append(waypoint.point.as_numpy)
-        points.append(self.stop_position.as_numpy)
-
-        return list(zip(points, points[1:]))
+        return getattr(db_obj, 'waypoints3d', ())
 
     @staticmethod
     @_check_types.do
@@ -202,97 +196,3 @@ class WireTypeMixin:
             best_idx = 0
 
         return best_point, best_idx
-
-    @_check_types.do
-    def get_closest_point(
-        self,
-        mouse_pos: _point.Point
-    ) -> tuple[_point.Point | None, _angle.Angle | None, int | None]:
-
-        """
-        Find the closest point on a wire to where the user clicked.
-
-        This computes:
-        1. Ray from mouse position
-        2. Closest point on the wire's own path (any sub-segment) to that ray
-        3. Wire direction of whichever sub-segment that point falls on
-
-        Returns:
-            tuple: (closest_point, wire_angle, segment_index) or
-            (None, None, None). segment_index is exactly the insertion
-            index a caller needs to add a new waypoint at this point (see
-            _point_on_wire) -- e.g. handlers.wire_layout_handler.
-            _create_wire_layout_on_wire, handlers.wire_topology.
-            split_wire_at_point.
-        """
-
-        closest_point, seg_idx = self._point_on_wire(mouse_pos)
-
-        if closest_point is None:
-            return None, None, None
-
-        seg_p1, seg_p2 = self._segments()[seg_idx]
-
-        wire_direction = seg_p2 - seg_p1
-        wire_length = np.linalg.norm(wire_direction)
-
-        if wire_length < 0.001:
-            return None, None, None
-
-        wire_direction /= wire_length
-
-        # Convert to angle
-        wire_angle = _angle.Angle.from_direction(wire_direction)
-
-        return _point.Point(*closest_point), wire_angle, seg_idx
-
-    @_check_types.do
-    def get_closest_endpoint(
-        self,
-        mouse_pos: _point.Point,
-        endpoint_tolerance=5.0
-    ):
-        """
-        Find whether a picked wire location lands on an existing endpoint.
-
-        Only the wire's own true start/stop count as "an endpoint" here --
-        every interior bend already has its own pickable WireLayout, which
-        callers hit-test separately before ever falling back to this
-        closest-point-on-the-raw-wire path.
-
-        :param mouse_pos: Mouse position in viewport coordinates.
-        :type mouse_pos: _point.Point
-        :param endpoint_tolerance: Minimum tolerance used for endpoint snapping.
-        :type endpoint_tolerance: float
-        :returns: Picked position, whether it matches an endpoint, and the endpoint
-            name when applicable.
-        :rtype: tuple[object, bool, str | None]
-        """
-
-        # Get wire endpoints
-        p1 = self.start_position.as_numpy
-        p2 = self.stop_position.as_numpy
-
-        closest_point, _seg_idx = self._point_on_wire(mouse_pos)
-
-        # Check if closest point is near an existing endpoint
-        dist_to_p1 = np.linalg.norm(closest_point - p1)
-        dist_to_p2 = np.linalg.norm(closest_point - p2)
-
-        # Use wire diameter as tolerance for endpoint detection
-        wire_diameter = self.db_obj.part.od_mm
-        tolerance = max(wire_diameter, endpoint_tolerance)
-
-        if dist_to_p1 < tolerance:
-            # Placing at start endpoint - return the ACTUAL Point instance
-            # This ensures the layout will bind to the same Point callbacks
-            return p1, True, 'start'
-        elif dist_to_p2 < tolerance:
-            # Placing at end endpoint - return the ACTUAL Point instance
-            return p2, True, 'stop'
-        else:
-            # Placing in middle - return coordinates for NEW Point creation
-            # The project will create a new Point and share it between layout and wires
-            position = _point.Point(*closest_point)
-
-            return position, False, None

@@ -16,8 +16,6 @@ about this axis, replacing the old fixed-handle drag in
 """
 
 import math
-from typing import TYPE_CHECKING
-
 import numpy as np
 
 from . import _hit_test
@@ -26,9 +24,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from .. import rotation_mesh as _rotation_mesh
 from ... import check_types as _check_types
-
-if TYPE_CHECKING:
-    from ...gl.canvas_base import camera_base as _camera_base
+from ...gl.canvas_base import camera_base as _camera_base
 
 
 # Fixed, light label color -- same reasoning as _TICK_COLOR above, but
@@ -129,7 +125,7 @@ class InnerRing(ProtractorRingBase):
 
     @_check_types.do
     def begin_drag(self, mouse_pos: _point.Point,
-                   camera: "_camera_base.CameraBase") -> None:
+                   camera: _camera_base.CameraBase) -> None:
         """
         Start a free-rotation drag anywhere along the ring's band.
 
@@ -219,7 +215,7 @@ class InnerRing(ProtractorRingBase):
 
     @_check_types.do
     def hit_test(self, mouse_pos: _point.Point,
-                 camera: "_camera_base.CameraBase", tolerance: float = 8.0,
+                 camera: _camera_base.CameraBase, tolerance: float = 8.0,
                  samples: int = 64) -> bool:
         """
         Grab anywhere within the band's full radial extent (ID to OD),

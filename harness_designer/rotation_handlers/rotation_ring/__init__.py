@@ -27,12 +27,13 @@ from ...gl import materials as _materials
 from .. import rotation_mesh as _rotation_mesh
 from ... import color as _color
 from ... import check_types as _check_types
+from ...objects.objectsvar import base_var as _base_var
+from ...gl import shaders as _shaders
+from ...gl.canvas_base import camera_base as _camera_base
+
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-    from ...objects.objectsvar import base_var as _base_var
-    from ...gl.canvas_base import camera_base as _camera_base
-    from ...gl import shaders as _shaders
 
 
 # Torus opacity while a sibling axis's protractor is active -- "the
@@ -379,16 +380,16 @@ class RotationRing:
 
     @_check_types.do
     def hit_test_torus(self, mouse_pos: _point.Point,
-                       camera: "_camera_base.CameraBase") -> bool:
+                       camera: _camera_base.CameraBase) -> bool:
         return self.torus.hit_test(mouse_pos, camera)
 
     @_check_types.do
     def hit_test_inner(self, mouse_pos: _point.Point,
-                       camera: "_camera_base.CameraBase") -> bool:
+                       camera: _camera_base.CameraBase) -> bool:
         return self.is_active and self.inner.hit_test(mouse_pos, camera)
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram") -> None:
+    def render(self, shaders: _shaders.ShaderProgram) -> None:
         self.torus.render(shaders)
 
         if self.is_active:

@@ -45,13 +45,21 @@ class BundleLayout(_base_pegboard.BasePegboard):
         :type db_obj: :class:`_pjt_bundle_layout.PJTBundleLayout`
         """
 
-        # No vbo/angle -- a layout point is a bare position along its
-        # bundle's path, no independent rendering presence or rotation of
-        # its own (see base_pegboard.BasePegboard.__init__'s vbo-is-None
-        # branch). position=None whenever position_pegboard_id is NULL
-        # (this layout isn't placed on the peg-board view yet) -- handled
-        # gracefully by BaseVar (can_drag()/drag() both no-op on a None
-        # position).
+        # A PJTBundleLayout row is exclusive to exactly one view (see
+        # PJTWireLayout's own docstring -- PJTBundleLayout mirrors the
+        # same exclusivity rule) -- the facade always builds all view
+        # wrappers unconditionally for every row (objects.bundle_layout.
+        # BundleLayout.__init__), regardless of which one it actually
+        # belongs to. So this branch is the normal, expected case for a
+        # row placed in the 3D view instead -- no vbo/angle/scale/
+        # material at all, mirroring base_pegboard.BasePegboard.
+        # __init__'s "no rendering presence" contract exactly
+        # (can_drag()/drag()/render()/picking all already no-op
+        # gracefully on a None position).
+        if db_obj.position_pegboard_id is None:
+            super().__init__(parent, db_obj, position=None)
+            self.point3d_id = None
+            return
 
         position = db_obj.position_pegboard
         angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
@@ -156,8 +164,8 @@ class BundleLayout(_base_pegboard.BasePegboard):
         if initial_pos is None:
             initial_pos = _point.Point(0.0, 0.0, 0.0)
 
-        pos_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        layout_db = ptables.pjt_bundle_layouts_table.insert(pos_db.db_id, bundle.obj3d.diameter)
+        pos_db = ptables.pjt_points_pegboard_table.insert(0.0, 0.0, 0.0)
+        layout_db = ptables.pjt_bundle_layouts_table.insert(point_pegboard_id=pos_db.db_id)
 
         from .. import bundle_layout as _bundle_layout_facade
 

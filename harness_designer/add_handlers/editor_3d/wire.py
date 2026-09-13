@@ -46,6 +46,7 @@ from ...objects import terminal as _terminal
 from ...objects import splice as _splice
 from ...objects import wire as _wire
 from ...handlers import wire_snap as _wire_snap
+from ...drag_handlers.editor_3d import wire_snap as _wire_snap_3d
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -103,7 +104,7 @@ class Wire(_base.AddHandlerBase):
         self._has_committed_waypoint = False
         self._session_waypoint_count = 0
 
-        self._snap_probes: _wire_snap.SnapProbeSet | None = None
+        self._snap_probes: _wire_snap_3d.SnapProbeSet | None = None
         self._snap_probes_part_id: bytes | None = None
 
         self._extension_snap_kind: str | None = None
@@ -182,7 +183,7 @@ class Wire(_base.AddHandlerBase):
 
         exclude_wire = self._source_wire if self._extension_mode else self.target
 
-        self._snap_probes = _wire_snap.SnapProbeSet(
+        self._snap_probes = _wire_snap_3d.SnapProbeSet(
             self.mainframe, wire_part, exclude_wire=exclude_wire)
         self._snap_probes_part_id = wire_part.db_id
 
@@ -429,8 +430,8 @@ class Wire(_base.AddHandlerBase):
         elif isinstance(picked, _wire_layout.WireLayout):
             self._overlay.hide_message()
 
-            from ...handlers.wire_handler import _wire_layout_end_wire
-            end_wire, _end = _wire_layout_end_wire(picked, project, self.part_id)
+            from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
+            end_wire, _end = _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id)
             if end_wire is not None:
                 self._set_hover_obj(picked, self._wire_layout_highlight)
             else:
@@ -574,11 +575,11 @@ class Wire(_base.AddHandlerBase):
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
         elif isinstance(picked, _wire_layout.WireLayout):
-            from ...handlers.wire_handler import _wire_layout_end_wire, merge_wire_into
+            from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
-            end_wire, other_end = _wire_layout_end_wire(picked, project, self.part_id)
+            end_wire, other_end = _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id)
             if end_wire is not None:
-                merged = merge_wire_into(
+                merged = _wire_3d.Wire.merge_wire_into(
                     project, self.target, end_wire, other_end, own_end=self._growing_end)
                 self.target = merged
                 self.target.identify(None)
@@ -617,7 +618,7 @@ class Wire(_base.AddHandlerBase):
                 project.add_wire_layout(layout_obj)
 
         elif isinstance(picked, _wire.Wire):
-            from ...handlers.wire_handler import merge_wire_into
+            from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
             world_np = self.camera.get_position_on_focal_plane(mouse_pos).as_numpy
             start_np = picked.obj3d.start_position.as_numpy
@@ -634,7 +635,7 @@ class Wire(_base.AddHandlerBase):
                 return
 
             other_end = 'start' if near_start else 'stop'
-            merged = merge_wire_into(
+            merged = _wire_3d.Wire.merge_wire_into(
                 project, self.target, picked, other_end, own_end=self._growing_end)
             self.target = merged
 

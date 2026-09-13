@@ -270,7 +270,7 @@ class PJTPointPegboard(PJTEntryBase):
         :param point: Point value.
         :type point: :class:`_point.Point`
         """
-        db_id = point.db_id[:-8]
+        db_id = point.db_id[:-2]
         if db_id != self._db_id:
             point.unbind(self._update_point)
             self._stored_point_pegboard = None
@@ -411,7 +411,7 @@ class PJTPointPegboard(PJTEntryBase):
         """
         if self._stored_point_pegboard is None:
             self._stored_point_pegboard = _point.Point(
-                self.x, self.y, self.z, db_id=self.db_id + b'pegboard')
+                self.x, self.y, self.z, db_id=self.db_id + b'pg')
             if not self._is_clone:
                 self._stored_point_pegboard.bind(self._update_point)
 

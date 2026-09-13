@@ -409,7 +409,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
         new_pos_arr = positions_array + delta
 
-        db_ids = [p.db_id[:-8] for p in positions]
+        db_ids = [p.db_id[:-2] for p in positions]
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
         rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
@@ -549,7 +549,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        db_ids = [p.db_id[:-8] for p in positions]
+        db_ids = [p.db_id[:-2] for p in positions]
         rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
         self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
 

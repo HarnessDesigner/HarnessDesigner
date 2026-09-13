@@ -13,6 +13,7 @@ from . import cavity_panel as _cavity_panel
 from . import accessory_panel as _accessory_panel
 from . import connector_analysis as _analysis
 from . import analysis_panel as _analysis_panel
+from . import tree_panels as _tree_panels
 from .. import dialog_base as _dialog_base
 from ....gl import canvas_3d as _canvas_3d
 from ....utils.mesh_surface_picker import MeshSurfacePicker as _MeshSurfacePicker
@@ -65,185 +66,6 @@ _TERMINAL_COLORS: list[tuple[float, float, float]] = [
     (0.10, 0.90, 0.90),
     (1.00, 0.40, 0.20),
 ]
-
-
-class PlaneTreePanel(QtWidgets.QWidget):
-    """Side panel that shows selected plane groups as a tree.
-
-    Top-level (bold) nodes = one plane group per coplanar click, labelled
-    "Plane N — X surfaces".  Each node expands to show its individual
-    surfaces, labelled "Surface M — Y tris".
-
-    Clicking a top-level node highlights all surfaces in that group and
-    dims all surfaces in other groups.  Clicking a child node highlights
-    only that one surface.  Clicking the already-selected item deselects
-    (everything in this mode returns to full brightness).
-
-    Remove: if a group node is selected, the whole group is removed.
-            if a surface node is selected, only that surface is removed.
-    Done: exits the active mode (unchecks the toolbar button).
-    """
-
-    # (group_idx, surf_local_idx)  –  surf_local_idx = -1 means whole group
-    selectionChanged: QtCore.SignalInstance = QtCore.Signal(int, int)
-    removeRequested: QtCore.SignalInstance = QtCore.Signal(int, int)
-    accepted: QtCore.SignalInstance = QtCore.Signal()
-    # Emitted from the group-node context menu: (group_idx, 'circle'|'rect')
-    addManualRequested: QtCore.SignalInstance = QtCore.Signal(int, str)
-
-    @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget):
-        super().__init__(parent)
-
-        self._sel_group: int = -1
-
-        # local index inside the group, -1 = whole group
-        self._sel_surf: int = -1
-
-        self._is_terminal: bool = False
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.setContentsMargins(6, 6, 6, 6)
-        layout.setSpacing(4)
-
-        self._label = QtWidgets.QLabel('Selected Surfaces', self)
-        self._label.setStyleSheet('font-weight: bold;')
-        layout.addWidget(self._label)
-
-        self._tree = QtWidgets.QTreeWidget(self)
-        self._tree.setHeaderHidden(True)
-        self._tree.setSelectionMode(
-            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
-
-        self._tree.setStyleSheet('QTreeWidget::item:selected {'
-                                 '  background-color: #cc1100;'
-                                 '  color: white;}')
-
-        self._tree.setContextMenuPolicy(
-            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
-
-        self._tree.customContextMenuRequested.connect(self._on_ctx_menu)
-
-        layout.addWidget(self._tree, 1)
-
-        btn_row = QtWidgets.QHBoxLayout()
-        self._btn_remove = QtWidgets.QPushButton('Remove', self)
-        self._btn_done = QtWidgets.QPushButton('Done', self)
-        btn_row.addWidget(self._btn_remove)
-        btn_row.addStretch(1)
-        btn_row.addWidget(self._btn_done)
-        layout.addLayout(btn_row)
-
-        self._tree.itemClicked.connect(self._on_item_clicked)
-        self._btn_remove.clicked.connect(self._on_remove)
-        self._btn_done.clicked.connect(self.accepted)
-
-        self.setMinimumWidth(210)
-        self.setMaximumWidth(290)
-        self.hide()
-
-    @_check_types.do
-    def load(
-        self,
-        groups: list[list[int]],
-        surfaces: list,
-        label: str = 'Selected Surfaces',
-        is_terminal: bool = False,
-    ) -> None:
-        """
-        Rebuild the tree from plane groups.
-
-        groups[g] is the list of surface indices for plane group g.
-        surfaces is the full picker surface list (for triangle-count labels).
-        is_terminal controls whether the group-node context menu offers
-        "Add Circle Cavity" / "Add Rectangle Cavity" (terminal-plane mode
-        only — used to hand-mark cavities on a single continuous plane).
-        """
-
-        self._is_terminal = is_terminal
-        self._label.setText(label)
-        self._tree.clear()
-        self._sel_group = -1
-        self._sel_surf = -1
-
-        for g, group in enumerate(groups):
-            n = len(group)
-
-            parent_item = QtWidgets.QTreeWidgetItem(
-                self._tree,
-                [f'Plane {g + 1}  —  {n} surface{"s" if n != 1 else ""}'])
-
-            parent_item.setData(
-                0, QtCore.Qt.ItemDataRole.UserRole, (g, -1))
-
-            font = parent_item.font(0)
-            font.setBold(True)
-            parent_item.setFont(0, font)
-
-            for s, si in enumerate(group):
-                n_tris = len(surfaces[si].tri_indices)
-
-                child = QtWidgets.QTreeWidgetItem(
-                    parent_item,
-                    [f'  Surface {s + 1}  —  {n_tris}'
-                     f' tri{"s" if n_tris != 1 else ""}'])
-
-                child.setData(
-                    0, QtCore.Qt.ItemDataRole.UserRole, (g, s))
-
-            parent_item.setExpanded(True)
-
-        if groups:
-            self.show()
-        else:
-            self.hide()
-
-    @_check_types.do
-    def selection(self) -> tuple[int, int]:
-        return self._sel_group, self._sel_surf
-
-    @_check_types.do
-    def _on_item_clicked(self, item: QtWidgets.QTreeWidgetItem, _col: int) -> None:
-        g, s = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-        if g == self._sel_group and s == self._sel_surf:
-            # Same item clicked again → deselect
-            self._tree.clearSelection()
-            self._sel_group = -1
-            self._sel_surf = -1
-            self.selectionChanged.emit(-1, -1)
-        else:
-            self._sel_group = g
-            self._sel_surf = s
-            self.selectionChanged.emit(g, s)
-
-    @_check_types.do
-    def _on_remove(self) -> None:
-        if self._sel_group >= 0:
-            self.removeRequested.emit(self._sel_group, self._sel_surf)
-
-    @_check_types.do
-    def _on_ctx_menu(self, pos: QtCore.QPoint) -> None:
-        item = self._tree.itemAt(pos)
-        if item is None:
-            return
-
-        g, s = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
-
-        menu = QtWidgets.QMenu(self._tree)
-        act = menu.addAction('Remove')
-        act.triggered.connect(lambda: self.removeRequested.emit(g, s))
-
-        if self._is_terminal and s < 0:
-            menu.addSeparator()
-            act = menu.addAction('Add Circle Cavity')
-            act.triggered.connect(
-                lambda: self.addManualRequested.emit(g, 'circle'))
-
-            act = menu.addAction('Add Rectangle Cavity')
-            act.triggered.connect(
-                lambda: self.addManualRequested.emit(g, 'rect'))
-
-        menu.exec(self._tree.mapToGlobal(pos))
 
 
 class SurfaceOverlay(QtWidgets.QWidget):
@@ -319,19 +141,16 @@ class SurfaceOverlay(QtWidgets.QWidget):
                 if all(p is not None for p in pts_):
                     painter.drawPolygon(QtGui.QPolygonF(pts_))
 
-        mode = dlg.select_mode
-        g_sel = dlg.plane_sel_group
-        s_sel = dlg.plane_sel_surf
+        # --- wire plane groups (orange) --- always shown, independent of
+        # select_mode -- both trees are visible/interactive simultaneously
+        # now, not gated to whichever pick mode is active.
+        wire_active = bool(dlg.wire_sel_surf_idxs)
 
-        # --- wire plane groups (orange) ---
-        wire_g = g_sel if mode == 'wire' else -1
-        wire_s = s_sel if mode == 'wire' else -1
-
-        for g, group in enumerate(dlg.wire_plane_groups):
-            for s, si in enumerate(group):
-                if wire_g < 0:
+        for group in dlg.wire_plane_groups:
+            for si in group:
+                if not wire_active:
                     draw_surf(dlg.surfaces[si], 255, 140, 0, 80)
-                elif g == wire_g and (wire_s < 0 or s == wire_s):
+                elif si in dlg.wire_sel_surf_idxs:
                     # selected → bright red
                     draw_surf(dlg.surfaces[si], 255, 40, 40, 200)
                 else:
@@ -339,14 +158,13 @@ class SurfaceOverlay(QtWidgets.QWidget):
                     draw_surf(dlg.surfaces[si], 255, 140, 0, 20)
 
         # --- terminal plane groups (blue) ---
-        term_g = g_sel if mode == 'terminal_plane' else -1
-        term_s = s_sel if mode == 'terminal_plane' else -1
+        term_active = bool(dlg.term_sel_surf_idxs)
 
-        for g, group in enumerate(dlg.term_plane_groups):
-            for s, si in enumerate(group):
-                if term_g < 0:
+        for group in dlg.term_plane_groups:
+            for si in group:
+                if not term_active:
                     draw_surf(dlg.surfaces[si], 51, 153, 255, 80)
-                elif g == term_g and (term_s < 0 or s == term_s):
+                elif si in dlg.term_sel_surf_idxs:
                     # selected → bright red
                     draw_surf(dlg.surfaces[si], 255, 40, 40, 200)
                 else:
@@ -372,9 +190,9 @@ class SurfaceOverlay(QtWidgets.QWidget):
             rf, gf, bf = dlg.terminal_surf_colors.get(idx, (0.5, 0.5, 0.5))
             draw_surf(surf, int(rf * 255), int(gf * 255), int(bf * 255))
 
-        # --- analysis-result cavity overlays ---
-        if dlg.analysis_panel.isVisible():
-            items = dlg.analysis_panel.items()
+        # --- pending (not yet accepted) cavity overlays ---
+        items = dlg.cavity_tree_panel.items()
+        if items:
             selected = dlg.analysis_selected
 
             for i, item in enumerate(items):
@@ -559,11 +377,11 @@ class _SurfaceSelectFilter(QtCore.QObject):
             if max(p['radius'], p['half_w'], p['half_h']) >= min_size:
                 dlg.manual_cavities.append(preview)
                 n = len(dlg.manual_cavities)
-                dlg._set_status(  # NOQA
+                dlg.term_tree_panel.set_info(
                     f'{n} cavity shape{"s" if n != 1 else ""} drawn manually.'
                     f' Run Analyze when ready.')
             else:
-                dlg._set_status('Draw too small — discarded.')  # NOQA
+                dlg.term_tree_panel.set_info('Draw too small — discarded.')
 
         dlg.draw_preview = None
         dlg.draw_mode = None
@@ -644,6 +462,18 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Edit Housing', size=(1200, 900))
 
+        # OK is disabled only while BOTH: the Cavity Detection tab is the
+        # one being viewed, AND Accept Cavities hasn't been clicked yet this
+        # session -- viewing any other tab (Cavities/Accessories) enables
+        # it immediately, since there's no picking work in view to force a
+        # decision on; once Accept Cavities is clicked it's a permanent,
+        # literal one-time gate regardless of which tab is viewed after
+        # that (see _on_accept_cavities / _on_controls_tab_changed).
+        self._cavities_accepted: bool = False
+        self._ok_button = self.button_box.button(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok)
+        self._ok_button.setEnabled(False)
+
         w = Config.editor_3d.virtual_canvas.width
         h = Config.editor_3d.virtual_canvas.height
 
@@ -660,7 +490,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             self, Config.editor_3d, size=(w, h))
 
         self.controls = QtWidgets.QTabWidget(self.panel)
-        self.controls.setMaximumHeight(250)
 
         self.housing: _housing_obj.Housing = None
         self.cavity_panel: _cavity_panel.CavityPanel = None
@@ -692,11 +521,15 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.terminal_surf_colors: dict[int, tuple[float, float, float]] = {}
         self.terminal_overrides: dict[int, str] = {}
         self.term_color_idx: int = 0
-        # Tree selection: which group and which surface within it
-        # are highlighted. plane_sel_surf = -1 means the whole
-        # group is highlighted.
-        self.plane_sel_group: int = -1
-        self.plane_sel_surf: int = -1
+        # Tree selection: global surface indices currently highlighted in
+        # each tree, independent of one another -- both trees are visible
+        # and interactive simultaneously now, not mode-gated.
+        self.wire_sel_surf_idxs: set[int] = set()
+        self.term_sel_surf_idxs: set[int] = set()
+        # Per-surface area cache (world-space, from MeshSurfacePicker
+        # surfaces) -- cheap to compute but shared by every plane-tree
+        # reload and the "Group by Size" view, so memoize it.
+        self._surface_area_cache: dict[int, float] = {}
         # Surfaces highlighted because the matching cavity tab is selected.
         # -1 = none (cavity loaded from DB has no session-time surface index).
         self.selected_cavity_wire_si: int = -1
@@ -730,71 +563,54 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         # ── analysis preview state ────────────────────────────────────────────
         self.analysis_selected: int = -1
 
-        # ── toolbar ───────────────────────────────────────────────────────────
-        toolbar = QtWidgets.QWidget(self.panel)
-        tb_layout = QtWidgets.QHBoxLayout(toolbar)
-        tb_layout.setContentsMargins(4, 4, 4, 4)
-        tb_layout.setSpacing(6)
+        # Relocated at the end of __init__ to sit left of the dialog's own
+        # OK button, separated from OK/Cancel by a gap, once
+        # self.button_box exists.
+        self._btn_accept_cavities = QtWidgets.QPushButton('Accept Cavities')
+        self._btn_accept_cavities.setStyleSheet(
+            'QPushButton { padding: 4px 12px; }')
 
-        self._btn_wire = QtWidgets.QPushButton('Select Wire Side', toolbar)
-        self._btn_wire.setCheckable(True)
-        self._btn_wire.setStyleSheet(
-            'QPushButton { padding: 4px 12px; } '
-            'QPushButton:checked { background-color: #b06010; '
-            'color: white; font-weight: bold; }')
+        self._btn_accept_cavities.clicked.connect(self._on_accept_cavities)
 
-        self._btn_trm_plane = QtWidgets.QPushButton(
-            'Select Terminal Plane', toolbar)
+        # ── bottom area: a single always-present notebook. The picking
+        # trees live in their own tab ("Cavity Detection") alongside
+        # Cavities/Accessories (added later, in SetValue) instead of being
+        # swapped away to a separate page -- this lets the user come back
+        # to picking after Accept Cavities instead of it being one-way.
+        # No hard maximumHeight here: self.controls is now a direct
+        # splitter pane below, and a fixed ceiling fights the splitter's
+        # own size negotiation -- it can freeze the sash once the pane's
+        # natural minimum size gets close to that ceiling. The splitter's
+        # initial setSizes(...) call below picks a sane starting split
+        # instead; dragging is then unconstrained beyond each pane's own
+        # natural minimum size.
+        self._picking_page = QtWidgets.QWidget(self.controls)
+        picking_layout = QtWidgets.QVBoxLayout(self._picking_page)
+        picking_layout.setContentsMargins(4, 4, 4, 4)
+        picking_layout.setSpacing(4)
 
-        self._btn_trm_plane.setCheckable(True)
-        self._btn_trm_plane.setStyleSheet(
-            'QPushButton { padding: 4px 12px; } '
-            'QPushButton:checked { background-color: #1a7a30; '
-            'color: white; font-weight: bold; }')
+        # Wire/terminal pick mode is no longer toggled by a button here --
+        # selecting an item (including the "Click me to add surfaces."
+        # placeholder) in the wire or terminal tree itself now arms that
+        # side's pick mode (see _on_wire_sel_changed/_on_term_sel_changed).
+        settings_row = QtWidgets.QHBoxLayout()
 
-        self._btn_terminal = QtWidgets.QPushButton('Add Terminal', toolbar)
-        self._btn_terminal.setCheckable(True)
-        self._btn_terminal.setStyleSheet(
-            'QPushButton { padding: 4px 12px; } '
-            'QPushButton:checked { background-color: #1a50a0; '
-            'color: white; font-weight: bold; }')
-
-        self._btn_analyze = QtWidgets.QPushButton('Analyze', toolbar)
-        self._btn_analyze.setStyleSheet('QPushButton { padding: 4px 12px; }')
-
-        self._btn_clear_terms = QtWidgets.QPushButton(
-            'Clear Terminals', toolbar)
-
-        self._btn_clear_terms.setStyleSheet('QPushButton { padding: 4px 12px; }')
-
-        self._btn_clear_all = QtWidgets.QPushButton('Clear All', toolbar)
-        self._btn_clear_all.setStyleSheet('QPushButton { padding: 4px 12px; }')
-
-        tb_layout.addWidget(self._btn_wire)
-        tb_layout.addWidget(self._btn_trm_plane)
-        tb_layout.addWidget(self._btn_terminal)
-        tb_layout.addSpacing(12)
-        tb_layout.addWidget(self._btn_analyze)
-        tb_layout.addWidget(self._btn_clear_terms)
-        tb_layout.addWidget(self._btn_clear_all)
-        tb_layout.addSpacing(12)
-
-        self._len_label = QtWidgets.QLabel('Length: 100%', toolbar)
+        self._len_label = QtWidgets.QLabel('Length: 100%', self._picking_page)
         self._len_slider = QtWidgets.QSlider(
-            QtCore.Qt.Orientation.Horizontal, toolbar)
+            QtCore.Qt.Orientation.Horizontal, self._picking_page)
 
         self._len_slider.setRange(10, 100)
         self._len_slider.setValue(100)
         self._len_slider.setFixedWidth(120)
 
-        tb_layout.addWidget(self._len_label)
-        tb_layout.addWidget(self._len_slider)
-        tb_layout.addSpacing(12)
+        settings_row.addWidget(self._len_label)
+        settings_row.addWidget(self._len_slider)
+        settings_row.addSpacing(12)
 
-        self._tol_label = QtWidgets.QLabel('Tol: 0.05', toolbar)
+        self._tol_label = QtWidgets.QLabel('Tol: 0.05', self._picking_page)
 
         self._tol_slider = QtWidgets.QSlider(
-            QtCore.Qt.Orientation.Horizontal, toolbar)
+            QtCore.Qt.Orientation.Horizontal, self._picking_page)
 
         # 0.01 – 0.50 in 0.01 steps
         self._tol_slider.setRange(1, 50)
@@ -803,65 +619,117 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._tol_slider.setValue(5)
 
         self._tol_slider.setFixedWidth(100)
-        tb_layout.addWidget(self._tol_label)
-        tb_layout.addWidget(self._tol_slider)
-        tb_layout.addStretch(1)
+        settings_row.addWidget(self._tol_label)
+        settings_row.addWidget(self._tol_slider)
+        settings_row.addStretch(1)
 
-        self._status_label = QtWidgets.QLabel('', toolbar)
-        tb_layout.addWidget(self._status_label)
-
-        self._mode_btns = (
-            self._btn_wire, self._btn_trm_plane, self._btn_terminal)
-
-        self._btn_wire.clicked.connect(
-            lambda *_:
-            self._on_mode_btn('wire', self._btn_wire, self._btn_wire.isChecked()))
-
-        self._btn_trm_plane.clicked.connect(
-            lambda *_:
-            self._on_mode_btn(
-                'terminal_plane', self._btn_trm_plane, self._btn_trm_plane.isChecked()))
-
-        self._btn_terminal.clicked.connect(
-            lambda *_:
-            self._on_mode_btn(
-                'terminal', self._btn_terminal, self._btn_terminal.isChecked()))
-
-        self._btn_analyze.clicked.connect(self.run_analysis)
-        self._btn_clear_terms.clicked.connect(self._clear_terminals)
-        self._btn_clear_all.clicked.connect(self._clear_all)
         self._len_slider.valueChanged.connect(self._on_length_changed)
         self._tol_slider.valueChanged.connect(self._on_tol_changed)
 
-        # ── plane tree side-panel (shown while in wire/terminal_plane mode) ───
-        self.plane_list_panel = PlaneTreePanel(self.panel)
-        self.plane_list_panel.selectionChanged.connect(self._on_plane_sel_changed)
-        self.plane_list_panel.removeRequested.connect(self._on_plane_remove)
-        self.plane_list_panel.accepted.connect(self._on_plane_accepted)
-        self.plane_list_panel.addManualRequested.connect(self._on_add_manual_cavity)
+        picking_layout.addLayout(settings_row)
 
-        # ── analysis result side-panel (hidden until Analyze is clicked) ──────
-        self.analysis_panel = _analysis_panel.AnalysisResultPanel(self.panel)
-        self.analysis_panel.accepted.connect(self._on_analysis_accepted)
-        self.analysis_panel.rejected.connect(self._on_analysis_rejected)
-        self.analysis_panel.selectionChanged.connect(
-            self._on_analysis_selection)
+        trees_row = QtWidgets.QHBoxLayout()
+
+        self.wire_tree_panel = _tree_panels.PlaneTreePanel(
+            self._picking_page, is_terminal=False, caption='Wire-Side Surfaces')
+        self.term_tree_panel = _tree_panels.PlaneTreePanel(
+            self._picking_page, is_terminal=True, caption='Terminal-Side Surfaces')
+        self.cavity_tree_panel = _tree_panels.CavityTreePanel(
+            self._picking_page, caption='Detected Cavities')
+
+        arrow_col = QtWidgets.QVBoxLayout()
+        arrow_col.addStretch(1)
+        self._btn_analyze = QtWidgets.QPushButton('→', self._picking_page)
+        self._btn_analyze.setEnabled(False)
+        analyze_font = self._btn_analyze.font()
+        analyze_font.setPointSize(analyze_font.pointSize() + 8)
+        analyze_font.setBold(True)
+        self._btn_analyze.setFont(analyze_font)
+        self._btn_analyze.setFixedSize(44, 44)
+        self._btn_analyze.setToolTip('Analyze')
+        arrow_col.addWidget(self._btn_analyze)
+        arrow_col.addStretch(1)
+
+        trees_row.addWidget(self.wire_tree_panel, 1)
+        trees_row.addWidget(self.term_tree_panel, 1)
+        trees_row.addLayout(arrow_col)
+        trees_row.addWidget(self.cavity_tree_panel, 1)
+
+        picking_layout.addLayout(trees_row, 1)
+
+        self._edit_panel = _analysis_panel.EditPanel(self._picking_page)
+        picking_layout.addWidget(self._edit_panel)
+
+        # First tab added to an empty QTabWidget becomes current immediately
+        # (before currentChanged is connected below), so Accept Cavities'
+        # initial visibility is set explicitly rather than relying on that
+        # first, unobserved signal.
+        self.controls.addTab(self._picking_page, 'Cavity Detection')
+        self._btn_accept_cavities.setVisible(True)
+        self.controls.currentChanged.connect(self._on_controls_tab_changed)
+
+        self.wire_tree_panel.selectionChanged.connect(self._on_wire_sel_changed)
+        self.wire_tree_panel.removeRequested.connect(self._on_wire_remove)
+        self.wire_tree_panel.removeAllRequested.connect(self._on_remove_all_wire)
+
+        self.term_tree_panel.selectionChanged.connect(self._on_term_sel_changed)
+        self.term_tree_panel.removeRequested.connect(self._on_term_remove)
+        self.term_tree_panel.addManualRequested.connect(self._on_add_manual_cavity)
+        self.term_tree_panel.addTerminalToggled.connect(self._on_add_terminal_toggled)
+        self.term_tree_panel.clearTerminalsRequested.connect(self._clear_terminals)
+
+        self.cavity_tree_panel.selectionChanged.connect(
+            self._on_cavity_tree_sel_changed)
+        self.cavity_tree_panel.removeAllRequested.connect(
+            self._on_remove_all_cavities)
+
+        self._edit_panel.itemChanged.connect(self._on_cavity_item_edited)
+
+        self._btn_analyze.clicked.connect(self.run_analysis)
 
         # ── main layout ───────────────────────────────────────────────────────
+        # A draggable sash between the canvas and the notebook below it, so
+        # the user can trade canvas height for more room to work in the
+        # trees, or vice versa.
+        splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical, self.panel)
+        splitter.setHandleWidth(3)
+        splitter.addWidget(self.canvas)
+        splitter.addWidget(self.controls)
+        # Dragging the sash overrides these, but on an ordinary dialog
+        # resize the canvas should absorb the extra/lost space, not the
+        # (already height-capped) controls area below it.
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 0)
+        splitter.setSizes([600, 340])
+
         v_layout = QtWidgets.QVBoxLayout(self.panel)
-        h_layout = QtWidgets.QHBoxLayout()
-        h_layout.addWidget(self.canvas, 1)
+        v_layout.addWidget(splitter, 1)
 
-        # shown in wire/terminal_plane mode
-        h_layout.addWidget(self.plane_list_panel)
+        # ── relocate Accept Cavities next to the dialog's own OK/Cancel ───────
+        # BaseDialog.__init__ already built its own bottom row as
+        # `root.addWidget(self.button_box)` -- pull button_box back out and
+        # rebuild that row as [stretch, Accept Cavities, vline, button_box]
+        # so the whole cluster sits at the right edge of the dialog (like
+        # OK/Cancel always have), with Accept Cavities just a small ~20px
+        # gap (a vertical rule sunk into the middle of it) away from OK --
+        # visually separate from the OK/Cancel pair, not clear across the
+        # dialog from it.
+        accept_sep = QtWidgets.QFrame(self)
+        accept_sep.setFrameShape(QtWidgets.QFrame.Shape.VLine)
+        accept_sep.setFrameShadow(QtWidgets.QFrame.Shadow.Sunken)
 
-        # shown/hidden by load()
-        h_layout.addWidget(self.analysis_panel)
+        root_layout = self.layout()
+        button_box_idx = root_layout.indexOf(self.button_box)
+        root_layout.removeWidget(self.button_box)
 
-        v_layout.addLayout(h_layout, 1)
-        v_layout.addWidget(toolbar)
-        v_layout.addSpacing(5)
-        v_layout.addWidget(self.controls)
+        bottom_row = QtWidgets.QHBoxLayout()
+        bottom_row.addStretch(1)
+        bottom_row.addWidget(self._btn_accept_cavities)
+        bottom_row.addSpacing(8)
+        bottom_row.addWidget(accept_sep)
+        bottom_row.addSpacing(8)
+        bottom_row.addWidget(self.button_box)
+        root_layout.insertLayout(button_box_idx, bottom_row)
 
     @property
     @_check_types.do
@@ -902,7 +770,14 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         # MeshSurfacePicker.Surface list
         self.surfaces = self._picker.surfaces
 
-        self._set_status(
+        # Populates both trees with their "Click me to add surfaces."
+        # placeholder -- without this, the trees start out genuinely empty
+        # (no rows at all, placeholder included) and the user would have
+        # nothing to click to ever enter wire/terminal pick mode.
+        self._reload_wire_tree()
+        self._reload_term_tree()
+
+        self.wire_tree_panel.set_info(
             f'Mesh loaded — {len(self.surfaces)} surfaces detected')
 
         self.update()
@@ -928,38 +803,23 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         return col
 
     @_check_types.do
-    def _on_mode_btn(self, mode: str,
-                     button: QtWidgets.QPushButton,
-                     checked: bool) -> None:
-
+    def _on_add_terminal_toggled(self, checked: bool) -> None:
         if checked:
-            self.select_mode = mode
-            self.plane_sel_group = -1
-            self.plane_sel_surf = -1
-
-            for btn in self._mode_btns:
-                if btn is not button:
-                    btn.setChecked(False)
-
-            hints = {
-                'wire': 'Click a wire-side plane to add it — click a selected plane again to remove',
-                'terminal_plane': 'Click a terminal plane to add it — click again to remove',
-                'terminal': 'Click individual terminal recesses to add/remove',
-            }
-            self._set_status(hints.get(mode, ''))
-
-            if mode == 'wire':
-                self._reload_plane_tree(is_wire=True)
-            elif mode == 'terminal_plane':
-                self._reload_plane_tree(is_wire=False)
-            else:
-                self.plane_list_panel.hide()
+            # Clear both plane trees' own selections first, while
+            # select_mode still holds whatever it was before -- lets their
+            # reentrant selectionChanged handlers (fired by clearSelection()
+            # below) correctly notice they're no longer the active mode
+            # before this method claims it explicitly.
+            self.wire_tree_panel.clear_tree_selection()
+            self.term_tree_panel.clear_tree_selection()
+            self.select_mode = 'terminal'
+            self.wire_tree_panel.set_info('')
+            self.term_tree_panel.set_info(
+                'Click individual terminal recesses to add/remove')
         else:
-            self.select_mode = None
-            self.plane_sel_group = -1
-            self.plane_sel_surf = -1
-            self.plane_list_panel.hide()
-            self._set_status('')
+            if self.select_mode == 'terminal':
+                self.select_mode = None
+            self.term_tree_panel.set_info('')
 
     @_check_types.do
     def _on_add_manual_cavity(self, group_idx: int, kind: str) -> None:
@@ -968,7 +828,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._draw_active = False
         self.draw_preview = None
         shape_name = 'circle' if kind == 'circle' else 'rectangle'
-        self._set_status(
+        self.term_tree_panel.set_info(
             f'Click and drag on the plane to draw the {shape_name} cavity.')
 
     @_check_types.do
@@ -980,14 +840,16 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             if idx in self.terminal_surf_idxs:
                 self.terminal_surf_idxs.remove(idx)
                 self.terminal_surf_colors.pop(idx, None)
-                self._set_status(
+                self.term_tree_panel.set_info(
                     f'Terminal removed ({len(self.terminal_surf_idxs)} selected)')
             else:
                 color = self._next_color()
                 self.terminal_surf_idxs.append(idx)
                 self.terminal_surf_colors[idx] = color
-                self._set_status(
+                self.term_tree_panel.set_info(
                     f'Terminal added ({len(self.terminal_surf_idxs)} selected)')
+
+            self._update_analyze_enabled()
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
@@ -1009,6 +871,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         groups = self.wire_plane_groups if is_wire else self.term_plane_groups
         seeds = self.wire_plane_seeds if is_wire else self.term_plane_seeds
         excludes = self.wire_plane_excludes if is_wire else self.term_plane_excludes
+        panel = self.wire_tree_panel if is_wire else self.term_tree_panel
         label = 'Wire' if is_wire else 'Terminal'
 
         plane_idxs = self._coplanar_idxs(idx)
@@ -1023,11 +886,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             groups.pop(existing)
             seeds.pop(existing)
             excludes.pop(existing)
-            self.plane_sel_group = -1
-            self.plane_sel_surf = -1
             n = len(groups)
 
-            self._set_status(
+            panel.set_info(
                 f'{label}: plane removed ({n} plane{"s" if n != 1 else ""} selected)')
         else:
             groups.append(plane_idxs)
@@ -1035,20 +896,52 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             excludes.append(set())
             n = len(groups)
 
-            self._set_status(
+            panel.set_info(
                 f'{label}: {len(plane_idxs)} surface'
                 f'{"s" if len(plane_idxs) != 1 else ""} added'
                 f' ({n} plane{"s" if n != 1 else ""} total)')
 
-        self._reload_plane_tree(is_wire)
+        if is_wire:
+            self._reload_wire_tree()
+        else:
+            self._reload_term_tree()
+
+        # Keep this tree "active" after the reload's fresh (unselected)
+        # rebuild -- select_mode is derived from tree selection now, so
+        # without this a single 3D-canvas click would add the plane and
+        # then immediately fall back out of pick mode.
+        panel.select_last_top_level()
+
+        self._update_analyze_enabled()
 
     @_check_types.do
-    def _reload_plane_tree(self, is_wire: bool) -> None:
-        groups = self.wire_plane_groups if is_wire else self.term_plane_groups
-        label = 'Wire Surfaces' if is_wire else 'Terminal Surfaces'
+    def _surface_area(self, si: int) -> float:
+        if si not in self._surface_area_cache:
+            self._surface_area_cache[si] = _analysis.surface_area(
+                self.surfaces[si], self.vertices)
 
-        self.plane_list_panel.load(
-            groups, self.surfaces, label, is_terminal=not is_wire)
+        return self._surface_area_cache[si]
+
+    @_check_types.do
+    def _reload_wire_tree(self) -> None:
+        areas = {si: self._surface_area(si)
+                 for group in self.wire_plane_groups for si in group}
+
+        self.wire_tree_panel.load(self.wire_plane_groups, self.surfaces, areas)
+
+    @_check_types.do
+    def _reload_term_tree(self) -> None:
+        areas = {si: self._surface_area(si)
+                 for group in self.term_plane_groups for si in group}
+
+        self.term_tree_panel.load(self.term_plane_groups, self.surfaces, areas)
+
+    @_check_types.do
+    def _update_analyze_enabled(self) -> None:
+        enabled = bool(self.wire_plane_groups) and bool(
+            self.term_plane_groups or self.terminal_surf_idxs)
+
+        self._btn_analyze.setEnabled(enabled)
 
     # ── analysis ──────────────────────────────────────────────────────────────
 
@@ -1134,10 +1027,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
     @_check_types.do
     def run_analysis(self) -> None:
-        if not self.wire_plane_groups:
-            self._set_status('Select the wire side first.')
-            return
-
         covered_groups = self._manual_covered_group_idxs()
 
         all_terminal = [i for gi, grp in enumerate(self.term_plane_groups)
@@ -1147,10 +1036,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         for i in self.terminal_surf_idxs:
             if i not in all_terminal:
                 all_terminal.append(i)
-
-        if not all_terminal and not self.manual_cavities:
-            self._set_status('Select at least one terminal plane first.')
-            return
 
         # Flatten all selected wire surfaces, keeping their picker surface index.
         wire_surf_items: list[tuple[int, object]] = [(si, self.surfaces[si])
@@ -1238,7 +1123,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                  best_ws_si, -1, True, wire_indices, []))
 
         if not results:
-            self._set_status('Analysis produced no results.')
+            self.cavity_tree_panel.set_info('Analysis produced no results.')
             return
 
         # Flag cavities whose matched wire-side surface is shared with
@@ -1281,50 +1166,76 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             items.append(item)
 
         self.analysis_selected = 0
-        self.analysis_panel.load(items)   # shows the side panel
-        self._btn_analyze.setEnabled(False)
+        self.cavity_tree_panel.load(items)
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
-        self._set_status(
-            f'{len(results)} cavities detected — review list then click OK.')
+        self.cavity_tree_panel.set_info(
+            f'{len(results)} cavities detected — click Accept Cavities when ready.')
 
     @_check_types.do
-    def _on_analysis_accepted(self) -> None:
-        if self.cavity_panel is None:
-            return
+    def _on_accept_cavities(self) -> None:
+        if self.cavity_panel is not None:
+            items = self.cavity_tree_panel.items()
+            start_idx = len(self.cavity_panel.cavities)
+            for i, item in enumerate(items):
+                self.cavity_panel.commit_cavity(start_idx + i, item)
 
-        items = self.analysis_panel.items()
-        start_idx = len(self.cavity_panel.cavities)
-        for i, item in enumerate(items):
-            self.cavity_panel.commit_cavity(start_idx + i, item)
+            self.cavity_tree_panel.load([])
+            self._edit_panel.load(None)
+            self.analysis_selected = -1
 
-        self.analysis_selected = -1
-        self.analysis_panel.load([])    # hides the panel
-        self._btn_analyze.setEnabled(True)
-
-        if self.surface_overlay is not None:
-            self.surface_overlay.update()
-
-        # Clear both wire-plane and terminal selections per spec
         self._clear_all()
-        self._set_status(f'{len(items)} cavities added.')
-
-    @_check_types.do
-    def _on_analysis_rejected(self) -> None:
-        self.analysis_selected = -1
-        self.analysis_panel.load([])    # hides the panel
-        self._btn_analyze.setEnabled(True)
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
-        self._set_status('Analysis discarded — selections preserved.')
+        self._cavities_accepted = True
+        self._ok_button.setEnabled(True)
+
+        # Jump to the Cavities tab to show what was just committed --
+        # this also hides Accept Cavities via _on_controls_tab_changed,
+        # since it's no longer the tab being viewed.
+        if self.cavity_panel is not None:
+            self.controls.setCurrentWidget(self.cavity_panel)
 
     @_check_types.do
-    def _on_analysis_selection(self, row: int) -> None:
-        self.analysis_selected = row
+    def _on_controls_tab_changed(self, index: int) -> None:
+        is_picking_tab = self.controls.widget(index) is self._picking_page
+        self._btn_accept_cavities.setVisible(is_picking_tab)
+
+        if not self._cavities_accepted:
+            self._ok_button.setEnabled(not is_picking_tab)
+
+    @_check_types.do
+    def _on_cavity_tree_sel_changed(self, item_idxs: list) -> None:
+        items = self.cavity_tree_panel.items()
+
+        if item_idxs and 0 <= item_idxs[0] < len(items):
+            self.analysis_selected = item_idxs[0]
+            self._edit_panel.load(items[self.analysis_selected])
+        else:
+            self.analysis_selected = -1
+            self._edit_panel.load(None)
+
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+    @_check_types.do
+    def _on_remove_all_cavities(self) -> None:
+        self.cavity_tree_panel.load([])
+        self._edit_panel.load(None)
+        self.analysis_selected = -1
+
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+        self.cavity_tree_panel.set_info('All detected cavities removed.')
+
+    @_check_types.do
+    def _on_cavity_item_edited(self) -> None:
+        self.cavity_tree_panel.refresh_labels()
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
@@ -1354,10 +1265,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
             self.term_plane_groups[i] = [
                 si for si in expanded if si not in self.term_plane_excludes[i]]
 
-        if self.select_mode == 'wire':
-            self._reload_plane_tree(is_wire=True)
-        elif self.select_mode == 'terminal_plane':
-            self._reload_plane_tree(is_wire=False)
+        self._reload_wire_tree()
+        self._reload_term_tree()
+
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
@@ -1370,8 +1280,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.terminal_surf_colors.clear()
         self.terminal_overrides.clear()
         self.term_color_idx = 0
-        self.plane_sel_group = -1
-        self.plane_sel_surf = -1
         self.manual_cavities = []
         self.draw_mode = None
         self.draw_group = -1
@@ -1382,80 +1290,136 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._draw_u = None
         self._draw_v = None
 
-        for btn in self._mode_btns:
-            btn.setChecked(False)
-
+        self.wire_tree_panel.clear_tree_selection()
+        self.term_tree_panel.set_add_terminal_checked(False)
         self.select_mode = None
-        self.plane_list_panel.hide()
+
+        self._reload_term_tree()
+        self._update_analyze_enabled()
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
-        self._set_status('Terminals cleared.')
+        self.term_tree_panel.set_info('Terminals cleared.')
 
     @_check_types.do
     def _clear_all(self) -> None:
         self.wire_plane_groups = []
         self.wire_plane_seeds = []
         self.wire_plane_excludes = []
-        self.plane_sel_group = -1
-        self.plane_sel_surf = -1
+        self._reload_wire_tree()
         self._clear_terminals()
-        self._set_status('All selections cleared.')
+
+    @_check_types.do
+    def _on_remove_all_wire(self) -> None:
+        self.wire_plane_groups = []
+        self.wire_plane_seeds = []
+        self.wire_plane_excludes = []
+        self._reload_wire_tree()
+        self._update_analyze_enabled()
+
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+        self.wire_tree_panel.set_info('All wire planes removed.')
 
     # ── plane tree event handlers ─────────────────────────────────────────────
 
     @_check_types.do
-    def _on_plane_sel_changed(self, g: int, s: int) -> None:
-        self.plane_sel_group = g
-        self.plane_sel_surf = s
+    def _on_wire_sel_changed(self, surf_idxs: list) -> None:
+        self.wire_sel_surf_idxs = set(surf_idxs)
+
+        if self.wire_tree_panel.has_selection():
+            # An active selection here (including the empty-tree
+            # placeholder) arms wire pick mode -- deselect the terminal
+            # side so only one tree is ever "active" at a time. select_mode
+            # is set BEFORE clearing the other tree's selection so its own
+            # reentrant selectionChanged handler sees the already-updated
+            # mode instead of stomping back to None.
+            self.select_mode = 'wire'
+            self.term_tree_panel.set_add_terminal_checked(False)
+            self.term_tree_panel.clear_tree_selection()
+            self.term_tree_panel.set_info('')
+            self.wire_tree_panel.set_info(
+                'Click a wire-side plane to add it — click a selected'
+                ' plane again to remove')
+        elif self.select_mode == 'wire':
+            self.select_mode = None
+            self.wire_tree_panel.set_info('')
+
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
     @_check_types.do
-    def _on_plane_remove(self, g: int, s: int) -> None:
-        is_wire = self.select_mode == 'wire'
-        groups = self.wire_plane_groups if is_wire else self.term_plane_groups
-        seeds = self.wire_plane_seeds if is_wire else self.term_plane_seeds
-        excludes = self.wire_plane_excludes if is_wire else self.term_plane_excludes
+    def _on_term_sel_changed(self, surf_idxs: list) -> None:
+        self.term_sel_surf_idxs = set(surf_idxs)
 
-        if g < 0 or g >= len(groups):
-            return
+        if self.term_tree_panel.has_selection():
+            self.select_mode = 'terminal_plane'
+            self.term_tree_panel.set_add_terminal_checked(False)
+            self.wire_tree_panel.clear_tree_selection()
+            self.wire_tree_panel.set_info('')
+            self.term_tree_panel.set_info(
+                'Click a terminal plane to add it — click again to remove')
+        elif self.select_mode == 'terminal_plane':
+            self.select_mode = None
+            self.term_tree_panel.set_info('')
 
-        if s < 0:
-            # Remove the whole plane group
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
+
+    @_check_types.do
+    def _remove_from_groups(
+        self, surf_idxs: list,
+        groups: list, seeds: list, excludes: list,
+    ) -> None:
+        to_remove = set(surf_idxs)
+        empty_groups: list[int] = []
+
+        for g, group in enumerate(groups):
+            removed = [si for si in group if si in to_remove]
+            if not removed:
+                continue
+
+            groups[g] = [si for si in group if si not in to_remove]
+            excludes[g].update(removed)
+
+            if not groups[g]:
+                empty_groups.append(g)
+
+        # Highest index first so popping doesn't shift the indices still
+        # to be popped.
+        for g in sorted(empty_groups, reverse=True):
             groups.pop(g)
             seeds.pop(g)
             excludes.pop(g)
-        else:
-            # Remove just the one surface; remember it so the tolerance slider
-            # re-expansion doesn't bring it back.
-            if s < len(groups[g]):
-                removed_si = groups[g].pop(s)
-                excludes[g].add(removed_si)
 
-                if not groups[g]:
-                    groups.pop(g)
-                    seeds.pop(g)
-                    excludes.pop(g)
+    @_check_types.do
+    def _on_wire_remove(self, surf_idxs: list) -> None:
+        if not surf_idxs:
+            return
 
-        self.plane_sel_group = -1
-        self.plane_sel_surf = -1
-        self._reload_plane_tree(is_wire)
+        self._remove_from_groups(
+            surf_idxs, self.wire_plane_groups,
+            self.wire_plane_seeds, self.wire_plane_excludes)
+
+        self._reload_wire_tree()
+        self._update_analyze_enabled()
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
     @_check_types.do
-    def _on_plane_accepted(self) -> None:
-        for btn in self._mode_btns:
-            btn.setChecked(False)
+    def _on_term_remove(self, surf_idxs: list) -> None:
+        if not surf_idxs:
+            return
 
-        self.select_mode = None
-        self.plane_sel_group = -1
-        self.plane_sel_surf = -1
-        self.plane_list_panel.hide()
-        self._set_status('')
+        self._remove_from_groups(
+            surf_idxs, self.term_plane_groups,
+            self.term_plane_seeds, self.term_plane_excludes)
+
+        self._reload_term_tree()
+        self._update_analyze_enabled()
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
@@ -1467,10 +1431,6 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
         if self.surface_overlay is not None:
             self.surface_overlay.update()
-
-    @_check_types.do
-    def _set_status(self, msg: str) -> None:
-        self._status_label.setText(msg)
 
     # ── boilerplate (unchanged from original) ─────────────────────────────────
 

@@ -27,11 +27,11 @@ from ...gl import object_picker as _object_picker
 from .. import rotation_mesh as _rotation_mesh
 from ... import check_types as _check_types
 from ...objects.objectsvar import base_var as _base_var
+from ...gl.canvas_base import camera_base as _camera_base
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-    from ...gl.canvas_base import camera_base as _camera_base
     from ._protractor_base import _Tick
 
 
@@ -207,7 +207,7 @@ class OuterRing(ProtractorRingBase):
 
     @_check_types.do
     def pick_tick(self, mouse_pos: _point.Point,
-                  camera: "_camera_base.CameraBase") -> Union["_Tick", None]:
+                  camera: _camera_base.CameraBase) -> Union["_Tick", None]:
         """
         Ray-cast *mouse_pos* against every tick's own oriented box
         (see :mod:`~...gl.object_picker`) and return whichever ``_Tick``
@@ -240,7 +240,7 @@ class OuterRing(ProtractorRingBase):
 
     @_check_types.do
     def update_hover(self, mouse_pos: _point.Point,
-                     camera: "_camera_base.CameraBase") -> bool:
+                     camera: _camera_base.CameraBase) -> bool:
 
         """
         Find the tick under *mouse_pos* and mark it hovered, clearing

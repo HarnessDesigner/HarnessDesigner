@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
 from ...geometry import point as _point
+from ...geometry import angle as _angle
+from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
+from ...shapes import sphere as _sphere
+from ... import color as _color
 from ... import check_types as _check_types
 from ... import config as _config
 
@@ -22,36 +26,113 @@ Config = _config.Config.editor_pegboard
 
 class WireLayout(_base_pegboard.BasePegboard):
     """
-    Peg-board representation of a wire layout (grab handle) -- a bare
-    position along its wire's path, no independent geometry/rendering
-    presence or rotation of its own.
+    Peg-board representation of a wire layout (grab handle) -- a small
+    sphere marker at a bend along its wire's path, sized/colored from
+    the wire's own catalog part. Mirrors
+    ``objects_3d.wire_layout.WireLayout`` exactly (same diameter/color
+    fallback, same ``_pick_priority``/``can_rotate`` override) -- built
+    fresh here rather than borrowed from ``obj3d``, same reasoning as
+    ``objects_pegboard.wire.Wire`` (see that class's own docstring).
+
+    A bare position with no vbo of its own (the previous version of this
+    class) can never be rendered (``BaseVar.render()`` no-ops without
+    one) NOR picked (``_compute_obb``/``_compute_aabb`` both require a
+    real vbo too, so ``.obb`` stays ``None`` forever --
+    ``gl.object_picker._pick_candidates_at_mouse`` skips any object
+    whose ``.obb`` is ``None`` outright) -- a waypoint built that way was
+    silently invisible and unselectable in the peg-board view.
     """
     _parent: "_wire_layout.WireLayout" = None
     db_obj: "_pjt_wire_layout.PJTWireLayout"
+
+    # Sits on the wire's own centerline, inside its OBB by design --
+    # mirrors objects_3d.wire_layout.WireLayout._pick_priority.
+    _pick_priority = 1
 
     @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
                  db_obj: "_pjt_wire_layout.PJTWireLayout"):
         """Initialise the :class:`WireLayout` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param parent: Parent object.
         :type parent: :class:`_wire_layout.WireLayout`
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire_layout.PJTWireLayout`
         """
+        # A PJTWireLayout row is exclusive to exactly one view (see the
+        # class docstring on PJTWireLayout itself) -- the facade always
+        # builds all three view wrappers unconditionally for every row
+        # (objects.wire_layout.WireLayout.__init__), regardless of which
+        # one it actually belongs to. So this branch is the normal,
+        # expected case for a row placed in the 3D or schematic view --
+        # no vbo/angle/scale/material at all, mirroring
+        # base_pegboard.BasePegboard.__init__'s "no rendering presence"
+        # contract exactly (can_drag()/drag()/render()/picking all
+        # already no-op gracefully on a None position).
+        if db_obj.position_pegboard_id is None:
+            super().__init__(parent, db_obj, position=None)
+            self.point3d_id = None
+            return
 
-        # No vbo/angle -- a layout point is a bare position along its
-        # wire's path, no independent rendering presence or rotation of
-        # its own (see base_pegboard.BasePegboard.__init__'s vbo-is-None
-        # branch). position=None whenever position_pegboard_id is NULL
-        # (this layout isn't placed on the peg-board view yet) -- handled
-        # gracefully by BaseVar (can_drag()/drag() both no-op on a None
-        # position).
-        super().__init__(parent, db_obj, position=db_obj.position_pegboard)
+        wires = db_obj.attached_wires
+        if wires:
+            diameter = wires[0].part.od_mm
+            color = wires[0].part.color.ui
+        else:
+            diameter = 3.0
+            color = _color.Color(0.5, 0.5, 0.5, 1.0)
+
+        material = _materials.Plastic(color)
+        scale = _point.Point(diameter, diameter, diameter)
+        angle = _angle.Angle()
+        position = db_obj.position_pegboard
+
+        with parent.mainframe.editor_pegboard.context:
+            vbo = _sphere.create_vbo()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         self.point3d_id = db_obj.position_pegboard_id
+
+    @_check_types.do
+    def can_rotate(self) -> bool:
+        """A layout waypoint has no independent orientation of its own
+        (its ``_angle`` above is a fresh, never-synced dummy purely to
+        satisfy ``BaseVar``'s constructor) -- mirrors
+        objects_3d.wire_layout.WireLayout.can_rotate exactly.
+        """
+        return False
+
+    @_check_types.do
+    def can_drag(self) -> bool:
+        """A layout waypoint sitting at a terminal's or cavity's own
+        housing-derived wire-routing point (``terminal.wire_position_
+        pegboard``/``terminal.attach_position_pegboard``/``cavity.
+        wire_position_pegboard`` -- see ``objects.terminal.Terminal.
+        add_wire``, which drops a real ``WireLayout`` at each) must not
+        be independently draggable -- its position is derived from the
+        housing; the user has to move the housing itself instead
+        (confirmed 2026-09-13, the same rule ``objects_pegboard.wire.
+        Wire.is_housing_attached``'s own docstring already documented
+        for the wire's own segment-drag, but this ``BaseVar.can_drag``
+        override -- documented for exactly this case, never previously
+        used by any class -- had never actually been wired up for the
+        waypoint's own independent single-point drag).
+
+        Reuses ``WireDragMixin.is_anchor_point`` -- the exact same test
+        already used to keep the wire's own segment-drag from moving
+        these points, so this can never drift out of sync with that
+        rule.
+        """
+        if self.point3d_id is None:
+            return super().can_drag()
+
+        from ...drag_handlers.editor_pegboard import wire as _wire_pegboard  # NOQA -- avoid a cycle at import time
+
+        project = self.parent.mainframe.project
+        if _wire_pegboard.Wire.is_anchor_point(project, self.point3d_id):
+            return False
+
+        return super().can_drag()
 
     @property
     @_check_types.do
@@ -113,8 +194,8 @@ class WireLayout(_base_pegboard.BasePegboard):
         if initial_pos is None:
             initial_pos = _point.Point(0.0, 0.0, 0.0)
 
-        pos_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        layout_db = ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
+        pos_db = ptables.pjt_points_pegboard_table.insert(0.0, 0.0, 0.0)
+        layout_db = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=pos_db.db_id)
 
         from .. import wire_layout as _wire_layout_facade
 

@@ -182,7 +182,7 @@ class BaseSchematic(_objectsvar.BaseVar):
         if (
             interaction_type is _interaction.MouseInteraction.RIGHT_DOWN and
             clicked_object is self.parent and
-            self.mainframe.get_selected() is self.parent and
+            self.parent.mainframe.get_selected() is self.parent and
             self.can_rotate()
         ):
             self._active_handler = _rotation_rings.RotationRings(self.editor2d.editor, self.parent)
@@ -192,7 +192,7 @@ class BaseSchematic(_objectsvar.BaseVar):
         if (
             interaction_type is _interaction.MouseInteraction.LEFT_DOWN and
             clicked_object is self.parent and
-            self.mainframe.get_selected() is self.parent and
+            self.parent.mainframe.get_selected() is self.parent and
             self.can_drag()
         ):
             from ...drag_handlers.editor_schematic import generic as _drag_generic

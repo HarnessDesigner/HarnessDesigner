@@ -784,7 +784,15 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
             db_obj.bind_object(_set_treeitem)
         else:
-            obj.get_treeitem().add_treeitem(treeitem)
+            obj_treeitem = obj.get_treeitem()
+
+            if obj_treeitem is None:
+                def _set_treeitem(treeitem_):
+                    treeitem_.add_treeitem(treeitem)
+
+                obj.bind_for_treeitem(_set_treeitem)
+            else:
+                obj_treeitem.add_treeitem(treeitem)
 
     # ── Reverse-lookup helpers ──────────────────────────────────────────
     # None of these relationships have a FK the "child" side can read

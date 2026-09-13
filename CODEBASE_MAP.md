@@ -582,9 +582,20 @@ Contents/structure of the `harness_designer/` package.
   - header
   - `housing_editor/`:
     - housing, cavity, accessory: obj+panel pairs (`housing_obj.py`/`housing_panel.py`, etc.)
-    - `analysis_panel.py` + `connector_analysis.py`: fit/clearance analysis
+    - `analysis_panel.py`: `AnalysisItem` (one detected/pending cavity) + `EditPanel`
+      (name/shape/radius/half-w/half-h/length editor for the cavity-preview
+      tree's selected item) + `connector_analysis.py`: fit/clearance analysis
+    - `tree_panels.py`: the three always-visible bottom-panel tree controls
+      (wire-side surfaces, terminal-side surfaces, pending-cavity preview) --
+      `_TreeControlBase` (shared caption/toolbar/tree/info-label shell,
+      multi-select, Delete-key + auto-reselect-next-after-remove),
+      `PlaneTreePanel` (wire/terminal, Group-by-Plane/Group-by-Size views),
+      `CavityTreePanel` (flat list of `AnalysisItem`s pending Accept Cavities)
     - `config.py`
-    - `housing_editor.py`
+    - `housing_editor.py`: dialog orchestration, 3D surface picking/overlay,
+      toolbar, the wire/terminal/cavity tree row + edit form <-> Cavities/
+      Accessories notebook `QStackedWidget` swap (triggered by "Accept
+      Cavities", which also one-time-gates the dialog's own OK button)
 - `system_menu/`: menubar menus
   - file
   - edit

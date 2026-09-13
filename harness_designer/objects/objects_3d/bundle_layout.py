@@ -139,8 +139,7 @@ class BundleLayout(_base_3d.Base3D):
         pos_db = ptables.pjt_points3d_table.insert(
             float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
 
-        diameter = bundle.obj3d.diameter
-        layout_db = ptables.pjt_bundle_layouts_table.insert(pos_db.db_id, diameter)
+        layout_db = ptables.pjt_bundle_layouts_table.insert(point3d_id=pos_db.db_id)
 
         from .. import bundle_layout as _bundle_layout_facade
 
