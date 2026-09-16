@@ -47,6 +47,7 @@ from ...objects import splice as _splice
 from ...objects import wire as _wire
 from ...handlers import wire_snap as _wire_snap
 from ...drag_handlers.editor_3d import wire_snap as _wire_snap_3d
+from ...objects.objects_schematic import wire_reroute as _wire_reroute
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -608,6 +609,7 @@ class Wire(_base.AddHandlerBase):
 
             picked.add_wire(self.target)
             self.target.set_sibling(picked, self._growing_end)
+            _wire_reroute.on_wire_attached(project, self.target)
 
             branch_id = picked.db_obj.branch_position3d_id
             existing_layout = self.ptables.pjt_wire_layouts_table.select(

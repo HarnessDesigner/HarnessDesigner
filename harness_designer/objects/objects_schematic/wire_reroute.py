@@ -31,6 +31,40 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
+def on_wire_attached(project: "_project.Project", wire: "_wire_obj.Wire") -> None:
+    """Call once, right after a fresh Terminal/Splice attach completes on
+    either of *wire*'s ends -- ``objects.terminal.Terminal.add_wire``'s own
+    internal ``set_sibling`` call for a terminal, or the explicit
+    ``wire.set_sibling(splice, end)`` each splice-attach call site makes
+    right after ``objects.splice.Splice.add_wire`` (``handlers.wire_snap
+    .commit_snap``, and the ``_attach_splice``-shaped code in every
+    editor's wire add-handler) -- covers a fresh attach regardless of
+    which editor (3D, schematic, peg board) performed it, and regardless
+    of whether it happens during the wire's own initial add session or
+    much later (a dangling end dragged onto a terminal/splice separately).
+
+    If *wire* just became fully connected (both ends now a real Terminal/
+    Splice -- see :attr:`objects.wire.Wire.is_connected`), routes its
+    schematic path and registers it with the schematic canvas, which
+    otherwise never draws/picks an unconnected wire at all (see
+    ``gl/canvas_schematic/canvas.py``'s ``Canvas.add_object``). A no-op if
+    the wire isn't (yet) fully connected -- safe to call unconditionally
+    from every attach call site, including the end that doesn't complete
+    the connection.
+
+    Deliberately NOT hooked into ``Wire.set_sibling`` itself -- that also
+    runs during project-reload sibling-graph reconciliation
+    (``Project._reconcile_wire_sibling_graph``), which must never re-route
+    or re-touch the canvas for a wire whose path is already persisted.
+    """
+    if not wire.is_connected:
+        return
+
+    reroute_wire(project, wire)
+    wire.mainframe.editor2d.add_object(wire)
+
+
+@_check_types.do
 def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire") -> None:
     """Recompute *wire*'s orthogonal 2D path and replace its interior
     waypoint rows (and any ``WireLayout`` anchored to one of the old
@@ -42,11 +76,10 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire") -> None:
 
     start = db_obj.start_position2d
     stop = db_obj.stop_position2d
-    od_mm = float(wire.objschematic._part.od_mm)  # NOQA
 
     waypoints = _wire_routing.route(
         project, (float(start.x), float(start.z)), (float(stop.x), float(stop.z)),
-        ignore_wire=wire, od_mm=od_mm)
+        ignore_wire=wire)
 
     old_waypoints = list(db_obj.waypoints2d)
 

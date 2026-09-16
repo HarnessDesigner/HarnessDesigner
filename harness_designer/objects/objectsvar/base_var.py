@@ -876,6 +876,37 @@ class BaseVar:
         """
         return False
 
+    @_check_types.do
+    def handle_wheel(self, mouse_pos: _point.Point, qt_wheel_event, clicked_object) -> bool:
+        """Entry point ``MouseHandlerBase.on_mouse_wheel`` calls on
+        whichever view object is either already armed
+        (``canvas.active_handler_obj``) or was just freshly picked.
+
+        Default: always ``False`` -- same "no-op unless overridden"
+        contract as :meth:`handle_interaction`, kept as its own separate
+        method rather than folded into that one: a wheel event carries a
+        delta (and, for a listener that wants to forward the real event
+        on rather than just a direction, the full pixelDelta/angleDelta/
+        phase/source/modifiers too) that :meth:`handle_interaction`'s
+        fixed 5-argument signature -- already overridden by every object
+        type across all three canvases -- has no room for. Passing the
+        raw Qt wheel event (rather than pre-reducing it to a +1/-1 the
+        way the default camera-zoom handling does) keeps that full
+        fidelity available to whatever DOES override this.
+
+        :param mouse_pos: Cursor position in canvas-local pixels.
+        :type mouse_pos: _point.Point
+        :param qt_wheel_event: The real Qt wheel event.
+        :type qt_wheel_event: :class:`PySide6.QtGui.QWheelEvent`
+        :param clicked_object: The freshly picked facade at *mouse_pos*,
+            or ``None``.
+        :type clicked_object: UNKNOWN
+        :returns: True if this call was consumed -- the caller stops
+            further default processing (camera zoom) for this event.
+            False otherwise.
+        """
+        return False
+
     @property
     @_check_types.do
     def is_handler_active(self) -> bool:

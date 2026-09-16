@@ -70,7 +70,8 @@ class OuterRing(ProtractorRingBase):
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material, label_size: float,
                  obj_angle: _angle.Angle, context, mainframe: "_ui.MainFrame",
-                 base_cls: type[_base_var.BaseVar], camera=None):
+                 base_cls: type[_base_var.BaseVar], camera=None,
+                 local_tilt: _angle.Angle | None = None):
 
         self._obj_angle = obj_angle
         self._hovered_tick = None
@@ -79,7 +80,8 @@ class OuterRing(ProtractorRingBase):
         # side clear of it is the OD, away from the object -- see
         # ProtractorRingBase's own docstring.
         super().__init__(axis, center, inner_radius, outer_radius, depth,
-                         material, label_size, context, camera, labels_outward=True)
+                         material, label_size, context, camera, labels_outward=True,
+                         local_tilt=local_tilt)
 
         self._pick_objects: list[_tick_pick_object.TickPickObject] = []
         self._tick_by_pick_obj: dict[_tick_pick_object.TickPickObject, "_Tick"] = {}

@@ -9,6 +9,7 @@ from .mixins import (
 )
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
+from ...geometry import point as _point
 from ... import check_types as _check_types
 
 
@@ -121,7 +122,18 @@ class PJTTransitionBranchesTable(PJTTableBase):
                                     point3d_id=point_id, branch_id=branch_id,
                                     diameter=float(diameter))
 
-        return PJTTransitionBranch(self, db_id)
+        db_obj = PJTTransitionBranch(self, db_id)
+
+        # See PJTHousingsTable.insert's own comment -- same wiring.
+        from . import pjt_pegboard_table as _pjt_pegboard_table
+
+        position_pegboard = db_obj.position_pegboard  # lazily creates at (0,0,0)
+        table_point_id = db_obj.table_position_peg_id
+        self.db.pjt_pegboard_tables_table.insert(
+            table_point_id, _point.Point(position_pegboard.x, 0.0, position_pegboard.z),
+            _pjt_pegboard_table.DEFAULT_TABLE_WIDTH, _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
+
+        return db_obj
 
 
 class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, PartMixin,
@@ -171,6 +183,26 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
             res.extend(layer.wires)
 
         return res
+
+    @property
+    @_check_types.do
+    def name(self) -> str:
+        """Title-bar label for this branch's own peg-board data-table
+        overlay (see ``objects.objects_pegboard.pegboard_table.
+        PegboardTable._table_title``) -- a branch has no ``NameMixin``
+        of its own (unlike its owning transition, it's never
+        independently named by the user), so this is synthesized from
+        the owning transition's own name instead of stored.
+
+        Same ``name`` API point every anchor type that can own a peg-
+        board data-table overlay exposes identically (see
+        ``pjt_housing.PJTHousing``/``pjt_bundle.PJTBundle``/
+        ``pjt_transition.PJTTransition``, all via ``NameMixin``).
+
+        :returns: ``"<transition name> (branch <branch id>)"``.
+        :rtype: str
+        """
+        return f'{self.transition.name} (branch {self.branch_id})'
 
     _stored_bundle: Union["_pjt_bundle.PJTBundle", None, DefaultStoredValueType] = DefaultStoredValue
 

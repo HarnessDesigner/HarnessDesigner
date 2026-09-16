@@ -54,7 +54,8 @@ class InnerRing(ProtractorRingBase):
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material, label_size: float,
-                 obj_angle: _angle.Angle, context, camera=None):
+                 obj_angle: _angle.Angle, context, camera=None,
+                 local_tilt: _angle.Angle | None = None):
 
         self._obj_angle = obj_angle
 
@@ -70,7 +71,8 @@ class InnerRing(ProtractorRingBase):
         # side clear of it is the ID, toward the object -- see
         # ProtractorRingBase's own docstring.
         super().__init__(axis, center, inner_radius, outer_radius, depth,
-                         material, label_size, context, camera, labels_outward=False)
+                         material, label_size, context, camera, labels_outward=False,
+                         local_tilt=local_tilt)
 
         self.reposition_all(self._disc_rotation())
         self.start_camera_tracking()

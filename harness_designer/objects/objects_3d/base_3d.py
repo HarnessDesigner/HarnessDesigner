@@ -921,7 +921,7 @@ class Base3D(_objectsvar.BaseVar):
 
         world_bottom = (local_bottom * scale_np) @ self._angle + self._position.as_numpy
 
-        floor_y = Config.floor.ground_height + 0.01  # avoid z-fighting with the floor mesh
+        floor_y = Config.floor.ground_height + 0.03  # avoid z-fighting with the floor mesh
         p0 = _point.Point(float(world_bottom[0][0]), floor_y, float(world_bottom[0][2]))
         p1 = _point.Point(float(world_bottom[1][0]), floor_y, float(world_bottom[1][2]))
         p4 = _point.Point(float(world_bottom[2][0]), floor_y, float(world_bottom[2][2]))
@@ -933,7 +933,7 @@ class Base3D(_objectsvar.BaseVar):
         heading = _angle.Angle.from_points(p0, p1)
 
         outline_vbo = _square_outline.create_vbo()
-        material = _materials.Generic(_color.Color(*_debug_config.floor_projection_color))
+        material = _materials.Glowing(_color.Color(*_debug_config.floor_projection_color))
         outline_scale = _point.Point(width, 0.012, length)
 
         # Depth mask deliberately left alone (see _render_debug_box's own

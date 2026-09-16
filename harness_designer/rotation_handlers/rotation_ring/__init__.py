@@ -132,7 +132,8 @@ class RotationRing:
                  obj_angle: _angle.Angle, radius: float, object_radius: float,
                  tube_diameter_scale: float, color: _color.Color,
                  outer_color: _color.Color, label_size: float, context,
-                 mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar], camera=None):
+                 mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar],
+                 camera=None, local_tilt: _angle.Angle | None = None):
 
         self.axis = axis
         self.center = center
@@ -145,6 +146,7 @@ class RotationRing:
         self._label_size = label_size
         self._mainframe = mainframe
         self._base_cls = base_cls
+        self._local_tilt = local_tilt
 
         self.is_active = False
         self._dimmed = False
@@ -210,13 +212,14 @@ class RotationRing:
         self.inner = InnerRing(self.axis, self.center, self._inner_id,
                                self._inner_od, self._protractor_depth,
                                self._inner_material, self._label_size,
-                               self.obj_angle, self._context, self._camera)
+                               self.obj_angle, self._context, self._camera,
+                               self._local_tilt)
 
         self.outer = OuterRing(self.axis, self.center, self._outer_id,
                                self._outer_od, self._protractor_depth,
                                self._outer_material, self._label_size,
                                self.obj_angle, self._context, self._mainframe,
-                               self._base_cls, self._camera)
+                               self._base_cls, self._camera, self._local_tilt)
 
     # Gap between the torus ring and the OUTER protractor, as a multiple
     # of the torus *tube's* own diameter (its cross-section -- radius *

@@ -294,11 +294,10 @@ def _score_rotation(project: "_project.Project", housing: "_housing_obj.Housing"
     for wire in _wire_reroute.wires_attached_to(housing):
         start = wire.db_obj.start_position2d
         stop = wire.db_obj.stop_position2d
-        od_mm = float(wire.objschematic._part.od_mm)  # NOQA
 
         waypoints = _wire_routing.route(
             project, (float(start.x), float(start.z)), (float(stop.x), float(stop.z)),
-            ignore_wire=wire, od_mm=od_mm)
+            ignore_wire=wire)
 
         score += _path_length(
             (float(start.x), float(start.z)), (float(stop.x), float(stop.z)), waypoints)

@@ -511,6 +511,11 @@ class BundleMenu(QMenu):
         action.triggered.connect(self.on_add_waypoint)
 
         self.addSeparator()
+        action = self.addAction('Show Table')
+        action.setEnabled(not self.selected.has_visible_table())
+        action.triggered.connect(self.on_show_table)
+
+        self.addSeparator()
         action = self.addAction('Select')
         action.triggered.connect(self.on_select)
 
@@ -545,6 +550,14 @@ class BundleMenu(QMenu):
             _bundle_layout_pegboard.BundleLayout.start_add(mainframe, bundle, initial_pos)
 
         QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_show_table(self):
+        """Show this bundle's own peg-board wire table -- creating it
+        the first time, or just re-showing it (see
+        ``BasePegboard.show_table``).
+        """
+        self.selected.show_table()
 
     @_check_types.do
     def on_select(self):

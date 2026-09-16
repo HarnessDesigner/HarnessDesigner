@@ -171,7 +171,7 @@ class ProtractorRingBase:
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material: _materials.GLMaterial,
                  label_size: float, context, camera: _camera_base.CameraBase | None = None,
-                 labels_outward: bool = True):
+                 labels_outward: bool = True, local_tilt: _angle.Angle | None = None):
 
         self.axis = axis
         self.center = center
@@ -249,7 +249,7 @@ class ProtractorRingBase:
 
                     label = _text.Text(str(int(round(label_degrees))),
                                        label_size, build123d.FontStyle.ITALIC,
-                                       center_anchor=True)
+                                       center_anchor=True, local_tilt=local_tilt)
 
                 self._ticks.append(
                     _Tick(degrees=degrees, is_major=is_major, label=label))

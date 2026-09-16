@@ -2,15 +2,23 @@
 
 """Schema for ``pjt_pegboard_tables``.
 
-One row per anchor that has a visible Excel-like data table overlaid on the
-peg-board view. Stores the table's geometry (in world units, not pixels --
-``x``/``z``, matching ``pjt_points_pegboard``'s own axis names, since this is
-a real world position with Y pinned to 0, not a generic 2D x/y pair) and its
-scroll/collapse state. Keyed purely by ``point_pegboard_id`` -- the same
-identity key an anchor's own
-``objects.objects_pegboard.base_pegboard.BasePegboard.point3d_id`` uses (that
-Python attribute is misleadingly named -- it always holds a
-``pjt_points_pegboard`` row id, never a ``pjt_points3d`` one).
+One row per anchor that has a floating Excel-like data table overlaid on the
+peg-board view. ``point_pegboard_id`` is this table's CENTER position --
+auto-placed once at row-creation time (nearest spot to the owning anchor
+that doesn't overlap any other object's OBB/AABB -- see
+``objects.objects_pegboard.table_placement``) and freely draggable by the
+user afterward like any other peg-board position.
+
+Deliberately the SAME ``pjt_points_pegboard`` row as the owning anchor's own
+``table_point_peg_id`` column (see ``mixins.table_position_peg.
+TablePositionPegMixin``, mixed into every anchor type that can own one of
+these overlays: ``PJTHousing``/``PJTBundle``/``PJTTransition``/
+``PJTTransitionBranch``) -- NOT a fresh point of this row's own, and not
+connected back to the anchor via a reverse FK on either side. Sharing that
+one point is what lets ``PJTPegboardTable.anchor`` and
+``PJTPegboardTablesTable.get_from_point_pegboard_id`` find one row from the
+other with a plain equality lookup on ``point_pegboard_id`` /
+``table_point_peg_id``, in either direction.
 """
 
 from . import projects as _projects
@@ -29,11 +37,20 @@ pjt_table = _con.SQLTable(
                                                     _points_pegboard.pjt_id_field,
                                                     on_delete=_con.REFERENCE_NO_ACTION,
                                                     on_update=_con.REFERENCE_NO_ACTION)),
-    _con.FloatField('x', no_null=True),
-    _con.FloatField('z', no_null=True),
-    _con.FloatField('width', no_null=True),
-    _con.FloatField('height', no_null=True),
-    _con.IntField('h_scroll', no_null=True, default='0'),
-    _con.IntField('v_scroll', no_null=True, default='0'),
-    _con.IntField('is_collapsed', no_null=True, default='0')
+
+    # str((width, height)) -- one column instead of two separate width/
+    # height floats, so reading the table's size back is a single query
+    # (see PJTPegboardTable.size).
+    _con.TextField('size', no_null=True),
+
+    # Same VisiblePegboardMixin every other peg-board object already has
+    # -- lets a table be hidden without deleting its row/losing its
+    # column selection or position.
+    _con.IntField('is_visible_pegboard', no_null=True, default='1'),
+
+    # Which columns are shown, and in what order -- a string-encoded
+    # list of ints indexing into pegboard_table.column_defs.COLUMN_DEFS
+    # (same list-in-a-TextField convention as wires.accessory_part_nums:
+    # '[0, 1, 4, 2]', read/written by PJTPegboardTable.visible_columns).
+    _con.TextField('visible_columns', default='""', no_null=True),
 )

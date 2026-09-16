@@ -151,7 +151,7 @@ class Splice(_base.AddHandlerBase):
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
         picked = _object_picker.find_object(
-            mouse_pos, self.mainframe.editor2d.editor.objects, self.camera, self._get_view_object)
+            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
 
         wire = picked if isinstance(picked, _wire.Wire) else None
 

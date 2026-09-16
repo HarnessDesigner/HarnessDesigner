@@ -1,70 +1,23 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from ... import utils as _utils
-from ... import color as _color
 from . import material as _material
-from ... import check_types as _check_types
 
 
 class PolishedMaterial(_material.GLMaterial):
-    """Represent a polished material in :mod:`harness_designer.gl.materials.polished`.
+    """Polished/mirror-finish metal.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    The dimmest fill and the tightest, brightest, most strongly
+    color-tinted highlight of any material here -- most of what's seen
+    on a polished surface is the reflected highlight itself, not the
+    flat underlying color, matching how a real mirror-like finish
+    looks.
     """
-    _ambient = (0.0, 0.0, 0.0)
-    _diffuse = (0.0, 0.0, 0.0)
-    _specular = (0.0, 0.0, 0.0)
-    _shine = 0.0
+    _ambient_weight = 0.15
+    _diffuse_weight = 0.30
+    _specular_weight = 0.65
+    _metallic = 1.0
+    _shine = 128.0
 
-    _cl_ambient = 0.0
-    _cl_diffuse = 0.0
-    _cl_specular = 0.0
-    _cl_shininess = 0.0
-    _cl_metallic = 0.0
-    _cl_roughness = 0.0
-
-    @_check_types.do
-    def __init__(self, color: _color.Color):
-        """Initialise the :class:`PolishedMaterial` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param color: Value for ``color``.
-        :type color: :class:`_color.Color`
-        """
-        r, g, b, a = color.rgba_scalar
-
-        #
-        # ar = _utils.remap(r, 0.0, 1.0,
-        #                   0.22745, 0.24705)
-        # ag = _utils.remap(g, 0.0, 1.0,
-        #                   0.22745, 0.22352)
-        # ab = _utils.remap(b, 0.0, 1.0,
-        #                   0.06274, 0.22745)
-        #
-        # dr = _utils.remap(r, 0.0, 1.0,
-        #                   0.27450, 0.34509)
-        # dg = _utils.remap(g, 0.0, 1.0,
-        #                   0.27450, 0.31372)
-        # db = _utils.remap(b, 0.0, 1.0,
-        #                   0.09019, 0.27450)
-        #
-        # sr = _utils.remap(r, 0.0, 1.0,
-        #                   0.77254, 0.79607)
-        # sg = _utils.remap(g, 0.0, 1.0,
-        #                   0.77254, 0.72156)
-        # sb = _utils.remap(b, 0.0, 1.0,
-        #                   0.20784, 0.77254)
-
-        self._ambient = (r, g, b, a)
-        self._diffuse = (r, g, b, a)
-        self._specular = (r / 2.0, g / 2.0, b / 2.0, a / 2.0)
-
-        self._shine = _utils.remap(r + g + b + a, 0.0,
-                                   4.0, 83.2, 89.6)
-
-        self._cl_specular = sum(self._specular) / len(self._specular)
-        self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)
-        self._cl_ambient = sum(self._ambient) / len(self._ambient)
-        self._cl_shininess = self._shine
-        super().__init__(color)
+    _cl_roughness = 0.05
+    _cl_reflectivity = 0.75
+    _cl_ior = 2.5

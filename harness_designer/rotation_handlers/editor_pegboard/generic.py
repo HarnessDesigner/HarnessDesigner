@@ -19,6 +19,7 @@ from ...geometry import angle as _angle
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
+from ...shapes import text as _text
 
 
 Config = _config.Config.editor_pegboard
@@ -99,7 +100,7 @@ class RingsPegboard(_base_pegboard.BasePegboard):
                     # _update_label_angles's own "no camera at all"
                     # fallback, already built for exactly this case) --
                     # confirmed 2026-09-07 (Kevin) as the fix.
-                    None)
+                    None, local_tilt=_text.TOP_DOWN_TILT)
                 for axis in self._axes
             }
 

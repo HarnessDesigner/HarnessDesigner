@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Union
 
+from PySide6.QtWidgets import QMenu
+
 from . import base_pegboard as _base_pegboard
 # from ...gl.canvas_pegboard import flatten as _flatten
 # from ...gl.canvas_pegboard import table_rows as _table_rows
@@ -174,3 +176,62 @@ class Housing(_base_pegboard.BasePegboard):
             self.db_obj.smooth = value
         except AttributeError:
             pass
+
+    @_check_types.do
+    def get_context_menu(self):
+        """Return this housing's own right-click context menu (see
+        ``ui/mainframe.py``'s ``_on_obj_right_click_pegboard``).
+        """
+        return HousingMenu(self.pegboard.editor, self)
+
+
+class HousingMenu(QMenu):
+    """Right-click menu for a pegboard Housing."""
+
+    @_check_types.do
+    def __init__(self, canvas, selected: "Housing"):
+        QMenu.__init__(self)
+        self.canvas = canvas
+        self.selected = selected
+
+        action = self.addAction('Show Table')
+        action.setEnabled(not self.selected.has_visible_table())
+        action.triggered.connect(self.on_show_table)
+
+        self.addSeparator()
+        action = self.addAction('Select')
+        action.triggered.connect(self.on_select)
+
+        self.addSeparator()
+        action = self.addAction('Delete')
+        action.triggered.connect(self.on_delete)
+
+        self.addSeparator()
+        action = self.addAction('Properties')
+        action.triggered.connect(self.on_properties)
+
+    @_check_types.do
+    def on_show_table(self):
+        """Show this housing's own peg-board wire table -- creating it
+        the first time, or just re-showing it (see
+        ``BasePegboard.show_table``).
+        """
+        self.selected.show_table()
+
+    @_check_types.do
+    def on_select(self):
+        """Make this housing the active selection."""
+        from ...objects.objects_3d import menu_ops as _menu_ops
+        _menu_ops.select_object_for_object(self.selected.parent.mainframe, self.selected.parent)
+
+    @_check_types.do
+    def on_delete(self):
+        """Delete this housing from the project."""
+        from ...objects.objects_3d import menu_ops as _menu_ops
+        _menu_ops.delete_object(self.selected)
+
+    @_check_types.do
+    def on_properties(self):
+        """Show this housing's properties in the object editor."""
+        from ...objects.objects_3d import menu_ops as _menu_ops
+        _menu_ops.show_properties_for_object(self.selected.parent.mainframe, self.selected.parent)

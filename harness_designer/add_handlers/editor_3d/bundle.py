@@ -19,6 +19,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
 from ...geometry import point as _point
 from ...objects import wire as _wire
+from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 from .. import base as _base
 from ... import check_types as _check_types
 
@@ -193,6 +194,8 @@ class Bundle(_base.AddHandlerBase):
 
         ptables.pjt_concentric_wires_table.insert(
             layer_db.db_id, 0, wire.db_obj.db_id, False)
+
+        _base_pegboard.notify_table_wires_changed(self.target.db_obj)
 
         self.target.identify(None)
         self.mainframe.project.add_bundle(self.target)

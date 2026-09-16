@@ -24,6 +24,7 @@ from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
 from .. import rotation_mesh as _rotation_mesh
+from ...shapes import text as _text
 
 
 Config = _config.Config.editor_schematic
@@ -95,7 +96,7 @@ class Rings2D(_base_schematic.BaseSchematic):
                     # mesh_rotation instead (see ProtractorRingBase's own
                     # "no camera at all" fallback) -- confirmed
                     # 2026-09-07 (Kevin) as the fix.
-                    None)
+                    None, local_tilt=_text.TOP_DOWN_TILT)
                 for axis in self._axes
             }
 

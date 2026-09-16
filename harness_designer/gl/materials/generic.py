@@ -1,44 +1,18 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import material as _material
-from ... import color as _color
-from ... import check_types as _check_types
 
 
 class GenericMaterial(_material.GLMaterial):
-    """Represent a generic material in :mod:`harness_designer.gl.materials.generic`.
+    """Default catch-all material.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    Moderate fill brightness and a modest neutral highlight -- used
+    wherever no specific real-world material applies (labels, schematic
+    fills, generic previews). Uses ``GLMaterial``'s own defaults
+    explicitly so this class stays self-documenting.
     """
-    _ambient = (0.3, 0.3, 0.3, 0.5)
-    _diffuse = (0.5, 0.5, 0.5, 0.5)
-    _specular = (0.8, 0.8, 0.8, 0.5)
-    _shine = 50.0
-
-    _cl_ambient = 0.0
-    _cl_diffuse = 0.0
-    _cl_specular = 0.0
-    _cl_shininess = 50.0
-    _cl_metallic = 0.0
-    _cl_roughness = 0.5
-
-    @_check_types.do
-    def __init__(self, color: _color.Color):
-        """Initialise the :class:`GenericMaterial` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param color: Value for ``color``.
-        :type color: :class:`_color.Color`
-        """
-        scalar = color.rgb_scalar
-
-        self._ambient = scalar
-        self._diffuse = scalar
-        self._specular = scalar
-
-        self._cl_specular = sum(self._specular) / len(self._specular)
-        self._cl_diffuse = sum(self._diffuse) / len(self._diffuse)
-        self._cl_ambient = sum(self._ambient) / len(self._ambient)
-
-        super().__init__(color)
+    _ambient_weight = 0.35
+    _diffuse_weight = 0.55
+    _specular_weight = 0.25
+    _metallic = 0.0
+    _shine = 40.0

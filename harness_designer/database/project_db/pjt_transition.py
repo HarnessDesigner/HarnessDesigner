@@ -32,6 +32,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branch
+    from . import pjt_wire as _pjt_wire
     from ...objects import transition as _transition_obj
 
 
@@ -161,7 +162,18 @@ class PJTTransitionsTable(PJTTableBase):
                                     quat3d=str(list(angle.as_quat_float)),
                                     angle3d=str(list(angle.as_euler_float)))
 
-        return PJTTransition(self, db_id)
+        db_obj = PJTTransition(self, db_id)
+
+        # See PJTHousingsTable.insert's own comment -- same wiring.
+        from . import pjt_pegboard_table as _pjt_pegboard_table
+
+        position_pegboard = db_obj.position_pegboard  # lazily creates at (0,0,0)
+        table_point_id = db_obj.table_position_peg_id
+        self.db.pjt_pegboard_tables_table.insert(
+            table_point_id, _point.Point(position_pegboard.x, 0.0, position_pegboard.z),
+            _pjt_pegboard_table.DEFAULT_TABLE_WIDTH, _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
+
+        return db_obj
 
 
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin,
@@ -264,6 +276,22 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         """
         return [b for b in (self.branch1, self.branch2, self.branch3,
                             self.branch4, self.branch5, self.branch6) if b is not None]
+
+    @property
+    @_check_types.do
+    def wires(self) -> list["_pjt_wire.PJTWire"]:
+        """Union of every branch's own wires -- see
+        :attr:`PJTHousing.wires` for the shared-API rationale.
+
+        :returns: Wires passing through this transition's branches.
+        :rtype: list[:class:`_pjt_wire.PJTWire`]
+        """
+        res = []
+
+        for branch in self.branches:
+            res.extend(branch.wires)
+
+        return res
 
     _o_position3d: _point.Point = None
 

@@ -24,6 +24,7 @@ from ...handlers import wire_snap as _wire_snap
 from ...geometry import point as _point
 from ...objects import terminal as _terminal
 from ...objects import splice as _splice
+from ...objects.objects_schematic import wire_reroute as _wire_reroute
 from .. import base as _base
 from ... import check_types as _check_types
 
@@ -117,33 +118,12 @@ class Wire(_base.AddHandlerBase):
 
         splice_obj.add_wire(self.target)
         self.target.set_sibling(splice_obj, end)
-
-    @_check_types.do
-    def _route(self) -> None:
-        """Auto-route this now-fully-connected wire's 2D path."""
-        from ...objects.objects_schematic import wire_routing as _wire_routing
-
-        ptables = self.mainframe.project.ptables
-
-        start = self.target.db_obj.start_position2d
-        stop = self.target.db_obj.stop_position2d
-
-        waypoints = _wire_routing.route(
-            self.mainframe.project, (float(start.x), float(start.z)),
-            (float(stop.x), float(stop.z)), ignore_wire=self.target)
-
-        for i, (x, z) in enumerate(waypoints):
-            ptables.pjt_points2d_table.insert(
-                x, z, wire_id=self.target.db_obj.db_id, idx=i)
-
-        if waypoints:
-            self.target.objschematic.refresh_waypoints()
+        _wire_reroute.on_wire_attached(self.mainframe.project, self.target)
 
     @_check_types.do
     def _finalize(self, mouse_pos: _point.Point) -> None:
         picked = _object_picker.find_object(
-            mouse_pos, self.mainframe.editor2d.editor.objects,
-            self.camera, self._get_view_object)
+            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
 
         if picked is self.target or picked is None:
             return
@@ -181,7 +161,7 @@ class Wire(_base.AddHandlerBase):
         else:
             return
 
-        self._route()
+        _wire_reroute.on_wire_attached(self.mainframe.project, self.target)
         self.target.identify(None)
         self.mainframe.project.add_wire(self.target)
 

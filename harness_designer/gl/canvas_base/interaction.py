@@ -17,6 +17,7 @@ class MouseInteraction(enum.Enum):
     MOVE = 'move'
     LEFT_DOWN = 'left_down'
     LEFT_UP = 'left_up'
+    LEFT_DCLICK = 'left_dclick'
     RIGHT_DOWN = 'right_down'
     RIGHT_UP = 'right_up'
     MIDDLE_DOWN = 'middle_down'

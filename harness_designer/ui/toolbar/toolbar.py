@@ -27,6 +27,7 @@ from ...objects import splice as _splice
 from ...objects import wire_layout as _wire_layout
 from ...objects import bundle_layout as _bundle_layout
 from ...objects import wire_service_loop as _wire_service_loop
+from ...objects import pegboard_table as _pegboard_table
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
@@ -419,10 +420,12 @@ class NoteToolbar(QtWidgets.QToolBar):
 
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
-        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_objschematic_selected)
-        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_objschematic_unselected)
-        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj3d_selected)
-        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj3d_unselected)
+        mainframe.editor_pegboard.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj_selected)
+        mainframe.editor_pegboard.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj_unselected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj_selected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj_unselected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self.on_obj_selected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj_unselected)
 
     @_check_types.do
     def set_buttons(self, align):
@@ -476,9 +479,9 @@ class NoteToolbar(QtWidgets.QToolBar):
         return _make_icon(icon)
 
     @_check_types.do
-    def on_objschematic_selected(self, evt: _gl.GLObjectEvent):
+    def on_obj_selected(self, evt: _gl.GLObjectEvent):
         """
-        Handle the obj 2D selected event.
+        Handle the obj selected event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -497,41 +500,9 @@ class NoteToolbar(QtWidgets.QToolBar):
             self.set_buttons(-1)
 
     @_check_types.do
-    def on_objschematic_unselected(self, _: _gl.GLObjectEvent):
+    def on_obj_unselected(self, _: _gl.GLObjectEvent):
         """
-        Handle the obj 2D unselected event.
-
-        :type _: :class:`_gl.GLObjectEvent`
-        """
-
-        self._obj = None
-        self.set_buttons(-1)
-
-    @_check_types.do
-    def on_obj3d_selected(self, evt: _gl.GLObjectEvent):
-        """
-        Handle the obj 3D selected event.
-
-        :param evt: Event object.
-        :type evt: :class:`_gl.GLObjectEvent`
-        """
-
-        obj = evt.GetGLObject()
-        if isinstance(obj, _project_model.ProjectModel):
-            evt.StopPropagation()
-            return
-
-        if isinstance(obj, _note.Note):
-            self._obj = obj.obj3d
-            self.set_buttons(obj.db_obj.h_align)
-        else:
-            self._obj = None
-            self.set_buttons(-1)
-
-    @_check_types.do
-    def on_obj3d_unselected(self, _: _gl.GLObjectEvent):
-        """
-        Handle the obj 3D unselected event.
+        Handle the obj unselected event.
 
         :type _: :class:`_gl.GLObjectEvent`
         """
@@ -596,9 +567,9 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         self.setIconSize(QtCore.QSize(32, 32))
 
         self._selected = None
-        self._position3d: "_point.Point" = None
-        self._angle3d: "_angle.Angle" = None
-        self._scale3d: "_point.Point" = None
+        self._position: "_point.Point" = None
+        self._angle: "_angle.Angle" = None
+        self._scale: "_point.Point" = None
 
         icons = _image.icons
         self.rotate_x = _fsb.FloatSpinButton(
@@ -692,37 +663,216 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
+        mainframe.editor_pegboard.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_pegboard_selected)
+        mainframe.editor_pegboard.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_pegboard_unselected)
+
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_schematic_selected)
+        mainframe.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_schematic_unselected)
+
         # GL object selection drives button enable/disable
-        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected)
-        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_3d_selected)
+        mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_3d_unselected)
 
     @_check_types.do
-    def _on_obj_selected(self, evt: _gl.GLObjectEvent):
+    def _on_obj_pegboard_selected(self, evt: _gl.GLObjectEvent):
         obj = evt.GetGLObject()
 
         if isinstance(obj, _project_model.ProjectModel):
             evt.StopPropagation()
             return
 
-        if self._position3d is not None:
-            self._position3d.unbind(self.on_position)
-            self._position3d = None
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position = None
 
-        if self._angle3d is not None:
-            self._angle3d.unbind(self.on_angle)
-            self._angle3d = None
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle = None
 
-        if self._scale3d is not None:
-            self._scale3d.unbind(self.on_scale)
-            self._scale3d = None
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale = None
+
+        if self._selected is not None:
+            self._selected = None
+
+        for act in (self.rotate_x, self.rotate_z, self.scale_x,
+                    self.scale_y, self.scale_z):
+            act.setEnabled(False)
+
+        if isinstance(obj,
+                      (_wire.Wire, _cavity.Cavity, _wire_layout.WireLayout,
+                       _bundle_layout.BundleLayout, _bundle.Bundle,
+                       _wire_service_loop.WireServiceLoop,
+                       # A peg-board table has no angle_pegboard at all --
+                       # its quad is always screen-axis-aligned (the
+                       # mouse-dispatch math in objects_pegboard.
+                       # pegboard_table.PegboardTable assumes this), so
+                       # rotating it would be actively wrong even if it
+                       # had one. Excluded the same way Wire/Bundle are,
+                       # for its own different "doesn't fit this single
+                       # position+rotation toolbar model" reason -- its
+                       # position is still user-draggable directly, just
+                       # not through this numeric entry.
+                       _pegboard_table.PegboardTable)
+        ):
+
+            for act in (self.rotate_y, self.move_x, self.move_y, self.move_z):
+                act.setEnabled(False)
+        else:
+            for act in (self.rotate_y, self.move_x, self.move_y, self.move_z):
+                act.setEnabled(True)
+
+            self._selected = obj
+
+            self._position = obj.db_obj.position_pegboard  # NOQA
+            self._position.bind(self.on_position)
+
+            self._angle = obj.db_obj.angle_pegboard  # NOQA
+            self._angle.bind(self.on_angle)
+
+            x, y, z = self._position.as_float
+            self.move_x.SetValue(x)
+            self.move_y.SetValue(y)
+            self.move_z.SetValue(z)
+
+            x, y, z = self._angle.as_euler_float
+            self.rotate_x.SetValue(0.0)
+            self.rotate_y.SetValue(y)
+            self.rotate_z.SetValue(0.0)
+
+    @_check_types.do
+    def _on_obj_pegboard_unselected(self, _):
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position = None
+
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle = None
+
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale = None
+
+        if self._selected is not None:
+            self._selected = None
+
+        for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
+                    self.scale_y, self.scale_z, self.move_x, self.move_y,
+                    self.move_z):
+
+            act.setEnabled(False)
+            act.SetValue(0.0)
+
+    @_check_types.do
+    def _on_obj_schematic_selected(self, evt: _gl.GLObjectEvent):
+        obj = evt.GetGLObject()
+
+        if isinstance(obj, _project_model.ProjectModel):
+            evt.StopPropagation()
+            return
+
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position = None
+
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle = None
+
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale = None
+
+        if self._selected is not None:
+            self._selected = None
+
+        for act in (self.rotate_x, self.rotate_z,
+                    self.scale_x, self.scale_y, self.scale_z):
+
+            act.setEnabled(False)
+
+        if isinstance(obj,
+                      (_wire.Wire, _cavity.Cavity, _terminal.Terminal,
+                       _wire_layout.WireLayout)
+        ):
+
+            for act in (self.rotate_y, self.move_x, self.move_y, self.move_z):
+                act.setEnabled(False)
+
+        else:
+            for act in (self.rotate_y, self.move_x, self.move_y, self.move_z):
+                act.setEnabled(True)
+
+            self._selected = obj
+
+            self._position = obj.db_obj.position2d  # NOQA
+            self._position.bind(self.on_position)
+
+            self._angle = obj.db_obj.angle2d  # NOQA
+            self._angle.bind(self.on_angle)
+
+            x, y, z = self._position.as_float
+            self.move_x.SetValue(x)
+            self.move_y.SetValue(y)
+            self.move_z.SetValue(z)
+
+            x, y, z = self._angle.as_euler_float
+            self.rotate_x.SetValue(0.0)
+            self.rotate_y.SetValue(y)
+            self.rotate_z.SetValue(0.0)
+
+    @_check_types.do
+    def _on_obj_schematic_unselected(self, _):
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position = None
+
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle = None
+
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale = None
+
+        if self._selected is not None:
+            self._selected = None
+
+        for act in (self.rotate_x, self.rotate_y, self.rotate_z, self.scale_x,
+                    self.scale_y, self.scale_z, self.move_x, self.move_y,
+                    self.move_z):
+
+            act.setEnabled(False)
+            act.SetValue(0.0)
+
+    @_check_types.do
+    def _on_obj_3d_selected(self, evt: _gl.GLObjectEvent):
+        obj = evt.GetGLObject()
+
+        if isinstance(obj, _project_model.ProjectModel):
+            evt.StopPropagation()
+            return
+
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position = None
+
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle = None
+
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale = None
 
         if self._selected is not None:
             self._selected = None
 
         if isinstance(obj,
                       (_bundle.Bundle, _wire.Wire, _cavity.Cavity, _wire_marker.WireMarker,
-                       _wire_layout.WireLayout, _bundle_layout.BundleLayout)
-        ):
+                       _wire_layout.WireLayout, _bundle_layout.BundleLayout)):
 
             for act in (self.rotate_x, self.rotate_y, self.rotate_z,
                         self.scale_x, self.scale_y, self.scale_z,
@@ -741,18 +891,18 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
             self._selected = obj
 
-            self._position3d = obj.db_obj.start_position3d  # NOQA
-            self._position3d.bind(self.on_position)
+            self._position = obj.db_obj.start_position3d  # NOQA
+            self._position.bind(self.on_position)
 
-            self._angle3d = obj.db_obj.angle3d  # NOQA
-            self._angle3d.bind(self.on_angle)
+            self._angle = obj.db_obj.angle3d  # NOQA
+            self._angle.bind(self.on_angle)
 
-            x, y, z = self._position3d.as_float
+            x, y, z = self._position.as_float
             self.move_x.SetValue(x)
             self.move_y.SetValue(y)
             self.move_z.SetValue(z)
 
-            x, y, z = self._angle3d.as_euler_float
+            x, y, z = self._angle.as_euler_float
             self.rotate_x.SetValue(x)
             self.rotate_y.SetValue(y)
             self.rotate_z.SetValue(z)
@@ -766,43 +916,43 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
             self._selected = obj
 
-            self._position3d = obj.db_obj.position3d  # NOQA
-            self._position3d.bind(self.on_position)
+            self._position = obj.db_obj.position3d  # NOQA
+            self._position.bind(self.on_position)
 
-            self._angle3d = obj.db_obj.angle3d  # NOQA
-            self._angle3d.bind(self.on_angle)
+            self._angle = obj.db_obj.angle3d  # NOQA
+            self._angle.bind(self.on_angle)
 
-            self._scale3d = obj.db_obj.scale3d  # NOQA
-            self._scale3d.bind(self.on_scale)
+            self._scale = obj.db_obj.scale3d  # NOQA
+            self._scale.bind(self.on_scale)
 
-            x, y, z = self._position3d.as_float
+            x, y, z = self._position.as_float
             self.move_x.SetValue(x)
             self.move_y.SetValue(y)
             self.move_z.SetValue(z)
 
-            x, y, z = self._angle3d.as_euler_float
+            x, y, z = self._angle.as_euler_float
             self.rotate_x.SetValue(x)
             self.rotate_y.SetValue(y)
             self.rotate_z.SetValue(z)
 
-            x, y, z = self._scale3d.as_float
+            x, y, z = self._scale.as_float
             self.scale_x.SetValue(x)
             self.scale_y.SetValue(y)
             self.scale_z.SetValue(z)
 
     @_check_types.do
-    def _on_obj_unselected(self, _):
-        if self._position3d is not None:
-            self._position3d.unbind(self.on_position)
-            self._position3d = None
+    def _on_obj_3d_unselected(self, _):
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position = None
 
-        if self._angle3d is not None:
-            self._angle3d.unbind(self.on_angle)
-            self._angle3d = None
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle = None
 
-        if self._scale3d is not None:
-            self._scale3d.unbind(self.on_scale)
-            self._scale3d = None
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale = None
 
         if self._selected is not None:
             self._selected = None
@@ -826,24 +976,24 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
     @_check_types.do
     def on_rotate_x(self, value: float) -> None:
-        if self._angle3d is not None:
-            self._angle3d.unbind(self.on_angle)
-            self._angle3d.x = value
-            self._angle3d.bind(self.on_angle)
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle.x = value
+            self._angle.bind(self.on_angle)
 
     @_check_types.do
     def on_rotate_y(self, value: float) -> None:
-        if self._angle3d is not None:
-            self._angle3d.unbind(self.on_angle)
-            self._angle3d.y = value
-            self._angle3d.bind(self.on_angle)
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle.y = value
+            self._angle.bind(self.on_angle)
 
     @_check_types.do
     def on_rotate_z(self, value: float) -> None:
-        if self._angle3d is not None:
-            self._angle3d.unbind(self.on_angle)
-            self._angle3d.z = value
-            self._angle3d.bind(self.on_angle)
+        if self._angle is not None:
+            self._angle.unbind(self.on_angle)
+            self._angle.z = value
+            self._angle.bind(self.on_angle)
 
     @_check_types.do
     def on_angle(self, angle: "_angle.Angle"):
@@ -853,24 +1003,24 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
     @_check_types.do
     def on_scale_x(self, value: float) -> None:
-        if self._scale3d is not None:
-            self._scale3d.unbind(self.on_scale)
-            self._scale3d.x = value
-            self._scale3d.bind(self.on_scale)
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale.x = value
+            self._scale.bind(self.on_scale)
 
     @_check_types.do
     def on_scale_y(self, value: float) -> None:
-        if self._scale3d is not None:
-            self._scale3d.unbind(self.on_scale)
-            self._scale3d.y = value
-            self._scale3d.bind(self.on_scale)
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale.y = value
+            self._scale.bind(self.on_scale)
 
     @_check_types.do
     def on_scale_z(self, value: float) -> None:
-        if self._scale3d is not None:
-            self._scale3d.unbind(self.on_scale)
-            self._scale3d.z = value
-            self._scale3d.bind(self.on_scale)
+        if self._scale is not None:
+            self._scale.unbind(self.on_scale)
+            self._scale.z = value
+            self._scale.bind(self.on_scale)
 
     @_check_types.do
     def on_scale(self, scale: "_point.Point"):
@@ -880,24 +1030,24 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
 
     @_check_types.do
     def on_move_x(self, value: float) -> None:
-        if self._position3d is not None:
-            self._position3d.unbind(self.on_position)
-            self._position3d.x = value
-            self._position3d.bind(self.on_position)
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position.x = value
+            self._position.bind(self.on_position)
 
     @_check_types.do
     def on_move_y(self, value: float) -> None:
-        if self._position3d is not None:
-            self._position3d.unbind(self.on_position)
-            self._position3d.y = value
-            self._position3d.bind(self.on_position)
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position.y = value
+            self._position.bind(self.on_position)
 
     @_check_types.do
     def on_move_z(self, value: float) -> None:
-        if self._position3d is not None:
-            self._position3d.unbind(self.on_position)
-            self._position3d.z = value
-            self._position3d.bind(self.on_position)
+        if self._position is not None:
+            self._position.unbind(self.on_position)
+            self._position.z = value
+            self._position.bind(self.on_position)
 
     @_check_types.do
     def on_position(self, position: "_point.Point"):

@@ -14,6 +14,7 @@ from ...gl import vbo as _vbo
 from ...gl.canvas_base import interaction as _interaction
 from ...shapes import text as _text
 from . import chain_edges as _chain_edges
+from . import table_placement as _table_placement
 
 from ... import debug as _debug
 from ... import check_types as _check_types
@@ -24,10 +25,51 @@ if TYPE_CHECKING:
     from ...ui import editor_pegboard as _editor_pegboard
     from ...database import project_db as _project_db
     from ...database.global_db import model3d as _model3d
+    from ...database.project_db import pjt_pegboard_table as _pjt_pegboard_table
     from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_pegboard
+
+
+@_check_types.do
+def notify_table_wires_changed(anchor_db_obj) -> None:
+    """Tell *anchor_db_obj*'s own peg-board wire table (if it currently
+    has a live one) that its wire membership just changed, so its
+    ``WireTable`` requeries instead of showing a stale row set.
+
+    Call this from wherever a wire's connection to an anchor is
+    actually established/removed -- ``objects.terminal.Terminal.
+    add_wire`` (housing, via the seated terminal's own cavity),
+    ``add_handlers.editor_3d.bundle``'s ``pjt_concentric_wires_table.
+    insert`` call site (bundle), and ``handlers.transition_handler``'s
+    (transition branch -- and its owning transition too, since
+    ``PJTTransition.wires`` is the union of its branches' own). NOT
+    from a general "any wire changed anywhere" broadcast -- only the
+    call site that just changed membership actually knows which
+    anchor(s) were affected.
+
+    No-op if *anchor_db_obj* isn't a table-owning anchor type at all
+    (no ``table_position_peg_id_raw`` attribute -- everything except
+    housing/bundle/transition/transition-branch), has no table row yet,
+    or has a row but no live view built for it this session (its table
+    has never actually been shown).
+
+    :param anchor_db_obj: The anchor row whose wires just changed.
+    """
+    point_id = getattr(anchor_db_obj, 'table_position_peg_id_raw', None)
+    if point_id is None:
+        return
+
+    table_row = anchor_db_obj.table.db.pjt_pegboard_tables_table.get_from_point_pegboard_id(point_id)
+    if table_row is None:
+        return
+
+    table_obj = table_row.get_object()
+    if table_obj is None:
+        return
+
+    table_obj.objpegboard.refresh_wires()
 
 
 class BasePegboard(_objectsvar.BaseVar):
@@ -139,6 +181,22 @@ class BasePegboard(_objectsvar.BaseVar):
         except AttributeError:
             self._is_visible = False
 
+        # If this anchor already owns a peg-board data-table overlay row
+        # (every anchor type's own DB-layer insert() creates one eagerly
+        # now, see e.g. pjt_housing.PJTHousingsTable.insert) but this
+        # session has never actually built a live view for it yet (a
+        # brand new row -- or an existing one from a project just loaded
+        # from disk), build one right here so the table actually appears
+        # without requiring a "Show Table" click first. Deliberately
+        # does NOT touch the row's own is_visible_pegboard either way --
+        # a table the user previously closed (is_visible_pegboard=False)
+        # still gets its live view constructed (so its own render() can
+        # correctly skip drawing, and so a later "Show Table" click has
+        # something to re-show), it just doesn't display anything yet.
+        table_row = self._table_row()
+        if table_row is not None:
+            self._ensure_table_object(table_row)
+
     @_check_types.do
     def drag(self, delta: _point.Point) -> None:
         """Same as :meth:`BaseVar.drag`, but locked to the X/Z board
@@ -182,6 +240,92 @@ class BasePegboard(_objectsvar.BaseVar):
             budgets.extend(_chain_edges.touching_edges(bundle, self.point3d_id))
 
         return budgets
+
+    @_check_types.do
+    def _table_row(self) -> "_pjt_pegboard_table.PJTPegboardTable | None":
+        """This anchor's own ``pjt_pegboard_tables`` row, or ``None``.
+
+        Only meaningful for anchor types mixing in ``mixins.
+        table_position_peg.TablePositionPegMixin`` (housing/bundle/
+        transition/transition-branch) -- every other peg-board object
+        type has no ``table_position_peg_id_raw`` attribute at all, so
+        this returns ``None`` for those too, via the ``getattr``
+        default. Used by both :meth:`has_visible_table` and
+        :meth:`show_table`.
+        """
+        point_id = getattr(self.db_obj, 'table_position_peg_id_raw', None)
+        if point_id is None:
+            return None
+
+        return self.db_obj.table.db.pjt_pegboard_tables_table.get_from_point_pegboard_id(point_id)
+
+    @_check_types.do
+    def _ensure_table_object(self, table_row: "_pjt_pegboard_table.PJTPegboardTable") -> None:
+        """Build the live ``objects.pegboard_table.PegboardTable`` facade
+        for *table_row* if this session hasn't already (``get_object()``
+        stays ``None`` until one is constructed -- see
+        ``pjt_pegboard_table.PJTPegboardTable.set_object``, called from
+        that facade's own ``__init__``). A no-op if one already exists.
+        Never touches ``is_visible_pegboard`` either way -- see callers.
+        """
+        if table_row.get_object() is not None:
+            return
+
+        from ...objects import pegboard_table as _pegboard_table_obj
+
+        _pegboard_table_obj.PegboardTable(self.parent.mainframe, table_row)
+
+    @_check_types.do
+    def has_visible_table(self) -> bool:
+        """Whether this anchor's own peg-board table currently exists
+        and is shown -- used to disable the "Show Table" context-menu
+        action while it already is (see ``objects_pegboard.housing``/
+        ``bundle``/``transition``'s own context menus).
+        """
+        table_row = self._table_row()
+        return table_row is not None and bool(table_row.is_visible_pegboard)
+
+    @_check_types.do
+    def show_table(self) -> None:
+        """Show this anchor's own peg-board table.
+
+        In the normal case (a row already exists -- every anchor
+        type's own DB-layer ``insert()`` creates one eagerly now, see
+        e.g. ``pjt_housing.PJTHousingsTable.insert``) this just flips
+        ``is_visible_pegboard`` back to ``True`` and, if this session
+        has never actually constructed a live view for it yet (e.g. a
+        project freshly loaded from disk), builds one now.
+
+        Falls back to creating the row here for a legacy anchor that
+        predates that DB-layer wiring -- unlike that eager, naive-
+        placeholder creation, THIS path has real live view/AABB data
+        available (``self.pegboard.camera.objects_in_view``), so it
+        runs the actual nearest-free-spot search
+        (``table_placement.find_free_position``).
+        """
+        from ...database.project_db import pjt_pegboard_table as _pjt_pegboard_table
+
+        table_row = self._table_row()
+
+        if table_row is None:
+            point_id = self.db_obj.table_position_peg_id  # lazily creates
+
+            width, height = (_pjt_pegboard_table.DEFAULT_TABLE_WIDTH,
+                             _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
+
+            obstacles = _table_placement.obstacle_rects_from_objects(
+                self.pegboard.camera.objects_in_view)
+            free_pos = _table_placement.find_free_position(
+                self.position, width, height, obstacles)
+
+            table_row = self.db_obj.table.db.pjt_pegboard_tables_table.insert(
+                point_id, free_pos, width, height)
+        else:
+            table_row.is_visible_pegboard = True
+
+        self._ensure_table_object(table_row)
+
+        self.pegboard.Refresh()
 
     @property
     @_check_types.do
@@ -294,6 +438,34 @@ class BasePegboard(_objectsvar.BaseVar):
 
     @_check_types.do
     def delete(self):
+        """Delete this anchor -- first cascading to its own peg-board
+        data-table overlay's live VIEW object, if one currently exists.
+
+        The DB-level cascade (``mixins.table_position_peg.
+        TablePositionPegMixin.delete_table_overlay``, already called
+        from each anchor DB row's own ``delete()`` -- housing/bundle/
+        transition/transition-branch) only removes the
+        ``pjt_pegboard_tables`` ROW. Nothing else tears down the live
+        ``objects.pegboard_table.PegboardTable`` facade (its GL
+        texture, hidden off-screen ``QMdiArea``, etc.) if one is
+        currently displaying that row -- left dangling on a row that's
+        about to disappear out from under it otherwise.
+
+        Only anchor types mixing in ``TablePositionPegMixin`` have a
+        ``table_position_peg_id_raw`` attribute at all -- every other
+        peg-board object type (wires, splices, terminals, notes, ...)
+        is skipped via the ``getattr`` default, so this is safe to do
+        here once rather than duplicating it in each of that mixin's 4
+        concrete anchor types' own peg-board view class.
+        """
+        point_id = getattr(self.db_obj, 'table_position_peg_id_raw', None)
+        if point_id is not None:
+            table_row = self.db_obj.table.db.pjt_pegboard_tables_table.get_from_point_pegboard_id(point_id)
+            if table_row is not None:
+                table_obj = table_row.get_object()
+                if table_obj is not None:
+                    table_obj.delete()
+
         self.parent.delete()
 
     @_check_types.do

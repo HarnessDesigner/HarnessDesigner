@@ -116,6 +116,19 @@ class Camera(_camera_base.CameraBase):
         """
         self._position.y = max(self._min_distance, min(self._max_distance, float(value)))
 
+    @property
+    @_check_types.do
+    def world_per_pixel(self) -> float:
+        """How many world units (mm) one screen pixel covers at the
+        current zoom -- the same ``distance / 1000.0`` conversion
+        :meth:`screen_to_world`/:meth:`world_to_screen`/
+        :attr:`objects_in_view` already compute inline; exposed here so
+        callers outside this class (e.g. a fixed-screen-width selection
+        outline) don't have to duplicate the formula or reach into
+        ``_position`` directly.
+        """
+        return self.distance / 1000.0
+
     @_check_types.do
     def Zoom(self, delta, *_):
         """Mouse-wheel zoom (see ``mouse_handler_base.py``'s wheel-tick
@@ -196,7 +209,7 @@ class Camera(_camera_base.CameraBase):
         offset_y = center_y - screen_pos.y  # Invert Y (screen Y goes down, world Y goes up)
 
         # Convert to world units based on distance
-        world_per_pixel = self._position.y / 1000.0
+        world_per_pixel = self.world_per_pixel
 
         # World coordinates -- world_y lands in the returned Point's .z
         # (schematic-plane vertical axis, matching position2d/position_pegboard).
@@ -224,7 +237,7 @@ class Camera(_camera_base.CameraBase):
         offset = world_pos - self._focal_position
 
         # Convert to pixels based on distance
-        pixels_per_world = 1000.0 / self._position.y
+        pixels_per_world = 1.0 / self.world_per_pixel
 
         # Screen coordinates -- added (not subtracted) for the same reason
         # as screen_to_world's own world_y: +Z renders toward screen-
@@ -266,7 +279,7 @@ class Camera(_camera_base.CameraBase):
             return []
 
         width, height = size
-        world_per_pixel = self._position.y / 1000.0
+        world_per_pixel = self.world_per_pixel
         half_width = (width / 2.0) * world_per_pixel
         half_height = (height / 2.0) * world_per_pixel
 

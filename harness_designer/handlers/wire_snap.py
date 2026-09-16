@@ -38,6 +38,7 @@ from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt
 
 from ..objects import wire_layout as _wire_layout
+from ..objects.objects_schematic import wire_reroute as _wire_reroute
 from .. import check_types as _check_types
 
 
@@ -373,6 +374,7 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
 
         target.add_wire(wire_obj)
         wire_obj.set_sibling(target, end)
+        _wire_reroute.on_wire_attached(mainframe.project, wire_obj)
 
         # A layout at the wire's own true end -- purely a visual cap
         # showing it properly seated into the splice, not a routing bend,

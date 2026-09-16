@@ -5,6 +5,7 @@ from . import edges as _edges
 from . import faces as _faces
 from . import floor as _floor
 from . import grid2d as _grid2d
+from . import texture as _texture
 from . import vertices as _vertices
 
 
@@ -681,4 +682,138 @@ class FloorProgram(Program):
     @opaque_pass.setter
     def opaque_pass(self, value: int):
         GL.glUniform1i(self._opaque_pass, value)
+
+
+class TextureProgram(Program):
+    """
+    Unlit textured-quad shader -- see ``gl.shaders.texture`` for the
+    GLSL and why this exists (peg-board floating wire tables, captured
+    off-screen from a real Qt widget and uploaded as a GL texture).
+    """
+
+    def __init__(self):
+        program = _texture.compile_program()
+        super().__init__(program)
+
+        with self:
+            self._projection = GL.glGetUniformLocation(program, 'projection')
+            self._view = GL.glGetUniformLocation(program, 'view')
+            self._position = GL.glGetUniformLocation(program, 'objectPosition')
+            self._scale = GL.glGetUniformLocation(program, 'objectScale')
+            self._image_texture = GL.glGetUniformLocation(program, 'imageTexture')
+            self._quad_size_px = GL.glGetUniformLocation(program, 'quadSizePx')
+            self._corner_radius_px = GL.glGetUniformLocation(program, 'cornerRadiusPx')
+            self._ring_thickness_px = GL.glGetUniformLocation(program, 'ringThicknessPx')
+            self._bottom_corner_trim_px = GL.glGetUniformLocation(program, 'bottomCornerTrimPx')
+            GL.glUniform1i(self._image_texture, 0)  # always texture unit 0
+
+    @property
+    def projection(self):
+        raise NotImplementedError
+
+    @projection.setter
+    def projection(self, value: np.ndarray):
+        GL.glUniformMatrix4fv(self._projection, 1, GL.GL_TRUE, value)
+
+    @property
+    def view(self):
+        raise NotImplementedError
+
+    @view.setter
+    def view(self, value: np.ndarray):
+        GL.glUniformMatrix4fv(self._view, 1, GL.GL_TRUE, value)
+
+    @property
+    def position(self):
+        raise NotImplementedError
+
+    @position.setter
+    def position(self, value: tuple[float, float, float]):
+        GL.glUniform3f(self._position, *value)
+
+    @property
+    def scale(self):
+        raise NotImplementedError
+
+    @scale.setter
+    def scale(self, value: tuple[float, float, float]):
+        GL.glUniform3f(self._scale, *value)
+
+    @property
+    def rotation(self):
+        raise NotImplementedError
+
+    @rotation.setter
+    def rotation(self, value: list[float, float, float, float]):
+        # No-op -- a peg-board table quad is never rotated, but
+        # VBOHandlerBase.render() unconditionally sets program.rotation,
+        # so this has to exist as a real (if unused) property, same as
+        # the scratch prototype's own TextureProgram this was ported
+        # from already established.
+        pass
+
+    @property
+    def quad_size_px(self):
+        raise NotImplementedError
+
+    @quad_size_px.setter
+    def quad_size_px(self, value: tuple[float, float]):
+        """Pixel size of the captured widget this quad displays --
+        ``objects_pegboard.pegboard_table.PegboardTable`` sets this from
+        its own ``_texture_px_size`` every time it re-grabs, so the
+        fragment shader's rounded-corner clip (see ``cornerRadiusPx``)
+        can convert its normalized UV into real pixels and get a
+        consistent radius regardless of how big the captured widget is.
+        """
+        GL.glUniform2f(self._quad_size_px, *value)
+
+    @property
+    def corner_radius_px(self):
+        raise NotImplementedError
+
+    @corner_radius_px.setter
+    def corner_radius_px(self, value: tuple[float, float, float, float]):
+        """Per-corner radius, in the SAME pixel units as
+        ``quad_size_px`` -- ``(top-left, top-right, bottom-right,
+        bottom-left)``, each 0 disabling clipping on that one corner
+        (all 4 zero draws a plain rectangle). See ``fragment.frag``'s
+        own ``roundedRectDist``. The peg-board table's own quad leaves
+        this at all 0s (its earlier native-chrome-rounding workaround
+        turned out to be a mispositioned capture rect letting the
+        QMdiArea's own gray background bleed in, not real corner
+        rounding -- fixed at the capture step instead, see
+        mdi_host.py); the selection border quad rounds only its top 2
+        corners, matching the table's own native top-corner rounding
+        (Kevin, 2026-09-16).
+        """
+        GL.glUniform4f(self._corner_radius_px, *value)
+
+    @property
+    def ring_thickness_px(self):
+        raise NotImplementedError
+
+    @ring_thickness_px.setter
+    def ring_thickness_px(self, value: float):
+        """0 (default) draws a normal filled rounded rect. >0 instead
+        keeps only a ring this many units wide along the inside of the
+        outer rounded-rect boundary -- see ``fragment.frag``'s own
+        comment for why the selection border uses this rather than
+        relying on the table's own opaque draw to punch a hole through
+        a plain filled quad.
+        """
+        GL.glUniform1f(self._ring_thickness_px, float(value))
+
+    @property
+    def bottom_corner_trim_px(self):
+        raise NotImplementedError
+
+    @bottom_corner_trim_px.setter
+    def bottom_corner_trim_px(self, value: float):
+        """Size (same units as ``quad_size_px``) of a plain square
+        notch discarded at ONLY the bottom-left/bottom-right corners --
+        0 disables it. See ``fragment.frag``'s own comment for why:
+        the peg-board table's captured native chrome leaves a faint
+        curved line right at those two (otherwise square) corners.
+        """
+        GL.glUniform1f(self._bottom_corner_trim_px, float(value))
 

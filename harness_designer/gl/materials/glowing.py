@@ -1,29 +1,34 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import numpy as np
+
 from . import material as _material
+from ... import color as _color
 from ... import check_types as _check_types
 
 
 class GlowingMaterial(_material.GLMaterial):
-    """Represent a glowing material in :mod:`harness_designer.gl.materials.glowing`.
+    """LED-like emissive material.
 
-    UNKNOWN details are inferred from the class name and surrounding code.
+    The fragment shader's emissive branch (``gl/shaders/faces/
+    fragment.frag``) replaces ambient/diffuse/specular shading entirely
+    once ``materialEmissive`` is non-zero, so this class only needs to
+    add the emissive term itself on top of a plain :class:`GenericMaterial`-like
+    fill -- that fill is effectively unused while glowing, but keeps
+    this material sane if something ever reads it before the emissive
+    branch takes over.
     """
-    _ambient = (0.0, 0.0, 0.0)
-    _diffuse = (0.55, 0.55, 0.55)
-    _specular = (0.70, 0.70, 0.70)
-    _shine = 92.0
+    _ambient_weight = 0.35
+    _diffuse_weight = 0.55
+    _specular_weight = 0.25
 
     @_check_types.do
-    def __init__(self, color):
+    def __init__(self, color: _color.Color):
         """Initialise the :class:`GlowingMaterial` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param color: Value for ``color``.
-        :type color: UNKNOWN
+        :param color: The glow's own color, used as-is for the
+            emissive term.
+        :type color: :class:`_color.Color`
         """
-        self._emissive = color.rgba_scalar
-        self.diffuse = color.rgb_scalar
-
-        _material.GLMaterial.__init__(self, color)
+        super().__init__(color)
+        self.emissive = np.array(color.rgba_scalar, dtype=np.float32)

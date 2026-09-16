@@ -346,6 +346,31 @@ class MouseHandlerBase:
         return True
 
     @_check_types.do
+    def _dispatch_wheel_to_active_handler(
+        self, mouse_pos: _point.Point, qt_wheel_event, clicked_object=None,
+    ) -> bool:
+        """Route one wheel event to whatever's armed on this canvas, or
+        to a freshly picked object, via :meth:`BaseVar.handle_wheel`.
+
+        Mirrors :meth:`_dispatch_to_active_handler`'s own target
+        resolution exactly (active handler first, else the freshly
+        picked object's view object) -- kept as a separate method rather
+        than folded into that one because wheel has no "arm on press,
+        forward until release" lifecycle of its own (every wheel notch
+        is a standalone event, there's no down/up pairing), so there's
+        no ``is_handler_active``/``active_handler_obj`` bookkeeping to do
+        afterward the way a consumed button-driven event requires.
+        """
+        target = self.canvas.active_handler_obj
+        if target is None and clicked_object is not None:
+            target = self._get_view_object(clicked_object)
+
+        if target is None:
+            return False
+
+        return target.handle_wheel(mouse_pos, qt_wheel_event, clicked_object)
+
+    @_check_types.do
     def _process_mouse(self, code):
         """Execute the process mouse operation.
 
@@ -804,6 +829,13 @@ class MouseHandlerBase:
 
         mouse_pos = _qt_pos(evt)
 
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_to_active_handler(
+            mouse_pos, _interaction.MouseInteraction.LEFT_DCLICK, self._is_motion, clicked_object
+        ):
+            self.canvas.repaint()
+            return
+
         event = _events.GLEvent(_events.EVT_GL_LEFT_DCLICK)
         if self._send_event(event, evt):
             selected = _object_picker.find_object(
@@ -1015,6 +1047,12 @@ class MouseHandlerBase:
         """
         Handle the mouse wheel event.
         """
+
+        mouse_pos = _qt_pos(evt)
+        clicked_object = self._pick_object(mouse_pos)
+        if self._dispatch_wheel_to_active_handler(mouse_pos, evt, clicked_object):
+            self.canvas.repaint()
+            return
 
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
 

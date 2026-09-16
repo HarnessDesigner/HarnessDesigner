@@ -12,60 +12,113 @@ if TYPE_CHECKING:
 
 
 class GLMaterial:
-    """Base Material properties for Phong shading"""
+    """Base material for Phong shading.
 
-    _ambient = (0.2, 0.2, 0.2)
+    A material "type" (metal, polished metal, plastic, rubber, ...) is
+    nothing more than a handful of scalar weights applied directly to
+    the caller's own color -- never a separate, hand-picked ambient/
+    diffuse/specular RGB triple. ``ambient``/``diffuse`` are always the
+    true input color times a plain scalar (``_ambient_weight``/
+    ``_diffuse_weight``), so every channel is scaled by the exact same
+    number and the fill can never shift hue on its own -- only its
+    brightness changes between material types. The one place hue can
+    shift at all is the specular highlight, which for a metal
+    (``_metallic`` > 0) is deliberately tinted toward the material's
+    own color -- that tint IS a metal's visual signature, and stays
+    confined to the small hot-spot the shininess exponent produces, not
+    smeared across the whole surface. A dielectric (plastic, rubber,
+    ..., ``_metallic`` == 0.0) keeps a neutral white highlight instead,
+    matching how a real non-metal actually reflects light.
 
-    # color is the "color" we tend to think of, tends to be white for metals
-    _diffuse = (0.8, 0.8, 0.8)
+    This replaces an earlier design where every material subclass
+    invented its own ambient/diffuse/specular RGB formula from the
+    input color -- several of those formulas mixed in fixed, colorless
+    constants (a flat grey specular, a flat ambient floor) alongside
+    the true color, and the renderer sums ambient+diffuse+specular in
+    the shader with a hard per-channel clamp on overflow. Both of those
+    combine to visibly shift the color that actually reaches the
+    screen away from the color that was asked for -- a fixed grey
+    added to an unevenly-saturated color desaturates it, and clamping
+    a per-channel sum that exceeds 1.0 clips whichever channel got
+    there first, changing the ratio between channels (i.e. the hue).
+    Deriving ambient/diffuse as a single proportional scale of the true
+    color, and keeping the weights low enough that the ordinary (non
+    hot-spot) case never approaches that overflow, avoids the first
+    problem structurally; the fragment shader's own overflow handling
+    (``gl/shaders/faces/fragment.frag``) was changed to rescale all
+    three channels together instead of clamping each one independently,
+    which fixes the second problem for every material at once,
+    including this one's rare hot-spot overflows.
 
-    # plastics white, metals darker color
-    _specular = (0.5, 0.5, 0.5)
+    These same scalar weights (``_cl_roughness``/``_cl_reflectivity``/
+    ``_cl_ior``, plus ``_ambient_weight``/``_diffuse_weight``/
+    ``_specular_weight``/``_metallic``/``_shine`` themselves) also drive
+    the offline ray-traced renderer (see ``ray_tracing/kernel.cl``'s
+    ``Material`` struct) -- that renderer already treated ambient/
+    diffuse/specular as plain scalar multipliers on the true color, so
+    this class now matches it instead of the rasterizer inventing its
+    own separate scheme.
+    """
 
-    # light emitting like LED's
+    # Fraction of the true color that shows in the unlit/ambient fill.
+    _ambient_weight = 0.35
+
+    # Fraction of the true color that shows in the direct-light fill.
+    _diffuse_weight = 0.55
+
+    # Strength of the specular highlight (0.0 disables it entirely).
+    _specular_weight = 0.25
+
+    # 0.0 = dielectric (neutral/white highlight, e.g. plastic, rubber).
+    # 1.0 = metal (highlight tinted by the material's own color).
+    _metallic = 0.0
+
+    # Highlight tightness, 0.0-128.0 -- low = broad, soft highlight
+    # (rubber), high = small, hot highlight (polished metal).
+    _shine = 40.0
+
+    # Light emitting like LEDs -- only ``GlowingMaterial`` sets this to
+    # something other than black.
     _emissive = (0.0, 0.0, 0.0, 0.0)
 
-    # polished metals has the highest shine, rubber type materials will have a
-    # really low shine. plastics are in between
-    _shine = 32.0  # 0.0 to 128.0
-
-    _cl_ambient = 0.2
-    _cl_diffuse = 0.8
-    _cl_specular = 0.5
-    _cl_shininess = 32.0
-    _cl_metallic = 0.0
+    # Same scalar weights, consumed by the offline ray tracer (see
+    # ``cl_array``/``ray_tracing/kernel.cl``'s ``Material`` struct) --
+    # not used by the GL rasterizer at all.
     _cl_roughness = 0.5
-    _cl_reflectivity = 0.5
-    _cl_ior = 0.5
+    _cl_reflectivity = 0.1
+    _cl_ior = 1.45
 
     @_check_types.do
     def __init__(self, color: _color.Color):
         """Initialise the :class:`GLMaterial` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param color: Value for ``color``.
+        :param color: The material's true color -- every shading term
+            this class computes is a direct, proportional function of
+            it (see the class docstring).
         :type color: :class:`_color.Color`
         """
         self._color = color
 
-        a = color.rgba_scalar[-1]
+        r, g, b, a = color.rgba_scalar
         self._is_opaque = a == 1.0
 
-        if len(self._ambient) == 3:
-            self.ambient = np.array(self._ambient + (a,), dtype=np.float32)
-        else:
-            self.ambient = np.array(self._ambient, dtype=np.float32)
+        self.ambient = np.array(
+            (r * self._ambient_weight, g * self._ambient_weight,
+             b * self._ambient_weight, a), dtype=np.float32)
 
-        if len(self._diffuse) == 3:
-            self.diffuse = np.array(self._diffuse + (a,), dtype=np.float32)
-        else:
-            self.diffuse = np.array(self._diffuse, dtype=np.float32)
+        self.diffuse = np.array(
+            (r * self._diffuse_weight, g * self._diffuse_weight,
+             b * self._diffuse_weight, a), dtype=np.float32)
 
-        if len(self._specular) == 3:
-            self.specular = np.array(self._specular + (a,), dtype=np.float32)
-        else:
-            self.specular = np.array(self._specular, dtype=np.float32)
+        # Lerp the highlight color between neutral white (dielectric)
+        # and the true color (metal), per-channel, driven by _metallic.
+        tint_r = 1.0 - self._metallic * (1.0 - r)
+        tint_g = 1.0 - self._metallic * (1.0 - g)
+        tint_b = 1.0 - self._metallic * (1.0 - b)
+
+        self.specular = np.array(
+            (tint_r * self._specular_weight, tint_g * self._specular_weight,
+             tint_b * self._specular_weight, a), dtype=np.float32)
 
         self.shininess = self._shine
         self.emissive = np.array(self._emissive, dtype=np.float32)
@@ -73,41 +126,40 @@ class GLMaterial:
     @property
     @_check_types.do
     def cl_array(self):
-        """Return the cl array.
+        """Return this material packed for the offline ray tracer.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Layout matches ``ray_tracing/kernel.cl``'s ``Material`` struct
+        exactly: ``r, g, b, ambient, diffuse, specular, shininess,
+        metallic, roughness, reflectivity, transparency, ior``.
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :returns: The 12-float material record the ray tracer expects.
+        :rtype: numpy.ndarray
         """
         r, g, b, a = self._color.rgba_scalar
 
         return np.array(
-            [r, g, b, self._cl_ambient, self._cl_diffuse, self._cl_specular,
-             self._cl_shininess, self._cl_metallic, self._cl_roughness,
-             self._cl_reflectivity, a, self._cl_ior], dtype=np.float32)
+            [r, g, b, self._ambient_weight, self._diffuse_weight,
+             self._specular_weight, self._shine, self._metallic,
+             self._cl_roughness, self._cl_reflectivity, a,
+             self._cl_ior], dtype=np.float32)
 
     @property
     @_check_types.do
     def color_scalar(self):
-        """Return the color scalar.
+        """Return the material's true color, unmodified by lighting.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :returns: RGBA scalar tuple in 0.0-1.0.
+        :rtype: tuple[float, float, float, float]
         """
         return self._color.rgba_scalar
 
     @property
     @_check_types.do
     def is_opaque(self):
-        """Return the is opaque.
+        """Report whether this material's color is fully opaque.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :returns: ``True`` when alpha is 1.0.
+        :rtype: bool
         """
         return self._is_opaque
 
@@ -118,12 +170,6 @@ class GLMaterial:
         :param program: The faces or edges program currently bound via
             ``with program:``.
         """
-
-        # if self.is_opaque:
-        #     GL.glDepthMask(GL.GL_TRUE)
-        #
-        # else:
-        #     GL.glDepthMask(GL.GL_FALSE)
 
         program.material_ambient = self.ambient
         program.material_diffuse = self.diffuse

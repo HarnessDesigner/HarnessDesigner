@@ -9,6 +9,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
 from ..global_db import bundle_cover as _bundle_cover
 from ...geometry import line as _line
+from ...geometry import point as _point
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
     PartMixin,
@@ -156,7 +157,28 @@ class PJTBundlesTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(self, part_id=part_id, name=name)
 
-        return PJTBundle(self, db_id)
+        db_obj = PJTBundle(self, db_id)
+
+        # See PJTHousingsTable.insert's own comment -- same wiring, every
+        # anchor type that can own a peg-board data-table overlay gets
+        # its own row created right here. A bundle has no single
+        # position_pegboard of its own (StartStopPositionPegboardMixin,
+        # not PositionPegboardMixin -- it runs between two points, not
+        # one), so the placeholder position is the midpoint of its own
+        # just-lazily-created start/stop peg-board points instead.
+        from . import pjt_pegboard_table as _pjt_pegboard_table
+
+        start = db_obj.start_position_pegboard
+        stop = db_obj.stop_position_pegboard
+        mid_x = (start.x + stop.x) / 2.0
+        mid_z = (start.z + stop.z) / 2.0
+
+        table_point_id = db_obj.table_position_peg_id
+        self.db.pjt_pegboard_tables_table.insert(
+            table_point_id, _point.Point(mid_x, 0.0, mid_z),
+            _pjt_pegboard_table.DEFAULT_TABLE_WIDTH, _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
+
+        return db_obj
 
 
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,

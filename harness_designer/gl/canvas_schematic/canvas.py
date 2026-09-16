@@ -89,6 +89,24 @@ class Canvas(_canvas_base.CanvasBase):
     def _get_view_object(obj):
         return obj.objschematic
 
+    @_check_types.do
+    def add_object(self, obj):
+        """See ``objects.objects_schematic.wire_reroute.on_wire_attached``
+        -- a wire with a dangling (not fully Terminal/Splice-connected)
+        end is never drawn or picked in the schematic view; it gets
+        registered here for real once ``on_wire_attached`` calls back in
+        after both ends attach. Guarded against a duplicate entry since
+        that later call re-invokes this rather than assuming the wire was
+        never registered.
+        """
+        if obj.is_wire and not obj.is_connected:
+            return
+
+        if obj in self._objects:
+            return
+
+        super().add_object(obj)
+
     @property
     @_check_types.do
     def light_position(self) -> np.ndarray:

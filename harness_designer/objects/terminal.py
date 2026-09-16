@@ -7,6 +7,8 @@ from . import ObjectBase as _ObjectBase
 from .objects_schematic import terminal as _terminal_schematic
 from .objects_3d import terminal as _terminal_3d
 from .objects_pegboard import terminal as _terminal_pegboard
+from .objects_pegboard import base_pegboard as _base_pegboard
+from .objects_schematic import wire_reroute as _wire_reroute
 from . import wire_layout as _wire_layout
 from ..geometry import point as _point
 from .. import check_types as _check_types
@@ -225,6 +227,14 @@ class Terminal(_ObjectBase):
 
         wire.set_sibling(self, end)
         self._wire_refs.append(weakref.ref(wire))
+
+        _wire_reroute.on_wire_attached(project, wire)
+
+        cavity_db = self.db_obj.cavity
+        if cavity_db is not None:
+            cavity_obj = cavity_db.get_object()
+            if cavity_obj is not None and cavity_obj.housing is not None:
+                _base_pegboard.notify_table_wires_changed(cavity_obj.housing.db_obj)
 
         return True
 

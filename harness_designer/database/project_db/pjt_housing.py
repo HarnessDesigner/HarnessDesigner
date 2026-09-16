@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     # from . import pjt_accessory as _pjt_accessory
     from . import pjt_point3d as _pjt_point3d
     from . import pjt_terminal as _pjt_terminal
+    from . import pjt_wire as _pjt_wire
     from ..global_db import housing as _housing
     from ...objects import housing as _housing_obj
 
@@ -257,6 +258,22 @@ class PJTHousingsTable(PJTTableBase):
                                     part_id=part_id)
 
         db_obj = PJTHousing(self, db_id)
+
+        # Every anchor type that can own a peg-board data-table overlay
+        # gets its own row created right here, at insert time -- not
+        # lazily on first "Show Table" click (see ``objects_pegboard.
+        # base_pegboard.BasePegboard.show_table``, which still handles a
+        # legacy row from before this wiring existed). Placed at this
+        # housing's own just-created position -- no live view/AABB data
+        # is available at this DB layer for a real obstacle-avoiding
+        # search (see ``objects.objects_pegboard.table_placement``),
+        # so this is a naive placeholder the user can drag elsewhere.
+        from . import pjt_pegboard_table as _pjt_pegboard_table
+
+        table_point_id = db_obj.table_position_peg_id
+        self.db.pjt_pegboard_tables_table.insert(
+            table_point_id, _point.Point(position_pegboard.x, 0.0, position_pegboard.z),
+            _pjt_pegboard_table.DEFAULT_TABLE_WIDTH, _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
 
         point3d = _point.Point(position3d.x, position3d.y, position3d.z)
 
@@ -836,6 +853,52 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         self._stored_cavities = cavities
         return cavities
+
+    @property
+    @_check_types.do
+    def wires(self) -> list["_pjt_wire.PJTWire"]:
+        """Return every wire seated in one of this housing's own
+        cavities' terminals.
+
+        Same ``wires`` API point every anchor type that can own a peg-
+        board data-table overlay exposes identically (see
+        ``pjt_bundle.PJTBundle.wires``/``pjt_transition.
+        PJTTransition.wires``/``pjt_transition_branch.
+        PJTTransitionBranch.wires``) -- ``objects.objects_pegboard.
+        pegboard_table`` reads this without needing to know which
+        concrete anchor type it's actually attached to.
+
+        :returns: Wires seated in this housing.
+        :rtype: list[:class:`_pjt_wire.PJTWire`]
+        """
+        res = []
+
+        for cavity in self.cavities:
+            terminal = cavity.terminal
+            if terminal is None:
+                continue
+
+            # attach_position3d_id -- NOT wire_position3d_id -- is the
+            # wire's own actual start_point3d_id/stop_point3d_id once
+            # seated (see objects.terminal.Terminal.add_wire, which sets
+            # wire.db_obj.start/stop_position3d_id straight to this
+            # terminal's own attach_position3d_id). wire_position3d_id
+            # becomes an INTERIOR WAYPOINT on that same wire instead
+            # (tagged with its own wire_id there), never the wire's own
+            # start/stop -- matching against it here found nothing
+            # (confirmed 2026-09-16: zero wires listed for a housing
+            # with one real wire attached).
+            point_id = terminal.attach_position3d_id_raw
+            if point_id is None:
+                continue
+
+            wires_table = self._table.db.pjt_wires_table
+            for row in wires_table.select('id', start_point3d_id=point_id):
+                res.append(wires_table[row[0]])
+            for row in wires_table.select('id', stop_point3d_id=point_id):
+                res.append(wires_table[row[0]])
+
+        return res
 
     _stored_cavity_geometry: dict = None
 

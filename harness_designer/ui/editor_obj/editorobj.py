@@ -115,7 +115,25 @@ class EditorObjPanel(QtWidgets.QWidget):
                 self.control.set_obj(None)
                 self.control = None
         else:
-            control = obj.db_obj.table.control
+            # Not every selectable object type has a properties-editor
+            # tab of its own (e.g. a peg-board floating data table --
+            # PJTPegboardTablesTable has no .control at all, by design:
+            # its own context menu/drag/resize already cover everything
+            # it has to configure). Treat that the same as obj is None
+            # above -- clear whatever was showing and stop -- rather
+            # than assuming every db_obj.table exposes .control.
+            control = getattr(obj.db_obj.table, 'control', None)
+            if control is None:
+                if self.control is not None:
+                    self.control.hide()
+                    self.sizer.removeWidget(self.control)
+                    self.control.setParent(self.mainframe)
+                    self.control.set_obj(None)
+                    self.control = None
+
+                self.updateGeometry()
+                return
+
             control.set_obj(obj.db_obj)
             control.setParent(self)
 

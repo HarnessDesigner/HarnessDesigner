@@ -503,14 +503,23 @@ Contents/structure of the `harness_designer/` package.
     headlight shading term was added to `faces.py`'s fragment shader
     2026-08-23 (previously a confirmed no-op: the uniforms didn't exist in
     the GLSL at all).
-- `materials/`:
-  - material 
-  - generic 
-  - glowing 
-  - metallic 
-  - plastic 
-  - polished 
-  - rubber
+- `materials/`: weight-based material system (rewritten 2026-09-15, see
+  MEMORY.md "Material system rewrite" for the full root-cause/design
+  writeup) -- every material type is just scalar weights
+  (`_ambient_weight`/`_diffuse_weight`/`_specular_weight`/`_metallic`/
+  `_shine`, plus `_cl_roughness`/`_cl_reflectivity`/`_cl_ior` for the
+  offline ray tracer) applied directly to the caller's `Color`, never a
+  separate hand-picked ambient/diffuse/specular RGB triple -- this is
+  what keeps the on-screen color matching the color that was asked for
+  - `material.py`: `GLMaterial` base -- computes ambient/diffuse as the
+    true color times a scalar (hue can't shift), specular as a
+    per-channel lerp between neutral white and the true color driven by
+    `_metallic` (a metal's tinted highlight is the only place hue can
+    move, confined to the shininess-exponent hot spot)
+  - `generic.py` / `plastic.py` / `metallic.py` / `polished.py` /
+    `rubber.py`: each just declares that class's weights; no per-class
+    `__init__` override needed anymore
+  - `glowing.py`: adds the emissive term on top of the same base fill
 - `model_preview/canvas.py`: small preview canvas
 
 ## `ui/`

@@ -83,8 +83,7 @@ class Terminal(_base.AddHandlerBase):
         from ...objects.objects_schematic import cavity as _cavity_schematic
 
         picked = _object_picker.find_object(
-            mouse_pos, self.mainframe.editor2d.editor.objects,
-            self.camera, self._get_view_object)
+            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
 
         if not isinstance(picked, _cavity_schematic.Cavity):
             return

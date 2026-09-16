@@ -7,18 +7,19 @@ Single entry point: :func:`route`, given a project and a wire's two
 world (x, z) endpoints, returns the minimal list of interior bend
 points for a path that:
 
-- never crosses a housing (a hard obstacle), and
+- never crosses a housing, a splice, or a note (hard obstacles), and
 - never runs along the same lane as another already-connected wire's
   segment (crossing it at a right angle is fine).
 
 Routing happens on a *compressed* grid rather than a uniform one: the
 grid lines always include the two endpoints exactly (so nothing needs
-snapping/stub-connecting) plus every nearby housing edge, with uniform
-``Config.editor_schematic.layout.routing_grid``-spaced lines filled in between
-for room to jog around obstacles. A* (4-directional, with a bend-cost
-penalty so straighter runs are preferred) finds the path; consecutive
-non-turning nodes are then collapsed away, so a wire that doesn't need
-to bend at all comes back with an empty waypoint list.
+snapping/stub-connecting) plus every nearby obstacle's edges, with
+uniform ``Config.editor_schematic.layout.routing_grid``-spaced lines
+filled in between for room to jog around obstacles. A* (4-directional,
+with a bend-cost penalty so straighter runs are preferred) finds the
+path; consecutive non-turning nodes are then collapsed away, so a wire
+that doesn't need to bend at all comes back with an empty waypoint
+list.
 """
 
 import heapq
@@ -42,13 +43,42 @@ _EPS = 1e-6
 
 
 @_check_types.do
-def _housing_rects(project: "_project.Project") -> list[tuple[float, float, float, float]]:
-    """Every housing's world AABB (``(min_x, min_z, max_x, max_z)``) --
-    the hard obstacles a routed path may never cross.
+def _obstacle_rects(project: "_project.Project", ignore_wire=None
+                    ) -> list[tuple[float, float, float, float]]:
+    """Every housing's/splice's/note's world AABB
+    (``(min_x, min_z, max_x, max_z)``) -- the hard obstacles a routed
+    path may never cross. A splice's (small, circular) footprint and a
+    note's (text-label) footprint are both real ``BaseSchematic``-backed
+    objects with their own AABB, exactly like a housing's -- same
+    ``get_bounds()`` call, nothing splice/note-specific needed here.
+
+    :param ignore_wire: Excludes any splice *ignore_wire* is directly
+        attached to (``start_sibling``/``stop_sibling``) from the
+        obstacle list. Unlike a housing (whose real attach point -- a
+        terminal's own stub -- always sits outside the housing's body),
+        a wire's own fixed end sits exactly AT its splice's centre, deep
+        inside that splice's own AABB -- ``segment_blocked`` tests a
+        dragged segment's *own* bounding points directly (unlike
+        ``_astar``, which only ever tests a path's interior/neighboring
+        nodes against these rects, never the wire's own start/goal), so
+        without this exclusion, every segment next to a splice-attached
+        wire would read as permanently blocked by its own splice.
     """
     rects = []
     for housing in project.housings:
         bounds = housing.objschematic.get_bounds()
+        if bounds is not None:
+            rects.append(bounds)
+
+    for splice in project.splices:
+        if ignore_wire is not None and splice in (ignore_wire.start_sibling, ignore_wire.stop_sibling):
+            continue
+        bounds = splice.objschematic.get_bounds()
+        if bounds is not None:
+            rects.append(bounds)
+
+    for note in project.notes:
+        bounds = note.objschematic.get_bounds()
         if bounds is not None:
             rects.append(bounds)
 
@@ -99,8 +129,8 @@ def _build_axis(a: float, b: float, extra_lines: list[float], margin: float,
 
 @_check_types.do
 def _node_blocked(x: float, z: float, rects: list[tuple[float, float, float, float]]) -> bool:
-    """Whether grid point *(x, z)* falls strictly inside any housing
-    rect -- a boundary line (used to hug alongside a housing) is fine.
+    """Whether grid point *(x, z)* falls strictly inside any obstacle
+    rect -- a boundary line (used to hug alongside an obstacle) is fine.
     """
     for min_x, min_z, max_x, max_z in rects:
         if min_x + _EPS < x < max_x - _EPS and min_z + _EPS < z < max_z - _EPS:
@@ -110,12 +140,12 @@ def _node_blocked(x: float, z: float, rects: list[tuple[float, float, float, flo
 
 
 @_check_types.do
-def _edge_crosses_housing(x1: float, z1: float, x2: float, z2: float,
-                          rects: list[tuple[float, float, float, float]]) -> bool:
+def _edge_crosses_obstacle(x1: float, z1: float, x2: float, z2: float,
+                           rects: list[tuple[float, float, float, float]]) -> bool:
     """Whether the axis-aligned edge from *(x1, z1)* to *(x2, z2)*
-    (adjacent compressed-grid nodes, so it never straddles a housing
+    (adjacent compressed-grid nodes, so it never straddles an obstacle's
     boundary -- it's either entirely inside a rect's span on the shared
-    axis or entirely outside) cuts through any housing's interior.
+    axis or entirely outside) cuts through any obstacle's interior.
     """
     for min_x, min_z, max_x, max_z in rects:
         if z1 == z2:
@@ -174,9 +204,9 @@ def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tu
                     ignore_wire=None) -> bool:
     """Whether a single orthogonal edge from *p1* to *p2* (both ``(x, z)``
     world points, already known to be axis-aligned) is blocked -- crosses
-    a housing, or runs closer than ``Config.layout.wire_spacing`` to
-    another connected wire's own parallel lane over any overlapping
-    stretch.
+    a housing/splice/note, or runs closer than
+    ``Config.layout.wire_spacing`` to another connected wire's own
+    parallel lane over any overlapping stretch.
 
     The single-edge equivalent of what :func:`_astar` checks per grid
     step, exposed for a live interactive drag (see
@@ -184,7 +214,7 @@ def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tu
     against, without paying for a full A* search when the direct move is
     still legal.
     """
-    rects = _housing_rects(project)
+    rects = _obstacle_rects(project, ignore_wire=ignore_wire)
     segments = _wire_segments(project, ignore_wire=ignore_wire)
 
     x1, z1 = p1
@@ -193,7 +223,7 @@ def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tu
     if _node_blocked(x1, z1, rects) or _node_blocked(x2, z2, rects):
         return True
 
-    if _edge_crosses_housing(x1, z1, x2, z2, rects):
+    if _edge_crosses_obstacle(x1, z1, x2, z2, rects):
         return True
 
     if _edge_too_close_to_wire(x1, z1, x2, z2, segments):
@@ -220,9 +250,9 @@ def _astar(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_ij:
           segments: list[tuple[tuple[float, float], tuple[float, float]]]
           ) -> list[tuple[int, int]] | None:
     """4-directional A* over the compressed ``xs``/``zs`` grid, from
-    *start_ij* to *goal_ij*, blocked by *rects* (housings) and *segments*
-    (other wires' own lanes). Returns the node path (inclusive of both
-    ends), or ``None`` if unreachable.
+    *start_ij* to *goal_ij*, blocked by *rects* (housings/splices/notes)
+    and *segments* (other wires' own lanes). Returns the node path
+    (inclusive of both ends), or ``None`` if unreachable.
     """
     gx, gz = xs[goal_ij[0]], zs[goal_ij[1]]
 
@@ -261,7 +291,7 @@ def _astar(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_ij:
 
             if _node_blocked(x2, z2, rects):
                 continue
-            if _edge_crosses_housing(x1, z1, x2, z2, rects):
+            if _edge_crosses_obstacle(x1, z1, x2, z2, rects):
                 continue
             if _edge_too_close_to_wire(x1, z1, x2, z2, segments):
                 continue
@@ -307,19 +337,21 @@ def _collapse(path_xz: list[tuple[float, float]]) -> list[tuple[float, float]]:
 def route(project: "_project.Project", start: tuple[float, float], stop: tuple[float, float],
          ignore_wire=None) -> list[tuple[float, float]]:
     """Return the minimal list of interior ``(x, z)`` bend points for an
-    orthogonal path from *start* to *stop* that avoids every housing and
-    doesn't run along another connected wire's own lane (crossing one is
-    fine). Empty list if the two points are already reachable by a
-    straight horizontal/vertical run.
+    orthogonal path from *start* to *stop* that avoids every housing,
+    splice, and note, and doesn't run along another connected wire's own
+    lane (crossing one is fine). Empty list if the two points are
+    already reachable by a straight horizontal/vertical run.
 
     :param ignore_wire: The wire being (re-)routed, if it already exists
         as a row -- excluded from the "don't run along another wire"
-        check so it never blocks its own path.
+        check so it never blocks its own path, and from the obstacle
+        list for any splice it's directly attached to (see
+        :func:`_obstacle_rects`).
     """
     margin = Config.layout.housing_spacing
     pitch = Config.layout.routing_grid
 
-    rects = _housing_rects(project)
+    rects = _obstacle_rects(project, ignore_wire=ignore_wire)
     segments = _wire_segments(project, ignore_wire=ignore_wire)
 
     lo_x, hi_x = min(start[0], stop[0]) - margin, max(start[0], stop[0]) + margin

@@ -969,6 +969,19 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             self._shaders.vertices.projection = projection_matrix
             self._shaders.vertices.view = view_matrix
 
+        # ---------- Texture program (peg-board floating wire tables --
+        # see objects.objects_pegboard.pegboard_table.PegboardTable.render)
+        # -- unlit, no lighting/floor/reflection uniforms of its own, but
+        # still needs projection/view every frame like every other
+        # program above; left unset it defaults to an all-zero matrix
+        # (confirmed 2026-09-16 as why a table's quad rendered nothing at
+        # all -- every vertex collapsed through a zero transform instead
+        # of throwing, so nothing in the render loop's own per-object
+        # try/except ever caught it).
+        with self._shaders.texture:
+            self._shaders.texture.projection = projection_matrix
+            self._shaders.texture.view = view_matrix
+
     @_debug.logfunc
     @_check_types.do
     def _draw_scene(self, obj_data):

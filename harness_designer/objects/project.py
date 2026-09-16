@@ -115,6 +115,31 @@ def _reconcile_wire_sibling_graph(project: "Project") -> None:
 
 
 @_check_types.do
+def _register_connected_wires_in_schematic(project: "Project") -> None:
+    """Register every already-fully-connected wire with the schematic
+    canvas, once :func:`_reconcile_wire_sibling_graph` above has rebuilt
+    the sibling graph -- ``mainframe.add_object`` (called unconditionally
+    from every ``Wire.__init__``, including during this same load, well
+    before the reconciliation above runs) fans out to
+    ``gl.canvas_schematic.canvas.Canvas.add_object``, which skips
+    registering a wire that isn't fully connected yet (see
+    ``objects.objects_schematic.wire_reroute.on_wire_attached``'s own
+    docstring) -- during a reload every wire's sibling refs are still
+    unset at that point, so every wire gets skipped there regardless of
+    its real, persisted connection state. This is the catch-up pass.
+
+    Deliberately does not re-route: each wire's 2D path is already
+    persisted (``on_wire_attached`` only ever needs to run once, at the
+    moment a fresh attach genuinely completes the connection for the
+    first time) -- only the canvas registration needs to catch up here.
+    """
+    editor2d = project.mainframe.editor2d
+    for wire in project.wires:
+        if wire.is_connected:
+            editor2d.add_object(wire)
+
+
+@_check_types.do
 def _reconcile_bundle_sibling_graph(project: "Project") -> None:
     """Rebuild the in-memory sibling graph (Bundle <-> Transition) from
     persisted point-id matches, mirroring _reconcile_wire_sibling_graph
@@ -389,6 +414,7 @@ class Project:
         # matches (set_sibling/add_wire's own bookkeeping is weakrefs only,
         # nothing DB-persisted -- see objects.wire.Wire.set_sibling).
         _reconcile_wire_sibling_graph(self)
+        _register_connected_wires_in_schematic(self)
 
         count = _load_objects(
             ptables.pjt_bundles_table, 'Bundle',

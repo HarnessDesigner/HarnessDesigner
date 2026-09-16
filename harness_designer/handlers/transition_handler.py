@@ -19,6 +19,7 @@ from . import wire_handler as _wire_handler
 from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import bundle as _bundle
+from ..objects.objects_pegboard import base_pegboard as _base_pegboard
 from ..objects import wire as _wire
 from ..objects import wire_layout as _wire_layout
 from .. import utils as _utils
@@ -287,6 +288,13 @@ def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
 
     for idx, cw in enumerate(conc_wires):
         ptables.pjt_concentric_wires_table.insert(layer_db.db_id, idx, cw.wire_id, False)
+
+    # Notify both this branch's own table (PJTTransitionBranch.wires)
+    # and its owning transition's (PJTTransition.wires is the union of
+    # every branch's own) -- either may have a live table showing this
+    # branch's wires.
+    _base_pegboard.notify_table_wires_changed(branch_db)
+    _base_pegboard.notify_table_wires_changed(branch_db.transition)
 
 
 @_check_types.do

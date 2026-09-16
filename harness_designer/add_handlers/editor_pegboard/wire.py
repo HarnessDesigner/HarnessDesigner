@@ -43,6 +43,7 @@ from ...objects import terminal as _terminal
 from ...objects import splice as _splice
 from ...handlers import wire_snap as _wire_snap
 from ...handlers import wire_slack as _wire_slack
+from ...objects.objects_schematic import wire_reroute as _wire_reroute
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -287,14 +288,19 @@ class Wire(_base.AddHandlerBase):
                 self.target.objpegboard.set_start_position(branch_pegboard)
                 self.target.db_obj.start_position3d_id = obj.db_obj.branch_position3d_id
                 self.target.obj3d.set_start_position(branch3d)
+                self.target.db_obj.start_position2d_id = obj.db_obj.position2d_id
+                self.target.objschematic.set_start_position(obj.db_obj.position2d)
             else:
                 self.target.db_obj.stop_position_pegboard_id = obj.db_obj.branch_position_pegboard_id
                 self.target.objpegboard.set_stop_position(branch_pegboard)
                 self.target.db_obj.stop_position3d_id = obj.db_obj.branch_position3d_id
                 self.target.obj3d.set_stop_position(branch3d)
+                self.target.db_obj.stop_position2d_id = obj.db_obj.position2d_id
+                self.target.objschematic.set_stop_position(obj.db_obj.position2d)
 
             obj.add_wire(self.target)
             self.target.set_sibling(obj, end)
+            _wire_reroute.on_wire_attached(self.mainframe.project, self.target)
 
         # free space: the preview already left this end's peg-board
         # point wherever the user clicked (see hover/_set_growing_

@@ -6,7 +6,10 @@ from ... import check_types as _check_types
 
 @_check_types.do
 def compile(source, shader_type):  # NOQA
-    """Compile a shader"""
+    """
+    Compile a shader
+    """
+
     shader = GL.glCreateShader(shader_type)
     GL.glShaderSource(shader, source)
     GL.glCompileShader(shader)
