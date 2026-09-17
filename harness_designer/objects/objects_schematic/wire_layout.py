@@ -92,6 +92,64 @@ class WireLayout(_base_schematic.BaseSchematic):
         """
         return False
 
+    @_check_types.do
+    def _delete(self):
+        """Clean up this layout's own schematic bend before deleting --
+        see ``objects_3d.wire_layout.WireLayout._delete``/
+        ``objects_pegboard.wire_layout.WireLayout._delete`` (same
+        pattern, one more view) -- ``objects.object_base.ObjectBase
+        .delete`` calls every view's own ``_delete`` unconditionally
+        regardless of which one this particular row actually belongs to.
+        """
+        self._reconnect_wires()
+        super()._delete()
+
+    @_check_types.do
+    def _reconnect_wires(self):
+        """Remove this layout's own bend from whatever wire it sits on,
+        schematic side -- see
+        ``objects_3d.wire_layout.WireLayout._reconnect_wires``'s own
+        docstring for the full two-vs-one-wire reasoning; only the
+        table/column names differ (``position2d_id``/``waypoints2d``/
+        ``pjt_points2d_table``).
+
+        No-op when this layout isn't a schematic waypoint at all
+        (``position2d_id`` is ``None``), and (same caveat as the
+        peg-board version) when it's a genuine two-wire seam -- merging
+        two wires back into one here is
+        ``handlers.wire_topology.merge_wires``'s job, called directly by
+        whatever UI action actually removes a splice/service-loop, not
+        this generic per-view cleanup path.
+        """
+        point_id = self.db_obj.position2d_id
+        if point_id is None:
+            return
+
+        pjt_wires = self.db_obj.attached_wires
+        if len(pjt_wires) != 1:
+            return
+
+        ptables = self.mainframe.project.ptables
+        point = ptables.pjt_points2d_table[point_id]
+
+        if point.wire_id is None:
+            return
+
+        removed_idx = point.idx
+        wire_db = pjt_wires[0]
+        for waypoint in wire_db.waypoints2d:
+            if waypoint.idx > removed_idx:
+                waypoint.idx = waypoint.idx - 1
+
+        # PJTPoint2D.delete() refuses outright while is_referenced() is
+        # True -- and this point's own wire_id column, still pointing at
+        # THIS (very much still-alive) wire, counts as a reference on
+        # its own -- so without clearing it first, delete() would
+        # silently no-op, leaving this waypoint sitting in the database
+        # forever.
+        point.wire_id = None
+        point.delete()
+
     @property
     @_check_types.do
     def smooth(self) -> bool:

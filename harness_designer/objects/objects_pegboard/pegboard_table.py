@@ -166,10 +166,27 @@ class _TableInteractionHandler:
     interface -- a bare ``True`` sentinel (what this replaced) has no
     ``delete()`` and would raise ``AttributeError`` the moment the table
     is ever deleted while a drag/press is still armed.
+
+    ``render()`` is the same story, just for a different call site:
+    ``BasePegboard.render_handler`` (called once per frame by the
+    shared render loop's own deferred pass for whichever object is
+    currently selected) unconditionally calls
+    ``self._active_handler.render(shaders)`` whenever ``_active_handler``
+    is armed -- since :meth:`PegboardTable.set_selected` arms this
+    handler for the WHOLE selected duration (not just a drag), that
+    fires on every single frame the table is selected, not just while a
+    press/drag is in progress. A no-op here (this handler has nothing
+    of its own to draw -- the table's own ``render()`` already handles
+    everything) is what that call site needs; confirmed 2026-09-16 as
+    an ``AttributeError`` crash otherwise.
     """
 
     @_check_types.do
     def delete(self) -> None:
+        pass
+
+    @_check_types.do
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
 

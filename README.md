@@ -23,6 +23,14 @@ harness spread out.
 
 ## Screenshots
 
+Doing some work in the schematic editor, specifically automatic routing of the 
+wires when a housing is moved or when a wire is added.  
+![img_13.png](img_13.png)
+
+
+Doing some work on the pegboard editor... 
+![img_12.png](img_12.png)
+
 
 I reworked the rotation widget so it looks more professional and so it is a 
 more intuitive control. The original control looked almost cartoonish and
@@ -50,35 +58,6 @@ you can see the terminals, seals and wires inside of the connector. I even strip
 off the end of the wire where the crimp is made and it's all positioned like it 
 would be when the connector is assembled.
 ![img_9.png](img_9.png)
-
-The wires move when you move the connector or rotate the connector. Actually 
-everything that is apart of the connector "assembly" all moves and rotates keeping 
-orientation in tact.
-![img_10.png](img_10.png)
-
-
-
-![img_3.png](img_3.png)
-
-Object rotation with gimbal-lock-safe angle display:
-
-![img_4.png](img_4.png)
-
-64-pin housing with backshell/cover:
-
-![img_5.png](img_5.png)
-
----
-
-Recent Screenshots
-
-![img_6.png](img_6.png)
-
-
-New Pegboard View
-
-![img_7.png](img_7.png)
-
 
 ---
 

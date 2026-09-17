@@ -194,9 +194,19 @@ class WireLayout(_base_3d.Base3D):
         in reverse. A layout with zero here sits at an actual endpoint
         (handlers.wire_layout_handler._create_wire_layout_at_endpoint),
         never tagged as anyone's waypoint -- nothing to reconnect.
+
+        A layout placed in a DIFFERENT view (``position3d_id`` is
+        ``None`` -- e.g. a schematic-only auto-routed bend, see
+        ``wire_routing.reroute.reroute_wire``) has no 3D
+        representation to reconnect at all -- this whole method is 3D-
+        specific (splits/merges ``waypoints3d``), so it's a plain no-op
+        here rather than looking up a point id that doesn't exist.
         """
-        pjt_wires = self.db_obj.attached_wires
         point_id = self.db_obj.position3d_id
+        if point_id is None:
+            return
+
+        pjt_wires = self.db_obj.attached_wires
 
         if len(pjt_wires) == 2:
             objs = [pjt_wire.get_object() for pjt_wire in pjt_wires]
@@ -230,6 +240,15 @@ class WireLayout(_base_3d.Base3D):
                 waypoint.idx = waypoint.idx - 1
 
         wire_obj = wire_db.get_object()
+
+        # PJTPoint3D.delete() refuses outright while is_referenced() is
+        # True -- and this point's own wire_id column, still pointing at
+        # THIS (very much still-alive) wire, counts as a reference on
+        # its own -- so without clearing it first, delete() would
+        # silently no-op, leaving this waypoint sitting in the database
+        # forever (confirmed 2026-09-16 via the schematic-side
+        # equivalent of this exact method).
+        point.wire_id = None
         point.delete()
 
         if wire_obj is not None:

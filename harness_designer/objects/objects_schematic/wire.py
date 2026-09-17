@@ -442,7 +442,7 @@ class Wire(_base_schematic.BaseSchematic):
         # Orientation is read from the two ORIGINAL (possibly-fixed)
         # points, before either is promoted below -- every existing
         # segment is already exactly horizontal or vertical (the
-        # auto-router, objects_schematic/wire_routing.py, only ever produces
+        # auto-router, wire_routing/routing.py, only ever produces
         # orthogonal paths), so this is stable regardless of promotion.
         horizontal = abs(a_point.z - b_point.z) < 1e-6
 

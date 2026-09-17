@@ -8,7 +8,7 @@ from .objects_schematic import terminal as _terminal_schematic
 from .objects_3d import terminal as _terminal_3d
 from .objects_pegboard import terminal as _terminal_pegboard
 from .objects_pegboard import base_pegboard as _base_pegboard
-from .objects_schematic import wire_reroute as _wire_reroute
+from ..wire_routing import reroute as _wire_reroute
 from . import wire_layout as _wire_layout
 from ..geometry import point as _point
 from .. import check_types as _check_types

@@ -11,7 +11,7 @@ clearance for however many wires will need to route between them),
 snaps the result onto the routing grid and resolves any residual
 overlap, picks each housing's best 0/90/180/270 orientation by actually
 running the router against each candidate and comparing total routed
-length, then re-routes every wire for real (see ``wire_reroute.py``).
+length, then re-routes every wire for real (see ``wire_routing/reroute.py``).
 
 Repositions and re-rotates every housing/splice unconditionally --
 this is a deliberate, user-triggered whole-project command.
@@ -19,8 +19,8 @@ this is a deliberate, user-triggered whole-project command.
 
 from typing import TYPE_CHECKING, Union
 
-from . import wire_routing as _wire_routing
-from . import wire_reroute as _wire_reroute
+from ...wire_routing import routing as _wire_routing
+from ...wire_routing import reroute as _wire_reroute
 from ... import config as _config
 from ... import check_types as _check_types
 
@@ -288,7 +288,7 @@ def _score_rotation(project: "_project.Project", housing: "_housing_obj.Housing"
     """Total routed length + a per-bend penalty across every wire
     currently attached to *housing*, at its *current* angle2d -- lower
     is better. Does not persist any waypoints (unlike
-    ``wire_reroute.reroute_wire``) -- purely a scoring pass.
+    ``reroute.reroute_wire``) -- purely a scoring pass.
     """
     score = 0.0
     for wire in _wire_reroute.wires_attached_to(housing):

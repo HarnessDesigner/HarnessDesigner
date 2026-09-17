@@ -643,6 +643,20 @@ Contents/structure of the `harness_designer/` package.
 ## Other subsystems
 - `exporter/`: project export
   - `exporter.py`
+- `wire_routing/`: orthogonal (H/V-only) auto-routing for the 2D
+  schematic editor's wires (moved out of `objects/objects_schematic/`
+  2026-09-16, into its own top-level package)
+  - `routing.py`: the A* pathfinder itself -- `route()`, obstacle
+    (housing/splice/note) avoidance, wire-to-wire spacing, single entry
+    point for "give me an orthogonal path between these two points"
+  - `reroute.py`: the stateful orchestration layer built on `routing.py`
+    -- `reroute_wire()` (the single choke point that reconciles a
+    wire's persisted waypoint rows against a fresh route, moving what
+    it can reuse and only inserting/deleting the difference),
+    `on_wire_attached()` (the cross-editor "wire just became fully
+    connected" hook), `_terminal_exit_stub_point()` (the mandatory
+    straight-exit-off-a-terminal stub), `wires_attached_to()`/
+    `sweep_for_overlaps()` (drag-time helpers)
 - `geometry/`: 
   - point
   - line

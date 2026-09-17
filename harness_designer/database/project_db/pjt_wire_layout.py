@@ -133,29 +133,51 @@ class PJTWireLayoutsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, point3d_id: bytes = None,
+    def insert(self, point3d_id: bytes = None, point2d_id: bytes = None,
                point_pegboard_id: bytes = None) -> "PJTWireLayout":
         """Create a wire-layout row marking a waypoint in exactly one
         view -- pass whichever one point id the waypoint was placed in
-        (see the class docstring's exclusivity rule); the other stays
+        (see the class docstring's exclusivity rule); the other two stay
         ``NULL``.
 
         :param point3d_id: Identifier for the 3D waypoint point, when
             this waypoint was placed in the 3D view.
         :type point3d_id: bytes | None
+        :param point2d_id: Identifier for the schematic waypoint point,
+            when this waypoint was placed in the schematic view.
+        :type point2d_id: bytes | None
         :param point_pegboard_id: Identifier for the peg-board waypoint
             point, when this waypoint was placed in the peg-board view.
         :type point_pegboard_id: bytes | None
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTWireLayout`
         """
-        if (point3d_id is None) == (point_pegboard_id is None):
+        given = [v for v in (point3d_id, point2d_id, point_pegboard_id) if v is not None]
+        if len(given) != 1:
             raise ValueError(
-                'insert() takes exactly one of point3d_id/point_pegboard_id')
+                'insert() takes exactly one of point3d_id/point2d_id/point_pegboard_id')
 
         db_id = PJTTableBase.insert(
-            self, point3d_id=point3d_id, point_pegboard_id=point_pegboard_id)
+            self, point3d_id=point3d_id, point2d_id=point2d_id,
+            point_pegboard_id=point_pegboard_id)
         return PJTWireLayout(self, db_id)
+
+    @_check_types.do
+    def for_point2d_id(self, point2d_id: bytes) -> Union["PJTWireLayout", None]:
+        """Return the wire-layout row whose schematic position is
+        *point2d_id*, or ``None`` if no row references it -- mirrors
+        :meth:`for_point_pegboard_id` exactly, schematic side.
+
+        :param point2d_id: The waypoint's own row id.
+        :type point2d_id: bytes
+        :returns: The matching layout row, or ``None``.
+        :rtype: PJTWireLayout | None
+        """
+        rows = self.select('id', point2d_id=point2d_id)
+        if not rows:
+            return None
+
+        return self[rows[0][0]]
 
     @_check_types.do
     def for_point_pegboard_id(self, point_pegboard_id: bytes) -> Union["PJTWireLayout", None]:

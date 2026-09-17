@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING, Union
 
 import build123d
+import numpy as np
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 
@@ -23,9 +24,11 @@ from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
+from ...geometry import cavity_layout as _cavity_layout
 from ...shapes import text as _text
 from ...shapes import cylinder as _cylinder
 from ...handlers import terminal_handler as _terminal_handler
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -103,6 +106,13 @@ class Terminal(_base_schematic.BaseSchematic):
     _parent: "_terminal.Terminal" = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
+    # Cached housing-local geometry (own hit-test box -- see
+    # geometry.cavity_layout.CavityGeometry.terminal_obb) -- mirrors
+    # objects_schematic/cavity.py's Cavity._geometry exactly, same
+    # source (PJTHousing.cavity_geometry, keyed by this terminal's own
+    # seated cavity's id).
+    _geometry: _cavity_layout.CavityGeometry | None = None
+
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
                  db_obj: "_pjt_terminal.PJTTerminal"):
@@ -129,6 +139,8 @@ class Terminal(_base_schematic.BaseSchematic):
             cavity_geometry = housing.cavity_geometry.get(cavity.db_id)
             if cavity_geometry is None:
                 raise RuntimeError('This should not happen')
+
+            self._geometry = cavity_geometry
 
             # The terminal's own hit-test box (geometry.cavity_layout.
             # terminal_hit_box, "the text area inside the cavity rectangle")
@@ -338,29 +350,63 @@ class Terminal(_base_schematic.BaseSchematic):
         return housing_obj.objschematic
 
     @_check_types.do
+    def _local_to_world(self, local_x: float, local_z: float) -> _point.Point:
+        """Rotate+translate a housing-local ``(local_x, 0, local_z)``
+        point by the owning housing's own LIVE position/angle -- same
+        as ``objects_schematic/cavity.py``'s ``Cavity._local_to_world``.
+        """
+        housing = self.housing
+
+        points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
+        wx, wy, wz = _base_schematic._rotate_about_y(points, housing.angle.y)[0]  # NOQA
+
+        return _point.Point(
+            housing.position.x + float(wx),
+            housing.position.y + float(wy),
+            housing.position.z + float(wz))
+
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """
         Re-derive the "(" bracket's own world position and the
         wire-stub cylinder's own world start/angle/scale from this
-        cavity's own precomputed housing-local geometry, rotated and
-        translated by the owning housing's CURRENT position/angle --
-        mirrors the same bracket/cylinder math ``__init__`` runs once
-        at construction. Needed because a housing move pushes a new
-        ``position2d`` here (see
-        ``database/project_db/pjt_housing.py``'s
+        terminal's own precomputed housing-local geometry
+        (:attr:`_geometry`), rotated and translated by the owning
+        housing's CURRENT position/angle -- mirrors the same
+        bracket/cylinder math ``__init__`` runs once at construction.
+        Needed because a housing move pushes a new ``position2d`` here
+        (see ``database/project_db/pjt_housing.py``'s
         ``PJTHousing._update_position2d``), but the bracket/cylinder
-        aren't bound to that Point themselves -- unlike this
-        terminal's own name label (``self._position``), they'd
-        otherwise go stale.
+        aren't bound to that Point themselves -- unlike this terminal's
+        own name label (``self._position``), they'd otherwise go stale.
+
+        A full re-derivation via :meth:`_local_to_world`, NOT a cheap
+        ``+= delta`` translate of the previous value -- a housing
+        ROTATION is modeled as a rotate-about-pivot POSITION push here
+        too (see ``PJTHousing._update_angle2d`` -- a seated terminal has
+        no ``angle2d`` of its own), so this fires for a rotate exactly
+        the same way it fires for a plain move, and a plain translate-
+        by-delta is only correct for the latter -- applying it to the
+        former silently rotates the bracket/cylinder's own OFFSET from
+        this terminal's anchor by nothing at all, leaving them pointing
+        the pre-rotation direction (confirmed 2026-09-16: this is what
+        let a wire's mandatory straight terminal-exit stub end up
+        pointing back INTO the terminal after a housing move, since the
+        stub direction is derived straight from these two points -- see
+        ``wire_routing.reroute._terminal_exit_stub_point``).
         """
 
-        delta = position - self._o_position
-
         with self._bracket_position:
-            self._bracket_position += delta
+            fresh = self._local_to_world(*self._geometry.bracket_position)
+            self._bracket_position.x = fresh.x
+            self._bracket_position.y = fresh.y
+            self._bracket_position.z = fresh.z
 
         with self._cylinder_start:
-            self._cylinder_start += delta
+            fresh = self._local_to_world(*self._geometry.cylinder_start)
+            self._cylinder_start.x = fresh.x
+            self._cylinder_start.y = fresh.y
+            self._cylinder_start.z = fresh.z
 
         line = _line.Line(self._cylinder_start, self._wire_position)
         self._cylinder_angle = line.get_angle(self._cylinder_start)
@@ -370,6 +416,16 @@ class Terminal(_base_schematic.BaseSchematic):
 
         super()._update_position(position)
 
+        # The inherited generic _update_position above only ever applies
+        # a cheap in-place translate to self._obb/self._aabb (correct for
+        # a pure move, wrong for a housing ROTATION-as-position-delta --
+        # see objects_schematic/cavity.py's Cavity._update_position for
+        # the identical reasoning) -- re-derive this terminal's own
+        # hit-test box fresh from the owning housing's CURRENT position/
+        # angle instead, same as Cavity does.
+        self._compute_obb()
+        self._compute_aabb()
+
     @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
         """
@@ -377,23 +433,25 @@ class Terminal(_base_schematic.BaseSchematic):
         rotation pushes a new ``position2d`` for a seated terminal (see
         ``PJTHousing._update_angle2d``), not a new ``angle2d``, so this
         rarely fires from a housing rotate in practice -- included
-        defensively anyway.
+        defensively anyway. Same full re-derivation via
+        :meth:`_local_to_world` as :meth:`_update_position` too, rather
+        than the previous undo-old-angle/apply-new-angle approach --
+        simpler, and can't compound drift from whatever state
+        ``_bracket_position``/``_cylinder_start`` happened to already be
+        in.
         """
 
-        inverse_angle = self._o_angle.inverse
-        housing = self.housing
-
         with self._bracket_position:
-            self._bracket_position -= housing.position
-            self._bracket_position @= inverse_angle
-            self._bracket_position @= angle
-            self._bracket_position += housing.position
+            fresh = self._local_to_world(*self._geometry.bracket_position)
+            self._bracket_position.x = fresh.x
+            self._bracket_position.y = fresh.y
+            self._bracket_position.z = fresh.z
 
         with self._cylinder_start:
-            self._cylinder_start -= housing.position
-            self._cylinder_start @= inverse_angle
-            self._cylinder_start @= angle
-            self._cylinder_start += housing.position
+            fresh = self._local_to_world(*self._geometry.cylinder_start)
+            self._cylinder_start.x = fresh.x
+            self._cylinder_start.y = fresh.y
+            self._cylinder_start.z = fresh.z
 
         line = _line.Line(self._cylinder_start, self._wire_position)
         self._cylinder_angle = line.get_angle(self._cylinder_start)
@@ -419,6 +477,53 @@ class Terminal(_base_schematic.BaseSchematic):
                                    center_anchor=True)
 
         super()._update_angle(angle)
+
+        # See _update_position's own comment -- same reasoning.
+        self._compute_obb()
+        self._compute_aabb()
+
+    @_check_types.do
+    def _compute_obb(self):
+        """Derive this terminal's own hit-test OBB from
+        :attr:`_geometry`'s own ``terminal_obb`` (housing-local,
+        unrotated -- the text area inside the cavity rectangle, fixed
+        regardless of this specific terminal's own rendered name/
+        bracket/wire-stub extents), rotated by the owning housing's own
+        current angle -- mirrors
+        ``objects_schematic/cavity.py``'s ``Cavity._compute_obb``
+        exactly, same reasoning (this terminal's own ``self._angle``
+        plays no part -- always identity, see the class docstring).
+        """
+        if self._vbo is None or self._geometry is None:
+            return
+
+        housing = self.housing
+        if housing is None:
+            return
+
+        local = self._geometry.terminal_obb.copy()
+        local @= housing.angle
+        self._obb = local + housing.position
+
+    @_check_types.do
+    def _compute_aabb(self):
+        """Same corners as :meth:`_compute_obb` -- see its docstring."""
+        if self._vbo is None or self._geometry is None:
+            return
+
+        housing = self.housing
+        if housing is None:
+            return
+
+        corners = self._geometry.terminal_obb.copy()
+        corners @= housing.angle
+        corners += housing.position.as_numpy
+
+        aabb = _utils.adjust_aabb(corners)
+
+        for i in range(2):
+            for j in range(3):
+                self._aabb[i][j] = aabb[i][j]
 
     @_check_types.do
     def render(self, shaders):

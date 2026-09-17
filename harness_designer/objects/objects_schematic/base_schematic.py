@@ -342,7 +342,7 @@ class BaseSchematic(_objectsvar.BaseVar):
 
     @_check_types.do
     def _is_visible_callback(self, *_, **__):
-        self._is_visible = self.db_obj.is_visible_schematic  # NOQA
+        self._is_visible = self.db_obj.is_visible2d  # NOQA
         self.mainframe.editor2d.Refresh()
 
     @property

@@ -127,8 +127,8 @@ class Housing(_base_schematic.BaseSchematic):
             cavity_extent = stack_geometry.cavity_extent
             housing_width = stack_geometry.housing_width
 
-            x = (housing_width / 2.0) - padding - (width / 2.0)
-            z = (cavity_extent / 2.0) - padding - (height / 2.0)
+            x = (housing_width / 2.0) - (padding * 2) - (width / 2.0)
+            z = (cavity_extent / 2.0) - (padding * 2) - (height / 2.0)
 
             self._text_position = _point.Point(x, 0.0, z)
 

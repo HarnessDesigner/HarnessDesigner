@@ -5,7 +5,7 @@
 Every schematic wire is a strictly orthogonal (horizontal/vertical-only)
 chain of points: its true start, zero or more interior waypoints (each a
 real ``WireLayout``), and its true stop -- consecutive segments always
-alternate H/V (see ``objects_schematic.wire_routing``, the auto-router
+alternate H/V (see ``wire_routing.routing``, the auto-router
 that lays this out in the first place).
 
 Only a segment fully bounded by two real waypoints (not the wire's own
@@ -30,7 +30,7 @@ Two things happen live, every move:
   the drag moves back past straight. The actual DB delete only happens
   once, on release, for whichever side(s) are still collapsed then.
 - **Obstacle clamp.** Every candidate move is checked against
-  ``wire_routing.segment_blocked`` (crosses a housing, or runs closer
+  ``routing.segment_blocked`` (crosses a housing, or runs closer
   than ``Config.layout.wire_spacing`` to another connected wire's own
   parallel lane) before being applied -- a blocked candidate is
   rejected outright (the segment stops at the last legal position)
@@ -44,7 +44,7 @@ import math
 from typing import TYPE_CHECKING
 
 from .. import editor_schematic as _editor_schematic
-from ...objects.objects_schematic import wire_routing as _wire_routing
+from ...wire_routing import routing as _wire_routing
 from ...database.project_db import pjt_wire as _pjt_wire
 from ...geometry import point as _point
 from ... import debug as _debug
@@ -76,7 +76,7 @@ class WireSegmentDragPlan:
     :ivar waypoint_near: The ``pjt_points2d`` row backing ``p_near`` --
         the actual row deleted on release if that side ends up
         collapsed (``layout_near`` only owns the marker, not the point
-        row itself -- see ``objects_schematic.wire_reroute.reroute_wire``'s
+        row itself -- see ``wire_routing.reroute.reroute_wire``'s
         own delete-layout-then-delete-point pattern, mirrored exactly on
         commit here).
     :ivar waypoint_far: Same, for ``p_far``/the far side.
@@ -247,7 +247,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         drag) -- both the WireLayout marker (proper facade teardown when
         one was found at drag-arm; a raw delete_layouts_at() sweep as a
         defensive fallback otherwise -- mirrors
-        ``wire_reroute.reroute_wire``'s own blind sweep, used there
+        ``wire_routing.reroute.reroute_wire``'s own blind sweep, used there
         because it never holds a live facade reference to begin with)
         and its backing pjt_points2d row. Anything not collapsed keeps
         its own already-live position -- no full reroute() call needed,

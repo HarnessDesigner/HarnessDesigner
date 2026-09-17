@@ -727,7 +727,7 @@ class Config(metaclass=ConfigDB):
         class layout(metaclass=ConfigDB):
             """
             Orthogonal auto-router geometry (mm) --
-            objects_schematic.wire_routing/wire_reroute/auto_arrange.
+            wire_routing.routing/reroute, objects_schematic.auto_arrange.
             """
 
             # Clearance kept between a routed path and a housing's own
@@ -742,6 +742,14 @@ class Config(metaclass=ConfigDB):
             # each other -- wires may cross (a perpendicular crossing is
             # always fine), but never run the same lane closer than this.
             wire_spacing = 3.0
+
+            # Minimum straight run a wire must make, in its terminal's
+            # own wire-stub-cylinder direction, before its first bend --
+            # keeps a wire clear of neighboring terminals' own wire
+            # attachment points instead of turning immediately off the
+            # terminal. Only applies to a terminal-attached end (a
+            # splice has no fixed exit direction of its own).
+            terminal_stub_length = 2.0
 
         class drag_handler(metaclass=ConfigDB):
             mode = ''

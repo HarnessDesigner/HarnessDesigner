@@ -91,7 +91,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def add_object(self, obj):
-        """See ``objects.objects_schematic.wire_reroute.on_wire_attached``
+        """See ``wire_routing.reroute.on_wire_attached``
         -- a wire with a dangling (not fully Terminal/Splice-connected)
         end is never drawn or picked in the schematic view; it gets
         registered here for real once ``on_wire_attached`` calls back in

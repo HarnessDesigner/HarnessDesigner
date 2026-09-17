@@ -275,7 +275,7 @@ class Cavity(_base_schematic.BaseSchematic):
            just shifting, to track that correctly.
         """
         super()._update_position(position)
-        # self._rebuild_geometry()
+        self._rebuild_geometry()
 
     @_check_types.do
     def _update_angle(self, angle: _angle.Angle):
@@ -286,7 +286,7 @@ class Cavity(_base_schematic.BaseSchematic):
         ``Terminal`` doing the same.
         """
         super()._update_angle(angle)
-        # self._rebuild_geometry()
+        self._rebuild_geometry()
 
     @_check_types.do
     def render(self, shaders):

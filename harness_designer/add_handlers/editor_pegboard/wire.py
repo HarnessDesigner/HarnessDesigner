@@ -43,7 +43,7 @@ from ...objects import terminal as _terminal
 from ...objects import splice as _splice
 from ...handlers import wire_snap as _wire_snap
 from ...handlers import wire_slack as _wire_slack
-from ...objects.objects_schematic import wire_reroute as _wire_reroute
+from ...wire_routing import reroute as _wire_reroute
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config

@@ -123,7 +123,7 @@ def _register_connected_wires_in_schematic(project: "Project") -> None:
     before the reconciliation above runs) fans out to
     ``gl.canvas_schematic.canvas.Canvas.add_object``, which skips
     registering a wire that isn't fully connected yet (see
-    ``objects.objects_schematic.wire_reroute.on_wire_attached``'s own
+    ``wire_routing.reroute.on_wire_attached``'s own
     docstring) -- during a reload every wire's sibling refs are still
     unset at that point, so every wire gets skipped there regardless of
     its real, persisted connection state. This is the catch-up pass.

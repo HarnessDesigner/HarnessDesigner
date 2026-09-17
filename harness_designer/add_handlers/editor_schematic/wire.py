@@ -8,7 +8,7 @@ drawing tool at all: every session starts pinned to a Terminal or
 Splice (the real ``Wire`` facade is built synchronously in
 ``objects.objects_schematic.wire.Wire.start_add``, so there is no
 placeholder-preview phase here either), and the path between the two
-ends is always auto-routed (``objects_schematic.wire_routing``), never
+ends is always auto-routed (``wire_routing.routing``), never
 hand-drawn -- the live preview during hover is just a straight line to
 the cursor, real orthogonal geometry only gets computed once, on the
 second click.
@@ -24,7 +24,7 @@ from ...handlers import wire_snap as _wire_snap
 from ...geometry import point as _point
 from ...objects import terminal as _terminal
 from ...objects import splice as _splice
-from ...objects.objects_schematic import wire_reroute as _wire_reroute
+from ...wire_routing import reroute as _wire_reroute
 from .. import base as _base
 from ... import check_types as _check_types
 

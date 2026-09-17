@@ -10,8 +10,8 @@ position maps unambiguously to a world X/Z position -- no directional-
 arrows gizmo, no axis lock. Unlike the peg board, schematic dragging is
 never length-budget clamped (a schematic wire's path is entirely
 auto-routed around whatever's connected to it, not a fixed-length
-physical run -- see :mod:`~harness_designer.objects.objects_schematic.
-wire_routing`/``wire_reroute``), so this base owns only the screen<->
+physical run -- see :mod:`~harness_designer.wire_routing.routing`/
+``reroute``), so this base owns only the screen<->
 world projection, nothing else.
 """
 

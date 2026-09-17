@@ -38,7 +38,7 @@ from PySide6.QtWidgets import QLabel
 from PySide6.QtCore import Qt
 
 from ..objects import wire_layout as _wire_layout
-from ..objects.objects_schematic import wire_reroute as _wire_reroute
+from ..wire_routing import reroute as _wire_reroute
 from .. import check_types as _check_types
 
 

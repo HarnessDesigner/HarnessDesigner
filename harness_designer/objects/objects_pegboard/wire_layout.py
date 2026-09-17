@@ -103,6 +103,69 @@ class WireLayout(_base_pegboard.BasePegboard):
         return False
 
     @_check_types.do
+    def _delete(self):
+        """Clean up this layout's own peg-board bend before deleting --
+        mirrors ``objects_3d.wire_layout.WireLayout._delete`` exactly,
+        one view down (peg-board waypoints are their own independent
+        set from 3D/schematic -- see ``PJTWire.waypoints_pegboard``'s
+        own docstring), since ``objects.object_base.ObjectBase.delete``
+        calls every view's own ``_delete`` unconditionally regardless of
+        which one this particular row actually belongs to.
+        """
+        self._reconnect_wires()
+        super()._delete()
+
+    @_check_types.do
+    def _reconnect_wires(self):
+        """Remove this layout's own bend from whatever wire it sits on,
+        peg-board side -- see
+        ``objects_3d.wire_layout.WireLayout._reconnect_wires``'s own
+        docstring for the full two-vs-one-wire reasoning, which applies
+        identically here; only the table/column names differ
+        (``position_pegboard_id``/``waypoints_pegboard``/
+        ``pjt_points_pegboard_table``).
+
+        No-op when this layout isn't a peg-board waypoint at all
+        (``position_pegboard_id`` is ``None`` -- a row placed in the 3D
+        or schematic view instead), and (unlike the 3D version) also
+        when it IS a genuine two-wire seam -- merging two wires back
+        into one on peg-board removal isn't implemented yet
+        (``handlers.wire_topology.merge_wires`` only carries 3D/
+        schematic waypoints across the merge, not peg-board ones), so
+        this deliberately leaves a two-wire seam's own peg-board point
+        alone rather than silently dropping peg-board waypoint data a
+        real merge would otherwise need to preserve.
+        """
+        point_id = self.db_obj.position_pegboard_id
+        if point_id is None:
+            return
+
+        pjt_wires = self.db_obj.attached_wires
+        if len(pjt_wires) != 1:
+            return
+
+        ptables = self.parent.mainframe.project.ptables
+        point = ptables.pjt_points_pegboard_table[point_id]
+
+        if point.wire_id is None:
+            return
+
+        removed_idx = point.idx
+        wire_db = pjt_wires[0]
+        for waypoint in wire_db.waypoints_pegboard:
+            if waypoint.idx > removed_idx:
+                waypoint.idx = waypoint.idx - 1
+
+        # PJTPointPegboard.delete() refuses outright while
+        # is_referenced() is True -- and this point's own wire_id
+        # column, still pointing at THIS (very much still-alive) wire,
+        # counts as a reference on its own -- so without clearing it
+        # first, delete() would silently no-op, leaving this waypoint
+        # sitting in the database forever.
+        point.wire_id = None
+        point.delete()
+
+    @_check_types.do
     def can_drag(self) -> bool:
         """A layout waypoint sitting at a terminal's or cavity's own
         housing-derived wire-routing point (``terminal.wire_position_
