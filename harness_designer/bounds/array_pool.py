@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Shared block/slot storage engine behind both
-:class:`~.aabb.AABBArrayManager` and :class:`~.obb.OBBArrayManager`.
+:class:`~.aabb.AABB`/:class:`~.obb.OBB`.
 
 One instance of a manager holds every object's box for a single view
 (the Schematic editor, the Peg Board editor, or the 3D view each get
@@ -37,17 +37,25 @@ added per block:
   since that's already exactly what decides whether ``render()`` gets
   called on it at all.
 - Slot reuse: :meth:`release` (called once, when the owning object is
-  deleted -- and ONLY then) pushes the freed :class:`~.slot.Slot` onto
-  a free-list, and the row itself gets overwritten with a sentinel
-  value (supplied by the subclass) that can never satisfy a real
-  geometric query -- so a matching hit test can never resolve to a slot
-  that's actually been freed, without a separate "is this slot still
-  alive" check anywhere.
+  deleted -- and ONLY then) pushes the freed slot index onto a
+  free-list, and the row itself gets overwritten with a sentinel value
+  (supplied by the subclass) that can never satisfy a real geometric
+  query -- so a matching hit test can never resolve to a slot that's
+  actually been freed, without a separate "is this slot still alive"
+  check anywhere.
 
 A slot's own address never changes for its whole lifetime -- released
 slots are only ever reused via the free-list at the SAME address,
 nothing is ever renumbered/compacted -- so an object holding onto a
-:class:`~.slot.Slot` never needs to be told anything moved.
+slot index never needs to be told anything moved.
+
+:meth:`hit_test` is the entry point for a bulk ray-vs-everything query
+(object picking) -- it filters down to the currently-visible rows via
+:meth:`snapshot_visible`, then hands the surviving rows to the
+subclass's own :meth:`_vectorized_ray_test` (AABB slab test or OBB
+slab-on-local-axes test -- see :mod:`~.aabb`/:mod:`~.obb`), and maps
+the result back to real slot indices a caller can :meth:`resolve` into
+the objects that actually got hit.
 """
 
 import weakref
@@ -59,9 +67,9 @@ from .. import check_types as _check_types
 
 class ArrayPool:
     """See the module docstring for the overall design. Not used
-    directly -- :class:`~.aabb.AABBArrayManager`/
-    :class:`~.obb.OBBArrayManager` supply the row width and the
-    sentinel row for their own box shape.
+    directly -- :class:`~.aabb.AABB`/:class:`~.obb.OBB` supply the row
+    width and the sentinel row for their own box shape, plus the actual
+    ray-test math via :meth:`_vectorized_ray_test`.
     """
 
     @_check_types.do
@@ -116,9 +124,9 @@ class ArrayPool:
         past its own natural lifetime just because it still holds a
         slot.
 
-        The returned :class:`~.slot.Slot` is *obj*'s own handle for
-        every other method here, for as long as it lives -- callers
-        hold onto it, they never construct or derive one themselves.
+        The returned index is *obj*'s own handle for every other method
+        here, for as long as it lives -- callers hold onto it, they
+        never derive one themselves.
         """
         if self._free:
             index = self._free.pop()
@@ -214,13 +222,13 @@ class ArrayPool:
 
     @_check_types.do
     def slot_at_row(self, index: int) -> tuple[int, int]:
-        """The :class:`~.slot.Slot` a :meth:`snapshot` row index came
+        """The ``(block, slot)`` pair a :meth:`snapshot` row index came
         from -- snapshot rows are a straight concatenation of every
         block in order, so a row index maps onto ``(block, index)`` by
         the same arithmetic the blocks are themselves sized by. Only
         needed at this one boundary (translating a bulk vectorized
         query's result back into real slots) -- everywhere else, a slot
-        is passed around as the opaque handle it already is.
+        is passed around as the opaque index it already is.
         """
         block, slot = divmod(index, self._block_size)
         return block, slot
@@ -233,7 +241,7 @@ class ArrayPool:
         (a released/never-issued row's own sentinel value already
         guarantees it can't affect the result -- see the module
         docstring). Row ``i`` of the result is exactly
-        :meth:`resolve_row`'s/:meth:`slot_at_row`'s own ``i``.
+        :meth:`slot_at_row`'s own ``i``.
         """
         if not self._blocks:
             return np.empty((0,) + self._shape[1:], dtype=self._dtype)
@@ -263,3 +271,78 @@ class ArrayPool:
             return np.empty((0,), dtype=bool)
 
         return self._visible.copy()
+
+    def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
+                              direc: np.ndarray, t0: float, t1: float):
+        """Subclass hook -- given *rows* (an ``(N, ...)`` array, this
+        pool's own row shape per entry) and a ray (*origin*/*direc*,
+        world space, *direc* already normalized), test every row at
+        once and return ``(hit_mask, t_vals)``: both shape ``(N,)``,
+        *hit_mask* a bool array, *t_vals* the ray-entry distance for
+        every row (garbage where *hit_mask* is False -- :meth:`hit_test`
+        never reads those entries).
+
+        :class:`~.aabb.AABB` implements this as a vectorized slab test
+        against each row's min/max corner pair; :class:`~.obb.OBB`
+        implements it as a vectorized slab test against each row's own
+        oriented edge axes -- mirroring
+        ``gl.object_picker._ray_intersect_aabb``/``_ray_intersect_obb``'s
+        scalar, one-object-at-a-time math, just batched over every row
+        in one call instead of looping in Python.
+        """
+        raise NotImplementedError
+
+    @_check_types.do
+    def hit_test(self, origin: np.ndarray, direc: np.ndarray,
+                 t0: float = 0.0, t1: float = np.inf,
+                 visible_only: bool = True) -> list[tuple[int, float]]:
+        """Vectorized ray hit test against every stored row -- restricted
+        to only the rows currently flagged ``_visible`` when
+        *visible_only* is True (the normal case: there is no reason to
+        ray-test an object that isn't even being drawn this frame).
+
+        :param origin: Ray origin, world space, shape ``(3,)``.
+        :param direc: Ray direction, world space, shape ``(3,)`` --
+            expected already normalized (matches
+            ``gl.object_picker.find_object``'s own convention).
+        :param t0: Minimum accepted hit distance along the ray.
+        :param t1: Maximum accepted hit distance along the ray.
+        :param visible_only: Restrict the test to rows flagged visible
+            this frame (see :meth:`mark_visible`/:meth:`reset_visible`).
+            Pass False to test every live row regardless of visibility.
+
+        :returns: ``(index, t_hit)`` pairs, nearest first -- *index* is
+            this pool's own slot index, the exact same value
+            :meth:`allocate`/``__getitem__`` hand out and
+            :meth:`resolve`/:meth:`slot_at_row` accept, so a caller
+            pulls the real object straight off it via
+            ``pool.resolve(index)``.
+        """
+        rows = self.snapshot()
+        if rows.shape[0] == 0:
+            return []
+
+        if visible_only:
+            visible = self.snapshot_visible()
+        else:
+            visible = np.ones(rows.shape[0], dtype=bool)
+
+        candidate_indices = np.nonzero(visible)[0]
+        if candidate_indices.size == 0:
+            return []
+
+        candidate_rows = rows[candidate_indices]
+
+        hit_mask, t_vals = self._vectorized_ray_test(
+            candidate_rows, origin, direc, t0, t1)
+
+        hit_local = np.nonzero(hit_mask)[0]
+        if hit_local.size == 0:
+            return []
+
+        results = [
+            (int(candidate_indices[i]), float(t_vals[i]))
+            for i in hit_local
+        ]
+        results.sort(key=lambda pair: pair[1])
+        return results
