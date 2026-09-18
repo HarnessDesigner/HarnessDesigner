@@ -232,6 +232,13 @@ class MainFrame(QtWidgets.QMainWindow):
         status_bar.addPermanentWidget(self.progress_bar)
         status_bar.showMessage("Ready")
 
+        splash.SetText('Creating bounds manager...')
+        splash.flush()
+
+        from .. import bounds
+
+        self.bounds_manager = bounds.Manager()
+
         splash.SetText('Creating 3D editor...')
         splash.flush()
 

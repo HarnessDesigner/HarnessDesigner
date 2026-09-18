@@ -503,7 +503,13 @@ class Terminal(_base_schematic.BaseSchematic):
 
         local = self._geometry.terminal_obb.copy()
         local @= housing.angle
-        self._obb = local + housing.position
+        obb = local + housing.position
+
+        if self._obb is None:
+            self._obb = self._obb_manager.read(self._obb_index)
+            self._obb[:] = obb
+        else:
+            self._obb[:] = obb
 
     @_check_types.do
     def _compute_aabb(self):
@@ -521,9 +527,7 @@ class Terminal(_base_schematic.BaseSchematic):
 
         aabb = _utils.adjust_aabb(corners)
 
-        for i in range(2):
-            for j in range(3):
-                self._aabb[i][j] = aabb[i][j]
+        self._aabb[:] = aabb
 
     @_check_types.do
     def render(self, shaders):

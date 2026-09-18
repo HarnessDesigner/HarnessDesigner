@@ -112,6 +112,9 @@ class BaseSchematic(_objectsvar.BaseVar):
         except AttributeError:
             return
 
+        self._aabb_manager = parent.mainframe.bounds_manager.editor_schematic.aabb
+        self._obb_manager = parent.mainframe.bounds_manager.editor_schematic.obb
+
         super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         try:

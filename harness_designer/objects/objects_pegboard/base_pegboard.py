@@ -167,6 +167,9 @@ class BasePegboard(_objectsvar.BaseVar):
 
         self.pegboard: "_editor_pegboard.EditorPegboard" = parent.mainframe.editor_pegboard
 
+        self._aabb_manager = parent.mainframe.bounds_manager.editor_pegboard.aabb
+        self._obb_manager = parent.mainframe.bounds_manager.editor_pegboard.obb
+
         # Identity key for gl.canvas_pegboard's bundle-graph matching and
         # this anchor's own data-table(s) -- set by each real subclass's
         # __init__ (housing/splice/transition/terminal); left None for

@@ -14,6 +14,7 @@ from ...gl import vbo as _vbo_base
 from ...gl.canvas_base import interaction as _interaction
 from ...shapes import text as _text
 from ... import check_types as _check_types
+from ... import bounds as _bounds
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
@@ -42,6 +43,10 @@ class BaseVar:
     # __init__'s own parameter annotation, which every subclass shares
     # regardless of which one it actually ends up holding).
     _vbo: _vbo_base.VBOHandlerBase | None = None
+
+    # IMPORTANT: These next 2 MUST be set before this super class is constructed
+    _aabb_manager: _bounds.AABB | None = None
+    _obb_manager: _bounds.OBB | None = None
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
@@ -90,8 +95,8 @@ class BaseVar:
         else:
             self._is_opaque = np.array([int(material.is_opaque)], dtype=np.uint8)
 
-        self._aabb: np.ndarray = np.ascontiguousarray(np.array(
-            [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32))
+        self._aabb_index = self._aabb_manager[self]
+        self._aabb: np.ndarray = self._aabb_manager.read(self._aabb_index)
 
         # None is a real, load-bearing sentinel here -- gl.object_picker
         # ._pick_candidates_at_mouse skips any object whose .obb is None
@@ -102,6 +107,7 @@ class BaseVar:
         # above -- see _compute_obb's own comment for why every object
         # that DOES get a real one only ever mutates that same array in
         # place from then on, instead of rebinding this name.
+        self._obb_index = self._obb_manager[self]
         self._obb: np.ndarray = None
 
         self._compute_obb()
@@ -181,7 +187,7 @@ class BaseVar:
 
         local_obb = self._vbo.local_obb * self._scale
         local_obb @= self._angle
-        result = local_obb + self._position
+        obb = local_obb + self._position
 
         # The very first real computation still has to create the array
         # (see __init__'s own comment -- None is a real sentinel meaning
@@ -197,9 +203,10 @@ class BaseVar:
         # of the existing (already correctly rotated, tracked or not)
         # box is both cheaper and exactly as correct.
         if self._obb is None:
-            self._obb = result
+            self._obb = self._obb_manager.read(self._obb_index)
+            self._obb[:] = obb
         else:
-            self._obb[:] = result
+            self._obb[:] = obb
 
     @_check_types.do
     def _compute_aabb(self):
@@ -233,10 +240,7 @@ class BaseVar:
         corners += self._position.as_numpy
 
         aabb = _utils.adjust_aabb(corners)
-
-        for i in range(2):
-            for j in range(3):
-                self._aabb[i][j] = aabb[i][j]
+        self._aabb[:] = aabb
 
     @_check_types.do
     def hit_test_step1(self, ray_origin, ray_direction):
@@ -982,6 +986,9 @@ class BaseVar:
         if self._vbo.is_dirty:
             self._compute_aabb()
             self._compute_obb()
+
+        self._aabb_manager.mark_visible(self._aabb_index)
+        self._obb_manager.mark_visible(self._obb_index)
 
         if _debug_config.draw_faces:
             with shaders.faces:

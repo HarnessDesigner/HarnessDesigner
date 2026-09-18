@@ -129,6 +129,12 @@ class Canvas(_canvas_base.CanvasBase):
             traceback.print_exc()
             raise
 
+    def _on_draw(self):
+        self.mainframe.bounds_manager.editor_schematic.obb.reset_visible()
+        self.mainframe.bounds_manager.editor_schematic.aabb.reset_visible()
+
+        super()._on_draw()
+
     @_check_types.do
     def _set_view(self):
         """Build the orthographic projection matrix for the current

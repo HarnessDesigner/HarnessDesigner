@@ -113,9 +113,11 @@ def _candidate_obb(vbo, position: np.ndarray, angle: _angle.Angle, scale: np.nda
     """
     if vbo is None or vbo.local_obb is None:
         return None
+
     obb = vbo.local_obb * scale
     obb = obb @ angle
     obb = obb + position
+
     return obb
 
 
@@ -226,6 +228,7 @@ def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndar
         my_edges = _triangle_edges(my_obb_tris)
         hits = _rays_vs_triangles_batched(
             my_edges[:, 0], my_edges[:, 1] - my_edges[:, 0], session.candidate_obb_tris, max_t=1.0)
+
         hit_tris = np.any(hits, axis=0)
         if np.any(hit_tris):
             owners.append(session.candidate_tri_owner[hit_tris])
@@ -234,6 +237,7 @@ def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndar
         hits = _rays_vs_triangles_batched(
             session.candidate_obb_edge_origins, session.candidate_obb_edge_dirs,
             my_obb_tris, max_t=1.0)
+
         hit_edges = np.any(hits, axis=1)
         if np.any(hit_edges):
             owners.append(session.candidate_obb_edge_owner[hit_edges])
@@ -417,6 +421,7 @@ class WireServiceLoop(_base_3d.Base3D):
         centroid = centroid * self._scale.as_numpy
         centroid = centroid @ self._angle
         centroid = centroid + self._position.as_numpy
+
         return centroid
 
     @_check_types.do
@@ -1007,10 +1012,12 @@ class WireServiceLoopStripe(_base_3d.Base3D):
     def _compute_obb(self):
         """No-op: the stripe has no independent geometry of its own. See
         the _obb property below."""
+        pass
 
     @_check_types.do
     def _compute_aabb(self):
         """See _compute_obb."""
+        pass
 
     @property
     @_check_types.do

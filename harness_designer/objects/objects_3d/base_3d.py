@@ -77,6 +77,8 @@ class Base3D(_objectsvar.BaseVar):
                  material: _materials.GLMaterial | None):
 
         self.editor3d = parent.mainframe.editor3d
+        self._aabb_manager = parent.mainframe.bounds_manager.editor_3d.aabb
+        self._obb_manager = parent.mainframe.bounds_manager.editor_3d.obb
 
         super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 

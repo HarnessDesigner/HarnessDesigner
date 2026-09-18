@@ -291,10 +291,6 @@ class Terminal(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
-        super().render(shaders)
-
-    @_check_types.do
     def render_cavity_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw this terminal's cavity wire-side/pin-side overlay onto the
         owning housing's mesh.

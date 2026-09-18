@@ -208,6 +208,9 @@ class Canvas(_canvas_base.CanvasBase):
     @_debug.logfunc
     @_check_types.do
     def _on_draw(self):
+        self.mainframe.bounds_manager.editor_3d.obb.reset_visible()
+        self.mainframe.bounds_manager.editor_3d.aabb.reset_visible()
+
         super()._on_draw()
 
         try:

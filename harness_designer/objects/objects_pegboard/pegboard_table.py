@@ -546,6 +546,9 @@ class PegboardTable(_base_pegboard.BasePegboard):
         if self._vbo is None:
             return
 
+        self._aabb_manager.mark_visible(self._aabb_index)
+        self._obb_manager.mark_visible(self._obb_index)
+
         # Drawn BEFORE the table's own quad, not after -- see
         # _render_selection_border's own docstring for why: it's a
         # solid-green rounded quad slightly LARGER than the table on

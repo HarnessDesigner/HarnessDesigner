@@ -134,6 +134,12 @@ class Canvas(_canvas_base.CanvasBase):
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
+    def _on_draw(self):
+        self.mainframe.bounds_manager.editor_pegboard.obb.reset_visible()
+        self.mainframe.bounds_manager.editor_pegboard.aabb.reset_visible()
+
+        super()._on_draw()
+
     def _set_view(self):
         """Build the orthographic projection matrix for the current
         camera distance/focal_position and store it on the camera.

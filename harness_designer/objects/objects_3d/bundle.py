@@ -414,12 +414,18 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         mins = corners.min(axis=0)
         maxs = corners.max(axis=0)
 
-        self._obb = np.array([
+        obb = np.array([
             [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
             [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
             [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
             [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
+
+        if self._obb is None:
+            self._obb = self._obb_manager.read(self._obb_index)
+            self._obb[:] = obb
+        else:
+            self._obb[:] = obb
 
     @_check_types.do
     def _compute_aabb(self):
@@ -433,9 +439,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
         aabb = _utils.adjust_aabb(corners)
 
-        for i in range(2):
-            for j in range(3):
-                self._aabb[i][j] = aabb[i][j]
+        self._aabb[:] = aabb
 
     @_check_types.do
     def _segment_world_corners(self):
