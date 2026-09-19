@@ -6,6 +6,7 @@ from . import obb as _obb
 
 
 Manager = _manager.Manager
+View = _manager.View
 AABB = _aabb.AABB
 OBB = _obb.OBB
 

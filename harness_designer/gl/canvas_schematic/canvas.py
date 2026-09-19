@@ -53,17 +53,21 @@ class Canvas(_canvas_base.CanvasBase):
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_schematic,
                  size: QSize = None):
-        """Initialise the :class:`Canvas` instance.
+        """
+        Initialise the :class:`Canvas` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        :param mainframe: Mainframe object.
+        :type mainframe: :class:`_ui.MainFrame`
 
-        :param parent: Parent object.
-        :type parent: UNKNOWN
         :param config: Value for ``config``.
         :type config: :class:`_config.Config.editor_schematic`
+
         :param size: Value for ``size``.
-        :type size: :class:`QSize`
+        :type size: :class:`QSize` | `None`
         """
+
+        self.bounds_manager = self.mainframe.bounds_manager.editor_schematic
+
         super().__init__(mainframe, config, size)
 
         self.camera = _camera.Camera(self)
@@ -75,7 +79,8 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def initializeGL(self):
-        """One-time GL setup (replaces _init_gl called from _on_paint).
+        """
+        One-time GL setup (replaces _init_gl called from _on_paint).
         Qt guarantees the context is already current here.
         """
 
@@ -91,7 +96,8 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def add_object(self, obj):
-        """See ``wire_routing.reroute.on_wire_attached``
+        """
+        See ``wire_routing.reroute.on_wire_attached``
         -- a wire with a dangling (not fully Terminal/Splice-connected)
         end is never drawn or picked in the schematic view; it gets
         registered here for real once ``on_wire_attached`` calls back in
@@ -99,6 +105,7 @@ class Canvas(_canvas_base.CanvasBase):
         that later call re-invokes this rather than assuming the wire was
         never registered.
         """
+
         if obj.is_wire and not obj.is_connected:
             return
 
@@ -110,7 +117,8 @@ class Canvas(_canvas_base.CanvasBase):
     @property
     @_check_types.do
     def light_position(self) -> np.ndarray:
-        """Fixed light, angled off-vertical -- see ``CanvasBase.
+        """
+        Fixed light, angled off-vertical -- see ``CanvasBase.
         light_position``'s own docstring for why the base's camera-eye
         default (coincident with a permanently straight-down camera)
         gives flat, shadeless lighting here. Offset from the current
@@ -118,6 +126,7 @@ class Canvas(_canvas_base.CanvasBase):
         behind, and independent of zoom (``camera.distance``) so it
         doesn't dim/brighten as the user zooms.
         """
+
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
@@ -129,15 +138,10 @@ class Canvas(_canvas_base.CanvasBase):
             traceback.print_exc()
             raise
 
-    def _on_draw(self):
-        self.mainframe.bounds_manager.editor_schematic.obb.reset_visible()
-        self.mainframe.bounds_manager.editor_schematic.aabb.reset_visible()
-
-        super()._on_draw()
-
     @_check_types.do
     def _set_view(self):
-        """Build the orthographic projection matrix for the current
+        """
+        Build the orthographic projection matrix for the current
         camera distance/focal_position and store it on the camera.
 
         Same box convention as Camera.objects_in_view/screen_to_world/
@@ -151,6 +155,7 @@ class Canvas(_canvas_base.CanvasBase):
         plain window resize never changes, so there's no other source of
         staleness to guard against here.
         """
+
         if not self.camera.is_dirty:
             return
 

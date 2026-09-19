@@ -17,6 +17,7 @@ from ... import config as _config
 from .. import culling as _culling
 from ... import logger as _logger
 from ... import check_types as _check_types
+from ... import bounds as _bounds
 from . import camera_base as _camera_base
 from . import floor_base as _floor_base
 from . import key_handler as _key_handler
@@ -347,21 +348,20 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # created before calling super().initializeGL
     _floor: _floor_base.FloorBase = None
 
+    bounds_manager: _bounds.View = None
+
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", config, size: QtCore.QSize = None):
         """
         Initialise the :class:`CanvasBase` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
         :param mainframe: Parent object.
         :type mainframe: :class:`_ui.MainFrame`
 
-        :param config: Value for ``config``.
-        :type config: UNKNOWN
+        :param config: Config settings.
 
-        :param size: Value for ``size``.
-        :type size: :class:`QtCore.QSize`
+        :param size: Size of virtual canvas.
+        :type size: :class:`QtCore.QSize` | `None`
         """
 
         super().__init__(None)
@@ -442,7 +442,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     @property
     @_check_types.do
     def light_position(self) -> np.ndarray:
-        """World-space position ``SceneLight.render()`` uploads as
+        """
+        World-space position ``SceneLight.render()`` uploads as
         ``light_position``.
 
         Defaults to the camera's own eye position -- a light that moves
@@ -454,12 +455,14 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         the same angle it's viewed from, which gives no shading
         gradient to read shape by -- see their own overrides.
         """
+
         return self.camera.position.as_numpy
 
     @property
     @_check_types.do
     def view_position(self) -> np.ndarray:
-        """World-space position ``_set_shader_programs`` uploads as
+        """
+        World-space position ``_set_shader_programs`` uploads as
         ``viewPosition`` -- ``faces.py``'s fragment shader uses this for
         ``viewDir = normalize(viewPosition - fragPositionGeom)``, driving
         specular highlight direction and the emissive rim term.
@@ -484,29 +487,29 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         same reason (see its own docstring) -- this is the same fix
         applied to the other camera-position-driven lighting uniform.
         """
+
         return self.camera.position.as_numpy
 
     @property
     @_check_types.do
     def objects_in_view(self) -> list:
-        """Return the objects in view.
+        """
+        Return the objects in view.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
         :rtype: list
         """
+
         return self._objects_in_view
 
     @_check_types.do
     def set_mode(self, mode: int) -> None:
-        """Set the mode.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the mode.
 
         :param mode: Value for ``mode``.
         :type mode: int
         """
+
         self._mode = mode
 
     # ------------------------------------------------------------------
@@ -515,30 +518,27 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def set_selected(self, obj):
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the selected.
 
         :param obj: Object instance to operate on.
-        :type obj: UNKNOWN
         """
+
         self._selected = obj
 
     @_check_types.do
     def get_selected(self):
-        """Return the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
         """
+        Return the selected.
+        """
+
         return self._selected
 
     @property
     @_check_types.do
     def active_handler_obj(self):
-        """The view object currently armed with an add/drag/rotation
+        """
+        The view object currently armed with an add/drag/rotation
         handler on this canvas, or ``None`` if nothing is armed.
 
         Set by a view object's own ``handle_interaction`` override the
@@ -547,6 +547,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         same object's ``is_handler_active`` goes False after a dispatched
         call.
         """
+
         return self._active_handler_obj
 
     @active_handler_obj.setter
@@ -560,7 +561,6 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         Add an object.
 
         :param obj: Object instance to operate on.
-        :type obj: UNKNOWN
         """
 
         # This canvas's own view of *obj* (obj3d/objschematic/
@@ -619,9 +619,6 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     def __remove_obj_ref(self, ref):
         """
         Remove the obj ref.
-
-        :param ref: Value for ``ref``.
-        :type ref: UNKNOWN
         """
 
         try:
@@ -635,7 +632,6 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         Remove the object.
 
         :param obj: Object instance to operate on.
-        :type obj: UNKNOWN
         """
 
         try:
@@ -696,10 +692,6 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def Refresh(self, *_, **__):
-        """
-        wx-compatible name; delegates to Qt update().
-        """
-
         if self._ref_count:
             return
 
@@ -743,9 +735,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         :param dx: Value for ``dx``.
         :type dx: float
 
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
+        :param _:
         """
+
         if self.config.input.zoom.sensitivity is None:
             return
 
@@ -757,12 +749,12 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def Rotate(self, dx: float, dy: float) -> None:
-        """Execute the rotate operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the rotate operation.
 
         :param dx: Value for ``dx``.
         :type dx: float
+
         :param dy: Value for ``dy``.
         :type dy: float
         """
@@ -797,9 +789,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     @_debug.logfunc
     @_check_types.do
     def PanTilt(self, dx: float, dy: float) -> None:
-        """Execute the pan tilt operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the pan tilt operation.
 
         :param dx: Value for ``dx``.
         :type dx: float
@@ -822,8 +813,10 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def initializeGL(self):
-        """Called once by Qt after the GL context is created.
-        Qt guarantees the context is already current here — no makeCurrent needed."""
+        """
+        Called once by Qt after the GL context is created.
+        Qt guarantees the context is already current here — no makeCurrent needed.
+        """
 
         try:
             GL.glEnable(GL.GL_DEPTH_TEST)
@@ -843,14 +836,17 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             
             # Ensure we have valid dimensions (must be > 0)
             if vw <= 0 or vh <= 0:
-                _logger.warning(f"  ! WARNING: Invalid viewport dimensions ({vw}x{vh}), using fallback 1920x1080")
+                _logger.warning(f"  ! WARNING: Invalid viewport dimensions "
+                                f"({vw}x{vh}), using fallback 1920x1080")
+
                 vw = 1920
                 vh = 1080
 
             GL.glViewport(0, 0, vw, vh)
             self.size = (vw, vh)
 
-            self._init = True  # viewport is live; notify_virtual_size_changed may update it
+            # viewport is live; notify_virtual_size_changed may update it
+            self._init = True
 
             self._scene_light = _scene_light.SceneLight(self)
             self.set_draw_floor(self.config.floor.enable)
@@ -872,6 +868,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         size genuinely changes, so the aspect ratio is never distorted by a
         passive parent-panel resize.
         """
+
         dpr = self.devicePixelRatio()
         w = int(width * dpr)
         h = int(height * dpr)
@@ -902,13 +899,13 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         which we use to record the initial size so the viewport is set up
         correctly when initializeGL runs.
         """
+
         if not self._init:
             # Record initial size; initializeGL will apply the viewport.
             dpr = self.devicePixelRatio()
             self._virtual_w = int(width * dpr)  # NOQA
             self._virtual_h = int(height * dpr)  # NOQA
             self.size = (self._virtual_w, self._virtual_h)
-        # else: ignore — virtual size is managed by notify_virtual_size_changed
 
     @_check_types.do
     def paintGL(self):
@@ -917,12 +914,6 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         """
 
         self._on_draw()
-
-        # Qt handles buffer swap automatically — no SwapBuffers() call needed.
-
-    # ------------------------------------------------------------------
-    # Internal GL helpers (unchanged rendering logic)
-    # ------------------------------------------------------------------
 
     @_check_types.do
     def set_draw_floor(self, flag: bool):
@@ -1024,7 +1015,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                 view_obj.render(self._shaders)
 
             except Exception as err:  # NOQA
-                _logger.traceback(err, 'object render error')
+                _logger.traceback(
+                    err, 'object render error')
 
         # Deferred full-color pass for the selected, translucent object --
         # see the matching "continue" in _draw_scene's own object loop,
@@ -1066,7 +1058,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             try:
                 view_obj.render_handler(self._shaders)
             except Exception as err:  # NOQA
-                _logger.traceback(err, 'active handler render error')
+                _logger.traceback(
+                    err, 'active handler render error')
 
             if view_obj.is_opaque:
 
@@ -1078,8 +1071,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                     view_obj.render(self._shaders)
                 except Exception as err:  # NOQA
                     _logger.traceback(
-                        err, 'selected object render error'
-                    )
+                        err, 'selected object render error')
             else:
                 GL.glDepthMask(GL.GL_FALSE)
 
@@ -1141,7 +1133,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                         continue
 
             except Exception as err:  # NOQA
-                _logger.traceback(err, 'object render removal error')
+                _logger.traceback(
+                    err, 'object render removal error')
 
     @staticmethod
     def _get_view_object(obj):
@@ -1171,6 +1164,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         # extra clear there, not a behavior change.
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
 
+        self.bounds_manager.obb.reset_visible()
+        self.bounds_manager.aabb.reset_visible()
+
         self.camera.set()
         self._set_view()
         self._set_shader_programs()
@@ -1179,14 +1175,17 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         try:
             self._scene_light.render(self._shaders)
         except Exception as err:  # NOQA
-            _logger.traceback(err, 'scene light error')
+            _logger.traceback(
+                err, 'scene light error')
 
         try:
             objs = _culling.cull(
                 self._object_data, self.camera.frustum_normals,
                 self.camera.frustum_distances, self.camera.position.as_numpy)
         except Exception as err:  # NOQA
-            _logger.traceback(err, 'culling error')
+            _logger.traceback(
+                err, 'culling error')
+
             return
 
         # This 3-call order is load-bearing -- do not reorder it and do
@@ -1212,7 +1211,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def _render_selected_overlay(self):
-        """Draw the selected object's AABB/OBB/floor-projection debug
+        """
+        Draw the selected object's AABB/OBB/floor-projection debug
         overlay -- deliberately the very last thing drawn each frame,
         after the floor (unlike everything else, which draws before it;
         see ``canvas_3d/canvas.py``'s own ``_render_floor_after`` for why
@@ -1242,6 +1242,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         boxes, drawn in the same pass, don't occlude each other, not
         anything to do with the floor).
         """
+
         if self._selected is None:
             return
 
@@ -1250,21 +1251,17 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         try:
             view_obj.render_selected_overlay(self._shaders)
         except Exception as err:  # NOQA
-            _logger.traceback(err, 'selected object overlay render error')
-
-    # ------------------------------------------------------------------
-    # Snapshot (returns QImage instead of wx.Bitmap)
-    # ------------------------------------------------------------------
+            _logger.traceback(
+                err, 'selected object overlay render error')
 
     @_check_types.do
     def take_snapshot(self) -> QtGui.QImage:
-        """Execute the take snapshot operation.
+        """
+        Execute the take snapshot operation.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Return value. UNKNOWN details.
         :rtype: :class:`QtGui.QImage`
         """
+
         # grabFramebuffer() renders a frame and resolves the (multisampled)
         # widget FBO into a plain image — raw glReadPixels would be invalid
         # against the MSAA framebuffer.
@@ -1273,7 +1270,10 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_check_types.do
     def cleanup(self):
-        """Clean up GL resources before widget destruction."""
+        """
+        Clean up GL resources before widget destruction.
+        """
+
         # Currently no explicit cleanup needed - shaders/programs are
         # automatically cleaned up by Qt when the context is destroyed
         pass

@@ -51,6 +51,21 @@ class Canvas(_canvas_base.CanvasBase):
                  config: _config.Config.editor_pegboard = None,
                  size: QSize = None):
 
+        """
+        Initialise the :class:`Canvas` instance.
+
+        :param mainframe: Mainframe object.
+        :type mainframe: :class:`_ui.MainFrame`
+
+        :param config: Value for ``config``.
+        :type config: :class:`_config.Config.editor_pegboard`
+
+        :param size: Value for ``size``.
+        :type size: :class:`QSize` | `None`
+        """
+
+        self.bounds_manager = self.mainframe.bounds_manager.editor_pegboard
+
         super().__init__(mainframe, config, size)
 
         self.camera = _camera.Camera(self)
@@ -58,18 +73,22 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def set_draw_floor(self, value) -> None:
-        """Show/hide the reference grid.
+        """
+        Show/hide the reference grid.
 
         :param value: New grid-visibility state.
         :type value: UNKNOWN
         """
+
         self.config.floor.enable = bool(value)
         self._floor.set(self.config.floor.enable)
         self.update()
 
     @_check_types.do
     def initializeGL(self):
-        """One-time GL setup. Qt guarantees the context is already current here."""
+        """
+        One-time GL setup. Qt guarantees the context is already current here.
+        """
 
         self._floor = _floor2d.Floor(self)
 
@@ -79,7 +98,10 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def resizeGL(self, width: int, height: int):
-        """Called by Qt on resize. Context is already current here."""
+        """
+        Called by Qt on resize. Context is already current here.
+        """
+
         self.size = (width, height)
         GL.glViewport(0, 0, width, height)
         self.update()
@@ -99,7 +121,8 @@ class Canvas(_canvas_base.CanvasBase):
     @property
     @_check_types.do
     def light_position(self) -> np.ndarray:
-        """Fixed light, angled off-vertical -- see ``CanvasBase.
+        """
+        Fixed light, angled off-vertical -- see ``CanvasBase.
         light_position``'s own docstring for why the base's camera-eye
         default (coincident with a permanently straight-down camera)
         gives flat, shadeless lighting here. Offset from the current
@@ -107,13 +130,15 @@ class Canvas(_canvas_base.CanvasBase):
         behind, and independent of zoom (``camera.distance``) so it
         doesn't dim/brighten as the user zooms.
         """
+
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
     @property
     @_check_types.do
     def view_position(self) -> np.ndarray:
-        """Fixed height directly above the current focal point, NOT
+        """
+        Fixed height directly above the current focal point, NOT
         ``camera.position`` -- see ``CanvasBase.view_position``'s own
         docstring for why the base's camera-eye default is wrong here:
         this camera's ``position.y`` IS its zoom distance (``Camera.
@@ -131,17 +156,13 @@ class Canvas(_canvas_base.CanvasBase):
         rough shape cue, not a precise reflection this needs to get
         exactly right).
         """
+
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
-    def _on_draw(self):
-        self.mainframe.bounds_manager.editor_pegboard.obb.reset_visible()
-        self.mainframe.bounds_manager.editor_pegboard.aabb.reset_visible()
-
-        super()._on_draw()
-
     def _set_view(self):
-        """Build the orthographic projection matrix for the current
+        """
+        Build the orthographic projection matrix for the current
         camera distance/focal_position and store it on the camera.
 
         Same box convention as Camera2D.objects_in_view/screen_to_world/
@@ -155,6 +176,7 @@ class Canvas(_canvas_base.CanvasBase):
         plain window resize never changes, so there's no other source of
         staleness to guard against here.
         """
+
         if not self.camera.is_dirty:
             return
 

@@ -15,7 +15,9 @@ from . import camera as _camera
 from . import headlight as _headlight
 from ... import logger as _logger
 from ... import check_types as _check_types
+from ...shapes import text as _text
 from . import mouse_handler as _mouse_handler3d
+from . import axis_overlay as _axis_overlay
 from ..canvas_base import canvas_base as _canvas_base
 
 
@@ -76,15 +78,20 @@ class Canvas(_canvas_base.CanvasBase):
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_3d,
                  size: QtCore.QSize = None):
-        """Initialise the :class:`Canvas` instance.
+        """
+        Initialise the :class:`Canvas` instance.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        :param mainframe: Mainframe object.
+        :type mainframe: :class:`_ui.MainFrame`
 
         :param config: Value for ``config``.
         :type config: :class:`_config.Config.editor_3d`
+
         :param size: Value for ``size``.
-        :type size: :class:`QtCore.QSize`
+        :type size: :class:`QSize` | `None`
         """
+
+        self.bounds_manager = self.mainframe.bounds_manager.editor_3d
 
         super().__init__(mainframe, config, size)
 
@@ -94,26 +101,23 @@ class Canvas(_canvas_base.CanvasBase):
         self._headlight: _headlight.Headlight = None
         self._focal_target: _focal_target.FocalTarget = None
 
-    # ------------------------------------------------------------------
-    # Properties / mode
-    # -----------------------------------------------------------------
-
     @property
     @_check_types.do
-    def axis_overlay(self):
-        """Return the axis overlay.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: UNKNOWN
+    def axis_overlay(self) -> _axis_overlay.Overlay:
         """
+        Return the axis overlay.
+
+        :rtype: :class:`_axis_overlay.Overlay`
+        """
+
         return self.parent()._axis_overlay  # NOQA
 
     @_check_types.do
     def initializeGL(self):
-        """Called once by Qt after the GL context is created.
-        Qt guarantees the context is already current here — no makeCurrent needed."""
+        """
+        Called once by Qt after the GL context is created.
+        Qt guarantees the context is already current here — no makeCurrent needed.
+        """
 
         try:
             self._floor = _floor3d.Floor(self)
@@ -142,17 +146,19 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_check_types.do
     def _on_camera_moved_for_notes(self, *_args) -> None:
-        """Bound to ``self.camera.position`` in :meth:`initializeGL` --
+        """
+        Bound to ``self.camera.position`` in :meth:`initializeGL` --
         must be a real bound method (not a lambda/free function):
         ``Point.bind()`` stores it as a ``weakref.WeakMethod``, which
         only works against an actual bound method's own ``__self__``.
         """
-        from ...shapes import text as _text
+
         _text.update_camera_tracking(self.camera)
 
     @_check_types.do
     def set_focal_target(self, flag: bool):
-        """Show/hide the focal-target indicator -- called from the
+        """
+        Show/hide the focal-target indicator -- called from the
         focal-target toggle button, and once at startup from
         initializeGL() with the persisted config value.
 
@@ -163,6 +169,7 @@ class Canvas(_canvas_base.CanvasBase):
         :param flag: Whether the focal target should be visible.
         :type flag: bool
         """
+
         if self._focal_target is not None:
             self._focal_target.obj3d.is_visible = flag
 
@@ -208,9 +215,6 @@ class Canvas(_canvas_base.CanvasBase):
     @_debug.logfunc
     @_check_types.do
     def _on_draw(self):
-        self.mainframe.bounds_manager.editor_3d.obb.reset_visible()
-        self.mainframe.bounds_manager.editor_3d.aabb.reset_visible()
-
         super()._on_draw()
 
         try:
