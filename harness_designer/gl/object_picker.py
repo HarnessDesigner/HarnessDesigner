@@ -32,238 +32,12 @@ def _unproject_from_ndc(ndc, inv_mvp):
     return world[:3]
 
 
-# Ray vs AABB (slab method)
 @_check_types.do
-def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
-    """Execute the ray intersect AABB operation.
-
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param orig: Value for ``orig``.
-    :type orig: UNKNOWN
-    :param direc: Value for ``direc``.
-    :type direc: UNKNOWN
-    :param aabb_min: Value for ``aabb_min``.
-    :type aabb_min: UNKNOWN
-    :param aabb_max: Value for ``aabb_max``.
-    :type aabb_max: UNKNOWN
-    :param t0: Value for ``t0``.
-    :type t0: UNKNOWN
-    :param t1: Value for ``t1``.
-    :type t1: UNKNOWN
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
-    """
-    tmin_vals = np.full(3, -inf, dtype=np.float32)
-    tmax_vals = np.full(3, inf, dtype=np.float32)
-
-    for i in range(3):
-        if np.abs(direc[i]) > 1e-8:  # not parallel to this slab
-            inv_d = 1.0 / direc[i]
-            t_near = (aabb_min[i] - orig[i]) * inv_d
-            t_far = (aabb_max[i] - orig[i]) * inv_d
-
-            tmin_vals[i] = min(t_near, t_far)
-            tmax_vals[i] = max(t_near, t_far)
-        else:
-            # Ray is parallel to this slab
-            if orig[i] < aabb_min[i] or orig[i] > aabb_max[i]:
-                # Ray origin is outside the slab, no intersection
-                return False, None
-
-    t_enter = max(t0, np.max(tmin_vals))
-    t_exit = min(t1, np.min(tmax_vals))
-
-    if t_enter <= t_exit and t_exit >= 0.0:
-        return True, t_enter
-
-    return False, None
-
-
-# Ray vs OBB (slab method, using the box's own edge axes instead of world
-# X/Y/Z) -- see corner ordering in utils.bounding_boxes.compute_obb:
-# corner 0 = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z. A rigid
-# rotation + per-axis local scale preserves that edge structure, so this
-# holds for any BaseVar.obb regardless of orientation.
-@_check_types.do
-def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
-    """Test a ray against an oriented bounding box.
-
-    Needed because :func:`_ray_intersect_aabb` against the axis-aligned
-    envelope around a rotated OBB is a "loose fit" for diagonally-oriented
-    objects like wires -- a long diagonal wire's AABB balloons out well
-    past its actual thin cylindrical extent, so a ray can register a
-    nearer AABB hit than the true surface, stealing the pick from a
-    smaller object (e.g. a wire marker) that visually sits on top of it.
-    Testing the real oriented box fixes that at the source.
-    """
-    c0, c1, c3, c4 = obb[0], obb[1], obb[3], obb[4]
-    center = c0 + 0.5 * ((c1 - c0) + (c3 - c0) + (c4 - c0))
-
-    tmin_vals = np.full(3, -inf, dtype=np.float32)
-    tmax_vals = np.full(3, inf, dtype=np.float32)
-
-    p = center - orig
-
-    for i, edge in enumerate((c1 - c0, c3 - c0, c4 - c0)):
-        length = np.linalg.norm(edge)
-        if length < 1e-8:
-            return False, None
-
-        axis = edge / length
-        half_extent = length * 0.5
-
-        e = np.dot(axis, p)
-        f = np.dot(axis, direc)
-
-        if np.abs(f) > 1e-8:
-            t_near = (e - half_extent) / f
-            t_far = (e + half_extent) / f
-
-            tmin_vals[i] = min(t_near, t_far)
-            tmax_vals[i] = max(t_near, t_far)
-        elif abs(e) > half_extent:
-            # Ray is parallel to this slab and outside it -- no intersection
-            return False, None
-
-    t_enter = max(t0, np.max(tmin_vals))
-    t_exit = min(t1, np.min(tmax_vals))
-
-    if t_enter <= t_exit and t_exit >= 0.0:
-        return True, t_enter
-
-    return False, None
-
-
-@_check_types.do
-def _aabb_screen_bbox_and_depth(bboxes, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
-    """
-    Build a 2D screen bbox from projecting ALL 8 AABB corners.
-    This is necessary for stability across camera yaw/pitch.
-    """
-    screen_pts = []
-    depths = []
-    any_in_front = False
-
-    mv = camera.modelview
-    pj = camera.projection
-    viewport = camera.viewport
-
-    for corner in bboxes:
-
-        v = np.array([corner[0], corner[1], corner[2], 1.0], dtype=np.float32)
-        eye = mv.dot(v)
-        clip = pj.dot(eye)
-
-        w = clip[3]
-        if np.isclose(w, 0.0):
-            continue
-
-        ndc = clip[:3] / w
-        vx, vy, vw, vh = viewport
-
-        winx = vx + (ndc[0] + 1.0) * vw * 0.5
-        winy = vy + (ndc[1] + 1.0) * vh * 0.5
-        winz = (ndc[2] + 1.0) * 0.5
-
-        winy = viewport[3] - winy
-
-        screen_pts.append((winx, winy, winz))
-
-        eye_z = eye[2]
-        if eye_z < 0:
-            any_in_front = True
-            depths.append(-eye_z)
-        else:
-            depths.append(inf)
-
-        xs = [p[0] for p in screen_pts]
-        ys = [p[1] for p in screen_pts]
-
-        bbox2d = (min(xs), min(ys), max(xs), max(ys))
-
-        # depth metric: closest in-front corner if possible
-        if any_in_front:
-            depth_metric = float(min(d for d in depths if d != inf))
-        else:
-            depth_metric = float(min(depths))
-
-        yield bbox2d, depth_metric
-
-
-@_debug.logfunc
-@_check_types.do
-def _pick_candidates_at_mouse(mx, my, scene_objects,
-                              camera: Union["_camera3d.Camera", "_camera2d.Camera"],
-                              get_view, tol_pixels=3.0):  # NOQA
-    """
-    scene_objects: iterable of objects exposing a wrapper view object,
-        collected via *get_view* -- e.g. ``lambda obj: obj.obj3d`` for the
-        3D editor, ``lambda obj: obj.objschematic`` for the 2D schematic editor
-        (both objects.objectsvar.BaseVar subclasses) -- with ``.obb``/
-        ``.aabb``.
-
-    *get_view* is required, deliberately with no default -- every caller
-    must state explicitly which view object it means to pick against, so
-    a caller can never silently collect the wrong one (e.g. a 2D-plane
-    editor accidentally picking against ``obj3d``).
-    Returns list of (depth_metric, object, bbox2d) sorted by depth (closest first)
-    """
-
-    mx_screen = mx
-    my_screen = my
-
-    candidates = []
-    for obj in scene_objects:
-        wrapped = get_view(obj)
-        if wrapped.obb is None:
-            continue
-
-        for (minx, miny, maxx, maxy), depth in (
-            _aabb_screen_bbox_and_depth(wrapped.obb, camera)
-        ):
-
-            if (
-                minx - tol_pixels <= mx_screen <= maxx + tol_pixels and
-                miny - tol_pixels <= my_screen <= maxy + tol_pixels
-            ):
-
-                candidates.append((depth, obj))
-
-    candidates.sort(key=lambda k: k[0])
-
-    return candidates
-
-
-@_debug.logfunc
-@_check_types.do
-def find_object(mouse_pos, scene_objects, camera: Union["_camera3d.Camera", "_camera2d.Camera"],
-                get_view, current_selection=None):
-    """Ray-cast from *mouse_pos* against every object in *scene_objects*
-    and return the closest hit (or the next-closest, if the closest is
-    *current_selection* -- lets repeated clicks cycle through a stack of
-    overlapping objects).
-
-    Shared between the 3D editor (``get_view=lambda obj: obj.obj3d``) and
-    every 2D-plane editor (e.g. ``get_view=lambda obj: obj.objschematic``) --
-    every wrapper class collected by *get_view* (``Base3D``/``BaseSchematic``/...,
-    all ``objects.objectsvar.BaseVar`` subclasses) needs to expose the
-    same ``.obb``/``.aabb``/``._pick_priority`` contract this function
-    relies on, and *camera* only needs ``.modelview``/``.projection``/
-    ``.viewport`` (see ``gl.canvas2d.camera.Camera._update_views``).
-
-    :param mouse_pos: Mouse position in window/viewport pixel coordinates.
-    :param scene_objects: Objects to test, each resolvable via *get_view*.
-    :param camera: Camera providing ``.modelview``/``.projection``/``.viewport``.
-    :param get_view: Callable that collects the wrapper view object to pick
-        against, given a scene object -- e.g. ``lambda obj: obj.obj3d`` or
-        ``lambda obj: obj.objschematic``. Required, deliberately with no default
-        -- every caller must state explicitly which view object it means
-        to pick against, so a caller can never silently collect the wrong
-        one (e.g. a 2D-plane editor accidentally picking against ``obj3d``).
-    :param current_selection: Currently selected object, used to cycle to the
-        next closest overlapping object when the closest hit matches it.
-    :returns: The picked object, or ``None`` if nothing was hit.
+def _build_ray(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
+    """Unproject *mouse_pos* into a world-space ray (*origin*, *direc*,
+    *direc* already normalized), or ``(None, None)`` if the camera's
+    current matrices can't be inverted (degenerate view -- callers treat
+    that as "nothing to pick").
     """
     mx, my = mouse_pos.as_float[:-1]
 
@@ -271,12 +45,6 @@ def find_object(mouse_pos, scene_objects, camera: Union["_camera3d.Camera", "_ca
     mv = camera.modelview
     viewport = camera.viewport
 
-    candidates = _pick_candidates_at_mouse(mx, my, scene_objects, camera, get_view=get_view)
-
-    if not candidates:
-        return None
-
-    # compute inv(P * MV)
     mvp = pj.dot(mv)  # row-major
     inv_mvp = np.linalg.inv(mvp)
     vx, vy, vw, vh = viewport
@@ -293,63 +61,65 @@ def find_object(mouse_pos, scene_objects, camera: Union["_camera3d.Camera", "_ca
     near_world = _unproject_from_ndc((ndc_x, ndc_y, -1.0), inv_mvp)
     far_world = _unproject_from_ndc((ndc_x, ndc_y, 1.0), inv_mvp)
     if near_world is None or far_world is None:
-        origin = direc = None
-    else:
-        origin = np.array(near_world, dtype=np.float32)
-        direc = np.array(far_world, dtype=np.float32) - origin
-        direc /= np.linalg.norm(direc)
+        return None, None
 
-    # Build ray once
+    origin = np.array(near_world, dtype=np.float32)
+    direc = np.array(far_world, dtype=np.float32) - origin
+    direc /= np.linalg.norm(direc)
+
+    return origin, direc
+
+
+@_debug.logfunc
+@_check_types.do
+def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"],
+                canvas, current_selection=None):
+    """Ray-cast from *mouse_pos* against every object registered with
+    *canvas*'s own :class:`~harness_designer.bounds.Manager` view (see
+    ``canvas.bounds_manager.aabb``/``canvas.bounds_manager.obb`` --
+    identical API across the 3D/schematic/peg-board canvases) and
+    return the closest hit (or the next-closest, if the closest is
+    *current_selection* -- lets repeated clicks cycle through a stack
+    of overlapping objects).
+
+    The coarse candidate list is produced by the bounds pool itself
+    (:meth:`~harness_designer.bounds.array_pool.ArrayPool.hit_test`) --
+    a single vectorized ray test against every currently-visible OBB
+    (falling back to AABB only if the OBB pass finds nothing, mirroring
+    the box degenerating to the same loose union-of-segments envelope a
+    multi-segment Wire/Bundle's own OBB already uses). Each surviving
+    candidate is then narrowed with its own real, precise
+    ``hit_test_step3`` (a per-triangle mesh test) -- the bounds-pool
+    pass is deliberately only the cheap first filter, never the final
+    answer on its own.
+
+    :param mouse_pos: Mouse position in window/viewport pixel coordinates.
+    :param camera: Camera providing ``.modelview``/``.projection``/``.viewport``.
+    :param canvas: The canvas being picked against -- only
+        ``canvas.bounds_manager.aabb``/``.obb`` are used, so any object
+        exposing that same pair works (matches ``canvas3d``/
+        ``canvas_schematic``/``canvas_pegboard`` today).
+    :param current_selection: Currently selected object, used to cycle to the
+        next closest overlapping object when the closest hit matches it.
+    :returns: The picked object, or ``None`` if nothing was hit.
+    """
+    origin, direc = _build_ray(mouse_pos, camera)
     if origin is None:
-        # fallback: just pick first candidate
-        return candidates[0][1]
+        return None
 
-    # Evaluate ray hit for ALL candidates against their real oriented box
-    # first (accurate) -- an AABB-only hit (ray passes through the loose
-    # envelope but not the actual box) is kept as a lower-priority
-    # fallback so objects near the edge of the screen-space pick
-    # tolerance don't just disappear; see _ray_intersect_obb.
-    #
-    # Neither envelope test is precise enough to accept on its own: a
-    # multi-segment object (Wire/Bundle) can't have a real oriented box at
-    # all -- BaseVar3D.obb documents that it degenerates to the same loose
-    # axis-aligned union-of-segments envelope as its own aabb for those
-    # types -- so a ray passing anywhere through that envelope (which can
-    # be huge for a routed, multi-bend wire) would otherwise register as
-    # a hit far from the actual thin cylinder, stealing the pick from
-    # whatever's really under the cursor (e.g. a housing/cavity behind a
-    # routed wire). hit_test_step3 -- a real per-triangle mesh test,
-    # already correctly implemented per-segment on Wire/Bundle and against
-    # the whole mesh on every other object -- is the actual precision
-    # gate; only a candidate that passes it is accepted as a genuine hit.
-    hits = []
-    fallback_hits = []
-    for _, obj in candidates:
-        wrapped = get_view(obj)
-        obb = wrapped.obb
-        # _ray_intersect_obb indexes obb[0]/[1]/[3]/[4] -- a real 8-corner
-        # box (see utils.bounding_boxes.compute_obb) always has enough
-        # rows for that. A malformed OBB (fewer than 5 rows -- seen from
-        # Model3D.obb, which is read fresh from a DB column written by a
-        # separate background CAD-conversion process this code has no
-        # control over) used to crash click-picking outright instead of
-        # just falling back to the looser AABB test below, same as the
-        # documented "no real oriented box" case already does for a
-        # multi-segment Wire/Bundle.
-        has_obb = obb is not None and len(obb) >= 5
-        hit, t_hit = _ray_intersect_obb(origin, direc, obb) if has_obb else (False, None)
-        if hit:
-            if wrapped.hit_test_step3(origin, direc):
-                hits.append((t_hit, obj))
-            continue
+    # Real oriented box first (accurate) -- an AABB-only hit (through the
+    # loose envelope but not the actual box) is only ever used as a
+    # fallback when the OBB pass finds nothing at all, so a genuinely
+    # inert/degenerate box (see ArrayPool's sentinel-row/degenerate-axis
+    # guards) never wrongly swallows a real pick.
+    candidates = canvas.bounds_manager.obb.hit_test(origin, direc)
+    if not candidates:
+        candidates = canvas.bounds_manager.aabb.hit_test(origin, direc)
 
-        wmin, wmax = wrapped.aabb
-        hit, t_hit = _ray_intersect_aabb(origin, direc, wmin, wmax)
-        if hit and wrapped.hit_test_step3(origin, direc):
-            fallback_hits.append((t_hit, obj))
+    if not candidates:
+        return None
 
-    if not hits:
-        hits = fallback_hits
+    hits = [wrapped for wrapped in candidates if wrapped.hit_test_step3(origin, direc)]
 
     if not hits:
         return None
@@ -360,15 +130,19 @@ def find_object(mouse_pos, scene_objects, camera: Union["_camera3d.Camera", "_ca
     # wire's own near surface is, correctly, physically closer along that
     # ray. BaseVar._pick_priority (default 0, bumped by WireMarker/
     # WireLayout/BundleLayout) breaks that tie explicitly: higher
-    # priority wins outright, nearest-hit only tie-breaks within the same
+    # priority wins outright. ``hit_test`` already returned *candidates*
+    # nearest-hit first, and Python's sort is stable, so re-sorting on
+    # priority alone preserves that original distance order within each
     # priority tier.
-    hits.sort(key=lambda k: (-get_view(k[1])._pick_priority, k[0]))
+    hits.sort(key=lambda wrapped: -wrapped._pick_priority)  # NOQA
 
-    if current_selection is None or len(hits) == 1:
-        return hits[0][1]
+    picked = [wrapped.parent for wrapped in hits]
+
+    if current_selection is None or len(picked) == 1:
+        return picked[0]
 
     # If the closest hit is the currently selected object, cycle to the next.
-    if hits[0][1] is current_selection:
-        return hits[1][1]
+    if picked[0] is current_selection:
+        return picked[1]
 
-    return hits[0][1]
+    return picked[0]
