@@ -226,13 +226,12 @@ class OuterRing(ProtractorRingBase):
         if not self.is_visible or not self._pick_objects:
             return None
 
-        ring_hit = _object_picker.find_object(mouse_pos,
-                                              [self._ring_pick_facade],
-                                              camera, get_view=lambda t: t.obj3d)
+        ring_hit = _object_picker.find_object_in_list(
+            mouse_pos, [self._ring_pick_facade], camera, get_view=lambda t: t.obj3d)
         if ring_hit is None:
             return None
 
-        found = _object_picker.find_object(
+        found = _object_picker.find_object_in_list(
             mouse_pos, self._pick_objects, camera, get_view=lambda t: t.obj3d)
 
         if found is None:

@@ -33,6 +33,12 @@ class BaseVar:
     # OBB/AABB hits land on the same ray -- see Base3D._pick_priority
     # (WireMarker/WireLayout/BundleLayout bump this to 1 to win over the
     # wire they sit on/inside).
+    #
+    # A negative value means "never pickable": gizmo/overlay objects
+    # drawn on top of the scene (the 3D canvas's focal-target indicator,
+    # the rotation-rings gizmo) set -1 -- they still get a real OBB/AABB
+    # and render normally, gl.object_picker.find_object just skips them
+    # after the coarse hit test.
     _pick_priority: int = 0
 
     # Explicit class-level type for every subclass whose own _vbo is a
@@ -47,6 +53,13 @@ class BaseVar:
     # IMPORTANT: These next 2 MUST be set before this super class is constructed
     _aabb_manager: _bounds.AABB | None = None
     _obb_manager: _bounds.OBB | None = None
+
+    # Category this object's AABB slot is filed under (one of the
+    # ``bounds.TAG_*`` constants) -- lets a bulk query such as wire routing
+    # select a whole class of objects straight from the array.
+    _bounds_tag: int = _bounds.TAG_NONE
+
+    _is_deleted: bool = False
 
     @_check_types.do
     def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
@@ -96,6 +109,7 @@ class BaseVar:
             self._is_opaque = np.array([int(material.is_opaque)], dtype=np.uint8)
 
         self._aabb_index = self._aabb_manager[self]
+        self._aabb_manager.set_tag(self._aabb_index, self._bounds_tag)
         self._aabb: np.ndarray = self._aabb_manager.read(self._aabb_index)
 
         # None is a real, load-bearing sentinel here -- gl.object_picker
@@ -172,7 +186,30 @@ class BaseVar:
         raise NotImplementedError
 
     @_check_types.do
+    def _release_bounds(self) -> None:
+        """Hand this object's AABB/OBB slots back to their pools -- called
+        once, from each view's ``_delete``. Without it a deleted object's
+        last box stays in the pool and keeps satisfying hit tests and
+        wire-routing obstacle queries.
+
+        Any later ``_compute_*`` is blocked by ``_is_deleted`` (see
+        below), so nothing writes into a slot after it may have been
+        reused by another object.
+        """
+        self._is_deleted = True
+
+        if self._aabb_manager is None or self._obb_manager is None:
+            # __init__ bailed out before the managers/slots were set up.
+            return
+
+        self._aabb_manager.release(self._aabb_index)
+        self._obb_manager.release(self._obb_index)
+
+    @_check_types.do
     def _compute_obb(self):
+        if self._is_deleted:
+            return
+
         if self._vbo is None:
             return
 
@@ -210,6 +247,9 @@ class BaseVar:
 
     @_check_types.do
     def _compute_aabb(self):
+        if self._is_deleted:
+            return
+
         if self._vbo is None:
             return
 
@@ -666,7 +706,7 @@ class BaseVar:
             self._active_handler.delete()
             self._active_handler = None
 
-        self._is_deleted = True
+        self._release_bounds()
         self.editor.Refresh()
 
     @property

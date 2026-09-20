@@ -91,7 +91,7 @@ class Canvas(_canvas_base.CanvasBase):
         :type size: :class:`QSize` | `None`
         """
 
-        self.bounds_manager = self.mainframe.bounds_manager.editor_3d
+        self.bounds_manager = mainframe.bounds_manager.editor_3d
 
         super().__init__(mainframe, config, size)
 

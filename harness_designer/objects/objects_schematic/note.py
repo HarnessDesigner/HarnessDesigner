@@ -12,6 +12,7 @@ from ...ui.widgets import context_menus as _context_menus
 from ...gl import materials as _materials
 from ...shapes import text as _text
 from ... import check_types as _check_types
+from ... import bounds as _bounds
 from ... import config as _config
 
 
@@ -39,6 +40,7 @@ class Note(_base_schematic.BaseSchematic):
     """
     _parent: "_note.Note" = None
     db_obj: "_pjt_note.PJTNote"
+    _bounds_tag = _bounds.TAG_OBSTACLE
 
     # Narrower than BaseVar's own generic `_vbo.VBOHandlerBase | None`
     # -- this object's only visible content is the Text label it owns

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Shared segment-local wire drag, used identically by the 3D and
+"""
+Shared segment-local wire drag, used identically by the 3D and
 peg-board editors.
 
 A wire always has two endpoints, each either free, seated in a cavity,
@@ -114,7 +115,8 @@ if TYPE_CHECKING:
 
 
 class WireDragPlan:
-    """What a click on a Wire's body should drag -- computed once at
+    """
+    What a click on a Wire's body should drag -- computed once at
     drag-start by :func:`plan_wire_drag`, consumed by
     :meth:`WireDragMixin._arm_drag`.
 
@@ -138,7 +140,8 @@ class WireDragPlan:
 
 
 class WireDragMixin:
-    """Shared segment-local wire drag behavior -- see the module
+    """
+    Shared segment-local wire drag behavior -- see the module
     docstring for the hard rule this class follows (no ``__init__``/
     ``delete``, ever) and why. Concrete per-view classes
     (``drag_handlers.editor_3d.wire.Wire``/``drag_handlers.
@@ -173,52 +176,66 @@ class WireDragMixin:
 
     @staticmethod
     def _get_view_object(obj: "_objects.ObjectBase"):
-        """Return *obj*'s own view-specific wrapper for this editor --
+        """
+        Return *obj*'s own view-specific wrapper for this editor --
         ``obj.obj3d`` or ``obj.objpegboard``.
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _get_editor(mainframe):
-        """Return this view's own canvas/editor widget -- used to parent
+        """
+        Return this view's own canvas/editor widget -- used to parent
         a :class:`~harness_designer.handlers.wire_snap.SnapOverlay`.
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _points_table(project: "_project.Project"):
-        """This view's own peg-board/3D points table (``pjt_points3d_table``
+        """
+        This view's own peg-board/3D points table (``pjt_points3d_table``
         / ``pjt_points_pegboard_table``), used to resolve a point id's own
         ``parent_point_id`` in :meth:`is_anchor_point`.
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _waypoints(wire_db_obj):
-        """This wire's own ordered interior waypoints for this view
+        """
+        This wire's own ordered interior waypoints for this view
         (``wire_db_obj.waypoints3d`` / ``waypoints_pegboard``).
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _wire_position_id_raw(obj) -> bytes | None:
-        """A cavity's or terminal's own ``wire_position*_id_raw`` column
+        """
+        A cavity's or terminal's own ``wire_position*_id_raw`` column
         for this view (see :meth:`is_anchor_point`).
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _attach_position_id_raw(obj) -> bytes | None:
-        """A terminal's own ``attach_position*_id_raw`` column for this
+        """
+        A terminal's own ``attach_position*_id_raw`` column for this
         view (see :meth:`is_anchor_point`).
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _get_start_position_id(wire_db_obj) -> bytes | None:
-        """This view's own ``start_position*_id`` column on a wire's DB
+        """
+        This view's own ``start_position*_id`` column on a wire's DB
         row (see :meth:`merge_wire_into`).
         """
+
         raise NotImplementedError
 
     @staticmethod
@@ -227,9 +244,11 @@ class WireDragMixin:
 
     @staticmethod
     def _get_stop_position_id(wire_db_obj) -> bytes | None:
-        """This view's own ``stop_position*_id`` column on a wire's DB
+        """
+        This view's own ``stop_position*_id`` column on a wire's DB
         row (see :meth:`merge_wire_into`).
         """
+
         raise NotImplementedError
 
     @staticmethod
@@ -238,16 +257,20 @@ class WireDragMixin:
 
     @staticmethod
     def _layout_position_id(layout_db_obj) -> bytes | None:
-        """This view's own ``position*_id`` column on a WireLayout's DB
+        """
+        This view's own ``position*_id`` column on a WireLayout's DB
         row (see :meth:`wire_layout_end_wire`).
         """
+
         raise NotImplementedError
 
     @staticmethod
     def _is_in_view(obj: "_objects.ObjectBase") -> bool:
-        """This view's own ``is_in_3dview``/``is_in_pegboardview`` check
+        """
+        This view's own ``is_in_3dview``/``is_in_pegboardview`` check
         on a facade object (see :meth:`wire_layout_end_wire`).
         """
+
         raise NotImplementedError
 
     # _SnapProbeSet: this view's own concrete snap_probe_set.SnapProbeSet
@@ -269,7 +292,8 @@ class WireDragMixin:
     @classmethod
     @_check_types.do
     def is_anchor_point(cls, project: "_project.Project", point_id: bytes) -> bool:
-        """True when *point_id* is rigidly tied to a cavity's or
+        """
+        True when *point_id* is rigidly tied to a cavity's or
         terminal's own wire-routing point -- not something a drag should
         ever move directly.
 
@@ -282,11 +306,16 @@ class WireDragMixin:
         own routing point id directly -- resolve up to the canonical id
         first (a no-op when the point isn't a clone).
         """
+
         points_table = cls._points_table(project)
 
         point_row = points_table[point_id]
         parent_id = point_row.parent_point_id
-        check_id = parent_id if parent_id is not None else point_id
+
+        if parent_id is not None:
+            check_id = parent_id
+        else:
+            check_id = point_id
 
         for cavity in project.cavities:
             if cls._wire_position_id_raw(cavity.db_obj) == check_id:
@@ -304,8 +333,10 @@ class WireDragMixin:
     @classmethod
     @_check_types.do
     def wire_end_anchors(cls, project: "_project.Project",
-                          wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
-        """Return (start_anchored, stop_anchored) for *wire_obj*.
+                         wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
+
+        """
+        Return (start_anchored, stop_anchored) for *wire_obj*.
 
         An end is "anchored" when it sits at a cavity's or terminal's
         own wire-routing point -- that end's position is derived from
@@ -325,17 +356,21 @@ class WireDragMixin:
         ``WireDragMixin`` (every accessor is abstract there, so it just
         raises ``NotImplementedError`` -- confirmed live, 2026-09-13).
         """
+
         view_obj = cls._get_view_object(wire_obj)
         start_id = view_obj.start_position.db_id[:-2]
         stop_id = view_obj.stop_position.db_id[:-2]
 
-        return cls.is_anchor_point(project, start_id), cls.is_anchor_point(project, stop_id)
+        return (cls.is_anchor_point(project, start_id),
+                cls.is_anchor_point(project, stop_id))
 
     @classmethod
     @_check_types.do
     def plan_wire_drag(cls, project: "_project.Project", wire_obj: "_wire_object.Wire",
-                        mouse_pos: _point.Point) -> WireDragPlan | None:
-        """Work out what a click on *wire_obj*'s body at *mouse_pos*
+                       mouse_pos: _point.Point) -> WireDragPlan | None:
+
+        """
+        Work out what a click on *wire_obj*'s body at *mouse_pos*
         should drag, per the confirmed rule:
 
         1. If the click lands near the wire's own true start or stop
@@ -358,25 +393,34 @@ class WireDragMixin:
         moving -- a lone moving point is always a true end, a moving
         pair never is.
         """
+
         view_obj = cls._get_view_object(wire_obj)
 
         _pos, is_endpoint, end_name = view_obj.get_closest_endpoint(mouse_pos)
 
         if is_endpoint:
-            moving_point = view_obj.start_position if end_name == 'start' else view_obj.stop_position
+            if end_name == 'start':
+                moving_point = view_obj.start_position
+            else:
+                moving_point = view_obj.stop_position
+
             point_id = moving_point.db_id[:-2]
 
             if cls.is_anchor_point(project, point_id):
                 return None
 
-            return WireDragPlan(moving=[moving_point], anchor=moving_point.copy(), snap_end=end_name)
+            return WireDragPlan(moving=[moving_point],
+                                anchor=moving_point.copy(),
+                                snap_end=end_name)
 
         closest_point, _angle, seg_idx = view_obj.get_closest_point(mouse_pos)
         if closest_point is None:
             return None
 
         waypoints = cls._waypoints(wire_obj.db_obj)
-        chain = [view_obj.start_position] + [wp.point for wp in waypoints] + [view_obj.stop_position]
+        chain = ([view_obj.start_position] +
+                 [wp.point for wp in waypoints] +
+                 [view_obj.stop_position])
 
         last_idx = len(chain) - 1
         bounding = (seg_idx, seg_idx + 1)
@@ -398,10 +442,9 @@ class WireDragMixin:
             elif idx == last_idx:
                 snap_end = 'stop'
 
-        return WireDragPlan(
-            moving=[point for _idx, point in moving],
-            anchor=closest_point.copy(),
-            snap_end=snap_end)
+        return WireDragPlan(moving=[point for _idx, point in moving],
+                            anchor=closest_point.copy(),
+                            snap_end=snap_end)
 
     # ------------------------------------------------------------------
     # Shared wire-topology lookups -- also plain classmethods, resolved
@@ -419,14 +462,17 @@ class WireDragMixin:
     @classmethod
     @_check_types.do
     def wire_layout_end_wire(cls, wire_layout_obj, project: "_project.Project",
-                              part_id: bytes | None):
-        """Return (wire, endpoint) if *wire_layout_obj* sits at one
+                             part_id: bytes | None):
+
+        """
+        Return (wire, endpoint) if *wire_layout_obj* sits at one
         endpoint of a wire with matching *part_id*, in THIS view.
 
         Returns (None, None) when the layout is mid-wire (split point,
         two wires share it) or when no wire with the given part_id is
         attached.
         """
+
         if part_id is None:
             return None, None
 
@@ -455,8 +501,10 @@ class WireDragMixin:
     @classmethod
     @_check_types.do
     def pick_free_end(cls, mainframe, wire_obj: "_wire_object.Wire",
-                       click_pos: _point.Point | None = None) -> str | None:
-        """Return ``'start'``/``'stop'`` -- whichever end of *wire_obj* is
+                      click_pos: _point.Point | None = None) -> str | None:
+
+        """
+        Return ``'start'``/``'stop'`` -- whichever end of *wire_obj* is
         free to extend/add onto (see ``objects.objects_3d.wire.WireMenu``/
         ``objects.objects_pegboard.wire.WireMenu``'s Extend Wire/Add to
         Wire actions) -- or ``None`` if both ends are anchored to a
@@ -468,6 +516,7 @@ class WireDragMixin:
         point-on-path technique :meth:`plan_wire_drag` already uses to
         decide "which end did the user mean" elsewhere.
         """
+
         project = mainframe.project
         start_anchored, stop_anchored = cls.wire_end_anchors(project, wire_obj)
 
@@ -489,20 +538,29 @@ class WireDragMixin:
         if closest_point is None:
             return 'stop'
 
-        start_dist = float(np.linalg.norm(closest_point.as_numpy - view_obj.start_position.as_numpy))
-        stop_dist = float(np.linalg.norm(closest_point.as_numpy - view_obj.stop_position.as_numpy))
+        start_dist = float(np.linalg.norm(
+            closest_point.as_numpy - view_obj.start_position.as_numpy))
 
-        return 'start' if start_dist <= stop_dist else 'stop'
+        stop_dist = float(np.linalg.norm(
+            closest_point.as_numpy - view_obj.stop_position.as_numpy))
+
+        if start_dist <= stop_dist:
+            return 'start'
+
+        return 'stop'
 
     @staticmethod
-    def _view_merge_geometry(get_view_object, get_waypoints, wire_obj, other_wire,
-                              own_end: str, other_end: str):
-        """This view's own seam point id, reindexed own/other waypoint
+    def _view_merge_geometry(get_view_object, get_waypoints, wire_obj,
+                             other_wire, own_end: str, other_end: str):
+
+        """
+        This view's own seam point id, reindexed own/other waypoint
         chains, and this view's own start/stop ids for the merged wire --
         identical bookkeeping regardless of which view, just fed that
         view's own :meth:`_get_view_object`/:meth:`_waypoints` pair (see
         :meth:`merge_wire_into`).
         """
+
         own_view = get_view_object(wire_obj)
         other_view = get_view_object(other_wire)
 
@@ -521,7 +579,9 @@ class WireDragMixin:
 
         if other_end == 'start':
             stop_id = other_view.stop_position.db_id[:-2]
-            other_waypoints = list(get_waypoints(other_wire.db_obj))  # already start->stop order
+
+            # already start->stop order
+            other_waypoints = list(get_waypoints(other_wire.db_obj))
         else:
             stop_id = other_view.start_position.db_id[:-2]
             other_waypoints = list(reversed(get_waypoints(other_wire.db_obj)))
@@ -530,9 +590,13 @@ class WireDragMixin:
 
     @classmethod
     @_check_types.do
-    def merge_wire_into(cls, project: "_project.Project", wire_obj: "_wire_object.Wire",
-                         other_wire: "_wire_object.Wire", other_end: str, own_end: str = 'stop'):
-        """Join *wire_obj*'s own dangling *own_end* ('start' or 'stop';
+    def merge_wire_into(cls, project: "_project.Project",
+                        wire_obj: "_wire_object.Wire",
+                        other_wire: "_wire_object.Wire",
+                        other_end: str, own_end: str = 'stop'):
+
+        """
+        Join *wire_obj*'s own dangling *own_end* ('start' or 'stop';
         default 'stop' -- the two-click preview flow's own always-growing
         end, the only case that existed before this took an own_end
         parameter) to *other_wire*'s dangling *other_end*, merging them
@@ -567,37 +631,49 @@ class WireDragMixin:
         required to match. Both original rows are deleted; returns the
         new merged wire.
         """
-        from ..drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
-        from ..drag_handlers.editor_pegboard import wire as _wire_pegboard  # NOQA -- avoid a cycle at import time
-        from ..objects import wire as _wire_object_mod  # NOQA -- avoid a cycle at import time
-        from ..objects import wire_layout as _wire_layout_mod  # NOQA -- avoid a cycle at import time
+
+        from ..drag_handlers.editor_3d import wire as _wire_3d  # NOQA
+        from ..drag_handlers.editor_pegboard import wire as _wire_pegboard  # NOQA
+        from ..objects import wire as _wire_object_mod  # NOQA
+        from ..objects import wire_layout as _wire_layout_mod  # NOQA
 
         ptables = project.ptables
         mainframe = project.mainframe
 
-        seam_id_3d, own_wp_3d, other_wp_3d, start_id_3d, stop_id_3d = cls._view_merge_geometry(
-            _wire_3d.Wire._get_view_object, _wire_3d.Wire._waypoints,
-            wire_obj, other_wire, own_end, other_end)
+        (seam_id_3d, own_wp_3d,
+         other_wp_3d, start_id_3d,
+         stop_id_3d) = cls._view_merge_geometry(_wire_3d.Wire._get_view_object,  # NOQA
+                                                _wire_3d.Wire._waypoints,  # NOQA
+                                                wire_obj, other_wire,
+                                                own_end, other_end)
 
-        start_id_2d = (wire_obj.db_obj.stop_position2d_id if own_end == 'start'
-                        else wire_obj.db_obj.start_position2d_id)
-        stop_id_2d = (other_wire.db_obj.stop_position2d_id if other_end == 'start'
-                       else other_wire.db_obj.start_position2d_id)
+        if own_end == 'start':
+            start_id_2d = wire_obj.db_obj.stop_position2d_id
+
+        else:
+            start_id_2d = wire_obj.db_obj.start_position2d_id
+
+        if other_end == 'start':
+            stop_id_2d = other_wire.db_obj.stop_position2d_id
+        else:
+            stop_id_2d = other_wire.db_obj.start_position2d_id
 
         # Both wires need COMPLETE peg-board geometry (both ends), not
         # just one end on one side -- a wire only partly present in
         # peg-board has nothing coherent there to merge.
         pegboard_present = (
-            _wire_pegboard.Wire._get_start_position_id(wire_obj.db_obj) is not None and
-            _wire_pegboard.Wire._get_stop_position_id(wire_obj.db_obj) is not None and
-            _wire_pegboard.Wire._get_start_position_id(other_wire.db_obj) is not None and
-            _wire_pegboard.Wire._get_stop_position_id(other_wire.db_obj) is not None)
+            _wire_pegboard.Wire._get_start_position_id(wire_obj.db_obj) is not None and  # NOQA
+            _wire_pegboard.Wire._get_stop_position_id(wire_obj.db_obj) is not None and  # NOQA
+            _wire_pegboard.Wire._get_start_position_id(other_wire.db_obj) is not None and  # NOQA
+            _wire_pegboard.Wire._get_stop_position_id(other_wire.db_obj) is not None)  # NOQA
 
         if pegboard_present:
-            seam_id_pegboard, own_wp_pegboard, other_wp_pegboard, start_id_pegboard, stop_id_pegboard = (
-                cls._view_merge_geometry(
-                    _wire_pegboard.Wire._get_view_object, _wire_pegboard.Wire._waypoints,
-                    wire_obj, other_wire, own_end, other_end))
+            (seam_id_pegboard, own_wp_pegboard,
+             other_wp_pegboard, start_id_pegboard,
+             stop_id_pegboard) = cls._view_merge_geometry(_wire_pegboard.Wire._get_view_object,  # NOQA
+                                                          _wire_pegboard.Wire._waypoints,  # NOQA
+                                                          wire_obj, other_wire,
+                                                          own_end, other_end)
         else:
             seam_id_pegboard = own_wp_pegboard = other_wp_pegboard = None
             start_id_pegboard = stop_id_pegboard = None
@@ -645,11 +721,11 @@ class WireDragMixin:
             wp.idx = len(own_wp_3d) + 1 + i
 
         if pegboard_present:
-            _wire_pegboard.Wire._set_start_position_id(merged_db, start_id_pegboard)
-            _wire_pegboard.Wire._set_stop_position_id(merged_db, stop_id_pegboard)
+            _wire_pegboard.Wire._set_start_position_id(merged_db, start_id_pegboard)  # NOQA
+            _wire_pegboard.Wire._set_stop_position_id(merged_db, stop_id_pegboard)  # NOQA
             merged_db.is_visible_pegboard = wire_obj.db_obj.is_visible_pegboard
 
-            pegboard_points_table = _wire_pegboard.Wire._points_table(project)
+            pegboard_points_table = _wire_pegboard.Wire._points_table(project)  # NOQA
 
             for i, wp in enumerate(own_wp_pegboard):
                 wp.wire_id = merged_db.db_id
@@ -670,13 +746,16 @@ class WireDragMixin:
         project.add_wire_layout(layout_obj)
 
         if pegboard_present:
-            layout_db = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=seam_id_pegboard)
+            layout_db = ptables.pjt_wire_layouts_table.insert(
+                point_pegboard_id=seam_id_pegboard)
+
             layout_obj = _wire_layout_mod.WireLayout(mainframe, layout_db)
             project.add_wire_layout(layout_obj)
 
         if orig_start_sibling is not None:
             merged_obj.set_sibling(orig_start_sibling, 'start')
             orig_start_sibling.replace_wire(wire_obj, merged_obj)
+
         if other_stop_sibling is not None:
             merged_obj.set_sibling(other_stop_sibling, 'stop')
             other_stop_sibling.replace_wire(other_wire, merged_obj)
@@ -695,25 +774,24 @@ class WireDragMixin:
         for w in (wire_obj, other_wire):
             if mainframe.get_selected() is w:
                 w.set_selected(False)
+
             w.delete()
 
         return merged_obj
 
-    # ------------------------------------------------------------------
-    # Shared screen<->world projection -- identical for both views (see
-    # the module docstring on why the peg-board case needs no special
-    # casing here at all). Uniquely named -- no collision risk.
-    # ------------------------------------------------------------------
-
     @_check_types.do
-    def _raw_move_delta(self, anchor: _point.Point, last_pos: _point.Point, delta) -> _point.Point:
-        """Project *anchor* to screen space, add the raw mouse *delta*,
+    def _raw_move_delta(self, anchor: _point.Point,
+                        last_pos: _point.Point, delta) -> _point.Point:
+
+        """
+        Project *anchor* to screen space, add the raw mouse *delta*,
         unproject back to world space, and return the resulting raw
         (un-locked) world-space delta this frame implies. Ported from
         ``drag_handlers.editor_3d.DragHandler3D._delta3d`` -- identical
         math, moved here since it's genuinely view-agnostic camera
         projection, not 3D-specific.
         """
+
         anchor_screen = self.canvas.camera.ProjectPoint(anchor)
         depth = anchor_screen.z
 
@@ -731,8 +809,11 @@ class WireDragMixin:
         return world_hit - last_pos
 
     @_check_types.do
-    def _move_delta(self, anchor: _point.Point, last_pos: _point.Point, delta, aabb):
-        """The delta actually applied this frame. Default: the raw,
+    def _move_delta(self, anchor: _point.Point,
+                    last_pos: _point.Point, delta, aabb):
+
+        """
+        The delta actually applied this frame. Default: the raw,
         unlocked projection delta, as-is -- correct for a view whose
         camera never needs axis disambiguation OR a hard axis floor.
         Neither concrete view actually uses this default unmodified
@@ -751,11 +832,15 @@ class WireDragMixin:
         override always wins outright regardless of base order, since
         nothing else in the hierarchy defines this name at all.
         """
+
         return self._raw_move_delta(anchor, last_pos, delta)
 
     @_check_types.do
-    def _apply_budget_clamp(self, moving_points: list, delta: _point.Point) -> _point.Point:
-        """Clamp *delta* so dragging never stretches a touching wire/
+    def _apply_budget_clamp(self, moving_points: list,  # NOQA
+                            delta: _point.Point) -> _point.Point:
+
+        """
+        Clamp *delta* so dragging never stretches a touching wire/
         bundle segment past its remaining length budget -- a peg-board-
         only concept (see ``drag_handlers.editor_pegboard``'s own module
         docstring: "it will not pull the things that are at the other
@@ -770,26 +855,21 @@ class WireDragMixin:
         also cover this shared algorithm's single-point (true-end) case
         is follow-up work, not done here.
         """
+
         return delta
 
-    # ------------------------------------------------------------------
-    # Setup/teardown -- explicitly NOT __init__/delete (see the module
-    # docstring's own "hard rule"). Each concrete Wire class's own real
-    # __init__/delete calls these by name, as a separate, visible step,
-    # after/before calling super().__init__()/super().delete() (which
-    # reaches DragHandler3D/DragHandlerPegboard, unambiguously, since
-    # this mixin never competes for those names).
-    # ------------------------------------------------------------------
-
     @_check_types.do
-    def _arm_drag(self, canvas: "_canvas_base.CanvasBase", target: "_wire_object.Wire",
-                  plan: WireDragPlan) -> None:
-        """Populate this instance's own drag state from *plan*, and
+    def _arm_drag(self, canvas: "_canvas_base.CanvasBase",
+                  target: "_wire_object.Wire",  plan: WireDragPlan) -> None:
+
+        """
+        Populate this instance's own drag state from *plan*, and
         build the snap-probe set + overlay when the plan's moving point
         is snap-eligible. Call this from the concrete class's own
         ``__init__``, after its own ``super().__init__()`` has already
         run -- this is NOT a constructor itself.
         """
+
         self.canvas = canvas
         self.target = target
 
@@ -810,14 +890,17 @@ class WireDragMixin:
                 self._snap_probes = self._SnapProbeSet(
                     canvas.mainframe, wire_part, exclude_wire=target)
 
-                self._overlay = _wire_snap.SnapOverlay(self._get_editor(canvas.mainframe))
+                self._overlay = _wire_snap.SnapOverlay(
+                    self._get_editor(canvas.mainframe))
 
     @_check_types.do
     def _disarm_drag(self) -> None:
-        """Tear down whatever :meth:`_arm_drag` acquired. Call this
+        """
+        Tear down whatever :meth:`_arm_drag` acquired. Call this
         from the concrete class's own ``delete``, before its own
         ``super().delete()`` -- this is NOT ``delete`` itself.
         """
+
         if self._snap_probes is not None:
             self._snap_probes.close()
             self._snap_probes = None
@@ -825,11 +908,6 @@ class WireDragMixin:
         if self._overlay is not None:
             self._overlay.deleteLater()
             self._overlay = None
-
-    # ------------------------------------------------------------------
-    # Per-frame drag step -- uniquely named (__call__ is defined nowhere
-    # else in the hierarchy), so no collision risk either.
-    # ------------------------------------------------------------------
 
     @_debug.logfunc
     @_check_types.do
@@ -841,9 +919,7 @@ class WireDragMixin:
             # engaged, the dragged point's screen position only ever
             # moves along the locked axis, so it drifts further and
             # further from where the mouse actually is.
-            picked = _object_picker.find_object(
-                mouse_pos, self.canvas.camera.objects_in_view,
-                self.canvas.camera, self._get_view_object)
+            picked = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
             kind, target = _wire_snap.get_snap_info(picked)
 
@@ -854,16 +930,24 @@ class WireDragMixin:
                 # potential issue for the user to resolve afterward.
                 wire_part = self.target.db_obj.part
                 if kind == 'terminal':
-                    _ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(target, wire_part)
+                    _ok, block_msg, warning_msg = (
+                        _wire_snap.check_terminal_compat(target, wire_part))
+
                 elif kind == 'splice':
-                    _ok, block_msg, warning_msg = _wire_snap.check_splice_compat(target, wire_part)
+                    _ok, block_msg, warning_msg = (
+                        _wire_snap.check_splice_compat(target, wire_part))
+
                 else:
                     block_msg, warning_msg = None, None
 
                 if block_msg:
-                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                    self._overlay.show_message(
+                        mouse_pos, block_msg, blocking=True)
+
                 elif warning_msg:
-                    self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                    self._overlay.show_message(
+                        mouse_pos, warning_msg, blocking=False)
+
                 elif self._overlay is not None:
                     self._overlay.hide_message()
 
@@ -889,7 +973,9 @@ class WireDragMixin:
             self.snapped_target = None
 
         move_delta = self._move_delta(
-            self._anchor, self.last_pos, delta, self._get_view_object(self.target).aabb)
+            self._anchor, self.last_pos, delta,
+            self._get_view_object(self.target).aabb)
+
         if move_delta is None:
             return
 

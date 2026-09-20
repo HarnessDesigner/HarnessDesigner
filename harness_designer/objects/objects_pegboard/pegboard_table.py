@@ -201,6 +201,10 @@ class PegboardTable(_base_pegboard.BasePegboard):
 
     db_obj: "_pjt_pegboard_table.PJTPegboardTable"
 
+    # class-level default: set_selected can run before __init__ finishes
+    _hover_cursor_active = False
+    _swallow_release = False
+
     @_check_types.do
     def __init__(self, parent: "_pegboard_table.PegboardTable",
                  db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
@@ -281,6 +285,8 @@ class PegboardTable(_base_pegboard.BasePegboard):
 
         self._host.cursor_changed.connect(self._on_cursor_changed)
         self._host.close_requested.connect(self._on_close_requested)
+        self._host.table.wire_selection_synced.connect(self._regrab_texture)
+        self._host.table.appearance_changed.connect(self._regrab_texture)
 
         # Same "hover reaches the target before press" and "grab-
         # emulation across press/drag/release" state the scratch
@@ -304,6 +310,7 @@ class PegboardTable(_base_pegboard.BasePegboard):
         self._resize_fixed_x: float | None = None
         self._resize_fixed_z: float | None = None
         self._resize_cursor_active = False
+        self._hover_cursor_active = False
 
         self._regrab_texture()
 
@@ -454,24 +461,16 @@ class PegboardTable(_base_pegboard.BasePegboard):
 
             # `with point:` batches the two component writes above but,
             # per Point/CallbackMixin's own docstring, does NOT fire
-            # bound callbacks on __exit__ -- "the caller is responsible
-            # for triggering the update itself after the block". Since
-            # this table owns self._position outright (unlike the
-            # anchor's point, which is a genuinely SHARED point this
-            # object only reacts to via .bind()), the established
-            # pattern elsewhere for a self-owned position (see e.g.
-            # objects_pegboard.wire_marker's own `with self._position:`
-            # users, which call _compute_obb/_compute_aabb directly
-            # afterward rather than relying on a callback) is to update
-            # this object's own derived state explicitly -- calling our
-            # own _update_position override does that (OBB/AABB
-            # translation via the inherited half, the connecting line
-            # via _recompute_connector). Without this, neither ever
-            # updated on a table drag: the OBB stayed at the pre-drag
-            # position (confirmed 2026-09-16 as "can't select the table
-            # again" after moving it -- the click was hit-testing a
-            # stale box) and the connecting line never moved either.
-            self._update_position(self._position)
+            # bound callbacks on __exit__ -- the caller must fire them.
+            # This point is the SHARED, DB-backed point (see
+            # PJTPointPegboard.point, which binds _update_point to it),
+            # so this is what persists the new table position to the
+            # database -- calling self._update_position directly (as
+            # this used to) refreshed the OBB/AABB and the connecting
+            # line but never reached _update_point, so the position was
+            # never stored. _update_position is itself bound to
+            # self._position (BaseVar.__init__), so it runs from here too.
+            self._position._process_callbacks()  # NOQA
 
             self._host.reset_sub_window_position()
 
@@ -780,6 +779,33 @@ class PegboardTable(_base_pegboard.BasePegboard):
         return left <= screen_pos.x <= right and top <= screen_pos.y <= bottom
 
     @_check_types.do
+    def _point_in_header(self, screen_pos: _point.Point) -> bool:
+        """Whether *screen_pos* (canvas screen pixels) lies over the
+        hosted table's column-header strip.
+        """
+        if not self._point_in_table_rect(screen_pos):
+            return False
+
+        panel_local = self._screen_to_panel_local(screen_pos)
+        header = self._host.table.horizontalHeader()
+        local_point = header.mapFrom(self._host, panel_local.toPoint())
+
+        return header.rect().contains(local_point)
+
+    @_check_types.do
+    def _show_column_picker(self, screen_pos: _point.Point) -> None:
+        """Open the column checklist inside the hosted table, at
+        *screen_pos* (canvas screen pixels), clamped to the table's own
+        bounds. It's a plain child of the table so it's captured into the
+        same texture -- nothing to show on a real screen.
+        """
+        panel_local = self._screen_to_panel_local(screen_pos)
+        table = self._host.table
+        table_pos = table.mapFrom(self._host, panel_local.toPoint())
+
+        table.show_column_picker(table_pos)
+
+    @_check_types.do
     def _screen_to_world(self, screen_pos: _point.Point) -> _point.Point:
         """Canvas screen pixels (logical) -> world -- the device-pixel
         conversion :meth:`_screen_to_panel_local` also does, factored
@@ -944,7 +970,7 @@ class PegboardTable(_base_pegboard.BasePegboard):
         with self._position:
             self._position.x = new_x
             self._position.z = new_center_z
-        self._update_position(self._position)
+        self._position._process_callbacks()  # NOQA
 
         width_px = max(1, int(new_width * _mdi_host.PIXELS_PER_MM))
         height_px = max(1, int(new_height * _mdi_host.PIXELS_PER_MM))
@@ -1009,6 +1035,45 @@ class PegboardTable(_base_pegboard.BasePegboard):
     @_check_types.do
     def _on_cursor_changed(self, cursor: QtGui.QCursor) -> None:
         self.pegboard.camera.canvas.setCursor(cursor)
+        self._hover_cursor_active = True
+
+    @_check_types.do
+    def _mirror_cursor(self, target: QtWidgets.QWidget) -> None:
+        """Make the canvas's cursor match the widget currently under the
+        pointer.
+
+        The hosted widgets only tell us about a cursor change via
+        ``CursorChange`` (see :meth:`_on_cursor_changed`), and that never
+        fires for a widget that merely LOSES the pointer without changing
+        its own cursor -- e.g. the header keeps its column-resize cursor
+        when the pointer moves down onto the table body, so the canvas
+        kept showing it. ``QWidget.cursor()`` falls back to the parent's
+        when none is set, so reading it from the hover target after every
+        forwarded move always gives the effective cursor.
+        """
+        canvas = self.pegboard.camera.canvas
+        cursor = target.cursor()
+
+        if cursor.shape() == QtCore.Qt.CursorShape.ArrowCursor:
+            self._reset_hover_cursor()
+            return
+
+        canvas.setCursor(cursor)
+        self._hover_cursor_active = True
+
+    @_check_types.do
+    def _reset_hover_cursor(self) -> None:
+        """Release whatever cursor a hosted widget put on the canvas --
+        only if this table actually set one, so it never fights the
+        canvas's own cursor handling (or the resize-zone cursor, see
+        :meth:`_set_resize_cursor`).
+        """
+        if not self._hover_cursor_active:
+            return
+
+        self._hover_cursor_active = False
+        if not self._resize_cursor_active:
+            self.pegboard.camera.canvas.unsetCursor()
 
     @_check_types.do
     def _on_close_requested(self) -> None:
@@ -1046,6 +1111,7 @@ class PegboardTable(_base_pegboard.BasePegboard):
         :attr:`_active_handler` no longer means "currently pressed."
         """
         super().set_selected(flag)
+        self._swallow_release = False
 
         # BaseVar.set_selected sets self._is_opaque from self.
         # _selected_material.is_opaque -- Config.editor_pegboard.
@@ -1074,6 +1140,10 @@ class PegboardTable(_base_pegboard.BasePegboard):
             self._active_handler = None
             if self.pegboard.editor.active_handler_obj is self:
                 self.pegboard.editor.active_handler_obj = None
+            host = getattr(self, '_host', None)
+            if host is not None:
+                host.table.close_column_picker()
+            self._reset_hover_cursor()
             self._clear_hover()
             self._set_resize_cursor(None)
             self._resize_zone = None
@@ -1098,6 +1168,7 @@ class PegboardTable(_base_pegboard.BasePegboard):
         if interaction_type == Interaction.LEFT_DOWN:
             zone = self._resize_zone_at(current_pos)
             if zone is not None:
+                self._host.table.close_column_picker()
                 self._start_resize(zone)
                 return True
 
@@ -1112,6 +1183,20 @@ class PegboardTable(_base_pegboard.BasePegboard):
                 return False
 
             self._dispatch_double_click(current_pos)
+            return True
+
+        # Right-click on the column header -> the show/hide-columns
+        # checklist. Nothing else forwards a right button into the
+        # hidden widget, so its own customContextMenuRequested never
+        # fires -- this asks for the popup directly instead.
+        if interaction_type == Interaction.RIGHT_DOWN:
+            return self._point_in_header(current_pos)
+
+        if interaction_type == Interaction.RIGHT_UP:
+            if had_motion or not self._point_in_header(current_pos):
+                return False
+
+            self._show_column_picker(current_pos)
             return True
 
         if interaction_type == Interaction.MOVE:
@@ -1145,10 +1230,15 @@ class PegboardTable(_base_pegboard.BasePegboard):
                 self._dispatch_hover(self._screen_to_panel_local(current_pos))
                 return True
 
+            self._reset_hover_cursor()
             self._clear_hover()
             return False
 
         if interaction_type == Interaction.LEFT_UP:
+            if self._swallow_release:
+                self._swallow_release = False
+                return True
+
             if self._resize_zone is not None:
                 self._resize_zone = None
                 self._resize_fixed_x = None
@@ -1201,6 +1291,17 @@ class PegboardTable(_base_pegboard.BasePegboard):
 
         panel_local = self._screen_to_panel_local(mouse_pos)
         target = self._host.table.viewport()
+
+        # Over the open column checklist, scroll IT, not the table --
+        # delivered to its scroll-area viewport specifically, since a
+        # synthetic wheel sent to whatever child is under the cursor
+        # (checkbox, scrollbar, frame margin) doesn't propagate up to
+        # the scroll area.
+        under_cursor = self._host.childAt(panel_local.toPoint())
+        picker_viewport = self._host.table.picker_scroll_viewport()
+        if picker_viewport is not None and self._host.table.picker_contains(under_cursor):
+            target = picker_viewport
+
         local_point = target.mapFrom(self._host, panel_local.toPoint())
         global_point = target.mapToGlobal(local_point)
 
@@ -1268,6 +1369,7 @@ class PegboardTable(_base_pegboard.BasePegboard):
             QtCore.Qt.MouseButton.NoButton, QtCore.Qt.MouseButton.NoButton, modifiers)
         QtWidgets.QApplication.sendEvent(target, move)
 
+        self._mirror_cursor(target)
         self._regrab_texture()
 
     @_check_types.do
@@ -1281,6 +1383,34 @@ class PegboardTable(_base_pegboard.BasePegboard):
         self._regrab_texture()
 
     @_check_types.do
+    def _close_picker_on_outside_click(self, target: QtWidgets.QWidget) -> bool:
+        """If the column checklist is open and a left press landed on
+        *target*, outside it, close it and consume the click.
+
+        The checklist is a plain child widget (not a real popup window),
+        so Qt won't dismiss it on an outside click -- this does. Only the
+        checklist closes: the table stays selected, and the matching
+        release is swallowed too (:attr:`_swallow_release`) -- left to
+        reach the canvas as an unclaimed click it would deselect the
+        table. A click off the table onto the canvas never gets here (it
+        isn't inside the table rect); it deselects the table, which
+        closes the checklist in :meth:`set_selected`.
+
+        :param target: The widget the press landed on.
+        :type target: QtWidgets.QWidget
+        :returns: ``True`` if the click was consumed to close the
+            checklist.
+        :rtype: bool
+        """
+        table = self._host.table
+        if not table.has_column_picker or table.picker_contains(target):
+            return False
+
+        table.close_column_picker()
+        self._swallow_release = True
+        return True
+
+    @_check_types.do
     def _dispatch_press(self, screen_pos: _point.Point) -> None:
         panel_local = self._screen_to_panel_local(screen_pos)
         point = panel_local.toPoint()
@@ -1289,6 +1419,9 @@ class PegboardTable(_base_pegboard.BasePegboard):
             # See _dispatch_hover's own comment on why self._host.
             # sub_window, not self._host, is the correct fallback here.
             target = self._host.sub_window
+
+        if self._close_picker_on_outside_click(target):
+            return
 
         local_point = target.mapFrom(self._host, point)
         global_point = target.mapToGlobal(local_point)
@@ -1326,6 +1459,9 @@ class PegboardTable(_base_pegboard.BasePegboard):
             # See _dispatch_hover's own comment on why self._host.
             # sub_window, not self._host, is the correct fallback here.
             target = self._host.sub_window
+
+        if self._close_picker_on_outside_click(target):
+            return
 
         local_point = target.mapFrom(self._host, point)
         global_point = target.mapToGlobal(local_point)

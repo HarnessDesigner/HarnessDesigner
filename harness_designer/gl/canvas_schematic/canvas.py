@@ -49,6 +49,7 @@ class Canvas(_canvas_base.CanvasBase):
     camera: _camera.Camera = None
     _mouse_handler: _mouse_handler2d.MouseHandler = None
     _editor_name = 'editor2d'
+    _debug_frame_end = True  # DEBUG (temporary) -- see CanvasBase._on_draw
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_schematic,
@@ -66,7 +67,7 @@ class Canvas(_canvas_base.CanvasBase):
         :type size: :class:`QSize` | `None`
         """
 
-        self.bounds_manager = self.mainframe.bounds_manager.editor_schematic
+        self.bounds_manager = mainframe.bounds_manager.editor_schematic
 
         super().__init__(mainframe, config, size)
 

@@ -23,9 +23,12 @@ _SNAP_THRESHOLD = 5.0
 
 @_check_types.do
 def _bundle_segments(bundle: _bundle.Bundle):
-    """Every (p1, p2) sub-segment of *bundle*'s current 3D path, as numpy
+    """
+    Every (p1, p2) sub-segment of *bundle*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
-    stop. Mirrors handlers.wire_layout_handler's own _wire_segments."""
+    stop. Mirrors handlers.wire_layout_handler's own _wire_segments.
+    """
+
     points = [bundle.obj3d.start_position.as_numpy]
 
     for waypoint in bundle.db_obj.waypoints3d:
@@ -46,9 +49,7 @@ def _find_bundle(
     Return the bundle under the mouse, or the closest one within the snap threshold.
     """
 
-    selected = _object_picker.find_object(
-        mouse_pos, camera.objects_in_view, camera,
-        _handler_base.HandlerBase._get_view_object)
+    selected = _object_picker.find_object(mouse_pos, camera, camera.canvas)
 
     if isinstance(selected, _bundle.Bundle):
         return selected
@@ -67,7 +68,9 @@ def _find_bundle(
             if seg_len_sq < 1e-8:
                 continue
 
-            t = max(0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
+            t = max(
+                0.0, min(1.0, float(np.dot(world_pos - p1, seg)) / seg_len_sq))
+
             closest = p1 + t * seg
             dist_sq = float(np.sum((world_pos - closest) ** 2))
 
@@ -80,10 +83,13 @@ def _find_bundle(
 
 @_check_types.do
 def _find_insertion_index(bundle: _bundle.Bundle, position: np.ndarray) -> int:
-    """Return which sub-segment of *bundle*'s current path *position*
+    """
+    Return which sub-segment of *bundle*'s current path *position*
     falls closest to -- equivalently, how many of its existing interior
     waypoints come before a new one inserted there. Mirrors
-    handlers.wire_layout_handler._find_insertion_index."""
+    handlers.wire_layout_handler._find_insertion_index.
+    """
+
     best_idx = 0
     best_dist = None
 
@@ -131,7 +137,8 @@ def _create_bundle_layout_on_bundle(
     position: _point.Point,
     insert_idx: int | None = None,
 ) -> _bundle_layout.BundleLayout:
-    """Insert a new interior waypoint into *bundle*'s own path at
+    """
+    Insert a new interior waypoint into *bundle*'s own path at
     *position* and mark it with a BundleLayout.
 
     No new ``pjt_bundles`` row is created -- an ordinary bend is just a
@@ -145,6 +152,7 @@ def _create_bundle_layout_on_bundle(
     doesn't have one on hand, e.g. the bundle's own midpoint, when no
     click was captured.
     """
+
     ptables = project.ptables
 
     if insert_idx is None:

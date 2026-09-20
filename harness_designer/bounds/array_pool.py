@@ -65,6 +65,11 @@ import numpy as np
 from .. import check_types as _check_types
 
 
+# Slot categories for :meth:`ArrayPool.set_tag`. Add new ones here.
+TAG_NONE = 0
+TAG_OBSTACLE = 1  # schematic housing/splice/note -- a hard obstacle for wire routing
+
+
 class ArrayPool:
     """See the module docstring for the overall design. Not used
     directly -- :class:`~.aabb.AABB`/:class:`~.obb.OBB` supply the row
@@ -74,8 +79,13 @@ class ArrayPool:
 
     @_check_types.do
     def __init__(self, sentinel_row: list, block_size: int = 50,
-                 dtype: type = np.float64):
+                 dtype: type = np.float32):
         self._block_size = block_size
+
+        # float32 is load-bearing: rows are handed straight to
+        # gl/culling/culling.pyx, which declares them ``float[::1]`` --
+        # a float64 row raises a buffer dtype mismatch there and every
+        # frame's cull fails (nothing but non-culled gizmos draws).
         self._dtype = dtype
         self._sentinel_row = np.asarray(sentinel_row, dtype=dtype)
 
@@ -85,6 +95,11 @@ class ArrayPool:
         self._refs = []
         self._visible_refs = []
         self._visible = np.empty((0,), dtype=bool)
+
+        # One small integer per slot, in the same row order as
+        # ``_visible`` -- see :meth:`set_tag`/:meth:`rows_tagged`.
+        # ``TAG_NONE`` (0) for every unissued/released/untagged slot.
+        self._tags = np.empty((0,), dtype=np.uint8)
         self._free: list[int] = []
         self._issued_in_last_block = 0
 
@@ -110,6 +125,10 @@ class ArrayPool:
         self._visible = np.concatenate(
             (self._visible, np.zeros(self._block_size, dtype=bool)),
             axis=0, dtype=bool)
+
+        self._tags = np.concatenate(
+            (self._tags, np.zeros(self._block_size, dtype=np.uint8)),
+            axis=0, dtype=np.uint8)
 
         self._issued_in_last_block = 0
 
@@ -150,6 +169,12 @@ class ArrayPool:
         to reuse at this same address.
         """
 
+        if self._refs[index] is None:
+            # Already released (or never issued) -- a second call would
+            # push the same slot onto the free-list twice and hand it to
+            # two different objects.
+            return
+
         block, slot = divmod(index, self._block_size)
         self._blocks[block][slot][:] = self._sentinel_row
 
@@ -159,6 +184,7 @@ class ArrayPool:
 
         self._refs[index] = None
         self._visible[index] = False
+        self._tags[index] = TAG_NONE
         self._free.append(index)
 
     @_check_types.do
@@ -187,6 +213,30 @@ class ArrayPool:
             self.mark_visible(key)
 
     @_check_types.do
+    def set_tag(self, index: int, tag: int) -> None:
+        """Categorize *index*'s slot (one of the ``TAG_*`` constants) so a
+        bulk query can select a whole category at once via
+        :meth:`rows_tagged` instead of walking objects in Python."""
+        self._tags[index] = tag
+
+    @_check_types.do
+    def rows_tagged(self, tag: int, exclude: list[int] | None = None) -> np.ndarray:
+        """Every row whose slot is tagged *tag*, as one new array (a copy,
+        not a view -- this is a boolean-mask selection). Independent of
+        visibility: a routing obstacle scan needs every such object, in
+        view or not.
+
+        :param exclude: Slot indices to leave out even if tagged.
+        """
+        mask = self._tags == tag
+
+        if exclude:
+            for index in exclude:
+                mask[index] = False
+
+        return self.snapshot()[mask]
+
+    @_check_types.do
     def read(self, index: int) -> np.ndarray:
         """*slot*'s own current row."""
         block, slot = divmod(index, self._block_size)
@@ -196,7 +246,11 @@ class ArrayPool:
     @_check_types.do
     def mark_visible(self, index: int) -> None:
         """Called from inside the owning object's own ``render()`` --
-        see the module docstring's ``_visible`` bullet."""
+        see the module docstring's ``_visible`` bullet. A no-op for a
+        released slot (a deleted object still mid-render)."""
+        if self._refs[index] is None:
+            return
+
         self._visible[index] = True
         self._visible_refs.append(self._refs[index])
 

@@ -64,7 +64,7 @@ class Canvas(_canvas_base.CanvasBase):
         :type size: :class:`QSize` | `None`
         """
 
-        self.bounds_manager = self.mainframe.bounds_manager.editor_pegboard
+        self.bounds_manager = mainframe.bounds_manager.editor_pegboard
 
         super().__init__(mainframe, config, size)
 

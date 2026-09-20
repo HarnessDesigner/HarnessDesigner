@@ -137,6 +137,8 @@ class WireLayout(_base_schematic.BaseSchematic):
 
         removed_idx = point.idx
         wire_db = pjt_wires[0]
+        wire_obj = wire_db.get_object()
+
         for waypoint in wire_db.waypoints2d:
             if waypoint.idx > removed_idx:
                 waypoint.idx = waypoint.idx - 1
@@ -149,6 +151,12 @@ class WireLayout(_base_schematic.BaseSchematic):
         # forever.
         point.wire_id = None
         point.delete()
+
+        # The wire's own segment-pool registration (see
+        # objects_schematic/wire.py's Wire._register_segments) still lists
+        # the deleted point until told the path changed.
+        if wire_obj is not None:
+            wire_obj.objschematic.refresh_waypoints()
 
     @property
     @_check_types.do

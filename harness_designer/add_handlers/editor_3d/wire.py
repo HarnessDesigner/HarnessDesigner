@@ -294,8 +294,7 @@ class Wire(_base.AddHandlerBase):
     def _hover_extension(self, mouse_pos: _point.Point) -> None:
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
         kind, target = _wire_snap.get_snap_info(picked)
 
         wire_part = self._get_wire_part()
@@ -343,8 +342,7 @@ class Wire(_base.AddHandlerBase):
         wire_part = self._get_wire_part()
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:
@@ -403,8 +401,7 @@ class Wire(_base.AddHandlerBase):
 
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:
@@ -550,8 +547,7 @@ class Wire(_base.AddHandlerBase):
             self._finalized = True
             return
 
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:

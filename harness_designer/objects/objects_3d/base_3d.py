@@ -326,7 +326,7 @@ class Base3D(_objectsvar.BaseVar):
             self._active_handler.delete()
             self._active_handler = None
 
-        self._is_deleted = True
+        self._release_bounds()
         self.editor3d.Refresh()
 
     @_check_types.do

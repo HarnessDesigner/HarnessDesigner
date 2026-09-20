@@ -643,12 +643,38 @@ Contents/structure of the `harness_designer/` package.
 ## Other subsystems
 - `exporter/`: project export
   - `exporter.py`
+- `bounds/`: pooled bounding-box / wire-path storage, one set per view
+  (3D, schematic, pegboard) held by `Manager` in `manager.py`
+  - `array_pool.py`: `ArrayPool`, the block/slot engine behind AABB/OBB
+    -- fixed-size numpy blocks (a row's address never moves), per-slot
+    weak refs, visible flags and category tags (`TAG_OBSTACLE`, see
+    `set_tag`/`rows_tagged`), free-list reuse via `release()`
+  - `aabb.py` / `obb.py`: the two concrete pools (row shape + the
+    vectorized ray test each defines)
+  - `segment_pool.py`: `SegmentPool`, wire paths as a vertex list (each
+    `Point.as_numpy` buffer referenced live, deduped, refcounted) plus
+    per-wire index pairs; `segments(exclude, window)` returns every
+    wire's segments as one array -- what the router's wire-to-wire lane
+    check reads (registered by `objects_schematic/wire.py`)
+  - `manager.py`: `Manager` / `View` (`.aabb`, `.obb`, `.segments`)
 - `wire_routing/`: orthogonal (H/V-only) auto-routing for the 2D
   schematic editor's wires (moved out of `objects/objects_schematic/`
   2026-09-16, into its own top-level package)
   - `routing.py`: the A* pathfinder itself -- `route()`, obstacle
     (housing/splice/note) avoidance, wire-to-wire spacing, single entry
     point for "give me an orthogonal path between these two points"
+  - `astar.pyx`: the compiled (Cython) hot loops behind `routing.py`, all
+    in scaled-integer math -- `build_tables()` + `astar()` (a one-off grid
+    for a single `route()` call) and `Router`, one drag frame's shared
+    grid (obstacle / lane counts painted in and out, generation-stamped
+    search buffers) that `RoutingFrame` drives. Built in place to `astar.<abi>.pyd` (gitignored); `routing.py`
+    falls back to its pure-Python `_astar_py` if the binary isn't there
+  - `routing.py` also holds `RoutingFrame` / `build_frame()`: one grid for a
+    whole batch of wires (the ones attached to a dragged object), built once
+    per drag frame instead of once per wire. Routes also PACK: `Router.paint_pack`
+    marks sibling runs (wires that followed the dragged housing, plus each batch
+    wire as it settles) and a step not one lane spacing beside one costs an extra
+    1/16 of its length, so a re-routed wire hugs its bundle where it can
   - `reroute.py`: the stateful orchestration layer built on `routing.py`
     -- `reroute_wire()` (the single choke point that reconciles a
     wire's persisted waypoint rows against a fresh route, moving what

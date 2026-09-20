@@ -477,7 +477,7 @@ class BasePegboard(_objectsvar.BaseVar):
             self._active_handler.delete()
             self._active_handler = None
 
-        self._is_deleted = True
+        self._release_bounds()
         self.pegboard.Refresh()
 
     @_check_types.do

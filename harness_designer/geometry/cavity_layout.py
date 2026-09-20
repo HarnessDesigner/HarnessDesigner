@@ -82,21 +82,35 @@ def compute_stack_geometry(num_cavities: int) -> CavityStackGeometry:
     return CavityStackGeometry(cavity_height, cavity_width, cavity_extent, housing_width, terminal_font_height, padding)
 
 
+# Flat schematic boxes still get a real y extent so the pooled AABB/OBB
+# ray tests never see a degenerate (zero-thickness) slab.
+_BOX_THICKNESS = 0.1
+
+
 def _box_corners(center_x: float, center_z: float, width: float, height: float) -> np.ndarray:
-    """4 local corners of a ``width`` x ``height`` box centered on
-    ``(center_x, center_z)`` -- ``(min_x,min_z), (min_x,max_z),
-    (max_x,min_z), (max_x,max_z)``, the same corner order/shape every
-    ``_compute_obb``/``_compute_aabb`` override in this codebase already
-    expects (rotate by ``@ angle``, translate by ``+ position``).
+    """8 local corners of a ``width`` x ``height`` box centered on
+    ``(center_x, center_z)``, ``_BOX_THICKNESS`` thick in y (centered on
+    y=0). Same ``(x, y, z)`` binary corner order as every other
+    ``_compute_obb`` override (rotate by ``@ angle``, translate by
+    ``+ position``) so it fits the pool's ``(8, 3)`` OBB rows; the
+    matching AABB is derived from these same corners.
     """
     half_w = width / 2.0
     half_h = height / 2.0
+    half_t = _BOX_THICKNESS / 2.0
+
+    min_x = center_x - half_w
+    max_x = center_x + half_w
+    min_y = -half_t
+    max_y = half_t
+    min_z = center_z - half_h
+    max_z = center_z + half_h
 
     return np.array([
-        [center_x - half_w, 0.0, center_z - half_h],
-        [center_x - half_w, 0.0, center_z + half_h],
-        [center_x + half_w, 0.0, center_z - half_h],
-        [center_x + half_w, 0.0, center_z + half_h],
+        [min_x, min_y, min_z], [min_x, min_y, max_z],
+        [min_x, max_y, min_z], [min_x, max_y, max_z],
+        [max_x, min_y, min_z], [max_x, min_y, max_z],
+        [max_x, max_y, min_z], [max_x, max_y, max_z],
     ], dtype=np.float32)
 
 
@@ -166,11 +180,11 @@ def compute_housing_cavity_geometry(cavity_names: list[str]) -> list[CavityGeome
       terminal's own "(" bracket renders (``bracket_position``) --
       reserved whether or not a terminal is actually seated, so a
       cavity's own name never shifts when one is added/removed.
-    - ``obb``: 4 local corners of this cavity's own hit-test region --
+    - ``obb``: 8 local corners of this cavity's own hit-test region --
       its NAME label's own bounds, NOT the cavity band itself -- a
       cavity is clicked via its rendered name, not the (invisible) slot
       area.
-    - ``terminal_obb``: 4 local corners of a seated terminal's own
+    - ``terminal_obb``: 8 local corners of a seated terminal's own
       hit-test region -- the text area inside the cavity rectangle
       (``cavity_width - text_padding*2`` by ``font_height``), centered
       on ``position`` (INSIDE the cavity rectangle, unlike ``obb``) --

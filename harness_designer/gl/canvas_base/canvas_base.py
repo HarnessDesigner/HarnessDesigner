@@ -350,6 +350,10 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     bounds_manager: _bounds.View = None
 
+    # DEBUG (temporary): print a blank line at the end of every frame so
+    # per-frame debug output can be told apart -- see _on_draw.
+    _debug_frame_end: bool = False
+
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", config, size: QtCore.QSize = None):
         """
@@ -1186,6 +1190,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             _logger.traceback(
                 err, 'culling error')
 
+            # if self._debug_frame_end:
+                # print()  # DEBUG (temporary)
+
             return
 
         # This 3-call order is load-bearing -- do not reorder it and do
@@ -1208,6 +1215,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         self._draw_scene(objs)
         self._render_floor_after()
         self._render_selected_overlay()
+
+        # if self._debug_frame_end:
+            # print()  # DEBUG (temporary)
 
     @_check_types.do
     def _render_selected_overlay(self):

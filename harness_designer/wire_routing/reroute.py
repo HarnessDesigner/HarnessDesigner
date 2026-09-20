@@ -21,6 +21,7 @@ import math
 
 from . import routing as _wire_routing
 from ..database.project_db import pjt_wire as _pjt_wire
+from ..database.project_db import pjt_point2d as _pjt_point2d
 from .. import config as _config
 from .. import check_types as _check_types
 
@@ -154,9 +155,204 @@ def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, 
     return wire_x, wire_z + sign * stub_length
 
 
+def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_routing.WireEnds:
+    """*wire*'s two true 2D ends, the terminal exit stub (if any) at each,
+    and the splices it's attached to -- what a routing frame needs to
+    know about it."""
+    db_obj = wire.db_obj
+    start = db_obj.start_position2d
+    stop = db_obj.stop_position2d
+
+    return _wire_routing.WireEnds(
+        (float(start.x), float(start.z)), (float(stop.x), float(stop.z)),
+        _terminal_exit_stub_point(wire, 'start'), _terminal_exit_stub_point(wire, 'stop'),
+        _wire_routing.attached_splice_rects(project, wire))
+
+
+def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
+                pack_with: list["_wire_obj.Wire"] = ()):
+    """One shared routing grid for *wires* (see
+    :class:`~.routing.RoutingFrame`), to pass to :func:`reroute_wire` as
+    ``frame`` for each of them -- or ``None`` if it can't be built (nothing
+    to route, or the compiled search isn't available), in which case
+    :func:`reroute_wire` simply routes each wire on its own.
+
+    :param pack_with: Wires outside *wires* that sit on the same housing --
+        the routes prefer to run right alongside these (and alongside each
+        other as they settle); see :meth:`~.routing.RoutingFrame.__init__`."""
+    if not wires:
+        return None
+
+    return _wire_routing.build_frame(
+        project, {wire: wire_ends(project, wire) for wire in wires}, pack_with)
+
+
+def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int, tuple[float, float]]]
+                  ) -> list[tuple[object, float, float]]:
+    """Turn a wire's *updates* -- ``(index into the wire's path with the
+    moving end first, new (x, z))``, as :func:`~.routing.plan_shift` returns
+    them -- into ``(waypoint Point, x, z)`` triples.
+
+    *waypoint_points* is the wire's interior waypoint ``Point`` objects in
+    stored order (start to stop). The planner numbers points from the MOVING
+    end, so for a wire that moves at its stop end the numbering runs the
+    other way.
+    """
+    count = len(waypoint_points)
+    targets = []
+
+    for at, (x, z) in updates:
+        # path[0] is the moving end itself; path[1] is the first waypoint.
+        if at_start:
+            point = waypoint_points[at - 1]
+        else:
+            point = waypoint_points[count - at]
+
+        targets.append((point, x, z))
+
+    return targets
+
+
+def apply_shifts(project: "_project.Project", targets: list[tuple[object, float, float]]) -> None:
+    """Move every ``(waypoint Point, x, z)`` in *targets* -- across ALL the
+    wires being shifted -- with a SINGLE database write.
+
+    A ``Point``'s own callback writes its row and commits, and a commit costs
+    the same (a few milliseconds: it waits for the disk) whether it carries
+    one row or a hundred. So letting each moved waypoint write for itself
+    made a drag pay one commit per waypoint per mouse move, on top of the
+    housing's own. This does what ``PJTHousing._update_position2d`` does for
+    the terminals it carries: one ``batch_update`` for all of them, then the
+    points move with the per-point write switched off (their callbacks -- the
+    ones that redraw -- still fire).
+    """
+    if not targets:
+        return
+
+    rows = [[float(x), float(z), point.db_id[:-2]] for point, x, z in targets]
+    project.ptables.pjt_points2d_table.batch_update(['x', 'y'], rows)
+
+    _pjt_point2d.PJTPoint2D._skip_db_write = True
+    try:
+        for point, x, z in targets:
+            with point:
+                point.x = x
+                point.z = z
+
+            # Callbacks are suppressed inside ``with point:`` and the caller
+            # is responsible for firing them afterwards (see reroute_wire).
+            point._process_callbacks()  # NOQA
+    finally:
+        _pjt_point2d.PJTPoint2D._skip_db_write = False
+
+
+def follow_moved(project: "_project.Project", obj, wires: list["_wire_obj.Wire"],
+                 delta: tuple[float, float]) -> list["_wire_obj.Wire"]:
+    """Let the wires of a housing that has just moved by *delta* follow it
+    without a new route wherever their existing path can (see
+    :func:`~.routing.plan_shift`), and return the ones that can't -- those
+    still need :func:`reroute_wire`. A route is worth keeping until it
+    collides: nothing is searched here.
+
+    Only a housing has terminals with exit stubs to follow; for anything else
+    (a splice, a lone terminal) every wire is returned.
+
+    :param wires: The wires attached to *obj* (see :func:`wires_attached_to`),
+        in the order they should be placed -- shortest first.
+    """
+    from ..objects import housing as _housing
+
+    if not isinstance(obj, _housing.Housing):
+        return list(wires)
+
+    terminals = {cavity.terminal for cavity in obj.cavities if cavity.terminal is not None}
+
+    jobs = []
+    at_start = {}
+    rest = []
+
+    for wire in wires:
+        starts_here = wire.start_sibling in terminals
+        stops_here = wire.stop_sibling in terminals
+
+        if starts_here == stops_here:
+            # Both ends on this housing (the whole path moves) or, oddly, neither.
+            rest.append(wire)
+            continue
+
+        end = 'start' if starts_here else 'stop'
+        stub = _terminal_exit_stub_point(wire, end)
+        if stub is None:
+            rest.append(wire)
+            continue
+
+        objs = wire.objschematic
+        path = [(float(p.x), float(p.z)) for p in [objs._p1] + list(objs._waypoint_points) + [objs._p2]]  # NOQA
+        if not starts_here:
+            path.reverse()
+
+        out_x = stub[0] - path[0][0]
+        out_z = stub[1] - path[0][1]
+
+        if abs(out_x) >= abs(out_z):
+            axis = 0
+            sign = 1 if out_x >= 0.0 else -1
+        else:
+            axis = 1
+            sign = 1 if out_z >= 0.0 else -1
+
+        jobs.append(_wire_routing.ShiftJob(wire, path, axis, sign, math.hypot(out_x, out_z)))
+        at_start[wire] = starts_here
+
+    plan = _wire_routing.plan_shift(project, jobs, delta) if jobs else {}
+
+    targets = []
+    for job in jobs:
+        updates = plan[job.wire]
+
+        if updates is None:
+            rest.append(job.wire)
+            continue
+
+        targets.extend(shift_targets(job.wire.objschematic._waypoint_points, at_start[job.wire], updates))  # NOQA
+
+    # One write for the whole batch, not one commit per waypoint.
+    apply_shifts(project, targets)
+
+    # Back into the order the caller gave (shortest first).
+    order = {wire: index for index, wire in enumerate(wires)}
+    rest.sort(key=order.__getitem__)
+
+    return rest
+
+
+@_check_types.do
+def _skipped_stub_segments(skip_wires) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    """The fixed terminal-exit stubs (true end -> stub point) of every wire
+    in *skip_wires*, as ``((x1, z1), (x2, z2))`` segments.
+
+    A skipped (unsettled) sibling's current path is deliberately ignored,
+    but the short straight run out of each of its terminals is mandatory
+    geometry that will exist whatever route it ends up with -- a wire
+    routed before it must keep out of that lane, or it can leave the
+    sibling's own start boxed in (terminals are only a few mm apart).
+    """
+    segments = []
+
+    for skipped in skip_wires:
+        db_obj = skipped.db_obj
+
+        for end, point in (('start', db_obj.start_position2d), ('stop', db_obj.stop_position2d)):
+            stub = _terminal_exit_stub_point(skipped, end)
+            if stub is not None:
+                segments.append(((float(point.x), float(point.z)), stub))
+
+    return segments
+
+
 @_check_types.do
 def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
-                 skip_wires=frozenset()) -> None:
+                 skip_wires=frozenset(), frame=None) -> None:
     """Recompute *wire*'s orthogonal 2D path and reconcile its interior
     waypoint rows against the result -- moves whatever old waypoints can
     be reused (one DB write per point moved, no delete/insert at all)
@@ -190,6 +386,10 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
 
     :param skip_wires: See :func:`routing._wire_segments` -- forwarded
         unchanged to :func:`routing.route`.
+    :param frame: A :class:`~.routing.RoutingFrame` (see :func:`build_frame`)
+        that *wire* is part of. When given, the route comes from it -- one
+        grid shared by the whole batch, which also tracks which of the
+        batch are settled -- and *skip_wires* isn't needed.
     """
     ptables = project.ptables
     db_obj = wire.db_obj
@@ -206,10 +406,21 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
     route_start = start_xz if start_stub is None else start_stub
     route_stop = stop_xz if stop_stub is None else stop_stub
 
-    interior = _wire_routing.route(
-        project, route_start, route_stop, ignore_wire=wire, skip_wires=skip_wires,
-        start_anchor=None if start_stub is None else start_xz,
-        stop_anchor=None if stop_stub is None else stop_xz)
+    if frame is not None and wire in frame:
+        interior = frame.route(wire)
+    else:
+        # The wire's own stubs count as lanes too (see RoutingFrame.route).
+        own_stubs = []
+        if start_stub is not None:
+            own_stubs.append((start_xz, start_stub))
+        if stop_stub is not None:
+            own_stubs.append((stop_xz, stop_stub))
+
+        interior = _wire_routing.route(
+            project, route_start, route_stop, ignore_wire=wire, skip_wires=skip_wires,
+            start_anchor=None if start_stub is None else start_xz,
+            stop_anchor=None if stop_stub is None else stop_xz,
+            extra_segments=_skipped_stub_segments(skip_wires) + own_stubs)
 
     full_path = [start_xz]
     if start_stub is not None:

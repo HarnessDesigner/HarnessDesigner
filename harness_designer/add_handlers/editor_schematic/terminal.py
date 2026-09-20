@@ -82,8 +82,7 @@ class Terminal(_base.AddHandlerBase):
     def _finalize(self, mouse_pos: _point.Point) -> None:
         from ...objects.objects_schematic import cavity as _cavity_schematic
 
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
 
         if not isinstance(picked, _cavity_schematic.Cavity):
             return

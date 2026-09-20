@@ -17,8 +17,9 @@ Each entry is ``(label, info)`` where ``info`` is either:
 - ``{'alias': ..., 'computed': True}`` -- one of the circuit aggregate
   columns (resistance, volts, load, voltage drop, weight, length) that
   ``project_db.pjt_circuit.PJTCircuit`` computes by walking terminals/
-  splices/wire-service-loops in Python, not something a single JOINed SELECT
-  can express. :meth:`WireTable._build_query` still selects a placeholder
+  splices/wire-service-loops in Python, or the cavity name (a wire has an
+  end at each of two terminals, so a JOIN would duplicate the row) -- not
+  something a single JOINed SELECT can express. :meth:`WireTable._build_query` still selects a placeholder
   value (the row's own ``circuit_id``) at this column's position so row
   indexing stays aligned with every other column; :meth:`WireTable.
   _get_cell_text` overrides the displayed text for these specific columns by
@@ -61,13 +62,15 @@ COLUMN_DEFS: list[tuple[str, dict]] = [
     ('Circuit Voltage Drop (%)', {'alias': 'circuit_voltage_drop_pct', 'computed': True}),  # 29
     ('Circuit Weight', {'alias': 'circuit_weight', 'computed': True}),  # 30
     ('Circuit Length', {'alias': 'circuit_length', 'computed': True}),  # 31
+    ('Cavity Name', {'alias': 'cavity_name', 'computed': True}),  # 32
 ]
 
 # Shown when a peg-board table has never had its column selection saved
 # (PJTPegboardTable.visible_columns == []) -- matches the columns asked for
 # when this table was first proposed: circuit number, circuit name,
-# manufacturer, part number ("wire model number"), AWG, mm².
-DEFAULT_VISIBLE_COLUMNS: list[int] = [21, 22, 2, 0, 16, 15]
+# manufacturer, part number ("wire model number"), AWG, mm² -- with the
+# cavity name (32) leading, so it's the first data column.
+DEFAULT_VISIBLE_COLUMNS: list[int] = [32, 21, 22, 2, 0, 16, 15]
 
 # Reverse lookup (SQL alias -> COLUMN_DEFS index), used to translate a
 # dragged header's new logical-column order back into COLUMN_DEFS indices

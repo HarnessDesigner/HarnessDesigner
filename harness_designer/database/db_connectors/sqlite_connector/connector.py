@@ -47,6 +47,48 @@ _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
+def _enable_wal(connection: sqlite3.Connection) -> bool:
+    """Put *connection* in write-ahead-log mode with ``synchronous=NORMAL``.
+
+    In SQLite's default rollback-journal mode every commit waits for the disk
+    twice (journal, then database), which measured about 3 ms per commit
+    here, and the cost is per COMMIT, not per row. The app commits after
+    nearly every write (``update`` / ``batch_update`` / ``insert`` ...), so a
+    live drag that writes positions on every mouse move spent most of its
+    time waiting on the disk. In WAL mode with ``synchronous=NORMAL`` a
+    commit is an append to the log and takes about 0.03 ms.
+
+    What it costs: the database gets ``-wal`` and ``-shm`` files beside it
+    while open (folded back into the main file when the connection closes
+    cleanly, or recovered automatically after a crash), so copying the
+    ``.db`` file WHILE the app runs can miss the newest commits; and after a
+    power failure (not an application crash) the last few commits can be
+    lost, though the database itself is never corrupted.
+
+    ``journal_mode=WAL`` is stored in the database file, so it stays on for
+    later connections. ``synchronous`` is per connection, so it is set here
+    every time -- and only when WAL actually took, because NORMAL is only
+    appropriate in WAL mode.
+
+    :returns: ``True`` if WAL is on. ``False`` -- and the defaults are left
+        alone -- where it isn't possible (a network share, a read-only file, an
+        in-memory database).
+    """
+    try:
+        mode = connection.execute('PRAGMA journal_mode=WAL;').fetchone()[0]
+    except sqlite3.Error as err:
+        _logger.warning('could not enable WAL journaling:', err)
+        return False
+
+    if str(mode).lower() != 'wal':
+        _logger.warning(f'WAL journaling is not available here (journal mode is {mode!r}); '
+                        'keeping the default')
+        return False
+
+    connection.execute('PRAGMA synchronous=NORMAL;')
+    return True
+
+
 class SQLConnector(_base.ConnectorBase):
     """
     Implement database access through :mod:`sqlite3`.
@@ -271,6 +313,7 @@ class SQLConnector(_base.ConnectorBase):
                     splash.flush()
 
         self._connection = sqlite3.connect(self.db_name, check_same_thread=False)
+        _enable_wal(self._connection)
         self._cursor = self._connection.cursor()
 
         if downloaded:

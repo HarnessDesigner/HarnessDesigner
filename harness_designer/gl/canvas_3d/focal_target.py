@@ -66,6 +66,8 @@ class FocalTarget3D(_generic_3d.Generic):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
+    _pick_priority = -1
+
     @_check_types.do
     def __init__(self, parent: FocalTarget):
         """Initialise the :class:`FocalPoint3D` instance.

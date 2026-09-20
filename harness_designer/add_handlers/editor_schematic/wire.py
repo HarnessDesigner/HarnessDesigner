@@ -122,8 +122,7 @@ class Wire(_base.AddHandlerBase):
 
     @_check_types.do
     def _finalize(self, mouse_pos: _point.Point) -> None:
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
 
         if picked is self.target or picked is None:
             return

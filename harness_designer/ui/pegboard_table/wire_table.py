@@ -33,13 +33,18 @@ What this subclass adds on top:
   for this table).
 - Column drag-to-reorder via native ``QHeaderView.setSectionsMovable``,
   persisted back to ``PJTPegboardTable.visible_columns`` on every drop.
+- Cross-table wire selection: selecting a row in one table selects (and
+  scrolls into view) the row for the same wire in every other live table of
+  the same project -- see :meth:`_on_row_selected`/:meth:`_select_wire`.
 """
 
+import weakref
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QPoint
+from PySide6 import QtCore
+from PySide6.QtCore import Qt, QPoint, QRect
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QCheckBox, QScrollArea,
-                               QHeaderView)
+                               QHeaderView, QAbstractItemView, QApplication, QFrame)
 
 from ..editor_db import base as _base
 from . import column_defs as _column_defs
@@ -50,22 +55,26 @@ if TYPE_CHECKING:
     from ...database.project_db.pjt_pegboard_table import PJTPegboardTable
 
 
-class _ColumnPickerPopup(QWidget):
-    """Right-click-header popup listing every optional column as a
-    checkbox, checked state mirroring what's currently shown. Toggling
-    one applies immediately (no OK/Cancel) -- same instant-apply feel as
-    a normal column-visibility menu.
+class _ColumnPickerPopup(QFrame):
+    """Right-click-header checklist of every optional column, checked
+    state mirroring what's currently shown. Toggling one applies
+    immediately (no OK/Cancel) -- same instant-apply feel as a normal
+    column-visibility menu.
 
-    ``Qt.Popup`` (same as :class:`_HeaderSearchPopup` in editor_db.base)
-    means Qt closes it automatically on any click outside it or loss of
-    focus.
+    A plain child widget of the :class:`WireTable` (deliberately NOT a
+    ``Qt.Popup`` -- that's a separate top-level window, which the hosted
+    table's ``grab()`` never captures), so it renders into the same
+    texture as the table itself and stays inside the table's bounds. That
+    also means Qt won't auto-close it on an outside click the way it
+    would a real popup -- :meth:`WireTable.close_column_picker` is called
+    by whoever routes the mouse (see ``objects_pegboard.pegboard_table``).
     """
 
     @_check_types.do
-    def __init__(self, parent, visible_indices: list[int], on_toggle):
+    def __init__(self, parent: QWidget, visible_indices: list[int], on_toggle):
         """Initialise the popup.
 
-        :param parent: Widget the popup is anchored near.
+        :param parent: The table this popup lives inside.
         :type parent: QWidget
         :param visible_indices: COLUMN_DEFS indices currently shown.
         :type visible_indices: list[int]
@@ -73,21 +82,25 @@ class _ColumnPickerPopup(QWidget):
             checkbox is toggled.
         :type on_toggle: Callable[[int, bool], None]
         """
-        super().__init__(parent, Qt.WindowType.Popup)
+        super().__init__(parent)
         self._on_toggle = on_toggle
+
+        # The hosted widget tree is translucent (see mdi_host) -- without
+        # its own opaque fill this would render see-through.
+        self.setFrameShape(QFrame.Shape.Box)
+        self.setAutoFillBackground(True)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(4, 4, 4, 4)
 
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setMaximumHeight(400)
-        outer.addWidget(scroll)
+        self._scroll = QScrollArea(self)
+        self._scroll.setWidgetResizable(True)
+        outer.addWidget(self._scroll)
 
-        body = QWidget(scroll)
+        body = QWidget(self._scroll)
         layout = QVBoxLayout(body)
         layout.setContentsMargins(4, 4, 4, 4)
-        scroll.setWidget(body)
+        self._scroll.setWidget(body)
 
         visible_set = set(visible_indices)
         for def_index, (label, _info) in enumerate(_column_defs.COLUMN_DEFS):
@@ -96,6 +109,102 @@ class _ColumnPickerPopup(QWidget):
             box.toggled.connect(
                 lambda checked, i=def_index: self._on_toggle(i, checked))
             layout.addWidget(box)
+
+        self._body_size_hint = body.sizeHint()
+
+    @_check_types.do
+    def scroll_viewport(self) -> QWidget:
+        """The checklist's scroll-area viewport (see
+        :meth:`WireTable.picker_scroll_viewport`).
+        """
+        return self._scroll.viewport()
+
+    @_check_types.do
+    def place_within(self, bounds: QRect, near: QPoint) -> None:
+        """Size and position this popup to sit fully inside *bounds*
+        (the table's own rect), as close to *near* as fits.
+
+        :param bounds: The rect (in the parent's coordinates) to stay in.
+        :type bounds: QRect
+        :param near: Where the popup would like its top-left corner.
+        :type near: QPoint
+        """
+        margin = 4
+        max_w = max(60, bounds.width() - (2 * margin))
+        max_h = max(60, bounds.height() - (2 * margin))
+
+        # body's own height + the frame/scroll chrome, capped to what fits
+        width = min(max_w, self._body_size_hint.width() + 40)
+        height = min(max_h, 400, self._body_size_hint.height() + 20)
+        self.resize(width, height)
+
+        x = max(bounds.left() + margin, min(near.x(), bounds.right() - width - margin))
+        y = max(bounds.top() + margin, min(near.y(), bounds.bottom() - height - margin))
+        self.move(x, y)
+
+
+class _HeaderLiveMoveFilter(QtCore.QObject):
+    """Event filter on the horizontal header's viewport turning a left
+    press-and-drag on a column title into a LIVE column move (the column
+    follows the cursor as it goes, instead of QHeaderView's native
+    ghost-then-drop-on-release).
+
+    Events are only observed, never consumed -- the header still
+    processes its own press/release (so a plain click still sorts, and
+    the edge-resize handles still work); a press that lands within a few
+    pixels of a section edge is treated as a resize and never starts a
+    move.
+    """
+
+    _EDGE_PX = 4
+
+    def __init__(self, table: "WireTable"):
+        super().__init__(table)
+        self._table = table
+        self._logical: int | None = None
+        self._press_x = 0
+        self._grab_offset = 0
+        self._dragging = False
+
+    def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
+        event_type = event.type()
+        header = self._table.horizontalHeader()
+
+        if event_type == QtCore.QEvent.Type.MouseButtonPress:
+            self._logical = None
+            self._dragging = False
+            self._table._suppress_header_click = False  # NOQA
+
+            if event.button() == Qt.MouseButton.LeftButton:
+                x = int(event.position().x())
+                logical = header.logicalIndexAt(x)
+                if logical > 0:
+                    start = header.sectionViewportPosition(logical)
+                    end = start + header.sectionSize(logical)
+                    if x - start > self._EDGE_PX and end - x > self._EDGE_PX:
+                        self._logical = logical
+                        self._press_x = x
+                        self._grab_offset = x - start
+
+        elif event_type == QtCore.QEvent.Type.MouseMove:
+            if self._logical is not None and event.buttons() & Qt.MouseButton.LeftButton:
+                x = int(event.position().x())
+
+                if not self._dragging:
+                    if abs(x - self._press_x) >= QApplication.startDragDistance():
+                        self._dragging = True
+
+                if self._dragging:
+                    self._table.live_drag_step(self._logical, x, self._grab_offset)
+
+        elif event_type == QtCore.QEvent.Type.MouseButtonRelease:
+            if self._dragging:
+                self._table.live_drag_finished()
+
+            self._logical = None
+            self._dragging = False
+
+        return False
 
 
 class WireTable(_base.EditorList):
@@ -115,6 +224,18 @@ class WireTable(_base.EditorList):
     }
 
     table: "PJTWiresTable" = None
+
+    # Every live WireTable, so a selection can be mirrored into the others.
+    _live_tables: "weakref.WeakSet[WireTable]" = weakref.WeakSet()
+
+    # Emitted after a selection was changed programmatically by another
+    # table (see _select_wire) -- the owning PegboardTable object listens
+    # so it can regrab its GL texture; nothing else would repaint it.
+    wire_selection_synced = QtCore.Signal()
+
+    # Emitted whenever the table's own look changed with no mouse event
+    # to trigger a repaint (column toggled/moved) -- same listener.
+    appearance_changed = QtCore.Signal()
 
     @_check_types.do
     def __init__(self, parent, mainframe, label, table,
@@ -147,9 +268,23 @@ class WireTable(_base.EditorList):
         # the icon column) is hidden rather than displayed.
         self.setColumnHidden(1, True)
 
+        # Column reorder is driven by _HeaderLiveMoveFilter (live, as the
+        # cursor moves) rather than QHeaderView's own drag, which only
+        # moves the column on release -- so native movable stays off.
+        self._live_dragging = False
+        self._suppress_header_click = False
+        self._picker: _ColumnPickerPopup | None = None
+
         header = self.horizontalHeader()
-        header.setSectionsMovable(True)
+        header.setSectionsMovable(False)
         header.sectionMoved.connect(self._on_section_moved)  # NOQA
+
+        self._live_move_filter = _HeaderLiveMoveFilter(self)
+        header.viewport().installEventFilter(self._live_move_filter)
+
+        self._syncing_selection = False
+        self.itemSelected.connect(self._on_row_selected)
+        WireTable._live_tables.add(self)
 
     # ------------------------------------------------------------------
     # column_mapping construction
@@ -299,6 +434,9 @@ class WireTable(_base.EditorList):
         if db_id is None:
             return ''
 
+        if col_name == 'cavity_name':
+            return self._cavity_names_for_wire(db_id)
+
         # See _get_icon's own comment -- get_obj_id can transiently
         # return an id not yet resolvable via a plain select() here.
         circuit_rows = self.table.select('circuit_id', id=db_id)
@@ -330,6 +468,55 @@ class WireTable(_base.EditorList):
             return str(circuit.wire_length_mm)
 
         return ''
+
+    @_check_types.do
+    def _cavity_names_for_wire(self, wire_id: bytes) -> str:
+        """Name(s) of the cavity/cavities this wire's ends are seated in.
+
+        A wire's start/stop point IS the seated terminal's
+        ``attach_point3d_id`` (see ``PJTHousing.wires``), so each end is
+        matched to a terminal, then to that terminal's cavity. When the
+        owning anchor is a housing, only that housing's own cavity is
+        shown (the wire's other end sits in a different housing); for any
+        other anchor (bundle/transition) every end's cavity is listed,
+        joined with `` / ``.
+
+        :param wire_id: The ``pjt_wires`` row id.
+        :type wire_id: bytes
+        :returns: Cavity name text, ``''`` if the wire is seated nowhere
+            (or its cavities are unnamed).
+        :rtype: str
+        """
+        wire_rows = self.table.select('start_point3d_id', 'stop_point3d_id', id=wire_id)
+        if not wire_rows:
+            return ''
+
+        db = self.table.db
+        anchor = self.pegboard_table.anchor
+        anchor_id = None
+        if anchor is not None:
+            anchor_id = anchor.db_id
+
+        cavities = []
+        for point_id in wire_rows[0]:
+            if point_id is None:
+                continue
+
+            for terminal_row in db.pjt_terminals_table.select('cavity_id', attach_point3d_id=point_id):
+                cavity_id = terminal_row[0]
+                if cavity_id is None:
+                    continue
+
+                for name, housing_id in db.pjt_cavities_table.select('name', 'housing_id', id=cavity_id):
+                    cavities.append((name, housing_id))
+
+        own = [name for name, housing_id in cavities if housing_id == anchor_id]
+        if own:
+            names = own
+        else:
+            names = [name for name, _housing_id in cavities]
+
+        return ' / '.join(name for name in names if name)
 
     @_check_types.do
     def _get_icon(self, row_id):
@@ -422,6 +609,94 @@ class WireTable(_base.EditorList):
     # ------------------------------------------------------------------
 
     @_check_types.do
+    def _visible_def_indices(self) -> list[int]:
+        """COLUMN_DEFS indices of the columns currently shown, in the
+        header's current left-to-right (visual) order -- NOT
+        ``column_mapping``'s key order, which a live drag-reorder doesn't
+        touch.
+
+        :returns: COLUMN_DEFS indices in display order.
+        :rtype: list[int]
+        """
+        header = self.horizontalHeader()
+
+        visible = []
+        for visual_pos in range(1, header.count()):
+            column_name = self.column_lookup.get(header.logicalIndex(visual_pos))
+            if column_name not in _column_defs.ALIAS_TO_DEF_INDEX:
+                # the hidden row-id column ('id') isn't a COLUMN_DEFS entry
+                continue
+
+            visible.append(_column_defs.ALIAS_TO_DEF_INDEX[column_name])
+
+        return visible
+
+    @_check_types.do
+    def show_column_picker(self, pos: QPoint) -> None:
+        """Show the add/remove-column checklist inside this table, as
+        close to *pos* as fits (see :class:`_ColumnPickerPopup` for why
+        it's a plain child widget rather than a ``Qt.Popup`` window).
+        Replaces one already open.
+
+        :param pos: Where to place it, in this table's own coordinates.
+        :type pos: QPoint
+        """
+        self.close_column_picker()
+
+        self._picker = _ColumnPickerPopup(self, self._visible_def_indices(), self._on_column_toggled)
+        self._picker.place_within(self.rect(), pos)
+        self._picker.show()
+        self._picker.raise_()
+        self.appearance_changed.emit()
+
+    @property
+    def has_column_picker(self) -> bool:
+        """Whether the column checklist is currently open."""
+        return self._picker is not None
+
+    @_check_types.do
+    def close_column_picker(self) -> None:
+        """Close the column checklist if it's open."""
+        if self._picker is None:
+            return
+
+        picker = self._picker
+        self._picker = None
+        picker.hide()
+        picker.deleteLater()
+        self.appearance_changed.emit()
+
+    @_check_types.do
+    def picker_scroll_viewport(self) -> QWidget | None:
+        """The open column checklist's scroll-area viewport, or ``None``
+        if it isn't open.
+
+        The right target for a forwarded wheel event: a synthetic wheel
+        sent to the deepest child under the cursor (a checkbox, a
+        scrollbar, the frame margin) does NOT propagate up to the scroll
+        area the way a real one would, so nothing scrolls -- only one
+        delivered to this viewport does.
+        """
+        if self._picker is None:
+            return None
+
+        return self._picker.scroll_viewport()
+
+    @_check_types.do
+    def picker_contains(self, widget: QWidget | None) -> bool:
+        """Whether *widget* is the open column checklist or inside it.
+
+        :param widget: A widget, or ``None``.
+        :type widget: QWidget | None
+        :returns: ``True`` if the checklist is open and owns *widget*.
+        :rtype: bool
+        """
+        if self._picker is None or widget is None:
+            return False
+
+        return widget is self._picker or self._picker.isAncestorOf(widget)
+
+    @_check_types.do
     def _on_header_context_menu(self, pos: QPoint) -> None:
         """Show the add/remove-column checklist. Replaces (does not
         extend) the inherited per-column search popup for this table --
@@ -431,13 +706,7 @@ class WireTable(_base.EditorList):
         :param pos: Click position, in the header's own coordinates.
         :type pos: QPoint
         """
-        visible = [_column_defs.ALIAS_TO_DEF_INDEX[entry[1]['alias']]
-                   for key, entry in sorted(self.column_mapping.items())
-                   if key != 0]
-
-        popup = _ColumnPickerPopup(self, visible, self._on_column_toggled)
-        popup.move(self.horizontalHeader().mapToGlobal(pos))
-        popup.show()
+        self.show_column_picker(self.mapFromGlobal(self.horizontalHeader().mapToGlobal(pos)))
 
     @_check_types.do
     def _on_column_toggled(self, def_index: int, checked: bool) -> None:
@@ -449,9 +718,7 @@ class WireTable(_base.EditorList):
         :param checked: ``True`` to show the column, ``False`` to hide it.
         :type checked: bool
         """
-        visible = [_column_defs.ALIAS_TO_DEF_INDEX[entry[1]['alias']]
-                   for key, entry in sorted(self.column_mapping.items())
-                   if key != 0]
+        visible = self._visible_def_indices()
 
         if checked:
             if def_index not in visible:
@@ -479,18 +746,29 @@ class WireTable(_base.EditorList):
         self._clear_selection_state()
         self.column_lookup.clear()
 
-        header = self.horizontalHeader()
-        for i in sorted(self.column_mapping.keys()):
-            if i == 0:
-                continue
-
-            column_name = self.column_mapping[i][1]['alias']
-            self.column_lookup[i] = column_name
+        # logical index = mapping key + 1 (logical 0 is the icon column),
+        # exactly as EditorList.__init__ builds it -- key 0 ('id') lands
+        # on the hidden logical column 1.
+        for key in sorted(self.column_mapping.keys()):
+            self.column_lookup[key + 1] = self.column_mapping[key][1]['alias']
 
         self._model.reset_all()
+
+        # A reset may keep the header's old visual permutation; the new
+        # mapping is laid out in display order, so put visual == logical.
+        header = self.horizontalHeader()
+        self._live_dragging = True
+        try:
+            for logical in range(header.count()):
+                header.moveSection(header.visualIndex(logical), logical)
+        finally:
+            self._live_dragging = False
+
         self._rebuild_header_columns()
+        self.setColumnHidden(1, True)
 
         self.pegboard_table.visible_columns = visible_def_indices
+        self.appearance_changed.emit()
 
     @_check_types.do
     def _rebuild_header_columns(self) -> None:
@@ -500,22 +778,38 @@ class WireTable(_base.EditorList):
         header = self.horizontalHeader()
         fm = self.fontMetrics()
 
-        for i in sorted(self.column_mapping.keys()):
-            if i == 0:
+        for key in sorted(self.column_mapping.keys()):
+            if key == 0:
                 continue
 
-            label_text = self.column_mapping[i][0]
-            header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+            logical = key + 1
+            label_text = self.column_mapping[key][0]
+            header.setSectionResizeMode(logical, QHeaderView.ResizeMode.Interactive)
             offset = 100 if label_text == 'Description' else 25
-            self.setColumnWidth(i, fm.horizontalAdvance(label_text) + offset)
+            self.setColumnWidth(logical, fm.horizontalAdvance(label_text) + offset)
 
     # ------------------------------------------------------------------
-    # Column drag-to-reorder
+    # Column drag-to-reorder (live)
     # ------------------------------------------------------------------
 
     @_check_types.do
+    def _on_header_clicked(self, logical_index: int) -> None:
+        """Ignore the click Qt reports at the end of a column drag -- it
+        would otherwise re-sort by the column that was just moved.
+
+        :param logical_index: The clicked header section.
+        :type logical_index: int
+        """
+        if self._suppress_header_click:
+            return
+
+        super()._on_header_clicked(logical_index)
+
+    @_check_types.do
     def _on_section_moved(self, logical_index: int, old_visual: int, new_visual: int) -> None:
-        """Persist the header's new left-to-right column order.
+        """Persist the header's new left-to-right column order (once per
+        drag -- see :meth:`live_drag_finished` -- not on every step of a
+        live move).
 
         The icon column (logical index 0) is kept pinned at visual
         position 0 -- QHeaderView has no direct "lock this section" flag,
@@ -531,20 +825,158 @@ class WireTable(_base.EditorList):
         header = self.horizontalHeader()
 
         if header.logicalIndex(0) != 0:
-            # The icon column got displaced from visual position 0 --
-            # move it back; this itself re-enters _on_section_moved, so
-            # guard against infinite recursion isn't needed (the second
-            # call will find logicalIndex(0) == 0 and fall through).
             header.moveSection(header.visualIndex(0), 0)
             return
 
-        visible = []
-        for visual_pos in range(1, header.count()):
-            logical = header.logicalIndex(visual_pos)
-            column_name = self.column_lookup.get(logical)
-            if column_name is None:
+        if self._live_dragging:
+            return
+
+        self.pegboard_table.visible_columns = self._visible_def_indices()
+
+    @_check_types.do
+    def live_drag_step(self, logical: int, cursor_x: int, grab_offset: int) -> None:
+        """Move section *logical* under the cursor, live.
+
+        The dragged section's would-be left edge (``cursor_x -
+        grab_offset``) is compared against each neighbour's midpoint, so
+        it swaps only once it has actually crossed half of that
+        neighbour -- after a swap the same test can't immediately swap it
+        back, so wide/narrow neighbours don't make it oscillate.
+
+        :param logical: The section being dragged.
+        :type logical: int
+        :param cursor_x: Cursor X in the header's viewport coordinates.
+        :type cursor_x: int
+        :param grab_offset: Where within the section the drag started.
+        :type grab_offset: int
+        """
+        header = self.horizontalHeader()
+        self._live_dragging = True
+        self._suppress_header_click = True
+
+        try:
+            for _ in range(header.count()):
+                left = cursor_x - grab_offset
+                right = left + header.sectionSize(logical)
+                visual = header.visualIndex(logical)
+
+                # nearest visible neighbour on each side; visual 0 is the
+                # pinned icon column, never a swap target
+                target = None
+
+                v = visual - 1
+                while v >= 1 and header.isSectionHidden(header.logicalIndex(v)):
+                    v -= 1
+                if v >= 1:
+                    neighbour = header.logicalIndex(v)
+                    mid = header.sectionViewportPosition(neighbour) + header.sectionSize(neighbour) / 2
+                    if left < mid:
+                        target = v
+
+                if target is None:
+                    v = visual + 1
+                    while v < header.count() and header.isSectionHidden(header.logicalIndex(v)):
+                        v += 1
+                    if v < header.count():
+                        neighbour = header.logicalIndex(v)
+                        mid = header.sectionViewportPosition(neighbour) + header.sectionSize(neighbour) / 2
+                        if right > mid:
+                            target = v
+
+                if target is None:
+                    break
+
+                header.moveSection(visual, target)
+        finally:
+            self._live_dragging = False
+
+    @_check_types.do
+    def live_drag_finished(self) -> None:
+        """Persist the column order once the drag is released."""
+        self.pegboard_table.visible_columns = self._visible_def_indices()
+
+    # ------------------------------------------------------------------
+    # Cross-table wire selection
+    # ------------------------------------------------------------------
+
+    @_check_types.do
+    def _on_row_selected(self, row: int) -> None:
+        """Mirror this table's new selection into every other live table
+        of the same project that also contains the selected wire.
+
+        :param row: The newly selected visible row index.
+        :type row: int
+        """
+        if self._syncing_selection:
+            return
+
+        wire_id = self.GetSelection()
+        if wire_id is None:
+            return
+
+        for other in list(WireTable._live_tables):
+            if other is self or other.table.db is not self.table.db:
                 continue
 
-            visible.append(_column_defs.ALIAS_TO_DEF_INDEX[column_name])
+            try:
+                other._select_wire(wire_id)
+            except RuntimeError:
+                # underlying C++ widget already destroyed
+                WireTable._live_tables.discard(other)
 
-        self.pegboard_table.visible_columns = visible
+    @_check_types.do
+    def _row_for_wire(self, wire_id: bytes) -> int | None:
+        """Find the visible (0-indexed) row holding *wire_id* under this
+        table's current query, sort and filters.
+
+        :param wire_id: The ``pjt_wires`` row id.
+        :type wire_id: bytes
+        :returns: The row index, or ``None`` if this table doesn't list
+            that wire.
+        :rtype: int | None
+        """
+        where_body, params = self._combined_where()
+        if where_body:
+            where_sql = f'WHERE {where_body}'
+        else:
+            where_sql = ''
+
+        sql = self._effective_query.format(
+            sort_clause=self.sort_clause, row=1, start_row=1,
+            end_row=2 ** 31 - 1, where_clause=where_sql)
+
+        if params:
+            self.table.execute(sql, params)
+        else:
+            self.table.execute(sql)
+
+        # result rows are (RowNum, id, ...), RowNum being 1-indexed
+        for result in self.table.fetchall():
+            if result[1] == wire_id:
+                return result[0] - 1
+
+        return None
+
+    @_check_types.do
+    def _select_wire(self, wire_id: bytes) -> None:
+        """Select *wire_id*'s row and scroll it into view, if this table
+        lists that wire. Doesn't propagate back out (guarded), and asks
+        the owning PegboardTable to repaint via
+        :attr:`wire_selection_synced`.
+
+        :param wire_id: The ``pjt_wires`` row id.
+        :type wire_id: bytes
+        """
+        row = self._row_for_wire(wire_id)
+        if row is None:
+            return
+
+        self._syncing_selection = True
+        try:
+            self.selectRow(row)
+            self.scrollTo(self.model().index(row, 0),
+                          QAbstractItemView.ScrollHint.EnsureVisible)
+        finally:
+            self._syncing_selection = False
+
+        self.wire_selection_synced.emit()

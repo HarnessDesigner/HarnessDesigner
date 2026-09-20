@@ -31,6 +31,68 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_schematic
 
 
+# Segment angles are shared, not built per segment. Building one
+# (``Angle.from_euler`` then the ``y`` setter) runs quaternion math in Decimal
+# and costs about 0.8 ms; a wire recomputes its geometry -- which walks every
+# segment several times -- for every waypoint or endpoint that moves, so a
+# drag was spending nearly all of its time here (a profile of 20 drag events:
+# 95% inside this). Routed wires are orthogonal, so there are only a handful
+# of distinct yaws, and a lookup costs about half a microsecond.
+#
+# Sharing is safe: a segment angle is only ever read (rendering, and
+# rotating the OBB/AABB corners), never modified -- ``_recalculate_geometry``
+# writes to the wire's OWN angle, which is a different object.
+_YAW_ANGLES: dict[float, _angle.Angle] = {}
+_MAX_YAW_ANGLES = 512
+
+# How far (degrees) a wire's own aggregate angle may lag behind its start->stop
+# chord before it is brought up to date -- see Wire._recalculate_geometry.
+_CHORD_YAW_TOLERANCE = 0.05
+
+
+def _yaw_angle(degrees: float) -> _angle.Angle:
+    """A shared :class:`~harness_designer.geometry.angle.Angle` of *degrees*
+    about Y. Keyed to 0.001 degree -- on a 1 m wire that is under 0.02 mm,
+    and the corners it rotates are float32 anyway."""
+    key = round(degrees, 3)
+    angle = _YAW_ANGLES.get(key)
+
+    if angle is None:
+        if len(_YAW_ANGLES) >= _MAX_YAW_ANGLES:
+            # Only arbitrary (hand-dragged, non-orthogonal) wires get here.
+            _YAW_ANGLES.clear()
+
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+        angle.y = key
+        _YAW_ANGLES[key] = angle
+
+    return angle
+
+
+_YAW_MATRICES: dict[float, np.ndarray] = {}
+_IDENTITY = np.identity(3, dtype=np.float32)
+
+
+def _yaw_matrix(degrees: float) -> np.ndarray:
+    """The 3x3 float32 matrix ``corners @ matrix`` rotates row-vector corners
+    by, for the shared angle :func:`_yaw_angle` returns for *degrees*.
+
+    ``points @ angle`` goes through the Angle's Decimal quaternion (about
+    0.1 ms a call, several times per wire per frame); a matrix product is a
+    microsecond. Rotating the identity gives the matrix itself."""
+    key = round(degrees, 3)
+    matrix = _YAW_MATRICES.get(key)
+
+    if matrix is None:
+        if len(_YAW_MATRICES) >= _MAX_YAW_ANGLES:
+            _YAW_MATRICES.clear()
+
+        matrix = np.asarray(_IDENTITY @ _yaw_angle(degrees), dtype=np.float32)
+        _YAW_MATRICES[key] = matrix
+
+    return matrix
+
+
 class Wire(_base_schematic.BaseSchematic):
     """
     2D representation of a wire for schematic view
@@ -71,6 +133,10 @@ class Wire(_base_schematic.BaseSchematic):
     _parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire"
 
+    # The chord yaw this wire's own angle was last set to (infinity so the very
+    # first recompute always sets it).
+    _chord_yaw: float = float('inf')
+
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
         """Initialise the :class:`Wire` instance.
@@ -82,6 +148,7 @@ class Wire(_base_schematic.BaseSchematic):
         """
         self._part = db_obj.part
         self._waypoint_points = []
+        self._segment_pool = parent.mainframe.bounds_manager.editor_schematic.segments
 
         self._p1 = db_obj.start_position2d
         self._p2 = db_obj.stop_position2d
@@ -143,10 +210,18 @@ class Wire(_base_schematic.BaseSchematic):
         no interior 2D waypoints (still the common case -- the schematic
         editor's own wire-drawing tool doesn't exist yet) is just the one
         (start, stop) pair, same as before this wire could have any bends
-        of its own in this view."""
+        of its own in this view.
+
+        Read from ``_waypoint_points`` -- the live waypoint ``Point``
+        objects, kept in step with the database by :meth:`_bind_waypoints`
+        (every add / remove / reorder goes through :meth:`refresh_waypoints`)
+        -- NOT from ``db_obj.waypoints2d``, which is a real SQL query. This
+        runs several times per frame per wire (every render, and every
+        recompute of the geometry, which fires for every waypoint or
+        endpoint that moves), so a query here made a drag stutter.
+        """
         points = [self._p1.as_numpy]
-        for waypoint in self.db_obj.waypoints2d:
-            points.append(waypoint.point.as_numpy)
+        points.extend(point.as_numpy for point in self._waypoint_points)
         points.append(self._p2.as_numpy)
 
         return list(zip(points, points[1:]))
@@ -177,8 +252,7 @@ class Wire(_base_schematic.BaseSchematic):
             if seg_len < 1e-6:
                 continue
 
-            seg_angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
-            seg_angle.y = math.degrees(math.atan2(dx, dz))
+            seg_angle = _yaw_angle(math.degrees(math.atan2(dx, dz)))
             seg_position = _point.Point(*seg_p1)
             seg_scale = _point.Point(diameter, diameter, seg_len)
 
@@ -219,10 +293,41 @@ class Wire(_base_schematic.BaseSchematic):
         dz = b[2] - a[2]
         chord_length = math.sqrt(dx * dx + dz * dz)
         if chord_length >= 0.001:
-            self._angle.y = math.degrees(math.atan2(dx, dz))
+            # Only when it has actually turned by a visible amount. Setting it
+            # is not free -- the Angle recomputes its quaternion in Decimal
+            # (~0.5 ms) and then fires _update_angle (copy + negate, another
+            # ~0.4 ms) -- and this runs for every waypoint or endpoint that
+            # moves, several times per mouse move, while nothing DRAWS with this
+            # angle (each segment has its own). 0.05 degrees is under 1 mm at
+            # the end of a 1 m wire.
+            chord_yaw = math.degrees(math.atan2(dx, dz))
 
-        self._compute_obb()
-        self._compute_aabb()
+            if abs(chord_yaw - self._chord_yaw) > _CHORD_YAW_TOLERANCE:
+                self._chord_yaw = chord_yaw
+                self._angle.y = chord_yaw
+
+        self._compute_bounds()
+
+    def _update_angle(self, angle: _angle.Angle):
+        """Nothing to do: the wire's own angle isn't drawn with or hit-tested
+        with (each segment has its own, and picking uses the pooled bounds),
+        and :meth:`_recalculate_geometry` -- the only thing that sets it --
+        recomputes the bounds itself. The inherited version recomputed them
+        AGAIN, and copied and negated the angle in Decimal."""
+
+    def _update_scale(self, scale: _point.Point):
+        """See :meth:`_update_angle` -- same for the scale
+        :meth:`_recalculate_geometry` sets."""
+
+    def _compute_bounds(self) -> None:
+        """OBB and AABB from ONE set of world corners (they are the same
+        union-of-segments envelope -- see :meth:`_compute_obb`)."""
+        if self._vbo is None:
+            return
+
+        corners = self._segment_world_corners()
+        self._store_obb(corners)
+        self._aabb[:] = _utils.adjust_aabb(corners)
 
     @_check_types.do
     def _segment_world_corners(self):
@@ -242,11 +347,19 @@ class Wire(_base_schematic.BaseSchematic):
             [x2, y2, z1], [x2, y2, z2]
         ], dtype=np.float32)
 
+        diameter = float(self._scale.x)
         all_corners = []
-        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
-            corners = local_corners * seg_scale.as_numpy
-            corners = corners @ seg_angle
-            corners = corners + seg_position.as_numpy
+        for seg_p1, seg_p2 in self._segments():
+            dx = seg_p2[0] - seg_p1[0]
+            dz = seg_p2[2] - seg_p1[2]
+            seg_len = math.sqrt(dx * dx + dz * dz)
+            if seg_len < 1e-6:
+                continue
+
+            scale = np.array([diameter, diameter, seg_len], dtype=np.float32)
+            corners = local_corners * scale
+            corners = corners @ _yaw_matrix(math.degrees(math.atan2(dx, dz)))
+            corners = corners + seg_p1
             all_corners.append(corners)
 
         if not all_corners:
@@ -269,6 +382,9 @@ class Wire(_base_schematic.BaseSchematic):
         if corners is None:
             return
 
+        self._store_obb(corners)
+
+    def _store_obb(self, corners: np.ndarray) -> None:
         mins = corners.min(axis=0)
         maxs = corners.max(axis=0)
 
@@ -326,6 +442,7 @@ class Wire(_base_schematic.BaseSchematic):
         self._p1 = point
         self._position = point
         self._p1.bind(self._update_position)
+        self._register_segments()
         self._recalculate_geometry()
 
     @_check_types.do
@@ -334,6 +451,7 @@ class Wire(_base_schematic.BaseSchematic):
         self._p2.unbind(self._update_position)
         self._p2 = point
         self._p2.bind(self._update_position)
+        self._register_segments()
         self._recalculate_geometry()
 
     @_check_types.do
@@ -350,6 +468,29 @@ class Wire(_base_schematic.BaseSchematic):
 
         for point in self._waypoint_points:
             point.bind(self._update_position)
+
+        self._register_segments()
+
+    @_check_types.do
+    def _register_segments(self) -> None:
+        """(Re)register this wire's current path -- start, every interior
+        waypoint, stop -- with the schematic view's segment pool
+        (``bounds_manager.editor_schematic.segments``), which the router
+        reads its wire-to-wire lane obstacles from. The pool references
+        each Point's live ``as_numpy`` buffer, so a plain move needs
+        nothing; only a change in the SHAPE of the path (waypoints
+        added/removed, an endpoint repointed) needs this again.
+        """
+        buffers = [self._p1.as_numpy]
+        buffers.extend(point.as_numpy for point in self._waypoint_points)
+        buffers.append(self._p2.as_numpy)
+
+        self._segment_pool.register(self, buffers)
+
+    @_check_types.do
+    def _delete(self):
+        self._segment_pool.release(self)
+        super()._delete()
 
     @_check_types.do
     def refresh_waypoints(self) -> None:
@@ -498,15 +639,26 @@ class Wire(_base_schematic.BaseSchematic):
         ``stripeClipStop`` uniforms the standard ``_render_geometry``
         pipeline doesn't know about).
         """
+        # DEBUG (temporary): dump every segment's (x, z) start/stop.
+        # print(f'wire {self.db_obj.db_id!r}')
+        # for seg_p1, seg_p2 in self._segments():
+            # print(f'    ({float(seg_p1[0]):.3f}, {float(seg_p1[2]):.3f}) -> '
+                  # f'({float(seg_p2[0]):.3f}, {float(seg_p2[2]):.3f})')
+
         real_position, real_angle, real_scale = self._position, self._angle, self._scale
 
-        for seg_position, seg_angle, seg_scale, _seg_len in self._segment_transforms():
+        # Built once and used for both passes below -- every entry allocates
+        # an Angle and two Points.
+        transforms = list(self._segment_transforms())
+
+        for seg_position, seg_angle, seg_scale, _seg_len in transforms:
             self._position, self._angle, self._scale = seg_position, seg_angle, seg_scale
             super().render(shaders)
 
         self._position, self._angle, self._scale = real_position, real_angle, real_scale
 
         if self._stripe_material is None or self._position is None or not self.is_visible:
+            # print()  # DEBUG (temporary)
             return
 
         faces_program = shaders.faces
@@ -517,7 +669,7 @@ class Wire(_base_schematic.BaseSchematic):
             self._stripe_material.set(faces_program)
 
             stripe_offset = 0.0
-            for seg_position, seg_angle, _seg_scale, seg_len in self._segment_transforms():
+            for seg_position, seg_angle, _seg_scale, seg_len in transforms:
                 faces_program.stripe_clip_start = stripe_offset
                 faces_program.stripe_clip_stop = stripe_offset + seg_len
 
@@ -529,6 +681,8 @@ class Wire(_base_schematic.BaseSchematic):
 
             faces_program.stripe_clip_start = 0.0
             faces_program.stripe_clip_stop = 0.0
+
+        # print()  # DEBUG (temporary)
 
     @classmethod
     @_check_types.do

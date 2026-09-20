@@ -143,8 +143,7 @@ class Wire(_base.AddHandlerBase):
         """
         world_pos = self.camera.screen_to_world(mouse_pos)
 
-        picked = _object_picker.find_object(
-            mouse_pos, self.camera.objects_in_view, self.camera, self._get_view_object)
+        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:

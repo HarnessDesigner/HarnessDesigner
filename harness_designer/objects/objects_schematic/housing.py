@@ -10,6 +10,7 @@ from . import base_schematic as _base_schematic
 from ... import config as _config
 from ... import color as _color
 from ... import check_types as _check_types
+from ... import bounds as _bounds
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...shapes import rectangle as _rectangle
@@ -88,6 +89,7 @@ class Housing(_base_schematic.BaseSchematic):
 
     _parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing"
+    _bounds_tag = _bounds.TAG_OBSTACLE
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
@@ -275,6 +277,12 @@ class Housing(_base_schematic.BaseSchematic):
 
         if not self.is_visible or self._position is None:
             return
+
+        # DEBUG (temporary): the bounds the router sees for this housing --
+        # (min_x, min_z, max_x, max_z), read from its AABB pool row, plus
+        # the slot index and tag it's filed under.
+        # print(f'housing {self.db_obj.db_id!r} slot={self._aabb_index} '
+              # f'tag={self._aabb_manager._tags[self._aabb_index]} bounds={self.get_bounds()}')
 
         super().render(shaders)
 

@@ -43,6 +43,8 @@ class Rings3D(_base_3d.Base3D):
     (torus + protractor) built around a selected object.
     """
 
+    _pick_priority = -1
+
     @_check_types.do
     def __init__(self, parent, selected: "_objects.ObjectBase",
                  mainframe: "_ui.MainFrame"):

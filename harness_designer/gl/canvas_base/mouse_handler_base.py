@@ -153,7 +153,7 @@ class MouseHandlerBase:
         self._wheel_pending = 0.0
         self._wheel_timer = QtCore.QTimer()
         self._wheel_timer.setInterval(_WHEEL_TICK_MS)
-        self._wheel_timer.timeout.connect(self._on_wheel_tick)
+        self._wheel_timer.timeout.connect(self._on_wheel_tick)  # NOQA
 
         # Idle-stop watchdog -- restarted on every wheel event, fires
         # (once, see _WHEEL_IDLE_MS's own comment) only once that much
@@ -161,22 +161,18 @@ class MouseHandlerBase:
         self._wheel_idle_timer = QtCore.QTimer()
         self._wheel_idle_timer.setInterval(_WHEEL_IDLE_MS)
         self._wheel_idle_timer.setSingleShot(True)
-        self._wheel_idle_timer.timeout.connect(self._on_wheel_idle)
+        self._wheel_idle_timer.timeout.connect(self._on_wheel_idle)  # NOQA
 
     # ------------------------------------------------------------------
     # Qt event filter dispatcher
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def handle_event(self, event):
-        """Handle the event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+    def handle_event(self, event) -> bool:
+        """
+        Handle the event.
 
         :param event: Event object.
-        :type event: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
         """
         t = event.type()
 
@@ -243,34 +239,9 @@ class MouseHandlerBase:
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _pick_exclusions(self) -> tuple:
-        """Objects that must never be pick-eligible -- gizmo overlays drawn
-        on top of the scene (the 3D canvas's focal-target indicator, the
-        active rotation-rings gizmo). Checked generically (``getattr``
-        with a ``None`` default) rather than via a per-canvas override,
-        since not every canvas has these -- schematic/pegboard just fall
-        through to the empty tuple.
-
-        The rotation rings themselves are excluded here, but their grab
-        handles are not affected -- handle-grabbing goes through
-        RotationRings.pick_handle(), a separate code path that never
-        consults this method.
-        """
-        exclusions = []
-
-        focal_target = getattr(self.canvas, '_focal_target', None)
-        if focal_target is not None:
-            exclusions.append(focal_target)
-
-        rotation_rings = getattr(self.canvas, '_rotation_rings', None)
-        if rotation_rings is not None:
-            exclusions.append(rotation_rings)
-
-        return tuple(exclusions)
-
-    @_check_types.do
     def _blocks_deselection(self, obj) -> bool:
-        """Whether *obj* currently has its rotation gizmo up -- if so, a
+        """
+        Whether *obj* currently has its rotation gizmo up -- if so, a
         click that misses everything (or lands back on the object
         itself, which would normally toggle selection off) shouldn't
         also drop the selection out from under it. Closing the gizmo
@@ -278,32 +249,33 @@ class MouseHandlerBase:
         call (see its own docstring) -- this only stops that same click
         from *additionally* deselecting.
         """
+
         from ...rotation_handlers import rotation_rings as _rotation_rings
 
         view_obj = self._get_view_object(obj)
-        return isinstance(
-            getattr(view_obj, '_active_handler', None), _rotation_rings.RotationRings)
+
+        return isinstance(getattr(view_obj, '_active_handler', None),
+                          _rotation_rings.RotationRings)
 
     @_check_types.do
     def _pick_object(self, mouse_pos, current_selection=None):
-        """Pick a scene object, ignoring anything :meth:`_pick_exclusions`
-        reports (e.g. an active rotation gizmo overlay)."""
-        objects = self.canvas.objects_in_view
-
-        exclusions = self._pick_exclusions()
-        if exclusions:
-            objects = [o for o in objects if o not in exclusions]
+        """
+        Pick a scene object. Gizmo overlays (the focal-target indicator,
+        the rotation rings) never come back -- they set a negative
+        ``_pick_priority``, which ``gl.object_picker.find_object`` honors.
+        """
 
         return _object_picker.find_object(
-            mouse_pos, objects, self.canvas.camera,
-            self._get_view_object, current_selection=current_selection)
+            mouse_pos, self.canvas.camera, self.canvas,
+            current_selection=current_selection)
 
     @_check_types.do
-    def _dispatch_to_active_handler(
-        self, mouse_pos: _point.Point, interaction_type: _interaction.MouseInteraction,
-        had_motion: bool, clicked_object=None,
-    ) -> bool:
-        """Route one mouse event to whatever's armed on this canvas, or to
+    def _dispatch_to_active_handler(self, mouse_pos: _point.Point,
+                                    interaction_type: _interaction.MouseInteraction,
+                                    had_motion: bool, clicked_object=None) -> bool:
+
+        """
+        Route one mouse event to whatever's armed on this canvas, or to
         a freshly picked object so it gets a chance to arm.
 
         Called first, before any of this handler's own default click/drag/
@@ -322,6 +294,7 @@ class MouseHandlerBase:
         still forwarded to the handler as-is (the facade), matching what
         every other picking call site in this module already hands out.
         """
+
         target = self.canvas.active_handler_obj
         if target is None and clicked_object is not None:
             target = self._get_view_object(clicked_object)
@@ -346,10 +319,12 @@ class MouseHandlerBase:
         return True
 
     @_check_types.do
-    def _dispatch_wheel_to_active_handler(
-        self, mouse_pos: _point.Point, qt_wheel_event, clicked_object=None,
-    ) -> bool:
-        """Route one wheel event to whatever's armed on this canvas, or
+    def _dispatch_wheel_to_active_handler(self, mouse_pos: _point.Point,
+                                          qt_wheel_event,
+                                          clicked_object=None) -> bool:
+
+        """
+        Route one wheel event to whatever's armed on this canvas, or
         to a freshly picked object, via :meth:`BaseVar.handle_wheel`.
 
         Mirrors :meth:`_dispatch_to_active_handler`'s own target
@@ -361,6 +336,7 @@ class MouseHandlerBase:
         no ``is_handler_active``/``active_handler_obj`` bookkeeping to do
         afterward the way a consumed button-driven event requires.
         """
+
         target = self.canvas.active_handler_obj
         if target is None and clicked_object is not None:
             target = self._get_view_object(clicked_object)
@@ -372,14 +348,10 @@ class MouseHandlerBase:
 
     @_check_types.do
     def _process_mouse(self, code):
-        """Execute the process mouse operation.
+        """
+        Execute the process mouse operation.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param code: Value for ``code``.
-        :type code: UNKNOWN
-        :returns: Return value. UNKNOWN details.
-        :rtype: UNKNOWN
+        :param code: Value for ``code``
         """
 
         if (
@@ -480,8 +452,12 @@ class MouseHandlerBase:
                         # arcs in smoothly right along with the dolly
                         # instead of jumping to the full deflection in
                         # one step.
-                        global_pos = QtGui.QCursor.pos()  # QPoint, screen coordinates
-                        local_pos = self.canvas.mapFromGlobal(global_pos)  # QPoint, widget-local coordinates
+
+                        # QPoint, screen coordinates
+                        global_pos = QtGui.QCursor.pos()
+
+                        # QPoint, widget-local coordinates
+                        local_pos = self.canvas.mapFromGlobal(global_pos)
 
                         vx, vy, vw, vh = self.canvas.camera.viewport
                         center_x = vx + (vw / 2.0)
@@ -620,7 +596,6 @@ class MouseHandlerBase:
         :type new_event: _events.GLEvent | _events.GLObjectEvent
 
         :param qt_event: Value for ``qt_event``.
-        :type qt_event: UNKNOWN
 
         :rtype: bool
         """
@@ -663,10 +638,6 @@ class MouseHandlerBase:
 
         self._is_motion = False
 
-    # ------------------------------------------------------------------
-    # Button handlers
-    # ------------------------------------------------------------------
-
     @_check_types.do
     def on_left_down(self, evt):
         """
@@ -679,7 +650,8 @@ class MouseHandlerBase:
 
         clicked_object = self._pick_object(mouse_pos)
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.LEFT_DOWN, False, clicked_object
+            mouse_pos, _interaction.MouseInteraction.LEFT_DOWN,
+            False, clicked_object
         ):
             self.canvas.grabMouse()
             # A consumed click can change visible state on its own (e.g.
@@ -708,7 +680,8 @@ class MouseHandlerBase:
         mouse_pos = _qt_pos(evt)
         clicked_object = self._pick_object(mouse_pos)
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.LEFT_UP, self._is_motion, clicked_object
+            mouse_pos, _interaction.MouseInteraction.LEFT_UP,
+            self._is_motion, clicked_object
         ):
             self.canvas.releaseMouse()
             self._mouse_pos = None
@@ -726,7 +699,9 @@ class MouseHandlerBase:
             self._mouse_pos = mouse_pos
 
             cur_selected = self.canvas.get_selected()
-            selected = self._pick_object(mouse_pos, current_selection=cur_selected)
+
+            selected = self._pick_object(
+                mouse_pos, current_selection=cur_selected)
 
             if not self._is_motion:
                 # Read by MainFrame._set_selected: this click is what's about
@@ -737,7 +712,8 @@ class MouseHandlerBase:
                 # now shared by all three canvases, it has to read the
                 # actual originating canvas's own tag (see
                 # CanvasBase._editor_name) instead of assuming 3D.
-                self.canvas.mainframe._selection_source_editor = self.canvas._editor_name  # NOQA
+                self.canvas.mainframe._selection_source_editor = (
+                    self.canvas._editor_name)  # NOQA
 
                 # If the clicked object is a Housing, check whether the click
                 # landed on a cavity face and select that cavity instead --
@@ -770,7 +746,9 @@ class MouseHandlerBase:
                 ):
                     cur_selected.set_selected(False)
 
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_UNSELECTED)
+
                     event.SetGLObject(selected)
 
                     if not self._send_event(event, evt):
@@ -783,7 +761,9 @@ class MouseHandlerBase:
                     not self._blocks_deselection(cur_selected)
                 ):
                     selected.set_selected(False)
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_UNSELECTED)
+
                     event.SetGLObject(selected)
 
                     if not self._send_event(event, evt):
@@ -796,7 +776,9 @@ class MouseHandlerBase:
                 ):
                     cur_selected.set_selected(False)
 
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_UNSELECTED)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_UNSELECTED)
+
                     event.SetGLObject(cur_selected)
 
                     if not self._send_event(event, evt):
@@ -805,7 +787,9 @@ class MouseHandlerBase:
                     else:
                         selected.set_selected(True)
 
-                        event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_SELECTED)
+                        event = _events.GLObjectEvent(
+                            _events.EVT_GL_OBJECT_SELECTED)
+
                         event.SetGLObject(selected)
 
                         if not self._send_event(event, evt):
@@ -831,20 +815,21 @@ class MouseHandlerBase:
 
         clicked_object = self._pick_object(mouse_pos)
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.LEFT_DCLICK, self._is_motion, clicked_object
+            mouse_pos, _interaction.MouseInteraction.LEFT_DCLICK,
+            self._is_motion, clicked_object
         ):
             self.canvas.repaint()
             return
 
         event = _events.GLEvent(_events.EVT_GL_LEFT_DCLICK)
         if self._send_event(event, evt):
-            selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view,
-                self.canvas.camera, self._get_view_object)
+            selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
             with self.canvas:
                 if selected:
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_ACTIVATED)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_ACTIVATED)
+
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -859,7 +844,8 @@ class MouseHandlerBase:
         mouse_pos = _qt_pos(evt)
         clicked_object = self._pick_object(mouse_pos)
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.MIDDLE_UP, self._is_motion, clicked_object
+            mouse_pos, _interaction.MouseInteraction.MIDDLE_UP,
+            self._is_motion, clicked_object
         ):
             self.canvas.releaseMouse()
             return
@@ -869,12 +855,12 @@ class MouseHandlerBase:
             if not self._is_motion:
                 with self.canvas:
                     mouse_pos = _qt_pos(evt)
-                    selected = _object_picker.find_object(
-                        mouse_pos, self.canvas.objects_in_view,
-                        self.canvas.camera, self._get_view_object)
+                    selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
                     if selected:
-                        event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_MIDDLE_CLICK)
+                        event = _events.GLObjectEvent(
+                            _events.EVT_GL_OBJECT_MIDDLE_CLICK)
+
                         event.SetGLObject(selected)
                         self._send_event(event, evt)
 
@@ -894,7 +880,8 @@ class MouseHandlerBase:
         mouse_pos = _qt_pos(evt)
         clicked_object = self._pick_object(mouse_pos)
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.MIDDLE_DOWN, False, clicked_object
+            mouse_pos, _interaction.MouseInteraction.MIDDLE_DOWN,
+            False, clicked_object
         ):
             self.canvas.grabMouse()
             self._mouse_pos = mouse_pos
@@ -918,13 +905,13 @@ class MouseHandlerBase:
         event = _events.GLEvent(_events.EVT_GL_MIDDLE_DCLICK)
         if self._send_event(event, evt):
 
-            selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view,
-                self.canvas.camera, self._get_view_object)
+            selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
             with self.canvas:
                 if selected:
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_MIDDLE_DCLICK)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_MIDDLE_DCLICK)
+
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -938,8 +925,10 @@ class MouseHandlerBase:
 
         mouse_pos = _qt_pos(evt)
         clicked_object = self._pick_object(mouse_pos)
+
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.RIGHT_UP, self._is_motion, clicked_object
+            mouse_pos, _interaction.MouseInteraction.RIGHT_UP,
+            self._is_motion, clicked_object
         ):
             self.canvas.releaseMouse()
             return
@@ -969,17 +958,25 @@ class MouseHandlerBase:
                             cavity = view_obj.try_pick_cavity(
                                 int(mouse_pos.x), int(mouse_pos.y))
 
-                    is_cavity_menu_target = cavity is not None and cavity.parent is cur_selected
+                    is_cavity_menu_target = (cavity is not None and
+                                             cavity.parent is cur_selected)
 
-                    if is_cavity_menu_target or (selected and selected != cur_selected):
+                    if (
+                        is_cavity_menu_target or
+                        (selected and selected != cur_selected)
+                    ):
                         # Cavity3D.get_context_menu() owns the cavity-aware
                         # menu now, so the event target is the cavity
                         # itself (cavity.parent, the wrapper) rather than
                         # the housing when this was a cavity hit.
-                        target = cavity.parent if is_cavity_menu_target else selected
+                        if is_cavity_menu_target:
+                            target = cavity.parent
+                        else:
+                            target = selected
 
                         event = _events.GLObjectEvent(
                             _events.EVT_GL_OBJECT_RIGHT_CLICK)
+
                         event.SetGLObject(target)
                         self._send_event(event, evt)
                     else:
@@ -1010,8 +1007,10 @@ class MouseHandlerBase:
         self._mouse_pos = mouse_pos
 
         clicked_object = self._pick_object(mouse_pos)
+
         if self._dispatch_to_active_handler(
-            mouse_pos, _interaction.MouseInteraction.RIGHT_DOWN, False, clicked_object
+            mouse_pos, _interaction.MouseInteraction.RIGHT_DOWN,
+            False, clicked_object
         ):
             self.canvas.grabMouse()
             return
@@ -1032,13 +1031,13 @@ class MouseHandlerBase:
         event = _events.GLEvent(_events.EVT_GL_RIGHT_DCLICK)
         if self._send_event(event, evt):
 
-            selected = _object_picker.find_object(
-                mouse_pos, self.canvas.objects_in_view,
-                self.canvas.camera, self._get_view_object)
+            selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
             with self.canvas:
                 if selected:
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_RIGHT_DCLICK)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_RIGHT_DCLICK)
+
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -1050,13 +1049,19 @@ class MouseHandlerBase:
 
         mouse_pos = _qt_pos(evt)
         clicked_object = self._pick_object(mouse_pos)
-        if self._dispatch_wheel_to_active_handler(mouse_pos, evt, clicked_object):
+
+        if self._dispatch_wheel_to_active_handler(
+            mouse_pos, evt, clicked_object
+        ):
             self.canvas.repaint()
             return
 
         delta = 1.0 if evt.angleDelta().y() > 0 else -1.0
 
-        if self.config.walk.mouse is not None and self.config.walk.mouse & MOUSE_WHEEL:
+        if (
+            self.config.walk.mouse is not None and
+            self.config.walk.mouse & MOUSE_WHEEL
+        ):
             self._orient_to_mouse_on_focal_plane(_qt_pos(evt), delta)
 
         # Accumulate rather than apply instantly -- _on_wheel_tick eases
@@ -1113,8 +1118,9 @@ class MouseHandlerBase:
         self.canvas.repaint()
 
     @_check_types.do
-    def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point, wheel_delta: float) -> None:
-        @_check_types.do
+    def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point,
+                                        wheel_delta: float) -> None:
+
         def _norm(values) -> float:
             return math.sqrt(sum(v * v for v in values))
 
@@ -1153,7 +1159,10 @@ class MouseHandlerBase:
         if current_xz_norm > _EPSILON and desired_xz_norm > _EPSILON:
             current_xz = tuple(v / current_xz_norm for v in current_xz)
             desired_xz = tuple(v / desired_xz_norm for v in desired_xz)
-            dot = max(-1.0, min(1.0, (current_xz[0] * desired_xz[0]) + (current_xz[1] * desired_xz[1])))
+
+            dot = max(-1.0, min(
+                1.0, (current_xz[0] * desired_xz[0]) + (current_xz[1] * desired_xz[1])))
+
             cross = (current_xz[0] * desired_xz[1]) - (current_xz[1] * desired_xz[0])
             yaw_delta = -math.degrees(math.atan2(cross, dot))
 
@@ -1284,12 +1293,12 @@ class MouseHandlerBase:
         if not self._is_motion:
             with self.canvas:
                 mouse_pos = _qt_pos(evt)
-                selected = _object_picker.find_object(
-                    mouse_pos, self.canvas.objects_in_view,
-                    self.canvas.camera, self._get_view_object)
+                selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
                 if selected:
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX1_CLICK)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_AUX1_CLICK)
+
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -1312,13 +1321,13 @@ class MouseHandlerBase:
         """
 
         mouse_pos = _qt_pos(evt)
-        selected = _object_picker.find_object(
-            mouse_pos, self.canvas.objects_in_view,
-            self.canvas.camera, self._get_view_object)
+        selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
         with self.canvas:
             if selected:
-                event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX1_DCLICK)
+                event = _events.GLObjectEvent(
+                    _events.EVT_GL_OBJECT_AUX1_DCLICK)
+
                 event.SetGLObject(selected)
                 self._send_event(event, evt)
 
@@ -1331,12 +1340,12 @@ class MouseHandlerBase:
         if not self._is_motion:
             with self.canvas:
                 mouse_pos = _qt_pos(evt)
-                selected = _object_picker.find_object(
-                    mouse_pos, self.canvas.objects_in_view,
-                    self.canvas.camera, self._get_view_object)
+                selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
                 if selected:
-                    event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX2_CLICK)
+                    event = _events.GLObjectEvent(
+                        _events.EVT_GL_OBJECT_AUX2_CLICK)
+
                     event.SetGLObject(selected)
                     self._send_event(event, evt)
 
@@ -1359,13 +1368,13 @@ class MouseHandlerBase:
         """
 
         mouse_pos = _qt_pos(evt)
-        selected = _object_picker.find_object(
-            mouse_pos, self.canvas.objects_in_view,
-            self.canvas.camera, self._get_view_object)
+        selected = _object_picker.find_object(mouse_pos, self.canvas.camera, self.canvas)
 
         with self.canvas:
             if selected:
-                event = _events.GLObjectEvent(_events.EVT_GL_OBJECT_AUX2_DCLICK)
+                event = _events.GLObjectEvent(
+                    _events.EVT_GL_OBJECT_AUX2_DCLICK)
+
                 event.SetGLObject(selected)
                 self._send_event(event, evt)
 

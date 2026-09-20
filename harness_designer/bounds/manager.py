@@ -1,13 +1,15 @@
 
 from . import aabb as _aabb
 from . import obb as _obb
+from . import segment_pool as _segment_pool
 
 
 class View:
 
     def __init__(self):
         self._aabb = _aabb.AABB()
-        self._obb = _obb.OBB
+        self._obb = _obb.OBB()
+        self._segments = _segment_pool.SegmentPool()
 
     @property
     def aabb(self) -> _aabb.AABB:
@@ -16,6 +18,10 @@ class View:
     @property
     def obb(self) -> _obb.OBB:
         return self._obb
+
+    @property
+    def segments(self) -> _segment_pool.SegmentPool:
+        return self._segments
 
 
 class Manager:
@@ -35,4 +41,4 @@ class Manager:
 
     @property
     def editor_pegboard(self) -> View:
-        return self._editor_schematic
+        return self._editor_pegboard

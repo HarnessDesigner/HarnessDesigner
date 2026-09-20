@@ -13,6 +13,7 @@ from ... import color as _color
 from ...gl import materials as _materials
 from ...shapes import sphere as _sphere
 from ... import check_types as _check_types
+from ... import bounds as _bounds
 
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class Splice(_base_schematic.BaseSchematic):
     """
     _parent: "_splice.Splice"
     db_obj: "_pjt_splice.PJTSplice"
+    _bounds_tag = _bounds.TAG_OBSTACLE
 
     @_check_types.do
     def __init__(self, parent: "_splice.Splice",
