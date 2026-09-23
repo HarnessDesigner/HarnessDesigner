@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
+
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -56,12 +57,12 @@ class Transition(_ObjectBase):
         # (unlike Splice for wires) -- it's just a waypoint/branch marker
         # the bundle's trunk terminates at, so there's nothing to fork here;
         # this dict only records which bundle (if any) sits at each branch.
-        self._bundle_refs: dict[int, weakref.ref] = {}
+        self._bundle_refs: dict[int, weakref.ReferenceType] = {}
 
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def bundle_at(self, branch_id: int) -> Union["_bundle_obj.Bundle", None]:
+    def bundle_at(self, branch_id: int) -> _Union["_bundle_obj.Bundle", None]:
         """Return the Bundle attached at *branch_id* (1-6), or None."""
         ref = self._bundle_refs.get(branch_id)
         return None if ref is None else ref()

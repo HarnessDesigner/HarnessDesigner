@@ -1,10 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
-from PySide6.QtWidgets import QMenu
 import build123d
+from PySide6 import QtWidgets
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -34,17 +34,17 @@ Config = _config.Config.editor_3d
 
 
 @_check_types.do
-def _build_sws(length, o_dia, i_dia):
+def _build_sws(length: float, o_dia: float, i_dia: float) -> tuple[np.ndarray, np.ndarray]:
     """Build the sws.
 
     UNKNOWN details are inferred from the callable name and signature.
 
     :param length: Value for ``length``.
-    :type length: UNKNOWN
+    :type length: float
     :param o_dia: Value for ``o_dia``.
-    :type o_dia: UNKNOWN
+    :type o_dia: float
     :param i_dia: Value for ``i_dia``.
-    :type i_dia: UNKNOWN
+    :type i_dia: float
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
@@ -83,7 +83,7 @@ class Seal(_base_3d.Base3D):
     _vbo_id: str | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal") -> None:
         """Initialise the :class:`Seal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -154,7 +154,8 @@ class Seal(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -165,10 +166,10 @@ class Seal(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: Union["_housing_facade.Housing", None] = None,
-        terminal: Union["_terminal_facade.Terminal", None] = None,
-        cavity: Union["_cavity_facade.Cavity", None] = None
-    ) -> Union["_seal.Seal", None]:
+        cls, mainframe: "_ui.MainFrame", housing: _Union["_housing_facade.Housing", None] = None,
+        terminal: _Union["_terminal_facade.Terminal", None] = None,
+        cavity: _Union["_cavity_facade.Cavity", None] = None
+    ) -> _Union["_seal.Seal", None]:
         """Four placement modes -- see add_handlers.editor_3d.seal's own
         module docstring; ported from handlers.seal_handler.AddSealHandler.
 
@@ -188,9 +189,6 @@ class Seal(_base_3d.Base3D):
         from ...add_handlers.editor_3d import seal as _add_seal
         from ...database.create_database import seal_types as _seal_types
         from .. import seal as _seal_facade
-        from .. import housing as _housing_obj
-        from .. import terminal as _terminal_obj
-        from PySide6.QtWidgets import QDialog
 
         canvas = mainframe.editor3d.editor
 
@@ -232,7 +230,7 @@ class Seal(_base_3d.Base3D):
                 mainframe, _editor_db.SealsPage, mainframe.global_db.seals_table, 'Add Seal',
                 initial_params=initial_params)
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -445,7 +443,7 @@ class Seal(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -471,7 +469,7 @@ class Seal(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "SealMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -482,14 +480,14 @@ class Seal(_base_3d.Base3D):
         return SealMenu(self.mainframe.editor3d.editor, self)
 
 
-class SealMenu(QMenu):
+class SealMenu(QtWidgets.QMenu):
     """Represent a seal menu in :mod:`harness_designer.objects.objects_3d.seal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "Seal") -> None:
         """Initialise the :class:`SealMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -499,7 +497,7 @@ class SealMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -525,21 +523,21 @@ class SealMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this seal the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this seal as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this seal from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this seal's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

@@ -2,25 +2,19 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
-
-from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from . import base_3d as _base_3d
-from . import menu_ops as _menu_ops
-from ...shapes import sphere as _sphere
 from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
-from ... import utils as _utils
-from ... import color as _color
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from ...database.project_db import project as _project
     from .. import project_model as _project_model
+    from ...gl import shaders as _shaders
 
 
 Config = _config.Config.editor_3d
@@ -31,7 +25,8 @@ class ProjectModel(_base_3d.Base3D):
     db_obj: "_project.Project" = None
 
     @_check_types.do
-    def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project", vbo):
+    def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project",
+                 vbo: _vbo.PooledVBOHandler) -> None:
         with parent.mainframe.editor3d.context:
             color = db_obj.color.ui
             scale = _point.Point(10.0, 10.0, 10.0)
@@ -50,13 +45,14 @@ class ProjectModel(_base_3d.Base3D):
         return True
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         pass
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> None:
         pass
 
     @_check_types.do
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         super().render(shaders)

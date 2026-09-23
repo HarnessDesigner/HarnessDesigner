@@ -1,11 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtWidgets
+import numpy as np
 import time
 import weakref as _weakref
 
+from . import ObjectBase as _ObjectBase
 from . import boot as _boot
 from . import bundle as _bundle
 from . import bundle_layout as _bundle_layout
@@ -15,6 +17,7 @@ from . import cavity as _cavity
 from . import cpa_lock as _cpa_lock
 from . import housing as _housing
 from . import note as _note
+from . import project_model as _project_model
 from . import seal as _seal
 from . import splice as _splice
 from . import terminal as _terminal
@@ -27,6 +30,7 @@ from . import wire_marker as _wire_marker
 from . import wire_service_loop as _wire_service_loop
 from .. import config as _config
 from .. import logger as _logger
+from ..gl import vbo as _vbo_handler
 from ..shapes import helix as _helix
 from .. import check_types as _check_types
 from ..database import id_generator as _id_generator
@@ -180,11 +184,7 @@ class Project:
     """
 
     @_check_types.do
-    def _set_model(self, model3d: "_model3d.Model3D"):
-        from ..gl import vbo as _vbo_handler
-        import numpy as np
-        from . import project_model as _project_model
-
+    def _set_model(self, model3d: "_model3d.Model3D") -> None:
         uuid = model3d.uuid
         project_obj = self.mainframe.project_db.projects_table[self.project_id]
 
@@ -299,8 +299,8 @@ class Project:
         #     _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
         @_check_types.do
-        def _load_objects(table_, label, obj_cls, container,
-                          cur_count, max_count):
+        def _load_objects(table_: object, label: str, obj_cls: type[_ObjectBase], container: dict,
+                          cur_count: int, max_count: int) -> int:
             # helper function for loading a project
             # note: the object browser tree is populated by
             # mainframe.add_object -- every wrapper's __init__ calls it
@@ -454,7 +454,7 @@ class Project:
         _logger.info(f'project loaded: object count: {count}')
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """Drop every reference this project holds to its own registered
         objects, without touching the database or calling any object's
         own ``delete()``.
@@ -490,7 +490,7 @@ class Project:
         self._model = None
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Delete every object in the project, then the project's own row.
 
         Project has no objschematic/obj3d/objpegboard of its own, so unlike a normal
@@ -548,7 +548,7 @@ class Project:
 
     @wire_stripe_max_length.setter
     @_check_types.do
-    def wire_stripe_max_length(self, value: float):
+    def wire_stripe_max_length(self, value: float) -> None:
         self.db_obj.wire_stripe_max_length = value
 
     @property
@@ -565,7 +565,7 @@ class Project:
 
     @obj_count.setter
     @_check_types.do
-    def obj_count(self, value: int):
+    def obj_count(self, value: int) -> None:
         """Set the obj count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -602,7 +602,7 @@ class Project:
 
         project_names = []
 
-        connector.execute(f'SELECT name FROM projects;')
+        connector.execute('SELECT name FROM projects;')
         for name in connector.fetchall():
             project_names.append(name[0])
 
@@ -615,7 +615,7 @@ class Project:
                 return None
         finally:
             dlg.deleteLater()
-        connector.execute(f'SELECT id FROM projects WHERE name = "{project_name}";')
+        connector.execute('SELECT id FROM projects WHERE name = ?;', (project_name,))
         res = connector.fetchall()
 
         if res:
@@ -636,7 +636,7 @@ class Project:
                 else:
                     model_id = None
 
-                connector.execute(f'INSERT INTO projects (name, creator, description, model_id, color_id) VALUES (?, ?, ?, ?, ?);',
+                connector.execute('INSERT INTO projects (name, creator, description, model_id, color_id) VALUES (?, ?, ?, ?, ?);',
                                   (project_name, creator, description, model_id, color_id))
                 connector.commit()
                 project_id = connector.lastrowid
@@ -647,7 +647,7 @@ class Project:
 
     @classmethod
     @_check_types.do
-    def select_project(cls, mainframe: "_ui.MainFrame") -> Union["Project", None]:
+    def select_project(cls, mainframe: "_ui.MainFrame") -> _Union["Project", None]:
         """Execute the select project operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -671,7 +671,7 @@ class Project:
         return cls(mainframe, db_obj, project_name, project_id)
 
     @_check_types.do
-    def delete_note(self, db_id):
+    def delete_note(self, db_id: bytes) -> None:
         """Delete the note.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -695,7 +695,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_note(self, db_id) -> _note.Note:
+    def get_note(self, db_id: bytes) -> _note.Note:
         """Return the note.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -721,7 +721,7 @@ class Project:
         return list(self._notes.values())
 
     @_check_types.do
-    def delete_seal(self, db_id):
+    def delete_seal(self, db_id: bytes) -> None:
         """Delete the seal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -745,7 +745,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_seal(self, db_id) -> _seal.Seal:
+    def get_seal(self, db_id: bytes) -> _seal.Seal:
         """Return the seal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -771,7 +771,7 @@ class Project:
         return list(self._seals.values())
 
     @_check_types.do
-    def delete_terminal(self, db_id):
+    def delete_terminal(self, db_id: bytes) -> None:
         """Delete the terminal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -795,7 +795,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_terminal(self, db_id) -> _terminal.Terminal:
+    def get_terminal(self, db_id: bytes) -> _terminal.Terminal:
         """Return the terminal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -821,7 +821,7 @@ class Project:
         return list(self._terminals.values())
 
     @_check_types.do
-    def delete_cavity(self, db_id):
+    def delete_cavity(self, db_id: bytes) -> None:
         """Delete the cavity.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -845,7 +845,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_cavity(self, db_id) -> _cavity.Cavity:
+    def get_cavity(self, db_id: bytes) -> _cavity.Cavity:
         """Return the cavity.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -871,7 +871,7 @@ class Project:
         return list(self._cavities.values())
 
     @_check_types.do
-    def delete_tpa_lock(self, db_id):
+    def delete_tpa_lock(self, db_id: bytes) -> None:
         """Delete the TPA lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -893,10 +893,9 @@ class Project:
         """
         self._tpa_locks[obj.db_obj.db_id] = obj
         self.obj_count += 1
-        return obj
 
     @_check_types.do
-    def get_tpa_lock(self, db_id) -> _tpa_lock.TPALock:
+    def get_tpa_lock(self, db_id: bytes) -> _tpa_lock.TPALock:
         """Return the TPA lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -922,7 +921,7 @@ class Project:
         return list(self._tpa_locks.values())
 
     @_check_types.do
-    def delete_wire_marker(self, db_id):
+    def delete_wire_marker(self, db_id: bytes) -> None:
         """Delete the wire marker.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -946,7 +945,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_wire_marker(self, db_id) -> _wire_marker.WireMarker:
+    def get_wire_marker(self, db_id: bytes) -> _wire_marker.WireMarker:
         """Return the wire marker.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -972,7 +971,7 @@ class Project:
         return list(self._wire_markers.values())
 
     @_check_types.do
-    def delete_wire_service_loop(self, db_id):
+    def delete_wire_service_loop(self, db_id: bytes) -> None:
         """Delete the wire service loop.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -996,7 +995,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_wire_service_loop(self, db_id) -> _wire_service_loop.WireServiceLoop:
+    def get_wire_service_loop(self, db_id: bytes) -> _wire_service_loop.WireServiceLoop:
         """Return the wire service loop.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1034,7 +1033,7 @@ class Project:
         return list(self._circuits.values())
 
     @_check_types.do
-    def delete_cpa_lock(self, db_id):
+    def delete_cpa_lock(self, db_id: bytes) -> None:
         """Delete the CPA lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1058,7 +1057,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_cpa_lock(self, db_id) -> _cpa_lock.CPALock:
+    def get_cpa_lock(self, db_id: bytes) -> _cpa_lock.CPALock:
         """Return the CPA lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1084,7 +1083,7 @@ class Project:
         return list(self._cpa_locks.values())
 
     @_check_types.do
-    def delete_cover(self, db_id):
+    def delete_cover(self, db_id: bytes) -> None:
         """Delete the cover.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1108,7 +1107,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_cover(self, db_id) -> _cover.Cover:
+    def get_cover(self, db_id: bytes) -> _cover.Cover:
         """Return the cover.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1134,7 +1133,7 @@ class Project:
         return list(self._covers.values())
 
     @_check_types.do
-    def delete_boot(self, db_id):
+    def delete_boot(self, db_id: bytes) -> None:
         """Delete the boot.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1158,7 +1157,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_boot(self, db_id) -> _boot.Boot:
+    def get_boot(self, db_id: bytes) -> _boot.Boot:
         """Return the boot.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1184,7 +1183,7 @@ class Project:
         return list(self._boots.values())
 
     @_check_types.do
-    def delete_transition(self, db_id):
+    def delete_transition(self, db_id: bytes) -> None:
         """Delete the transition.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1208,7 +1207,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_transition(self, db_id) -> _transition.Transition:
+    def get_transition(self, db_id: bytes) -> _transition.Transition:
         """Return the transition.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1234,7 +1233,7 @@ class Project:
         return list(self._transitions.values())
 
     @_check_types.do
-    def delete_housing(self, db_id):
+    def delete_housing(self, db_id: bytes) -> None:
         """Delete the housing.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1258,7 +1257,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_housing(self, db_id) -> _housing.Housing:
+    def get_housing(self, db_id: bytes) -> _housing.Housing:
         """Return the housing.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1284,7 +1283,7 @@ class Project:
         return list(self._housings.values())
 
     @_check_types.do
-    def delete_splice(self, db_id):
+    def delete_splice(self, db_id: bytes) -> None:
         """Delete the splice.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1308,7 +1307,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_splice(self, db_id) -> _splice.Splice:
+    def get_splice(self, db_id: bytes) -> _splice.Splice:
         """Return the splice.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1334,7 +1333,7 @@ class Project:
         return list(self._splices.values())
 
     @_check_types.do
-    def delete_wire(self, db_id):
+    def delete_wire(self, db_id: bytes) -> None:
         """Delete the wire.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1358,7 +1357,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_wire(self, db_id) -> _wire.Wire:
+    def get_wire(self, db_id: bytes) -> _wire.Wire:
         """Return the wire.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1384,7 +1383,7 @@ class Project:
         return list(self._wires.values())
 
     @_check_types.do
-    def delete_wire_layout(self, db_id):
+    def delete_wire_layout(self, db_id: bytes) -> None:
         """Delete the wire layout.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1420,7 +1419,7 @@ class Project:
         return list(self._wire_layouts.values())
 
     @_check_types.do
-    def delete_bundle(self, db_id):
+    def delete_bundle(self, db_id: bytes) -> None:
         """Delete the bundle.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1444,7 +1443,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_bundle(self, db_id) -> _bundle.Bundle:
+    def get_bundle(self, db_id: bytes) -> _bundle.Bundle:
         """Return the bundle.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1470,7 +1469,7 @@ class Project:
         return list(self._bundles.values())
 
     @_check_types.do
-    def delete_bundle_layout(self, db_id):
+    def delete_bundle_layout(self, db_id: bytes) -> None:
         """Delete the bundle layout.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1494,7 +1493,7 @@ class Project:
         self.obj_count += 1
 
     @_check_types.do
-    def get_bundle_layout(self, db_id) -> _bundle_layout.BundleLayout:
+    def get_bundle_layout(self, db_id: bytes) -> _bundle_layout.BundleLayout:
         """Return the bundle layout.
 
         UNKNOWN details are inferred from the callable name and signature.

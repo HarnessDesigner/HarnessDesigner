@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -40,7 +40,7 @@ class WireLayout(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
-                 db_obj: "_pjt_wire_layout.PJTWireLayout"):
+                 db_obj: "_pjt_wire_layout.PJTWireLayout") -> None:
         """Initialise the :class:`WireLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -148,7 +148,8 @@ class WireLayout(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -169,7 +170,7 @@ class WireLayout(_base_3d.Base3D):
         return self.position
 
     @_check_types.do
-    def _sync_from_bundle_layout_point(self, point: _point.Point):
+    def _sync_from_bundle_layout_point(self, point: _point.Point) -> None:
         """Callback to sync wire layout point position from bundle layout point.
 
         This is called when the bundle layout point moves. Wire layout points
@@ -184,7 +185,7 @@ class WireLayout(_base_3d.Base3D):
         self._position += delta
 
     @_check_types.do
-    def bind_to_bundle_layout_point(self, bundle_layout_point: _point.Point):
+    def bind_to_bundle_layout_point(self, bundle_layout_point: _point.Point) -> None:
         """Register callback to bundle layout point for synchronization.
 
         When a wire is bundled, wire layouts register callbacks to the relevant
@@ -204,7 +205,7 @@ class WireLayout(_base_3d.Base3D):
         self._sync_from_bundle_layout_point(bundle_layout_point)
 
     @_check_types.do
-    def unbind_from_bundle_layout_point(self):
+    def unbind_from_bundle_layout_point(self) -> None:
         """Unbind from bundle layout point.
 
         When a wire is unbundled, wire layouts unbind themselves from the
@@ -228,14 +229,14 @@ class WireLayout(_base_3d.Base3D):
         self._bundle_layout_point_id = None
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """Clean up bundle bindings and reconnect split wires before deleting."""
         self.unbind_from_bundle_layout_point()
         self._reconnect_wires()
         super()._delete()
 
     @_check_types.do
-    def _reconnect_wires(self):
+    def _reconnect_wires(self) -> None:
         """Remove this layout's own bend from whatever wire(s) it sits on.
 
         Two cases, by how many distinct wire rows attach here (see
@@ -351,7 +352,7 @@ class WireLayout(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -377,7 +378,7 @@ class WireLayout(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "WireLayoutMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -388,14 +389,14 @@ class WireLayout(_base_3d.Base3D):
         return WireLayoutMenu(self.mainframe.editor3d.editor, self)
 
 
-class WireLayoutMenu(QMenu):
+class WireLayoutMenu(QtWidgets.QMenu):
     """Represent a wire layout menu in :mod:`harness_designer.objects.objects_3d.wire_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "WireLayout") -> None:
         """Initialise the :class:`WireLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -405,7 +406,7 @@ class WireLayoutMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -424,21 +425,21 @@ class WireLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     @_check_types.do
-    def on_add_splice(self):
+    def on_add_splice(self) -> None:
         """Start the interactive splice placement flow."""
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import splice as _splice_3d
 
         mainframe = self.selected.mainframe
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _splice_3d.Splice.start_add(mainframe)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """Highlight every object on the circuit of an attached wire."""
         wires = self.selected.db_obj.attached_wires
 
@@ -446,11 +447,11 @@ class WireLayoutMenu(QMenu):
             _menu_ops.trace_circuit(self.selected, wires[0])
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this wire layout the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this wire layout from the project."""
         _menu_ops.delete_object(self.selected)

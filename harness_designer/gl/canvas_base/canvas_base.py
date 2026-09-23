@@ -619,6 +619,9 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         found_container.append([aabb_min, aabb_max, pos, is_opaque, obj_address])
         self._objects.append(obj)
 
+        with self:
+            self.Refresh()
+
     @_check_types.do
     def __remove_obj_ref(self, ref):
         """

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import weakref
 
@@ -89,7 +89,7 @@ class ObjectBase:
         del self.__tree_item_callbacks[:]
 
     @_check_types.do
-    def get_treeitem(self) -> Union["_objectbrowser.TreeItem", None]:
+    def get_treeitem(self) -> _Union["_objectbrowser.TreeItem", None]:
         """Return the treeitem.
 
         UNKNOWN details are inferred from the callable name and signature.

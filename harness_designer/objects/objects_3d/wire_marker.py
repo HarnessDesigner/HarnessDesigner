@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from PySide6.QtWidgets import QMenu
-from PySide6.QtCore import QTimer
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from ...geometry import point as _point
 from ...geometry import line as _line
@@ -16,7 +16,6 @@ from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
 from ... import config as _config
-from ... import utils as _utils
 from ... import color as _color
 from ... import logger as _logger
 from ... import check_types as _check_types
@@ -44,7 +43,7 @@ class WireMarker(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
-                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
+                 db_obj: "_pjt_wire_marker.PJTWireMarker") -> None:
         """Initialise the :class:`WireMarker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -130,7 +129,8 @@ class WireMarker(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -230,7 +230,7 @@ class WireMarker(_base_3d.Base3D):
         return line.point_from_start(distance)
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Update the position.
 
         Two independent triggers land here (both endpoints bind this same
@@ -337,7 +337,7 @@ class WireMarker(_base_3d.Base3D):
         self.editor3d.Refresh()
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "WireMarkerMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -350,7 +350,7 @@ class WireMarker(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Along-the-wire drag -- overrides Base3D's generic single-
         position drag so the specific WireMarker handler (a rotated,
@@ -390,14 +390,14 @@ class WireMarker(_base_3d.Base3D):
         return True
 
 
-class WireMarkerMenu(QMenu):
+class WireMarkerMenu(QtWidgets.QMenu):
     """Represent a wire marker menu in :mod:`harness_designer.objects.objects_3d.wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "WireMarker") -> None:
         """Initialise the :class:`WireMarkerMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -407,7 +407,7 @@ class WireMarkerMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -431,16 +431,14 @@ class WireMarkerMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_set_label(self):
+    def on_set_label(self) -> None:
         """Edit the marker label."""
         @_check_types.do
-        def _do():
-            from PySide6.QtWidgets import QInputDialog
-
+        def _do() -> None:
             mainframe = self.selected.mainframe
             current = self.selected.db_obj.label or ''
 
-            label, ok = QInputDialog.getText(
+            label, ok = QtWidgets.QInputDialog.getText(
                 mainframe, 'Set Label', 'Label:', text=current)
 
             if not ok or label == current:
@@ -449,24 +447,24 @@ class WireMarkerMenu(QMenu):
             self.selected.db_obj.label = label
             self.selected.editor3d.Refresh()
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this wire marker the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this wire marker as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this wire marker from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this wire marker's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

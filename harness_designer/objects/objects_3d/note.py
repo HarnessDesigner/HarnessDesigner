@@ -1,10 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union, Any
 
-from PySide6.QtWidgets import QMenu
-from PySide6.QtCore import QTimer
 import build123d
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from ...geometry import point as _point
 from ...ui.widgets import context_menus as _context_menus
@@ -40,7 +40,7 @@ class Note(_base_3d.Base3D):
     _vbo: _text.Text | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
+    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote") -> None:
         """Initialise the :class:`Note` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +104,7 @@ class Note(_base_3d.Base3D):
         # still None, straight from the object's own constructor.
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """Release this note's own arena row, if it's still holding one,
         before the base teardown runs -- ``_CameraTrackingArena.update``
         would otherwise only notice this note is gone the next time the
@@ -118,7 +118,7 @@ class Note(_base_3d.Base3D):
         super()._delete()
 
     @_check_types.do
-    def _on_label_changed(self, *_, **__):
+    def _on_label_changed(self, *_: tuple[Any], **__: dict[str, Any]) -> None:
         with self.editor3d.context:
             self._rebuild()
 
@@ -134,7 +134,8 @@ class Note(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -249,7 +250,7 @@ class Note(_base_3d.Base3D):
         self._start_camera_tracking()
 
     @_check_types.do
-    def _rebuild(self):
+    def _rebuild(self) -> None:
         """Rebuild this note's label from its current db_obj fields and
         re-derive its OBB/AABB -- called by every ``set_*`` method below.
 
@@ -273,7 +274,7 @@ class Note(_base_3d.Base3D):
             self._start_camera_tracking()
 
     @_check_types.do
-    def set_size(self, size):
+    def set_size(self, size: int) -> None:
         """Set this note's (shared) font size -- rebuild/refresh happens
         via the bound callback from __init__, for every view, not just
         this one.
@@ -281,24 +282,24 @@ class Note(_base_3d.Base3D):
         self.db_obj.size = size
 
     @_check_types.do
-    def set_style(self, style):
+    def set_style(self, style: int) -> None:
         """Set this note's (shared) font style -- see :meth:`set_size`."""
         self.db_obj.style = style
 
     @_check_types.do
-    def set_alignment(self, alignment):
+    def set_alignment(self, alignment: int) -> None:
         """Set this note's (shared) horizontal alignment -- see
         :meth:`set_size`."""
         self.db_obj.h_align = alignment
 
     @_check_types.do
-    def set_text(self, text: str):
+    def set_text(self, text: str) -> None:
         """Set this note's (shared) text -- see :meth:`set_size`."""
         self.db_obj.notes = text
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_note.Note", None]:
+    def start_add(cls, mainframe: "_ui.MainFrame") -> _Union["_note.Note", None]:
         """Gather the note's text/formatting via the modal dialog (always
         shown -- unlike a part-search pick, there's no preselected-value
         shortcut), build the real facade at a placeholder position, and
@@ -346,7 +347,7 @@ class Note(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -381,7 +382,7 @@ class Note(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "NoteMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -392,14 +393,14 @@ class Note(_base_3d.Base3D):
         return NoteMenu(self.mainframe.editor3d.editor, self)
 
 
-class NoteMenu(QMenu):
+class NoteMenu(QtWidgets.QMenu):
     """Represent a note menu in :mod:`harness_designer.objects.objects_3d.note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "Note") -> None:
         """Initialise the :class:`NoteMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -409,7 +410,7 @@ class NoteMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -436,16 +437,14 @@ class NoteMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_set_text(self):
+    def on_set_text(self) -> None:
         """Edit the note text."""
         @_check_types.do
-        def _do():
-            from PySide6.QtWidgets import QInputDialog
-
+        def _do() -> None:
             mainframe = self.selected.mainframe
             current = self.selected.db_obj.notes
 
-            text, ok = QInputDialog.getMultiLineText(
+            text, ok = QtWidgets.QInputDialog.getMultiLineText(
                 mainframe, 'Set Text', 'Note:', current)
 
             if not ok or not text or text == current:
@@ -453,19 +452,19 @@ class NoteMenu(QMenu):
 
             self.selected.set_text(text)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this note as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this note from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this note's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

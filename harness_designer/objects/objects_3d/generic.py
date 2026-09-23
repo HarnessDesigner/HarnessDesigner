@@ -25,7 +25,7 @@ class Generic(_base_3d.Base3D):
     @_check_types.do
     def __init__(self, parent: "_generic.Generic", vbo: _vbo.PooledVBOHandler | None,
                  angle: _angle.Angle, position: _point.Point, scale: _point.Point,
-                 material: _materials.GLMaterial):
+                 material: _materials.GLMaterial) -> None:
 
         with parent.mainframe.editor3d.context:
             super().__init__(parent, None, vbo, angle, position, scale, material)

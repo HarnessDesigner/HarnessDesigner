@@ -1,11 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
-import weakref
-from PySide6.QtWidgets import QMenu
 import math
+import weakref
+from collections.abc import Iterator
+
 import numpy as np
+from PySide6 import QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import line as _line
@@ -28,6 +30,7 @@ if TYPE_CHECKING:
     from .. import bundle as _bundle
     from ...gl import shaders as _shaders
     from ... import ui as _ui
+    from . import wire as _wire_3d
 
 
 Config = _config.Config.editor_3d
@@ -43,7 +46,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
-                 db_obj: "_pjt_bundle.PJTBundle"):
+                 db_obj: "_pjt_bundle.PJTBundle") -> None:
         """Initialise the :class:`Bundle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,7 +95,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             # unrelated to the waypoint/sibling-graph work above; see
             # objects.bundle.Bundle.set_sibling for this bundle's own trunk-end
             # sibling (a Transition), which is a separate mechanism entirely.
-            self._wires = []  # List of weak references to Wire objects
+            self._wires: list[weakref.ReferenceType] = []  # List of weak references to Wire objects
 
             self._p2.bind(self._update_position)
 
@@ -105,7 +108,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_bundle.Bundle", None]:
+    def start_add(cls, mainframe: "_ui.MainFrame") -> _Union["_bundle.Bundle", None]:
         """Wire-snapping bundle-cover placement, ported from
         handlers.bundle_handler.AddBundleHandler -- always free/
         interactive, no housing/wire argument (see
@@ -120,7 +123,6 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         from ...ui import editor_db as _editor_db
         from ...add_handlers.editor_3d import bundle as _add_bundle
         from .. import bundle as _bundle_facade
-        from PySide6.QtWidgets import QDialog
 
         canvas = mainframe.editor3d.editor
 
@@ -131,7 +133,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
                 mainframe, _editor_db.BundleCoversPage, mainframe.global_db.bundle_covers_table,
                 'Add Bundle Cover')
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -180,7 +182,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Add-session check first (see start_add), then falls through
         to this class's own existing rigid whole-path drag handling
@@ -242,7 +244,8 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -257,7 +260,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @diameter.setter
     @_check_types.do
-    def diameter(self, value: float):
+    def diameter(self, value: float) -> None:
         self._diameter = value
         radius = value / 2
         self._scale.x = radius
@@ -314,7 +317,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._recalculate_geometry()
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """Update the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -325,7 +328,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         pass
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """Update the angle.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -336,7 +339,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._update_position(None)
 
     @_check_types.do
-    def _recalculate_geometry(self):
+    def _recalculate_geometry(self) -> None:
         """Compute total length, an aggregate angle, and OBB/AABB from the
         bundle's current start/interior-waypoints/stop path.
 
@@ -372,7 +375,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._compute_aabb()
 
     @_check_types.do
-    def _update_position(self, _: _point.Point):
+    def _update_position(self, _: _point.Point | None) -> None:
         """Recompute geometry immediately, not deferred to the next render
         pass -- bound to the start/stop endpoints and every interior
         waypoint (see _bind_waypoints), so any of them moving keeps the
@@ -381,7 +384,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._recalculate_geometry()
 
     @_check_types.do
-    def _segment_transforms(self):
+    def _segment_transforms(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, float]]:
         """Yield (position, angle, scale, length) for every sub-segment of
         this bundle's current path -- the values render()/hit_test_step3
         both draw/test against, computed fresh each call since a bundle's
@@ -402,7 +405,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             yield seg_position, seg_angle, seg_scale, seg_len
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """Union AABB across every sub-segment, expressed as an 8-corner
         box (same shape find_object/_ray_intersect_obb expects) -- a
         single rigid OBB has no meaningful orientation for a bundle with
@@ -434,7 +437,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             self._obb[:] = obb
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """See _compute_obb -- same union-of-segments envelope."""
         if self._vbo is None:
             return
@@ -448,7 +451,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._aabb[:] = aabb
 
     @_check_types.do
-    def _segment_world_corners(self):
+    def _segment_world_corners(self) -> np.ndarray:
         """World-space AABB corners (8 per segment) for every sub-segment,
         stacked into one array -- the shared building block for both
         _compute_obb and _compute_aabb's union-of-segments envelope."""
@@ -482,7 +485,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return np.concatenate(all_corners, axis=0)
 
     @_check_types.do
-    def hit_test_step3(self, ray_origin, ray_dir):
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
         """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
         tests every sub-segment's own transformed triangles individually
         instead of assuming one rigid transform for the whole bundle."""
@@ -505,7 +508,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return False
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render every sub-segment of the bundle's current path.
 
         Geometry is always current by the time this runs --
@@ -548,7 +551,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         self._render_waypoint_layouts(shaders)
 
     @_check_types.do
-    def _render_waypoint_layouts(self, shaders: "_shaders.ShaderProgram"):
+    def _render_waypoint_layouts(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw each waypoint layout marker's own AABB/OBB/floor-projection
         overlays for completeness -- see ``objects_3d/wire.py``'s own
         ``_render_waypoint_layouts``, which this mirrors exactly (sphere
@@ -575,7 +578,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @staticmethod
     @_check_types.do
-    def _rotation_from_direction(direction):
+    def _rotation_from_direction(direction: np.ndarray) -> _angle.Angle:
         """Create quaternion to rotate +Z axis to align with direction"""
         # Unit cylinder points along +Z, rotate it to point along 'direction'
         z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
@@ -599,7 +602,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return _angle.Angle.from_axis_angle(axis, angle)
 
     @_check_types.do
-    def set_diameter(self, value: float):
+    def set_diameter(self, value: float) -> None:
         """Set this bundle's own diameter, and -- if either end is
         attached to a Transition (see objects.bundle.Bundle.set_sibling)
         -- that branch's own diameter to match, so the fitting's opening
@@ -633,13 +636,13 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
                 branch.diameter = value
 
     @_check_types.do
-    def add_wire(self, wire):
+    def add_wire(self, wire: "_wire_3d.Wire") -> None:
         """Add a wire.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param wire: Value for ``wire``.
-        :type wire: UNKNOWN
+        :type wire: :class:`_wire_3d.Wire`
         """
         # Store weak reference to the wire
         wire_ref = weakref.ref(wire, self._on_wire_deleted)
@@ -650,13 +653,13 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             wire.is_visible = False
 
     @_check_types.do
-    def remove_wire(self, wire):
+    def remove_wire(self, wire: "_wire_3d.Wire") -> None:
         """Remove the wire.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param wire: Value for ``wire``.
-        :type wire: UNKNOWN
+        :type wire: :class:`_wire_3d.Wire`
         """
         # Remove the weak reference
         for ref in self._wires[:]:
@@ -670,14 +673,14 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
                 break
 
     @_check_types.do
-    def _on_wire_deleted(self, ref):
+    def _on_wire_deleted(self, ref: weakref.ReferenceType) -> None:
         """Callback when a wire is garbage collected."""
         if ref in self._wires:
             self._wires.remove(ref)
 
     @property
     @_check_types.do
-    def wires(self):
+    def wires(self) -> Iterator["_wire_3d.Wire"]:
         """Get all wires in this bundle (that still exist)."""
         for ref in self._wires[:]:
             wire = ref()
@@ -700,7 +703,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         return count
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "BundleMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -712,25 +715,25 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @property
     @_check_types.do
-    def start_position(self):
+    def start_position(self) -> _point.Point:
         """Wire start position (Point instance)"""
         return self._p1
 
     @property
     @_check_types.do
-    def stop_position(self):
+    def stop_position(self) -> _point.Point:
         """Wire stop position (Point instance)"""
         return self._p2
 
 
-class BundleMenu(QMenu):
+class BundleMenu(QtWidgets.QMenu):
     """Represent a bundle menu in :mod:`harness_designer.objects.objects_3d.bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "Bundle") -> None:
         """Initialise the :class:`BundleMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -740,7 +743,7 @@ class BundleMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -766,7 +769,7 @@ class BundleMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_handle(self):
+    def on_add_handle(self) -> None:
         """Start the interactive waypoint-placement flow (see
         add_handlers.editor_3d.bundle_layout), seeded at the point on
         the bundle that was right-clicked to open this menu (falls back
@@ -776,7 +779,7 @@ class BundleMenu(QMenu):
         start/stop when close enough) until the next click commits it --
         mirroring objects.objects_3d.wire.WireMenu.on_add_handle.
         """
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import bundle_layout as _bundle_layout_3d
 
         mainframe = self.selected.mainframe
@@ -793,21 +796,21 @@ class BundleMenu(QMenu):
             initial_pos = line.point_from_start(line.length() / 2.0)
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _bundle_layout_3d.BundleLayout.start_add(mainframe, bundle, initial_pos)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_transition(self):
+    def on_add_transition(self) -> None:
         """Start the interactive transition placement flow."""
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import transition as _transition_3d
 
         mainframe = self.selected.mainframe
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             part_id = _menu_ops.get_part_id(
                 mainframe, 'transitions',
                 mainframe.global_db.transitions_table, 'Add Transition')
@@ -817,10 +820,10 @@ class BundleMenu(QMenu):
 
             _transition_3d.Transition.start_add(mainframe, part_id)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_wire_contents(self):
+    def on_wire_contents(self) -> None:
         """Open the read-only wire-contents dialog for this bundle."""
         from ...ui.dialogs import bundle_wires_dialog as _dlg
 
@@ -830,16 +833,16 @@ class BundleMenu(QMenu):
         dlg.deleteLater()
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this bundle the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this bundle from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this bundle's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

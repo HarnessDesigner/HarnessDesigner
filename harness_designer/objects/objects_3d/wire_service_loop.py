@@ -1,10 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
+
 import numpy as np
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -56,7 +57,7 @@ def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
 
 @_check_types.do
 def _mesh_world_triangles(
-    vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
+    vbo: object | None, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
 ) -> np.ndarray | None:
     """(N, 3, 3) world-space triangles for a mesh at the given pose -- same
     transform the faces shader applies (scale, then rotate, then
@@ -102,7 +103,7 @@ _OBB_TRIANGLE_INDICES = np.array([
 
 
 @_check_types.do
-def _candidate_obb(vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
+def _candidate_obb(vbo: object | None, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
                    ) -> np.ndarray | None:
     """(8, 3) world-space OBB corners for a hypothetical (not-yet-applied)
     pose -- same formula Base3D._compute_obb uses for its own (always
@@ -250,7 +251,7 @@ def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndar
 
 @_check_types.do
 def _is_clear(
-    vbo, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
+    vbo: object | None, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
     my_obb: np.ndarray | None, session: "_MoveSession",
 ) -> bool:
     """True if a candidate pose (my_obb, plus vbo/position/angle/scale to
@@ -330,7 +331,7 @@ class WireServiceLoop(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop") -> None:
         """Initialise the :class:`WireServiceLoop` instance.
 
         :param parent: Parent object.
@@ -404,7 +405,8 @@ class WireServiceLoop(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -439,7 +441,7 @@ class WireServiceLoop(_base_3d.Base3D):
         self._p2 += tmp - self._p2
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Base3D recomputes OBB/AABB/floor-lock off the start point alone
         -- also keep the derived stop point in step with it, resolve any
         collision the move introduced (see _resolve_collision), and keep
@@ -451,7 +453,7 @@ class WireServiceLoop(_base_3d.Base3D):
         self._last_centroid = self._world_centroid()
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """Rotate the loop around its own centroid, not its start point.
 
         Base3D's rendering pivot is always objectPosition (the start
@@ -863,7 +865,7 @@ class WireServiceLoop(_base_3d.Base3D):
     @_check_types.do
     def start_add(
         cls, mainframe: "_ui.MainFrame", wire: "_wire.Wire", mouse_pos: _point.Point
-    ) -> Union["_wire_service_loop.WireServiceLoop", None]:
+    ) -> _Union["_wire_service_loop.WireServiceLoop", None]:
         """Fixed-wire service-loop placement, ported from
         handlers.wire_service_loop_handler.AddWireServiceLoopHandler --
         only ever started from a wire's own context menu, never a
@@ -921,7 +923,7 @@ class WireServiceLoop(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -947,7 +949,7 @@ class WireServiceLoop(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "WireServiceLoopMenu":
         """Return the context menu.
 
         :returns: Return value. UNKNOWN details.
@@ -957,13 +959,13 @@ class WireServiceLoop(_base_3d.Base3D):
 
     @property
     @_check_types.do
-    def start_position(self):
+    def start_position(self) -> _point.Point:
         """Wire start position (Point instance)"""
         return self._p1
 
     @property
     @_check_types.do
-    def stop_position(self):
+    def stop_position(self) -> _point.Point:
         """Wire stop position (Point instance)"""
         return self._p2
 
@@ -976,7 +978,7 @@ class WireServiceLoopStripe(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", wireserviceloop: WireServiceLoop, color: _color.Color, scale: _point.Point,
-                 angle: _angle.Angle, position: _point.Point):
+                 angle: _angle.Angle, position: _point.Point) -> None:
         """Initialise the :class:`WireStripe` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1015,19 +1017,19 @@ class WireServiceLoopStripe(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """No-op: the stripe has no independent geometry of its own. See
         the _obb property below."""
         pass
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """See _compute_obb."""
         pass
 
     @property
     @_check_types.do
-    def _obb(self):
+    def _obb(self) -> np.ndarray:
         """Always the wire's current OBB array -- read-only everywhere
         obb/aabb are used (hit-testing, debug overlay boxes), so there's
         never a need for the stripe to hold its own copy."""
@@ -1035,24 +1037,24 @@ class WireServiceLoopStripe(_base_3d.Base3D):
 
     @_obb.setter
     @_check_types.do
-    def _obb(self, value):
+    def _obb(self, value: np.ndarray) -> None:
         # Base3D.__init__ assigns this once before calling _compute_obb();
         # the wire is the source of truth, so the write is discarded.
         pass
 
     @property
     @_check_types.do
-    def _aabb(self):
+    def _aabb(self) -> np.ndarray:
         """See _obb."""
         return self._wireserviceloop.aabb
 
     @_aabb.setter
     @_check_types.do
-    def _aabb(self, value):
+    def _aabb(self, value: np.ndarray) -> None:
         pass
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Recompute (copy) OBB/AABB from the wire; the wire's own
         _update_position already triggers a repaint, so this doesn't need
         its own Refresh() call.
@@ -1066,7 +1068,7 @@ class WireServiceLoopStripe(_base_3d.Base3D):
         pass
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """See _update_position.
 
         :param angle: Value for ``angle``.
@@ -1078,7 +1080,7 @@ class WireServiceLoopStripe(_base_3d.Base3D):
         pass
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """See _update_position.
 
         :param scale: Value for ``scale``.
@@ -1103,7 +1105,7 @@ class WireServiceLoopStripe(_base_3d.Base3D):
 
     @is_visible.setter
     @_check_types.do
-    def is_visible(self, value: bool):
+    def is_visible(self, value: bool) -> None:
         """Set the is visible.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1114,15 +1116,14 @@ class WireServiceLoopStripe(_base_3d.Base3D):
         self._is_visible = value
 
 
-
-class WireServiceLoopMenu(QMenu):
+class WireServiceLoopMenu(QtWidgets.QMenu):
     """Represent a wire service loop menu in :mod:`harness_designer.objects.objects_3d.wire_service_loop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "WireServiceLoop") -> None:
         """Initialise the :class:`WireServiceLoopMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1132,7 +1133,7 @@ class WireServiceLoopMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -1158,41 +1159,41 @@ class WireServiceLoopMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_wire(self):
+    def on_add_wire(self) -> None:
         """Start placing a wire using this service loop's part type."""
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe
         part_id = self.selected.db_obj.part_id
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _wire_3d.Wire.start_add(mainframe, preset_part_id=part_id)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """Highlight every object on this service loop's circuit."""
         _menu_ops.trace_circuit(self.selected)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this wire service loop the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this wire service loop as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this wire service loop from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this wire service loop's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

@@ -1,9 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import os
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtWidgets
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -12,7 +13,6 @@ from . import menu_ops as _menu_ops
 from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
-from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
@@ -21,6 +21,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_terminal as _pjt_terminal
+    from ...database.project_db import pjt_cavity as _pjt_cavity_db
+    from ...database.global_db import model3d as _model3d
     from .. import terminal as _terminal
     from .. import housing as _housing
     from .. import cavity as _cavity
@@ -51,7 +53,7 @@ class Terminal(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
-                 db_obj: "_pjt_terminal.PJTTerminal"):
+                 db_obj: "_pjt_terminal.PJTTerminal") -> None:
         """Initialise the :class:`Terminal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -147,9 +149,9 @@ class Terminal(_base_3d.Base3D):
             self._overlay_cavity_id = None
             self._overlay_housing_3d = None
             self._overlay_cavity_obj = None
-            self._overlay_wire_surf_idx: int = None
+            self._overlay_wire_surf_idx: int | None = None
             self._overlay_wire_marker = None
-            self._overlay_pin_surf_idx: int = None
+            self._overlay_pin_surf_idx: int | None = None
 
         # model.load()'s callback (_set_model) always fires, whether the
         # model needed a fresh download/conversion or was already cached
@@ -180,7 +182,8 @@ class Terminal(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -189,7 +192,7 @@ class Terminal(_base_3d.Base3D):
             pass
 
     @_check_types.do
-    def _set_model(self, model):
+    def _set_model(self, model: "_model3d.Model3D") -> None:
         super()._set_model(model)
 
         family = self._part.family.name.lower()
@@ -273,7 +276,7 @@ class Terminal(_base_3d.Base3D):
             self._overlay_pin_surf_idx = cavity_3d.surf_idx
 
     @_check_types.do
-    def _pin_overlay_needed(self, pjt_cavity) -> bool:
+    def _pin_overlay_needed(self, pjt_cavity: "_pjt_cavity_db.PJTCavity") -> bool:
         """Male terminals never show a pin-side overlay; female terminals
         always do; an undetermined gender defaults to showing it (terminal
         part gender checked first, then the housing's gender).
@@ -364,7 +367,7 @@ class Terminal(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def _search_params_for_cavity(
-        cls, mainframe: "_ui.MainFrame", housing, cavity
+        cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing", cavity: "_cavity.Cavity"
     ) -> "_part_search.SearchParameters":
         """Search-box seed for Mode 1 (housing AND cavity both given).
 
@@ -414,7 +417,7 @@ class Terminal(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def _search_params_for_housing(
-        cls, mainframe: "_ui.MainFrame", housing
+        cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing"
     ) -> "_part_search.SearchParameters":
         """Search-box seed for Mode 2 (housing only) -- see
         :meth:`_search_params_for_cavity`, aggregated across every
@@ -458,9 +461,9 @@ class Terminal(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: "_housing.Housing" = None,
-        cavity: "_cavity.Cavity" = None
-    ) -> Union["_terminal.Terminal", None]:
+        cls, mainframe: "_ui.MainFrame", housing: _Union["_housing.Housing", None] = None,
+        cavity: _Union["_cavity.Cavity", None] = None
+    ) -> _Union["_terminal.Terminal", None]:
         """Three placement modes, exactly matching
         handlers.terminal_handler.AddTerminalHandler's own docstring:
 
@@ -474,7 +477,6 @@ class Terminal(_base_3d.Base3D):
         from ...handlers import terminal_handler as _terminal_handler
         from ...ui.dialogs import part_search as _part_search
         from ...ui import editor_db as _editor_db
-        from PySide6.QtWidgets import QDialog
 
         canvas = mainframe.editor3d.editor
 
@@ -496,7 +498,7 @@ class Terminal(_base_3d.Base3D):
                 mainframe, _editor_db.TerminalsPage, mainframe.global_db.terminals_table,
                 'Add Terminal', initial_params=initial_params)
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
 
             dlg.deleteLater()
@@ -636,7 +638,7 @@ class Terminal(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -662,7 +664,7 @@ class Terminal(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "TerminalMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -673,12 +675,12 @@ class Terminal(_base_3d.Base3D):
         return TerminalMenu(self.mainframe.editor3d.editor, self)
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         self._dangle_attached_wires()
         super()._delete()
 
     @_check_types.do
-    def _dangle_attached_wires(self):
+    def _dangle_attached_wires(self) -> None:
         """Detach every wire attached to this terminal (see
         objects.terminal.Terminal.add_wire/.wires), leaving each dangling
         at its own fresh point wherever its own routing through this
@@ -742,7 +744,7 @@ class Terminal(_base_3d.Base3D):
 
     @staticmethod
     @_check_types.do
-    def _delete_layout_at(ptables, point_id):
+    def _delete_layout_at(ptables: object, point_id: bytes) -> None:
         """Delete the WireLayout (if any) sitting at point_id."""
         for row in ptables.pjt_wire_layouts_table.select('id', position3d_id=point_id):
             layout_db = ptables.pjt_wire_layouts_table[row[0]]
@@ -753,14 +755,14 @@ class Terminal(_base_3d.Base3D):
             break
 
 
-class TerminalMenu(QMenu):
+class TerminalMenu(QtWidgets.QMenu):
     """Represent a terminal menu in :mod:`harness_designer.objects.objects_3d.terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "Terminal") -> None:
         """Initialise the :class:`TerminalMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -770,7 +772,7 @@ class TerminalMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -807,59 +809,59 @@ class TerminalMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_wire(self):
+    def on_add_wire(self) -> None:
         """Start the interactive wire placement flow, pinned to this
         terminal's own attach point -- the part-search dialog (pre-filtered
         to wires whose diameter fits) opens immediately, straight into
         phase 1, same as a cavity's/splice's own pinned Add Wire."""
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe
         terminal_obj = self.selected.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _wire_3d.Wire.start_add(mainframe, terminal=terminal_obj)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_seal(self):
+    def on_add_seal(self) -> None:
         """Attach a seal to this terminal."""
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import seal as _seal_3d
 
         mainframe = self.selected.mainframe
         terminal = self.selected.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _seal_3d.Seal.start_add(mainframe, terminal=terminal)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """Highlight every object on this terminal's circuit."""
         _menu_ops.trace_circuit(self.selected)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this terminal the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this terminal as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this terminal from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this terminal's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -40,7 +40,7 @@ class BundleLayout(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
+                 db_obj: "_pjt_bundle_layout.PJTBundleLayout") -> None:
         """Initialise the :class:`BundleLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,7 +92,8 @@ class BundleLayout(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -101,7 +102,7 @@ class BundleLayout(_base_3d.Base3D):
             pass
 
     @_check_types.do
-    def set_diameter(self, value: float):
+    def set_diameter(self, value: float) -> None:
         """Set this layout's own displayed diameter to match whatever
         bundle it sits on.
 
@@ -157,7 +158,7 @@ class BundleLayout(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -183,7 +184,7 @@ class BundleLayout(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "BundleLayoutMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -194,14 +195,14 @@ class BundleLayout(_base_3d.Base3D):
         return BundleLayoutMenu(self.mainframe.editor3d.editor, self)
 
 
-class BundleLayoutMenu(QMenu):
+class BundleLayoutMenu(QtWidgets.QMenu):
     """Represent a bundle layout menu in :mod:`harness_designer.objects.objects_3d.bundle_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "BundleLayout") -> None:
         """Initialise the :class:`BundleLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -211,7 +212,7 @@ class BundleLayoutMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -223,15 +224,15 @@ class BundleLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     @_check_types.do
-    def on_add_transition(self):
+    def on_add_transition(self) -> None:
         """Start the interactive transition placement flow."""
-        from PySide6.QtCore import QTimer
+        from PySide6 import QtCore
         from . import transition as _transition_3d
 
         mainframe = self.selected.mainframe
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             part_id = _menu_ops.get_part_id(
                 mainframe, 'transitions',
                 mainframe.global_db.transitions_table, 'Add Transition')
@@ -241,9 +242,9 @@ class BundleLayoutMenu(QMenu):
 
             _transition_3d.Transition.start_add(mainframe, part_id)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this bundle layout from the project."""
         _menu_ops.delete_object(self.selected)

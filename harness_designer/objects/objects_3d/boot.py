@@ -2,19 +2,15 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
-from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import sphere as _sphere
-from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ... import config as _config
-from ... import utils as _utils
-from ... import color as _color
 from ... import check_types as _check_types
 
 
@@ -35,7 +31,7 @@ class Boot(_base_3d.Base3D):
     db_obj: "_pjt_boot.PJTBoot" = None
 
     @_check_types.do
-    def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot"):
+    def __init__(self, parent: "_boot.Boot", db_obj: "_pjt_boot.PJTBoot") -> None:
         """Initialise the :class:`Boot` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -73,7 +69,8 @@ class Boot(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -82,7 +79,7 @@ class Boot(_base_3d.Base3D):
             pass
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "BootMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -93,14 +90,14 @@ class Boot(_base_3d.Base3D):
         return BootMenu(self.mainframe.editor3d.editor, self)
 
 
-class BootMenu(QMenu):
+class BootMenu(QtWidgets.QMenu):
     """Represent a boot menu in :mod:`harness_designer.objects.objects_3d.boot`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "Boot") -> None:
         """Initialise the :class:`BootMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -110,7 +107,7 @@ class BootMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -136,21 +133,21 @@ class BootMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this boot the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this boot as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this boot from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this boot's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

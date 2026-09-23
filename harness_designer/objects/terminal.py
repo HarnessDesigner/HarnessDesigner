@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
+
 import math
 import weakref
 
@@ -62,7 +63,7 @@ class Terminal(_ObjectBase):
         # (open-ended -- a terminal has no fixed start/stop shape, any
         # number of wires up to the combined cross-section max). See
         # add_wire and Wire.set_sibling.
-        self._wire_refs = []
+        self._wire_refs: list[weakref.ReferenceType] = []
 
         self.mainframe.add_object(self)
 
@@ -425,7 +426,7 @@ class Terminal(_ObjectBase):
 
     @staticmethod
     @_check_types.do
-    def _own_or_cloned_point_id(points_table, shared_point_id, is_first_wire: bool):
+    def _own_or_cloned_point_id(points_table: object, shared_point_id: bytes, is_first_wire: bool) -> bytes:
         """The first wire on a terminal reuses its shared back/cavity
         point row directly (so it keeps tracking the terminal/cavity if
         the housing moves); every subsequent wire gets its own fresh point
@@ -454,7 +455,7 @@ class Terminal(_ObjectBase):
         return cloned.db_id
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         """Selecting a terminal selects its owning cavity instead.
 
         That is so in the 3D view and the peg board only -- all manipulation

@@ -1,20 +1,18 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6.QtWidgets import QMenu, QMessageBox
-from PySide6.QtCore import QTimer
-from OpenGL import GL
 import numpy as np
+
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
-from ...ui.widgets import context_menus as _context_menus
 from ...shapes import cylinder as _cylinder
 from ...shapes import box as _box
 from ...gl import materials as _materials
 from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import color as _color
 from ... import check_types as _check_types
 
@@ -40,7 +38,7 @@ class Cavity(_base_3d.Base3D):
 
     @property
     @_check_types.do
-    def _housing_3d(self) -> Union["_housing3d.Housing", None]:
+    def _housing_3d(self) -> _Union["_housing3d.Housing", None]:
         """This cavity's owning ``Housing3D``, or ``None``.
 
         Resolved on demand (never cached) via ``self.parent.housing`` --
@@ -87,13 +85,13 @@ class Cavity(_base_3d.Base3D):
         self.is_visible = material is not None
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "CavityMenu":
         """Return the context menu."""
         return CavityMenu(self)
 
     @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
-                 db_obj: "_pjt_cavity.PJTCavity"):
+                 db_obj: "_pjt_cavity.PJTCavity") -> None:
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -130,8 +128,8 @@ class Cavity(_base_3d.Base3D):
             # still needs the housing's whole mesh to compute them but
             # assigns the result straight onto the cavity they belong to,
             # not a housing-side list.
-            self._terminal_marker: Union["_housing3d._CavityMarker", None] = None
-            self._wire_marker: Union["_housing3d._CavityMarker", None] = None
+            self._terminal_marker: _Union["_housing3d._CavityMarker", None] = None
+            self._wire_marker: _Union["_housing3d._CavityMarker", None] = None
 
             # Which side of this cavity the housing's last try_pick_cavity hit
             # landed on -- set by Housing3D.on_surface_selected/try_pick_cavity,
@@ -282,13 +280,13 @@ class Cavity(_base_3d.Base3D):
         return self.db_obj.position3d
 
 
-class CavityMenu(QMenu):
+class CavityMenu(QtWidgets.QMenu):
     """Context menu shown on right-click over a cavity -- either the
     cavity object itself, or (with the "Add Wire" option) a highlighted
     wire-side plane.
     """
     @_check_types.do
-    def __init__(self, cavity_3d: Cavity):
+    def __init__(self, cavity_3d: Cavity) -> None:
         """Initialise the :class:`CavityMenu` instance.
 
         :param cavity_3d: The cavity this menu was opened on. Its own
@@ -297,7 +295,7 @@ class CavityMenu(QMenu):
             pjt_cavity row (that's what it was constructed from).
         :type cavity_3d: :class:`Cavity`
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self._cavity_3d = cavity_3d
 
         pjt_cavity = cavity_3d.db_obj
@@ -344,9 +342,8 @@ class CavityMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_terminal(self):
+    def on_add_terminal(self) -> None:
         """Add a terminal into this cavity."""
-        from PySide6.QtCore import QTimer
         from . import terminal as _terminal_3d
 
         mainframe = self._cavity_3d.mainframe
@@ -359,14 +356,14 @@ class CavityMenu(QMenu):
         # part-search dialog, same reasoning menu_ops.run_attached_handler
         # exists for.
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _terminal_3d.Terminal.start_add(
                 mainframe, housing=housing_wrapper, cavity=cavity_obj)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_seal(self):
+    def on_add_seal(self) -> None:
         """Add a seal: a wire seal onto the terminal already in this
         cavity if one is seated, otherwise a plug seal into the cavity
         itself."""
@@ -379,10 +376,10 @@ class CavityMenu(QMenu):
             cavity_obj = self._cavity_3d.parent
 
             @_check_types.do
-            def _do():
+            def _do() -> None:
                 _seal_3d.Seal.start_add(mainframe, cavity=cavity_obj)
 
-            QTimer.singleShot(0, _do)
+            QtCore.QTimer.singleShot(0, _do)
             return
 
         terminal_obj = terminal_db.get_object()
@@ -394,24 +391,24 @@ class CavityMenu(QMenu):
             # block a wire seal outright just because this terminal's own
             # "sealing" field came back 0/unset -- confirm with the user
             # instead of silently trusting or silently ignoring it.
-            res = QMessageBox.question(
+            res = QtWidgets.QMessageBox.question(
                 mainframe,
                 'Add Wire Seal',
                 f'"{terminal_db.part.part_number}" is not marked as a '
                 f'sealable terminal in the parts catalog. Add a wire '
                 f'seal to it anyway?')
 
-            if res != QMessageBox.StandardButton.Yes:
+            if res != QtWidgets.QMessageBox.StandardButton.Yes:
                 return
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _seal_3d.Seal.start_add(mainframe, terminal=terminal_obj)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_wire(self):
+    def on_add_wire(self) -> None:
         """Start placing a wire from the terminal already in this cavity."""
         from . import wire as _wire_3d
 
@@ -425,16 +422,16 @@ class CavityMenu(QMenu):
         mainframe = self._cavity_3d.mainframe
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _wire_3d.Wire.start_add(mainframe, terminal=terminal_obj)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_edit_terminal(self):
+    def on_edit_terminal(self) -> None:
         """Open the properties dialog for the terminal already in this cavity."""
         @_check_types.do
-        def _do():
+        def _do() -> None:
             terminal_db = self._cavity_3d.db_obj.terminal
             if terminal_db is None:
                 return
@@ -443,14 +440,14 @@ class CavityMenu(QMenu):
                 return
             _menu_ops.show_properties(parent.obj3d)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this cavity the active selection."""
         _menu_ops.select_object(self._cavity_3d)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this cavity's properties in the object editor."""
         _menu_ops.show_properties(self._cavity_3d)

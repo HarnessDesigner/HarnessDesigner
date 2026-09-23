@@ -1,23 +1,20 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6.QtWidgets import QMenu
+from PySide6 import QtWidgets
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
-from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...shapes import box as _box
 from ...ui.widgets import float_ctrl as _float_ctrl
 from ...ui.dialogs import error as _error_dialog
-from ...gl import vbo as _vbo
 from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import color as _color
-from ... import utils as _utils
 from ... import check_types as _check_types
 
 
@@ -40,7 +37,7 @@ class Cover(_base_3d.Base3D):
     db_obj: "_pjt_cover.PJTCover" = None
 
     @_check_types.do
-    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
+    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover") -> None:
         """Initialise the :class:`Cover` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -103,8 +100,8 @@ class Cover(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", housing: Union["_housing.Housing", None] = None
-    ) -> Union["_cover.Cover", None]:
+        cls, mainframe: "_ui.MainFrame", housing: _Union["_housing.Housing", None] = None
+    ) -> _Union["_cover.Cover", None]:
         """Ported from handlers.cover_handler.AddCoverHandler -- always
         interactive (even the housing-given case waits for a confirming
         click, it just has nothing to move -- see
@@ -115,7 +112,6 @@ class Cover(_base_3d.Base3D):
         from ...ui import editor_db as _editor_db
         from ...add_handlers.editor_3d import cover as _add_cover
         from .. import cover as _cover_facade
-        from PySide6.QtWidgets import QDialog
 
         canvas = mainframe.editor3d.editor
 
@@ -131,7 +127,7 @@ class Cover(_base_3d.Base3D):
                 mainframe, _editor_db.CoversPage, mainframe.global_db.covers_table, 'Add Cover',
                 initial_params=_part_search.SearchParameters.from_part_numbers(compat_covers))
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -198,7 +194,7 @@ class Cover(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -233,7 +229,8 @@ class Cover(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -242,7 +239,7 @@ class Cover(_base_3d.Base3D):
             pass
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "CoverMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -253,14 +250,14 @@ class Cover(_base_3d.Base3D):
         return CoverMenu(self.mainframe.editor3d.editor, self)
 
 
-class CoverMenu(QMenu):
+class CoverMenu(QtWidgets.QMenu):
     """Represent a cover menu in :mod:`harness_designer.objects.objects_3d.cover`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: object, selected: "Cover") -> None:
         """Initialise the :class:`CoverMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -270,7 +267,7 @@ class CoverMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -296,21 +293,21 @@ class CoverMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this cover the active selection."""
         _menu_ops.select_object(self.selected)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this cover as the template."""
         _menu_ops.clone_object(self.selected)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this cover from the project."""
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this cover's properties in the object editor."""
         _menu_ops.show_properties(self.selected)

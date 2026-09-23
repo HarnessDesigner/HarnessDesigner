@@ -8,6 +8,7 @@ from .objects_schematic import generic as _generic_schematic
 from .objects_pegboard import generic as _generic_pegboard
 from .. import check_types as _check_types
 
+
 if TYPE_CHECKING:
     from .. import ui as _ui
 

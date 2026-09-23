@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_wire as _pjt_wire
     from . import wire_layout as _wire_layout_obj
+    from . import wire_service_loop as _wire_service_loop_obj
 
 
 class Wire(_ObjectBase):
@@ -64,27 +66,32 @@ class Wire(_ObjectBase):
         # see handlers.wire_handler's wire-to-wire join). Each end holds at
         # most one sibling; the thing on the other side may hold several
         # (Terminal.wires, Splice.branch_wires) -- see set_sibling.
-        self._start_sibling_ref = None
-        self._stop_sibling_ref = None
+        self._start_sibling_ref: weakref.ReferenceType | None = None
+        self._stop_sibling_ref: weakref.ReferenceType | None = None
 
         self.mainframe.add_object(self)
 
     @property
     @_check_types.do
-    def start_sibling(self):
+    def start_sibling(
+            self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None]:
         """Whatever this wire's start end attaches to (Terminal, Splice,
         WireServiceLoop), or None for a dangling/free-space end."""
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
     @_check_types.do
-    def stop_sibling(self):
+    def stop_sibling(
+            self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None]:
         """Whatever this wire's stop end attaches to (Terminal, Splice,
         WireServiceLoop), or None for a dangling/free-space end."""
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @_check_types.do
-    def set_sibling(self, other, end: str) -> None:
+    def set_sibling(
+            self,
+            other: _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None],
+            end: str) -> None:
         """Record *other* as what this wire's *end* ('start' or 'stop')
         attaches to.
 
@@ -136,7 +143,7 @@ class Wire(_ObjectBase):
         ]
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         """Select this wire, and show every WireLayout on its own path
         in the selected color too -- via identify(), not set_selected()
         (the layouts themselves never become the true selection;
@@ -185,11 +192,11 @@ class Wire(_ObjectBase):
                 # open list) both expose every attached wire the same way;
                 # WireServiceLoop exposes its fixed pair via start_sibling/
                 # stop_sibling instead (same shape as Wire itself).
-                if hasattr(sibling, 'wires'):
+                if sibling.is_terminal or sibling.is_splice:
                     for w in sibling.wires:
                         if w is not wire and w.db_obj.db_id not in seen:
                             stack.append(w)
-                elif hasattr(sibling, 'start_sibling'):
+                elif sibling.is_wire_service_loop:
                     for w in (sibling.start_sibling, sibling.stop_sibling):
                         if w is not None and w is not wire and w.db_obj.db_id not in seen:
                             stack.append(w)

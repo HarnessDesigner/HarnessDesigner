@@ -7,11 +7,13 @@ dataclasses the dialog's view widgets render and the functions that walk
 :class:`~harness_designer.objects.project.Project` to build them.
 """
 
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+
+from dataclasses import dataclass, field
 
 from .. import image as _image
 from .. import check_types as _check_types
+
 
 if TYPE_CHECKING:
     from . import project as _project

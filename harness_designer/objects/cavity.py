@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import cavity as _cavity_schematic
@@ -53,7 +53,7 @@ class Cavity(_ObjectBase):
 
     @property
     @_check_types.do
-    def terminal(self):
+    def terminal(self) -> _Union["_terminal.Terminal", None]:
         terminal = self.db_obj.terminal
         if terminal is None:
             return None
@@ -62,7 +62,7 @@ class Cavity(_ObjectBase):
 
     @property
     @_check_types.do
-    def housing(self):
+    def housing(self) -> _Union["_housing.Housing", None]:
         """This cavity's owning ``Housing`` wrapper -- lets a terminal
         reach its housing via ``db_obj.cavity.get_object().housing``
         (see ``objects_schematic/terminal.py``'s ``Terminal``), and a cavity
@@ -85,7 +85,7 @@ class Cavity(_ObjectBase):
 
     @property
     @_check_types.do
-    def seal(self):
+    def seal(self) -> _Union["_seal.Seal", None]:
         seal = self.db_obj.seal
         if seal is None:
             return None

@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
+
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -54,20 +55,20 @@ class Splice(_ObjectBase):
         # (add_wire, any number of wires up to whatever the part's
         # diameter allows -- no limit enforced yet, see the "bus vs.
         # crimped" TODO at the top of database.project_db.pjt_splice).
-        self._start_sibling_ref = None
-        self._stop_sibling_ref = None
-        self._branch_wire_refs = []
+        self._start_sibling_ref: weakref.ReferenceType | None = None
+        self._stop_sibling_ref: weakref.ReferenceType | None = None
+        self._branch_wire_refs: list[weakref.ReferenceType] = []
 
         self.mainframe.add_object(self)
 
     @property
     @_check_types.do
-    def start_sibling(self) -> Union["_wire_obj.Wire", None]:
+    def start_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
     @_check_types.do
-    def stop_sibling(self) -> Union["_wire_obj.Wire", None]:
+    def stop_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @property

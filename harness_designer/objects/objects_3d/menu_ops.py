@@ -7,10 +7,12 @@ functions because this module is imported while the :mod:`objects` package
 is still initialising.
 """
 
-import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union as _Union
 
-from PySide6.QtCore import Qt, QTimer
+import re
+from collections.abc import Callable
+
+from PySide6 import QtCore
 
 from ... import color as _color
 from ... import config as _config
@@ -20,19 +22,22 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import base_3d as _base_3d
+    from .. import ObjectBase as _ObjectBase
+    from ... import ui as _ui
+    from ...ui.dialogs import part_search as _part_search
 
 
 _colors_config = _config.Config.colors
 
 
 @_check_types.do
-def select_object(obj3d: "_base_3d.Base3D"):
+def select_object(obj3d: "_base_3d.Base3D") -> None:
     """Make the object the active selection in all of the editors."""
     select_object_for_object(obj3d.mainframe, obj3d.parent)
 
 
 @_check_types.do
-def select_object_for_object(mainframe, parent):
+def select_object_for_object(mainframe: "_ui.MainFrame", parent: "_ObjectBase") -> None:
     """Make ``parent`` the active selection in all of the editors.
 
     Split out from :func:`select_object` so callers that only hold the
@@ -48,16 +53,16 @@ def select_object_for_object(mainframe, parent):
 
 
 @_check_types.do
-def clone_object(obj3d: "_base_3d.Base3D"):
+def clone_object(obj3d: "_base_3d.Base3D") -> None:
     """Arm clone mode using the object as the template."""
     mainframe = obj3d.mainframe
 
-    mainframe.editor3d.editor.setCursor(Qt.CursorShape.CrossCursor)
+    mainframe.editor3d.editor.setCursor(QtCore.Qt.CursorShape.CrossCursor)
     mainframe.set_clone_obj(obj3d.parent)
 
 
 @_check_types.do
-def delete_object(obj3d: "_base_3d.Base3D"):
+def delete_object(obj3d: "_base_3d.Base3D") -> None:
     """Remove the object from the editors, the project and the database.
 
     :param obj3d: 3d object whose parent is being deleted.
@@ -72,7 +77,7 @@ def delete_object(obj3d: "_base_3d.Base3D"):
 
 
 @_check_types.do
-def show_properties(obj3d: "_base_3d.Base3D"):
+def show_properties(obj3d: "_base_3d.Base3D") -> None:
     """Open the modeless properties dialog for the object.
 
     The dialog gets its own instance of the object's property tab widget so
@@ -86,7 +91,7 @@ def show_properties(obj3d: "_base_3d.Base3D"):
 
 
 @_check_types.do
-def show_properties_for_object(mainframe, parent):
+def show_properties_for_object(mainframe: "_ui.MainFrame", parent: "_ObjectBase") -> None:
     """Open the modeless properties dialog for the ``parent`` wrapper object.
 
     Split out from :func:`show_properties` so callers that only hold the
@@ -117,7 +122,7 @@ def show_properties_for_object(mainframe, parent):
         mainframe, name + ' Properties', tab_widget, db_obj)
 
     @_check_types.do
-    def _cleanup(*_):
+    def _cleanup(*_: tuple[Any]) -> None:
         # release the db object so the live position/angle callbacks bound
         # by the property controls do not outlive the dialog
         tab_widget.set_obj(None)
@@ -128,25 +133,25 @@ def show_properties_for_object(mainframe, parent):
 
 
 @_check_types.do
-def start_handler(mainframe, handler_factory):
+def start_handler(mainframe: "_ui.MainFrame", handler_factory: Callable[[], object]) -> None:
     """Install an interactive placement handler once the menu has closed.
 
     The factory may open a modal part-search dialog, so creation is deferred
     until the context menu has finished closing.
     """
     @_check_types.do
-    def _do():
+    def _do() -> None:
         handler = handler_factory()
         if handler is None or handler.is_finalized:
             return
 
         mainframe.set_obj_handler(handler)
 
-    QTimer.singleShot(0, _do)
+    QtCore.QTimer.singleShot(0, _do)
 
 
 @_check_types.do
-def run_attached_handler(handler_factory):
+def run_attached_handler(handler_factory: Callable[[], object]) -> None:
     """Run a placement handler whose target object is already known.
 
     Used for the housing/terminal "Add Seal/CPA/TPA/Cover" style actions
@@ -154,7 +159,7 @@ def run_attached_handler(handler_factory):
     no further mouse interaction is required.
     """
     @_check_types.do
-    def _do():
+    def _do() -> None:
         handler = handler_factory()
         if handler.is_finalized or handler.obj is None:
             return
@@ -163,12 +168,12 @@ def run_attached_handler(handler_factory):
         handler.capture_position(handler.obj.db_obj.position3d)
         handler.release_capture()
 
-    QTimer.singleShot(0, _do)
+    QtCore.QTimer.singleShot(0, _do)
 
 
 @_check_types.do
-def get_part_id(mainframe, page_name: str, table, title: str,
-                initial_params=None) -> bytes | None:
+def get_part_id(mainframe: "_ui.MainFrame", page_name: str, table: object, title: str,
+                initial_params: _Union["_part_search.SearchParameters", None] = None) -> bytes | None:
     """Resolve a part id from the database editor's current selection or a
     part search dialog.
 
@@ -182,7 +187,7 @@ def get_part_id(mainframe, page_name: str, table, title: str,
         to pre-seed the search dialog's own search text.
     :returns: The selected part id or :data:`None` when cancelled.
     """
-    from PySide6.QtWidgets import QDialog
+    from PySide6 import QtWidgets
     from ...ui.dialogs import part_search as _part_search
 
     page = getattr(mainframe.editor_db.editor, page_name)
@@ -192,7 +197,7 @@ def get_part_id(mainframe, page_name: str, table, title: str,
         dlg = _part_search.SearchDialog(
             mainframe, type(page), table, title, initial_params=initial_params)
 
-        if dlg.exec() == QDialog.DialogCode.Accepted:
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             part_id = dlg.GetValue()
 
         dlg.deleteLater()
@@ -201,7 +206,7 @@ def get_part_id(mainframe, page_name: str, table, title: str,
 
 
 @_check_types.do
-def trace_circuit(obj3d: "_base_3d.Base3D", db_obj=None):
+def trace_circuit(obj3d: "_base_3d.Base3D", db_obj: object | None = None) -> None:
     """Highlight every project object on the circuit the object belongs to."""
     if db_obj is None:
         db_obj = obj3d.db_obj

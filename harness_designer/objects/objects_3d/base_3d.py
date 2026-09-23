@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from OpenGL import GL
@@ -8,7 +8,6 @@ from OpenGL import GL
 from ... import color as _color
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from ...geometry.decimal import Decimal as _d
 from ... import config as _config
 from ... import utils as _utils
 from ...gl import materials as _materials
@@ -31,6 +30,9 @@ if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
     from ...gl import shaders as _shaders
+    from ...bounds import aabb as _aabb
+    from ...bounds import obb as _obb
+    from ...ui.editor_3d import editor_3d as _editor_3d
 
 
 Config = _config.Config.editor_3d
@@ -74,11 +76,11 @@ class Base3D(_objectsvar.BaseVar):
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
-                 material: _materials.GLMaterial | None):
+                 material: _materials.GLMaterial | None) -> None:
 
-        self.editor3d = parent.mainframe.editor3d
-        self._aabb_manager = parent.mainframe.bounds_manager.editor_3d.aabb
-        self._obb_manager = parent.mainframe.bounds_manager.editor_3d.obb
+        self.editor3d: "_editor_3d.Editor3D" = parent.mainframe.editor3d
+        self._aabb_manager: "_aabb.AABB" = parent.mainframe.bounds_manager.editor_3d.aabb
+        self._obb_manager: "_obb.OBB" = parent.mainframe.bounds_manager.editor_3d.obb
 
         super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
@@ -134,17 +136,17 @@ class Base3D(_objectsvar.BaseVar):
 
     @property
     @_check_types.do
-    def editor(self):
+    def editor(self) -> "_editor_3d.Editor3D":
         return self.editor3d
 
     @_check_types.do
-    def _is_visible_callback(self, *_, **__):
+    def _is_visible_callback(self, *_: tuple[Any], **__: dict[str, Any]) -> None:
         self._is_visible = self.db_obj.is_visible3d  # NOQA
         self.mainframe.editor3d.Refresh()
 
     @_debug.logfunc
     @_check_types.do
-    def _set_model(self, model: "_model3d.Model3D"):
+    def _set_model(self, model: "_model3d.Model3D") -> None:
         with self.parent.mainframe.editor3d.context:
             uuid = model.uuid
 
@@ -220,7 +222,7 @@ class Base3D(_objectsvar.BaseVar):
         self.editor3d.Refresh()
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Update the position.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -255,7 +257,7 @@ class Base3D(_objectsvar.BaseVar):
         #     self.editor3d.Refresh(False)
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """Update the angle.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -281,7 +283,7 @@ class Base3D(_objectsvar.BaseVar):
         #         self._position.bind(self._update_position)
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """Update the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -308,7 +310,7 @@ class Base3D(_objectsvar.BaseVar):
         #         self._position.bind(self._update_position)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Execute the delete operation.
 
         Row deletion and canvas de-registration are handled once, centrally,
@@ -318,7 +320,7 @@ class Base3D(_objectsvar.BaseVar):
         self.parent.delete()
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """
         Any object specific taredown should occur in this function
         """
@@ -332,7 +334,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Generic single-position drag arming/dispatch, plus rotation-
         gizmo arming/dispatch (see rotation_handlers.rotation_rings.
@@ -396,7 +398,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo
         (:attr:`_active_handler`, a RotationRings) -- see that class's
@@ -512,7 +514,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @is_visible.setter
     @_check_types.do
-    def is_visible(self, value: bool):
+    def is_visible(self, value: bool) -> None:
         """Set the is visible.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -772,7 +774,8 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def _render_debug_box(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
-                          angle: _angle.Angle, scale: _point.Point, color) -> None:
+                          angle: _angle.Angle, scale: _point.Point,
+                          color: tuple[float, float, float, float]) -> None:
 
         material = _materials.Generic(_color.Color(*color))
         box_vbo = _box.create_vbo()
@@ -808,8 +811,8 @@ class Base3D(_objectsvar.BaseVar):
 
     @_check_types.do
     def _render_debug_box_edges(self, shaders: "_shaders.ShaderProgram", position: _point.Point,
-                                angle: _angle.Angle, scale: _point.Point, color) -> None:
-        
+                                angle: _angle.Angle, scale: _point.Point,
+                                color: tuple[float, float, float, float]) -> None:
         """Trace the box's real 12 edges (plus a sphere at each of its 8
         corners) on top of the translucent fill -- a thin cylinder run
         corner-to-corner along each edge, using the box's own known
@@ -857,7 +860,7 @@ class Base3D(_objectsvar.BaseVar):
 
     @staticmethod
     @_check_types.do
-    def _debug_box_edge_color(color) -> list:
+    def _debug_box_edge_color(color: tuple[float, float, float, float]) -> list[float]:
         """Derive a more-opaque, lighter-or-darker edge color from *color*
         (a debug box's own translucent fill) -- lighten a dark fill,
         darken a light one, so the edges read clearly against the fill

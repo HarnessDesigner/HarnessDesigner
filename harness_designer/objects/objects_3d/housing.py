@@ -1,11 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 from dataclasses import dataclass
 
-from PySide6.QtWidgets import QMenu
-from PySide6.QtCore import QTimer
 import numpy as np
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 from OpenGL import GL
 
 from ...ui.widgets import context_menus as _context_menus
@@ -29,7 +29,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_housing as _pjt_housing
-    from .. import cavity as _cavity
+    from ...database.global_db import model3d as _model3d
     from . import cavity as _cavity3d
     from .. import housing as _housing
     from ... import ui as _ui
@@ -94,7 +94,7 @@ class Housing(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
-                 db_obj: "_pjt_housing.PJTHousing"):
+                 db_obj: "_pjt_housing.PJTHousing") -> None:
         """Initialise the :class:`Housing` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -202,7 +202,8 @@ class Housing(_base_3d.Base3D):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    @_check_types.do
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -212,12 +213,12 @@ class Housing(_base_3d.Base3D):
 
     @property
     @_check_types.do
-    def cavities(self) -> list:
+    def cavities(self) -> list["_cavity3d.Cavity"]:
         return [c.obj3d for c in self.parent.cavities
                 if c is not None and c.obj3d is not None]
 
     @_check_types.do
-    def _set_model(self, model):
+    def _set_model(self, model: "_model3d.Model3D") -> None:
         # This callback runs from the background model-download dispatch
         # (process.manager), which never acquires a GL context before
         # calling it -- unlike the normal __init__ path, which already
@@ -521,7 +522,9 @@ class Housing(_base_3d.Base3D):
             self._surf_to_cavity.setdefault(si, cavity_3d)
 
     @_check_types.do
-    def _pick_marker(self, x: int, y: int):
+    def _pick_marker(
+            self, x: int, y: int
+    ) -> _Union[tuple["_cavity3d.Cavity", "_CavityMarker"], tuple[None, None]]:
         """Ray-cast against every one of this housing's cavities' own
         synthetic marker decals (``Cavity3D._terminal_marker``/
         ``_wire_marker``).
@@ -576,7 +579,7 @@ class Housing(_base_3d.Base3D):
         return best_cavity, best_marker
 
     @_check_types.do
-    def on_surface_selected(self, idx: int):
+    def on_surface_selected(self, idx: int) -> _Union["_cavity3d.Cavity", None]:
         """Resolve a real mesh-surface hit to the cavity it belongs to.
 
         Pure lookup -- records which side was hit
@@ -593,7 +596,7 @@ class Housing(_base_3d.Base3D):
         return cavity_3d
 
     @_check_types.do
-    def try_pick_cavity(self, x: int, y: int):
+    def try_pick_cavity(self, x: int, y: int) -> _Union["_cavity3d.Cavity", None]:
         """Ray-cast at pixel (x, y); resolve to whichever cavity (real
         surface or synthetic marker) was hit, if any. Markers are checked
         first — they are the only click target for cavities that have no
@@ -616,8 +619,8 @@ class Housing(_base_3d.Base3D):
         return self.on_surface_selected(idx)
 
     @_check_types.do
-    def _draw_overlay_faces(self, shaders: "_shaders.ShaderProgram", key,
-                            positions_world: np.ndarray, color) -> None:
+    def _draw_overlay_faces(self, shaders: "_shaders.ShaderProgram", key: tuple[str, int],
+                            positions_world: np.ndarray, color: tuple[float, float, float, float]) -> None:
         """Draw a translucent decal directly on top of already-rendered
         geometry, through the same modern faces shader pipeline every
         other mesh face in the scene renders through.
@@ -711,7 +714,9 @@ class Housing(_base_3d.Base3D):
             GL.glDepthMask(GL.GL_TRUE)
 
     @_check_types.do
-    def render_surface_overlay(self, shaders: "_shaders.ShaderProgram", surf_idx: int, color) -> None:
+    def render_surface_overlay(
+            self, shaders: "_shaders.ShaderProgram", surf_idx: int,
+            color: tuple[float, float, float, float]) -> None:
         """Draw an overlay on one of this housing's mesh surfaces.
 
         *color* is an RGBA sequence with components in the 0.0-1.0 range
@@ -742,7 +747,9 @@ class Housing(_base_3d.Base3D):
         self._draw_overlay_faces(shaders, ('surf', surf_idx), positions, color)
 
     @_check_types.do
-    def render_marker_overlay(self, shaders: "_shaders.ShaderProgram", marker: _CavityMarker, color) -> None:
+    def render_marker_overlay(
+            self, shaders: "_shaders.ShaderProgram", marker: _CavityMarker,
+            color: tuple[float, float, float, float]) -> None:
         """Draw an override-color overlay on one synthetic cavity marker --
         the marker equivalent of ``render_surface_overlay``. Used by a
         placed terminal to color-match its cavity's synthetic wire-side
@@ -772,7 +779,7 @@ class Housing(_base_3d.Base3D):
         self._draw_overlay_faces(shaders, ('marker', id(marker)), positions, color)
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         super().render(shaders)
 
         # CanvasBase._draw_scene runs a selected translucent object's own
@@ -816,7 +823,7 @@ class Housing(_base_3d.Base3D):
             terminal_obj.obj3d.render_cavity_overlay(shaders)
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """Clean up the picker and every overlay-decal VBO before
         delegating to Base3D."""
         self._picker.cleanup()
@@ -828,12 +835,13 @@ class Housing(_base_3d.Base3D):
                     vbo.release()
 
             self._overlay_vbos = {}
-            self._overlay_cache = {}
+            self._overlay_positions = {}
+            self._overlay_geom_cache = {}
 
         super()._delete()
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "HousingMenu":
         """Return the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -845,7 +853,7 @@ class Housing(_base_3d.Base3D):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_housing.Housing", None]:
+    def start_add(cls, mainframe: "_ui.MainFrame") -> _Union["_housing.Housing", None]:
         """Resolve the part (a preselected part-library row wins over the
         dialog, same as every other Add* entry point), build the real
         facade at a placeholder position, and arm its single-click
@@ -859,13 +867,12 @@ class Housing(_base_3d.Base3D):
         if part_id is None:
             from ...ui.dialogs import part_search as _part_search
             from ...ui import editor_db as _editor_db
-            from PySide6.QtWidgets import QDialog
 
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.HousingsPage, mainframe.global_db.housings_table,
                 'Add Housing')
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -901,7 +908,7 @@ class Housing(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
     ) -> bool:
         """Forwards to an active add-session (see start_add) the same way
         every migrated object type does -- falls back to Base3D's own
@@ -929,7 +936,7 @@ class Housing(_base_3d.Base3D):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
 
-class HousingMenu(QMenu):
+class HousingMenu(QtWidgets.QMenu):
     """
     Represent a housing menu in :mod:`harness_designer.objects.objects_3d.housing`.
 
@@ -937,7 +944,7 @@ class HousingMenu(QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", obj: Housing):
+    def __init__(self, mainframe: "_ui.MainFrame", obj: Housing) -> None:
         """Initialise the :class:`HousingMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -947,7 +954,7 @@ class HousingMenu(QMenu):
         :param obj: Object instance to operate on.
         :type obj: :class:`Housing`
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.mainframe = mainframe
         self.canvas = mainframe.editor3d.editor
         self.obj = obj
@@ -1000,13 +1007,13 @@ class HousingMenu(QMenu):
         action.triggered.connect(self.on_housing_editor)
 
     @_check_types.do
-    def on_housing_editor(self):
+    def on_housing_editor(self) -> None:
         """Handle the housing editor event.
 
         UNKNOWN details are inferred from the callable name and signature.
         """
         @_check_types.do
-        def _do(housing):
+        def _do(housing: object) -> None:
             """Execute the do operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -1016,92 +1023,87 @@ class HousingMenu(QMenu):
             """
             dlg = _housing_editor.HousingEditorDialog(self.mainframe)
 
-            QTimer.singleShot(0, lambda: dlg.SetValue(housing))
+            QtCore.QTimer.singleShot(0, lambda: dlg.SetValue(housing))
 
             dlg.exec()
 
-        QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
+        QtCore.QTimer.singleShot(0, lambda: _do(self.obj.db_obj.part))
 
     @_check_types.do
-    def on_add_mat_seal(self):
+    def on_add_mat_seal(self) -> None:
         """Attach a MAT seal to this housing."""
-        from PySide6.QtCore import QTimer
         from . import seal as _seal_3d
 
         mainframe = self.mainframe
         housing = self.obj.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _seal_3d.Seal.start_add(mainframe, housing=housing)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_terminal(self):
+    def on_add_terminal(self) -> None:
         """Add terminals to this housing's cavities with a snapping preview."""
-        from PySide6.QtCore import QTimer
         from . import terminal as _terminal_3d
 
         mainframe = self.mainframe
         housing = self.obj.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _terminal_3d.Terminal.start_add(mainframe, housing=housing)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_cpa_lock(self):
+    def on_add_cpa_lock(self) -> None:
         """Attach a CPA lock to this housing."""
-        from PySide6.QtCore import QTimer
         from . import cpa_lock as _cpa_lock_3d
 
         mainframe = self.mainframe
         housing = self.obj.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _cpa_lock_3d.CPALock.start_add(mainframe, housing=housing)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_tpa_lock(self):
+    def on_add_tpa_lock(self) -> None:
         """Attach a TPA lock to this housing."""
-        from PySide6.QtCore import QTimer
         from . import tpa_lock as _tpa_lock_3d
 
         mainframe = self.mainframe
         housing = self.obj.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _tpa_lock_3d.TPALock.start_add(mainframe, housing=housing)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_cover(self):
+    def on_add_cover(self) -> None:
         """Attach a cover to this housing."""
-        from PySide6.QtCore import QTimer
         from . import cover as _cover_3d
 
         mainframe = self.mainframe
         housing = self.obj.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _cover_3d.Cover.start_add(mainframe, housing=housing)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_boot(self):
+    def on_add_boot(self) -> None:
         """Attach a boot to this housing."""
         @_check_types.do
-        def _do():
+        def _do() -> None:
             from .. import boot as _boot_obj
             from ...ui.dialogs import part_search as _part_search
 
@@ -1129,24 +1131,24 @@ class HousingMenu(QMenu):
             boot = _boot_obj.Boot(self.mainframe, db_obj)
             self.mainframe.project.add_boot(boot)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this housing the active selection."""
         _menu_ops.select_object(self.obj)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Arm clone mode using this housing as the template."""
         _menu_ops.clone_object(self.obj)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this housing from the project."""
         _menu_ops.delete_object(self.obj)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this housing's properties in the object editor."""
         _menu_ops.show_properties(self.obj)

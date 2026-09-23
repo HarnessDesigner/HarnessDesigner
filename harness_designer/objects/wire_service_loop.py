@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
+
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -54,19 +55,19 @@ class WireServiceLoop(_ObjectBase):
         # fixed-pair shape as Splice's own through-pair, with no branch
         # list. Set together via set_siblings when this loop is placed
         # into an existing wire.
-        self._start_sibling_ref = None
-        self._stop_sibling_ref = None
+        self._start_sibling_ref: weakref.ReferenceType | None = None
+        self._stop_sibling_ref: weakref.ReferenceType | None = None
 
         self.mainframe.add_object(self)
 
     @property
     @_check_types.do
-    def start_sibling(self) -> Union["_wire_obj.Wire", None]:
+    def start_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
     @_check_types.do
-    def stop_sibling(self) -> Union["_wire_obj.Wire", None]:
+    def stop_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @_check_types.do

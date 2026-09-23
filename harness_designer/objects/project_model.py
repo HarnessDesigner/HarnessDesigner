@@ -12,6 +12,7 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import project as _project
+    from ..gl import vbo as _vbo
 
 
 class ProjectModel(_ObjectBase):
@@ -26,7 +27,7 @@ class ProjectModel(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_project.Project", vbo):
+                 db_obj: "_project.Project", vbo: "_vbo.PooledVBOHandler"):
 
         super().__init__(mainframe, db_obj)
 
@@ -37,9 +38,10 @@ class ProjectModel(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
+    @property
     @_check_types.do
     def is_selected(self) -> bool:
         return False

@@ -79,7 +79,7 @@ class Housing(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def _construct_cavities(self, mainframe, db_obj) -> None:
+    def _construct_cavities(self, mainframe: "_ui.MainFrame", db_obj: "_pjt_housing.PJTHousing") -> None:
         """Construct every ``Cavity`` wrapper for this housing's own
         existing cavity rows.
 
@@ -137,7 +137,7 @@ class Housing(_ObjectBase):
         #       cleaner approach to performing a proper taredown.
 
         @_check_types.do
-        def _delete_child(db_row):
+        def _delete_child(db_row: object | None) -> None:
             if db_row is None:
                 return
 
