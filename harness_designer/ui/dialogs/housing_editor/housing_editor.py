@@ -480,14 +480,17 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self._obj_handler = None
 
         # This dialog's canvas is its own self-contained scene (the
-        # housing being edited), not a view into the real editor_3d
-        # canvas -- it must not share the real mainframe's pooled
-        # AABB/OBB arrays (mainframe.bounds_manager.editor_3d), or
-        # objects added here would get mixed into the live housing/wire
-        # editor's picking pool while this dialog is open, and left
-        # there as a stale entry after it closes.
+        # housing being edited -- plus its HousingPegboard/
+        # HousingSchematic facades, which need editor_pegboard/
+        # editor_schematic bounds views even though only the 3D canvas
+        # is ever shown), not a view into the real mainframe's
+        # editor_3d/editor_pegboard/editor_schematic canvases -- it must
+        # not share the real mainframe's pooled AABB/OBB arrays, or
+        # objects added here would get mixed into the live editors'
+        # picking pools while this dialog is open, and left there as a
+        # stale entry after it closes.
         from .... import bounds as _bounds
-        self._bounds_manager = _bounds.StandaloneManager()
+        self._bounds_manager = _bounds.Manager()
 
         # Passes *self* (not self.panel) as the canvas's "mainframe" --
         # Qt widget-parenting is unaffected (the layout's addWidget()

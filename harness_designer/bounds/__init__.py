@@ -8,7 +8,6 @@ from . import segment_pool as _segment_pool
 
 
 Manager = _manager.Manager
-StandaloneManager = _manager.StandaloneManager
 View = _manager.View
 AABB = _aabb.AABB
 OBB = _obb.OBB
