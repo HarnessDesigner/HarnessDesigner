@@ -4,6 +4,9 @@
 Persistent application configuration backed by SQLite tables.
 """
 
+from typing import Any
+from collections.abc import Callable
+
 import inspect
 import binascii
 import sqlite3
@@ -23,7 +26,7 @@ DEBUG_CONFIG = False
 
 
 @_check_types.do
-def DEBUG(*args):
+def DEBUG(*args: tuple[Any]) -> None:
     """
     Print config debug output when :data:`DEBUG_CONFIG` is enabled.
 
@@ -45,7 +48,7 @@ class _ConfigTable:
     """
 
     @_check_types.do
-    def __init__(self, con, name):
+    def __init__(self, con: sqlite3.Connection, name: str) -> None:
         """
         Initialise a table wrapper.
 
@@ -60,7 +63,7 @@ class _ConfigTable:
         self.name = name
 
     @_check_types.do
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """
         Return whether a key exists in the table.
 
@@ -85,7 +88,7 @@ class _ConfigTable:
             return False
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> object:
         """
         Fetch and deserialize a stored value.
 
@@ -116,7 +119,7 @@ class _ConfigTable:
                 return value
 
     @_check_types.do
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: object) -> None:
         """
         Insert or update a stored value.
 
@@ -161,7 +164,7 @@ class _ConfigTable:
                     cur.close()
 
     @_check_types.do
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         """
         Delete a stored key from the table.
 
@@ -190,15 +193,15 @@ class _ConfigDB:
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initialise the backing database wrapper.
         """
 
-        self._con = None
+        self._con: sqlite3.Connection | None = None
 
     @_check_types.do
-    def open(self):
+    def open(self) -> bool:
         """
         Open the configuration database file.
 
@@ -215,7 +218,7 @@ class _ConfigDB:
         return save_all
 
     @_check_types.do
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """
         Return whether a table exists in the database.
 
@@ -239,7 +242,7 @@ class _ConfigDB:
             return ret
 
     @_check_types.do
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: object) -> None:
         with _lock:
             if key not in self:
                 with self._con:
@@ -256,7 +259,7 @@ class _ConfigDB:
                     cur.close()
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> "_ConfigTable":
         """
         Return a table wrapper, creating the table on demand.
 
@@ -285,7 +288,7 @@ class _ConfigDB:
             return _ConfigTable(self._con, item)
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """
         Close the configuration database connection.
         """
@@ -304,7 +307,7 @@ class ConfigDB(type):
     __callbacks__ = {}
 
     @_check_types.do
-    def __init__(cls, name, bases, dct):
+    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict) -> None:
         """
         Register a configuration class with the metaclass registry.
 
@@ -323,7 +326,7 @@ class ConfigDB(type):
         ConfigDB.__callbacks__[cls] = {}
 
     @_check_types.do
-    def bind(cls, callback, setting_name):
+    def bind(cls, callback: Callable, setting_name: str) -> None:
         """
         Bind a callback to a persisted setting name.
 
@@ -348,7 +351,7 @@ class ConfigDB(type):
             ConfigDB.__callbacks__[cls][setting_name].append(ref)
 
     @_check_types.do
-    def _remove_ref(cls, ref):
+    def _remove_ref(cls, ref: weakref.ReferenceType) -> None:
         """
         Remove a dead callback weak reference.
 
@@ -362,7 +365,7 @@ class ConfigDB(type):
                 return
 
     @_check_types.do
-    def _load(cls, save_all):
+    def _load(cls, save_all: bool) -> None:
         """
         Load persisted values back onto the configuration class
         """
@@ -384,7 +387,7 @@ class ConfigDB(type):
                         cls.__table__[key] = value
 
     @_check_types.do
-    def _save(cls):
+    def _save(cls) -> None:
         """
         Persist current class attributes to the database.
         """
@@ -402,7 +405,7 @@ class ConfigDB(type):
             DEBUG('_save:', cls.__name__, cls.__table_name__, key, repr(value), '\n\n')
 
     @_check_types.do
-    def _process_change(cls, setting_name):
+    def _process_change(cls, setting_name: str) -> None:
         """
         Notify callbacks that a setting changed.
 
@@ -420,7 +423,7 @@ class ConfigDB(type):
 
     @property
     @_check_types.do
-    def __table_name__(cls):
+    def __table_name__(cls) -> str:
         """
         Return the SQLite table name for this configuration class.
 
@@ -434,7 +437,7 @@ class ConfigDB(type):
 
     @property
     @_check_types.do
-    def __table__(cls):
+    def __table__(cls) -> "_ConfigTable":
         """
         Return the table wrapper for this configuration class.
 
@@ -445,7 +448,7 @@ class ConfigDB(type):
         return ConfigDB.__db__[cls.__table_name__]
 
     @_check_types.do
-    def __getitem__(cls, item):
+    def __getitem__(cls, item: str) -> object:
         """
         Return a configuration attribute by key.
 
@@ -462,7 +465,7 @@ class ConfigDB(type):
         return value
 
     @_check_types.do
-    def __getattribute__(cls, item):
+    def __getattribute__(cls, item: str) -> object:
         """
         Fetch an attribute, falling back to persisted table values.
 
@@ -494,7 +497,7 @@ class ConfigDB(type):
         raise AttributeError(item)
 
     @_check_types.do
-    def __setitem__(cls, key, value):
+    def __setitem__(cls, key: str, value: object) -> None:
         """
         Assign a configuration attribute by key.
 
@@ -510,7 +513,7 @@ class ConfigDB(type):
         setattr(cls, key, value)
 
     @_check_types.do
-    def __setattr__(cls, key, value):
+    def __setattr__(cls, key: str, value: object) -> None:
         """
         Assign and persist a configuration attribute.
 
@@ -532,7 +535,7 @@ class ConfigDB(type):
             cls._process_change(key)
 
     @_check_types.do
-    def __delitem__(cls, key):
+    def __delitem__(cls, key: str) -> None:
         """
         Delete a configuration attribute by key.
 
@@ -543,7 +546,7 @@ class ConfigDB(type):
         delattr(cls, key)
 
     @_check_types.do
-    def __delattr__(cls, item):
+    def __delattr__(cls, item: str) -> None:
         """
         Delete a configuration attribute and its persisted value.
 
@@ -558,7 +561,7 @@ class ConfigDB(type):
 
     @staticmethod
     @_check_types.do
-    def open():
+    def open() -> None:
         """
         Open the config database and load all registered classes.
         """
@@ -570,7 +573,7 @@ class ConfigDB(type):
 
     @staticmethod
     @_check_types.do
-    def close():
+    def close() -> None:
         """
         Save all registered configuration classes and close the database.
         """
@@ -774,6 +777,32 @@ class Config(metaclass=ConfigDB):
             # (the inner protractor uses that instead), since this ring
             # isn't tied to a specific axis's identity.
             outer_ring_color = [0.75, 0.75, 0.75, 0.8]
+
+            # How far above the flat (y = 0) schematic plane the ring's
+            # own geometry is drawn, world units -- everything else in
+            # this view (housing rectangle, cavity/terminal labels) sits
+            # at/near y = 0, so an un-lifted ring would draw coplanar
+            # with them and depth-fight/blend into the scene instead of
+            # reading as an overlay on top of it. Only the ring's drawn
+            # position is lifted (rotation_handlers.editor_schematic.
+            # generic.Rings2D's own ring-center Point, a one-time copy of
+            # this object's real position2d) -- the object being rotated
+            # itself never moves.
+            ring_height = 50.0
+
+            # Schematic housings are locked to cardinal orientations --
+            # a rotated housing's cavity/terminal stack and corner-label
+            # layout are only ever designed for 0/90/180/270 (see the
+            # Rotate2DMenu context-menu actions and Angle2DControl, which
+            # already round to this same increment). Unlike
+            # Config.editor_3d.rotation_handler's identically-named
+            # snap_angle (an optional, user-toggleable drag aid, gated by
+            # its own snap_enable), this one is not optional -- there is
+            # no snap_enable here, and rotation_handlers.editor_schematic.
+            # generic.Rings2D.apply_drag_angle always rounds to the
+            # nearest multiple of this value, for both the free-drag
+            # inner ring and the click-a-tick outer ring alike.
+            snap_angle = 90.0
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920
@@ -993,6 +1022,13 @@ class Config(metaclass=ConfigDB):
             # (the inner protractor uses that instead), since this ring
             # isn't tied to a specific axis's identity.
             outer_ring_color = [0.75, 0.75, 0.75, 0.8]
+
+            # How far above the flat (y = 0) pegboard plane the ring's
+            # own geometry is drawn, world units -- see
+            # Config.editor_schematic.rotation_handler.ring_height's own
+            # comment (identical reasoning, this view is also permanently
+            # locked top-down and flat).
+            ring_height = 50.0
 
         class virtual_canvas(metaclass=ConfigDB):
             width = 1920

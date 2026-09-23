@@ -17,13 +17,14 @@ from typing import TYPE_CHECKING
 from ..objects import bundle as _bundle
 from .. import check_types as _check_types
 
+
 if TYPE_CHECKING:
-    from ..objects.project import Project
+    from ..objects import project as _project
 
 
 @_check_types.do
 def merge_bundles(
-    project: "Project",
+    project: "_project.Project",
     bundle_before: _bundle.Bundle,
     bundle_after: _bundle.Bundle,
 ) -> _bundle.Bundle:

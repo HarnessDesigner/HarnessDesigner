@@ -5,7 +5,7 @@
 import threading
 import weakref
 import colorsys
-from PySide6.QtGui import QColor as _QColor
+from PySide6 import QtGui
 
 from . import app_mixins as _app_mixins
 from . import check_types as _check_types
@@ -13,7 +13,7 @@ from . import check_types as _check_types
 
 class ColorMeta(type):
     """Metaclass that caches :class:`Color` instances by database identifier."""
-    _instances = {}
+    _instances: dict[bytes | int, weakref.ReferenceType] = {}
     # Guards `_instances` against concurrent mutation from multiple threads
     # and from weakref callbacks that CPython can fire on an arbitrary
     # thread. See the same fix in geometry/point.py, geometry/angle/angle.py
@@ -22,7 +22,7 @@ class ColorMeta(type):
 
     @classmethod
     @_check_types.do
-    def _remove_ref(cls, ref):
+    def _remove_ref(cls, ref: weakref.ReferenceType) -> None:
         """Remove a dead weak reference from the instance cache.
 
         :param ref: Weak reference previously stored in ``_instances``.
@@ -181,7 +181,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def Set(self, *RGBA):
+    def Set(self, *RGBA: int | float) -> None:
         """Set channel values from a packed integer or RGB/RGBA tuple.
 
         :param RGBA: Packed RGBA integer or three/four channel values.
@@ -214,7 +214,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
             raise ValueError(f'Set() expects 1, 3 or 4 arguments, got {len(RGBA)}')
 
     @_check_types.do
-    def SetRGBA(self, *RGBA):
+    def SetRGBA(self, *RGBA: int | float) -> None:
         """Set RGBA channels from a packed integer or four values.
 
         :param RGBA: Packed RGBA integer or four channel values.
@@ -240,7 +240,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
             raise ValueError(f'SetRGBA() expects 1 or 4 arguments, got {len(RGBA)}')
 
     @_check_types.do
-    def SetRGB(self, *RGB):
+    def SetRGB(self, *RGB: int | float) -> None:
         """Set RGB channels from a packed integer or three values.
 
         :param RGB: Packed RGB integer or three channel values.
@@ -335,7 +335,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __int__(self):
+    def __int__(self) -> int:
         """Pack this colour into an integer.
 
         :returns: Packed RGBA value.
@@ -344,7 +344,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return self.GetRGBA()
 
     @_check_types.do
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Return a developer-friendly representation.
 
         :returns: String representation of the colour.
@@ -354,7 +354,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
                 + (f', db_id={self.db_id!r}' if self.db_id else '') + ')')
 
     @_check_types.do
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         """Compare colours by channel values.
 
         :param other: Object to compare against.
@@ -367,7 +367,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         return NotImplemented
 
     @_check_types.do
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Return a hash based on RGBA channel values.
 
         :returns: Hash of the colour.
@@ -400,7 +400,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def GetLighterColor(self, percentage=25) -> "Color":
+    def GetLighterColor(self, percentage: int | float = 25) -> "Color":
         """Return a lighter copy of this colour.
 
         :param percentage: Percentage increase applied to HSV value.
@@ -420,7 +420,7 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
         )
 
     @_check_types.do
-    def GetDarkerColor(self, percentage=25) -> "Color":
+    def GetDarkerColor(self, percentage: int | float = 25) -> "Color":
         """Return a darker copy of this colour.
 
         :param percentage: Percentage decrease applied to HSV value.
@@ -444,12 +444,12 @@ class Color(_app_mixins.CallbackMixin, metaclass=ColorMeta):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def to_qcolor(self) -> _QColor:
+    def to_qcolor(self) -> QtGui.QColor:
         """Return a PySide6 QColor equivalent of this Color."""
-        return _QColor(self._r, self._g, self._b, self._a)
+        return QtGui.QColor(self._r, self._g, self._b, self._a)
 
     @staticmethod
     @_check_types.do
-    def from_qcolor(qc: _QColor, db_id: bytes | None = None) -> "Color":
+    def from_qcolor(qc: QtGui.QColor, db_id: bytes | None = None) -> "Color":
         """Construct a Color from a PySide6 QColor."""
         return Color(qc.red(), qc.green(), qc.blue(), qc.alpha(), db_id)

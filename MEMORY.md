@@ -149,6 +149,17 @@ Several related rules govern how type hints are written in this codebase (update
 - **Quotes must NEVER wrap a builtin.** Never write `"tuple[float, float]"`, `"int"`, `"None"`, etc. — always bare. This includes never quoting an entire `SomeClass | None` expression just because `SomeClass` needs deferral — quote only `SomeClass` itself, and only inside a `Union[...]`, never bare-string with `|`.
 - **If a module is imported only for typing purposes, guard the import with `if typing.TYPE_CHECKING:` and import the *module*, not the type/class directly** — e.g. `from . import somemodule as _somemodule`, then reference `_somemodule.SomeClass` in the annotation. Always alias the imported module with a leading single underscore (`_somemodule`), not the bare module name.
 - When such a `TYPE_CHECKING`-only module reference needs to appear in a union with `None` (or anything else), use `_Union["_somemodule.SomeClass", None]` — quote only the module-qualified class reference, use `Union` (not `|`) for the union itself, never quote the whole expression as one string.
+- **`*args`/`**kwargs` get their own convention, distinct from normal per-element variadic-arg typing** (confirmed 2026-09-23): annotate `*args: tuple[Any]` and `**kwargs: dict[str, Any]` — the annotation describes the *collected* container (a tuple / a str-keyed dict), not "the type of each individual argument" the way `*args: int` would read under ordinary PEP typing. Needs `from typing import Any` (and `Any` is the one `typing` member exempt from the "minimize typing module" rule above, since it has no bare-builtin equivalent). This only applies to genuine open-ended passthrough `*args`/`**kwargs` (decorators, `CallAfter`/`CallLater`-style callable-forwarding helpers) — a variadic parameter with a real, specific element type (e.g. `Color.Set(self, *RGBA: int | float)`, actual RGBA channel values) keeps its normal per-element type, unaffected by this rule.
+- **Default to a `TYPE_CHECKING`-guarded, quoted forward reference for any cross-module class-type annotation — do not spend time checking whether the import would actually be circular first** (settled 2026-09-24, after empirically verifying the reason this used to matter no longer applies — see next entry). The quoted/deferred form is the default; only hoist an import to real/unquoted module level for reasons unrelated to typing (e.g. the module is already needed at runtime in that file for a non-typing reason).
+
+### Quoted forward-reference class annotations cost nothing under Cython — verified empirically (2026-09-24)
+Confirmed by direct Cython compile comparison (not reasoning from docs): for a **plain Python class** (`class Foo:`, not `cdef class`) — which is what every class in this codebase is (`Point`, `Angle`, `Wire`, `MainFrame`, `Project`, etc.) — a quoted `TYPE_CHECKING`-deferred forward reference (`x: "_mod.Foo"`) and a real unquoted import (`from mod import Foo; x: Foo`) generate **byte-for-byte identical C code**: no `ArgTypeTest`, no optimized attribute access, both just a generic `PyObject*` with plain `PyObject_GetAttr` calls. Tested both as a function parameter and as an annotated local variable reassigned to an incompatible type (`x: Foo = Foo(); x = Bar()`) — neither the quoted nor the unquoted version raised a compile warning or inserted a coercion check; both compiled clean and stayed fully dynamic.
+
+**This does NOT extend to builtins/primitives** — `int`, `float`, `str`, `bool`, and typed containers like `list[float]` DO get a real Cython-native C-level type (confirmed separately, matches the pre-existing `Camera2D.zoom_at_point` bug where a `delta: float` local reused for a `Point` value crashed post-compile with a coercion `TypeError`). The existing "quotes must never wrap a builtin" rule is exactly about protecting that real mechanism — unaffected by this entry, still critical.
+
+**Why the class-typing question came up at all:** the actual "app crashes on a wrong-typed parameter" behavior the user described is `check_types.py`'s own `@_check_types.do` decorator — a Python-level `isinstance` check applied via decorator at ~6179 call sites, completely independent of Cython's native typing. (Separately, and worth remembering: `check_types.py`'s `do()` currently starts with an unconditional `return func`, making the rest of the function — and the decorator everywhere it's applied — dead code; see the `check_types.py` entry elsewhere in this file.)
+
+**How to apply:** Keep writing `TYPE_CHECKING`-guarded, quoted forward references for cross-module class types as the default/preferred style (per the entry above) — it costs nothing at the Cython level and keeps the IDE/static-analysis benefit. Don't treat "does this risk a circular import" as a reason to skip the guard; the guard is the default regardless.
 
 **Why:** Cython reads the annotations for compilation; a quoted builtin annotation like `-> "tuple[float, float]"` causes a real build failure. `Optional`/heavy `typing` usage and whole-expression string quoting are style choices the user wants standardized on across the codebase so signatures are consistent and Cython-safe by construction, not just "one recurring mistake" to catch after the fact.
 
@@ -184,6 +195,50 @@ def some_func(some_param: _Union["_somemodule.SomeClass", None]) -> None:
 - If nothing needs deferral, don't quote anything and don't reach for `Union` — plain `X | None` is fine.
 - Never use `Optional` under any circumstance.
 - Never import an actual class/type from a module that's only needed for typing — import the module itself under a `TYPE_CHECKING` guard, aliased with a leading underscore.
+
+### Import block ordering (confirmed 2026-09-23)
+Every module's top-of-file import block follows a fixed group order, each
+group separated by one blank line, in this order:
+
+1. Typing-only imports — `from typing import ...` and `from collections.abc
+   import Callable`/other ABCs used purely for type hints.
+2. Non-local imports — stdlib and third-party (`os`, `threading`, `numpy`,
+   `PySide6`, etc).
+3. Local (in-project) imports — `from . import x` / `from .sub import y`,
+   including `import harness_designer` itself when a submodule needs the
+   top-level package.
+
+If the module has a `TYPE_CHECKING` block, it goes after the three groups
+above, separated by **two** blank lines (not one), and is followed by
+**two** more blank lines before the rest of the module. Example shape:
+
+```python
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
+
+import os
+import threading
+from PySide6 import QtCore
+
+from . import config as _config
+from . import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from . import logger as _logger
+
+
+<rest of module>
+```
+
+No `TYPE_CHECKING` block: it's just the three groups, one blank line
+between each, with the rest of the module following normally (no forced
+double blank line since there's no `TYPE_CHECKING` block to separate from).
+
+**How to apply:** When touching a file's imports for any reason (adding one,
+moving a local import to module level, fixing a PySide6-depth violation),
+bring the whole import block into this shape while there, not just the line
+being changed.
 
 ### PySide6 imports: never more than one layer down
 Anything imported from PySide6 must be imported at most one layer down — import the submodule (`QtCore`, `QtWidgets`, `QtGui`, ...), then reference names off it. Never import a name directly from a PySide6 submodule.
@@ -457,6 +512,8 @@ Don't reach for `getattr(obj, 'attr', default)` or `hasattr(obj, 'attr')` to dec
 **Confirmed case (2026-08-26):** `Base3D.render_handler`/`BaseSchematic.render_handler`/`BasePegboard.render_handler` (added as part of the rotation-gizmo/drag-arrows depth-testing fix — see the render_handler architecture notes elsewhere in this file) were first written as `target = getattr(self._active_handler, 'objN', self._active_handler); render = getattr(target, 'render', None); if render is None: return`. Rejected and replaced with `isinstance(self._active_handler, RotationRings)` (matching the codebase's own existing precedent in `handle_interaction`) to pick the right branch, plus a real no-op `DragHandlerBase.render()` default (overridden by `DragHandler3D` with actual logic) so the non-rotation branch can call `.render(shaders)` directly and unconditionally, with full type-checking support.
 
 **How to apply:** When code needs to branch on "which concrete type is this," use `isinstance()` against the actual classes. When code needs "call this method whether or not this particular subtype has anything real to do," give the common base class a real method (a documented no-op default is fine) instead of probing for the attribute's existence at the call site.
+
+**Check `ObjectBase` for an `is_X` property before reaching for `isinstance`/`hasattr` at all (confirmed 2026-09-23):** `objects/object_base.py`'s `ObjectBase` already exposes real `@property` type checks for most concrete object kinds — `is_wire_marker`, `is_wire_service_loop`, `is_wire_layout`, etc. (each just `isinstance(self, ConcreteClass)` under the hood, done this way instead of a bare `isinstance` call site so the concrete class doesn't need importing everywhere). `drag_handlers/editor_3d/generic.py`'s `Generic.__init__`/`delete` originally used `hasattr(target.obj3d, 'begin_move_session')` to detect a `WireServiceLoop3D` — fixed to `target.is_wire_service_loop` instead, on the wrapper object (`target`), not the view-specific `obj3d`. Grep `object_base.py` for `is_` properties before writing a fresh `isinstance()` check or, worse, a `hasattr` guard.
 
 ### When the user names the exact fix, stop investigating and implement it
 If the user has stated a specific root cause and a specific fix approach ("mimic the code in X function," "there's no need for Y to happen elsewhere"), don't keep cross-checking it against other files/call sites/theories before acting — implement what they described.

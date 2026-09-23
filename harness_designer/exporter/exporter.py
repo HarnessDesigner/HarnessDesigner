@@ -1,3 +1,5 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+
 """
 supported export formats
 
@@ -6,6 +8,8 @@ pyassimp: OBJ OPENGEX PLY 3DS ASSBIN ASSXML COLLADA FBX STL X X3D GLTF 3MF PBRT 
 cadquery: IGES BREP VRML
 
 """
+
+from collections.abc import Callable
 
 import ctypes
 from pyassimp import structs
@@ -17,6 +21,7 @@ from OCP.BRep import BRep_Builder
 from OCP.TopoDS import TopoDS_Face
 import numpy as np
 import pyassimp.core as _assimp
+
 from .. import check_types as _check_types
 
 
@@ -28,7 +33,7 @@ from .. import check_types as _check_types
 
 
 @_check_types.do
-def _unpack(packed: np.ndarray, vertex_count: int):
+def _unpack(packed: np.ndarray, vertex_count: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     n = vertex_count
     verts = packed[:n * 3].reshape(-1, 3)
     smooth = packed[n * 3:n * 6].reshape(-1, 3)
@@ -42,7 +47,7 @@ def _unpack(packed: np.ndarray, vertex_count: int):
 # ---------------------------------------------------------------------------
 
 @_check_types.do
-def _safe_dir(nx, ny, nz):
+def _safe_dir(nx: float, ny: float, nz: float) -> gp_Dir:
     """Return a gp_Dir; falls back to (0,0,1) for zero-length normals."""
 
     if nx * nx + ny * ny + nz * nz < 1e-12:
@@ -52,7 +57,7 @@ def _safe_dir(nx, ny, nz):
 
 
 @_check_types.do
-def _build_ocp_face(verts: np.ndarray, normals: np.ndarray):
+def _build_ocp_face(verts: np.ndarray, normals: np.ndarray) -> TopoDS_Face:
     n_verts = len(verts)
     n_tris = n_verts // 3
 
@@ -79,7 +84,7 @@ def _export_ocp(
     vertex_count: int,
     path: str,
     fmt: str
-):
+) -> None:
     """
     Export model data via OCP (cadquery-ocp / OCCT).
 
@@ -124,7 +129,7 @@ def _export_ocp(
 # ---------------------------------------------------------------------------
 
 @_check_types.do
-def _build_assimp_scene(verts: np.ndarray, normals: np.ndarray):
+def _build_assimp_scene(verts: np.ndarray, normals: np.ndarray) -> tuple[structs.Scene, list[object]]:
     """
     Construct a minimal aiScene ctypes structure pointing at the mesh data.
 
@@ -223,7 +228,7 @@ def _export_assimp(
     vertex_count: int,
     path: str,
     file_type: str
-):
+) -> None:
     """
     Export model data via pyassimp / libassimp.
 
@@ -249,7 +254,8 @@ def _export_assimp(
 
 
 @_check_types.do
-def _build_ocp_face_with_progress(verts: np.ndarray, normals: np.ndarray, progress_cb=None):
+def _build_ocp_face_with_progress(verts: np.ndarray, normals: np.ndarray,
+                                   progress_cb: Callable[[int, int, str], None] | None = None) -> TopoDS_Face:
     n_verts = len(verts)
     n_tris = n_verts // 3
     total = n_verts + n_tris
@@ -277,7 +283,9 @@ def _build_ocp_face_with_progress(verts: np.ndarray, normals: np.ndarray, progre
 
 
 @_check_types.do
-def _build_assimp_scene_with_progress(verts: np.ndarray, normals: np.ndarray, progress_cb=None):
+def _build_assimp_scene_with_progress(verts: np.ndarray, normals: np.ndarray,
+                                       progress_cb: Callable[[int, int, str], None] | None = None
+                                       ) -> tuple[structs.Scene, list[object]]:
     n_verts = len(verts)
     n_tris = n_verts // 3
     total = n_verts * 2 + n_tris
@@ -365,7 +373,7 @@ def _build_assimp_scene_with_progress(verts: np.ndarray, normals: np.ndarray, pr
 
 @_check_types.do
 def export_ocp(verts: np.ndarray, normals: np.ndarray, path: str, fmt: str,
-               progress_cb=None):
+               progress_cb: Callable[[int, int, str], None] | None = None) -> None:
     """
     Export a mesh (verts + normals, each (N,3) float32) via OCP/OCCT.
 
@@ -405,7 +413,7 @@ def export_ocp(verts: np.ndarray, normals: np.ndarray, path: str, fmt: str,
 
 @_check_types.do
 def export_assimp(verts: np.ndarray, normals: np.ndarray, path: str, file_type: str,
-                  progress_cb=None):
+                  progress_cb: Callable[[int, int, str], None] | None = None) -> None:
     """
     Export a mesh (verts + normals, each (N,3) float32) via pyassimp/libassimp.
 

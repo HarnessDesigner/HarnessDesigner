@@ -46,6 +46,9 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_schematic import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import project as _project
+    from ...objects import wire as _wire_obj
+    from ...objects.objects_schematic import base_schematic as _base_schematic
 
 
 # Set True to print where every mouse move of a drag spends its time: the
@@ -95,7 +98,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
     """Generic locked-X/Z drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
         super().__init__(canvas, target)
 
         self._deadlocked = False
@@ -120,7 +123,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
         objschematic = self.target.objschematic
 
         profiler = None
@@ -147,7 +150,8 @@ class Generic(_editor_schematic.DragHandlerSchematic):
                 profiler.disable()
                 _profile_event(profiler)
 
-    def _event(self, objschematic, mouse_pos: _point.Point, t_begin: float, t_context: float) -> None:
+    def _event(self, objschematic: "_base_schematic.BaseSchematic", mouse_pos: _point.Point,
+               t_begin: float, t_context: float) -> None:
         world_pos = self._world_xz(mouse_pos)
         current = objschematic.position
         world_delta = _point.Point(
@@ -183,7 +187,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
                   f'route {1000 * (t_end - t_follow):6.1f} ms ({len(remaining)} of {len(self._attached)} wires'
                   f'{", re-nested" if renested else ""}) | total {1000 * (t_end - t_begin):6.1f} ms')
 
-    def _route(self, project, wires) -> None:
+    def _route(self, project: "_project.Project", wires: list["_wire_obj.Wire"]) -> None:
         # One grid for the whole batch, built once (see RoutingFrame). Every
         # wire in it not yet routed THIS pass stays out of the way of whichever
         # one IS being routed (only its fixed exit stubs count), and each one

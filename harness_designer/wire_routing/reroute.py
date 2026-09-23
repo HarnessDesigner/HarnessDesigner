@@ -709,14 +709,31 @@ def _path_overlaps_rect(wire: "_wire_obj.Wire",
 @_check_types.do
 def sweep_for_overlaps(project: "_project.Project", moved_obj,
                        already_rerouted: list["_wire_obj.Wire"]) -> None:
-    """Run once, on drag release: for every connected wire *not* already
-    live-rerouted this drag, reroute it if its current path now overlaps
+    """Run once, on drag/rotate release: for every connected wire *not*
+    already live-rerouted this operation, reroute it if its current
+    path now comes within ``Config.layout.housing_spacing`` of
     *moved_obj*'s new footprint -- a cheap AABB-vs-segment check first,
     the real (expensive) A* reroute only for wires actually violated.
+
+    *moved_obj*'s bounds are grown by that same margin before the
+    check -- the same technique the router itself already uses to keep
+    a margin around an obstacle (see ``wire_routing.routing``'s own
+    housing-obstacle-rect expansion) -- so this catches a wire that's
+    now merely too CLOSE to the new footprint, not only one that
+    literally crosses into it. An un-padded bounds check would silently
+    miss exactly the violation this function exists to catch: confirmed
+    2026-09-24 (Kevin) as a real gap, found while wiring this same
+    sweep into the rotation gizmo (see rotation_handlers.
+    editor_schematic.generic.Rings2D.detach) alongside the drag handler
+    that already called this.
     """
     bounds = moved_obj.objschematic.get_bounds()
     if bounds is None:
         return
+
+    margin = float(Config.layout.housing_spacing)
+    min_x, min_z, max_x, max_z = bounds
+    bounds = (min_x - margin, min_z - margin, max_x + margin, max_z + margin)
 
     already = set(already_rerouted)
 

@@ -19,8 +19,9 @@ from ..geometry import line as _line
 from ..objects import wire as _wire
 from .. import check_types as _check_types
 
+
 if TYPE_CHECKING:
-    from ..objects.project import Project
+    from ..objects import project as _project
 
 
 @_check_types.do
@@ -55,7 +56,7 @@ def _segment_index(wire: _wire.Wire, position: np.ndarray) -> int:
 
 @_check_types.do
 def split_wire_at_point(
-    project: "Project",
+    project: "_project.Project",
     wire: _wire.Wire,
     coord_id_3d: int,
 ) -> tuple[_wire.Wire, _wire.Wire]:
@@ -179,7 +180,7 @@ def split_wire_at_point(
 
 @_check_types.do
 def merge_wires(
-    project: "Project",
+    project: "_project.Project",
     wire_before: _wire.Wire,
     wire_after: _wire.Wire,
 ) -> _wire.Wire:

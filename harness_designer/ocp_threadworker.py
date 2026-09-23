@@ -35,28 +35,33 @@ Example use::
 #       of that work and this work was done to validate being able to use multiple
 #       threads when accessing some portions of OCP.
 
+from typing import Any
+from collections.abc import Callable
+
 import queue
 import threading
+import types
 
 
 class OCPThreadTask:
 
-    def __init__(self, func, *args, **kwargs):
+    def __init__(self, func: Callable, *args: tuple[Any], **kwargs: dict[str, Any]) -> None:
         self._func = func
         self._args = args
         self._kwargs = kwargs
-        self._exception = None
+        self._exception: Exception | None = None
         self._lock = threading.Lock()
         self._lock.acquire()
         self._result = None
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self._lock.acquire()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
+                 exc_tb: types.TracebackType | None) -> None:
         self._lock.release()
 
-    def __call__(self):
+    def __call__(self) -> None:
         try:
             self._result = self._func(*self._args, **self._kwargs)
         except Exception as err:
@@ -65,23 +70,23 @@ class OCPThreadTask:
         self._lock.release()
 
     @property
-    def result(self):
+    def result(self) -> object:
         return self._result
 
     @property
-    def exception(self):
+    def exception(self) -> Exception | None:
         return self._exception
 
 
 class _OCPThreadWorker(threading.Thread):
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(name='OCP Access Thread')
         self.daemon = True
         self._queue = queue.Queue()
         self._exit_event = threading.Event()
 
-    def add(self, func, *args, **kwargs):
+    def add(self, func: Callable, *args: tuple[Any], **kwargs: dict[str, Any]) -> object:
         worker = OCPThreadTask(func, *args, **kwargs)
         self._queue.put_nowait(worker)
 
@@ -93,13 +98,13 @@ class _OCPThreadWorker(threading.Thread):
 
         return worker.result
 
-    def run(self):
+    def run(self) -> None:
         while not self._exit_event.is_set():
             worker = self._queue.get(True)
             if worker is not None:
                 worker()
 
-    def stop(self):
+    def stop(self) -> None:
         self._exit_event.set()
         self._queue.put(None)
 
@@ -112,9 +117,9 @@ OCPThreadWorker = _OCPThreadWorker()
 OCPThreadWorker.start()
 
 
-def ocp_thread(func):
+def ocp_thread(func: Callable) -> Callable:
 
-    def _wrapper(*args, **kwargs):
+    def _wrapper(*args: tuple[Any], **kwargs: dict[str, Any]) -> object:
         res = OCPThreadWorker.add(func, *args, **kwargs)
         return res
 

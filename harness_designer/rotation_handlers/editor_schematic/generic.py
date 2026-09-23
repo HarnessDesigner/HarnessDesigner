@@ -36,6 +36,7 @@ from ... import check_types as _check_types
 from .. import rotation_mesh as _rotation_mesh
 from ...shapes import text as _text
 from ...gl import materials as _materials
+from ...wire_routing import reroute as _wire_reroute
 
 
 Config = _config.Config.editor_schematic
@@ -77,6 +78,17 @@ class Rings2D(_base_schematic.BaseSchematic):
         self._selected = selected
         self._radius, self._object_radius = self._compute_radius_values()
 
+        # Resolved once, here, not per angle change -- what's attached
+        # doesn't change while this gizmo is up, same discipline
+        # drag_handlers.editor_schematic.generic.Generic's own
+        # self._attached uses (and the same sort: junction wires first,
+        # then shortest-crow-flies-distance first -- see that class's
+        # own docstring for why). Used by apply_drag_angle to re-route
+        # every attached wire whenever the rotation actually changes.
+        self._attached_wires = sorted(
+            _wire_reroute.wires_attached_to(selected),
+            key=lambda w: (not _wire_reroute.is_junction_wire(w), _wire_reroute.crow_flies_distance(w)))
+
         self._config_sig = self._current_config_sig()
 
         obj_angle = objschematic.angle
@@ -88,13 +100,25 @@ class Rings2D(_base_schematic.BaseSchematic):
         obj_scale.bind(self._on_obj_scale)
         self._obj_scale = obj_scale
 
+        # The ring's own drawn geometry is centered on a COPY of
+        # objschematic.position, its Y bumped up by
+        # Config.rotation_handler.ring_height, so it renders above the
+        # housing rectangle/cavity/terminal labels instead of coplanar
+        # with (and blending/depth-fighting against) them -- this copy
+        # marks only where the ring itself is drawn, it plays no part in
+        # the actual rotation being performed on the tracked object.
+        # Computed once, here -- see _update_position's own comment for
+        # why this never needs to track the object afterward.
+        self._ring_center = objschematic.position.copy()
+        self._ring_center.y += float(Config.rotation_handler.ring_height)
+
         scale = _point.Point(1.0, 1.0, 1.0)
         angle = _angle.Angle.from_euler(0, 0, 0)
 
         with mainframe.editor2d.context:
             self._rings = {
                 axis: rotation_ring.RotationRing(
-                    axis, objschematic.position, obj_angle, self._radius, self._object_radius,
+                    axis, self._ring_center, obj_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
                     self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
                     mainframe.editor2d.context, mainframe, _base_schematic.BaseSchematic,
@@ -174,6 +198,13 @@ class Rings2D(_base_schematic.BaseSchematic):
     def _update_position(self, position: _point.Point):
         """Track gizmo position changes -- see Rings3D's own version;
         this view has no floor lock to defeat.
+
+        Doesn't touch :attr:`_ring_center` (the ring's own, separately
+        lifted, drawn position -- see ``__init__``'s own comment) -- the
+        tracked object never actually moves while its own rotation gizmo
+        is up (drag and rotate are mutually-exclusive armed handlers on
+        the same object), so the offset computed once at construction
+        stays correct for this gizmo's whole lifetime.
         """
         self._o_position = position.copy()
         self.numpy_position[:] = position.as_numpy
@@ -197,7 +228,19 @@ class Rings2D(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def detach(self):
-        """Unbind from the tracked object and free the GL buffers."""
+        """Unbind from the tracked object and free the GL buffers.
+
+        Also sweeps for any OTHER wire in the project -- one not
+        attached to the object just rotated, so never touched by
+        apply_drag_angle's own _route_attached_wires -- that the new
+        footprint left too close to (mirrors
+        drag_handlers.editor_schematic.generic.Generic.delete's own
+        identical call, made once on drag release; this is rotation's
+        equivalent "the interaction is over" point).
+        """
+        project = self.mainframe.project
+        _wire_reroute.sweep_for_overlaps(project, self._selected, self._attached_wires)
+
         self._position.unbind(self._update_position)
         self._obj_angle.unbind(self._on_obj_angle)
         self._obj_scale.unbind(self._on_obj_scale)
@@ -246,7 +289,24 @@ class Rings2D(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def apply_drag_angle(self, axis: str, value: float):
-        """Write a drag-driven Euler value without re-triggering ourselves."""
+        """Write a drag-driven Euler value without re-triggering ourselves.
+
+        Rounded to the nearest ``Config.rotation_handler.snap_angle``
+        (90 degrees) first -- schematic housings are locked to cardinal
+        orientations (see that config value's own comment), so both the
+        free-drag inner ring and the click-a-tick outer ring only ever
+        land the object on 0/90/180/270, never anything in between. A
+        no-op if that rounded value matches what's already stored (the
+        common case mid-drag, between two 90-degree boundaries) -- skips
+        the DB write and the wire re-route below for a value that
+        wouldn't actually change anything.
+        """
+        snap_angle = float(Config.rotation_handler.snap_angle)
+        value = _rotation_mesh.wrap_angle(round(value / snap_angle) * snap_angle)
+
+        if value == float(getattr(self._obj_angle, axis)):
+            return
+
         self._obj_angle.unbind(self._on_obj_angle)
         try:
             setattr(self._obj_angle, axis, value)
@@ -254,6 +314,35 @@ class Rings2D(_base_schematic.BaseSchematic):
             self._obj_angle.bind(self._on_obj_angle)
 
         self._on_obj_angle(None)
+
+        self._route_attached_wires()
+
+    @_check_types.do
+    def _route_attached_wires(self) -> None:
+        """Re-route every wire attached to the object being rotated.
+
+        Unlike a plain drag (drag_handlers.editor_schematic.generic.
+        Generic._event's own ``follow_moved`` step), there is no cheap
+        "does the existing path still work" shortcut to try first -- a
+        rotation swings each attached terminal's own exit point AND
+        direction by a different amount depending on its offset from
+        the pivot, so every attached wire is always fully re-routed
+        here, as one batch (shared ``RoutingFrame``, same
+        ``build_frame``/``skip_wires`` pattern
+        ``drag_handlers.editor_schematic.generic.Generic._route``
+        already uses) so they resettle around each other instead of
+        routing straight through one another.
+        """
+        if not self._attached_wires:
+            return
+
+        project = self.mainframe.project
+        frame = _wire_reroute.build_frame(project, self._attached_wires)
+
+        unsettled = set(self._attached_wires)
+        for wire in self._attached_wires:
+            unsettled.discard(wire)
+            _wire_reroute.reroute_wire(project, wire, skip_wires=unsettled, frame=frame)
 
     @_check_types.do
     def pick(self, mouse_pos: _point.Point, camera) -> str | None:

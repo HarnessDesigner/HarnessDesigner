@@ -3,8 +3,9 @@
 """Interactive handler logic for adding wire layout points.
 """
 
-import numpy as np
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
@@ -16,13 +17,14 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..gl.canvas_3d import camera as _camera
+    from ..objects import project as _project
 
 
 _SNAP_THRESHOLD = 5.0
 
 
 @_check_types.do
-def _wire_segments(wire: _wire.Wire):
+def _wire_segments(wire: _wire.Wire) -> list[tuple[np.ndarray, np.ndarray]]:
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
     stop. Mirrors objects.objects_3d.mixins.wire_type.WireTypeMixin's own
@@ -41,7 +43,7 @@ def _wire_segments(wire: _wire.Wire):
 def _find_wire(
     mouse_pos: _point.Point,
     camera: "_camera.Camera",
-    project
+    project: "_project.Project"
 ) -> _wire.Wire | None:
     """Return the wire under the mouse, or the closest one within the snap threshold."""
     selected = _object_picker.find_object(mouse_pos, camera, camera.canvas)
@@ -104,7 +106,7 @@ def _find_insertion_index(wire: _wire.Wire, position: np.ndarray) -> int:
 
 @_check_types.do
 def _create_wire_layout_at_endpoint(
-    project,
+    project: "_project.Project",
     wire: _wire.Wire,
     endpoint: str
 ) -> _wire_layout.WireLayout:
@@ -123,7 +125,7 @@ def _create_wire_layout_at_endpoint(
 
 @_check_types.do
 def _create_wire_layout_on_wire(
-    project,
+    project: "_project.Project",
     wire: _wire.Wire,
     position: _point.Point,
     insert_idx: int | None = None,

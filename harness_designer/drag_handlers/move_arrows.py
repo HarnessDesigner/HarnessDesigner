@@ -69,15 +69,15 @@ class MoveArrows(_object_base.ObjectBase):
         self._treeitem = None
 
     @_check_types.do
-    def set_treeitem(self, treeitem):
+    def set_treeitem(self, treeitem: object) -> None:
         self._treeitem = treeitem
 
     @_check_types.do
-    def get_treeitem(self):
+    def get_treeitem(self) -> object | None:
         return self._treeitem
 
     @_check_types.do
-    def __del__(self):
+    def __del__(self) -> None:
         try:
             self.delete()
         except Exception:  # NOQA
@@ -86,18 +86,18 @@ class MoveArrows(_object_base.ObjectBase):
             pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """No-op -- never registered via ``add_object``, so there's
         nothing in the mainframe/tree/render loop to unregister; the
         owning ``DragHandler3D`` just drops its own reference.
         """
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         raise NotImplementedError
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @property
@@ -107,19 +107,19 @@ class MoveArrows(_object_base.ObjectBase):
 
     @is_selected.setter
     @_check_types.do
-    def is_selected(self, value: bool):
+    def is_selected(self, value: bool) -> None:
         pass
 
 
 class ArrowsSchematic(_base_schematic.BaseSchematic):
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: MoveArrows) -> None:
         super().__init__(parent, None, None, None,
                          None, None, None)
 
     @_check_types.do
-    def set_selected(self, flag: bool):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @property
@@ -131,12 +131,12 @@ class ArrowsSchematic(_base_schematic.BaseSchematic):
 class ArrowsPegboard(_base_pegboard.BasePegboard):
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: MoveArrows) -> None:
         super().__init__(parent, None, None, None,
                          None, None, None)
 
     @_check_types.do
-    def set_selected(self, flag: bool):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @property
@@ -148,8 +148,8 @@ class ArrowsPegboard(_base_pegboard.BasePegboard):
 class Arrows3D(_base_3d.Base3D):
 
     @_check_types.do
-    def __init__(self, parent, obj_position: _point.Point, axis: str,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
+    def __init__(self, parent: MoveArrows, obj_position: _point.Point, axis: str,
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
 
         # Create cyan material
         color = _color.Color(0, 170, 170, 255)
@@ -218,7 +218,7 @@ class Arrows3D(_base_3d.Base3D):
         self._is_visible = True
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Track position changes WITHOUT Base3D's floor-lock logic.
 
         The base implementation re-applies the floor lock on every position
@@ -232,7 +232,7 @@ class Arrows3D(_base_3d.Base3D):
         self._compute_aabb()
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         _base_3d.Base3D._compute_aabb(self)
 
         if getattr(self, '_floor_guard', False):
@@ -241,14 +241,14 @@ class Arrows3D(_base_3d.Base3D):
                 self._aabb[0][1] = ground
 
     @_check_types.do
-    def _on_obj_position(self, position: _point.Point):
+    def _on_obj_position(self, position: _point.Point) -> None:
         delta = position - self._o_obj_position
         self._o_obj_position = position.copy()
 
         self._position += delta
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         faces_program = shaders.faces
 
         with faces_program:

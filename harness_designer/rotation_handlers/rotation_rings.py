@@ -42,6 +42,9 @@ armed a given ``RotationRings`` instance is actually built -- see
 
 from typing import TYPE_CHECKING
 
+from PySide6 import QtCore
+from PySide6 import QtWidgets
+
 from .editor_3d import generic as _editor_3d_generic
 from .editor_schematic import generic as _editor_schematic_generic
 from .editor_pegboard import generic as _editor_pegboard_generic
@@ -116,15 +119,28 @@ class RotationRings(_object_base.ObjectBase):
         # one too, just to throw both away unused: confirmed as the
         # cause of a real, visible multi-second delay before the
         # schematic ring appeared (2026-09-22, Kevin).
-        if canvas is mainframe.editor2d.editor:
-            self.objschematic = _editor_schematic_generic.Rings2D(self, selected, mainframe)
-            self._render_target = self.objschematic
-        elif canvas is mainframe.editor_pegboard.editor:
-            self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
-            self._render_target = self.objpegboard
-        else:
-            self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
-            self._render_target = self.obj3d
+        #
+        # Building the gizmo (GL mesh/VBO/text construction) is still
+        # real, synchronous work even for just the one view being built
+        # now -- a busy cursor covers that stretch, for all 3 views,
+        # rather than leaving the mouse looking unresponsive while it
+        # runs. Restored as soon as construction finishes -- the actual
+        # draw is one more (comparatively trivial) GL pass on the next
+        # paint event.
+        QtWidgets.QApplication.setOverrideCursor(
+            QtCore.Qt.CursorShape.WaitCursor)
+        try:
+            if canvas is mainframe.editor2d.editor:
+                self.objschematic = _editor_schematic_generic.Rings2D(self, selected, mainframe)
+                self._render_target = self.objschematic
+            elif canvas is mainframe.editor_pegboard.editor:
+                self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
+                self._render_target = self.objpegboard
+            else:
+                self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
+                self._render_target = self.obj3d
+        finally:
+            QtWidgets.QApplication.restoreOverrideCursor()
 
         # Some object types track a user-settable "is my angle locked,
         # or does something else keep computing it for me" flag --

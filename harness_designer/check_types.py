@@ -1,7 +1,9 @@
+import typing
+from collections.abc import Callable
+
 import inspect
 import types
 import sys
-import typing
 import traceback
 
 
@@ -11,7 +13,7 @@ _FROZEN = hasattr(sys, 'frozen')
 _NO_SELF = object()  # sentinel: no bound self/cls arg available for this call
 
 
-def _resolve_annotation(annot, globalns, self_arg=_NO_SELF):
+def _resolve_annotation(annot: object, globalns: dict, self_arg: object = _NO_SELF) -> tuple[object, bool]:
     if annot is None:
         # `-> None` is by far the most common return annotation in this
         # codebase. inspect reports it as the literal `None` object, not
@@ -45,11 +47,11 @@ def _resolve_annotation(annot, globalns, self_arg=_NO_SELF):
         return annot, False
 
 
-def _is_union(type_):
+def _is_union(type_: object) -> bool:
     return isinstance(type_, types.UnionType) or typing.get_origin(type_) is typing.Union
 
 
-def _union_args(type_):
+def _union_args(type_: object) -> tuple[object, ...]:
     if isinstance(type_, types.UnionType):
         return type_.__args__
     return typing.get_args(type_)
@@ -58,7 +60,7 @@ def _union_args(type_):
 _already_printed = []
 
 
-def _report(message):
+def _report(message: str) -> None:
     # Dedup key is the message alone (type/arg/func signature), never the
     # stack trace -- the same mismatch reported from many call sites should
     # still only print once, but the one time it does print, show the stack
@@ -75,7 +77,7 @@ def _report(message):
     print()
 
 
-def _check_type(type_, value, arg_name, func, no_print=False, self_arg=_NO_SELF):
+def _check_type(type_: object, value: object, arg_name: str, func: Callable, no_print: bool = False, self_arg: object = _NO_SELF) -> bool:
     # Resolve `type_` itself before doing anything else with it -- every
     # call site (top-level annotation, a union member, a list/tuple element
     # type, a nested element inside one of those) funnels through here, so
@@ -221,7 +223,7 @@ def _check_type(type_, value, arg_name, func, no_print=False, self_arg=_NO_SELF)
     return True
 
 
-def do(func):
+def do(func: Callable) -> Callable:
     return func
 
     if _FROZEN:

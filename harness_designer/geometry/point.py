@@ -2,9 +2,11 @@
 
 """Reactive point primitives shared across the geometry subsystem."""
 
-from typing import Self, Iterable, Union
+from typing import Self, Any, Union as _Union
+from collections.abc import Iterable
 
 import threading
+import types
 import weakref
 import numpy as np
 
@@ -62,7 +64,7 @@ class PointMeta(type):
     holds it anymore.
     """
 
-    _instances = {}
+    _instances: dict[bytes, weakref.ReferenceType] = {}
     # _instances is touched from __call__, _remove_ref (a weakref callback
     # that fires on whatever thread drops the last reference, unrelated to
     # whichever thread is concurrently in __call__), and external sites in
@@ -74,7 +76,7 @@ class PointMeta(type):
 
     @classmethod
     @_check_types.do
-    def _remove_ref(cls, ref):
+    def _remove_ref(cls, ref: weakref.ReferenceType) -> None:
         """
         Remove a collected weak reference from the singleton cache.
 
@@ -256,7 +258,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     NUMPY INTEROPERABILITY
     ----------------------
-    ``_data`` is a contiguous float64 numpy array ``[x, y, z]``.  All
+    ``_data`` is a contiguous float32 numpy array ``[x, y, z]``.  All
     arithmetic uses Decimal for the computation to avoid floating-point
     accumulation errors, then stores the result back into ``_data``.
 
@@ -269,7 +271,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
     """
 
     @_check_types.do
-    def __array_ufunc__(self, func, _, inputs, instance, out=None, **__):
+    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: object, instance: object,
+                         out: tuple[np.ndarray, ...] | None = None, **__: dict[str, Any]) -> np.ndarray:
         """
         Handle selected NumPy ufuncs involving a point.
 
@@ -401,7 +404,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @_check_types.do
     def __init__(self, x: float | _d | np.float32, y: float | _d | np.float32,
-                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None):
+                 z: float | _d | np.float32 | None = None, db_id: bytes | None = None) -> None:
         """
         Construct a Point.
 
@@ -466,7 +469,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self._db_id = value
 
     @_check_types.do
-    def __enter__(self):
+    def __enter__(self) -> Self:
         if self._root is None:
             self.__ref_count__ += 1
         else:
@@ -474,7 +477,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
+                 exc_tb: types.TracebackType | None) -> None:
         if self._root is None:
             self.__ref_count__ -= 1
         else:
@@ -487,14 +491,14 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         Return the X coordinate.
 
         :returns: Current X component.
-        :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
+        :rtype: float
         """
 
         return float(str(self._data[0]))
 
     @x.setter
     @_check_types.do
-    def x(self, value: float | int | _d):
+    def x(self, value: float | int | _d) -> None:
         """
         Set the X component
 
@@ -515,14 +519,14 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         Return the Y coordinate.
 
         :returns: Current Y component.
-        :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
+        :rtype: float
         """
 
         return float(str(self._data[1]))
 
     @y.setter
     @_check_types.do
-    def y(self, value: float | int | _d):
+    def y(self, value: float | int | _d) -> None:
         """
         Set the Y component
 
@@ -543,14 +547,14 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         Return the Z coordinate.
 
         :returns: Current Z component.
-        :rtype: :class:`~harness_designer.geometry.decimal.Decimal`
+        :rtype: float
         """
 
         return float(str(self._data[2]))
 
     @z.setter
     @_check_types.do
-    def z(self, value: float | int | _d):
+    def z(self, value: float | int | _d) -> None:
         """
         Set the Z component
 
@@ -580,7 +584,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @staticmethod
     @_check_types.do
-    def __other_to_decimal(other: Union[_d, float, "Point", np.ndarray]) -> tuple[_d, _d, _d]:
+    def __other_to_decimal(other: _Union[_d, float, "Point", np.ndarray]) -> tuple[_d, _d, _d]:
         """
         Convert supported operand types to decimal coordinate triples.
 
@@ -605,7 +609,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return x, y, z
 
     @_check_types.do
-    def __iadd__(self, other: Union["Point", np.ndarray, float]) -> Self:
+    def __iadd__(self, other: _Union["Point", np.ndarray, float]) -> Self:
         """
         In-place add.
 
@@ -635,7 +639,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def __add__(self, other: Union["Point", np.ndarray, float, _d]) -> "Point":
+    def __add__(self, other: _Union["Point", np.ndarray, float, _d]) -> "Point":
         """
         Return a new Point (no db_id, no callbacks) with the summed
         coordinates.
@@ -650,7 +654,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 + x2, y1 + y2, z1 + z2)
 
     @_check_types.do
-    def __isub__(self, other: Union["Point", np.ndarray, float, _d]) -> Self:
+    def __isub__(self, other: _Union["Point", np.ndarray, float, _d]) -> Self:
         """
         In-place subtract.
 
@@ -673,7 +677,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def __sub__(self, other: Union["Point", np.ndarray, float, _d]) -> "Point":
+    def __sub__(self, other: _Union["Point", np.ndarray, float, _d]) -> "Point":
         """Return a new Point (no db_id, no callbacks) with the difference."""
 
         x1, y1, z1 = self.as_decimal
@@ -682,7 +686,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 - x2, y1 - y2, z1 - z2)
 
     @_check_types.do
-    def __imul__(self, other: Union[float, "Point", np.ndarray, _d]) -> Self:
+    def __imul__(self, other: _Union[float, "Point", np.ndarray, _d]) -> Self:
         """
         In-place component-wise multiply.
 
@@ -710,7 +714,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def __mul__(self, other: Union[float, "Point", np.ndarray, _d]) -> "Point":
+    def __mul__(self, other: _Union[float, "Point", np.ndarray, _d]) -> "Point":
         """Return a new Point (no db_id) with the component-wise product."""
 
         x1, y1, z1 = self.as_decimal
@@ -719,7 +723,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 * x2, y1 * y2, z1 * z2)
 
     @_check_types.do
-    def __itruediv__(self, other: Union[float, "Point", np.ndarray, _d]) -> Self:
+    def __itruediv__(self, other: _Union[float, "Point", np.ndarray, _d]) -> Self:
         """In-place component-wise divide.  Fires callbacks after the operation."""
 
         if self._root is not None:
@@ -738,7 +742,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def __truediv__(self, other: Union[_d, float, "Point", np.ndarray]) -> "Point":
+    def __truediv__(self, other: _Union[_d, float, "Point", np.ndarray]) -> "Point":
         """Return a new Point (no db_id) with the component-wise quotient."""
 
         x1, y1, z1 = self.as_decimal
@@ -747,7 +751,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return Point(x1 / x2, y1 / y2, z1 / z2)
 
     @_check_types.do
-    def __matmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
+    def __matmul__(self, other: _Union[np.ndarray, "_angle.Angle"]) -> "Point":
         """
         Return a new Point (no db_id) rotated by *other*.
 
@@ -777,7 +781,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return p
 
     @_check_types.do
-    def __imatmul__(self, other: Union[np.ndarray, "_angle.Angle"]) -> "Point":
+    def __imatmul__(self, other: _Union[np.ndarray, "_angle.Angle"]) -> "Point":
         """
         In-place rotation by *other*.
 
@@ -823,7 +827,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return self
 
     @_check_types.do
-    def set_angle(self, angle: "_angle.Angle", origin: "Point"):
+    def set_angle(self, angle: "_angle.Angle", origin: "Point") -> None:
         """
         Rotate this Point around *origin* by *angle*, in-place.
 
@@ -971,7 +975,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return _angle.Angle.from_points(origin, self)
 
     @_check_types.do
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         False when all three components are effectively zero (within numpy
         isclose tolerance).
@@ -985,11 +989,12 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return not all(np.isclose(self._data, arr))
 
     @_check_types.do
-    def __eq__(self, other: "Point") -> bool:
+    def __eq__(self, other: object) -> bool:
         """Return whether this point matches ``other`` component-wise.
 
-        :param other: Point to compare against.
-        :type other: :class:`Point`
+        :param other: Value to compare against -- ``False`` for anything
+            that isn't a :class:`Point`.
+        :type other: object
         :returns: ``True`` when all coordinates are numerically close.
         :rtype: bool
         """
@@ -1000,11 +1005,12 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return all(np.isclose(self._data, other.as_numpy))
 
     @_check_types.do
-    def __ne__(self, other: "Point") -> bool:
+    def __ne__(self, other: object) -> bool:
         """Return whether this point differs from ``other``.
 
-        :param other: Point to compare against.
-        :type other: :class:`Point`
+        :param other: Value to compare against -- ``True`` for anything
+            that isn't a :class:`Point`.
+        :type other: object
         :returns: ``True`` when any coordinate differs.
         :rtype: bool
         """
@@ -1013,7 +1019,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 
     @property
     @_check_types.do
-    def as_decimal(self):
+    def as_decimal(self) -> tuple[_d, _d, _d]:
         """Return (x, y, z) as a tuple of Decimal values for precision arithmetic."""
 
         x, y, z = self.as_float

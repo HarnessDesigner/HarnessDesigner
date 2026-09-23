@@ -1,7 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Decimal helpers for geometry calculations."""
-from typing import Union
+from typing import Any, Union as _Union
 
 from decimal import Decimal as _Decimal, Context as _Context
 import numpy as np
@@ -9,7 +9,7 @@ import numpy as np
 from .. import check_types as _check_types
 
 
-_ALLOWED_TYPES = Union[np.intc, np.float32, _Decimal, "Decimal", int, float]
+_ALLOWED_TYPES = _Union[np.intc, np.float32, _Decimal, "Decimal", int, float]
 
 
 class Decimal(_Decimal):
@@ -30,7 +30,7 @@ class Decimal(_Decimal):
     """
 
     @_check_types.do
-    def __new__(cls, value: Union[_ALLOWED_TYPES, str], *args, **kwargs):
+    def __new__(cls, value: _Union[_ALLOWED_TYPES, str], *args: tuple[Any], **kwargs: dict[str, Any]) -> "Decimal":
         """
         Create a :class:`Decimal` from a value coerced through ``float``.
 
@@ -52,7 +52,7 @@ class Decimal(_Decimal):
         return super().__new__(cls, value, *args, **kwargs)
 
     @_check_types.do
-    def __ipow__(self, power: _ALLOWED_TYPES, modulo=None):
+    def __ipow__(self, power: _ALLOWED_TYPES, modulo: _ALLOWED_TYPES | None = None) -> "Decimal":
         """
         Return ``self`` raised to ``power`` as :class:`Decimal`.
 
@@ -70,7 +70,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
     @_check_types.do
-    def __pow__(self, power: _ALLOWED_TYPES, modulo=None):
+    def __pow__(self, power: _ALLOWED_TYPES, modulo: _ALLOWED_TYPES | None = None) -> "Decimal":
         """
         Return ``self`` raised to ``power``.
 
@@ -107,7 +107,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rpow__(self, other, __mod))
 
     @_check_types.do
-    def __neg__(self):
+    def __neg__(self) -> "Decimal":
         """
         Return the negation of ``self``.
 
@@ -118,7 +118,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__neg__(self))
 
     @_check_types.do
-    def __pos__(self):
+    def __pos__(self) -> "Decimal":
         """
         Return ``self`` unary-plussed (normalized per :class:`decimal.Decimal` rules).
 
@@ -129,7 +129,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__pos__(self))
 
     @_check_types.do
-    def __abs__(self):
+    def __abs__(self) -> "Decimal":
         """
         Return the absolute value of ``self``.
 
@@ -140,7 +140,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__abs__(self))
 
     @_check_types.do
-    def __iadd__(self, other: _ALLOWED_TYPES):
+    def __iadd__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the sum of ``self`` and ``other``.
 
@@ -155,7 +155,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__add__(self, other))
 
     @_check_types.do
-    def __add__(self, other: _ALLOWED_TYPES):
+    def __add__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the sum of ``self`` and ``other``.
 
@@ -170,7 +170,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__add__(self, other))
 
     @_check_types.do
-    def __radd__(self, other: _ALLOWED_TYPES):
+    def __radd__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the sum of ``other`` and ``self``.
 
@@ -185,7 +185,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__radd__(self, other))
 
     @_check_types.do
-    def __isub__(self, other: _ALLOWED_TYPES):
+    def __isub__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the difference of ``self`` and ``other``.
 
@@ -200,7 +200,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__sub__(self, other))
 
     @_check_types.do
-    def __sub__(self, other: _ALLOWED_TYPES):
+    def __sub__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the difference of ``self`` and ``other``.
 
@@ -215,7 +215,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__sub__(self, other))
 
     @_check_types.do
-    def __rsub__(self, other: _ALLOWED_TYPES):
+    def __rsub__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the difference of ``other`` and ``self``.
 
@@ -230,7 +230,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rsub__(self, other))
 
     @_check_types.do
-    def __imul__(self, other: _ALLOWED_TYPES):
+    def __imul__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the product of ``self`` and ``other``.
 
@@ -245,7 +245,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mul__(self, other))
 
     @_check_types.do
-    def __mul__(self, other: _ALLOWED_TYPES):
+    def __mul__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the product of ``self`` and ``other``.
 
@@ -260,7 +260,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mul__(self, other))
 
     @_check_types.do
-    def __rmul__(self, other: _ALLOWED_TYPES):
+    def __rmul__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the product of ``other`` and ``self``.
 
@@ -275,7 +275,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rmul__(self, other))
 
     @_check_types.do
-    def __itruediv__(self, other: _ALLOWED_TYPES):
+    def __itruediv__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the quotient of ``self`` and ``other``.
 
@@ -290,7 +290,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__truediv__(self, other))
 
     @_check_types.do
-    def __truediv__(self, other: _ALLOWED_TYPES):
+    def __truediv__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the quotient of ``self`` and ``other``.
 
@@ -305,7 +305,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__truediv__(self, other))
 
     @_check_types.do
-    def __rtruediv__(self, other: _ALLOWED_TYPES):
+    def __rtruediv__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the quotient of ``other`` and ``self``.
 
@@ -320,7 +320,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rtruediv__(self, other))
 
     @_check_types.do
-    def __ifloordiv__(self, other: _ALLOWED_TYPES):
+    def __ifloordiv__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the floor-division result of ``self`` and ``other``.
 
@@ -335,7 +335,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__floordiv__(self, other))
 
     @_check_types.do
-    def __floordiv__(self, other: _ALLOWED_TYPES):
+    def __floordiv__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         eturn the floor-division result of ``self`` and ``other``.
 
@@ -350,7 +350,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__floordiv__(self, other))
 
     @_check_types.do
-    def __rfloordiv__(self, other: _ALLOWED_TYPES):
+    def __rfloordiv__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return the floor-division result of ``other`` and ``self``.
 
@@ -365,7 +365,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rfloordiv__(self, other))
 
     @_check_types.do
-    def __imod__(self, other: _ALLOWED_TYPES):
+    def __imod__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return ``self`` modulo ``other``.
 
@@ -380,7 +380,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mod__(self, other))
 
     @_check_types.do
-    def __mod__(self, other: _ALLOWED_TYPES):
+    def __mod__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return ``self`` modulo ``other``.
 
@@ -395,7 +395,7 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mod__(self, other))
 
     @_check_types.do
-    def __rmod__(self, other: _ALLOWED_TYPES):
+    def __rmod__(self, other: _ALLOWED_TYPES) -> "Decimal":
         """
         Return ``other`` modulo ``self``.
 

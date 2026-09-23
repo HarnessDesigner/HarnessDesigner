@@ -42,7 +42,7 @@ class WireMarker(_editor_3d.DragHandler3D):
     """Wire-marker drag -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
         super().__init__(canvas, target)
 
         self.last_pos = target.obj3d.position.copy()
@@ -61,7 +61,7 @@ class WireMarker(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
         position = self.target.obj3d.position
 
         delta3d = self._delta3d(position, self.last_pos, delta)

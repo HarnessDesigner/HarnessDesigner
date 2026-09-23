@@ -3,8 +3,9 @@
 """Interactive handler logic for adding bundle layout points.
 """
 
-import numpy as np
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from . import handler_base as _handler_base
 from ..geometry import point as _point
@@ -16,13 +17,14 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..gl.canvas_3d import camera as _camera
+    from ..objects import project as _project
 
 
 _SNAP_THRESHOLD = 5.0
 
 
 @_check_types.do
-def _bundle_segments(bundle: _bundle.Bundle):
+def _bundle_segments(bundle: _bundle.Bundle) -> list[tuple[np.ndarray, np.ndarray]]:
     """
     Every (p1, p2) sub-segment of *bundle*'s current 3D path, as numpy
     arrays -- start, through each interior waypoint in idx order, to
@@ -43,7 +45,7 @@ def _bundle_segments(bundle: _bundle.Bundle):
 def _find_bundle(
     mouse_pos: _point.Point,
     camera: "_camera.Camera",
-    project
+    project: "_project.Project"
 ) -> _bundle.Bundle | None:
     """
     Return the bundle under the mouse, or the closest one within the snap threshold.
@@ -112,7 +114,7 @@ def _find_insertion_index(bundle: _bundle.Bundle, position: np.ndarray) -> int:
 
 @_check_types.do
 def _create_bundle_layout_at_endpoint(
-    project,
+    project: "_project.Project",
     bundle: _bundle.Bundle,
     endpoint: str,
 ) -> _bundle_layout.BundleLayout:
@@ -132,7 +134,7 @@ def _create_bundle_layout_at_endpoint(
 
 @_check_types.do
 def _create_bundle_layout_on_bundle(
-    project,
+    project: "_project.Project",
     bundle: _bundle.Bundle,
     position: _point.Point,
     insert_idx: int | None = None,

@@ -37,29 +37,29 @@ class Generic(_editor_3d.DragHandler3D):
     """Generic single-position drag -- moves ``obj3d.position`` directly."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
         super().__init__(canvas, target)
 
         # Last object world Point used for incremental moves.
         self.last_pos = target.obj3d.position.copy()
 
-        # Duck-typed: only WireServiceLoop3D defines this (see its own
-        # begin_move_session docstring) -- caches its collision-candidate
-        # list for the whole drag instead of rebuilding it on every one
-        # of the many position updates a drag produces.
-        if hasattr(target.obj3d, 'begin_move_session'):
+        # Only WireServiceLoop3D needs this (see its own begin_move_session
+        # docstring) -- caches its collision-candidate list for the whole
+        # drag instead of rebuilding it on every one of the many position
+        # updates a drag produces.
+        if target.is_wire_service_loop:
             target.obj3d.begin_move_session()
 
     @_check_types.do
     def delete(self) -> None:
-        if hasattr(self.target.obj3d, 'end_move_session'):
+        if self.target.is_wire_service_loop:
             self.target.obj3d.end_move_session()
 
         super().delete()
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, part of the shared contract
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, part of the shared contract
         position = self.target.obj3d.position
 
         delta3d = self._axis_locked_delta3d(

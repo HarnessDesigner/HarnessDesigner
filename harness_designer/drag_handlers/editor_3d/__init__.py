@@ -25,6 +25,8 @@ being dragged.
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from ...geometry import point as _point
 from .. import move_arrows as _move_arrows
 from .. import base as _base
@@ -51,7 +53,7 @@ class DragHandler3D(_base.DragHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
         super().__init__(canvas, target)
 
         self.axis_lock = _point.Point(0, 0, 0)
@@ -61,7 +63,7 @@ class DragHandler3D(_base.DragHandlerBase):
         self._settle_events = 0
 
     @_check_types.do
-    def _delta3d(self, anchor: _point.Point, last_pos: _point.Point, delta) -> _point.Point:
+    def _delta3d(self, anchor: _point.Point, last_pos: _point.Point, delta: object) -> _point.Point:
         """Project *anchor* to screen space, add the raw mouse *delta*,
         unproject back to world space, and return the resulting raw
         (un-locked) world-space delta this frame implies.
@@ -92,7 +94,7 @@ class DragHandler3D(_base.DragHandlerBase):
 
     @_check_types.do
     def _axis_locked_delta3d(self, anchor: _point.Point, last_pos: _point.Point,
-                              delta, aabb):
+                              delta: object, aabb: np.ndarray) -> _point.Point | None:
         """Return :meth:`_delta3d`'s raw world-space delta, locked to
         whichever axis dominated once the first few events have settled
         past initial click jitter -- or ``None`` while still settling, in

@@ -59,7 +59,6 @@ the objects that actually got hit.
 """
 
 import weakref
-
 import numpy as np
 
 from .. import check_types as _check_types
@@ -79,7 +78,7 @@ class ArrayPool:
 
     @_check_types.do
     def __init__(self, sentinel_row: list, block_size: int = 50,
-                 dtype: type = np.float32):
+                 dtype: type = np.float32) -> None:
         self._block_size = block_size
 
         # float32 is load-bearing: rows are handed straight to
@@ -194,11 +193,11 @@ class ArrayPool:
         block, slot = divmod(index, self._block_size)
         self._blocks[block][slot][:] = values
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: object) -> bool:
         ref = weakref.ref(item)
         return ref in self._refs
 
-    def __getitem__(self, item) -> int:
+    def __getitem__(self, item: object) -> int:
         # this next bit of code makes sure we are not double allocating
         # an aabb or obb for any object.
         ref = weakref.ref(item)
@@ -302,7 +301,7 @@ class ArrayPool:
 
         return np.concatenate(self._blocks, axis=0)
 
-    def visible_objects(self):
+    def visible_objects(self) -> list[object]:
         ret = []
         for ref in self._visible_refs:
             if ref is None:
@@ -327,7 +326,7 @@ class ArrayPool:
         return self._visible.copy()
 
     def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
-                              direc: np.ndarray, t0: float, t1: float):
+                              direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
         """Subclass hook -- given *rows* (an ``(N, ...)`` array, this
         pool's own row shape per entry) and a ray (*origin*/*direc*,
         world space, *direc* already normalized), test every row at

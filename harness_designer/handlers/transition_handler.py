@@ -11,9 +11,10 @@ entry point anywhere in the app -- kept as-is, not part of that
 migration.
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import math
 import numpy as np
-from typing import TYPE_CHECKING
 
 from . import handler_base as _handler_base
 from . import wire_handler as _wire_handler
@@ -33,6 +34,8 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from ..gl.canvas_3d import camera as _camera
     from .. import ui as _ui
+    from ..objects import project as _project
+    from ..objects.objects_3d import transition as _transition_3d
 
 
 Config = _config.Config.colors
@@ -49,7 +52,7 @@ _BRANCH_NO_FIT = _materials.Plastic(_color.Color(1.0, 0.4, 0.0, 1.0))
 
 @_check_types.do
 def _repoint_all_references(
-    ptables,
+    ptables: object,
     old_point_id: int,
     new_point_id: int
 ) -> None:
@@ -70,7 +73,7 @@ def _repoint_all_references(
 
 
 @_check_types.do
-def _delete_point_if_orphaned(ptables, point_id: int) -> None:
+def _delete_point_if_orphaned(ptables: object, point_id: int) -> None:
     """
     Delete *point_id* from pjt_points3d if nothing references it.
     """
@@ -92,21 +95,21 @@ def _delete_point_if_orphaned(ptables, point_id: int) -> None:
 
 @_check_types.do
 def _insert_wire(
-    ptables,
+    ptables: object,
     part_id: bytes,
-    name,
-    circuit_id,
-    start_id,
-    stop_id,
+    name: str,
+    circuit_id: object,
+    start_id: object,
+    stop_id: object,
     visible: bool
-):
+) -> object:
     return ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, start_id, stop_id,
         None, None, visible, False, None, None, False)
 
 
 @_check_types.do
-def _insert_bundle(ptables, part_id: bytes, start_id, stop_id):
+def _insert_bundle(ptables: object, part_id: bytes, start_id: object, stop_id: object) -> object:
     db = ptables.pjt_bundles_table.insert(part_id)
     db.start_position3d_id = start_id
     db.stop_position3d_id = stop_id
@@ -115,7 +118,7 @@ def _insert_bundle(ptables, part_id: bytes, start_id, stop_id):
 
 
 @_check_types.do
-def _walk_bundle_chain(bundle_db_obj, ptables) -> list:
+def _walk_bundle_chain(bundle_db_obj: object, ptables: object) -> list:
     """
     Walk the full bundle chain from one free end to the other.
 
@@ -123,11 +126,11 @@ def _walk_bundle_chain(bundle_db_obj, ptables) -> list:
         [end_A_id, layout_id, ..., end_B_id]
     """
 
-    def _has_layout(point_id):
+    def _has_layout(point_id: object) -> bool:
         return bool(ptables.pjt_bundle_layouts_table.select(
             'id', position3d_id=point_id))
 
-    def _next_section(current_id, from_point_id, visited):
+    def _next_section(current_id: object, from_point_id: object, visited: set) -> object | None:
         rows = (ptables.pjt_bundles_table.select(
             'id', start_point3d_id=from_point_id) +
                 ptables.pjt_bundles_table.select(
@@ -140,7 +143,7 @@ def _walk_bundle_chain(bundle_db_obj, ptables) -> list:
 
         return None
 
-    def _walk_direction(start_section_id, leaving_point_id):
+    def _walk_direction(start_section_id: object, leaving_point_id: object) -> list:
         pts, current_id, current_pt = [], start_section_id, leaving_point_id
         visited = {start_section_id}
         while True:
@@ -171,14 +174,14 @@ def _walk_bundle_chain(bundle_db_obj, ptables) -> list:
 
 
 @_check_types.do
-def _wire_area(conc_wire) -> float:
+def _wire_area(conc_wire: object) -> float:
     od = conc_wire.wire.part.od_mm
 
     return math.pi * (od / 2.0) ** 2 if od else 0.0
 
 
 @_check_types.do
-def effective_diameter(conc_wires, global_branch) -> float:
+def effective_diameter(conc_wires: list, global_branch: object) -> float:
     """
     Effective packed diameter with 15% air gap; never below min_dia.
     """
@@ -193,7 +196,7 @@ def effective_diameter(conc_wires, global_branch) -> float:
 
 
 @_check_types.do
-def assign_wires_to_branches(conc_wires, global_output_branches) -> list:
+def assign_wires_to_branches(conc_wires: list, global_output_branches: list) -> list:
     """
     First-come-first-serve: fill each output branch until it's over capacity.
     """
@@ -215,8 +218,8 @@ def assign_wires_to_branches(conc_wires, global_output_branches) -> list:
 
 @_check_types.do
 def _set_angle_from_bundle(
-    transition_db_obj,  # NOQA
-    bundle
+    transition_db_obj: object,  # NOQA
+    bundle: _bundle.Bundle
 ) -> None:
     """
     Align the transition so its local X axis follows the bundle direction.
@@ -291,7 +294,7 @@ def _set_angle_from_bundle(
 
 
 @_check_types.do
-def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
+def _create_branch_concentric(ptables: object, branch_db: object, conc_wires: list, diameter: float) -> None:
     """
     Create concentric → single layer → wires for one transition branch.
     """
@@ -316,7 +319,8 @@ def _create_branch_concentric(ptables, branch_db, conc_wires, diameter) -> None:
 
 
 @_check_types.do
-def _find_bundle(mouse_pos, camera, project) -> _bundle.Bundle | None:
+def _find_bundle(mouse_pos: _point.Point, camera: "_camera.Camera",
+                  project: "_project.Project") -> _bundle.Bundle | None:
     selected = _object_picker.find_object(mouse_pos, camera, camera.canvas)
 
     if isinstance(selected, _bundle.Bundle):
@@ -350,7 +354,8 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", target, is_start: bool):
+    def __init__(self, mainframe: "_ui.MainFrame", target: _Union[_wire.Wire, _bundle.Bundle],
+                 is_start: bool) -> None:
         super().__init__(mainframe, None)
         self.target = target
         self.is_start = is_start
@@ -359,7 +364,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
     @staticmethod
     @_check_types.do
-    def _diameter_of(obj) -> float:
+    def _diameter_of(obj: _Union[_wire.Wire, _bundle.Bundle]) -> float:
         if isinstance(obj, _wire.Wire):
             od = obj.db_obj.part.od_mm
 
@@ -380,11 +385,11 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
     @staticmethod
     @_check_types.do
-    def _fits(diameter: float, branch) -> bool:
+    def _fits(diameter: float, branch: "_transition_3d.Branch") -> bool:
         return branch.min_diameter <= diameter <= branch.max_diameter
 
     @_check_types.do
-    def _highlight_branches(self):
+    def _highlight_branches(self) -> None:
         for t_obj in self.mainframe.project.transitions:
 
             # TODO: Figure out the missing branches attribute
@@ -399,18 +404,18 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
                 self._highlighted.append(branch)
 
     @_check_types.do
-    def _clear_highlights(self):
+    def _clear_highlights(self) -> None:
         for b in self._highlighted:
             b.identify(None)
 
         self._highlighted.clear()
 
     @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
+    def hover(self, mouse_pos: _point.Point) -> None:
         pass
 
     @_check_types.do
-    def release_capture(self):
+    def release_capture(self) -> None:
         if self._finalized or self._captured_position is None:
             return
 
@@ -441,7 +446,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         self.mainframe.editor3d.Refresh(False)
 
     @_check_types.do
-    def cancel(self):
+    def cancel(self) -> None:
         self._clear_highlights()
 
 
@@ -452,7 +457,7 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 target: _wire.Wire, is_start: bool):
+                 target: _wire.Wire, is_start: bool) -> None:
 
         super().__init__(mainframe, None)
         self.target = target
@@ -460,7 +465,7 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
         self._hovered_bundle = None
 
     @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
+    def hover(self, mouse_pos: _point.Point) -> None:
         selected = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
 
         if not isinstance(selected, _bundle.Bundle):
@@ -478,7 +483,7 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
             self._hovered_bundle = selected
 
     @_check_types.do
-    def release_capture(self):
+    def release_capture(self) -> None:
         if self._finalized or self._captured_position is None:
             return
 
@@ -521,7 +526,7 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
         self.mainframe.editor3d.Refresh(False)
 
     @_check_types.do
-    def cancel(self):
+    def cancel(self) -> None:
         if self._hovered_bundle is not None:
             self._hovered_bundle.identify(None)
             self._hovered_bundle = None
@@ -540,7 +545,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
     _IN_TRANS = 'in_transition'
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes) -> None:
         super().__init__(mainframe, part_id)
         self._state = self._IDLE
         self._segments = []
@@ -550,14 +555,14 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._highlighted = []
 
     @_check_types.do
-    def _clear_highlights(self):
+    def _clear_highlights(self) -> None:
         for obj in self._highlighted:
             obj.identify(None)
 
         self._highlighted.clear()
 
     @_check_types.do
-    def _delete_preview(self):
+    def _delete_preview(self) -> None:
         if self._preview is not None:
             self._preview.delete()
             self._preview = None
@@ -575,11 +580,11 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         return f'{part.manufacturer.name} {part.part_number}'
 
     @_check_types.do
-    def _fits(self, diameter: float, branch) -> bool:
+    def _fits(self, diameter: float, branch: "_transition_3d.Branch") -> bool:
         return branch.min_diameter <= diameter <= branch.max_diameter
 
     @_check_types.do
-    def _highlight_exit_branches(self, diameter: float, exclude_branch):
+    def _highlight_exit_branches(self, diameter: float, exclude_branch: "_transition_3d.Branch") -> None:
         for t_obj in self.mainframe.project.transitions:
 
             # TODO: figure out missing attribute
@@ -596,12 +601,12 @@ class RoutedWireHandler(_handler_base.HandlerBase):
                 self._highlighted.append(branch)
 
     @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
+    def hover(self, mouse_pos: _point.Point) -> None:
         if self._state == self._ROUTING:
             self._update_preview(mouse_pos)
 
     @_check_types.do
-    def release_capture(self):
+    def release_capture(self) -> None:
         if self._finalized or self._captured_position is None:
             return
 
@@ -613,7 +618,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             self._handle_exit_click(self._captured_position)
 
     @_check_types.do
-    def _begin(self, mouse_pos: _point.Point):
+    def _begin(self, mouse_pos: _point.Point) -> None:
         pos = self.camera.get_position_on_focal_plane(mouse_pos)
         if pos is None:
             return
@@ -625,7 +630,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._state = self._ROUTING
 
     @_check_types.do
-    def _update_preview(self, mouse_pos: _point.Point):
+    def _update_preview(self, mouse_pos: _point.Point) -> None:
         target = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
 
         if isinstance(target, (_wire.Wire, _bundle.Bundle)):
@@ -656,7 +661,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             end_pos += pos - end_pos
 
     @_check_types.do
-    def _handle_routing_click(self, mouse_pos: _point.Point):
+    def _handle_routing_click(self, mouse_pos: _point.Point) -> None:
         from ..objects.objects_3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
@@ -713,7 +718,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
             self._place_all(mouse_pos)
 
     @_check_types.do
-    def _handle_exit_click(self, mouse_pos: _point.Point):
+    def _handle_exit_click(self, mouse_pos: _point.Point) -> None:
         from ..objects.objects_3d.transition import Branch as _Branch3D
 
         selected = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
@@ -732,7 +737,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._state = self._ROUTING
 
     @_check_types.do
-    def _place_all(self, mouse_pos: _point.Point):
+    def _place_all(self, mouse_pos: _point.Point) -> None:
         self._delete_preview()
         self._clear_highlights()
 
@@ -796,7 +801,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._reset()
 
     @_check_types.do
-    def _reset(self):
+    def _reset(self) -> None:
         self._state = self._IDLE
         self._segments = []
         self._seg_start_id = None
@@ -805,7 +810,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
         self._finalized = True
 
     @_check_types.do
-    def cancel(self):
+    def cancel(self) -> None:
         self._delete_preview()
         self._clear_highlights()
         self._reset()

@@ -559,13 +559,38 @@ class Terminal(_base_schematic.BaseSchematic):
         return self._aabb
 
     def _label_angle(self) -> _angle.Angle:
-        """The angle this terminal's name is drawn at -- the same one
-        :meth:`render` uses: its own, except at exactly 180 degrees where the
-        glyph is drawn upright instead."""
-        if _is_180(self._angle.y):
+        """The angle this terminal's name AND bracket are drawn at --
+        the same one :meth:`render` uses.
+
+        The owning HOUSING's own live angle, not this terminal's own
+        ``self._angle`` (``db_obj.angle2d``) -- a seated terminal has no
+        ``angle2d`` of its own that follows the housing's rotation (see
+        :meth:`_update_angle`'s own docstring: a housing rotate pushes a
+        new ``position2d`` here, never a new ``angle2d``), so reading
+        ``self._angle`` left the name/bracket glyphs frozen at whatever
+        angle they had when the terminal was first seated, un-rotated by
+        any later housing rotation, even though the terminal's own
+        POSITION tracked correctly the whole time -- confirmed
+        2026-09-23 (Kevin) as the fix, mirroring
+        ``objects_schematic/cavity.py``'s ``Cavity._label_angle`` (which
+        already reads the housing's angle for exactly this reason).
+        Falls back to this terminal's own angle only when the housing
+        isn't resolvable yet (mirrors :meth:`_compute_obb`'s own guard).
+
+        Except at exactly 180 degrees, where a full half-turn would
+        render the glyph upside-down, so the angle is forced back to
+        identity instead.
+        """
+        housing = self.housing
+        if housing is None:
+            live_angle = self._angle
+        else:
+            live_angle = housing.angle
+
+        if _is_180(live_angle.y):
             return _NO_ROTATION
 
-        return self._angle
+        return live_angle
 
     @_check_types.do
     def _compute_obb(self):
@@ -655,30 +680,26 @@ class Terminal(_base_schematic.BaseSchematic):
             return
 
         real_angle = self._angle
-
-        # Follows this terminal's own angle2d at 0/90/270, same as
-        # always -- except at 180, where a full half-turn would render
-        # the name glyph upside-down, so the angle is forced back to
-        # identity instead (see _is_180's own docstring -- __init__/
-        # _update_angle already flip this same Text's own h_align to
-        # compensate, whenever this last crossed into/out of 180).
-        if _is_180(real_angle.y):
-            self._angle = _NO_ROTATION
-
         real_position = self._position
+        real_vbo = self._vbo
+        real_scale = self._scale
+
+        # The owning housing's own LIVE angle (see _label_angle's own
+        # docstring for why: this terminal's own self._angle is never
+        # updated by a housing rotate) -- used for BOTH the name and the
+        # "(" bracket below, since both are flat glyphs meant to read
+        # right-side-up with the housing the same way the housing's own
+        # corner label and this cavity's own name already do.
+        self._angle = self._label_angle()
         self._position = self._name_position
 
         super().render(shaders)
 
-        self._position = real_position
-        self._angle = real_angle
-
         if self._bracket is not None:
-            real_vbo, real_scale, real_position = (
-                self._vbo, self._scale, self._position)
-
             self._vbo = self._bracket
             self._position = self._bracket_position
+            # self._angle is still label_angle from above -- the bracket
+            # rotates with the housing exactly like the name does.
             super().render(shaders)
 
             self._vbo = _cylinder.create_vbo()
@@ -710,10 +731,14 @@ class Terminal(_base_schematic.BaseSchematic):
 
                 self._material = real_material
 
-            self._vbo = real_vbo
-            self._angle = real_angle
-            self._scale = real_scale
-            self._position = real_position
+        # Restored unconditionally -- not just inside the bracket branch
+        # above -- so a bracket-less terminal (self._bracket is None)
+        # doesn't leave self._position/self._angle pointed at the name
+        # label's own values after render() returns.
+        self._vbo = real_vbo
+        self._angle = real_angle
+        self._scale = real_scale
+        self._position = real_position
 
     @_check_types.do
     def _delete(self):

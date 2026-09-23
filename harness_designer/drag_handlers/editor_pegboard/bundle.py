@@ -44,8 +44,9 @@ all, this keeps the bundle's own, already-proven segment-only
 implementation self-contained.
 """
 
-import math
 from typing import TYPE_CHECKING
+
+import math
 
 from .. import editor_pegboard as _editor_pegboard
 from .. import base as _base
@@ -57,6 +58,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import project as _project
+    from ...database.project_db import pjt_bundle as _pjt_bundle
 
 
 class SegmentDragPlan:
@@ -75,13 +78,15 @@ class SegmentDragPlan:
 
     __slots__ = ('points', 'outer_budgets')
 
-    def __init__(self, points: tuple, outer_budgets: tuple):
+    def __init__(self, points: tuple[_point.Point, _point.Point],
+                 outer_budgets: tuple[tuple[float, float, float] | None,
+                                       tuple[float, float, float] | None]) -> None:
         self.points = points
         self.outer_budgets = outer_budgets
 
 
 @_check_types.do
-def _closest_segment_index(positions: list, click_x: float, click_z: float) -> int:
+def _closest_segment_index(positions: list[tuple[float, float]], click_x: float, click_z: float) -> int:
     """Return the index ``i`` such that the segment between
     ``positions[i]`` and ``positions[i + 1]`` is nearest
     ``(click_x, click_z)``.
@@ -112,7 +117,8 @@ def _closest_segment_index(positions: list, click_x: float, click_z: float) -> i
 
 
 @_check_types.do
-def plan_segment_drag(project, chain_db_obj, click_pos: _point.Point) -> SegmentDragPlan | None:
+def plan_segment_drag(project: "_project.Project", chain_db_obj: "_pjt_bundle.PJTBundle",
+                       click_pos: _point.Point) -> SegmentDragPlan | None:
     """Work out what a click on *chain_db_obj*'s rendered strand at
     *click_pos* should drag.
 
@@ -176,7 +182,7 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-                 mouse_pos: _point.Point):
+                 mouse_pos: _point.Point) -> None:
         # Bypass DragHandlerPegboard's own __init__ -- it caches
         # target.objpegboard.touching_budgets(), meaningful for a
         # single-point drag, but a segment drag moves TWO points and the
@@ -263,7 +269,7 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
         target_x, target_z = float(world_pos.x), float(world_pos.z)
 

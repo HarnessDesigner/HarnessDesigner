@@ -10,6 +10,8 @@ a first-time model download completes -- see :func:`reposition_from_model`
 at the bottom of this module).
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import os as _os
 import re as _re
 import statistics as _statistics
@@ -18,6 +20,16 @@ import numpy as np
 
 from ..geometry import point as _point
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .. import ui as _ui
+    from ..database.global_db import terminal as _global_terminal
+    from ..database.global_db import housing as _global_housing
+    from ..database.global_db import model3d as _global_model3d
+    from ..database.project_db import pjt_cavity as _pjt_cavity
+    from ..database.project_db import pjt_terminal as _pjt_terminal
+
 
 _BLADE_SIZE_TOKEN_RE = _re.compile(r'\d+\.\d+')
 
@@ -28,8 +40,10 @@ _BLADE_SIZE_TOKEN_RE = _re.compile(r'\d+\.\d+')
 # own OBB is never mistaken for a specific terminal's real measured size.
 _GENERIC_MODEL_PATH = _os.path.abspath(_os.path.join(_os.path.dirname(__file__), '..', 'models'))
 
+
 @_check_types.do
-def _terminal_extent(part, pjt_cavity) -> tuple[float, float]:
+def _terminal_extent(part: "_global_terminal.Terminal",
+                      pjt_cavity: _Union["_pjt_cavity.PJTCavity", None]) -> tuple[float, float]:
     """
     Return (front_z, back_z): the canonical-frame Z distance from *part*'s
     own local origin (position3d, where a placed terminal's position3d
@@ -76,7 +90,8 @@ def _terminal_extent(part, pjt_cavity) -> tuple[float, float]:
 
 
 @_check_types.do
-def _female_terminal_position(part, pjt_cavity):
+def _female_terminal_position(part: "_global_terminal.Terminal",
+                               pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
     """
     Return the female-terminal position: the FRONT of the terminal pin
     (not its center) lands on the cavity's front (mating-side) face.
@@ -119,7 +134,8 @@ def _female_terminal_position(part, pjt_cavity):
 
 
 @_check_types.do
-def _male_terminal_position(part, pjt_cavity):
+def _male_terminal_position(part: "_global_terminal.Terminal",
+                             pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
     """
     Return the male-terminal position: the point 1/3 of the pin's own
     length back from its front face lands on the cavity's front
@@ -140,7 +156,8 @@ def _male_terminal_position(part, pjt_cavity):
 
 
 @_check_types.do
-def _female_terminal_position_pegboard(part, pjt_cavity):
+def _female_terminal_position_pegboard(part: "_global_terminal.Terminal",
+                                        pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
     """
     Peg-board equivalent of :func:`_female_terminal_position` -- same
     local Z offset (``_terminal_extent`` is a pure measurement of the
@@ -163,7 +180,8 @@ def _female_terminal_position_pegboard(part, pjt_cavity):
 
 
 @_check_types.do
-def _male_terminal_position_pegboard(part, pjt_cavity):
+def _male_terminal_position_pegboard(part: "_global_terminal.Terminal",
+                                      pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
     """Peg-board equivalent of :func:`_male_terminal_position` -- see
     :func:`_female_terminal_position_pegboard`.
     """
@@ -182,7 +200,8 @@ def _male_terminal_position_pegboard(part, pjt_cavity):
 
 
 @_check_types.do
-def _resolve_is_male(part, g_housing=None) -> bool:
+def _resolve_is_male(part: "_global_terminal.Terminal",
+                      g_housing: _Union["_global_housing.Housing", None] = None) -> bool:
     """
     Return True when *part* should be positioned/treated as male.
 
@@ -204,7 +223,7 @@ def _resolve_is_male(part, g_housing=None) -> bool:
 
 
 @_check_types.do
-def reposition_from_model(pjt_terminal) -> None:
+def reposition_from_model(pjt_terminal: "_pjt_terminal.PJTTerminal") -> None:
     """
     Recompute *pjt_terminal*'s position3d now that its 3D model has
     finished converting for the first time.
@@ -242,7 +261,7 @@ def reposition_from_model(pjt_terminal) -> None:
 
 
 @_check_types.do
-def _is_generic_model(model3d) -> bool:
+def _is_generic_model(model3d: "_global_model3d.Model3D") -> bool:
     """True when *model3d* is one of the shared generic stand-ins
     ``objects.objects_3d.terminal.Terminal.__init__`` assigns to a
     terminal missing its own real manufacturer model (e.g. ``'generic
@@ -308,7 +327,8 @@ def _extract_blade_size_from_description(description: str | None) -> float | Non
 
 
 @_check_types.do
-def estimate_dimensions(mainframe, part) -> tuple[dict, dict]:
+def estimate_dimensions(mainframe: "_ui.MainFrame",
+                         part: "_global_terminal.Terminal") -> tuple[dict, dict]:
     """Return ``(estimates, suggested)`` for *part* (a catalog terminal
     missing one or more of its own recorded dimensions) -- for the
     placeholder/analog shape shown until a real or generic 3D model

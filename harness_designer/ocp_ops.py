@@ -26,9 +26,8 @@ these).
 """
 
 import enum
-
+import gc
 import numpy as np
-
 from OCP.BRep import BRep_Tool
 from OCP.BRepAlgoAPI import BRepAlgoAPI_Fuse
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
@@ -57,7 +56,7 @@ from OCP.TCollection import TCollection_AsciiString
 from OCP.TopAbs import TopAbs_FACE, TopAbs_REVERSED
 from OCP.TopExp import TopExp_Explorer
 from OCP.TopLoc import TopLoc_Location
-from OCP.TopoDS import TopoDS
+from OCP.TopoDS import TopoDS, TopoDS_Shape
 from OCP.TopTools import TopTools_ListOfShape
 
 from .ocp_threadworker import ocp_thread as _ocp_thread
@@ -132,7 +131,7 @@ def _get_font(name: str, style: FontStyle, font_size: float) -> StdPrs_BRepFont:
     return font_i
 
 
-def _extrude_and_fuse(compound, depth: float):
+def _extrude_and_fuse(compound: TopoDS_Shape, depth: float) -> TopoDS_Shape | None:
     """Extrude every face of *compound* by *depth* along +Z and fuse the
     results into one shape. Mirrors build123d.extrude()'s own behavior
     for a flat, XY-plane compound of faces (see ocp_ops's own design
@@ -178,7 +177,7 @@ def _extrude_and_fuse(compound, depth: float):
 
 
 def _tessellate_shape(
-    shape, lin_deflection: float = 0.001, ang_deflection: float = 0.5,
+    shape: TopoDS_Shape, lin_deflection: float = 0.001, ang_deflection: float = 0.5,
     is_relative: bool = True
 ) -> tuple[np.ndarray, np.ndarray]:
     """Triangulate a raw TopoDS_Shape into vertex/face arrays.
@@ -193,8 +192,6 @@ def _tessellate_shape(
     not a raw TopoDS_Shape -- this module has no build123d dependency to
     produce one.
     """
-    import gc
-
     gc_was_enabled = gc.isenabled()
     gc.disable()
 

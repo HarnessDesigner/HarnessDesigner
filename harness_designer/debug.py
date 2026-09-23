@@ -2,12 +2,13 @@
 
 """Debug logging helpers and decorators for :mod:`harness_designer`."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+
 import time
 import sys
 import functools
 import inspect
-
 
 from . import config as _config
 from . import check_types as _check_types
@@ -26,13 +27,13 @@ class DebugPrinter:
     """Route debug output either to stdout or the application logger."""
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise the fallback debug printer.
 
         """
 
         @_check_types.do
-        def log_printer(*args):
+        def log_printer(*args: tuple[Any]) -> None:
             """Print debug output until a logger becomes available.
 
             :param args: Positional values to print.
@@ -49,7 +50,7 @@ class DebugPrinter:
         self._flush = sys.stdout.flush
 
     @_check_types.do
-    def set_logger(self, logger: "_logger.Log"):
+    def set_logger(self, logger: "_logger.Log") -> None:
         """Send future debug output to the application logger.
 
         :param logger: Logger instance that exposes ``debug`` and ``log_handler``.
@@ -59,7 +60,7 @@ class DebugPrinter:
         self._flush = logger.log_handler.flush
 
     @_check_types.do
-    def __call__(self, *args, end_stack=False):
+    def __call__(self, *args: tuple[Any], end_stack: bool = False) -> None:
         """Emit debug output.
 
         :param args: Message parts forwarded to the current sink.
@@ -77,7 +78,7 @@ _print_func = DebugPrinter()
 
 
 @_check_types.do
-def logfunc(func):
+def logfunc(func: Callable) -> Callable:
     """Decorate a callable to log arguments and/or duration.
 
     :param func: Callable to wrap.
@@ -113,7 +114,7 @@ def logfunc(func):
 
     @functools.wraps(func)
     @_check_types.do
-    def _wrapper(*args, **kwargs):
+    def _wrapper(*args: tuple[Any], **kwargs: dict[str, Any]) -> object:
         """Invoke ``func`` while collecting configured debug output.
 
         :param args: Positional arguments for ``func``.

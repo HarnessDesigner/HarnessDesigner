@@ -44,8 +44,9 @@ or ``commit_snap`` never has to pull in the abstract probe-building
 machinery it has no use for).
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import uuid as _uuid_module
-from typing import TYPE_CHECKING, Union
 
 from ..database.project_db import pseudo_wire_layout as _pseudo_wire_layout
 from ..objects import wire_layout as _wire_layout
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from ..objects import terminal as _terminal
     from ..objects import wire as _wire
     from ..objects import splice as _splice
+    from ..objects import project as _project
     from ..database.global_db import wire as _global_wire
 
 
@@ -107,7 +109,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  wire_part: "_global_wire.Wire",
-                 exclude_wire: Union["_wire.Wire", None] = None):
+                 exclude_wire: _Union["_wire.Wire", None] = None) -> None:
 
         self.mainframe = mainframe
         self._probes: list[_wire_layout.WireLayout] = []
@@ -187,7 +189,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
                     self._probes.append(probe)
 
     @_check_types.do
-    def _is_open_wire_end(self, project, point) -> bool:
+    def _is_open_wire_end(self, project: "_project.Project", point: _point.Point) -> bool:
         """True when exactly one wire endpoint (project-wide) sits at *point*.
 
         More than one means *point* is a junction/merge seam, not a free
@@ -213,10 +215,10 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
     def _make_probe(
         self,
         wire_part: "_global_wire.Wire",
-        terminal: Union["_terminal.Terminal", None] = None,
-        wire: Union["_wire.Wire", None] = None,
+        terminal: _Union["_terminal.Terminal", None] = None,
+        wire: _Union["_wire.Wire", None] = None,
         end: str | None = None,
-        splice: Union["_splice.Splice", None] = None,
+        splice: _Union["_splice.Splice", None] = None,
         position3d: _point.Point | None = None,
         position_pegboard: _point.Point | None = None,
 
@@ -239,27 +241,27 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
         return _wire_layout.WireLayout(self.mainframe, db_obj)
 
     @staticmethod
-    def _get_start_position(db_obj) -> dict[str, _point.Point]:
+    def _get_start_position(db_obj: object) -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_stop_position(db_obj) -> dict[str, _point.Point]:
+    def _get_stop_position(db_obj: object) -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_branch_position(db_obj) -> dict[str, _point.Point]:
+    def _get_branch_position(db_obj: object) -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_wire_position(db_obj) -> dict[str, _point.Point]:
+    def _get_wire_position(db_obj: object) -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: object) -> object:
         raise NotImplementedError
 
     @staticmethod
-    def _wire_end_anchors(project, wire_obj) -> tuple[bool, bool]:
+    def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire.Wire") -> tuple[bool, bool]:
         """Return (start_anchored, stop_anchored) for *wire_obj* -- see
         ``handlers.wire_drag_base.WireDragMixin.wire_end_anchors``'s own
         docstring for the full rule (whether an end is anchored to a

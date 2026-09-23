@@ -23,6 +23,7 @@ class only owns the clamp *math*, never *what's attached or its budget*.
 """
 
 from typing import TYPE_CHECKING
+
 import math
 
 from ...geometry import point as _point
@@ -42,7 +43,7 @@ class DragHandlerPegboard(_base.DragHandlerBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
         super().__init__(canvas, target)
 
         # Cached once at drag-arm, never rebuilt per move -- recomputing
@@ -55,7 +56,7 @@ class DragHandlerPegboard(_base.DragHandlerBase):
     @staticmethod
     @_check_types.do
     def _clamp_to_edge(cand_x: float, cand_z: float, neighbor_x: float,
-                       neighbor_z: float, max_length_mm: float) -> tuple:
+                       neighbor_z: float, max_length_mm: float) -> tuple[float, float]:
         """Clamp ``(cand_x, cand_z)`` so its distance from
         ``(neighbor_x, neighbor_z)`` never exceeds *max_length_mm*.
 
@@ -73,7 +74,7 @@ class DragHandlerPegboard(_base.DragHandlerBase):
         return neighbor_x + dx * scale, neighbor_z + dz * scale
 
     @_check_types.do
-    def _apply_local_clamp(self, cand_x: float, cand_z: float) -> tuple:
+    def _apply_local_clamp(self, cand_x: float, cand_z: float) -> tuple[float, float]:
         """Apply :meth:`_clamp_to_edge` for every cached touching budget
         (see :attr:`_touching`), in sequence -- each edge clamped
         independently against the *previous* clamp's result. The

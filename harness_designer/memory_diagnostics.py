@@ -72,13 +72,25 @@ Example client call (see ``diagnostics/query_memory.py`` for a full CLI)::
         print(conn.recv())
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
+import os
+import sys
 import threading
+import time
+import traceback
 import tracemalloc
 from multiprocessing.connection import Listener
 
 from . import config as _config
 from . import logger as _logger
 from . import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from . import gpu as _gpu
+    from .gpu import backend_base as _backend_base
+
 
 Config = _config.Config
 
@@ -140,7 +152,7 @@ def _format_growth(top_n: int = 30) -> str:
 
 
 @_check_types.do
-def _format_backend(backend, label: str) -> list[str]:
+def _format_backend(backend: "_backend_base.GPUBackend", label: str) -> list[str]:
     from .gpu.backend_base import GPUBackend
 
     lines = [f'{label}:']
@@ -208,19 +220,19 @@ def _make_gpu_detector():
 
     class _MainThreadGPUDetector(QtCore.QObject):
 
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__()
-            self._result = None
+            self._result: _Union["_gpu.GPU", None] = None
 
         @QtCore.Slot()
-        def _run_detect(self):
+        def _run_detect(self) -> None:
             from .gpu import GPU
 
             gpu = GPU()
             gpu.detect()
             self._result = gpu
 
-        def detect_blocking(self):
+        def detect_blocking(self) -> _Union["_gpu.GPU", None]:
             """Run ``GPU.detect()`` on this object's own (main/UI) thread
             and return the populated :class:`.gpu.GPU` instance, blocking
             the calling thread until it's done.
@@ -263,8 +275,6 @@ def _format_gpu_growth() -> str:
     happens to be right now.
     """
     global _last_gpu_snapshot
-
-    import time
 
     if _gpu_detector is not None:
         # Marshaled onto the main/UI thread -- see _make_gpu_detector().
@@ -314,7 +324,7 @@ def _format_gpu_growth() -> str:
 
 
 @_check_types.do
-def _format_one_display(info) -> list[str]:
+def _format_one_display(info: "_backend_base.DisplayPortInfo") -> list[str]:
     lines = [f'  [{info.index}] connector_type={info.connector_type!r} '
              f'is_connected={info.is_connected} is_active={info.is_active}']
     if info.monitor_name is not None:
@@ -374,7 +384,7 @@ def _format_caches() -> str:
     return '\n'.join(lines)
 
 
-def _fmt_bytes(value):
+def _fmt_bytes(value: int | None) -> str:
     if value is None:
         return 'Unknown'
     return f'{value:,} bytes ({value / 1024 / 1024:.2f} MB)'
@@ -388,9 +398,6 @@ def _format_stacks() -> str:
     not for tracking growth -- see ``"growth"``/``"gpu_growth"``/
     ``"heap_snapshot"`` for that.
     """
-    import sys
-    import traceback
-
     frames = sys._current_frames()  # NOQA -- deliberate use of the private API
     names = {t.ident: t.name for t in threading.enumerate()}
 
@@ -458,9 +465,6 @@ def _format_heap_snapshot() -> str:
         return ('tracemalloc is not running -- Config.debug.memory.enabled '
                 'was False when the process started')
 
-    import os
-    import time
-
     snapshot = tracemalloc.take_snapshot()
 
     snapshot_dir = Config.debug.memory.snapshot_dir
@@ -502,13 +506,13 @@ _HANDLERS = {
 class _MemoryDiagnosticsListener(threading.Thread):
 
     @_check_types.do
-    def __init__(self, port: int):
+    def __init__(self, port: int) -> None:
         super().__init__(name='Memory Diagnostics Listener', daemon=True)
         self._port = port
         self._listener: Listener | None = None
         self._exit_event = threading.Event()
 
-    def run(self):
+    def run(self) -> None:
         try:
             self._listener = Listener(('localhost', self._port), authkey=_AUTHKEY)
         except OSError as err:
@@ -541,7 +545,7 @@ class _MemoryDiagnosticsListener(threading.Thread):
                 conn.close()
 
     @_check_types.do
-    def stop(self):
+    def stop(self) -> None:
         self._exit_event.set()
         if self._listener is not None:
             self._listener.close()
@@ -552,7 +556,7 @@ _listener_thread: _MemoryDiagnosticsListener | None = None
 
 
 @_check_types.do
-def start():
+def start() -> None:
     """Start memory diagnostics if ``Config.debug.memory.enabled`` is True.
 
     No-op if disabled or already started. Safe to call unconditionally at
@@ -599,7 +603,7 @@ def start():
 
 
 @_check_types.do
-def stop():
+def stop() -> None:
     """Stop the memory diagnostics listener, if running. Safe to call
     unconditionally at shutdown.
     """

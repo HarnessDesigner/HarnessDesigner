@@ -2,26 +2,28 @@
 
 """Qt application bootstrap helpers for :mod:`harness_designer`."""
 
+from typing import Any
+from collections.abc import Callable
+
 import sys
 import time
 import threading
 import traceback as _traceback
+from PySide6 import QtCore, QtGui, QtWidgets
 
+import harness_designer as _hd
 from . import logger
-
-from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Signal, QObject, QTimer
-
-from PySide6.QtCore import Qt
+from . import config as _config
+from . import themes as _themes
 from . import check_types as _check_types
 
-QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+QtWidgets.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
 _call_on_main = None
 
 
 @_check_types.do
-def _qt_message_handler(msg_type, context, message):
+def _qt_message_handler(msg_type: QtCore.QtMsgType, context: QtCore.QMessageLogContext, message: str) -> None:
     """Log every Qt-native qDebug/qWarning/qCritical/qFatal message.
 
     Installed via qInstallMessageHandler in App._init -- see that call
@@ -35,8 +37,6 @@ def _qt_message_handler(msg_type, context, message):
         function fields depending on build config.
     :param message: The message text.
     """
-    from PySide6.QtCore import QtMsgType
-
     thread_name = threading.current_thread().name
     location = f'{context.file}:{context.line}' if context.file else ''
     text = f'[Qt] {message} (thread={thread_name}){" " + location if location else ""}'
@@ -49,14 +49,14 @@ def _qt_message_handler(msg_type, context, message):
     stack = ''.join(_traceback.format_stack())
     text += f'\nPython call stack (thread={thread_name}) at time of message:\n{stack}'
 
-    if msg_type in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):
+    if msg_type in (QtCore.QtMsgType.QtCriticalMsg, QtCore.QtMsgType.QtFatalMsg):
         logger.error(text)
     else:
         logger.warning(text)
 
 
 @_check_types.do
-def CallLater(func, *args) -> None:
+def CallLater(func: Callable, *args: tuple[Any]) -> None:
     """Schedule a callable to execute after the current event handler returns.
 
     Unlike :func:`CallAfter`, this always defers ``func`` until the event loop
@@ -67,11 +67,11 @@ def CallLater(func, *args) -> None:
     :param args: Positional arguments passed to ``func``.
     :type args: tuple
     """
-    QTimer.singleShot(0, lambda f=func, a=args: f(*a))
+    QtCore.QTimer.singleShot(0, lambda f=func, a=args: f(*a))
 
 
 @_check_types.do
-def CallAfter(func, *args) -> None:
+def CallAfter(func: Callable, *args: tuple[Any]) -> None:
     """Schedule a callable to execute on the Qt main thread.
 
     A no-op before :class:`App` is constructed (e.g. the package gets
@@ -91,20 +91,20 @@ def CallAfter(func, *args) -> None:
     _call_on_main.emit(lambda f=func, a=args: f(*a))  # NOQA
 
 
-_after_start_cbs = []
+_after_start_cbs: list[tuple[Callable, tuple[Any]]] = []
 
 
 @_check_types.do
-def CallAfterStart(func, *args) -> None:
+def CallAfterStart(func: Callable, *args: tuple[Any]) -> None:
     _after_start_cbs.append((func, args))
 
 
-class _AppSignals(QObject):
+class _AppSignals(QtCore.QObject):
     """Cross-thread signals for the App startup sequence."""
-    call_on_main = Signal(object)   # payload: a zero-arg callable
+    call_on_main = QtCore.Signal(object)   # payload: a zero-arg callable
 
 
-class App(QObject):
+class App(QtCore.QObject):
     """Own the Qt application object and startup workflow.
 
     This class coordinates splash creation, background loading, and shutdown
@@ -112,7 +112,7 @@ class App(QObject):
     """
 
     @_check_types.do
-    def __init__(self, args):
+    def __init__(self, args: list[str]) -> None:
         """Initialise application state and cross-thread signals.
 
         :param args: Command-line arguments passed to the application.
@@ -120,21 +120,21 @@ class App(QObject):
         """
         global _call_on_main
 
-        QObject.__init__(self)  # must call this
+        QtCore.QObject.__init__(self)  # must call this
 
         self._args = args
         self.splash = None
         self.frame = None
         self.logger = None
 
-        self._qt_app = QApplication.instance() or QApplication(sys.argv)
+        self._qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(sys.argv)
         self._signals = _AppSignals()
         self._signals.call_on_main.connect(self._dispatch)
 
         _call_on_main = self._signals.call_on_main
 
     @_check_types.do
-    def setStyleSheet(self, style_sheet):
+    def setStyleSheet(self, style_sheet: str) -> None:
         self._qt_app.setStyleSheet(style_sheet)
 
     # ------------------------------------------------------------------
@@ -142,7 +142,7 @@ class App(QObject):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _dispatch(self, fn):  # NOQA
+    def _dispatch(self, fn: Callable) -> None:  # NOQA
         """Execute a zero-argument callable on the main thread.
 
         :param fn: Callable emitted through :class:`_AppSignals`.
@@ -151,7 +151,7 @@ class App(QObject):
         fn()
 
     @_check_types.do
-    def call_after(self, fn):
+    def call_after(self, fn: Callable) -> None:
         """Schedule fn() to run on the Qt main thread (like wx.CallAfter)."""
         self._signals.call_on_main.emit(fn)
 
@@ -160,25 +160,22 @@ class App(QObject):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _init(self):
+    def _init(self) -> bool:
         """Runs on the main thread before the event loop starts."""
-
-        import harness_designer as _hd
 
         # Set default QSurfaceFormat for shared OpenGL contexts
         # This MUST be called before ANY OpenGL context is created (including GL info query)
-        from PySide6.QtGui import QSurfaceFormat
-        fmt = QSurfaceFormat()
+        fmt = QtGui.QSurfaceFormat()
         fmt.setDepthBufferSize(24)
         # 4x MSAA — QOpenGLWidget renders into a multisampled FBO and
         # resolves it automatically. Framebuffer readbacks must go through
         # grabFramebuffer() (resolved), not raw glReadPixels.
         fmt.setSamples(4)
-        # fmt.setSwapBehavior(QSurfaceFormat.SwapBehavior.DoubleBuffer)
+        # fmt.setSwapBehavior(QtGui.QSurfaceFormat.SwapBehavior.DoubleBuffer)
         fmt.setVersion(3, 3)
-        # fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
-        fmt.setProfile(QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
-        QSurfaceFormat.setDefaultFormat(fmt)
+        # fmt.setProfile(QtGui.QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        fmt.setProfile(QtGui.QSurfaceFormat.OpenGLContextProfile.CompatibilityProfile)
+        QtGui.QSurfaceFormat.setDefaultFormat(fmt)
 
         # Query GL capabilities using a temporary offscreen surface
         try:
@@ -201,11 +198,7 @@ class App(QObject):
         # ever catch one. Logging the thread name lets an intermittent,
         # timing-dependent GL-threading issue actually be tracked down
         # from a real occurrence instead of guessed at.
-        from PySide6.QtCore import qInstallMessageHandler
-        qInstallMessageHandler(_qt_message_handler)
-
-        from . import config as _config
-        from . import themes as _themes
+        QtCore.qInstallMessageHandler(_qt_message_handler)
 
         _themes.load_theme(_config.Config.mainframe.theme)
 
@@ -224,15 +217,14 @@ class App(QObject):
         return True
 
     @_check_types.do
-    def _start_loading_thread(self):
+    def _start_loading_thread(self) -> None:
         """Start the background worker that finishes application startup."""
         t = threading.Thread(target=self._thread_loop, daemon=True)
         t.start()
 
     @_check_types.do
-    def _thread_loop(self):
+    def _thread_loop(self) -> None:
         """Runs on the background thread — mirrors the original _thread_loop."""
-        import harness_designer as _hd
         self.splash.wait()
 
         event = threading.Event()
@@ -240,7 +232,7 @@ class App(QObject):
 
         # ---- import mainframe on main thread ----
         @_check_types.do
-        def _import_mainframe():
+        def _import_mainframe() -> None:
             """Import and construct the main frame on the UI thread.
 
             """
@@ -290,7 +282,7 @@ class App(QObject):
             _hd._mainframe.open_database(self.splash)  # NOQA
         except Exception as err:
             @_check_types.do
-            def _do(e=err):
+            def _do(e: Exception = err) -> None:
                 """Report a database-open failure on the main thread.
 
                 :param e: Exception raised while opening the database.
@@ -310,7 +302,7 @@ class App(QObject):
             return
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             """Show the main frame after startup completes.
 
             """
@@ -320,7 +312,7 @@ class App(QObject):
         self.call_after(_do)
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             for func, args in _after_start_cbs:
                 func(*args)
 
@@ -331,7 +323,7 @@ class App(QObject):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def MainLoop(self):
+    def MainLoop(self) -> None:
         """Initialise the application and run the Qt event loop.
 
         :returns: This method does not normally return because it exits the
@@ -345,7 +337,7 @@ class App(QObject):
         sys.exit(result)
 
     @_check_types.do
-    def OnExit(self):
+    def OnExit(self) -> None:
         """Called automatically by MainLoop when the event loop ends."""
         from . import config
 

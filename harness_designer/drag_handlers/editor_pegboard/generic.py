@@ -35,7 +35,7 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
         objpegboard = self.target.objpegboard
 
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)

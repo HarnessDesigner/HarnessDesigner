@@ -28,7 +28,7 @@ from . import check_types as _check_types
 
 
 @_check_types.do
-def get_process_memory():
+def get_process_memory() -> tuple[int | None, int | None]:
     """This process's current OS-reported memory footprint.
 
     :returns: ``(rss_bytes, private_bytes)``. Either may be ``None`` if
@@ -50,7 +50,7 @@ def get_process_memory():
 
 
 @_check_types.do
-def _windows_memory():
+def _windows_memory() -> tuple[int | None, int | None]:
     """:returns: ``(working_set_bytes, private_usage_bytes)`` or ``(None, None)``.
     :rtype: tuple[int | None, int | None]
     """
@@ -101,7 +101,7 @@ def _windows_memory():
 
 
 @_check_types.do
-def _linux_memory():
+def _linux_memory() -> tuple[int | None, int | None]:
     """:returns: ``(rss_bytes, data_segment_bytes)`` or ``(None, None)``.
     :rtype: tuple[int | None, int | None]
     """

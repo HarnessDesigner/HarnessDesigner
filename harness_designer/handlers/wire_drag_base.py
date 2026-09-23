@@ -96,6 +96,7 @@ peg-board geometry.
 """
 
 from typing import TYPE_CHECKING
+from collections.abc import Callable
 
 import numpy as np
 
@@ -110,8 +111,10 @@ from . import snap_probe_set as _snap_probe_set
 if TYPE_CHECKING:
     from ..gl.canvas_base import canvas_base as _canvas_base
     from .. import objects as _objects
+    from .. import ui as _ui
     from ..objects import project as _project
     from ..objects import wire as _wire_object
+    from ..objects import wire_layout as _wire_layout_object
 
 
 class WireDragPlan:
@@ -133,7 +136,7 @@ class WireDragPlan:
 
     __slots__ = ('moving', 'anchor', 'snap_end')
 
-    def __init__(self, moving: list, anchor: _point.Point, snap_end: str | None):
+    def __init__(self, moving: list[_point.Point], anchor: _point.Point, snap_end: str | None) -> None:
         self.moving = moving
         self.anchor = anchor
         self.snap_end = snap_end
@@ -175,7 +178,7 @@ class WireDragMixin:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _get_view_object(obj: "_objects.ObjectBase"):
+    def _get_view_object(obj: "_objects.ObjectBase") -> object:
         """
         Return *obj*'s own view-specific wrapper for this editor --
         ``obj.obj3d`` or ``obj.objpegboard``.
@@ -184,7 +187,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _get_editor(mainframe):
+    def _get_editor(mainframe: object) -> object:
         """
         Return this view's own INNER GL canvas widget (``mainframe.editorX.
         editor._canvas`` -- not the wrapper, ``mainframe.editorX.editor``
@@ -199,7 +202,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _points_table(project: "_project.Project"):
+    def _points_table(project: "_project.Project") -> object:
         """
         This view's own peg-board/3D points table (``pjt_points3d_table``
         / ``pjt_points_pegboard_table``), used to resolve a point id's own
@@ -209,7 +212,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _waypoints(wire_db_obj):
+    def _waypoints(wire_db_obj: object) -> list:
         """
         This wire's own ordered interior waypoints for this view
         (``wire_db_obj.waypoints3d`` / ``waypoints_pegboard``).
@@ -218,7 +221,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _wire_position_id_raw(obj) -> bytes | None:
+    def _wire_position_id_raw(obj: object) -> bytes | None:
         """
         A cavity's or terminal's own ``wire_position*_id_raw`` column
         for this view (see :meth:`is_anchor_point`).
@@ -227,7 +230,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _attach_position_id_raw(obj) -> bytes | None:
+    def _attach_position_id_raw(obj: object) -> bytes | None:
         """
         A terminal's own ``attach_position*_id_raw`` column for this
         view (see :meth:`is_anchor_point`).
@@ -236,7 +239,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _get_start_position_id(wire_db_obj) -> bytes | None:
+    def _get_start_position_id(wire_db_obj: object) -> bytes | None:
         """
         This view's own ``start_position*_id`` column on a wire's DB
         row (see :meth:`merge_wire_into`).
@@ -245,11 +248,11 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _set_start_position_id(wire_db_obj, value: bytes | None) -> None:
+    def _set_start_position_id(wire_db_obj: object, value: bytes | None) -> None:
         raise NotImplementedError
 
     @staticmethod
-    def _get_stop_position_id(wire_db_obj) -> bytes | None:
+    def _get_stop_position_id(wire_db_obj: object) -> bytes | None:
         """
         This view's own ``stop_position*_id`` column on a wire's DB
         row (see :meth:`merge_wire_into`).
@@ -258,11 +261,11 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _set_stop_position_id(wire_db_obj, value: bytes | None) -> None:
+    def _set_stop_position_id(wire_db_obj: object, value: bytes | None) -> None:
         raise NotImplementedError
 
     @staticmethod
-    def _layout_position_id(layout_db_obj) -> bytes | None:
+    def _layout_position_id(layout_db_obj: object) -> bytes | None:
         """
         This view's own ``position*_id`` column on a WireLayout's DB
         row (see :meth:`wire_layout_end_wire`).
@@ -467,8 +470,8 @@ class WireDragMixin:
 
     @classmethod
     @_check_types.do
-    def wire_layout_end_wire(cls, wire_layout_obj, project: "_project.Project",
-                             part_id: bytes | None):
+    def wire_layout_end_wire(cls, wire_layout_obj: "_wire_layout_object.WireLayout", project: "_project.Project",
+                             part_id: bytes | None) -> tuple["_wire_object.Wire", str] | tuple[None, None]:
 
         """
         Return (wire, endpoint) if *wire_layout_obj* sits at one
@@ -506,7 +509,7 @@ class WireDragMixin:
 
     @classmethod
     @_check_types.do
-    def pick_free_end(cls, mainframe, wire_obj: "_wire_object.Wire",
+    def pick_free_end(cls, mainframe: "_ui.MainFrame", wire_obj: "_wire_object.Wire",
                       click_pos: _point.Point | None = None) -> str | None:
 
         """
@@ -556,8 +559,9 @@ class WireDragMixin:
         return 'stop'
 
     @staticmethod
-    def _view_merge_geometry(get_view_object, get_waypoints, wire_obj,
-                             other_wire, own_end: str, other_end: str):
+    def _view_merge_geometry(get_view_object: Callable, get_waypoints: Callable, wire_obj: "_wire_object.Wire",
+                             other_wire: "_wire_object.Wire", own_end: str,
+                             other_end: str) -> tuple[bytes, list, list, bytes, bytes]:
 
         """
         This view's own seam point id, reindexed own/other waypoint
@@ -599,7 +603,7 @@ class WireDragMixin:
     def merge_wire_into(cls, project: "_project.Project",
                         wire_obj: "_wire_object.Wire",
                         other_wire: "_wire_object.Wire",
-                        other_end: str, own_end: str = 'stop'):
+                        other_end: str, own_end: str = 'stop') -> "_wire_object.Wire":
 
         """
         Join *wire_obj*'s own dangling *own_end* ('start' or 'stop';
@@ -787,7 +791,7 @@ class WireDragMixin:
 
     @_check_types.do
     def _raw_move_delta(self, anchor: _point.Point,
-                        last_pos: _point.Point, delta) -> _point.Point:
+                        last_pos: _point.Point, delta: object) -> _point.Point:
 
         """
         Project *anchor* to screen space, add the raw mouse *delta*,
@@ -816,7 +820,7 @@ class WireDragMixin:
 
     @_check_types.do
     def _move_delta(self, anchor: _point.Point,
-                    last_pos: _point.Point, delta, aabb):
+                    last_pos: _point.Point, delta: object, aabb: object) -> _point.Point:
 
         """
         The delta actually applied this frame. Default: the raw,
@@ -842,7 +846,7 @@ class WireDragMixin:
         return self._raw_move_delta(anchor, last_pos, delta)
 
     @_check_types.do
-    def _apply_budget_clamp(self, moving_points: list,  # NOQA
+    def _apply_budget_clamp(self, moving_points: list[_point.Point],  # NOQA
                             delta: _point.Point) -> _point.Point:
 
         """
@@ -917,7 +921,7 @@ class WireDragMixin:
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
         if self._snap_probes is not None:
             # Hit-test against the real cursor position, not a position
             # reconstructed from the (possibly axis-locked) dragged

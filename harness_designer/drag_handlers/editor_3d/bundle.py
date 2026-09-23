@@ -52,7 +52,7 @@ class Bundle(_editor_3d.DragHandler3D):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_bundle_object.Bundle",
-                 mouse_pos: _point.Point):
+                 mouse_pos: _point.Point) -> None:
         super().__init__(canvas, target)
 
         obj3d = target.obj3d
@@ -72,7 +72,7 @@ class Bundle(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
         delta3d = self._axis_locked_delta3d(
             self._anchor, self.last_pos, delta, self.target.obj3d.aabb)
         if delta3d is None:

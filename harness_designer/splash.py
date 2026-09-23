@@ -10,6 +10,9 @@ from PIL import Image
 from PySide6 import QtWidgets
 from PySide6 import QtGui
 from PySide6 import QtCore
+
+from . import config as _config
+from . import utils as _utils
 from . import check_types as _check_types
 
 
@@ -38,7 +41,7 @@ class Splash:
     """
 
     @_check_types.do
-    def __init__(self, args, logger: "_logger.Log"):
+    def __init__(self, args: list[str], logger: "_logger.Log") -> None:
         """
         Create and display the splash screen.
 
@@ -123,7 +126,7 @@ class Splash:
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def wait(self):
+    def wait(self) -> None:
         """
         Block until the splash window is visible.
         """
@@ -131,7 +134,7 @@ class Splash:
         self._init_event.wait()
 
     @_check_types.do
-    def Show(self, show=True):
+    def Show(self, show: bool = True) -> None:
         """
         Show or hide the splash window.
 
@@ -145,7 +148,7 @@ class Splash:
             self._window.hide()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """
         Close and delete the splash window.
         """
@@ -153,7 +156,7 @@ class Splash:
         QtWidgets.QApplication.restoreOverrideCursor()
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             with self._draw_lock:
                 self._window.close()
                 self._window.deleteLater()
@@ -165,7 +168,7 @@ class Splash:
             self._signals.refreshRequested.emit()
 
     @_check_types.do
-    def SetText(self, text: str, log=True) -> None:
+    def SetText(self, text: str, log: bool = True) -> None:
         """
         Update the status text shown on the splash screen.
 
@@ -185,7 +188,7 @@ class Splash:
             event = threading.Event()
 
             @_check_types.do
-            def _on_refresh():
+            def _on_refresh() -> None:
                 self._signals.refreshRequested.disconnect(_on_refresh)
                 event.set()
 
@@ -196,7 +199,7 @@ class Splash:
             self._do_refresh()
 
     @_check_types.do
-    def flush(self):  # NOQA
+    def flush(self) -> None:  # NOQA
         """
         Process pending Qt events for the splash screen.
         """
@@ -273,9 +276,6 @@ class Splash:
         see ``utils/window_geometry.py``'s ``safe_center``.
         """
 
-        from . import config as _config
-        from . import utils as _utils
-
         mf_config = _config.Config.mainframe
         position = mf_config.position
         size = mf_config.size
@@ -298,7 +298,7 @@ class Splash:
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def draw(self, text: str):
+    def draw(self, text: str) -> None:
         """
         Render the splash image and current status text into a pixmap.
 
@@ -355,7 +355,7 @@ class Splash:
             self._render_pixmap = pixmap
 
     @_check_types.do
-    def _do_refresh(self):
+    def _do_refresh(self) -> None:
         """
         Must be called on the main thread.
         """

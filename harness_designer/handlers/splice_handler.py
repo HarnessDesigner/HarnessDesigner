@@ -8,11 +8,18 @@ interactive placement sessions, which replaced this module's own
 former ``AddSpliceHandler``).
 """
 
+from typing import TYPE_CHECKING
+
 from .. import check_types as _check_types
 
 
+if TYPE_CHECKING:
+    from ..database.global_db import splice as _splice
+    from ..objects import wire as _wire_obj
+
+
 @_check_types.do
-def _wire_fits(splice_part, wire) -> bool:
+def _wire_fits(splice_part: "_splice.Splice", wire: "_wire_obj.Wire") -> bool:
     """
     Return True when the wire's AWG falls within the splice's accepted range.
     """

@@ -80,13 +80,19 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         if obj_scale is not None:
             obj_scale.bind(self._on_obj_scale)
 
+        # The ring's own drawn geometry is centered on a COPY of
+        # objpegboard.position -- see editor_schematic.generic.Rings2D's
+        # identical comment for the full reasoning.
+        self._ring_center = objpegboard.position.copy()
+        self._ring_center.y += float(Config.rotation_handler.ring_height)
+
         scale = _point.Point(1.0, 1.0, 1.0)
         angle = _angle.Angle.from_euler(0, 0, 0)
 
         with mainframe.editor_pegboard.context:
             self._rings = {
                 axis: rotation_ring.RotationRing(
-                    axis, objpegboard.position, obj_angle, self._radius, self._object_radius,
+                    axis, self._ring_center, obj_angle, self._radius, self._object_radius,
                     float(Config.rotation_handler.tube_diameter_scale),
                     self._colors[axis], self._outer_color, self._radius * LABEL_SIZE_SCALE,
                     mainframe.editor_pegboard.context, mainframe, _base_pegboard.BasePegboard,
@@ -162,7 +168,13 @@ class RingsPegboard(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def _update_position(self, position: _point.Point):
-        """Track gizmo position changes -- no floor lock to defeat here."""
+        """Track gizmo position changes -- no floor lock to defeat here.
+
+        Doesn't touch :attr:`_ring_center` -- see editor_schematic.
+        generic.Rings2D's identical method for why the object never
+        actually moves while its own rotation gizmo is up, so the
+        offset computed once at construction stays correct throughout.
+        """
         self._o_position = position.copy()
         self.numpy_position[:] = position.as_numpy
 

@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Helpers for downloading and normalising external resource files."""
-import tempfile
 
+import tempfile
 import requests
 import time
 import uuid
@@ -14,6 +14,7 @@ from PIL import Image
 import requests.exceptions
 from urllib.parse import urlsplit
 import http.cookiejar
+
 from . import check_types as _check_types
 
 COOKIES = {}
@@ -37,7 +38,7 @@ class ResourceException(Exception):
     __msg__ = 'Resource Base Exception'
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(self.__msg__)
 
 
@@ -45,7 +46,7 @@ class RequestsError(ResourceException):
     __msg__ = ''
 
     @_check_types.do
-    def __init__(self, msg, code, url):
+    def __init__(self, msg: str, code: int, url: str) -> None:
         self.__msg__ = msg
         self.code = code
         self.url = url
@@ -57,7 +58,7 @@ class ImageReadError(ResourceException):
     __msg__ = 'Image Read Error'
 
     @_check_types.do
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.path = path
         self.code = -10
         super().__init__()
@@ -68,7 +69,7 @@ class SaveFileError(ResourceException):
     __msg__ = 'Save File Error'
 
     @_check_types.do
-    def __init__(self, path, code):
+    def __init__(self, path: str, code: int) -> None:
         self.path = path
         self.code = code
         super().__init__()
@@ -79,7 +80,7 @@ class RemoveFileError(ResourceException):
     __msg__ = 'Remove File Error'
 
     @_check_types.do
-    def __init__(self, path, code):
+    def __init__(self, path: str, code: int) -> None:
         self.path = path
         self.code = code
         super().__init__()
@@ -90,7 +91,7 @@ class FileTypeNotSupportedError(ResourceException):
     __msg__ = 'File Type Not Supported'
 
     @_check_types.do
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.path = path
         self.code = -20
         super().__init__()
@@ -101,14 +102,14 @@ class ExistingFileNotFoundError(ResourceException):
     __msg__ = 'File Not Found'
 
     @_check_types.do
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         self.path = path
         self.code = -30
         super().__init__()
 
 
 @_check_types.do
-def handle_cookie(response):
+def handle_cookie(response: requests.Response) -> None:
     """
     Extract cookie data from a requests response.
 
@@ -132,7 +133,7 @@ def handle_cookie(response):
 
 
 @_check_types.do
-def requests_get(url, is_retry=False, **kwargs):
+def requests_get(url: str, is_retry: bool = False, **kwargs: object) -> tuple[requests.Response, str | None, str]:
     """
     Fetch a URL and normalise its content type.
 
@@ -145,8 +146,8 @@ def requests_get(url, is_retry=False, **kwargs):
 
     :param kwargs: Extra keyword arguments forwarded to :func:`requests.get`.
     :type kwargs: dict
-    :returns: Response object and simplified content type.
-    :rtype: tuple[requests.Response, str | None]
+    :returns: Response object, simplified content type, and the URL actually used.
+    :rtype: tuple[requests.Response, str | None, str]
     """
 
     if 'api.te.com' in url or 'www.te.com' in url:
@@ -203,7 +204,7 @@ def requests_get(url, is_retry=False, **kwargs):
 
 
 @_check_types.do
-def _download_model(con, url, is_type):
+def _download_model(con: object, url: str, is_type: str) -> str:
     """
     Download a model resource and store it with a generated filename.
 
@@ -211,9 +212,8 @@ def _download_model(con, url, is_type):
     :type con: UNKNOWN
     :param url: Source URL.
     :type url: str
-    :returns: Saved file path, or ``None`` when the download cannot be mapped to
-        a supported model type.
-    :rtype: str | None
+    :returns: Saved file path.
+    :rtype: str
     """
 
     con.execute(f'SELECT mimetype, extension FROM file_types WHERE {is_type};')
@@ -277,7 +277,7 @@ def _download_model(con, url, is_type):
 
 
 @_check_types.do
-def _reformat_image(img: Image.Image):
+def _reformat_image(img: Image.Image) -> Image.Image:
     """
     Resize and pad an image into a 256x256 RGBA preview.
 
@@ -315,7 +315,7 @@ def _reformat_image(img: Image.Image):
 
 
 @_check_types.do
-def _download_image(con, url, image_path, is_type):
+def _download_image(con: object, url: str, image_path: str, is_type: str) -> str:
     """
     Download an image-like resource and save it locally.
 
@@ -325,9 +325,8 @@ def _download_image(con, url, image_path, is_type):
     :type url: str
     :param image_path: Destination directory.
     :type image_path: str
-    :returns: Saved file path, or ``None`` when the resource type is unsupported
-        or the request fails.
-    :rtype: str | None
+    :returns: Saved file path.
+    :rtype: str
     """
 
     # Downloading an image is not a trivial thing to do. This is because of
@@ -394,7 +393,7 @@ RESOURCE_TYPE_MODEL = 4
 
 
 @_check_types.do
-def collect_resource(con, image_type, in_path):
+def collect_resource(con: object, image_type: int, in_path: str | None) -> tuple[str, int] | None:
     """
     Collect a local or remote resource into managed storage.
 

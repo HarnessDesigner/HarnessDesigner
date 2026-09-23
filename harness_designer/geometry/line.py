@@ -4,7 +4,8 @@
 Line primitives built from :class:`harness_designer.geometry.point.Point`.
 """
 
-from typing import Iterable as _Iterable
+from typing import Any, Union as _Union
+from collections.abc import Iterable
 
 import math
 import numpy as np
@@ -23,7 +24,8 @@ class Line:
     """
 
     @_check_types.do
-    def __array_ufunc__(self, func, _, inputs, instance, **__):
+    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: object, instance: object,
+                         **__: dict[str, Any]) -> _Union["Line", np.ndarray]:
         """
         Handle selected NumPy ufuncs for line translation and rotation.
 
@@ -53,11 +55,11 @@ class Line:
 
                 self._p1.x = p1[0]
                 self._p1.y = p1[1]
-                self._p1.z = p1[1]
+                self._p1.z = p1[2]
 
                 self._p2.x = p2[0]
                 self._p2.y = p2[1]
-                self._p2.z = p2[1]
+                self._p2.z = p2[2]
 
                 return self
             else:
@@ -71,11 +73,11 @@ class Line:
 
                 self._p1.x = p1[0]
                 self._p1.y = p1[1]
-                self._p1.z = p1[1]
+                self._p1.z = p1[2]
 
                 self._p2.x = p2[0]
                 self._p2.y = p2[1]
-                self._p2.z = p2[1]
+                self._p2.z = p2[2]
                 return self
             else:
                 return inputs + self.as_numpy
@@ -88,11 +90,11 @@ class Line:
 
                 self._p1.x = p1[0]
                 self._p1.y = p1[1]
-                self._p1.z = p1[1]
+                self._p1.z = p1[2]
 
                 self._p2.x = p2[0]
                 self._p2.y = p2[1]
-                self._p2.z = p2[1]
+                self._p2.z = p2[2]
                 return self
             else:
                 return inputs + self.as_numpy
@@ -103,7 +105,7 @@ class Line:
     def __init__(self, p1: _point.Point,
                  p2: _point.Point | None = None,
                  length: float | None = None,
-                 angle: _angle.Angle | None = None):
+                 angle: _angle.Angle | None = None) -> None:
         """
         Create a line segment.
 
@@ -153,12 +155,12 @@ class Line:
 
     @property
     @_check_types.do
-    def as_float(self) -> tuple[list[float, float, float], list[float, float, float]]:
+    def as_float(self) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
         """
         Return the endpoints as float tuples.
 
         :returns: Start and end coordinates.
-        :rtype: tuple[list[float, float, float], list[float, float, float]]
+        :rtype: tuple[tuple[float, float, float], tuple[float, float, float]]
         """
 
         p1 = self._p1.as_float
@@ -498,7 +500,7 @@ class Line:
         return _point.Point(x, y, z)
 
     @_check_types.do
-    def __iter__(self) -> _Iterable[_point.Point]:
+    def __iter__(self) -> Iterable[_point.Point]:
         """
         Iterate over the two endpoints.
 
@@ -509,7 +511,7 @@ class Line:
         return iter([self._p1, self._p2])
 
     @_check_types.do
-    def get_rotated_line(self, angle: _angle.Angle, pivot: _point.Point) -> "Line":
+    def get_rotated_line(self, angle: _angle.Angle, pivot: _point.Point | None) -> "Line":
         """
         Return a rotated copy of the line around ``pivot``.
 
@@ -543,7 +545,7 @@ class Line:
         self,
         offset: float,
         offset_dir: _point.Point | None = None,
-        plane: str = 'x'
+        plane: str | None = 'x'
     ) -> "Line":
 
         """

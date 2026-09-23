@@ -40,18 +40,21 @@ with the terminal's/splice's own min/max crimp cross-section as a
 ``wire_size_cross`` range, and the dialog runs that query itself (see
 ``ui.dialogs.part_search``).
 """
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from .. import check_types as _check_types
 
+
 if TYPE_CHECKING:
     from ..ui.dialogs import part_search as _part_search
+    from ..objects import terminal as _terminal_obj
+    from ..objects import splice as _splice_obj
 
 
 @_check_types.do
 def _wire_cross_search_params(
     cross_min: float | None, cross_max: float | None
-) -> Union["_part_search.SearchParameters", None]:
+) -> _Union["_part_search.SearchParameters", None]:
 
     """Build a ``wire_size_cross`` min/max range search-box seed, or
     None if neither bound is known."""
@@ -75,7 +78,7 @@ def _wire_cross_search_params(
 
 
 @_check_types.do
-def terminal_wire_search_params(terminal_obj) -> Union["_part_search.SearchParameters", None]:
+def terminal_wire_search_params(terminal_obj: "_terminal_obj.Terminal") -> _Union["_part_search.SearchParameters", None]:
     """Wire cross-section range search-box seed for *terminal_obj*'s crimp range."""
 
     term_part = terminal_obj.db_obj.part
@@ -87,7 +90,7 @@ def terminal_wire_search_params(terminal_obj) -> Union["_part_search.SearchParam
 
 
 @_check_types.do
-def splice_wire_search_params(splice_obj) -> Union["_part_search.SearchParameters", None]:
+def splice_wire_search_params(splice_obj: "_splice_obj.Splice") -> _Union["_part_search.SearchParameters", None]:
     """Wire cross-section range search-box seed for *splice_obj*'s crimp range."""
 
     splice_part = splice_obj.db_obj.part

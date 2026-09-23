@@ -11,12 +11,12 @@ class AABB(_array_pool.ArrayPool):
     ``row[0]`` the min corner and ``row[1]`` the max corner.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__([[0.0] * 3] * 2)
 
     @_check_types.do
     def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
-                              direc: np.ndarray, t0: float, t1: float):
+                              direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
         """Vectorized slab test -- same math as
         ``gl.object_picker._ray_intersect_aabb``, batched over every row
         in *rows* at once instead of looping in Python.

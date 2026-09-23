@@ -12,12 +12,12 @@ class OBB(_array_pool.ArrayPool):
     = (x1,y1,z1), 1 toggles x, 3 toggles y, 4 toggles z.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__([[0.0] * 3] * 8)
 
     @_check_types.do
     def _vectorized_ray_test(self, rows: np.ndarray, origin: np.ndarray,
-                              direc: np.ndarray, t0: float, t1: float):
+                              direc: np.ndarray, t0: float, t1: float) -> tuple[np.ndarray, np.ndarray]:
         """Vectorized slab test against each row's own oriented edge
         axes -- same math as ``gl.object_picker._ray_intersect_obb``,
         batched over every row in *rows* at once instead of looping in

@@ -1,18 +1,21 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+import types
 import weakref
+from collections.abc import Callable
+
 from .. import check_types as _check_types
 
 
 class CallbackMixin:
 
     # these need to be explicitly set in the child classes __init__ function
-    __callbacks__: list = []
-    __unbound_callbacks__: list = []
+    __callbacks__: list[weakref.WeakMethod] = []
+    __unbound_callbacks__: list[Callable] = []
     __ref_count__: int = 0
 
     @_check_types.do
-    def __enter__(self):
+    def __enter__(self) -> "CallbackMixin":
         """
         Begin a batched update.
 
@@ -35,13 +38,14 @@ class CallbackMixin:
         return self
 
     @_check_types.do
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
+                 exc_tb: types.TracebackType | None) -> None:
         """Decrement the ref-count guard.  See __enter__."""
 
         self.__ref_count__ -= 1
 
     @_check_types.do
-    def _remove_cb(self, ref):
+    def _remove_cb(self, ref: weakref.WeakMethod) -> None:
         """
         Drop a dead callback weak reference from the callback list.
 
@@ -57,7 +61,7 @@ class CallbackMixin:
             pass
 
     @_check_types.do
-    def bind(self, callback):
+    def bind(self, callback: Callable) -> None:
         """
         Register a callback to be called whenever this Point's coordinates
         change.
@@ -88,7 +92,7 @@ class CallbackMixin:
         self.__callbacks__.append(ref)
 
     @_check_types.do
-    def unbind(self, callback):
+    def unbind(self, callback: Callable) -> None:
         """
         Remove a previously registered callback.
 
@@ -119,7 +123,7 @@ class CallbackMixin:
                     self.__callbacks__.remove(ref)
 
     @_check_types.do
-    def _process_callbacks(self):
+    def _process_callbacks(self) -> None:
         """
         Fire all registered callbacks, unless batching is active.
 

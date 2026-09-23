@@ -37,7 +37,7 @@ class DragHandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase") -> None:
         """Initialise the :class:`DragHandlerBase` instance.
 
         :param canvas: The canvas this drag is happening on.
@@ -47,7 +47,7 @@ class DragHandlerBase:
         self.target = target
 
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
         """Apply one mouse-move event's worth of movement.
 
         *mouse_pos* is the real, absolute current screen-space cursor

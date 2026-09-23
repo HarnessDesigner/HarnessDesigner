@@ -40,6 +40,8 @@ changes here.
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from ...geometry import point as _point
 from ...handlers import wire_drag_base as _wire_drag_base
 from .. import editor_3d as _editor_3d
@@ -51,6 +53,8 @@ if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ...objects import project as _project
     from ...objects import wire as _wire_object
+    from ...database.project_db import pjt_wire as _pjt_wire
+    from ... import ui as _ui
 
 
 class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
@@ -71,7 +75,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         return obj.obj3d
 
     @staticmethod
-    def _get_editor(mainframe):
+    def _get_editor(mainframe: "_ui.MainFrame"):
         return mainframe.editor3d.editor._canvas  # NOQA
 
     @staticmethod
@@ -79,7 +83,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         return project.ptables.pjt_points3d_table
 
     @staticmethod
-    def _waypoints(wire_db_obj):
+    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire"):
         return wire_db_obj.waypoints3d
 
     @staticmethod
@@ -91,32 +95,32 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         return obj.attach_position3d_id_raw
 
     @staticmethod
-    def _get_start_position_id(wire_db_obj) -> bytes | None:
+    def _get_start_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         return wire_db_obj.start_position3d_id
 
     @staticmethod
-    def _set_start_position_id(wire_db_obj, value: bytes | None) -> None:
+    def _set_start_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         wire_db_obj.start_position3d_id = value
 
     @staticmethod
-    def _get_stop_position_id(wire_db_obj) -> bytes | None:
+    def _get_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         return wire_db_obj.stop_position3d_id
 
     @staticmethod
-    def _set_stop_position_id(wire_db_obj, value: bytes | None) -> None:
+    def _set_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         wire_db_obj.stop_position3d_id = value
 
     @staticmethod
-    def _layout_position_id(layout_db_obj) -> bytes | None:
+    def _layout_position_id(layout_db_obj: object) -> bytes | None:
         return layout_db_obj.position3d_id
 
     @staticmethod
-    def _is_in_view(obj) -> bool:
+    def _is_in_view(obj: "_wire_object.Wire") -> bool:
         return obj.is_in_3dview
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
-                 plan: _wire_drag_base.WireDragPlan):
+                 plan: _wire_drag_base.WireDragPlan) -> None:
         # Explicit, never super() -- see handlers.wire_drag_base's own
         # module docstring on why: a bare super() call here would only
         # stay correct for as long as DragHandler3D and WireDragMixin
@@ -134,7 +138,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         _editor_3d.DragHandler3D.delete(self)
 
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
         # Explicit, never a bare inherited lookup -- DragHandler3D's own
         # ancestor DragHandlerBase also defines __call__ (as an
         # unconditional NotImplementedError, meant to be overridden per
@@ -147,7 +151,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         _wire_drag_base.WireDragMixin.__call__(self, delta, mouse_pos)
 
     @_check_types.do
-    def _move_delta(self, anchor: _point.Point, last_pos: _point.Point, delta, aabb):
+    def _move_delta(self, anchor: _point.Point, last_pos: _point.Point, delta: object, aabb: np.ndarray) -> _point.Point | None:
         """3D's free-orbit camera makes a raw screen delta ambiguous
         (it could mean movement along any of X/Y/Z) -- lock to whichever
         axis dominates once the drag settles, same as every other 3D

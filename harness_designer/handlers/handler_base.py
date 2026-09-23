@@ -3,9 +3,10 @@
 """Base classes and shared helpers for interactive editor handlers.
 """
 
+from typing import TYPE_CHECKING
+
 import math
 import numpy as np
-from typing import TYPE_CHECKING
 
 from ..geometry import point as _point
 from .. import check_types as _check_types
@@ -13,7 +14,8 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import ui as _ui
-    from ..geometry import point as _point
+    from ..objects import housing as _housing
+    from ..database.project_db import pjt_cavity as _pjt_cavity
 
 
 class HandlerBase:
@@ -38,11 +40,11 @@ class HandlerBase:
         self.is_active = False
         self.camera = self.mainframe.editor3d.camera
         self.ptables = self.mainframe.project.ptables
-        self._captured_position: "_point.Point" = None
+        self._captured_position: _point.Point | None = None
         self._finalized = False
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: object) -> object:
         return obj.obj3d
 
     @staticmethod
@@ -51,7 +53,7 @@ class HandlerBase:
         current_obb: np.ndarray,
         local_obb: np.ndarray,
         face_idx: int
-    ):
+    ) -> np.ndarray | None:
         """
         Return the unit outward-normal direction for *face_idx* from the rotated OBB.
 
@@ -74,7 +76,8 @@ class HandlerBase:
 
     @staticmethod
     @_check_types.do
-    def euler_from_matrix_continuous(rot_mat: np.ndarray, prev_euler_deg):
+    def euler_from_matrix_continuous(rot_mat: np.ndarray,
+                                     prev_euler_deg: tuple[float, float, float]) -> list[float]:
         """
         YXZ Euler (degrees) from *rot_mat*, wrapped to stay within ±180° of *prev_euler_deg*.
         """
@@ -96,7 +99,7 @@ class HandlerBase:
 
     @classmethod
     @_check_types.do
-    def set_angle_from_housing(cls, acc_obj, housing_obj) -> bool:
+    def set_angle_from_housing(cls, acc_obj: object, housing_obj: "_housing.Housing") -> bool:
         """
         Align *acc_db_obj*'s angle3d to match the housing's current world-space rotation.
 
@@ -166,7 +169,7 @@ class HandlerBase:
 
     @classmethod
     @_check_types.do
-    def set_angle_from_cavity(cls, acc_obj, pjt_cavity) -> bool:
+    def set_angle_from_cavity(cls, acc_obj: object, pjt_cavity: "_pjt_cavity.PJTCavity") -> bool:
         """
         Align *acc_obj*'s angle3d to match *pjt_cavity*'s world-space rotation.
 
@@ -250,7 +253,7 @@ class HandlerBase:
         obj_angle._process_callbacks()  # NOQA
 
     @_check_types.do
-    def capture_position(self, position: "_point.Point") -> None:
+    def capture_position(self, position: _point.Point) -> None:
         """
         Store the most recently captured cursor position for later use by the handler.
 

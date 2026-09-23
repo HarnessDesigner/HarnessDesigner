@@ -1,3 +1,4 @@
+# © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import aabb as _aabb
 from . import obb as _obb
@@ -6,7 +7,7 @@ from . import segment_pool as _segment_pool
 
 class View:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._aabb = _aabb.AABB()
         self._obb = _obb.OBB()
         self._segments = _segment_pool.SegmentPool()
@@ -26,7 +27,7 @@ class View:
 
 class Manager:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._editor_3d = View()
         self._editor_schematic = View()
         self._editor_pegboard = View()

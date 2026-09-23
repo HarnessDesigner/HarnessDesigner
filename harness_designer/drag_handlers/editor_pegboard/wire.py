@@ -41,6 +41,9 @@ if TYPE_CHECKING:
     from ...objects import project as _project
     from ...objects import wire as _wire_object
     from ...geometry import point as _point
+    from ...database.project_db import pjt_wire as _pjt_wire
+    from ...gl.canvas_pegboard import canvas as _canvas
+    from ... import ui as _ui
 
 
 class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
@@ -58,7 +61,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         return obj.objpegboard
 
     @staticmethod
-    def _get_editor(mainframe):
+    def _get_editor(mainframe: "_ui.MainFrame"):
         return mainframe.editor_pegboard.editor._canvas  # NOQA
 
     @staticmethod
@@ -66,43 +69,44 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         return project.ptables.pjt_points_pegboard_table
 
     @staticmethod
-    def _waypoints(wire_db_obj):
+    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire"):
         return wire_db_obj.waypoints_pegboard
 
     @staticmethod
-    def _wire_position_id_raw(obj) -> bytes | None:
+    def _wire_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
         return obj.wire_position_pegboard_id_raw
 
     @staticmethod
-    def _attach_position_id_raw(obj) -> bytes | None:
+    def _attach_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
         return obj.attach_position_pegboard_id_raw
 
     @staticmethod
-    def _get_start_position_id(wire_db_obj) -> bytes | None:
+    def _get_start_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         return wire_db_obj.start_position_pegboard_id
 
     @staticmethod
-    def _set_start_position_id(wire_db_obj, value: bytes | None) -> None:
+    def _set_start_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         wire_db_obj.start_position_pegboard_id = value
 
     @staticmethod
-    def _get_stop_position_id(wire_db_obj) -> bytes | None:
+    def _get_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         return wire_db_obj.stop_position_pegboard_id
 
     @staticmethod
-    def _set_stop_position_id(wire_db_obj, value: bytes | None) -> None:
+    def _set_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         wire_db_obj.stop_position_pegboard_id = value
 
     @staticmethod
-    def _layout_position_id(layout_db_obj) -> bytes | None:
+    def _layout_position_id(layout_db_obj: object) -> bytes | None:
         return layout_db_obj.position_pegboard_id
 
     @staticmethod
-    def _is_in_view(obj) -> bool:
+    def _is_in_view(obj: "_wire_object.Wire") -> bool:
         return obj.is_in_pegboardview
 
     @_check_types.do
-    def __init__(self, canvas, target: "_wire_object.Wire", plan: _wire_drag_base.WireDragPlan):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_wire_object.Wire",
+                 plan: _wire_drag_base.WireDragPlan) -> None:
         # Explicit, never super() -- see handlers.wire_drag_base's own
         # module docstring on why: a bare super() call here would only
         # stay correct for as long as DragHandlerPegboard and
@@ -126,7 +130,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         _editor_pegboard.DragHandlerPegboard.delete(self)
 
     @_check_types.do
-    def __call__(self, delta, mouse_pos) -> None:
+    def __call__(self, delta: object, mouse_pos: "_point.Point") -> None:
         # Explicit, never a bare inherited lookup -- DragHandlerPegboard's
         # own ancestor DragHandlerBase also defines __call__ (as an
         # unconditional NotImplementedError, meant to be overridden per
@@ -140,7 +144,8 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         _wire_drag_base.WireDragMixin.__call__(self, delta, mouse_pos)
 
     @_check_types.do
-    def _move_delta(self, anchor: "_point.Point", last_pos: "_point.Point", delta, aabb):
+    def _move_delta(self, anchor: "_point.Point", last_pos: "_point.Point",
+                     delta: object, aabb: object) -> "_point.Point":
         """Hard-lock Y to exactly 0, every frame -- do NOT rely on the
         peg-board's locked top-down ortho camera to keep it there on its
         own via :meth:`WireDragMixin._raw_move_delta`'s round trip

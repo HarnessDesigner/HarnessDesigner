@@ -89,7 +89,7 @@ class WireMarkerArrow(_object_base.ObjectBase):
 
     @_check_types.do
     def __init__(self, obj_position: _point.Point, direction: np.ndarray,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
         """Initialise the :class:`WireMarkerArrow` instance.
 
         :param obj_position: The dragged marker's own Point (bound so the
@@ -106,15 +106,15 @@ class WireMarkerArrow(_object_base.ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def set_treeitem(self, treeitem):
+    def set_treeitem(self, treeitem: object) -> None:
         self._treeitem = treeitem
 
     @_check_types.do
-    def get_treeitem(self):
+    def get_treeitem(self) -> object | None:
         return self._treeitem
 
     @_check_types.do
-    def __del__(self):
+    def __del__(self) -> None:
         try:
             self.delete()
         except Exception:  # NOQA
@@ -123,15 +123,15 @@ class WireMarkerArrow(_object_base.ObjectBase):
             pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         self.mainframe.remove_object(self)
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         raise NotImplementedError
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @property
@@ -141,7 +141,7 @@ class WireMarkerArrow(_object_base.ObjectBase):
 
     @is_selected.setter
     @_check_types.do
-    def is_selected(self, value: bool):
+    def is_selected(self, value: bool) -> None:
         pass
 
 
@@ -151,13 +151,13 @@ class _ArrowMarker2D(_base_schematic.BaseSchematic):
     ``move_arrows.Arrows2D`` for the identical pattern."""
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: WireMarkerArrow) -> None:
         angle = _angle.Angle()
         position = _point.Point(0, 0)
         super().__init__(parent, None, None, angle, position, None, None)
 
     @_check_types.do
-    def set_selected(self, flag: bool):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @property
@@ -170,8 +170,8 @@ class ArrowMarker3D(_base_3d.Base3D):
     """Renders the bidirectional wire-direction arrow pair."""
 
     @_check_types.do
-    def __init__(self, parent, obj_position: _point.Point, direction: np.ndarray,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
+    def __init__(self, parent: WireMarkerArrow, obj_position: _point.Point, direction: np.ndarray,
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
         color = _color.Color(0, 170, 170, 255)
         material = _materials.Glowing(color)
 
@@ -221,7 +221,7 @@ class ArrowMarker3D(_base_3d.Base3D):
         self._is_visible = True
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Track position changes WITHOUT Base3D's floor-lock logic --
         see move_arrows.Arrows3D._update_position for the identical
         rationale."""
@@ -232,7 +232,7 @@ class ArrowMarker3D(_base_3d.Base3D):
         self._compute_aabb()
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         _base_3d.Base3D._compute_aabb(self)
 
         if getattr(self, '_floor_guard', False):
@@ -241,7 +241,7 @@ class ArrowMarker3D(_base_3d.Base3D):
                 self._aabb[0][1] = ground
 
     @_check_types.do
-    def _on_obj_position(self, position: _point.Point):
+    def _on_obj_position(self, position: _point.Point) -> None:
         """Update arrow position when the dragged marker moves."""
         delta = position - self._o_obj_position
         self._o_obj_position = position.copy()
@@ -249,7 +249,7 @@ class ArrowMarker3D(_base_3d.Base3D):
         self._position += delta
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render the bidirectional arrow -- same draw-the-VBO-twice
         approach as move_arrows.Arrows3D.render."""
         faces_program = shaders.faces

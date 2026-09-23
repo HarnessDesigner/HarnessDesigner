@@ -18,7 +18,7 @@ from . import check_types as _check_types
 
 # Previously exported by this module — kept as a no-op for any callers.
 @_check_types.do
-def get_offsets(_hwnd):
+def get_offsets(_hwnd: object) -> tuple[int, int, int, int]:
     """Return zero window-border offsets for Qt compatibility.
 
     :param _hwnd: Legacy native window handle. UNKNOWN under Qt.

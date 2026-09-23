@@ -2,8 +2,10 @@
 
 """Angle wrappers that combine Euler angles and quaternions."""
 
+from typing import Self, Any, Union as _Union
+from collections.abc import Callable, Iterable
+
 import math
-from typing import Self, Callable, Iterable, Union
 import threading
 import weakref
 import numpy as np
@@ -22,7 +24,7 @@ TWO = 2.0
 class AngleMeta(type):
     """Metaclass that reuses :class:`Angle` instances keyed by ``db_id``."""
 
-    _instances = {}
+    _instances: dict[bytes, weakref.ReferenceType] = {}
     # Guards `_instances` against concurrent mutation from multiple threads
     # (main thread, ProcessManager background thread) and from weakref
     # callbacks that CPython can fire on an arbitrary thread. See the same
@@ -31,7 +33,7 @@ class AngleMeta(type):
 
     @classmethod
     @_check_types.do
-    def _remove_instance(cls, ref):
+    def _remove_instance(cls, ref: weakref.ReferenceType) -> None:
         """
         Remove a collected cached angle reference.
 
@@ -53,7 +55,7 @@ class AngleMeta(type):
     @_check_types.do
     def __call__(cls, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: bytes | None = None):
+                 db_id: bytes | None = None) -> "Angle":
         """
         Return a cached or new :class:`Angle` instance.
 
@@ -87,7 +89,9 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
     @_check_types.do
-    def __array_ufunc__(self, func, method, inputs, instance, out=None, **kwargs):  # NOQA
+    def __array_ufunc__(self, func: np.ufunc, method: str, inputs: object, instance: object,
+                         out: tuple[np.ndarray, ...] | None = None,
+                         **kwargs: dict[str, Any]) -> _Union[np.ndarray, _quaternion.Quaternion, "Angle"]:  # NOQA
         """
         Handle selected NumPy ufuncs involving an angle.
 
@@ -215,9 +219,9 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         raise RuntimeError
 
     @_check_types.do
-    def __init__(self, q: _quaternion.Quaternion | None = None, 
+    def __init__(self, q: _quaternion.Quaternion | None = None,
                  euler_angles: list[float, float, float] | None = None,
-                 db_id: bytes | None = None):
+                 db_id: bytes | None = None) -> None:
         """
         Create an angle.
 
@@ -301,7 +305,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @x.setter
     @_check_types.do
-    def x(self, value: float):
+    def x(self, value: float) -> None:
         """
         Set the cached X Euler angle and update the quaternion.
 
@@ -323,7 +327,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         self._process_callbacks()
 
     @_check_types.do
-    def __update_quat(self, q):
+    def __update_quat(self, q: _quaternion.Quaternion) -> None:
         """
         Copy quaternion component values into the cached quaternion.
 
@@ -357,7 +361,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @y.setter
     @_check_types.do
-    def y(self, value: float):
+    def y(self, value: float) -> None:
         """
         Set the cached Y Euler angle and update the quaternion.
 
@@ -395,7 +399,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @z.setter
     @_check_types.do
-    def z(self, value: float):
+    def z(self, value: float) -> None:
         """
         Set the cached Z Euler angle and update the quaternion.
 
@@ -432,7 +436,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @staticmethod
     @_check_types.do
-    def __get_quat_from_other(other: Union["Angle", np.ndarray | _quaternion.Quaternion]) -> _quaternion.Quaternion:
+    def __get_quat_from_other(other: _Union["Angle", np.ndarray | _quaternion.Quaternion]) -> _quaternion.Quaternion:
         """
         Convert supported operands into a quaternion.
 
@@ -465,7 +469,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return quat
 
     @_check_types.do
-    def __update_matrix(self):
+    def __update_matrix(self) -> None:
         """
         Refresh the cached rotation matrix from the quaternion.
 
@@ -480,7 +484,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
                 self._matrix[i][j] = matrix[i][j]
 
     @_check_types.do
-    def __iadd__(self, other: Union["Angle", np.ndarray]) -> Self:
+    def __iadd__(self, other: _Union["Angle", np.ndarray]) -> Self:
         """
         Compose this angle with ``other`` in place.
 
@@ -516,7 +520,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self
 
     @_check_types.do
-    def __add__(self, other: Union["Angle", np.ndarray]) -> "Angle":
+    def __add__(self, other: _Union["Angle", np.ndarray]) -> "Angle":
         """
         Return the composition of this angle with ``other``.
 
@@ -543,7 +547,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self.from_quat(q)
 
     @_check_types.do
-    def __isub__(self, other: Union["Angle", np.ndarray]) -> Self:
+    def __isub__(self, other: _Union["Angle", np.ndarray]) -> Self:
         """
         Subtract ``other`` from this angle in place.
 
@@ -579,7 +583,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self
 
     @_check_types.do
-    def __sub__(self, other: Union["Angle", np.ndarray]) -> "Angle":
+    def __sub__(self, other: _Union["Angle", np.ndarray]) -> "Angle":
         """
         Return this angle minus ``other``.
 
@@ -673,7 +677,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         # return other
 
     @_check_types.do
-    def __bool__(self):
+    def __bool__(self) -> bool:
         """
         Return whether this angle is not the identity rotation.
 
@@ -734,7 +738,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         """
 
         if self.__euler_angles is None:
-            return [math.nan, math.nan, math.nan]
+            return math.nan, math.nan, math.nan
         return tuple(float(str(item)) for item in self.__euler_angles.tolist())
 
     @property
@@ -763,7 +767,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @property
     @_check_types.do
-    def as_euler_int(self) -> list[int, int, int]:
+    def as_euler_int(self) -> tuple[int, int, int]:
         """
         Return cached Euler angles truncated to integers.
 
@@ -828,27 +832,50 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     @classmethod
     @_check_types.do
     def from_direction(cls, direction: np.ndarray) -> "Angle":
-        """Create quaternion to rotate +Z axis to align with direction"""
+        """Create quaternion to rotate +Z axis to align with direction
+        -- *direction* must already be a unit vector, same contract as
+        before.
 
-        # Unit cylinder points along +Z, rotate it to point along 'direction'
+        Uses the "shortest arc between two unit vectors" quaternion
+        identity (``w = 1 + dot``, ``xyz = cross(a, b)``, then
+        normalize -- ``Quaternion.__init__`` already does that last
+        step) instead of the old ``axis = cross(...)/|cross(...)|`` +
+        ``acos(dot)`` construction, which had a real, confirmed bug:
+        its "already aligned with a pole" special case snapped ANY
+        *direction* within its 0.0001 dot-product tolerance of +/-Z
+        (roughly the nearest 0.8 degrees of arc) to the EXACT pole
+        rotation (identity, or the fixed 180-degree-about-X flip),
+        discarding the true residual angle entirely. For a smooth sweep
+        of directions passing near a pole -- exactly what
+        rotation_handlers/rotation_ring's per-tick growth directions
+        are (see ProtractorRingBase.reposition_all, one call per tick
+        around a full circle) -- that produced a frozen band of ticks
+        all snapped to the same flat orientation, then a visible jump
+        where the general formula picked back up just outside that
+        band: confirmed directly by comparing both formulas' rotated-
+        axis output across a sweep through the pole (2026-09-24,
+        Kevin) -- the old one holds flat for about 1.5 degrees around
+        the pole then jumps, the new one traces a smooth curve through
+        it with no discontinuity. This formula has no such special
+        case to begin with: ``w``/``xyz`` shrink together, smoothly,
+        all the way to the true antiparallel direction, which is the
+        only point where both are exactly zero (guarded below).
+        """
 
         z_axis = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+        dot = float(np.dot(z_axis, direction))
 
-        # Handle special case: direction already aligned with Z
-        dot = np.dot(z_axis, direction)
-        if abs(dot - 1.0) < 0.0001:
-            return cls.from_quat([1.0, 0.0, 0.0, 0.0])  # Identity
-        if abs(dot + 1.0) < 0.0001:
-            # 180 degree rotation around X axis
-            return cls.from_quat([0.0, 1.0, 0.0, 0.0])
+        if dot < -1.0 + 0.0001:
+            # True antiparallel (both w and cross(a, b) below are the
+            # zero vector here, nothing to normalize) -- any axis
+            # perpendicular to Z gives the correct 180-degree flip; +X
+            # is always perpendicular to Z, so it's a fixed, always-
+            # valid choice, not just an arbitrary one.
+            return cls.from_axis_angle(np.array([1.0, 0.0, 0.0]), math.pi)
 
-        # Calculate rotation axis and angle
         axis = np.cross(z_axis, direction)
-        axis = axis / np.linalg.norm(axis)
 
-        angle = math.acos(np.clip(dot, -1.0, 1.0))
-
-        return cls.from_axis_angle(axis, angle)
+        return cls.from_quat([1.0 + dot, float(axis[0]), float(axis[1]), float(axis[2])])
 
     @classmethod
     @_check_types.do
@@ -1061,7 +1088,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
 
     @classmethod
     @_check_types.do
-    def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: bytes | None = None):
+    def from_axis_angle(cls, axis: np.ndarray, angle: float, db_id: bytes | None = None) -> "Angle":
         """
         Create an angle from an axis-angle rotation.
 

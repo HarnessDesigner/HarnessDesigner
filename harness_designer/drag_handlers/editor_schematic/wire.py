@@ -91,6 +91,9 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_schematic import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import project as _project
+    from ...objects import wire as _wire_obj
+    from ...database.project_db import pjt_point2d as _pjt_point2d
 
 
 # How many wires deep a single push can cascade through before giving up --
@@ -140,8 +143,10 @@ class WireSegmentDragPlan:
         'p_before', 'p_near', 'p_far', 'p_after', 'horizontal',
         'layout_near', 'layout_far', 'waypoint_near', 'waypoint_far')
 
-    def __init__(self, p_before, p_near, p_far, p_after, horizontal: bool,
-                layout_near, layout_far, waypoint_near, waypoint_far):
+    def __init__(self, p_before: _point.Point, p_near: _point.Point, p_far: _point.Point,
+                p_after: _point.Point, horizontal: bool,
+                layout_near: object | None, layout_far: object | None,
+                waypoint_near: "_pjt_point2d.PJTPoint2D", waypoint_far: "_pjt_point2d.PJTPoint2D") -> None:
         self.p_before = p_before
         self.p_near = p_near
         self.p_far = p_far
@@ -154,7 +159,7 @@ class WireSegmentDragPlan:
 
 
 @_check_types.do
-def _find_layout(project, point) -> object | None:
+def _find_layout(project: "_project.Project", point: _point.Point) -> object | None:
     """Return the real WireLayout facade anchored at *point* (a live 2D
     Point), or None. One-time lookup at drag-arm -- see
     objects.wire.Wire.layouts for the exact same scan, done there for a
@@ -167,7 +172,7 @@ def _find_layout(project, point) -> object | None:
     return None
 
 
-def _chain_points(wire) -> tuple[list, list]:
+def _chain_points(wire: "_wire_obj.Wire") -> tuple[list[_point.Point], list["_pjt_point2d.PJTPoint2D"]]:
     """*wire*'s own live 2D path, start to stop, as ``(points, waypoints)``
     -- ``points`` is every live Point along it (true start, each interior
     waypoint's own Point in order, true stop), ``waypoints`` the backing
@@ -183,7 +188,8 @@ def _chain_points(wire) -> tuple[list, list]:
     return points, waypoints
 
 
-def _segment_plan_at(wire, points: list, waypoints: list, i: int) -> WireSegmentDragPlan | None:
+def _segment_plan_at(wire: "_wire_obj.Wire", points: list[_point.Point],
+                      waypoints: list["_pjt_point2d.PJTPoint2D"], i: int) -> WireSegmentDragPlan | None:
     """Build the :class:`WireSegmentDragPlan` for *wire*'s segment
     ``points[i] -> points[i + 1]`` -- None unless that segment is fully
     bounded by two real waypoints (``1 <= i <= len(points) - 3``, i.e.
@@ -210,7 +216,7 @@ def _segment_plan_at(wire, points: list, waypoints: list, i: int) -> WireSegment
 
 
 @_check_types.do
-def plan_wire_segment_drag(wire: "_objects.ObjectBase", world_click: tuple) -> WireSegmentDragPlan | None:
+def plan_wire_segment_drag(wire: "_wire_obj.Wire", world_click: tuple[float, float]) -> WireSegmentDragPlan | None:
     """Work out what a click on *wire*'s rendered strand at *world_click*
     (an ``(x, z)`` world position) should drag -- see the module
     docstring for the full rule. None if the click's nearest segment
@@ -251,7 +257,7 @@ def plan_wire_segment_drag(wire: "_objects.ObjectBase", world_click: tuple) -> W
     return _segment_plan_at(wire, points, waypoints, best_i)
 
 
-def _pushable_segment_plan(wire, seg_index: int) -> WireSegmentDragPlan | None:
+def _pushable_segment_plan(wire: "_wire_obj.Wire", seg_index: int) -> WireSegmentDragPlan | None:
     """The push-eligible plan for *wire*'s segment #*seg_index* (0-based,
     the edge from its chain's point *seg_index* to point *seg_index + 1*)
     -- None unless that segment is fully bounded by two real waypoints,
@@ -266,7 +272,9 @@ def _pushable_segment_plan(wire, seg_index: int) -> WireSegmentDragPlan | None:
     return _segment_plan_at(wire, points, waypoints, seg_index)
 
 
-def _find_blocking_wire(project, exclude_wires: frozenset, edge_p1: tuple, edge_p2: tuple):
+def _find_blocking_wire(project: "_project.Project", exclude_wires: frozenset["_wire_obj.Wire"],
+                         edge_p1: tuple[float, float], edge_p2: tuple[float, float]
+                         ) -> tuple["_wire_obj.Wire", int, tuple[float, float], tuple[float, float]] | None:
     """The first OTHER wire whose own segment runs parallel to, and
     within one lane spacing of, the axis-aligned edge *edge_p1* ->
     *edge_p2* over a real overlapping stretch -- mirrors
@@ -319,8 +327,10 @@ def _find_blocking_wire(project, exclude_wires: frozenset, edge_p1: tuple, edge_
     return None
 
 
-def _attempt_push(project, wire, seg_index: int, candidate_lane: float, sign: float, horizontal: bool,
-                  exclude_wires: frozenset, updates: list, depth: int = 0) -> bool:
+def _attempt_push(project: "_project.Project", wire: "_wire_obj.Wire", seg_index: int,
+                  candidate_lane: float, sign: float, horizontal: bool,
+                  exclude_wires: frozenset["_wire_obj.Wire"],
+                  updates: list[tuple[_point.Point, float, float]], depth: int = 0) -> bool:
     """Try to shove *wire*'s segment #*seg_index* far enough past
     *candidate_lane* (one full lane spacing beyond it, in the *sign*
     direction along the perpendicular axis) to make legal room for
@@ -401,7 +411,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-                plan: WireSegmentDragPlan):
+                plan: WireSegmentDragPlan) -> None:
         super().__init__(canvas, target)
 
         self._plan = plan
@@ -426,7 +436,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
         if self._rerouted:
             return
 
@@ -462,7 +472,8 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
         project = self.canvas.mainframe.project
 
-        def _candidate_edges(value: float):
+        def _candidate_edges(value: float) -> tuple[tuple[float, float], tuple[float, float],
+                                                     tuple[float, float], tuple[float, float]]:
             if plan.horizontal:
                 near = (float(plan.p_near.x), value)
                 far = (float(plan.p_far.x), value)
@@ -536,7 +547,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
             plan.layout_far.objschematic.is_visible = not collapsed_far
             self._collapsed_far = collapsed_far
 
-    def _maybe_reroute_past(self, project, candidate: float) -> None:
+    def _maybe_reroute_past(self, project: "_project.Project", candidate: float) -> None:
         """Once a push has failed outright, give up on this interactive
         segment-drag and ask the auto-router for a whole fresh path
         instead -- but only once the mouse has clearly carried on well
@@ -560,7 +571,9 @@ class Wire(_editor_schematic.DragHandlerSchematic):
             _wire_reroute.reroute_wire(project, self.target)
             self._rerouted = True
 
-    def _maybe_partial_jog(self, project, candidate: float, along: float, blocker) -> bool:
+    def _maybe_partial_jog(self, project: "_project.Project", candidate: float, along: float,
+                            blocker: tuple["_wire_obj.Wire", int, tuple[float, float], tuple[float, float]]
+                            ) -> bool:
         """See the module docstring's "partial move" section: when the
         blocking segment only covers PART of the dragged segment's own
         length, and the mouse's own position along the segment (*along*

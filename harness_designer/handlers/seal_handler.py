@@ -7,13 +7,17 @@ Compatibility-lookup helpers for placing seals, reused by
 session, which replaced this module's own former ``AddSealHandler``).
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ..objects import terminal as _terminal
 from .. import check_types as _check_types
 
+
 if TYPE_CHECKING:
     from ..ui.dialogs import part_search as _part_search
+    from ..database.global_db import wire as _global_wire
+    from ..database.global_db import seal as _global_seal
+    from .. import ui as _ui
 
 
 # A housing's own seal_type is MAT whenever it's none of these -- see
@@ -32,7 +36,8 @@ def is_mat_seal_type(type_name: str) -> bool:
 
 
 @_check_types.do
-def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
+def _find_attached_wire_part(mainframe: "_ui.MainFrame",
+                              terminal: _terminal.Terminal) -> _Union["_global_wire.Wire", None]:
     """Return the global wire part attached to *terminal*'s wire pin, or None."""
     pjt_terminal = terminal.db_obj
     wire_point3d_id = pjt_terminal.table.select(
@@ -56,8 +61,8 @@ def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
 
 @_check_types.do
 def terminal_seal_search_params(
-    mainframe, terminal: _terminal.Terminal
-) -> Union["_part_search.SearchParameters", None]:
+    mainframe: "_ui.MainFrame", terminal: _terminal.Terminal
+) -> _Union["_part_search.SearchParameters", None]:
 
     """Seal search-box seed for *terminal*'s pin.
 
@@ -117,7 +122,8 @@ def terminal_seal_search_params(
 
 
 @_check_types.do
-def wire_seal_fit_ok(mainframe, terminal: _terminal.Terminal, seal_part) -> bool:
+def wire_seal_fit_ok(mainframe: "_ui.MainFrame", terminal: _terminal.Terminal,
+                      seal_part: "_global_seal.Seal") -> bool:
     """Whether *seal_part* (an SWS/single-wire-seal global part) fits
     the wire actually attached to *terminal*'s pin.
 

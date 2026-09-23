@@ -37,7 +37,6 @@ needs nothing.
 """
 
 import weakref
-
 import numpy as np
 
 from .. import check_types as _check_types
@@ -45,7 +44,7 @@ from .. import check_types as _check_types
 
 class SegmentPool:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._zero = np.zeros(3, dtype=np.float32)
 
         # Slot i's vertex buffer (a Point's live ``_data``), or the shared

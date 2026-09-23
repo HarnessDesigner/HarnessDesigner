@@ -34,10 +34,11 @@ the abstract probe-building class too (confirmed 2026-09-13).
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QLabel
-from PySide6.QtCore import Qt
+from PySide6 import QtWidgets
+from PySide6 import QtCore
 
 from ..objects import wire_layout as _wire_layout
+from ..geometry import point as _point
 from ..wire_routing import reroute as _wire_reroute
 from .. import check_types as _check_types
 
@@ -45,10 +46,12 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from .. import ui as _ui
     from ..objects import wire as _wire
+    from ..objects import terminal as _terminal
+    from ..objects import splice as _splice
     from ..database.global_db import wire as _global_wire
 
 
-class SnapOverlay(QLabel):
+class SnapOverlay(QtWidgets.QLabel):
     """Floating, click-through label shown near the cursor for a snap
     target's own compatibility message -- either a hard block (red; a
     genuine crimp-range mismatch) or a non-blocking capacity warning
@@ -71,14 +74,14 @@ class SnapOverlay(QLabel):
         ' padding: 4px 6px; border-radius: 3px;')
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
         self.setStyleSheet(self._BLOCK_STYLE)
-        self.setAttribute(Qt.WA_TransparentForMouseEvents)
+        self.setAttribute(QtCore.Qt.WA_TransparentForMouseEvents)
         self.hide()
 
     @_check_types.do
-    def show_message(self, mouse_pos, text: str, blocking: bool = True):
+    def show_message(self, mouse_pos: _point.Point, text: str, blocking: bool = True) -> None:
         self.setStyleSheet(self._BLOCK_STYLE if blocking else self._WARNING_STYLE)
         self.setText(text)
         self.adjustSize()
@@ -87,13 +90,13 @@ class SnapOverlay(QLabel):
         self.raise_()
 
     @_check_types.do
-    def hide_message(self):
+    def hide_message(self) -> None:
         if self.isVisible():
             self.hide()
 
 
 @_check_types.do
-def _awg_fits(part, wire_part: "_global_wire.Wire") -> bool:
+def _awg_fits(part: object, wire_part: "_global_wire.Wire") -> bool:
     """True when *wire_part*'s own AWG falls within *part*'s (a terminal's
     or splice's global part row) crimp range -- a genuine physical
     mismatch otherwise (the wire literally doesn't fit the crimp barrel),
@@ -120,8 +123,8 @@ def _awg_fits(part, wire_part: "_global_wire.Wire") -> bool:
 
 @_check_types.do
 def capacity_warning(
-    attached_wires,
-    part,
+    attached_wires: list["_wire.Wire"],
+    part: object,
     wire_part: "_global_wire.Wire",
     label: str
 ) -> str | None:
@@ -158,7 +161,8 @@ def capacity_warning(
 
 
 @_check_types.do
-def check_terminal_compat(terminal, wire_part: "_global_wire.Wire") -> tuple:
+def check_terminal_compat(terminal: "_terminal.Terminal",
+                           wire_part: "_global_wire.Wire") -> tuple[bool, str | None, str | None]:
     """Return ``(is_compatible, block_message, warning_message)`` for
     attaching *wire_part* to *terminal*.
 
@@ -186,7 +190,8 @@ def check_terminal_compat(terminal, wire_part: "_global_wire.Wire") -> tuple:
 
 
 @_check_types.do
-def check_splice_compat(splice, wire_part: "_global_wire.Wire") -> tuple:
+def check_splice_compat(splice: "_splice.Splice",
+                         wire_part: "_global_wire.Wire") -> tuple[bool, str | None, str | None]:
     """Return ``(is_compatible, block_message, warning_message)`` for
     attaching *wire_part* to *splice* -- mirrors check_terminal_compat
     exactly.
@@ -231,7 +236,7 @@ def check_splice_compat(splice, wire_part: "_global_wire.Wire") -> tuple:
 
 
 @_check_types.do
-def resolve_picked(picked):
+def resolve_picked(picked: object) -> object:
     """Unwrap a snap-probe hit back to the real object it stands in for.
 
     A terminal or splice probe unwraps to the real ``Terminal``/``Splice``
@@ -255,7 +260,7 @@ def resolve_picked(picked):
 
 
 @_check_types.do
-def get_snap_info(picked) -> tuple:
+def get_snap_info(picked: object) -> tuple[str | None, object]:
     """Return ``(kind, target)`` describing a snap-probe hit, for callers
     (dragging.EndpointDragObject) that need to know exactly what a hit
     stands for rather than having it unwrapped/left in place the way
@@ -288,7 +293,7 @@ def get_snap_info(picked) -> tuple:
 
 
 @_check_types.do
-def snap_point(kind: str, target):
+def snap_point(kind: str, target: object) -> _point.Point | None:
     """Return the live world-space ``Point`` a resolved snap target sits
     at -- the exact position ``dragging.EndpointDragObject`` should move
     the dragged endpoint onto (never a copy: the caller must copy before
@@ -317,7 +322,7 @@ def snap_point(kind: str, target):
 
 @_check_types.do
 def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
-                 kind: str, target) -> None:
+                 kind: str, target: object) -> None:
     """Commit a real connection for a resolved snap hit once the mouse
     releases on a snapped drag (dragging.EndpointDragObject) -- the
     two-click placement flow (wire_handler.py) already commits its own
