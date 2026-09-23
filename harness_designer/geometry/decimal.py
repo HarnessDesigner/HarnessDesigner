@@ -9,6 +9,8 @@ import numpy as np
 from .. import check_types as _check_types
 
 
+_ALLOWED_TYPES = Union[np.intc, np.float32, _Decimal, "Decimal", int, float]
+
 
 class Decimal(_Decimal):
     """
@@ -28,16 +30,19 @@ class Decimal(_Decimal):
     """
 
     @_check_types.do
-    def __new__(cls, value: Union[np.intc, np.float32, "Decimal", _Decimal, int, float, str], *args, **kwargs):
+    def __new__(cls, value: Union[_ALLOWED_TYPES, str], *args, **kwargs):
         """
         Create a :class:`Decimal` from a value coerced through ``float``.
 
         :param value: Source value to convert.
         :type value: int | float | str | :class:`Decimal`
+
         :param args: Additional positional arguments forwarded to :class:`decimal.Decimal`.
         :type args: tuple
+
         :param kwargs: Additional keyword arguments forwarded to :class:`decimal.Decimal`.
         :type kwargs: dict
+
         :returns: New wrapped decimal value.
         :rtype: :class:`Decimal`
         """
@@ -47,14 +52,16 @@ class Decimal(_Decimal):
         return super().__new__(cls, value, *args, **kwargs)
 
     @_check_types.do
-    def __ipow__(self, power: Union[np.intc, np.float32, _Decimal, "Decimal", int, float], modulo=None):
+    def __ipow__(self, power: _ALLOWED_TYPES, modulo=None):
         """
         Return ``self`` raised to ``power`` as :class:`Decimal`.
 
         :param power: Exponent value.
         :type power: int | float | :class:`Decimal`
+
         :param modulo: Optional modulo passed to :meth:`decimal.Decimal.__pow__`.
         :type modulo: object | None
+
         :returns: Wrapped power result.
         :rtype: :class:`Decimal`
         """
@@ -63,14 +70,16 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
     @_check_types.do
-    def __pow__(self, power: Union[np.intc, np.float32, _Decimal, "Decimal", int, float], modulo=None):
+    def __pow__(self, power: _ALLOWED_TYPES, modulo=None):
         """
         Return ``self`` raised to ``power``.
 
         :param power: Exponent value.
         :type power: int | float | :class:`Decimal`
+
         :param modulo: Optional modulo passed to :meth:`decimal.Decimal.__pow__`.
         :type modulo: object | None
+
         :returns: Wrapped power result.
         :rtype: :class:`Decimal`
         """
@@ -79,16 +88,17 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__pow__(self, power, modulo))
 
     @_check_types.do
-    def __rpow__(self, __value: Union[np.intc, np.float32, _Decimal, "Decimal", int, float],
-                 __mod: _Context | None = None) -> "Decimal":
-
+    def __rpow__(self, __value:
+                 _ALLOWED_TYPES, __mod: _Context | None = None) -> "Decimal":
         """
         Return ``other`` raised to ``self``.
 
         :param __value: Base value.
         :type __value: int | float | :class:`Decimal`
+        
         :param __mod: UNKNOWN
         :type __mod: :class:`_Context` | None
+        
         :returns: Wrapped power result.
         :rtype: :class:`Decimal`
         """
@@ -130,12 +140,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__abs__(self))
 
     @_check_types.do
-    def __iadd__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __iadd__(self, other: _ALLOWED_TYPES):
         """
         Return the sum of ``self`` and ``other``.
 
         :param other: Value to add.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped sum.
         :rtype: :class:`Decimal`
         """
@@ -144,12 +155,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__add__(self, other))
 
     @_check_types.do
-    def __add__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __add__(self, other: _ALLOWED_TYPES):
         """
         Return the sum of ``self`` and ``other``.
 
         :param other: Value to add.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped sum.
         :rtype: :class:`Decimal`
         """
@@ -158,12 +170,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__add__(self, other))
 
     @_check_types.do
-    def __radd__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __radd__(self, other: _ALLOWED_TYPES):
         """
         Return the sum of ``other`` and ``self``.
 
         :param other: Value to add.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped sum.
         :rtype: :class:`Decimal`
         """
@@ -172,12 +185,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__radd__(self, other))
 
     @_check_types.do
-    def __isub__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __isub__(self, other: _ALLOWED_TYPES):
         """
         Return the difference of ``self`` and ``other``.
 
         :param other: Value to subtract.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped difference.
         :rtype: :class:`Decimal`
         """
@@ -186,12 +200,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__sub__(self, other))
 
     @_check_types.do
-    def __sub__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __sub__(self, other: _ALLOWED_TYPES):
         """
         Return the difference of ``self`` and ``other``.
 
         :param other: Value to subtract.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped difference.
         :rtype: :class:`Decimal`
         """
@@ -200,12 +215,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__sub__(self, other))
 
     @_check_types.do
-    def __rsub__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __rsub__(self, other: _ALLOWED_TYPES):
         """
         Return the difference of ``other`` and ``self``.
 
         :param other: Value to subtract from.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped difference.
         :rtype: :class:`Decimal`
         """
@@ -214,12 +230,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rsub__(self, other))
 
     @_check_types.do
-    def __imul__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __imul__(self, other: _ALLOWED_TYPES):
         """
         Return the product of ``self`` and ``other``.
 
         :param other: Value to multiply by.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped product.
         :rtype: :class:`Decimal`
         """
@@ -228,12 +245,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mul__(self, other))
 
     @_check_types.do
-    def __mul__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __mul__(self, other: _ALLOWED_TYPES):
         """
         Return the product of ``self`` and ``other``.
 
         :param other: Value to multiply by.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped product.
         :rtype: :class:`Decimal`
         """
@@ -242,12 +260,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mul__(self, other))
 
     @_check_types.do
-    def __rmul__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __rmul__(self, other: _ALLOWED_TYPES):
         """
         Return the product of ``other`` and ``self``.
 
         :param other: Value to multiply by.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped product.
         :rtype: :class:`Decimal`
         """
@@ -256,12 +275,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rmul__(self, other))
 
     @_check_types.do
-    def __itruediv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __itruediv__(self, other: _ALLOWED_TYPES):
         """
         Return the quotient of ``self`` and ``other``.
 
         :param other: Divisor value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped quotient.
         :rtype: :class:`Decimal`
         """
@@ -270,12 +290,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__truediv__(self, other))
 
     @_check_types.do
-    def __truediv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __truediv__(self, other: _ALLOWED_TYPES):
         """
         Return the quotient of ``self`` and ``other``.
 
         :param other: Divisor value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped quotient.
         :rtype: :class:`Decimal`
         """
@@ -284,12 +305,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__truediv__(self, other))
 
     @_check_types.do
-    def __rtruediv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __rtruediv__(self, other: _ALLOWED_TYPES):
         """
         Return the quotient of ``other`` and ``self``.
 
         :param other: Dividend value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped quotient.
         :rtype: :class:`Decimal`
         """
@@ -298,12 +320,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rtruediv__(self, other))
 
     @_check_types.do
-    def __ifloordiv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __ifloordiv__(self, other: _ALLOWED_TYPES):
         """
         Return the floor-division result of ``self`` and ``other``.
 
         :param other: Divisor value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped floor-division result.
         :rtype: :class:`Decimal`
         """
@@ -312,12 +335,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__floordiv__(self, other))
 
     @_check_types.do
-    def __floordiv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __floordiv__(self, other: _ALLOWED_TYPES):
         """
         eturn the floor-division result of ``self`` and ``other``.
 
         :param other: Divisor value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped floor-division result.
         :rtype: :class:`Decimal`
         """
@@ -326,12 +350,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__floordiv__(self, other))
 
     @_check_types.do
-    def __rfloordiv__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __rfloordiv__(self, other: _ALLOWED_TYPES):
         """
         Return the floor-division result of ``other`` and ``self``.
 
         :param other: Dividend value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped floor-division result.
         :rtype: :class:`Decimal`
         """
@@ -340,12 +365,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__rfloordiv__(self, other))
 
     @_check_types.do
-    def __imod__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __imod__(self, other: _ALLOWED_TYPES):
         """
         Return ``self`` modulo ``other``.
 
         :param other: Divisor value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped modulo result.
         :rtype: :class:`Decimal`
         """
@@ -354,12 +380,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mod__(self, other))
 
     @_check_types.do
-    def __mod__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __mod__(self, other: _ALLOWED_TYPES):
         """
         Return ``self`` modulo ``other``.
 
         :param other: Divisor value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped modulo result.
         :rtype: :class:`Decimal`
         """
@@ -368,12 +395,13 @@ class Decimal(_Decimal):
         return Decimal(_Decimal.__mod__(self, other))
 
     @_check_types.do
-    def __rmod__(self, other: Union[np.intc, np.float32, _Decimal, "Decimal", int, float]):
+    def __rmod__(self, other: _ALLOWED_TYPES):
         """
         Return ``other`` modulo ``self``.
 
         :param other: Dividend value.
         :type other: int | float | :class:`Decimal`
+
         :returns: Wrapped modulo result.
         :rtype: :class:`Decimal`
         """

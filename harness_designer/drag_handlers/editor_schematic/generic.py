@@ -105,12 +105,18 @@ class Generic(_editor_schematic.DragHandlerSchematic):
         # the same reason: what's attached doesn't change mid-drag, only
         # its routed path does.
         #
-        # Sorted shortest-crow-flies-distance first: a short run is the
-        # more constrained one (less room to route around a conflict),
-        # so it gets first pick of the available lanes each frame while
-        # its longer siblings are still unsettled -- see __call__.
+        # Sorted junction wires first (see ``wire_routing.reroute.
+        # is_junction_wire``'s own docstring -- a wire-junction terminal's
+        # own wires need to claim their lanes around its pushed-out
+        # attach point before anyone else routes near it), then, within
+        # each of those two groups, shortest-crow-flies-distance first: a
+        # short run is the more constrained one (less room to route around
+        # a conflict), so it gets first pick of the available lanes each
+        # frame while its longer siblings are still unsettled -- see
+        # __call__.
         self._attached = sorted(
-            _wire_reroute.wires_attached_to(target), key=_wire_reroute.crow_flies_distance)
+            _wire_reroute.wires_attached_to(target),
+            key=lambda w: (not _wire_reroute.is_junction_wire(w), _wire_reroute.crow_flies_distance(w)))
 
     @_debug.logfunc
     @_check_types.do

@@ -150,6 +150,16 @@ class Wire(_base_schematic.BaseSchematic):
         self._waypoint_points = []
         self._segment_pool = parent.mainframe.bounds_manager.editor_schematic.segments
 
+        # Extra interior (x, z) bends shown between the last real waypoint and
+        # this wire's live stop point while it is being drawn -- the preview of
+        # what the auto-router would lay out if the wire were ended right now
+        # (see add_handlers.editor_schematic.wire.Wire._preview_route_to and
+        # :meth:`set_preview`). Purely a display list: never written to the
+        # database, never registered with the segment pool (:meth:`_register_
+        # segments` -- an obstacle for OTHER wires' own routing only once it is
+        # real), and always empty once the wire isn't being interactively drawn.
+        self._preview_points: list[tuple[float, float]] = []
+
         self._p1 = db_obj.start_position2d
         self._p2 = db_obj.stop_position2d
 
@@ -222,6 +232,9 @@ class Wire(_base_schematic.BaseSchematic):
         """
         points = [self._p1.as_numpy]
         points.extend(point.as_numpy for point in self._waypoint_points)
+        points.extend(
+            np.array([x, 0.0, z], dtype=self._p1.as_numpy.dtype)
+            for x, z in self._preview_points)
         points.append(self._p2.as_numpy)
 
         return list(zip(points, points[1:]))
@@ -416,6 +429,58 @@ class Wire(_base_schematic.BaseSchematic):
         self._aabb[:] = aabb
 
     @_check_types.do
+    def hit_test_step3(self, ray_origin, ray_dir):
+        """Precise per-segment mesh hit test (see ``BaseVar.hit_test_step3``):
+        tests every sub-segment's own transformed triangles individually,
+        instead of the inherited single-transform version -- which tests
+        against this wire's own mesh placed at its AGGREGATE chord
+        position/angle/scale (the straight line from true start to true
+        stop, ignoring every bend between them). For anything but a
+        single unbent segment that chord doesn't correspond to any
+        actually-rendered geometry at all, so a click anywhere on a bent
+        wire's real, visible path missed every triangle and this object
+        was never actually pickable (confirmed 2026-09-22, Kevin: wire
+        selection in the schematic editor doesn't work at all).
+
+        ``objects_3d.wire.Wire`` already overrides this the same way, for
+        the exact same reason -- this mirrors it here, using
+        ``_yaw_matrix`` (a real rotation matrix, ready for a bare
+        ``@`` multiply) rather than ``_segment_transforms``'s own
+        ``_yaw_angle`` (built for the renderer's position/angle/scale
+        call convention, not a bare matrix multiply) -- same distinction
+        :meth:`_segment_world_corners` already draws for the identical
+        reason.
+        """
+        if self._vbo is None:
+            return False
+
+        vertices_local = self._vbo.vertices.reshape(-1, 3)
+        if len(vertices_local) % 3:
+            return False
+
+        diameter = float(self._scale.x)
+
+        for seg_p1, seg_p2 in self._segments():
+            dx = seg_p2[0] - seg_p1[0]
+            dz = seg_p2[2] - seg_p1[2]
+            seg_len = math.sqrt(dx * dx + dz * dz)
+            if seg_len < 1e-6:
+                continue
+
+            scale = np.array([diameter, diameter, seg_len], dtype=np.float32)
+            matrix = _yaw_matrix(math.degrees(math.atan2(dx, dz)))
+
+            ray_object = ray_origin - seg_p1
+
+            vertices = (vertices_local * scale) @ matrix
+            verts = vertices.reshape(-1, 3, 3)
+
+            if self._ray_triangles_intersect_vectorized(ray_object, ray_dir, verts):
+                return True
+
+        return False
+
+    @_check_types.do
     def _update_position(self, _position: _point.Point):
         """Recompute geometry immediately whenever any endpoint or
         interior waypoint moves -- mirrors
@@ -486,6 +551,21 @@ class Wire(_base_schematic.BaseSchematic):
         buffers.append(self._p2.as_numpy)
 
         self._segment_pool.register(self, buffers)
+
+    @_check_types.do
+    def set_preview(self, points: list[tuple[float, float]] | None) -> None:
+        """Show *points* (interior ``(x, z)`` bends, in order) as extra
+        segments between the last real waypoint and this wire's live stop
+        point -- see :attr:`_preview_points`. ``None``/empty clears it back
+        to the plain single dangling segment. Only this wire's own render
+        geometry/bounds are touched; the segment pool other wires' own
+        routing reads obstacles from is untouched (see :attr:`_preview_points`'s
+        own docstring), so a preview is never itself an obstacle.
+        """
+        self._preview_points = list(points) if points else []
+
+        self._recalculate_geometry()
+        self.editor2d.Refresh(False)
 
     @_check_types.do
     def _delete(self):
@@ -691,12 +771,13 @@ class Wire(_base_schematic.BaseSchematic):
         splice: Union["_splice_facade.Splice", None] = None
     ) -> Union["_wire.Wire", None]:
         """Terminal/splice-pinned wire placement, ported from
-        handlers.wire_handler_2d.AddWireHandler2D -- see
-        add_handlers.editor_schematic.wire's own module docstring for why
-        there's no free-space mode here at all, unlike the 3D editor's
-        Wire.start_add.
+        handlers.wire_handler_2d.AddWireHandler2D. Always pinned to a start
+        terminal/splice (no free-space start, unlike the 3D editor's
+        Wire.start_add); from there the user draws the wire by clicking
+        waypoints, and ends it on a terminal/splice -- see
+        add_handlers.editor_schematic.wire's own module docstring.
         """
-        from ...handlers.wire_handler import _get_terminal_compat_pns  # NOQA
+        from ...handlers.wire_handler import terminal_wire_search_params
         from ...handlers import wire_snap as _wire_snap
         from ...ui.dialogs import part_search as _part_search
         from ...ui import editor_db as _editor_db
@@ -711,13 +792,13 @@ class Wire(_base_schematic.BaseSchematic):
             return None
 
         if terminal is not None:
-            compat_pns = _get_terminal_compat_pns(mainframe, terminal)
+            initial_params = terminal_wire_search_params(terminal)
         else:
-            compat_pns = None
+            initial_params = None
 
         dlg = _part_search.SearchDialog(
             mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire',
-            initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+            initial_params=initial_params)
 
         if dlg.exec() == QDialog.DialogCode.Accepted:
             part_id = dlg.GetValue()
@@ -779,6 +860,15 @@ class Wire(_base_schematic.BaseSchematic):
         else:
             handler._attach_splice(splice, 'start')  # NOQA
 
+        # The handler needs the start attached (its terminal's exit stub is
+        # part of the path being drawn).
+        handler.begin()
+
+        # Drawn from the first click on: the canvas otherwise never renders a
+        # wire with a dangling end (see Canvas.add_object).
+        facade.db_obj.is_visible2d = True
+        canvas.add_preview_object(facade)
+
         facade.objschematic._active_handler = handler  # NOQA
         canvas.active_handler_obj = facade.objschematic
 
@@ -797,10 +887,20 @@ class Wire(_base_schematic.BaseSchematic):
         from ...add_handlers.editor_schematic import wire as _add_wire  # NOQA -- avoid a cycle at import time
 
         if isinstance(self._active_handler, _add_wire.Wire):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler below
+            # -- a right click with nothing left to undo cancels the session,
+            # which deletes this wire's own facade; BaseVar's generic delete()
+            # sees self._active_handler is this same handler and clears it AND
+            # calls its own delete() (idempotent -- cancel() already ran) right
+            # there, all before this call even returns. Reading self.
+            # _active_handler again afterward would find None -- checked
+            # AttributeError, confirmed live 2026-09-21 (Kevin) -- ask the
+            # handler itself, and only clear the slot if nothing already did.
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled

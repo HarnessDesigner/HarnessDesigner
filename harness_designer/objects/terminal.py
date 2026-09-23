@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING
+import math
 import weakref
 
 from . import ObjectBase as _ObjectBase
@@ -18,6 +19,11 @@ if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_terminal as _pjt_terminal
     from . import wire as _wire_obj
+
+
+# The editors (``CanvasBase._editor_name``) in which selecting a terminal selects
+# the cavity it sits in instead -- see Terminal.set_selected.
+_CAVITY_SELECTING_EDITORS = ('editor3d', 'editor_pegboard')
 
 
 class Terminal(_ObjectBase):
@@ -137,6 +143,8 @@ class Terminal(_ObjectBase):
         project = self.mainframe.project
         is_first_wire = not existing_wires
 
+        self._make_room_for_second_wire(len(existing_wires))
+
         attach_point = ptables.pjt_points3d_table[self.db_obj.attach_position3d_id]
         attach_point_pegboard = ptables.pjt_points_pegboard_table[
             self.db_obj.attach_position_pegboard_id]
@@ -228,6 +236,21 @@ class Terminal(_ObjectBase):
         wire.set_sibling(self, end)
         self._wire_refs.append(weakref.ref(wire))
 
+        # This terminal just became a junction (see
+        # _make_room_for_second_wire, which already ran above): the ONE
+        # wire that was already attached here had its route settled back
+        # when this terminal still had its short, un-pushed stub -- its
+        # own endpoint moved for free (it's bound to the same
+        # wire_position2d Point this new wire now shares), but its
+        # interior bends, if any, are stale relative to the new, further-
+        # out attach point. Route it fresh FIRST -- junction wires claim
+        # their lanes before anything else, see wire_routing.reroute.
+        # is_junction_wire's own docstring -- so the new wire below routes
+        # around an already-correct sibling instead of the other way
+        # around.
+        if len(existing_wires) == 1:
+            _wire_reroute.reroute_wire(project, existing_wires[0])
+
         _wire_reroute.on_wire_attached(project, wire)
 
         cavity_db = self.db_obj.cavity
@@ -237,6 +260,168 @@ class Terminal(_ObjectBase):
                 _base_pegboard.notify_table_wires_changed(cavity_obj.housing.db_obj)
 
         return True
+
+    # The floor on how far _junction_push_length pushes wire_position2d out,
+    # as a multiple of this terminal's own original (un-extended) stub
+    # length -- see that method's own docstring for when it pushes further.
+    _JUNCTION_PUSH_MULTIPLIER = 3.0
+
+    @_check_types.do
+    def _make_room_for_second_wire(self, existing_wire_count: int) -> None:
+        """Schematic-view only: push this terminal's own ``wire_position2d``
+        further out, once, the moment it is about to gain its SECOND wire.
+
+        Unlike the 3D/peg-board views (see :meth:`_own_or_cloned_point_id`),
+        a terminal has no per-wire clone of its own wire attach point in the
+        schematic view -- ``add_wire`` points every wire's own
+        ``start_position2d_id``/``stop_position2d_id`` straight at this
+        SAME shared ``wire_position2d`` (see that method's own docstring).
+        A single wire there is fine -- but a second one arriving at that
+        exact point, right at the terminal's own pin edge, has nowhere to
+        run without overlapping the first wire's own mandatory exit stub.
+        So the moment a terminal's wire count is about to go from one to
+        two, this moves that ONE shared point further out (see
+        :meth:`_junction_push_length` for how far), straight along the
+        direction the rendered wire-stub cylinder is already headed --
+        giving every wire that ends there (the existing one included,
+        since they all share this one Point) room to actually fan out and
+        keep proper lane spacing from each other. A 3rd/4th/... wire finds
+        it already moved and this is a no-op.
+
+        Deliberately nothing more than moving a Point already in place for
+        exactly this purpose, plus a purely visual marker at the new spot
+        (see ``Terminal.render``'s own ``wire_junction`` sphere pass) -- no
+        new object, no new database row/table.
+        """
+        if existing_wire_count != 1:
+            return
+
+        term_schematic = self.objschematic
+        cyl_start = term_schematic._cylinder_start  # NOQA
+        wire_pos = self.db_obj.wire_position2d
+
+        if cyl_start is None or wire_pos is None:
+            return
+
+        dx = float(wire_pos.x) - float(cyl_start.x)
+        dz = float(wire_pos.z) - float(cyl_start.z)
+        base_length = math.hypot(dx, dz)
+        if base_length < 1e-6:
+            return
+
+        push_length = self._junction_push_length(base_length)
+        ux, uz = dx / base_length, dz / base_length
+
+        with wire_pos:
+            wire_pos.x = float(cyl_start.x) + ux * push_length
+            wire_pos.z = float(cyl_start.z) + uz * push_length
+
+        # The rendered stub cylinder's own length/angle aren't bound to
+        # wire_position2d itself -- only recomputed when this terminal's own
+        # housing-relative geometry is (see Terminal._update_position's own
+        # docstring) -- so ask for that same recompute now, rather than
+        # leaving the cylinder pointing at its old, un-extended length until
+        # something else happens to move this terminal next.
+        term_schematic._update_position(term_schematic.position)  # NOQA
+
+    @_check_types.do
+    def _junction_push_length(self, base_length: float) -> float:
+        """How far out (from this terminal's own ``_cylinder_start``, along
+        the shared stub direction) :meth:`_make_room_for_second_wire`
+        should push ``wire_position2d`` -- always a whole-number MULTIPLE
+        of *base_length* (this terminal's own original, un-extended stub
+        length, the same for every terminal in the housing -- see
+        ``Terminal``'s own docstring), starting at
+        ``_JUNCTION_PUSH_MULTIPLIER`` (3x) and stepped up one whole
+        multiple at a time (4x, 5x, ...) only as far as needed.
+
+        A STATIC 3x was enough to just barely cause a real bug: every
+        terminal in a housing shares the same stub direction and the same
+        row pitch (``geometry.cavity_layout.compute_stack_geometry``), so a
+        fixed multiplier can land this terminal's own junction point at the
+        exact same depth a NEIGHBOURING terminal's wire(s) already need to
+        bend at -- landing two different wires' routed 90-degree turns
+        (and their ``WireLayout`` handles) on top of each other (confirmed
+        2026-09-22, Kevin).
+
+        Since every terminal in this housing starts from that SAME
+        *base_length*, a neighbour's own current reach -- pushed out
+        itself, if it's a junction too -- already sits on that same whole-
+        multiple step lattice; there's never a need to land in between two
+        steps. So: look at whichever terminal seated in an IMMEDIATELY
+        ADJACENT cavity row (directly above or below this one in the
+        housing's own stack order -- found by row pitch, not name/index,
+        since natural-sort stack order isn't stored on ``CavityGeometry``
+        itself) reaches furthest along that same shared direction, and if
+        this terminal's own starting multiplier wouldn't already clear past
+        it, this terminal's own multiplier becomes that neighbour's own
+        multiplier PLUS one whole step -- otherwise the starting multiplier
+        is already enough, unchanged.
+
+        Only DIRECT neighbours are considered, not a recursive walk further
+        out the stack -- a neighbour's own reach already accounts for ITS
+        neighbours (this exact method, run for it whenever IT became a
+        junction), so it's already the furthest anything on its far side
+        can be.
+        """
+        multiplier = self._JUNCTION_PUSH_MULTIPLIER
+
+        cavity = self.db_obj.cavity
+        if cavity is None:
+            return base_length * multiplier
+
+        housing = cavity.housing
+        if housing is None:
+            return base_length * multiplier
+
+        geometry = housing.cavity_geometry.get(cavity.db_id)
+        if geometry is None:
+            return base_length * multiplier
+
+        pitch = geometry.cavity_height
+        this_z = geometry.position[1]
+
+        for other_cavity in housing.cavities:
+            if other_cavity.db_id == cavity.db_id:
+                continue
+
+            other_geometry = housing.cavity_geometry.get(other_cavity.db_id)
+            if other_geometry is None:
+                continue
+
+            # Immediate stack neighbour: exactly one row-pitch away, not any
+            # other cavity in the housing.
+            if abs(abs(other_geometry.position[1] - this_z) - pitch) > 1e-3:
+                continue
+
+            neighbor_terminal_row = other_cavity.terminal
+            if neighbor_terminal_row is None:
+                continue
+
+            neighbor = neighbor_terminal_row.get_object()
+            if neighbor is None:
+                continue
+
+            n_cyl_start = neighbor.objschematic._cylinder_start  # NOQA
+            n_wire_pos = neighbor.db_obj.wire_position2d
+
+            if n_cyl_start is None or n_wire_pos is None:
+                continue
+
+            reach = math.hypot(float(n_wire_pos.x) - float(n_cyl_start.x),
+                               float(n_wire_pos.z) - float(n_cyl_start.z))
+
+            # Rounded, not floor-divided: float noise from the rotate/
+            # translate math that produced n_cyl_start/n_wire_pos (the same
+            # accumulation noted in reroute._terminal_exit_stub_point's own
+            # docstring) could otherwise knock an exact multiple down by a
+            # whole step.
+            neighbor_multiplier = round(reach / base_length)
+
+            if neighbor_multiplier >= multiplier:
+                multiplier = neighbor_multiplier + 1
+
+        return base_length * multiplier
 
     @staticmethod
     @_check_types.do
@@ -272,10 +457,15 @@ class Terminal(_ObjectBase):
     def set_selected(self, flag):
         """Selecting a terminal selects its owning cavity instead.
 
-        Terminals are never directly selectable — all manipulation of a
-        terminal happens through the cavity it's placed in.
+        That is so in the 3D view and the peg board only -- all manipulation
+        of a terminal there happens through the cavity it's placed in. In the
+        schematic a terminal's name is its own click target (see
+        objects_schematic/terminal.py), so the terminal itself is selected.
+        The editor a click came from is what the mouse handler leaves in
+        ``mainframe._selection_source_editor`` just before it selects (see
+        MouseHandlerBase.on_left_up).
         """
-        if flag:
+        if flag and self.mainframe._selection_source_editor in _CAVITY_SELECTING_EDITORS:  # NOQA
             cavity = self.db_obj.cavity
             cavity_obj = cavity.get_object() if cavity is not None else None
             if cavity_obj is not None:

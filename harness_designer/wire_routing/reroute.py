@@ -76,7 +76,12 @@ def on_wire_attached(project: "_project.Project", wire: "_wire_obj.Wire") -> Non
         return
 
     wire.db_obj.is_visible2d = True
-    reroute_wire(project, wire)
+
+    # A wire whose path the user placed by hand (see add_handlers.
+    # editor_schematic.wire) keeps those points and only has the rest routed.
+    # Read here, not passed in: Terminal.add_wire calls this itself, deep
+    # inside the attach, where the add handler can't reach it.
+    reroute_wire(project, wire, fixed_prefix=wire.route_prefix)
     wire.mainframe.editor2d.add_object(wire)
 
 
@@ -101,13 +106,30 @@ def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, 
     wire attachment point.
 
     ``None`` if this end isn't attached to a Terminal at all (a splice
-    has no fixed exit direction of its own) or the direction isn't
-    resolvable yet (e.g. a bare terminal with no seated cavity).
+    has no fixed exit direction of its own), the terminal has more than
+    one wire (see below), or the direction isn't resolvable yet (e.g. a
+    bare terminal with no seated cavity).
+
+    A terminal with more than one wire is a junction, not a single fixed
+    exit, the moment it gains its second one (see ``objects.terminal.
+    Terminal._make_room_for_second_wire``/``objects_schematic.terminal.
+    Terminal.render``'s own ``wire_junction`` sphere) -- every wire on it
+    shares the SAME ``wire_position2d``, so forcing each one through its
+    own copy of this same mandatory straight run made them overlap each
+    other along the whole stretch out to it (worse than before the
+    junction point existed, not better) instead of just meeting there like
+    a splice's own wires already do (a splice has no exit stub of its own
+    either, for exactly this reason). None of a junction terminal's wires
+    get a stub any more, the first (now shared) one included -- not only
+    whichever arrived after the second.
     """
     from ..objects import terminal as _terminal
 
     sibling = wire.start_sibling if end == 'start' else wire.stop_sibling
     if not isinstance(sibling, _terminal.Terminal):
+        return None
+
+    if len(sibling.wires) > 1:
         return None
 
     term_schematic = sibling.objschematic
@@ -157,8 +179,20 @@ def _terminal_exit_stub_point(wire: "_wire_obj.Wire", end: str) -> tuple[float, 
 
 def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_routing.WireEnds:
     """*wire*'s two true 2D ends, the terminal exit stub (if any) at each,
-    and the splices it's attached to -- what a routing frame needs to
-    know about it."""
+    and the splice/terminal-cylinder rects it's attached to -- what a
+    routing frame needs to know about it.
+
+    ``ignore_rects`` carries both the splices (:func:`~.routing.
+    attached_splice_rects`) AND the terminal cylinders (:func:`~.routing.
+    attached_terminal_cylinder_rects`) *wire* is directly attached to --
+    :class:`~.routing.RoutingFrame` bakes every terminal's cylinder into
+    its shared grid as a hard obstacle (see :func:`~.routing.
+    _obstacle_rects`), same as it does housings/splices/notes, so a wire's
+    own attach point -- which legitimately sits right on/at its own
+    terminal's cylinder rect -- needs the same "un-paint just for my own
+    search turn" treatment a splice-attached end already gets (see
+    :meth:`~.routing.RoutingFrame.route`).
+    """
     db_obj = wire.db_obj
     start = db_obj.start_position2d
     stop = db_obj.stop_position2d
@@ -166,7 +200,8 @@ def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_rout
     return _wire_routing.WireEnds(
         (float(start.x), float(start.z)), (float(stop.x), float(stop.z)),
         _terminal_exit_stub_point(wire, 'start'), _terminal_exit_stub_point(wire, 'stop'),
-        _wire_routing.attached_splice_rects(project, wire))
+        _wire_routing.attached_splice_rects(project, wire)
+        + _wire_routing.attached_terminal_cylinder_rects(project, wire))
 
 
 def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
@@ -350,9 +385,112 @@ def _skipped_stub_segments(skip_wires) -> list[tuple[tuple[float, float], tuple[
     return segments
 
 
+def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int):
+    """Append a new interior 2D waypoint at ``(x, z)`` as index *idx* of
+    *wire*'s path, with its own WireLayout handle -- every interior bend has
+    one, so it is a real selectable/draggable object. Returns the new point
+    row. The caller refreshes the wire (``objschematic.refresh_waypoints()``)
+    once it is done adding."""
+    from ..objects import wire_layout as _wire_layout
+
+    ptables = project.ptables
+
+    point = ptables.pjt_points2d_table.insert(x, z, wire_id=wire.db_obj.db_id, idx=idx)
+
+    layout_db = ptables.pjt_wire_layouts_table.insert(point2d_id=point.db_id)
+    layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
+    project.add_wire_layout(layout_obj)
+
+    return point
+
+
+def remove_waypoint(project: "_project.Project", point) -> None:
+    """Delete a waypoint row *point* (a ``PJTPoint2D``) and its WireLayout.
+
+    ``wire_id`` has to be cleared first: it counts as a reference on its own,
+    and ``PJTPoint2D.delete()`` silently refuses while the point is still
+    referenced (see the note in :func:`reroute_wire`). The caller refreshes
+    the wire afterwards."""
+    _pjt_wire.delete_layouts_at(project.ptables.pjt_wire_layouts_table, 'point2d_id', point.db_id)
+
+    point.wire_id = None
+    point.delete()
+
+
+def set_waypoints(project: "_project.Project", wire: "_wire_obj.Wire",
+                  waypoints: list[tuple[float, float]]) -> None:
+    """Reconcile *wire*'s interior 2D waypoint rows to match *waypoints*
+    exactly, in order -- the shared "make the DB match this exact path"
+    tail of :func:`reroute_wire`, factored out so a caller that already
+    knows the exact path it wants (not one that needs A* to find it) can
+    reuse the same reconciliation instead of hand-rolling its own
+    delete/insert bookkeeping. Used by :func:`reroute_wire` itself, and
+    by ``drag_handlers.editor_schematic.wire``'s own partial-move jog,
+    which inserts 2 new waypoints mid-chain by hand (splitting a segment
+    that's only partly blocked) rather than rerouting.
+
+    Reuses whatever old waypoint rows it can -- one DB write per point
+    moved, no delete/insert at all -- and only deletes/inserts the
+    DIFFERENCE in count against *waypoints*' own length. Positional, not
+    by identity: row *k* is simply repointed at ``waypoints[k]``,
+    whatever it meant before, so a caller that wants a specific existing
+    point left exactly where it is must include that point's own
+    current position in *waypoints* at the same slot it already
+    occupies -- this doesn't try to detect or preserve "the same
+    logical bend" on its own.
+    """
+    ptables = project.ptables
+    db_obj = wire.db_obj
+
+    old_waypoints = list(db_obj.waypoints2d)
+    common = min(len(old_waypoints), len(waypoints))
+
+    from ..objects import wire_layout as _wire_layout
+
+    layouts_table = ptables.pjt_wire_layouts_table
+
+    # See reroute_wire's own identical block for why every write here is
+    # unconditional (even a "no-op" reuse) and why the explicit
+    # _process_callbacks() call after `with point:` is required, not
+    # optional.
+    for old_point, (x, z) in zip(old_waypoints[:common], waypoints[:common]):
+        point = old_point.point
+        with point:
+            point.x = x
+            point.z = z
+        point._process_callbacks()  # NOQA
+
+        if layouts_table.for_point2d_id(old_point.db_id) is None:
+            layout_db = layouts_table.insert(point2d_id=old_point.db_id)
+            layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
+            project.add_wire_layout(layout_obj)
+
+    if len(waypoints) > len(old_waypoints):
+        for i in range(common, len(waypoints)):
+            x, z = waypoints[i]
+            add_waypoint(project, wire, x, z, i)
+
+    elif len(waypoints) < len(old_waypoints):
+        for point in old_waypoints[common:]:
+            remove_waypoint(project, point)
+
+    wire.objschematic.refresh_waypoints()
+
+
+def _axis_aligned(a: tuple[float, float], b: tuple[float, float]) -> bool:
+    """Whether *a* -> *b* is a real horizontal or vertical run (not a point)."""
+    dx = abs(a[0] - b[0])
+    dz = abs(a[1] - b[1])
+
+    if dx < 1e-6 and dz < 1e-6:
+        return False
+
+    return dx < 1e-6 or dz < 1e-6
+
+
 @_check_types.do
 def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
-                 skip_wires=frozenset(), frame=None) -> None:
+                 skip_wires=frozenset(), frame=None, fixed_prefix=None) -> None:
     """Recompute *wire*'s orthogonal 2D path and reconcile its interior
     waypoint rows against the result -- moves whatever old waypoints can
     be reused (one DB write per point moved, no delete/insert at all)
@@ -390,6 +528,11 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
         that *wire* is part of. When given, the route comes from it -- one
         grid shared by the whole batch, which also tracks which of the
         batch are settled -- and *skip_wires* isn't needed.
+    :param fixed_prefix: The first interior waypoints of the path, already
+        placed by hand, as ``(x, z)`` in order from the start end (a terminal
+        exit stub included, if the user's path starts with one). They are kept
+        exactly, whatever their angle, and only the rest of the path -- from the
+        last of them to the stop end -- is routed. Not used with *frame*.
     """
     ptables = project.ptables
     db_obj = wire.db_obj
@@ -403,124 +546,90 @@ def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
     start_stub = _terminal_exit_stub_point(wire, 'start')
     stop_stub = _terminal_exit_stub_point(wire, 'stop')
 
-    route_start = start_xz if start_stub is None else start_stub
+    if fixed_prefix:
+        fixed_prefix = [(float(x), float(z)) for x, z in fixed_prefix]
+        own_path = [start_xz] + fixed_prefix
+
+        route_start = own_path[-1]
+
+        # Fold-back guard only makes sense against a real cardinal run.
+        start_anchor = own_path[-2] if _axis_aligned(own_path[-2], route_start) else None
+
+        own_lanes = list(zip(own_path, own_path[1:]))
+        if stop_stub is not None:
+            own_lanes.append((stop_xz, stop_stub))
+    else:
+        route_start = start_xz if start_stub is None else start_stub
+
+        start_anchor = None if start_stub is None else start_xz
+
+        # The wire's own stubs count as lanes too (see RoutingFrame.route).
+        own_lanes = []
+        if start_stub is not None:
+            own_lanes.append((start_xz, start_stub))
+        if stop_stub is not None:
+            own_lanes.append((stop_xz, stop_stub))
+
     route_stop = stop_xz if stop_stub is None else stop_stub
 
     if frame is not None and wire in frame:
         interior = frame.route(wire)
     else:
-        # The wire's own stubs count as lanes too (see RoutingFrame.route).
-        own_stubs = []
-        if start_stub is not None:
-            own_stubs.append((start_xz, start_stub))
-        if stop_stub is not None:
-            own_stubs.append((stop_xz, stop_stub))
-
         interior = _wire_routing.route(
             project, route_start, route_stop, ignore_wire=wire, skip_wires=skip_wires,
-            start_anchor=None if start_stub is None else start_xz,
+            start_anchor=start_anchor,
             stop_anchor=None if stop_stub is None else stop_xz,
-            extra_segments=_skipped_stub_segments(skip_wires) + own_stubs)
+            extra_segments=_skipped_stub_segments(skip_wires) + own_lanes)
 
-    full_path = [start_xz]
-    if start_stub is not None:
-        full_path.append(start_stub)
-    full_path.extend(interior)
+    if fixed_prefix:
+        full_path = [start_xz] + fixed_prefix + interior
+    else:
+        full_path = [start_xz]
+        if start_stub is not None:
+            full_path.append(start_stub)
+        full_path.extend(interior)
+
     if stop_stub is not None:
         full_path.append(stop_stub)
     full_path.append(stop_xz)
 
+    # A waypoint the wire runs straight through is no bend at all -- and one
+    # the user placed can be exactly that once the routed tail joins it (the
+    # last point placed, with the route carrying on the same way) -- so it goes.
     waypoints = _wire_routing._collapse(full_path)  # NOQA
 
-    old_waypoints = list(db_obj.waypoints2d)
-    common = min(len(old_waypoints), len(waypoints))
+    # Reposition whatever overlaps in place rather than tearing everything
+    # down and inserting fresh rows (new ids, new Point objects, any
+    # WireLayout re-anchored) and only add/remove the difference in
+    # count -- see set_waypoints's own docstring.
+    set_waypoints(project, wire, waypoints)
 
-    from ..objects import wire_layout as _wire_layout
 
-    layouts_table = ptables.pjt_wire_layouts_table
+@_check_types.do
+def is_junction_wire(wire: "_wire_obj.Wire") -> bool:
+    """Whether either of *wire*'s own ends is attached to a Terminal that
+    currently has more than one wire -- a schematic-view wire-junction
+    (see ``objects.terminal.Terminal._make_room_for_second_wire``).
 
-    # Reposition whatever overlaps -- the shared prefix of whichever
-    # list is shorter -- in place rather than tearing it down and
-    # inserting a fresh row (new id, new Point object, any WireLayout
-    # re-anchored to it). One DB write per point moved, not a
-    # delete-then-insert pair. Matches how every other live position
-    # update in this codebase already works (e.g.
-    # PJTHousing._update_position2d's own batch move).
-    #
-    # The explicit _process_callbacks() after the `with` block is
-    # required, not optional -- per geometry/point.py's own documented
-    # contract, callbacks (including PJTPoint2D's own DB write-through)
-    # are suppressed entirely while inside `with point:`, and "the
-    # caller is responsible for triggering the update itself after the
-    # block" once it exits. Confirmed missing this the hard way
-    # (2026-09-16): without it, self._data still updates in place (so
-    # everything LOOKS right for the rest of the session -- rendering
-    # reads the Point's live in-memory value directly, never through a
-    # callback), but the database write-through callback never fires,
-    # so the new position silently never persists -- a project
-    # reload brought back a stale, much-earlier position instead. Same
-    # explicit-call idiom PJTHousing._update_position2d's own batch
-    # move already uses for exactly this reason.
-    for old_point, (x, z) in zip(old_waypoints[:common], waypoints[:common]):
-        point = old_point.point
-        with point:
-            point.x = x
-            point.z = z
-        point._process_callbacks()  # NOQA
+    Used to route/settle a junction terminal's own wires FIRST in any
+    same-batch multi-wire routing pass, before every other wire, so they
+    claim their lanes around the junction's own (pushed-out)
+    ``wire_position2d`` and everything else routes around the result --
+    rather than a junction's own wires and some unrelated neighbour's wire
+    settling in whatever order they happened to be given in and landing
+    their own 90-degree turns on top of each other (confirmed 2026-09-22,
+    Kevin, from a live capture: two such wires' bends coincided exactly).
+    See ``drag_handlers.editor_schematic.generic.Generic``'s own
+    ``_attached`` sort and ``objects_schematic.auto_arrange.auto_arrange``'s
+    own wire loop, both of which sort on this first.
+    """
+    from ..objects import terminal as _terminal
 
-        # Backfill a missing WireLayout for a waypoint that predates
-        # this feature (created by an older reroute, before every
-        # interior bend got its own handle) -- the "gained bend(s)"
-        # branch below only ever creates one for a BRAND NEW point, so
-        # without this an already-existing waypoint that just happens
-        # to never hit that branch again would stay handle-less forever.
-        #
-        # old_point.db_id (the PJTPoint2D row wrapper's own id), NOT
-        # point.db_id (the live Point's id, which carries a clone-
-        # detection b'2d' suffix -- see PJTPoint2D.point -- and so is
-        # NOT a valid point2d_id foreign key on its own).
-        if layouts_table.for_point2d_id(old_point.db_id) is None:
-            layout_db = layouts_table.insert(point2d_id=old_point.db_id)
-            layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
-            project.add_wire_layout(layout_obj)
+    for sibling in (wire.start_sibling, wire.stop_sibling):
+        if isinstance(sibling, _terminal.Terminal) and len(sibling.wires) > 1:
+            return True
 
-    if len(waypoints) > len(old_waypoints):
-        # Gained bend(s) -- append fresh points/layouts for only the
-        # new ones past what already existed and got moved above.
-        for i in range(common, len(waypoints)):
-            x, z = waypoints[i]
-            new_point = ptables.pjt_points2d_table.insert(x, z, wire_id=db_obj.db_id, idx=i)
-
-            # Every interior bend gets its own WireLayout handle -- same
-            # as a terminal's own back/cavity routing points already do
-            # for the 3D/peg-board views (see Terminal.add_wire) -- so a
-            # routed bend is a real, selectable/draggable object in the
-            # schematic too, not just a bare point the wire happens to
-            # pass through.
-            layout_db = layouts_table.insert(point2d_id=new_point.db_id)
-            layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
-            project.add_wire_layout(layout_obj)
-
-    elif len(waypoints) < len(old_waypoints):
-        # Lost bend(s) -- delete only the excess old ones (and their
-        # WireLayout, if any) past what's still needed and got moved
-        # above.
-        for point in old_waypoints[common:]:
-            _pjt_wire.delete_layouts_at(layouts_table, 'point2d_id', point.db_id)
-
-            # PJTPoint2D.delete() refuses outright while is_referenced()
-            # is True -- and this point's own wire_id column, still
-            # pointing at THIS (very much still-alive) wire, counts as a
-            # reference on its own (see PJTPoint2D.is_referenced's
-            # "Phase 6" check) -- so without clearing it first,
-            # point.delete() would silently no-op every time, leaving
-            # this excess waypoint sitting in the database forever
-            # (confirmed 2026-09-16 from a live capture: waypoints kept
-            # accumulating across reroutes instead of ever shrinking).
-            point.wire_id = None
-            point.delete()
-
-    wire.objschematic.refresh_waypoints()
+    return False
 
 
 @_check_types.do

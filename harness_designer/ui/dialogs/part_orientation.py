@@ -353,6 +353,16 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._obj_handler = None
         self._mesh_stats_overlay: MeshStatsOverlay | None = None
 
+        # This dialog's canvas is its own self-contained scene (a single
+        # part being oriented), not a view into the real editor_3d canvas
+        # -- it must not share the real mainframe's pooled AABB/OBB arrays
+        # (mainframe.bounds_manager.editor_3d), or the part model added
+        # here would get mixed into the live housing/wire editor's
+        # picking pool while this dialog is open, and left there as a
+        # stale entry after it closes.
+        from ... import bounds as _bounds
+        self._bounds_manager = _bounds.StandaloneManager()
+
         # Passes *self* (not self.panel) as the canvas's "mainframe" --
         # Qt widget-parenting is unaffected (the layout's addWidget()
         # below reparents the canvas to self.panel regardless), but
@@ -701,6 +711,11 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
     @_check_types.do
     def editor_pegboard(self):
         return None
+
+    @property
+    @_check_types.do
+    def bounds_manager(self):
+        return self._bounds_manager
 
     @_check_types.do
     def add_object(self, obj):

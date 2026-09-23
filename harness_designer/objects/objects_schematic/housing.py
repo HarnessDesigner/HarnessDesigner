@@ -28,6 +28,13 @@ if TYPE_CHECKING:
 
 Config = _config.Config.editor_schematic
 
+# The housing's mesh is a flat quad at y = 0 (shapes.rectangle), so its bounds
+# would have no thickness -- and the pool's OBB ray test never hits a box with a
+# zero-length edge. Its bounds get this much depth BELOW the drawn surface
+# instead; the surface stays at y = 0 and whatever sits on the housing (a
+# terminal's name, see objects_schematic/terminal.py) sits on top of it.
+HOUSING_DEPTH = 0.1
+
 
 def _is_180(degrees: float) -> bool:
     """Whether *degrees* (this housing's own live ``angle2d.y``) is the
@@ -179,6 +186,23 @@ class Housing(_base_schematic.BaseSchematic):
         pass
 
     @_check_types.do
+    def _compute_obb(self):
+        super()._compute_obb()
+
+        if self._obb is not None:
+            # The four corners on the low-y face (0, 1, 4, 5 in the pool's
+            # order) go HOUSING_DEPTH below the high-y face (2, 3, 6, 7). Set
+            # from the other face, not subtracted, so it stays right however
+            # often it runs.
+            self._obb[[0, 1, 4, 5], 1] = self._obb[[2, 3, 6, 7], 1] - HOUSING_DEPTH
+
+    @_check_types.do
+    def _compute_aabb(self):
+        super()._compute_aabb()
+
+        self._aabb[0, 1] = self._aabb[1, 1] - HOUSING_DEPTH
+
+    @_check_types.do
     def _update_position(self, position: _point.Point):
         """
         Update this housing's own OBB/AABB only -- nothing else
@@ -229,7 +253,8 @@ class Housing(_base_schematic.BaseSchematic):
         # into/out of the 180 special case (see _is_180's own
         # docstring), not on every angle push.
         if _is_180(angle.y) != _is_180(self._o_angle.y):
-            self._text_vbo = self._build_corner_label(self.db_obj, angle.y)
+            with self.parent.mainframe.editor2d.editor.context:
+                self._text_vbo = self._build_corner_label(self.db_obj, angle.y)
 
         super()._update_angle(angle)
 
@@ -401,10 +426,16 @@ class Housing(_base_schematic.BaseSchematic):
         from ...add_handlers.editor_schematic import housing as _add_housing
 
         if isinstance(self._active_handler, _add_housing.Housing):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler
+            # below -- a CANCEL can delete this object's own facade,
+            # whose generic delete() sees self._active_handler is this
+            # same handler and clears it right there, before this call
+            # even returns (see objects_3d.wire.Wire.handle_interaction).
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled

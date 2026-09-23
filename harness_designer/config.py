@@ -873,6 +873,13 @@ class Config(metaclass=ConfigDB):
             label = [0.1, 0.1, 0.1, 1.0]
             splice = [0.0, 0.0, 0.0, 1.0]
 
+            # A terminal's own wire-junction sphere (objects_schematic.terminal.
+            # Terminal.render) -- shown once a terminal has more than one wire,
+            # at its own (pushed-out) wire_position2d. A different color from
+            # splice on purpose -- it is not a real splice, just where several
+            # of one terminal's own wires fan out from.
+            wire_junction = [0.85, 0.55, 0.15, 1.0]
+
         class object_sizes(metaclass=ConfigDB):
 
             class terminal(metaclass=ConfigDB):

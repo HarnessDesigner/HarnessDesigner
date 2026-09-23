@@ -938,8 +938,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         # Remove other from the PointMeta singleton registry.  actual_root
         # now owns the canonical entry for this db_id.
         if other._db_id is not None:
-            with PointMeta._instances_lock:
-                PointMeta._instances.pop(other._db_id, None)
+            with PointMeta._instances_lock:  # NOQA
+                PointMeta._instances.pop(other._db_id, None)  # NOQA
 
         other._root = actual_root
         np.copyto(other._data, actual_root._data)
@@ -961,8 +961,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             root._delegators = [r for r in root._delegators if r() is not self]
             self._root = None
             if self._db_id is not None:
-                with PointMeta._instances_lock:
-                    PointMeta._instances[self._db_id] = weakref.ref(self)
+                with PointMeta._instances_lock:  # NOQA
+                    PointMeta._instances[self._db_id] = weakref.ref(self)  # NOQA
 
     @_check_types.do
     def get_angle(self, origin: "Point") -> "_angle.Angle":

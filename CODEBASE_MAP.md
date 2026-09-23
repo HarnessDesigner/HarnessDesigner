@@ -675,6 +675,10 @@ Contents/structure of the `harness_designer/` package.
     marks sibling runs (wires that followed the dragged housing, plus each batch
     wire as it settles) and a step not one lane spacing beside one costs an extra
     1/16 of its length, so a re-routed wire hugs its bundle where it can
+  - `routing.py` also has `free_segment_blocked()`: whether a hand-placed segment (any angle) cuts through
+    a housing/splice/note or runs parallel over another wire -- what the schematic add-wire handler
+    (`add_handlers/editor_schematic/wire.py`: click to place waypoints, click a terminal/splice to end and
+    auto-route the rest, right-click undoes, Esc cancels) checks each click against
   - `reroute.py`: the stateful orchestration layer built on `routing.py`
     -- `reroute_wire()` (the single choke point that reconciles a
     wire's persisted waypoint rows against a fresh route, moving what

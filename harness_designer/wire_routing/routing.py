@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Orthogonal (horizontal/vertical-only) auto-routing for the 2D
+"""
+Orthogonal (horizontal/vertical-only) auto-routing for the 2D
 schematic editor's wires.
 
 Single entry point: :func:`route`, given a project and a wire's two
@@ -71,7 +72,8 @@ _LANE_EPS = 1e-3
 
 
 def _lane_spacing() -> float:
-    """Centre-to-centre distance kept between parallel wires, and the pitch
+    """
+    Centre-to-centre distance kept between parallel wires, and the pitch
     of the routing lanes: one cavity's height.
 
     Terminals stack at exactly that pitch inside a housing, so using it
@@ -83,6 +85,7 @@ def _lane_spacing() -> float:
     then (or if it's ever not positive) fall back to
     ``Config.layout.wire_spacing`` so the router never sees a zero pitch.
     """
+
     spacing = _cavity_layout.compute_stack_geometry(1).cavity_height
 
     if spacing > 0.0:
@@ -91,14 +94,174 @@ def _lane_spacing() -> float:
     return Config.layout.wire_spacing
 
 
-def _obstacle_rects(project: "_project.Project", lo_x: float, lo_z: float,
-                    hi_x: float, hi_z: float, ignore_wire=None
-                    ) -> list[tuple[float, float, float, float]]:
-    """Every housing's/splice's/note's world AABB
+def _terminal_cylinder_rect(term2d) -> tuple[float, float, float, float] | None:
+    """
+    One ``objects_schematic/terminal.py`` ``Terminal``'s own rendered
+    wire-stub cylinder (``_cylinder_start`` -> ``_wire_position``, the same
+    black cylinder :meth:`~objects_schematic.terminal.Terminal.render`
+    draws) as a thin, axis-aligned world rect -- always axis-aligned
+    because a housing can only be rotated in 90-degree steps (see
+    ``ui/widgets/context_menus.py``'s ``Rotate2DMenu``), so this segment is
+    always purely horizontal or purely vertical in world space. Only the
+    axis perpendicular to the cylinder's own length is padded, by half
+    ``Config.object_sizes.wire.diameter`` -- its own rendered radius --
+    matching the cylinder's real rendered thickness; the length axis is
+    left exact (no margin), since one end (``_wire_position``) is exactly
+    where a wire attaches.
+
+    ``None`` for a terminal with no seated cavity yet (``_cylinder_start``/
+    ``_wire_position`` are only ever set as instance attributes inside
+    ``Terminal.__init__``'s ``if cavity is not None:`` branch -- gate on
+    ``_geometry`` first, same as ``wire_routing.reroute.
+    _terminal_exit_stub_point`` does, rather than touch either directly and
+    risk an ``AttributeError``) or with a degenerate (zero-length) cylinder.
+    """
+
+    if term2d._geometry is None:  # NOQA
+        return None
+
+    cyl_start = term2d._cylinder_start  # NOQA
+    wire_pos = term2d._wire_position  # NOQA
+
+    x1, z1 = float(cyl_start.x), float(cyl_start.z)
+    x2, z2 = float(wire_pos.x), float(wire_pos.z)
+
+    min_x, max_x = min(x1, x2), max(x1, x2)
+    min_z, max_z = min(z1, z2), max(z1, z2)
+
+    if max_x - min_x < _EPS and max_z - min_z < _EPS:
+        return None
+
+    half_width = Config.object_sizes.wire.diameter / 2.0
+    if max_x - min_x < max_z - min_z:
+        min_x -= half_width
+        max_x += half_width
+    else:
+        min_z -= half_width
+        max_z += half_width
+
+    return min_x, min_z, max_x, max_z
+
+
+def _terminal_cylinder_rects(
+    project: "_project.Project",
+    lo_x: float,
+    lo_z: float,
+    hi_x: float,
+    hi_z: float,
+    exclude=()
+) -> list[tuple[float, float, float, float]]:
+
+    """
+    Every terminal's own :func:`_terminal_cylinder_rect` that overlaps
+    the window ``(lo_x, lo_z)``-``(hi_x, hi_z)``, skipping every terminal in
+    *exclude*.
+
+    Walks ``project.terminals`` fresh on every call rather than reading a
+    pooled array (unlike :func:`_obstacle_rects`'s own housing/splice/note
+    rects) -- there is no bounds-pool row for a cylinder's own footprint to
+    read (a terminal's pooled OBB/AABB is its NAME label's box, used for
+    click-selection -- see ``objects_schematic/terminal.py``'s ``obb``/
+    ``aabb`` properties -- an entirely different box), and adding one would
+    mean a new pooled slot kept live through every terminal construction/
+    move/rotate/delete for what is, today, a single feature. Matches
+    :func:`attached_splice_rects`'s own existing precedent of walking
+    ``project.splices`` fresh per call for the same reason.
+    """
+
+    rects = []
+    for terminal in project.terminals:
+        if terminal in exclude:
+            continue
+
+        rect = _terminal_cylinder_rect(terminal.objschematic)
+        if rect is None:
+            continue
+
+        min_x, min_z, max_x, max_z = rect
+        if max_x < lo_x or hi_x < min_x or max_z < lo_z or hi_z < min_z:
+            continue
+
+        rects.append(rect)
+
+    return rects
+
+
+def attached_terminal_cylinder_rects(
+    project: "_project.Project",
+    wire
+) -> list[tuple[float, float, float, float]]:
+    """
+    The :func:`_terminal_cylinder_rect` of each Terminal *wire* is
+    directly attached to -- the :class:`RoutingFrame`-batch mirror of
+    :func:`attached_splice_rects`, for the identical reason: this wire's
+    own mandatory exit geometry (see ``wire_routing.reroute.
+    _terminal_exit_stub_point``) legitimately starts right where this rect
+    is (at ``_wire_position``, its far end), so it must not count as an
+    obstacle for THIS wire -- every other wire still sees it.
+    """
+
+    from ..objects import terminal as _terminal_obj
+
+    rects = []
+    for sibling in (wire.start_sibling, wire.stop_sibling):
+        if not isinstance(sibling, _terminal_obj.Terminal):
+            continue
+
+        rect = _terminal_cylinder_rect(sibling.objschematic)
+        if rect is not None:
+            rects.append(rect)
+
+    return rects
+
+
+def _obstacle_excludes(
+    project: "_project.Project",
+    ignore_wire
+) -> tuple[list, list]:
+
+    """
+    ``(exclude_aabb_indices, exclude_terminals)`` for *ignore_wire* --
+    the splice AABB-pool row indices for :func:`_housing_rects`, and the
+    Terminal facades for :func:`_terminal_cylinder_rects`, that
+    *ignore_wire* is directly attached to (``([], [])`` if *ignore_wire* is
+    ``None``). Split out of :func:`_obstacle_rects` so :func:`free_segment_
+    blocked` can also use it to query the two rect sources separately (it
+    needs to tell a housing/splice hit from a terminal-cylinder hit apart,
+    for a more specific message -- see its own docstring).
+    """
+
+    exclude_aabb = []
+    exclude_terminals = []
+
+    if ignore_wire is not None:
+        from ..objects import terminal as _terminal_obj
+
+        for splice in project.splices:
+            if splice in (ignore_wire.start_sibling, ignore_wire.stop_sibling):
+                exclude_aabb.append(splice.objschematic._aabb_index)  # NOQA
+
+        for sibling in (ignore_wire.start_sibling, ignore_wire.stop_sibling):
+            if isinstance(sibling, _terminal_obj.Terminal):
+                exclude_terminals.append(sibling)
+
+    return exclude_aabb, exclude_terminals
+
+
+def _housing_rects(
+    project: "_project.Project",
+    lo_x: float,
+    lo_z: float,
+    hi_x: float,
+    hi_z: float,
+    exclude=()
+) -> list[tuple[float, float, float, float]]:
+
+    """
+    Every housing's/splice's/note's world AABB
     (``(min_x, min_z, max_x, max_z)``), each padded out by half
     ``Config.layout.wire_spacing``, that overlaps the window
-    ``(lo_x, lo_z)``-``(hi_x, hi_z)`` -- the hard obstacles a routed path
-    may never cross.
+    ``(lo_x, lo_z)``-``(hi_x, hi_z)``.
 
     Read straight out of the schematic view's AABB array pool
     (``bounds_manager.editor_schematic.aabb``) rather than by walking
@@ -136,28 +299,26 @@ def _obstacle_rects(project: "_project.Project", lo_x: float, lo_z: float,
     zone, fighting the two rules against each other. 1.5mm leaves the
     2mm stub clear.
 
-    :param ignore_wire: Excludes any splice *ignore_wire* is directly
-        attached to (``start_sibling``/``stop_sibling``) from the
-        obstacle list. Unlike a housing (whose real attach point -- a
-        terminal's own stub -- always sits outside the housing's body),
-        a wire's own fixed end sits exactly AT its splice's centre, deep
-        inside that splice's own AABB -- ``segment_blocked`` tests a
-        dragged segment's *own* bounding points directly (unlike
-        ``_astar``, which only ever tests a path's interior/neighboring
-        nodes against these rects, never the wire's own start/goal), so
-        without this exclusion, every segment next to a splice-attached
-        wire would read as permanently blocked by its own splice.
+    :param exclude: AABB-pool row indices to leave out (a splice
+        *ignore_wire* is directly attached to -- see
+        :func:`_obstacle_excludes`). Unlike a housing (whose real attach
+        point -- a terminal's own stub -- always sits outside the
+        housing's body), a wire's own fixed end sits exactly AT its
+        splice's centre, deep inside that splice's own AABB --
+        ``segment_blocked`` tests a dragged segment's *own* bounding
+        points directly (unlike ``_astar``, which only ever tests a
+        path's interior/neighboring nodes against these rects, never the
+        wire's own start/goal), so without this exclusion, every segment
+        next to a splice-attached wire would read as permanently blocked
+        by its own splice.
     """
+
     margin = _lane_spacing() / 2.0
 
-    exclude = []
-    if ignore_wire is not None:
-        for splice in project.splices:
-            if splice in (ignore_wire.start_sibling, ignore_wire.stop_sibling):
-                exclude.append(splice.objschematic._aabb_index)  # NOQA
-
     pool = project.mainframe.bounds_manager.editor_schematic.aabb
-    rows = pool.rows_tagged(_bounds.TAG_OBSTACLE, exclude).astype(np.float64)
+
+    rows = pool.rows_tagged(
+        _bounds.TAG_OBSTACLE, list(exclude)).astype(np.float64)
 
     # rows[:, 0] is each box's min corner, rows[:, 1] its max corner,
     # both (x, y, z) -- this view is top-down, so only x/z matter.
@@ -175,14 +336,68 @@ def _obstacle_rects(project: "_project.Project", lo_x: float, lo_z: float,
 
     keep &= ~((max_x < lo_x) | (hi_x < min_x) | (max_z < lo_z) | (hi_z < min_z))
 
-    rects = np.stack((min_x[keep], min_z[keep], max_x[keep], max_z[keep]), axis=1)
+    rects = np.stack(
+        (min_x[keep], min_z[keep], max_x[keep], max_z[keep]), axis=1)
+
     return [tuple(rect) for rect in rects.tolist()]
 
 
-def _wire_segments(project: "_project.Project", lo_x: float, lo_z: float,
-                   hi_x: float, hi_z: float, ignore_wire=None, skip_wires=frozenset()
-                   ) -> np.ndarray:
-    """Every connected wire's own (x, z) segment endpoints -- an ``(S, 2, 2)``
+def _obstacle_rects(
+    project: "_project.Project",
+    lo_x: float,
+    lo_z: float,
+    hi_x: float,
+    hi_z: float,
+    ignore_wire=None
+) -> list[tuple[float, float, float, float]]:
+
+    """
+    Every housing's/splice's/note's world AABB (see :func:`_housing_rects`)
+    PLUS every terminal's own wire-stub cylinder footprint (see
+    :func:`_terminal_cylinder_rects` -- padded by its own rendered
+    half-thickness instead, not half ``wire_spacing``: a cylinder is a
+    real, thin, visible object, not a keep-away buffer), that overlaps the
+    window ``(lo_x, lo_z)``-``(hi_x, hi_z)`` -- the hard obstacles a
+    routed path may never cross.
+
+    A single merged list, since ``route()``/``_astar``/the drag/hand-
+    placement blocked checks only ever need "blocked or not", never which
+    KIND of obstacle -- the one place that does care
+    (:func:`free_segment_blocked`, for its own distinct 'housing'/
+    'terminal' reason codes) queries :func:`_housing_rects`/
+    :func:`_terminal_cylinder_rects` separately instead of calling this.
+
+    :param ignore_wire: See :func:`_obstacle_excludes` -- excludes any
+        splice/Terminal *ignore_wire* is directly attached to from the
+        respective rect source. A single-wire exclusion only;
+        :class:`RoutingFrame`'s own whole-scene bake has no *ignore_wire*
+        to give this function and instead un-paints/re-paints each batch
+        wire's own splice/terminal rects around its search turn (see
+        :meth:`RoutingFrame.route`, fed by :func:`attached_splice_rects`/
+        :func:`attached_terminal_cylinder_rects`).
+    """
+
+    exclude_aabb, exclude_terminals = _obstacle_excludes(project, ignore_wire)
+
+    return (
+        _housing_rects(
+            project, lo_x, lo_z, hi_x, hi_z, exclude=exclude_aabb) +
+        _terminal_cylinder_rects(
+            project, lo_x, lo_z, hi_x, hi_z, exclude=exclude_terminals))
+
+
+def _wire_segments(
+    project: "_project.Project",
+    lo_x: float,
+    lo_z: float,
+    hi_x: float,
+    hi_z: float,
+    ignore_wire=None,
+    skip_wires=frozenset()
+) -> np.ndarray:
+
+    """
+    Every connected wire's own (x, z) segment endpoints -- an ``(S, 2, 2)``
     array, ``[s, 0]`` a segment's start and ``[s, 1]`` its end -- that come
     within ``Config.layout.wire_spacing`` of the window
     ``(lo_x, lo_z)``-``(hi_x, hi_z)``, excluding *ignore_wire* (the wire
@@ -214,7 +429,14 @@ def _wire_segments(project: "_project.Project", lo_x: float, lo_z: float,
         ever settling. Never affects any wire outside the batch, which
         keeps its normal current path as a real obstacle throughout.
     """
+
     exclude = []
+
+    # A wire that is still being drawn is not in project.wires yet (it is added
+    # when it is finished) but is already in the pool, so it is named directly.
+    if ignore_wire is not None:
+        exclude.append(ignore_wire.objschematic)
+
     for wire in project.wires:
         if wire is ignore_wire or wire in skip_wires or not wire.is_connected:
             exclude.append(wire.objschematic)
@@ -228,9 +450,17 @@ def _wire_segments(project: "_project.Project", lo_x: float, lo_z: float,
     return segments.astype(np.float64)
 
 
-def _build_axis(a: float, b: float, extra_lines: list[float], lo: float, hi: float,
-                pitch: float) -> np.ndarray:
-    """The grid lines along one axis, as sorted, unique integers scaled by
+def _build_axis(
+    a: float,
+    b: float,
+    extra_lines: list[float],
+    lo: float,
+    hi: float,
+    pitch: float
+) -> np.ndarray:
+
+    """
+    The grid lines along one axis, as sorted, unique integers scaled by
     ``_SCALE`` (rounded to 6 decimals, which is what makes them exact):
     *a* and *b* themselves, every value in *extra_lines* that falls within
     ``[lo, hi]``, plus lanes at every *pitch* step from *a* across that
@@ -243,6 +473,7 @@ def _build_axis(a: float, b: float, extra_lines: list[float], lo: float, hi: flo
     lattice anchored there would roughly quadruple the grid for little
     visible gain (the far end's own lines are already exact).
     """
+
     first = math.ceil((lo - a) / pitch)
     last = math.floor((hi - a) / pitch)
 
@@ -255,10 +486,17 @@ def _build_axis(a: float, b: float, extra_lines: list[float], lo: float, hi: flo
     return np.unique(np.rint(np.concatenate(parts) * _SCALE).astype(np.int64))
 
 
-def _node_blocked(x: float, z: float, rects: list[tuple[float, float, float, float]]) -> bool:
-    """Whether grid point *(x, z)* falls strictly inside any obstacle
+def _node_blocked(
+    x: float,
+    z: float,
+    rects: list[tuple[float, float, float, float]]
+) -> bool:
+
+    """
+    Whether grid point *(x, z)* falls strictly inside any obstacle
     rect -- a boundary line (used to hug alongside an obstacle) is fine.
     """
+
     for min_x, min_z, max_x, max_z in rects:
         if min_x + _EPS < x < max_x - _EPS and min_z + _EPS < z < max_z - _EPS:
             return True
@@ -266,9 +504,16 @@ def _node_blocked(x: float, z: float, rects: list[tuple[float, float, float, flo
     return False
 
 
-def _edge_crosses_obstacle(x1: float, z1: float, x2: float, z2: float,
-                           rects: list[tuple[float, float, float, float]]) -> bool:
-    """Whether the axis-aligned edge from *(x1, z1)* to *(x2, z2)* cuts
+def _edge_crosses_obstacle(
+    x1: float,
+    z1: float,
+    x2: float,
+    z2: float,
+    rects: list[tuple[float, float, float, float]]
+) -> bool:
+
+    """
+    Whether the axis-aligned edge from *(x1, z1)* to *(x2, z2)* cuts
     through any obstacle's interior.
 
     A true axis-*overlap* test (does the edge's span on its own axis
@@ -286,23 +531,37 @@ def _edge_crosses_obstacle(x1: float, z1: float, x2: float, z2: float,
     through a housing's interior undetected there as long as it also
     extended past the housing on either side.
     """
+
     for min_x, min_z, max_x, max_z in rects:
         if z1 == z2:
-            if (min_z + _EPS < z1 < max_z - _EPS
-                    and max(x1, x2) > min_x + _EPS and min(x1, x2) < max_x - _EPS):
+            if (
+                min_z + _EPS < z1 < max_z - _EPS and
+                max(x1, x2) > min_x + _EPS and
+                min(x1, x2) < max_x - _EPS
+            ):
                 return True
         else:
-            if (min_x + _EPS < x1 < max_x - _EPS
-                    and max(z1, z2) > min_z + _EPS and min(z1, z2) < max_z - _EPS):
+            if (
+                min_x + _EPS < x1 < max_x - _EPS and
+                max(z1, z2) > min_z + _EPS and
+                min(z1, z2) < max_z - _EPS
+            ):
                 return True
 
     return False
 
 
-def _edge_too_close_to_wire(x1: float, z1: float, x2: float, z2: float,
-                            segments: list[tuple[tuple[float, float], tuple[float, float]]],
-                            spacing: float) -> bool:
-    """Whether the edge from *(x1, z1)* to *(x2, z2)* runs parallel to,
+def _edge_too_close_to_wire(
+    x1: float,
+    z1: float,
+    x2: float,
+    z2: float,
+    segments: list[tuple[tuple[float, float], tuple[float, float]]],
+    spacing: float
+) -> bool:
+
+    """
+    Whether the edge from *(x1, z1)* to *(x2, z2)* runs parallel to,
     and within *spacing* (``Config.layout.wire_spacing``, passed in rather
     than looked up here -- this runs per A* neighbour, and a ``Config``
     attribute read costs far more than the geometry test itself) of, an
@@ -313,6 +572,7 @@ def _edge_too_close_to_wire(x1: float, z1: float, x2: float, z2: float,
     the same lane too closely is disallowed), since one of the two
     pairs' coordinates won't be within spacing of the other.
     """
+
     horizontal = abs(z1 - z2) < _EPS
 
     if horizontal:
@@ -330,10 +590,12 @@ def _edge_too_close_to_wire(x1: float, z1: float, x2: float, z2: float,
         if horizontal:
             if abs(sz1 - fixed) >= spacing - _LANE_EPS:
                 continue
+
             s_lo, s_hi = min(sx1, sx2), max(sx1, sx2)
         else:
             if abs(sx1 - fixed) >= spacing - _LANE_EPS:
                 continue
+
             s_lo, s_hi = min(sz1, sz2), max(sz1, sz2)
 
         if max(this_lo, s_lo) < min(this_hi, s_hi) - _EPS:
@@ -342,9 +604,15 @@ def _edge_too_close_to_wire(x1: float, z1: float, x2: float, z2: float,
     return False
 
 
-def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tuple[float, float],
-                    ignore_wire=None) -> bool:
-    """Whether a single orthogonal edge from *p1* to *p2* (both ``(x, z)``
+def segment_blocked(
+    project: "_project.Project",
+    p1: tuple[float, float],
+    p2: tuple[float, float],
+    ignore_wire=None
+) -> bool:
+
+    """
+    Whether a single orthogonal edge from *p1* to *p2* (both ``(x, z)``
     world points, already known to be axis-aligned) is blocked -- crosses
     a housing/splice/note, or runs closer than
     ``Config.layout.wire_spacing`` to another connected wire's own
@@ -356,14 +624,18 @@ def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tu
     against, without paying for a full A* search when the direct move is
     still legal.
     """
+
     x1, z1 = p1
     x2, z2 = p2
 
     lo_x, hi_x = min(x1, x2), max(x1, x2)
     lo_z, hi_z = min(z1, z2), max(z1, z2)
 
-    rects = _obstacle_rects(project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
-    segments = _wire_segments(project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire).tolist()
+    rects = _obstacle_rects(
+        project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
+
+    segments = _wire_segments(
+        project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire).tolist()
 
     if _node_blocked(x1, z1, rects) or _node_blocked(x2, z2, rects):
         return True
@@ -377,12 +649,174 @@ def segment_blocked(project: "_project.Project", p1: tuple[float, float], p2: tu
     return False
 
 
+def _segment_hits_rect(
+    x1: float,
+    z1: float,
+    x2: float,
+    z2: float,
+    rect: tuple[float, float, float, float]
+) -> bool:
+
+    """
+    Whether the segment ``(x1, z1)``-``(x2, z2)``, at ANY angle, passes
+    through the interior of *rect* (Liang-Barsky clipping against the rect
+    shrunk by ``_EPS`` -- skimming along an edge is fine, like
+    :func:`_edge_crosses_obstacle`).
+    """
+
+    lo_x = rect[0] + _EPS
+    lo_z = rect[1] + _EPS
+    hi_x = rect[2] - _EPS
+    hi_z = rect[3] - _EPS
+
+    if lo_x >= hi_x or lo_z >= hi_z:
+        return False
+
+    dx = x2 - x1
+    dz = z2 - z1
+
+    t0 = 0.0
+    t1 = 1.0
+
+    for p, q in ((-dx, x1 - lo_x), (dx, hi_x - x1),
+                 (-dz, z1 - lo_z), (dz, hi_z - z1)):
+        if abs(p) < 1e-12:
+            # Parallel to this side: outside (or on) it means no interior hit.
+            if q <= 0.0:
+                return False
+
+            continue
+
+        r = q / p
+        if p < 0.0:
+            if r > t1:
+                return False
+
+            t0 = max(t0, r)
+        else:
+            if r < t0:
+                return False
+
+            t1 = min(t1, r)
+
+    return t1 > t0
+
+
+# Two runs count as parallel when they differ by less than this (sine of ~0.5
+# degrees) -- over a 100 mm run that is under a millimetre of drift.
+_PARALLEL_SINE = 0.0087
+
+
+def free_segment_blocked(
+    project: "_project.Project",
+    p1: tuple[float, float],
+    p2: tuple[float, float],
+    ignore_wire=None,
+    own_segments: list[tuple[tuple[float, float], tuple[float, float]]] | None = None
+) -> str | None:
+    """
+    Whether a hand-placed segment ``p1 -> p2`` (any angle) is illegal, and
+    why: ``'housing'`` if it cuts through a housing / splice / note (padded
+    the same way :func:`_housing_rects` does), ``'terminal'`` if it cuts
+    through a terminal's own rendered wire-stub cylinder (see
+    :func:`_terminal_cylinder_rects`), ``'wire'`` if it runs parallel to,
+    and within one lane spacing of, another wire over a real stretch -- or
+    ``None`` if it is fine. Crossing a wire at an angle, or touching one at a
+    point, is fine, exactly as it is for the router.
+
+    :param ignore_wire: The wire being drawn, so it never blocks itself and its
+        own attached splices/terminal aren't obstacles (see
+        :func:`_obstacle_excludes`).
+
+    :param own_segments: The wire's own path so far, as ``((x, z), (x, z))``
+        pairs -- it isn't in the segment pool yet -- so a new run can't fold
+        back over it either.
+    """
+
+    x1, z1 = p1
+    x2, z2 = p2
+
+    lo_x, hi_x = min(x1, x2), max(x1, x2)
+    lo_z, hi_z = min(z1, z2), max(z1, z2)
+
+    exclude_aabb, exclude_terminals = _obstacle_excludes(project, ignore_wire)
+
+    for rect in (
+        _housing_rects(project, lo_x, lo_z, hi_x, hi_z, exclude=exclude_aabb)
+    ):
+        if _segment_hits_rect(x1, z1, x2, z2, rect):
+            return 'housing'
+
+    for rect in (
+        _terminal_cylinder_rects(
+            project, lo_x, lo_z, hi_x, hi_z, exclude=exclude_terminals)
+    ):
+
+        if _segment_hits_rect(x1, z1, x2, z2, rect):
+            return 'terminal'
+
+    dx = x2 - x1
+    dz = z2 - z1
+    length = math.hypot(dx, dz)
+
+    if length < _EPS:
+        return None
+
+    ux = dx / length
+    uz = dz / length
+
+    others = _wire_segments(
+        project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
+
+    if own_segments:
+        own = np.array(own_segments, dtype=np.float64).reshape(-1, 2, 2)
+        if others.shape[0]:
+            others = np.concatenate((others, own))
+        else:
+            others = own
+
+    if others.shape[0] == 0:
+        return None
+
+    s0 = others[:, 0, :]
+    s1 = others[:, 1, :]
+
+    ex = s1[:, 0] - s0[:, 0]
+    ez = s1[:, 1] - s0[:, 1]
+    e_len = np.hypot(ex, ez)
+
+    real = e_len > _EPS
+    safe = np.where(real, e_len, 1.0)
+
+    # sin of the angle between the runs; ~0 means parallel (either way round).
+    parallel = real & (np.abs(ux * ez - uz * ex) / safe < _PARALLEL_SINE)
+
+    # Distance of the other run from this one's line, at both its ends.
+    d0 = np.abs((s0[:, 0] - x1) * uz - (s0[:, 1] - z1) * ux)
+    d1 = np.abs((s1[:, 0] - x1) * uz - (s1[:, 1] - z1) * ux)
+    close = np.minimum(d0, d1) < _lane_spacing() - _LANE_EPS
+
+    # Overlap along this run's own direction; touching at a point is none.
+    t0 = (s0[:, 0] - x1) * ux + (s0[:, 1] - z1) * uz
+    t1 = (s1[:, 0] - x1) * ux + (s1[:, 1] - z1) * uz
+
+    overlap = (np.minimum(np.maximum(t0, t1), length) -
+               np.maximum(np.minimum(t0, t1), 0.0))
+
+    if bool((parallel & close & (overlap > _LANE_EPS)).any()):
+        return 'wire'
+
+    return None
+
+
 def _direction_sign(dx: float, dz: float) -> tuple[float, float]:
-    """Axis-aligned unit sign vector for *(dx, dz)* -- exactly one of the
+    """
+    Axis-aligned unit sign vector for *(dx, dz)* -- exactly one of the
     two components is nonzero (``dx``/``dz`` here always come from an
     orthogonal edge or an orthogonal stub), so this is just each
     component's own sign, not a true normalization.
     """
+
     return (0.0 if abs(dx) < _EPS else (1.0 if dx > 0.0 else -1.0),
             0.0 if abs(dz) < _EPS else (1.0 if dz > 0.0 else -1.0))
 
@@ -391,7 +825,8 @@ _NO_LANES = (np.empty((0, 3)), np.empty((0, 3)))
 
 
 def _prepare_lanes(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Split the ``(S, 2, 2)`` *segments* into horizontal and vertical
+    """
+    Split the ``(S, 2, 2)`` *segments* into horizontal and vertical
     runs -- ``(H, 3)`` and ``(V, 3)`` arrays of ``lane coordinate, lo, hi``
     (``z`` for a horizontal run, ``x`` for a vertical one, ``lo``/``hi``
     its extent along the run).
@@ -414,18 +849,30 @@ def _prepare_lanes(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     h_hi = np.maximum(x1, x2)[horizontal]
     keep = (h_hi - h_lo) > _EPS
 
-    h_lanes = np.stack((z1[horizontal][keep], h_lo[keep], h_hi[keep]), axis=1)
+    h_lanes = np.stack(
+        (z1[horizontal][keep], h_lo[keep], h_hi[keep]), axis=1)
 
     vertical = ~horizontal
-    v_lanes = np.stack((x1[vertical], np.minimum(z1, z2)[vertical], np.maximum(z1, z2)[vertical]), axis=1)
+
+    lanes = (x1[vertical],
+             np.minimum(z1, z2)[vertical],
+             np.maximum(z1, z2)[vertical])
+
+    v_lanes = np.stack(lanes, axis=1)
 
     return h_lanes, v_lanes
 
 
-def _build_tables(xs: list[float], zs: list[float], rects: list[tuple[float, float, float, float]],
-                  lanes: tuple[np.ndarray, np.ndarray],
-                  limit: float) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """For every node of the ``xs``/``zs`` grid, whether the step to its
+def _build_tables(
+    xs: list[float],
+    zs: list[float],
+    rects: list[tuple[float, float, float, float]],
+    lanes: tuple[np.ndarray, np.ndarray],
+    limit: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+    """
+    For every node of the ``xs``/``zs`` grid, whether the step to its
     left / right / down / up neighbour is allowed -- ``(ok_left, ok_right,
     ok_down, ok_up)``, each a flat boolean array indexed ``i * len(zs) + j``
     (a step off the edge of the grid is simply ``False``).
@@ -439,6 +886,7 @@ def _build_tables(xs: list[float], zs: list[float], rects: list[tuple[float, flo
     here each is one vectorized numpy operation per obstacle / per run,
     and the search's inner loop is just a list lookup.
     """
+
     nx = len(xs)
     nz = len(zs)
 
@@ -450,16 +898,25 @@ def _build_tables(xs: list[float], zs: list[float], rects: list[tuple[float, flo
     z_hi = z[1:]
 
     node_bad = np.zeros((nx, nz), dtype=bool)
-    h_bad = np.zeros((nx - 1, nz), dtype=bool)     # edge (i, j) -> (i + 1, j)
-    v_bad = np.zeros((nx, nz - 1), dtype=bool)     # edge (i, j) -> (i, j + 1)
+
+    # edge (i, j) -> (i + 1, j)
+    h_bad = np.zeros((nx - 1, nz), dtype=bool)
+
+    # edge (i, j) -> (i, j + 1)
+    v_bad = np.zeros((nx, nz - 1), dtype=bool)
 
     for min_x, min_z, max_x, max_z in rects:
         x_in = (x > min_x + _EPS) & (x < max_x - _EPS)
         z_in = (z > min_z + _EPS) & (z < max_z - _EPS)
 
         node_bad |= x_in[:, None] & z_in[None, :]
-        h_bad |= ((x_hi > min_x + _EPS) & (x_lo < max_x - _EPS))[:, None] & z_in[None, :]
-        v_bad |= x_in[:, None] & ((z_hi > min_z + _EPS) & (z_lo < max_z - _EPS))[None, :]
+        h_bad |= (((x_hi > min_x + _EPS) &
+                   (x_lo < max_x - _EPS))[:, None] &
+                  z_in[None, :])
+
+        v_bad |= (x_in[:, None] &
+                  ((z_hi > min_z + _EPS) &
+                   (z_lo < max_z - _EPS))[None, :])
 
     h_lanes, v_lanes = lanes
 
@@ -494,13 +951,19 @@ def _build_tables(xs: list[float], zs: list[float], rects: list[tuple[float, flo
     return ok_left.ravel(), ok_right.ravel(), ok_down.ravel(), ok_up.ravel()
 
 
-def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_ij: tuple[int, int],
-              rects: list[tuple[float, float, float, float]],
-              lanes: tuple[np.ndarray, np.ndarray],
-              forbid_start_dir: tuple[float, float] | None = None,
-              forbid_goal_dir: tuple[float, float] | None = None
-              ) -> list[tuple[int, int]] | None:
-    """The pure Python search -- used only when the compiled one
+def _astar_py(
+    xs: list[float],
+    zs: list[float],
+    start_ij: tuple[int, int],
+    goal_ij: tuple[int, int],
+    rects: list[tuple[float, float, float, float]],
+    lanes: tuple[np.ndarray, np.ndarray],
+    forbid_start_dir: tuple[float, float] | None = None,
+    forbid_goal_dir: tuple[float, float] | None = None
+) -> list[tuple[int, int]] | None:
+
+    """
+    The pure Python search -- used only when the compiled one
     (:mod:`.astar`) isn't available, and as the reference the compiled
     one is checked against. See :func:`_astar`.
 
@@ -518,6 +981,7 @@ def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_
         ``reroute.reroute_wire`` glues on *before* calling this, which
         this search has no other way of knowing about -- see
         ``reroute._terminal_exit_stub_point``).
+
     :param forbid_goal_dir: The mirror image at the other end: the one
         direction the path's very last step INTO *goal_ij* may not take,
         forbidding the same fold-back over the stop-side exit stub.
@@ -541,6 +1005,7 @@ def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_
     for the whole grid up front, so the loop does one list lookup where
     it used to make three function calls.
     """
+
     nx = len(xs)
     nz = len(zs)
 
@@ -552,7 +1017,8 @@ def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_
     limit = _lane_spacing() - _LANE_EPS
     bend_cost = _BEND_COST_FACTOR * Config.layout.routing_grid
 
-    ok_left, ok_right, ok_down, ok_up = [t.tolist() for t in _build_tables(xs, zs, rects, lanes, limit)]
+    ok_left, ok_right, ok_down, ok_up = [
+        t.tolist() for t in _build_tables(xs, zs, rects, lanes, limit)]
 
     # Neighbour order is part of the search's tie-breaking -- keep it fixed.
     # (allowed?, di, dj, direction, node offset), direction 0 = horizontal, 1 = vertical.
@@ -597,6 +1063,7 @@ def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_
                 back = sid // 3
                 path.append((back // nz, back % nz))
             path.reverse()
+
             return path
 
         x1 = xs[i]
@@ -645,10 +1112,17 @@ def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_
                     continue
 
             if d == 2:
-                if forbid_start_dir is not None and direction_sign(x2 - x1, z2 - z1) == forbid_start_dir:
+                if (
+                    forbid_start_dir is not None and
+                    direction_sign(x2 - x1, z2 - z1) == forbid_start_dir
+                ):
                     continue
+
             if ni == gi and nj == gj:
-                if forbid_goal_dir is not None and direction_sign(x2 - x1, z2 - z1) == forbid_goal_dir:
+                if (
+                    forbid_goal_dir is not None and
+                    direction_sign(x2 - x1, z2 - z1) == forbid_goal_dir
+                ):
                     continue
 
             if nd == 0:
@@ -670,25 +1144,31 @@ def _astar_py(xs: list[float], zs: list[float], start_ij: tuple[int, int], goal_
                     new_v = own_v
                     if d == 0:
                         s_lane, s_lo, s_hi = own_h[-1]
-                        new_h = own_h[:-1] + ((s_lane, min(s_lo, lo), max(s_hi, hi)),)
+                        new_h = (own_h[:-1] +
+                                 ((s_lane, min(s_lo, lo), max(s_hi, hi)),))
                     else:
                         new_h = own_h + ((lane, lo, hi),)
                 else:
                     new_h = own_h
                     if d == 1:
                         s_lane, s_lo, s_hi = own_v[-1]
-                        new_v = own_v[:-1] + ((s_lane, min(s_lo, lo), max(s_hi, hi)),)
+                        new_v = (own_v[:-1] +
+                                 ((s_lane, min(s_lo, lo), max(s_hi, hi)),))
                     else:
                         new_v = own_v + ((lane, lo, hi),)
 
-                heappush(open_heap, (new_cost + hx[ni] + hz[nj], new_cost, ni, nj, nd, new_h, new_v))
+                heappush(open_heap, (
+                    new_cost + hx[ni] + hz[nj], new_cost,
+                    ni, nj, nd, new_h, new_v))
 
     return None
 
 
 def _direction_code(sign: tuple[float, float] | None) -> int:
-    """The compiled search's code for a forbidden direction vector (see
-    :func:`_direction_sign`): 0 left, 1 right, 2 down, 3 up, -1 for none."""
+    """
+    The compiled search's code for a forbidden direction vector (see
+    :func:`_direction_sign`): 0 left, 1 right, 2 down, 3 up, -1 for none.
+    """
     if sign is None:
         return -1
 
@@ -697,31 +1177,43 @@ def _direction_code(sign: tuple[float, float] | None) -> int:
     if dz == 0.0:
         if dx < 0.0:
             return 0
+
         if dx > 0.0:
             return 1
+
     elif dx == 0.0:
         if dz < 0.0:
             return 2
+
         return 3
 
     return -1
 
 
-def _astar(xs: np.ndarray, zs: np.ndarray, start_ij: tuple[int, int], goal_ij: tuple[int, int],
-           rects: list[tuple[float, float, float, float]],
-           lanes: tuple[np.ndarray, np.ndarray],
-           forbid_start_dir: tuple[float, float] | None = None,
-           forbid_goal_dir: tuple[float, float] | None = None
-           ) -> list[tuple[int, int]] | None:
-    """4-directional A* over the compressed grid, from *start_ij* to
+def _astar(
+    xs: np.ndarray,
+    zs: np.ndarray,
+    start_ij: tuple[int, int],
+    goal_ij: tuple[int, int],
+    rects: list[tuple[float, float, float, float]],
+    lanes: tuple[np.ndarray, np.ndarray],
+    forbid_start_dir: tuple[float, float] | None = None,
+    forbid_goal_dir: tuple[float, float] | None = None
+) -> list[tuple[int, int]] | None:
+
+    """
+    4-directional A* over the compressed grid, from *start_ij* to
     *goal_ij* -- returns the node path (inclusive of both ends), or
     ``None`` if unreachable. See :func:`_astar_py` for the full description
     of the rules; this is the same search, run by the compiled code in
     ``astar.pyx``.
 
     :param xs: Grid columns, ascending, scaled by ``_SCALE`` to exact integers.
+
     :param zs: Grid rows, likewise.
+
     :param rects: Obstacle rects, in mm.
+
     :param lanes: Other wires' horizontal and vertical runs
         (:func:`_prepare_lanes`), in mm.
 
@@ -730,9 +1222,11 @@ def _astar(xs: np.ndarray, zs: np.ndarray, start_ij: tuple[int, int], goal_ij: t
     lanes) and the search itself (everything that depends on the path
     taken: its own runs, bends, the stub directions).
     """
+
     if _astar_ext is None:
-        return _astar_py((xs / _SCALE).tolist(), (zs / _SCALE).tolist(), start_ij, goal_ij, rects,
-                         lanes, forbid_start_dir, forbid_goal_dir)
+        return _astar_py((xs / _SCALE).tolist(), (zs / _SCALE).tolist(),
+                         start_ij, goal_ij, rects, lanes,
+                         forbid_start_dir, forbid_goal_dir)
 
     nz = len(zs)
     limit = int(round((_lane_spacing() - _LANE_EPS) * _SCALE))
@@ -758,9 +1252,11 @@ def _astar(xs: np.ndarray, zs: np.ndarray, start_ij: tuple[int, int], goal_ij: t
 
 
 def _collapse(path_xz: list[tuple[float, float]]) -> list[tuple[float, float]]:
-    """Drop every node that doesn't actually turn, and drop the first/
+    """
+    Drop every node that doesn't actually turn, and drop the first/
     last (the caller's own start/stop, not interior waypoints).
     """
+
     if len(path_xz) <= 2:
         return []
 
@@ -772,6 +1268,7 @@ def _collapse(path_xz: list[tuple[float, float]]) -> list[tuple[float, float]]:
 
         prev_horizontal = abs(z0 - z1) < _EPS
         next_horizontal = abs(z1 - z2) < _EPS
+
         if prev_horizontal != next_horizontal:
             interior.append((x1, z1))
 
@@ -781,10 +1278,16 @@ def _collapse(path_xz: list[tuple[float, float]]) -> list[tuple[float, float]]:
 _MAX_WINDOW_RETRIES = 6
 
 
-def _search_window(project: "_project.Project", start: tuple[float, float],
-                   stop: tuple[float, float], margin: float, ignore_wire=None
-                   ) -> tuple[float, float, float, float, list[tuple[float, float, float, float]]]:
-    """The routing window ``(lo_x, lo_z, hi_x, hi_z)`` plus every
+def _search_window(
+    project: "_project.Project",
+    start: tuple[float, float],
+    stop: tuple[float, float],
+    margin: float,
+    ignore_wire=None
+) -> tuple[float, float, float, float, list[tuple[float, float, float, float]]]:
+
+    """
+    The routing window ``(lo_x, lo_z, hi_x, hi_z)`` plus every
     obstacle rect that touches it.
 
     Starts as the start/stop bounding box grown by *margin*, then keeps
@@ -795,10 +1298,12 @@ def _search_window(project: "_project.Project", start: tuple[float, float],
     falls back to a dogleg that ignores every obstacle and every other
     wire.
     """
+
     lo_x, hi_x = min(start[0], stop[0]) - margin, max(start[0], stop[0]) + margin
     lo_z, hi_z = min(start[1], stop[1]) - margin, max(start[1], stop[1]) + margin
 
-    rects = _obstacle_rects(project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
+    rects = _obstacle_rects(
+        project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
 
     # Each pass can only grow the window, and it can't grow past the
     # obstacles that exist, so this terminates; the cap is just a guard.
@@ -815,21 +1320,29 @@ def _search_window(project: "_project.Project", start: tuple[float, float],
             break
 
         lo_x, hi_x, lo_z, hi_z = new_lo_x, new_hi_x, new_lo_z, new_hi_z
-        rects = _obstacle_rects(project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
+
+        rects = _obstacle_rects(
+            project, lo_x, lo_z, hi_x, hi_z, ignore_wire=ignore_wire)
 
     return lo_x, lo_z, hi_x, hi_z, rects
 
 
 class WireEnds(NamedTuple):
-    """Where one wire being routed starts and stops, all ``(x, z)`` in mm.
+    """
+    Where one wire being routed starts and stops, all ``(x, z)`` in mm.
 
     ``start_stub`` / ``stop_stub`` are the mandatory straight run out of a
-    terminal (``None`` for an end with no stub, e.g. a splice), and
-    ``ignore_rects`` the padded footprints of the splices the wire is
-    attached to -- its own fixed end sits AT a splice's centre, deep inside
-    that splice's box, so those don't count as obstacles for this wire (see
-    :func:`_obstacle_rects`).
+    terminal (``None`` for an end with no stub, e.g. a splice, OR a
+    junction terminal with more than one wire -- see ``wire_routing.
+    reroute._terminal_exit_stub_point``), and ``ignore_rects`` the padded
+    footprints of the splices AND the terminal-cylinder rects (see
+    :func:`_terminal_cylinder_rect`) the wire is attached to -- its own
+    fixed end sits AT a splice's centre, deep inside that splice's box, or
+    (for a terminal) exactly on that terminal's own cylinder rect, so
+    neither counts as an obstacle for this wire (see :func:`_obstacle_rects`,
+    :func:`attached_splice_rects`, :func:`attached_terminal_cylinder_rects`).
     """
+
     start: tuple[float, float]
     stop: tuple[float, float]
     start_stub: tuple[float, float] | None
@@ -837,10 +1350,17 @@ class WireEnds(NamedTuple):
     ignore_rects: list[tuple[float, float, float, float]]
 
 
-def attached_splice_rects(project: "_project.Project", wire) -> list[tuple[float, float, float, float]]:
-    """The padded footprint of each splice *wire* is directly attached to,
+def attached_splice_rects(
+    project: "_project.Project",
+    wire
+) -> list[tuple[float, float, float, float]]:
+
+    """
+    The padded footprint of each splice *wire* is directly attached to,
     computed exactly as :func:`_obstacle_rects` computes it -- so painting
-    one into a routing grid and taking it back out are exact opposites."""
+    one into a routing grid and taking it back out are exact opposites.
+    """
+
     margin = _lane_spacing() / 2.0
     pool = project.mainframe.bounds_manager.editor_schematic.aabb
 
@@ -850,8 +1370,13 @@ def attached_splice_rects(project: "_project.Project", wire) -> list[tuple[float
             continue
 
         row = pool.read(splice.objschematic._aabb_index).astype(np.float64)  # NOQA
+
         if row[1, 0] > row[0, 0] and row[1, 2] > row[0, 2]:
-            rects.append((row[0, 0] - margin, row[0, 2] - margin, row[1, 0] + margin, row[1, 2] + margin))
+
+            rects.append((row[0, 0] - margin,
+                          row[0, 2] - margin,
+                          row[1, 0] + margin,
+                          row[1, 2] + margin))
 
     return rects
 
@@ -860,8 +1385,16 @@ def _scaled(values: np.ndarray) -> np.ndarray:
     return np.rint(values * _SCALE).astype(np.int64)
 
 
-def _frame_axis(exact: list[float], anchor: float, lo: float, hi: float, pitch: float) -> np.ndarray:
-    """One axis of a :class:`RoutingFrame` grid, as sorted unique scaled
+def _frame_axis(
+    exact: list[float],
+    anchor: float,
+    lo: float,
+    hi: float,
+    pitch: float
+) -> np.ndarray:
+
+    """
+    One axis of a :class:`RoutingFrame` grid, as sorted unique scaled
     integers: every value in *exact* (obstacle edges, wire ends and stubs --
     all of which must be grid lines), plus lanes every *pitch* from *anchor*
     across ``[lo, hi]``.
@@ -872,6 +1405,7 @@ def _frame_axis(exact: list[float], anchor: float, lo: float, hi: float, pitch: 
     away from the lane lines and double up every line in the region for
     nothing.
     """
+
     exact_i = np.unique(_scaled(np.array(exact)))
 
     first = math.ceil((lo - anchor) / pitch)
@@ -888,7 +1422,8 @@ def _frame_axis(exact: list[float], anchor: float, lo: float, hi: float, pitch: 
 
 
 class RoutingFrame:
-    """A routing grid built ONCE for a whole batch of wires -- the wires
+    """
+    A routing grid built ONCE for a whole batch of wires -- the wires
     attached to an object being dragged, all rerouted every frame -- instead
     of once per wire.
 
@@ -914,6 +1449,7 @@ class RoutingFrame:
         """
         :param batch: ``{wire: WireEnds}`` for every wire that will be routed
             through this frame.
+
         :param pack_with: Wires OUTSIDE the batch that share a housing with it
             (the ones that just followed a moved housing, say). Together with
             each batch wire as it settles, their runs are what a wire being
@@ -924,10 +1460,14 @@ class RoutingFrame:
 
         self._ends = batch
         self.relaxed = []
-        self._bend = int(round(_BEND_COST_FACTOR * Config.layout.routing_grid * _SCALE))
+
+        self._bend = int(
+            round(_BEND_COST_FACTOR * Config.layout.routing_grid * _SCALE))
+
         self._limit = int(round((pitch - _LANE_EPS) * _SCALE))
 
-        rects = _obstacle_rects(project, -math.inf, -math.inf, math.inf, math.inf)
+        rects = _obstacle_rects(
+            project, -math.inf, -math.inf, math.inf, math.inf)
 
         x_exact = []
         z_exact = []
@@ -936,7 +1476,12 @@ class RoutingFrame:
             z_exact.extend((z1, z2))
 
         for ends in batch.values():
-            for point in (ends.start, ends.stop, ends.start_stub, ends.stop_stub):
+            for point in (
+                ends.start,
+                ends.stop,
+                ends.start_stub,
+                ends.stop_stub
+            ):
                 if point is not None:
                     x_exact.append(point[0])
                     z_exact.append(point[1])
@@ -945,11 +1490,16 @@ class RoutingFrame:
         margin = Config.layout.housing_spacing + (len(batch) + 2) * pitch
         anchor = next(iter(batch.values())).start
 
-        self._xs = _frame_axis(x_exact, anchor[0], min(x_exact) - margin, max(x_exact) + margin, pitch)
-        self._zs = _frame_axis(z_exact, anchor[1], min(z_exact) - margin, max(z_exact) + margin, pitch)
+        self._xs = _frame_axis(x_exact, anchor[0], min(x_exact) - margin,
+                               max(x_exact) + margin, pitch)
+
+        self._zs = _frame_axis(z_exact, anchor[1], min(z_exact) - margin,
+                               max(z_exact) + margin, pitch)
 
         self._router = _astar_ext.Router(self._xs, self._zs, self._limit)
-        self._router.paint_rects(_scaled(np.array(rects, dtype=np.float64).reshape(-1, 4)), 1)
+
+        self._router.paint_rects(
+            _scaled(np.array(rects, dtype=np.float64).reshape(-1, 4)), 1)
 
         # Every connected wire outside the batch, as it stands.
         self._paint(_static_segments(project, batch), 1)
@@ -970,7 +1520,9 @@ class RoutingFrame:
             if ends.stop_stub is not None:
                 stubs.append((ends.stop, ends.stop_stub))
 
-            self._stubs[wire] = np.array(stubs, dtype=np.float64).reshape(-1, 2, 2)
+            self._stubs[wire] = np.array(
+                stubs, dtype=np.float64).reshape(-1, 2, 2)
+
             self._paint(self._stubs[wire], 1)
 
     def __contains__(self, wire) -> bool:
@@ -999,46 +1551,62 @@ class RoutingFrame:
         return i, j
 
     def route(self, wire) -> list[tuple[float, float]]:
-        """Route *wire* (one of the batch) and settle it into the grid.
+        """
+        Route *wire* (one of the batch) and settle it into the grid.
         Returns what :func:`route` does -- the interior ``(x, z)`` bend points
-        between its two stub-side ends."""
+        between its two stub-side ends.
+        """
+
         ends = self._ends[wire]
         router = self._router
 
-        start = ends.start if ends.start_stub is None else ends.start_stub
-        stop = ends.stop if ends.stop_stub is None else ends.stop_stub
+        if ends.start_stub is None:
+            start = ends.start
+        else:
+            start = ends.start_stub
+
+        if ends.stop_stub is None:
+            stop = ends.stop
+        else:
+            stop = ends.stop_stub
 
         # The splices it's attached to don't block it. Its OWN stubs stay in the
         # grid on purpose: they're part of its path, and a run alongside one
         # (say, overshooting a stub end and doubling back over it) is exactly as
         # illegal as a run alongside another wire. The start and goal nodes ARE
         # the stub ends, so nothing legitimate is shut out.
-        ignore = _scaled(np.array(ends.ignore_rects, dtype=np.float64).reshape(-1, 4))
+        ignore = _scaled(np.array(
+            ends.ignore_rects, dtype=np.float64).reshape(-1, 4))
+
         router.paint_rects(ignore, -1)
 
         forbid_start = -1
         if ends.start_stub is not None:
-            forbid_start = _direction_code(_direction_sign(ends.start[0] - start[0], ends.start[1] - start[1]))
+            forbid_start = _direction_code(
+                _direction_sign(ends.start[0] - start[0], ends.start[1] - start[1]))
 
         forbid_goal = -1
         if ends.stop_stub is not None:
-            forbid_goal = _direction_code(_direction_sign(stop[0] - ends.stop[0], stop[1] - ends.stop[1]))
+            forbid_goal = _direction_code(
+                _direction_sign(stop[0] - ends.stop[0], stop[1] - ends.stop[1]))
 
         si, sj = self._node(start)
         gi, gj = self._node(stop)
 
-        path = router.search(si, sj, gi, gj, self._bend, forbid_start, forbid_goal, True)
+        path = router.search(si, sj, gi, gj, self._bend,
+                             forbid_start, forbid_goal, True)
 
         if path is None:
             # Boxed in by other wires' lanes -- still avoid every housing, splice
             # and note (run close to a wire rather than through a housing).
-            path = router.search(si, sj, gi, gj, self._bend, forbid_start, forbid_goal, False)
+            path = router.search(si, sj, gi, gj, self._bend, forbid_start,
+                                 forbid_goal, False)
 
             self.relaxed.append(wire)
 
             # if path is not None:
-                # print('ROUTE RELAXED (ignored wire lanes, housings still avoided)',  # DEBUG (temporary)
-                      # f'start={start} stop={stop}')
+            #    # print('ROUTE RELAXED (ignored wire lanes, housings still avoided)',  # DEBUG (temporary)
+            #          # f'start={start} stop={stop}')
 
         router.paint_rects(ignore, 1)
 
@@ -1051,7 +1619,8 @@ class RoutingFrame:
             nz = len(self._zs)
             xs_mm = (self._xs / _SCALE).tolist()
             zs_mm = (self._zs / _SCALE).tolist()
-            interior = _collapse([(xs_mm[n // nz], zs_mm[n % nz]) for n in path.tolist()])
+            interior = _collapse(
+                [(xs_mm[n // nz], zs_mm[n % nz]) for n in path.tolist()])
 
         # Settled: its real path replaces the stubs, for the wires still to route.
         full = [ends.start]
@@ -1062,7 +1631,9 @@ class RoutingFrame:
             full.append(ends.stop_stub)
         full.append(ends.stop)
 
-        settled = np.array(list(zip(full, full[1:])), dtype=np.float64).reshape(-1, 2, 2)
+        settled = np.array(
+            list(zip(full, full[1:])), dtype=np.float64).reshape(-1, 2, 2)
+
         self._paint(settled, 1)
 
         # ... and a sibling for the wires after it to run alongside.
@@ -1072,7 +1643,10 @@ class RoutingFrame:
 
 
 def _wire_segments_of(project: "_project.Project", wires) -> np.ndarray:
-    """The ``(S, 2, 2)`` segments of just *wires* (connected ones), from the pool."""
+    """
+    The ``(S, 2, 2)`` segments of just *wires* (connected ones), from the pool.
+    """
+
     wanted = {wire for wire in wires if wire.is_connected}
     if not wanted:
         return np.empty((0, 2, 2), dtype=np.float64)
@@ -1080,26 +1654,37 @@ def _wire_segments_of(project: "_project.Project", wires) -> np.ndarray:
     skip = [wire.objschematic for wire in project.wires if wire not in wanted]
 
     pool = project.mainframe.bounds_manager.editor_schematic.segments
+
     return pool.segments(skip).astype(np.float64)
 
 
 def _static_segments(project: "_project.Project", batch) -> np.ndarray:
-    """Every connected wire's ``(S, 2, 2)`` segments except those of *batch*
+    """
+    Every connected wire's ``(S, 2, 2)`` segments except those of *batch*
     (a container of wires) -- the lanes that stay put while the batch is
-    being routed or shifted. An unconnected wire isn't really "there" yet."""
+    being routed or shifted. An unconnected wire isn't really "there" yet.
+    """
+
     skip = []
     for wire in project.wires:
         if wire in batch or not wire.is_connected:
             skip.append(wire.objschematic)
 
     pool = project.mainframe.bounds_manager.editor_schematic.segments
+
     return pool.segments(skip).astype(np.float64)
 
 
-def _runs(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """``(S, 2, 2)`` segments as parallel arrays ``horizontal?, lane
+def _runs(
+    segments: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
+    """
+    ``(S, 2, 2)`` segments as parallel arrays ``horizontal?, lane
     coordinate, lo, hi`` (lane = ``z`` for a horizontal run, ``x`` for a
-    vertical one)."""
+    vertical one).
+    """
+
     x1 = segments[:, 0, 0]
     z1 = segments[:, 0, 1]
     x2 = segments[:, 1, 0]
@@ -1115,8 +1700,11 @@ def _runs(segments: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.
 
 
 def _runs_hit_rects(runs, rects: np.ndarray) -> bool:
-    """Whether any of *runs* cuts through the interior of any of *rects* --
-    the :func:`_edge_crosses_obstacle` test, vectorized over both."""
+    """
+    Whether any of *runs* cuts through the interior of any of *rects* --
+    the :func:`_edge_crosses_obstacle` test, vectorized over both.
+    """
+
     horizontal, lane, lo, hi = runs
 
     if rects.shape[0] == 0 or lane.shape[0] == 0:
@@ -1128,57 +1716,78 @@ def _runs_hit_rects(runs, rects: np.ndarray) -> bool:
     hi = hi[:, None]
     horizontal = horizontal[:, None]
 
-    across_h = (min_z + _EPS < lane) & (lane < max_z - _EPS) & (hi > min_x + _EPS) & (lo < max_x - _EPS)
-    across_v = (min_x + _EPS < lane) & (lane < max_x - _EPS) & (hi > min_z + _EPS) & (lo < max_z - _EPS)
+    across_h = ((min_z + _EPS < lane) & (lane < max_z - _EPS) &
+                (hi > min_x + _EPS) & (lo < max_x - _EPS))
+
+    across_v = ((min_x + _EPS < lane) & (lane < max_x - _EPS) &
+                (hi > min_z + _EPS) & (lo < max_z - _EPS))
 
     return bool(np.where(horizontal, across_h, across_v).any())
 
 
-def _runs_hit_runs(runs, other, other_owner: np.ndarray, owner: int, limit: float) -> bool:
-    """Whether any of *runs* runs within *limit* of, and over a real stretch
+def _runs_hit_runs(
+    runs,
+    other,
+    other_owner: np.ndarray,
+    owner: int,
+    limit: float
+) -> bool:
+
+    """
+    Whether any of *runs* runs within *limit* of, and over a real stretch
     of, any run in *other* that isn't owned by *owner* -- the lane rule of
-    :func:`_edge_too_close_to_wire`, vectorized over both."""
+    :func:`_edge_too_close_to_wire`, vectorized over both.
+    """
+
     horizontal, lane, lo, hi = runs
     o_horizontal, o_lane, o_lo, o_hi = other
 
     if o_lane.shape[0] == 0 or lane.shape[0] == 0:
         return False
 
-    hit = ((horizontal[:, None] == o_horizontal[None, :])
-           & (np.abs(lane[:, None] - o_lane[None, :]) < limit)
-           & (hi[:, None] > o_lo[None, :] + _EPS) & (lo[:, None] < o_hi[None, :] - _EPS)
-           & (other_owner[None, :] != owner))
+    hit = ((horizontal[:, None] == o_horizontal[None, :]) &
+           (np.abs(lane[:, None] - o_lane[None, :]) < limit) &
+           (hi[:, None] > o_lo[None, :] + _EPS) &
+           (lo[:, None] < o_hi[None, :] - _EPS) &
+           (other_owner[None, :] != owner))
 
     return bool(hit.any())
 
 
 def _path_folds(runs, limit: float) -> bool:
-    """Whether a path's runs come back to run too close and parallel to an
+    """
+    Whether a path's runs come back to run too close and parallel to an
     earlier stretch of the SAME path -- the rule :func:`_astar` holds every
     route to, applied to a path that was reshaped instead of searched. A
     jog that has shrunk to nothing is the classic case: the runs on either
     side of it end up a hair apart. (Neighbouring runs are perpendicular,
-    so only runs at least two apart can conflict.)"""
+    so only runs at least two apart can conflict.)
+    """
+
     horizontal, lane, lo, hi = runs
     n = lane.shape[0]
 
     if n < 3:
         return False
 
-    hit = ((horizontal[:, None] == horizontal[None, :])
-           & (np.abs(lane[:, None] - lane[None, :]) < limit)
-           & (hi[:, None] > lo[None, :] + _EPS) & (lo[:, None] < hi[None, :] - _EPS)
-           & np.triu(np.ones((n, n), dtype=bool), 2))
+    hit = ((horizontal[:, None] == horizontal[None, :]) &
+           (np.abs(lane[:, None] - lane[None, :]) < limit) &
+           (hi[:, None] > lo[None, :] + _EPS) &
+           (lo[:, None] < hi[None, :] - _EPS) &
+           np.triu(np.ones((n, n), dtype=bool), 2))
 
     return bool(hit.any())
 
 
 class ShiftJob(NamedTuple):
-    """One wire whose end sits on an object that just moved -- see
+    """
+    One wire whose end sits on an object that just moved -- see
     :func:`plan_shift`. ``path`` is the wire's polyline with the MOVING end
     FIRST, exactly as it stands now: that end already at its new place,
     every other point still where it was. ``axis`` / ``sign`` give the
-    direction of the terminal's exit stub (0 = along x, 1 = along z)."""
+    direction of the terminal's exit stub (0 = along x, 1 = along z).
+    """
+
     wire: object
     path: list[tuple[float, float]]
     axis: int
@@ -1186,8 +1795,13 @@ class ShiftJob(NamedTuple):
     stub_length: float
 
 
-def _shift_candidates(job: ShiftJob, delta: tuple[float, float]) -> list[list[tuple[int, tuple[float, float]]]]:
-    """The ways *job*'s path can follow its moved end without a new route,
+def _shift_candidates(
+    job: ShiftJob,
+    delta: tuple[float, float]
+) -> list[list[tuple[int, tuple[float, float]]]]:
+
+    """
+    The ways *job*'s path can follow its moved end without a new route,
     each a list of ``(index into job.path, new point)`` -- the cheapest
     first; empty if the path can't follow at all.
 
@@ -1211,6 +1825,7 @@ def _shift_candidates(job: ShiftJob, delta: tuple[float, float]) -> list[list[tu
        ``W2`` both move along the stub direction by the same amount, so the
        first run keeps its length; only the run ``W2 -> W3`` changes.
     """
+
     path = job.path
     if len(path) < 3:
         return []
@@ -1225,7 +1840,10 @@ def _shift_candidates(job: ShiftJob, delta: tuple[float, float]) -> list[list[tu
     old_terminal = (terminal[0] - delta[0], terminal[1] - delta[1])
 
     # Is this the shape we expect: out along the stub, then turn?
-    if abs(first[p] - old_terminal[p]) > tol or abs(first[u] - second[u]) > tol:
+    if (
+        abs(first[p] - old_terminal[p]) > tol or
+        abs(first[u] - second[u]) > tol
+    ):
         return []
 
     shift = terminal[p] - old_terminal[p]
@@ -1237,12 +1855,14 @@ def _shift_candidates(job: ShiftJob, delta: tuple[float, float]) -> list[list[tu
     def moved(point, amount, axis):
         new = list(point)
         new[axis] = point[axis] + amount
-        return (new[0], new[1])
+
+        return new[0], new[1]
 
     def keeps_direction(before, after, target, axis):
         # Still runs the same way to *target*, and by more than nothing.
         old = target[axis] - before[axis]
         new = target[axis] - after[axis]
+
         return abs(new) > tol and (old > 0) == (new > 0)
 
     candidates = []
@@ -1255,14 +1875,19 @@ def _shift_candidates(job: ShiftJob, delta: tuple[float, float]) -> list[list[tu
         elif keeps_direction(first, first_new, second, p):
             candidates.append([(1, first_new)])
 
-        if (abs(shift) >= 1e-9 and len(path) >= 5
-                and abs(second[p] - path[3][p]) <= tol and abs(path[3][u] - path[4][u]) <= tol):
+        if (
+            abs(shift) >= 1e-9 and
+            len(path) >= 5 and
+            abs(second[p] - path[3][p]) <= tol and
+            abs(path[3][u] - path[4][u]) <= tol
+        ):
             third = path[3]
             second_new = moved(second, shift, p)
             third_new = moved(third, shift, p)
 
             if keeps_direction(third, third_new, path[4], p):
-                candidates.append([(1, first_new), (2, second_new), (3, third_new)])
+                candidates.append(
+                    [(1, first_new), (2, second_new), (3, third_new)])
 
     elif len(path) >= 4 and abs(second[p] - path[3][p]) <= tol:
         # Out of slack: carry the first vertical run along with the terminal.
@@ -1276,9 +1901,14 @@ def _shift_candidates(job: ShiftJob, delta: tuple[float, float]) -> list[list[tu
     return candidates
 
 
-def plan_shift(project: "_project.Project", jobs: list[ShiftJob], delta: tuple[float, float]
-               ) -> dict:
-    """Let wires FOLLOW an object that just moved by *delta* without a new
+def plan_shift(
+    project: "_project.Project",
+    jobs: list[ShiftJob],
+    delta: tuple[float, float]
+) -> dict:
+
+    """
+    Let wires FOLLOW an object that just moved by *delta* without a new
     route, wherever that stays legal -- ``{wire: updates}`` where
     *updates* is a list of ``(index into that job's path, new point)`` to
     apply, or ``None`` for a wire that has to be routed properly instead
@@ -1295,9 +1925,11 @@ def plan_shift(project: "_project.Project", jobs: list[ShiftJob], delta: tuple[f
     unsettled wires always have; each placed wire then counts as its new
     path for the wires after it.
     """
+
     limit = _lane_spacing() - _LANE_EPS
-    rects = np.array(_obstacle_rects(project, -math.inf, -math.inf, math.inf, math.inf),
-                     dtype=np.float64).reshape(-1, 4)
+    rects = np.array(
+        _obstacle_rects(project, -math.inf, -math.inf, math.inf, math.inf),
+        dtype=np.float64).reshape(-1, 4)
 
     batch = {job.wire for job in jobs}
     static = _static_segments(project, batch)
@@ -1307,7 +1939,10 @@ def plan_shift(project: "_project.Project", jobs: list[ShiftJob], delta: tuple[f
 
     def add(owner, points):
         if len(points) >= 2:
-            segments.append(np.array(list(zip(points, points[1:])), dtype=np.float64).reshape(-1, 2, 2))
+            segments.append(np.array(
+                list(zip(points, points[1:])),
+                dtype=np.float64).reshape(-1, 2, 2))
+
             owners.append(np.full(len(points) - 1, owner))
 
     # Everyone starts out unplaced: just the stub, and the far part of the path.
@@ -1330,7 +1965,9 @@ def plan_shift(project: "_project.Project", jobs: list[ShiftJob], delta: tuple[f
             for at, point in updates:
                 path[at] = point
 
-            changed = np.array(list(zip(path, path[1:])), dtype=np.float64).reshape(-1, 2, 2)
+            changed = np.array(
+                list(zip(path, path[1:])), dtype=np.float64).reshape(-1, 2, 2)
+
             if changed.shape[0] == 0:
                 continue
 
@@ -1351,23 +1988,37 @@ def plan_shift(project: "_project.Project", jobs: list[ShiftJob], delta: tuple[f
     return result
 
 
-def build_frame(project: "_project.Project", batch: dict, pack_with=()) -> "RoutingFrame | None":
-    """A :class:`RoutingFrame` for *batch* (``{wire: WireEnds}``), or
+def build_frame(
+    project: "_project.Project",
+    batch: dict,
+    pack_with=()
+) -> "RoutingFrame | None":
+
+    """
+    A :class:`RoutingFrame` for *batch* (``{wire: WireEnds}``), or
     ``None`` when there's nothing to route or the compiled search isn't
-    built here -- callers then route wire by wire with :func:`route`."""
+    built here -- callers then route wire by wire with :func:`route`.
+    """
+
     if not batch or _astar_ext is None:
         return None
 
     return RoutingFrame(project, batch, pack_with)
 
 
-def route(project: "_project.Project", start: tuple[float, float], stop: tuple[float, float],
-         ignore_wire=None, skip_wires=frozenset(),
-         start_anchor: tuple[float, float] | None = None,
-         stop_anchor: tuple[float, float] | None = None,
-         extra_segments: list[tuple[tuple[float, float], tuple[float, float]]] | None = None
-         ) -> list[tuple[float, float]]:
-    """Return the minimal list of interior ``(x, z)`` bend points for an
+def route(
+    project: "_project.Project",
+    start: tuple[float, float],
+    stop: tuple[float, float],
+    ignore_wire=None,
+    skip_wires=frozenset(),
+    start_anchor: tuple[float, float] | None = None,
+    stop_anchor: tuple[float, float] | None = None,
+    extra_segments: list[tuple[tuple[float, float], tuple[float, float]]] | None = None
+) -> list[tuple[float, float]]:
+
+    """
+    Return the minimal list of interior ``(x, z)`` bend points for an
     orthogonal path from *start* to *stop* that avoids every housing,
     splice, and note, doesn't run along another connected wire's own
     lane (crossing one is fine), and never doubles back to run too close
@@ -1380,14 +2031,18 @@ def route(project: "_project.Project", start: tuple[float, float], stop: tuple[f
         check so it never blocks its own path, and from the obstacle
         list for any splice it's directly attached to (see
         :func:`_obstacle_rects`).
+
     :param skip_wires: See :func:`_wire_segments`.
+
     :param start_anchor: If *start* is itself a terminal exit stub (not
         the wire's true endpoint), the true endpoint behind it -- the
         returned path's first step is forbidden from heading back
         toward it, so it can never fold back over that already-placed
         stub segment. ``None`` (the default) applies no such
         constraint, for a *start* with no stub (e.g. splice-attached).
+
     :param stop_anchor: The mirror image of *start_anchor* for *stop*.
+
     :param extra_segments: Additional ``((x1, z1), (x2, z2))`` lanes to
         treat like any other wire's segment -- used for the fixed exit
         stubs of the *skip_wires* siblings (see ``reroute.reroute_wire``):
@@ -1395,22 +2050,25 @@ def route(project: "_project.Project", start: tuple[float, float], stop: tuple[f
         short straight run out of its terminal is mandatory geometry that
         will be there regardless, so this route must not squat on it.
     """
+
     pitch = _lane_spacing()
     margin = Config.layout.housing_spacing
 
     # start_anchor sits BEHIND start (the already-placed stub segment runs
     # anchor -> start) -- forbid the interior's first step from heading
     # back toward it, i.e. the exact reverse of that stub's own direction.
-    forbid_start_dir = (None if start_anchor is None
-                        else _direction_sign(start_anchor[0] - start[0], start_anchor[1] - start[1]))
+    forbid_start_dir = (
+        None if start_anchor is None
+        else _direction_sign(start_anchor[0] - start[0], start_anchor[1] - start[1]))
 
     # stop_anchor sits AHEAD of stop (the already-placed stub segment
     # continues stop -> anchor) -- forbid the interior's LAST step (its
     # arrival direction at stop) from being the exact reverse of that
     # same stub direction, i.e. from arriving already headed away from
     # the anchor (mirror image of the start case above, opposite sign).
-    forbid_goal_dir = (None if stop_anchor is None
-                       else _direction_sign(stop[0] - stop_anchor[0], stop[1] - stop_anchor[1]))
+    forbid_goal_dir = (
+        None if stop_anchor is None
+        else _direction_sign(stop[0] - stop_anchor[0], stop[1] - stop_anchor[1]))
 
     path = None
     for _ in range(_MAX_WINDOW_RETRIES):
@@ -1421,7 +2079,9 @@ def route(project: "_project.Project", start: tuple[float, float], stop: tuple[f
                                   ignore_wire=ignore_wire, skip_wires=skip_wires)
 
         if extra_segments:
-            segments = np.concatenate((segments, np.array(extra_segments, dtype=np.float64).reshape(-1, 2, 2)))
+            segments = np.concatenate(
+                (segments,
+                 np.array(extra_segments, dtype=np.float64).reshape(-1, 2, 2)))
 
         x_lines = [v for r in rects for v in (r[0], r[2])]
         z_lines = [v for r in rects for v in (r[1], r[3])]
@@ -1435,11 +2095,13 @@ def route(project: "_project.Project", start: tuple[float, float], stop: tuple[f
 
         start_ij = (int(np.searchsorted(xs, round(start[0] * _SCALE))),
                     int(np.searchsorted(zs, round(start[1] * _SCALE))))
+
         goal_ij = (int(np.searchsorted(xs, round(stop[0] * _SCALE))),
                    int(np.searchsorted(zs, round(stop[1] * _SCALE))))
 
         path = _astar(xs, zs, start_ij, goal_ij, rects, _prepare_lanes(segments),
                       forbid_start_dir, forbid_goal_dir)
+
         if path is not None:
             break
 
@@ -1450,25 +2112,26 @@ def route(project: "_project.Project", start: tuple[float, float], stop: tuple[f
         # Boxed in by other wires' lanes -- still avoid every housing, splice
         # and note (run close to a wire rather than through a housing).
         # xs/zs/start_ij/goal_ij are from the last, widest attempt above.
-        path = _astar(xs, zs, start_ij, goal_ij, rects, _NO_LANES, forbid_start_dir, forbid_goal_dir)
+        path = _astar(xs, zs, start_ij, goal_ij, rects,   # NOQA
+                      _NO_LANES, forbid_start_dir, forbid_goal_dir)
 
         # if path is not None:
-            # print('ROUTE RELAXED (ignored wire lanes, housings still avoided)',  # DEBUG (temporary)
-                  # f'start={start} stop={stop}')
+        #    # print('ROUTE RELAXED (ignored wire lanes, housings still avoided)',  # DEBUG (temporary)
+        #          # f'start={start} stop={stop}')
 
     if path is None:
         # DEBUG (temporary): A* found nothing even after widening -- dump
         # everything it was given so the failure can be reproduced.
         # print(f'ROUTE FALLBACK (dogleg) start={start} stop={stop} '
-              # f'start_anchor={start_anchor} stop_anchor={stop_anchor} '
-              # f'forbid_start_dir={forbid_start_dir} forbid_goal_dir={forbid_goal_dir}')
+        #      # f'start_anchor={start_anchor} stop_anchor={stop_anchor} '
+        #      # f'forbid_start_dir={forbid_start_dir} forbid_goal_dir={forbid_goal_dir}')
         # print(f'    window=({lo_x:.3f}, {lo_z:.3f}, {hi_x:.3f}, {hi_z:.3f}) margin={margin}')
         # print(f'    start_blocked={_node_blocked(start[0], start[1], rects)} '
-              # f'stop_blocked={_node_blocked(stop[0], stop[1], rects)}')
+        #      # f'stop_blocked={_node_blocked(stop[0], stop[1], rects)}')
         # for rect in rects:
-            # print(f'    rect {tuple(round(v, 3) for v in rect)}')
+        #    # print(f'    rect {tuple(round(v, 3) for v in rect)}')
         # for seg in segments:
-            # print(f'    seg {seg}')
+        #    # print(f'    seg {seg}')
 
         # No orthogonal route avoiding every obstacle exists at this
         # resolution/margin -- fall back to a direct single dogleg

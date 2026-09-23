@@ -329,18 +329,14 @@ class BaseVar:
         if self._vbo is None:
             return False
 
-        # A Text-backed VBO (e.g. objects_*.note.Note) always reports an
-        # empty vertices array -- see shapes.text.Text's own
-        # VBOHandlerBase-compatible interface, deliberately a stub since
-        # a multi-glyph label has no single real mesh to hand back. Zero
-        # triangles means _ray_triangles_intersect_vectorized below can
-        # never register a hit no matter where the ray actually lands,
-        # so an object like this was permanently unselectable -- accept
-        # the OBB/AABB envelope hit that already got this call made as
-        # good enough on its own, same as a user visually judges "did I
-        # click the label" by its bounding box rather than individual
-        # letter strokes.
-        if self._vbo.vertex_count == 0:
+        # A Text-backed object (e.g. objects_*.note.Note) is picked by its
+        # OBB/AABB envelope, not by individual glyph triangles -- a user judges
+        # "did I click the label" by its bounding box, and a camera-tracked 3D
+        # note is drawn with a billboard angle this mesh test doesn't use. A
+        # Text now has a real (full-string) mesh, so this has to say so
+        # explicitly; it used to fall out of the mesh being empty. An empty
+        # mesh can never register a hit either.
+        if isinstance(self._vbo, _text.Text) or self._vbo.vertex_count == 0:
             return True
 
         ray_object = ray_origin - self._position

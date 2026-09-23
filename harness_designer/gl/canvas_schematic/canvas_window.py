@@ -38,3 +38,10 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
         self._canvas = _canvas.Canvas(mainframe, config)
 
         super().__init__(mainframe, config, size)
+
+    @_check_types.do
+    def add_preview_object(self, obj):
+        """Register a wire that is still being drawn -- see
+        :meth:`Canvas.add_preview_object`."""
+
+        self._canvas.add_preview_object(obj)

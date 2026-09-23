@@ -7,8 +7,13 @@ Compatibility-lookup helpers for placing seals, reused by
 session, which replaced this module's own former ``AddSealHandler``).
 """
 
+from typing import TYPE_CHECKING, Union
+
 from ..objects import terminal as _terminal
 from .. import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ..ui.dialogs import part_search as _part_search
 
 
 # A housing's own seal_type is MAT whenever it's none of these -- see
@@ -50,27 +55,39 @@ def _find_attached_wire_part(mainframe, terminal: _terminal.Terminal):
 
 
 @_check_types.do
-def _get_terminal_seal_pns(mainframe, terminal: _terminal.Terminal):
-    """Return seal part numbers usable on *terminal*'s pin.
+def terminal_seal_search_params(
+    mainframe, terminal: _terminal.Terminal
+) -> Union["_part_search.SearchParameters", None]:
+
+    """Seal search-box seed for *terminal*'s pin.
 
     The seal's OD (outer diameter — the part that sits in the cavity around
     the terminal) must always be larger than the terminal's footprint (max
     of width/height) or the seal won't fit snugly around the terminal.  When
-    the terminal lists compatible seals, that list is used (narrowed further
-    by wire diameter when a wire is already attached to the pin).  Otherwise
-    the seals table is searched directly for Single Wire Seals, again
-    narrowed by wire diameter when a wire is attached.
+    the terminal lists compatible seals, that's seeded as a part-number
+    filter (narrowed further by wire diameter when a wire is already
+    attached to the pin).  Otherwise the seed filters to Single Wire Seals,
+    again narrowed by wire diameter when a wire is attached.
 
-    Wire-diameter matching prefers the seal's explicit ``wire_size_dia_min``/
-    ``wire_size_dia_max`` range.  When either bound is ``NULL``, it falls
-    back to a range derived from the seal's ID/OD: the wire must be larger
-    than the ID (so the seal grips it) and smaller than the midpoint between
-    ID and OD (so the seal wall isn't stretched past half its own thickness).
-    E.g. ID=5, OD=10 → derived usable range is (5, 7.5).
+    Wire-diameter matching is seeded against the seal's explicit
+    ``wire_size_dia_min``/``wire_size_dia_max`` range only -- the old SQL
+    version of this search also fell back, for a seal with either bound
+    left ``NULL``, to a range derived from that seal's ID/OD (wire larger
+    than the ID, smaller than the ID/OD midpoint). That fallback needs a
+    per-row computed bound (``i_dia + (o_dia - i_dia) / 2``) compared
+    against a column from a DIFFERENT seal than the explicit-bound check,
+    which the search-box grammar has no way to express (it only compares
+    one column to a literal value, and only ANDs different columns
+    together, never ORs across two of them) -- so a seal relying on that
+    derived range just won't turn up from the seed. It's still reachable
+    by hand in the dialog itself (clear/widen the wire-diameter bound),
+    same as every other approximate seed in this module.
     """
     term_part = terminal.db_obj.part
     if term_part is None:
-        return []
+        return None
+
+    from ..ui.dialogs import part_search as _part_search
 
     term_size = max(term_part.width or 0.0, term_part.height or 0.0)
     compat_pns = [pn for pn in term_part.compat_seals_array if pn]
@@ -82,43 +99,21 @@ def _get_terminal_seal_pns(mainframe, terminal: _terminal.Terminal):
     else:
         wire_od = wire_part.od_mm
 
-    clauses = ['s.o_dia > ?']
-    params = [term_size]
+    if compat_pns:
+        params = _part_search.SearchParameters.from_part_numbers(compat_pns)
+    else:
+        params = _part_search.SearchParameters()
+        params.add('type_id', _part_search.SearchTerm(phrase='SWS'))
+        params.add('type_id', _part_search.SearchTerm(phrase='Single Wire Seal'))
+
+    if term_size > 0.0:
+        params.add('o_dia', _part_search.SearchTerm(operator='>', value=str(term_size)))
 
     if wire_od is not None:
-        clauses.append(
-            '((s.wire_size_dia_min IS NOT NULL AND ? >= s.wire_size_dia_min) '
-            'OR (s.wire_size_dia_min IS NULL AND ? > s.i_dia))')
-        params.extend([wire_od, wire_od])
+        params.add('wire_size_dia_min', _part_search.SearchTerm(operator='<=', value=str(wire_od)))
+        params.add('wire_size_dia_max', _part_search.SearchTerm(operator='>=', value=str(wire_od)))
 
-        clauses.append(
-            '((s.wire_size_dia_max IS NOT NULL AND ? <= s.wire_size_dia_max) '
-            'OR (s.wire_size_dia_max IS NULL '
-            'AND ? < (s.i_dia + (s.o_dia - s.i_dia) / 2.0)))')
-        params.extend([wire_od, wire_od])
-
-    table = mainframe.global_db.seals_table
-
-    if compat_pns:
-        placeholders = ', '.join('?' for _ in compat_pns)
-        clauses.append(f's.part_number IN ({placeholders})')
-        params.extend(compat_pns)
-
-        table.execute(
-            'SELECT DISTINCT s.part_number FROM seals s '
-            f'WHERE {" AND ".join(clauses)};',
-            tuple(params))
-    else:
-        clauses.append(
-            '(UPPER(st.name) = "SWS" OR UPPER(st.name) = "SINGLE WIRE SEAL")')
-
-        table.execute(
-            'SELECT DISTINCT s.part_number FROM seals s '
-            'JOIN seal_types st ON s.type_id = st.id '
-            f'WHERE {" AND ".join(clauses)};',
-            tuple(params))
-
-    return [row[0] for row in table.fetchall()]
+    return params
 
 
 @_check_types.do

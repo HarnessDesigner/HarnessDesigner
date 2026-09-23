@@ -35,6 +35,10 @@ def _is_180(degrees: float) -> bool:
     return round(degrees) % 360 == 180
 
 
+# What a label is drawn with at exactly 180 degrees -- see Cavity.render.
+_NO_ROTATION = _angle.Angle()
+
+
 class Cavity(_base_schematic.BaseSchematic):
     """
     2D representation of a cavity for schematic view
@@ -44,14 +48,15 @@ class Cavity(_base_schematic.BaseSchematic):
     above its terminal's own bracket. Its ``Text`` label (see
     ``shapes/text.py``) IS this object's own ``_vbo`` -- ``Text``
     implements the same public interface a real VBO handler does (see
-    its own "VBOHandlerBase-compatible interface" section), so this
-    class needs no ``render()``/``_compute_obb``/... override for
-    rendering itself -- the standard inherited ``BaseVar`` pipeline
-    drives it directly, matching how ``Base3D`` subclasses render.
-    ``_compute_obb``/``_compute_aabb`` ARE still overridden here, since
-    a Text's own "local" bounds aren't meaningful the way a real mesh's
-    are (see Text's own docstring) -- real bounds come from its
-    measured ``width``/``height`` instead.
+    its own "VBOHandlerBase-compatible interface" section), so the
+    standard inherited ``BaseVar`` pipeline draws it, matching how
+    ``Base3D`` subclasses render -- :meth:`render` only swaps in the
+    housing's angle around it (see :meth:`_render_label`).
+    ``_compute_obb``/``_compute_aabb`` are overridden: the click target is
+    the label's own box (``Text.local_obb``/``local_aabb``) turned by the
+    angle the label is drawn with and moved to its position, and nothing
+    can be worked out until the owning housing is known (see :attr:`housing`
+    and :meth:`render`).
 
     ``position2d``/``angle2d`` are written once, batched, by
     ``database/project_db/pjt_housing.py``'s ``PJTHousingsTable.insert``
@@ -209,47 +214,90 @@ class Cavity(_base_schematic.BaseSchematic):
         self._compute_obb()
         self._compute_aabb()
 
+    @property
     @_check_types.do
-    def _compute_obb(self):
-        """Derive this object's OBB from :attr:`_geometry`'s own
-        ``obb`` (housing-local, unrotated), rotated by the owning
-        housing's own current angle (this cavity's own ``self._angle``
-        plays no part -- always identity, see the class docstring).
-        """
-        if self._vbo is None or self._geometry is None:
-            return
-
-        housing = self.housing
-        if housing is None:
-            return
-
-        local = self._geometry.obb.copy()
-        local @= housing.angle
-        obb = local + housing.position
+    def obb(self) -> np.ndarray:
+        """The generic box until the housing is known, then the one worked
+        out from the label (see :meth:`_compute_obb`)."""
+        if self.housing is None:
+            return super().obb
 
         if self._obb is None:
+            self._compute_obb()
+            self._compute_aabb()
+
+        return self._obb
+
+    @property
+    @_check_types.do
+    def aabb(self) -> np.ndarray:
+        """See :attr:`obb`."""
+        if self.housing is None:
+            return super().aabb
+
+        if self._obb is None:
+            self._compute_obb()
+            self._compute_aabb()
+
+        return self._aabb
+
+    def _label_angle(self, housing) -> _angle.Angle:
+        """The angle this cavity's name is drawn at -- the same one
+        :meth:`render` uses: the housing's, except at exactly 180 degrees where
+        the glyph is drawn upright instead."""
+        if _is_180(housing.angle.y):
+            return _NO_ROTATION
+
+        return housing.angle
+
+    @_check_types.do
+    def _compute_obb(self):
+        """The label's own OBB (``Text.local_obb``) turned and moved to where
+        the label is drawn. Nothing to do until the housing is known."""
+        housing = self.housing
+        if housing is None or self._vbo is None or self._position is None:
+            return
+
+        obb = self._vbo.local_obb.copy()
+        obb @= self._label_angle(housing)
+        obb += self._position.as_numpy
+
+        # the first time there is no array yet: it comes from the pool
+        if self._obb is None:
             self._obb = self._obb_manager.read(self._obb_index)
-            self._obb[:] = obb
-        else:
-            self._obb[:] = obb
+
+        self._obb[:] = obb
 
     @_check_types.do
     def _compute_aabb(self):
-        """Same corners as :meth:`_compute_obb` -- see its docstring."""
-        if self._vbo is None or self._geometry is None:
-            return
-
+        """The label's own AABB (``Text.local_aabb``) turned and moved to where
+        the label is drawn, then ``utils.adjust_aabb`` so every min is in the
+        min row and every max in the max row. Nothing to do until the housing
+        is known."""
         housing = self.housing
-        if housing is None:
+        if housing is None or self._vbo is None or self._position is None:
             return
 
-        corners = self._geometry.obb.copy()
-        corners @= housing.angle
-        corners += housing.position.as_numpy
+        local = self._vbo.local_aabb
+        corners = _utils.compute_obb(
+            _point.Point(*local[0].tolist()), _point.Point(*local[1].tolist()))
 
-        aabb = _utils.adjust_aabb(corners)
+        corners @= self._label_angle(housing)
+        corners += self._position.as_numpy
 
-        self._aabb[:] = aabb
+        self._aabb[:] = _utils.adjust_aabb(corners)
+
+    @_check_types.do
+    def hit_test_step2(self, ray_origin, ray_direction):
+        """Only the box is tested (see :meth:`hit_test_step3`)."""
+        return _base_schematic.box_hit_test(self._obb, ray_origin, ray_direction)
+
+    @_check_types.do
+    def hit_test_step3(self, ray_origin, ray_dir):
+        """A cavity is picked by its name label's box -- the OBB -- not by
+        the label's glyph triangles: the pool's own OBB test already said the
+        ray is inside it, and nothing finer is wanted."""
+        return _base_schematic.box_hit_test(self._obb, ray_origin, ray_dir)
 
     @_check_types.do
     def _update_position(self, position: _point.Point):
@@ -294,6 +342,31 @@ class Cavity(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def render(self, shaders):
+        """The first draw of this cavity: work out its box, then hand every
+        later draw straight to :meth:`_render_label`.
+
+        The housing is not known yet when this cavity is built (see
+        :attr:`housing`), so its box could not be worked out then, and nothing
+        moves a cavity after a project loads -- so it is done the first time it
+        is drawn, when the housing does exist. The picker reads the bounds pool
+        directly, so the box has to be in it before a click can find this
+        cavity.
+
+        Once it is there, ``render`` is replaced on this instance by
+        :meth:`_render_label`, so the check is never made again. (If the housing
+        is somehow still unknown, this stays in place and tries again next
+        frame.)
+        """
+        self._compute_obb()
+        self._compute_aabb()
+
+        if self._obb is not None:
+            self.render = self._render_label
+
+        self._render_label(shaders)
+
+    @_check_types.do
+    def _render_label(self, shaders):
         """Render this cavity's own name label -- swapping ``self._angle``
         (never this cavity's own, always-identity ``db_obj.angle2d`` --
         see the class docstring) for the owning housing's own CURRENT

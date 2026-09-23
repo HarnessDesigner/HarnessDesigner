@@ -293,6 +293,14 @@ class CanvasWindowBase(QWidget):
     def active_handler_obj(self, value):
         self._canvas.active_handler_obj = value
 
+    @property
+    @_check_types.do
+    def bounds_manager(self):
+        """Forwarded from the inner canvas. ``gl.object_picker.find_object``
+        picks through it, and many handlers hand it this wrapper (their
+        ``self.canvas``) rather than the inner canvas."""
+        return self._canvas.bounds_manager
+
     @_check_types.do
     def set_selected(self, obj):
         """

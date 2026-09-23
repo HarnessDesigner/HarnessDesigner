@@ -111,7 +111,13 @@ class Wire(_base.AddHandlerBase):
         self._extension_snap_kind: str | None = None
         self._extension_snap_target = None
 
-        self._overlay = _wire_snap.SnapOverlay(canvas)
+        # canvas is the WRAPPER (mainframe.editorX.editor) -- SnapOverlay has to
+        # be parented to its own inner, oversized GL canvas (canvas._canvas)
+        # instead, the same widget mouse positions are actually measured
+        # against, or show_message's own move() lands off by however far the
+        # inner canvas is recentered inside this (usually smaller) wrapper --
+        # see CanvasWindowBase.objects_in_window's own docstring.
+        self._overlay = _wire_snap.SnapOverlay(canvas._canvas)  # NOQA
 
         self._terminal_highlight = _materials.Plastic(_color.Color(*Config.add_object.terminal_highlight))
         self._wire_layout_highlight = _materials.Plastic(_color.Color(*Config.add_object.wire_highlight))

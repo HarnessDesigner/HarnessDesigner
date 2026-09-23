@@ -346,7 +346,12 @@ def auto_arrange(project: "_project.Project") -> None:
     for housing in project.housings:
         _best_rotation(project, housing)
 
+    # Junction wires first (see wire_routing.reroute.is_junction_wire's own
+    # docstring), so they claim their lanes around a junction terminal's
+    # own pushed-out attach point before anything else routes near it;
+    # within each of those two groups, thickest-first as before.
     for wire in sorted(
             (w for w in project.wires if w.is_connected),
-            key=lambda w: float(w.objschematic._part.od_mm), reverse=True):  # NOQA
+            key=lambda w: (not _wire_reroute.is_junction_wire(w),
+                          -float(w.objschematic._part.od_mm))):  # NOQA
         _wire_reroute.reroute_wire(project, wire)

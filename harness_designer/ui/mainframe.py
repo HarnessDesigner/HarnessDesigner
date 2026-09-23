@@ -1718,7 +1718,7 @@ class MainFrame(QtWidgets.QMainWindow):
             context_menu = obj.objschematic.get_context_menu()
             if context_menu is not None:
                 x, y, _ = evt.GetPosition().as_int
-                canvas_widget = self.editor2d.editor
+                canvas_widget = self.editor2d.editor._canvas  # NOQA
                 global_pos = canvas_widget.mapToGlobal(
                     canvas_widget.rect().topLeft().__class__(x, y)
                 )
@@ -3056,10 +3056,10 @@ class MainFrame(QtWidgets.QMainWindow):
                     _wire_2d.Wire.start_add(self, terminal=selected)
                 elif selected is not None and selected.is_splice:
                     _wire_2d.Wire.start_add(self, splice=selected)
-                # The schematic editor has no free-space wire tool (see
-                # add_handlers.editor_schematic.wire's own module
-                # docstring) -- without a pinned terminal/splice
-                # selection there is genuinely nothing this mode can do.
+                # A schematic wire always starts pinned to a terminal or
+                # splice (see add_handlers.editor_schematic.wire's own
+                # module docstring) -- without one selected there is
+                # genuinely nothing this mode can do.
             else:
                 from ..objects.objects_3d import wire as _wire_3d
 

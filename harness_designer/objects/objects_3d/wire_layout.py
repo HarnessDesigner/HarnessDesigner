@@ -81,6 +81,63 @@ class WireLayout(_base_3d.Base3D):
         """
         return False
 
+    @_check_types.do
+    def can_drag(self) -> bool:
+        """False for a terminal's own back point and, if seated, its
+        cavity's own back point (see ``objects.terminal.Terminal.add_wire``)
+        -- the mandatory straight run out of a terminal, which must always
+        match that terminal's/cavity's own real geometry. The first wire on
+        a terminal has THIS layout's own point literally BE the terminal's/
+        cavity's ``wire_position3d`` row (not a copy) -- dragging it would
+        move that shared anchor itself, out from under every OTHER wire on
+        the same terminal and the terminal's own rendered stub, at once,
+        permanently (nothing ever moves it back). A later wire on the same
+        terminal gets a clone instead (``parent_point_id`` pointing back at
+        that same row), kept in step only by a housing move (see
+        ``PJTHousing._update_position3d``/``_update_angle3d``) -- not by
+        anything that would undo a direct drag, so it would just as
+        permanently drift away from the terminal it's supposed to sit at.
+        An ordinary interior bend the user actually placed has no such
+        identity and is unaffected.
+        """
+        if not super().can_drag():
+            return False
+
+        point_id = self.db_obj.position3d_id
+        if point_id is None:
+            return True
+
+        from ...objects import terminal as _terminal
+
+        ptables = self.parent.mainframe.project.ptables
+        point_row = ptables.pjt_points3d_table[point_id]
+
+        # The shared point IS this row's own id (the first wire on a
+        # terminal); a later wire's own clone instead points at it via
+        # parent_point_id -- either way, this is the row a terminal/cavity
+        # would recognize as its own.
+        identity = point_row.parent_point_id
+        if identity is None:
+            identity = point_row.db_id
+
+        for wire in self.db_obj.attached_wires:
+            wire_obj = wire.get_object()
+            if wire_obj is None:
+                continue
+
+            for sibling in (wire_obj.start_sibling, wire_obj.stop_sibling):
+                if not isinstance(sibling, _terminal.Terminal):
+                    continue
+
+                if identity == sibling.db_obj.wire_position3d_id:
+                    return False
+
+                cavity = sibling.db_obj.cavity
+                if cavity is not None and identity == cavity.wire_position3d_id:
+                    return False
+
+        return True
+
     @property
     @_check_types.do
     def smooth(self) -> bool:
@@ -302,10 +359,16 @@ class WireLayout(_base_3d.Base3D):
         from ...add_handlers.editor_3d import wire_layout as _add_wire_layout  # NOQA -- avoid a cycle at import time
 
         if isinstance(self._active_handler, _add_wire_layout.WireLayout):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler
+            # below -- a CANCEL can delete this object's own facade,
+            # whose generic delete() sees self._active_handler is this
+            # same handler and clears it right there, before this call
+            # even returns (see objects_3d.wire.Wire.handle_interaction).
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled

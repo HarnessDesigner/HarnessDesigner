@@ -778,10 +778,10 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         from PySide6.QtWidgets import QDialog
 
         if terminal is not None:
-            compat_pns = _wire_handler._get_terminal_compat_pns(mainframe, terminal)  # NOQA
+            initial_params = _wire_handler.terminal_wire_search_params(terminal)
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire',
-                initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+                initial_params=initial_params)
 
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -796,10 +796,10 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             return cls._start_from_terminal(mainframe, canvas, terminal, part_id)
 
         if splice is not None:
-            compat_pns = _wire_handler._get_splice_compat_pns(mainframe, splice)  # NOQA
+            initial_params = _wire_handler.splice_wire_search_params(splice)
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire',
-                initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+                initial_params=initial_params)
 
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -1064,10 +1064,20 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         from ...add_handlers.editor_3d import wire as _add_wire  # NOQA -- avoid a cycle at import time
 
         if isinstance(self._active_handler, _add_wire.Wire):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler below
+            # -- a right click with nothing left to undo cancels the session,
+            # which deletes this wire's own facade; BaseVar's generic delete()
+            # sees self._active_handler is this same handler and clears it AND
+            # calls its own delete() (idempotent -- cancel() already ran) right
+            # there, all before this call even returns. Reading self.
+            # _active_handler again afterward would find None -- checked
+            # AttributeError, confirmed live 2026-09-21 (Kevin) -- ask the
+            # handler itself, and only clear the slot if nothing already did.
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled

@@ -59,7 +59,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
 
     @staticmethod
     def _get_editor(mainframe):
-        return mainframe.editor_pegboard.editor
+        return mainframe.editor_pegboard.editor._canvas  # NOQA
 
     @staticmethod
     def _points_table(project: "_project.Project"):

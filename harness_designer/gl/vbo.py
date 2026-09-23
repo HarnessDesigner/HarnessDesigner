@@ -271,9 +271,24 @@ VBO_TYPE_PRIMITIVE = 0
 VBO_TYPE_MODEL = 1
 
 
+# Storage-key suffixes for the moment a VBO is replaced before the cleanup
+# callback of the one it replaces has run -- see VBOSingleton. They are only ever
+# appended to the KEY an entry is stored under, never to the VBO's own id (which
+# is also its arena allocation key).
+_OLD = '_old'
+_NEW = '_new'
+
+
 class VBOSingleton(type):
     _instances = {}
     _primitives = {}
+
+    # Storage keys currently carrying the _OLD / _NEW suffix, tracked here rather
+    # than found by looking at how a key ends: a real id can end in "_old" or
+    # "_new" (a word in a Text, say) and must never be mistaken for one of these.
+    _retired = set()
+    _replacements = set()
+
     # _instances/_primitives are shared across every class using this
     # metaclass (not reset per-subclass) and are touched both from here and
     # from external call sites (PooledVBOHandler._clear_model_vaos_for_arena/
@@ -286,6 +301,41 @@ class VBOSingleton(type):
     # can safely re-enter.
     _instances_lock = threading.RLock()
 
+    # A model VBO is held by weak reference, and when the callback that removes
+    # its entry (and frees its arena allocation) runs is not something to count
+    # on: for an object that is part of a reference cycle it runs whenever the
+    # garbage collector gets to it, which can be at any point in any code -- so
+    # it can run AFTER a new VBO with the same id has been asked for. The entry
+    # is then dead but its callback is still to come (and the collector clears
+    # every dead reference before it calls any of their callbacks, so one of
+    # those can itself ask for this id). Entries are matched to a callback by weak-reference
+    # identity, so that callback could never remove the newer entry -- but both
+    # VBOs use the id as their arena allocation key, so it could free the newer
+    # one's allocation. So a stale entry found by __call__ is set aside and its
+    # replacement stored beside it:
+    #
+    #   <id>       -> dead reference     becomes    <id>_old   (its allocation is
+    #                                                freed right then; its callback
+    #                                                will free nothing)
+    #   (new VBO)                                   <id>_new
+    #
+    # and the old one's callback then drops its own key and moves <id>_new back
+    # under <id>. If the replacement dies first, its callback frees the allocation
+    # and drops <id>_new, and the old one's later callback only drops its own key.
+
+    @classmethod
+    def _live(cls, key: str):
+        """The VBO stored under *key*, or ``None`` -- dereferenced ONCE and
+        returned as a strong reference. Checking that a reference is alive and
+        then dereferencing it again is not safe: the garbage collector can run
+        in between (any allocation can start it) and clear it."""
+        ref = cls._instances.get(key)
+
+        if ref is None:
+            return None
+
+        return ref()
+
     @classmethod
     @_check_types.do
     def _remove_ref(cls, ref):
@@ -296,14 +346,57 @@ class VBOSingleton(type):
             else:
                 return
 
+            if key in cls._retired:
+                # The OLD one of a pair: its allocation was freed when it was set
+                # aside and now belongs to its replacement, so free nothing. Drop
+                # this entry and put the replacement back under the plain key.
+                cls._retired.discard(key)
+                del cls._instances[key]
+
+                new_key = key[:-len(_OLD)] + _NEW
+                if new_key in cls._replacements:
+                    cls._replacements.discard(new_key)
+                    cls._instances[key[:-len(_OLD)]] = cls._instances.pop(new_key)
+
+                return
+
+            if key in cls._replacements:
+                # The replacement died before the old one's callback ran: it owns
+                # the allocation for the id, so free it. The old one's callback
+                # will find nothing to move back.
+                cls._replacements.discard(key)
+                PooledVBOHandler.release_model_allocation(key[:-len(_NEW)])
+                del cls._instances[key]
+                return
+
             PooledVBOHandler.release_model_allocation(key)
 
             del cls._instances[key]
 
+    def get(cls, id_: str):
+        """The VBO with id *id_*, or ``None`` if there isn't a live one -- in one
+        step, as a strong reference. ``id_ in cls`` followed by ``cls(id_)`` is
+        two steps, and the garbage collector can clear the reference between
+        them."""
+        with cls._instances_lock:
+            instance = cls._live(id_)
+
+            if instance is None:
+                instance = cls._live(id_ + _NEW)
+
+            if instance is None:
+                instance = cls._primitives.get(id_)
+
+            return instance
+
     @_check_types.do
     def __contains__(cls, item):
+        """Whether a VBO with id *item* exists -- a live one: a model entry is a
+        weak reference, and one whose VBO has been collected (its callback may
+        not have run yet) doesn't count. Looks under ``item``, then under its
+        replacement's key (see the note at the top of this class)."""
         with cls._instances_lock:
-            if item in cls._instances:
+            if cls._live(item) is not None or cls._live(item + _NEW) is not None:
                 return True
 
             return item in cls._primitives
@@ -327,7 +420,13 @@ class VBOSingleton(type):
                 else:
                     instance = cls._primitives[id_]
 
-            elif id_ not in cls._instances or cls._instances[id_]() is None:
+            elif (instance := cls._live(id_)) is not None:
+                pass
+
+            elif (instance := cls._live(id_ + _NEW)) is not None:
+                pass
+
+            elif id_ not in cls._instances:
                 instance = super().__call__(
                         id_, data, count, aabb, obb,
                         endpoint=endpoint, arena_kind=arena_kind)
@@ -335,7 +434,34 @@ class VBOSingleton(type):
                 cls._instances[id_] = weakref.ref(instance, cls._remove_ref)
 
             else:
-                instance = cls._instances[id_]()
+                # A dead entry whose cleanup callback hasn't run yet: set it
+                # aside, free its allocation now (the new VBO gets its own --
+                # the sizes can differ), and store the new one beside it.
+                old_key = id_ + _OLD
+                new_key = id_ + _NEW
+
+                # An older pair still waiting on its callback: that callback
+                # will find nothing to match and do nothing.
+                cls._instances.pop(old_key, None)
+                cls._retired.discard(old_key)
+
+                cls._instances[old_key] = cls._instances.pop(id_)
+                cls._retired.add(old_key)
+
+                PooledVBOHandler.release_model_allocation(id_)
+
+                try:
+                    instance = super().__call__(
+                        id_, data, count, aabb, obb,
+                        endpoint=endpoint, arena_kind=arena_kind)
+                except BaseException:
+                    # Nothing was created -- put things back as they were.
+                    cls._instances[id_] = cls._instances.pop(old_key)
+                    cls._retired.discard(old_key)
+                    raise
+
+                cls._instances[new_key] = weakref.ref(instance, cls._remove_ref)
+                cls._replacements.add(new_key)
 
             return instance
 
@@ -558,7 +684,7 @@ class VBOHandlerBase:
         _render_geometry, which used to set these same uniforms itself
         before calling a bare ``self._vbo.render()``) so every VBO
         handler owns its own uniform-setting -- a compound handler
-        (shapes/text.py's Text, one draw call per glyph rather than
+        (shapes/text.py's Text, one draw call per word rather than
         one mesh) needs different per-glyph position/rotation/scale
         values than the single set a real mesh VBO uses as-is, and can
         only compute those itself, glyph by glyph, if ``render()`` is
@@ -1015,13 +1141,19 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         Safe to call even if the key is not present.
         """
         cls.release_model_allocation(key)
-        with VBOSingleton._instances_lock:  # NOQA
-            ref = VBOSingleton._instances.pop(key, None)  # NOQA
-        if ref is not None:
-            instance = ref()
-            if instance is not None:
-                instance._clear_vaos()  # NOQA
-                instance._model_arena = None  # NOQA
+
+        # The plain key, and -- if it was mid-replacement -- both halves of the pair.
+        for stored in (key, key + _NEW, key + _OLD):
+            with VBOSingleton._instances_lock:  # NOQA
+                ref = VBOSingleton._instances.pop(stored, None)  # NOQA
+                VBOSingleton._retired.discard(stored)  # NOQA
+                VBOSingleton._replacements.discard(stored)  # NOQA
+
+            if ref is not None:
+                instance = ref()
+                if instance is not None:
+                    instance._clear_vaos()  # NOQA
+                    instance._model_arena = None  # NOQA
 
     @_check_types.do
     def release(self):

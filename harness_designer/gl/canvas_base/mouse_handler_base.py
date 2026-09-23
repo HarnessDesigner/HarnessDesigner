@@ -565,8 +565,28 @@ class MouseHandlerBase:
                 if self.config.zoom.mouse & MOUSE_SWAP_AXIS:
                     dy, dx = dx, dy
 
+                camera = self.canvas.camera
                 sens = self.config.zoom.sensitivity
-                self.canvas.camera.Zoom(dx * sens)
+
+                # A permanently top-down-locked 2D camera (schematic, peg
+                # board -- see e.g. gl.canvas_schematic.camera.Camera.
+                # zoom_at_point) keeps the point actually under the cursor
+                # fixed on screen while zooming, the same way the 3D view's
+                # own wheel-zoom already turns to face wherever the cursor
+                # points (see _orient_to_mouse_on_focal_plane) -- neither
+                # camera type just zooms toward the viewport's own center
+                # regardless of where the mouse is. Read live (this runs from
+                # the eased-out wheel tick, well after the original wheel
+                # event's own position is gone -- same reason the walk+dolly
+                # combined case above re-queries the cursor live instead of
+                # capturing it once).
+                if hasattr(camera, 'zoom_at_point'):
+                    global_pos = QtGui.QCursor.pos()
+                    local_pos = self.canvas.mapFromGlobal(global_pos)
+                    camera.zoom_at_point(_point.Point(local_pos.x(), local_pos.y()), dx * sens)
+                    return
+
+                camera.Zoom(dx * sens)
 
             return _wrapper
 

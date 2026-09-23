@@ -644,10 +644,16 @@ class Terminal(_base_3d.Base3D):
         from ...add_handlers.editor_3d import terminal as _add_terminal  # NOQA -- avoid a cycle at import time
 
         if isinstance(self._active_handler, _add_terminal.Terminal):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler
+            # below -- a CANCEL can delete this object's own facade,
+            # whose generic delete() sees self._active_handler is this
+            # same handler and clears it right there, before this call
+            # even returns (see objects_3d.wire.Wire.handle_interaction).
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled

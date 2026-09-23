@@ -203,8 +203,9 @@ class Seal(_base_3d.Base3D):
             # nothing) instead of from_part_numbers correctly recognizing
             # an empty list and falling back to "show everything".
             compat_pns = [pn for pn in housing.db_obj.part.compat_seals_array if pn]
+            initial_params = _part_search.SearchParameters.from_part_numbers(compat_pns)
         elif terminal is not None:
-            compat_pns = _seal_handler._get_terminal_seal_pns(mainframe, terminal)  # NOQA
+            initial_params = _seal_handler.terminal_seal_search_params(mainframe, terminal)
         elif cavity is not None:
             # Housing's own compat_seals takes priority over the
             # size-based fallback (Terminals and housings alike carry
@@ -212,12 +213,14 @@ class Seal(_base_3d.Base3D):
             g_housing = cavity.db_obj.housing.part
             compat_pns = [pn for pn in g_housing.compat_seals_array if pn]
 
-            if not compat_pns:
+            if compat_pns:
+                initial_params = _part_search.SearchParameters.from_part_numbers(compat_pns)
+            else:
                 g_cav = cavity.db_obj.part
                 max_dim = max(g_cav.width or 0.0, g_cav.height or 0.0)
-                compat_pns = _add_seal.cavity_plug_pns(mainframe, max_dim)
+                initial_params = _add_seal.cavity_plug_search_params(max_dim)
         else:
-            compat_pns = []
+            initial_params = None
 
         if housing is None and terminal is None and cavity is None:
             part_id = mainframe.editor_db.editor.seals.GetSelection()
@@ -227,7 +230,7 @@ class Seal(_base_3d.Base3D):
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.SealsPage, mainframe.global_db.seals_table, 'Add Seal',
-                initial_params=_part_search.SearchParameters.from_part_numbers(compat_pns))
+                initial_params=initial_params)
 
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -450,10 +453,16 @@ class Seal(_base_3d.Base3D):
         from ...add_handlers.editor_3d import seal as _add_seal  # NOQA -- avoid a cycle at import time
 
         if isinstance(self._active_handler, _add_seal.Seal):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler
+            # below -- a CANCEL can delete this object's own facade,
+            # whose generic delete() sees self._active_handler is this
+            # same handler and clears it right there, before this call
+            # even returns (see objects_3d.wire.Wire.handle_interaction).
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled

@@ -27,6 +27,7 @@ from ...geometry import line as _line
 from ...geometry import cavity_layout as _cavity_layout
 from ...shapes import text as _text
 from ...shapes import cylinder as _cylinder
+from ...shapes import sphere as _sphere
 from ...handlers import terminal_handler as _terminal_handler
 from ... import utils as _utils
 
@@ -51,6 +52,16 @@ def _is_180(degrees: float) -> bool:
     direction relative to its own anchor.
     """
     return round(degrees) % 360 == 180
+
+
+# What a name is drawn with at exactly 180 degrees -- see Terminal.render.
+_NO_ROTATION = _angle.Angle()
+
+# What a terminal's own wire-junction sphere is drawn with -- see
+# Terminal.render. A different color from Config.colors.splice on purpose:
+# this is not a real splice, just where several of one terminal's own wires
+# fan out from (see objects.terminal.Terminal._make_room_for_second_wire).
+_WIRE_JUNCTION_MATERIAL = _materials.Generic(_color.Color(*Config.colors.wire_junction))
 
 
 class Terminal(_base_schematic.BaseSchematic):
@@ -106,8 +117,19 @@ class Terminal(_base_schematic.BaseSchematic):
     _parent: "_terminal.Terminal" = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
-    # Cached housing-local geometry (own hit-test box -- see
-    # geometry.cavity_layout.CavityGeometry.terminal_obb) -- mirrors
+    # The name label sits entirely on top of its housing's rectangle, so a
+    # click on it hits both -- the terminal has to win that (a click anywhere
+    # else in the housing is the housing's). See
+    # objects.objectsvar.base_var.BaseVar._pick_priority.
+    _pick_priority = 1
+
+    # Where the name label is drawn and hit-tested: this terminal's position,
+    # lifted so the label sits ON the housing's top surface (y = 0) rather than
+    # half-buried in it -- see _lift_name.
+    _name_position: _point.Point | None = None
+
+    # Cached housing-local geometry (see geometry.cavity_layout.
+    # CavityGeometry) -- mirrors
     # objects_schematic/cavity.py's Cavity._geometry exactly, same
     # source (PJTHousing.cavity_geometry, keyed by this terminal's own
     # seated cavity's id).
@@ -159,10 +181,13 @@ class Terminal(_base_schematic.BaseSchematic):
             else:
                 lines = ['']
 
-            built = [_text.Text(line, max_font_size,
-                                build123d.FontStyle.REGULAR,
-                                local_tilt=_text.TOP_DOWN_TILT)
-                     for line in lines]
+            # A Text makes its word VBOs when it is built, which needs the GL
+            # context current.
+            with parent.mainframe.editor2d.editor.context:
+                built = [_text.Text(line, max_font_size,
+                                    build123d.FontStyle.REGULAR,
+                                    local_tilt=_text.TOP_DOWN_TILT)
+                         for line in lines]
 
             max_line_width = max((t.width for t in built), default=0.0)
             total_height = len(built) * _text.CHARACTER_HEIGHT * max_font_size
@@ -206,11 +231,12 @@ class Terminal(_base_schematic.BaseSchematic):
             else:
                 name_h_align = build123d.TextAlign.LEFT
 
-            vbo = _text.Text(self.db_obj.name, name_font_size,
-                             build123d.FontStyle.REGULAR,
-                             local_tilt=_text.TOP_DOWN_TILT,
-                             h_align=name_h_align,
-                             center_anchor=True)
+            with parent.mainframe.editor2d.editor.context:
+                vbo = _text.Text(self.db_obj.name, name_font_size,
+                                 build123d.FontStyle.REGULAR,
+                                 local_tilt=_text.TOP_DOWN_TILT,
+                                 h_align=name_h_align,
+                                 center_anchor=True)
 
             if position is None:
                 # The fitting box (avail_width wide, term_text_width) is centered
@@ -260,10 +286,11 @@ class Terminal(_base_schematic.BaseSchematic):
             # this system is, or its default (non-center) anchor renders at
             # that point instead -- shifting the glyph away from where the
             # geometry actually placed it.
-            self._bracket = _text.Text('(', cavity_geometry.bracket_font_size,
-                                       build123d.FontStyle.REGULAR,
-                                       local_tilt=_text.TOP_DOWN_TILT,
-                                       center_anchor=True)
+            with parent.mainframe.editor2d.editor.context:
+                self._bracket = _text.Text('(', cavity_geometry.bracket_font_size,
+                                           build123d.FontStyle.REGULAR,
+                                           local_tilt=_text.TOP_DOWN_TILT,
+                                           center_anchor=True)
 
             bracket_position = _point.Point(
                 cavity_geometry.bracket_position[0],
@@ -295,6 +322,9 @@ class Terminal(_base_schematic.BaseSchematic):
 
             scale = _point.Point(1.0, 1.0, 1.0)
             material = _materials.Generic(_color.Color(*Config.colors.label))
+
+            self._name_position = _point.Point(
+                float(position.x), self._lift_name(vbo), float(position.z))
 
             with parent.mainframe.editor2d.editor.context:
                 super().__init__(parent, db_obj, vbo, angle,
@@ -365,6 +395,20 @@ class Terminal(_base_schematic.BaseSchematic):
             housing.position.y + float(wy),
             housing.position.z + float(wz))
 
+    @staticmethod
+    def _lift_name(vbo: _text.Text) -> float:
+        """How far a name label has to be raised so its lowest point is at
+        y = 0, the housing's top surface.
+
+        The housing is a flat quad at y = 0 and a glyph mesh is extruded and
+        centered about its own anchor, so at y = 0 the label would be half
+        buried; lifted by half its depth it sits on the surface and sticks out
+        above it -- and its hit box is above the housing's, so a click on the
+        name is nearer along the ray than the housing under it. Read from the
+        label's own mesh bounds, not assumed.
+        """
+        return -float(vbo.local_aabb[0][1])
+
     @_check_types.do
     def _update_position(self, position: _point.Point):
         """
@@ -413,6 +457,10 @@ class Terminal(_base_schematic.BaseSchematic):
 
         cylinder_length = line.length()
         self._cylinder_scale = _point.Point(1.0, 1.0, cylinder_length)
+
+        with self._name_position:
+            self._name_position.x = float(position.x)
+            self._name_position.z = float(position.z)
 
         super()._update_position(position)
 
@@ -470,11 +518,12 @@ class Terminal(_base_schematic.BaseSchematic):
             else:
                 name_h_align = build123d.TextAlign.LEFT
 
-            self._vbo = _text.Text(self.db_obj.name, self._name_font_size,
-                                   build123d.FontStyle.REGULAR,
-                                   local_tilt=_text.TOP_DOWN_TILT,
-                                   h_align=name_h_align,
-                                   center_anchor=True)
+            with self.parent.mainframe.editor2d.editor.context:
+                self._vbo = _text.Text(self.db_obj.name, self._name_font_size,
+                                       build123d.FontStyle.REGULAR,
+                                       local_tilt=_text.TOP_DOWN_TILT,
+                                       h_align=name_h_align,
+                                       center_anchor=True)
 
         super()._update_angle(angle)
 
@@ -482,52 +531,90 @@ class Terminal(_base_schematic.BaseSchematic):
         self._compute_obb()
         self._compute_aabb()
 
+    @property
     @_check_types.do
-    def _compute_obb(self):
-        """Derive this terminal's own hit-test OBB from
-        :attr:`_geometry`'s own ``terminal_obb`` (housing-local,
-        unrotated -- the text area inside the cavity rectangle, fixed
-        regardless of this specific terminal's own rendered name/
-        bracket/wire-stub extents), rotated by the owning housing's own
-        current angle -- mirrors
-        ``objects_schematic/cavity.py``'s ``Cavity._compute_obb``
-        exactly, same reasoning (this terminal's own ``self._angle``
-        plays no part -- always identity, see the class docstring).
-        """
-        if self._vbo is None or self._geometry is None:
-            return
-
-        housing = self.housing
-        if housing is None:
-            return
-
-        local = self._geometry.terminal_obb.copy()
-        local @= housing.angle
-        obb = local + housing.position
+    def obb(self) -> np.ndarray:
+        """The generic box until the housing is known, then the one worked
+        out from the label (see :meth:`_compute_obb`)."""
+        if self.housing is None:
+            return super().obb
 
         if self._obb is None:
+            self._compute_obb()
+            self._compute_aabb()
+
+        return self._obb
+
+    @property
+    @_check_types.do
+    def aabb(self) -> np.ndarray:
+        """See :attr:`obb`."""
+        if self.housing is None:
+            return super().aabb
+
+        if self._obb is None:
+            self._compute_obb()
+            self._compute_aabb()
+
+        return self._aabb
+
+    def _label_angle(self) -> _angle.Angle:
+        """The angle this terminal's name is drawn at -- the same one
+        :meth:`render` uses: its own, except at exactly 180 degrees where the
+        glyph is drawn upright instead."""
+        if _is_180(self._angle.y):
+            return _NO_ROTATION
+
+        return self._angle
+
+    @_check_types.do
+    def _compute_obb(self):
+        """The label's own OBB (``Text.local_obb``) turned and moved to where
+        the label is drawn. Nothing to do until the housing is known."""
+        housing = self.housing
+        if housing is None or self._vbo is None or self._name_position is None:
+            return
+
+        obb = self._vbo.local_obb.copy()
+        obb @= self._label_angle()
+        obb += self._name_position.as_numpy
+
+        # the first time there is no array yet: it comes from the pool
+        if self._obb is None:
             self._obb = self._obb_manager.read(self._obb_index)
-            self._obb[:] = obb
-        else:
-            self._obb[:] = obb
+
+        self._obb[:] = obb
 
     @_check_types.do
     def _compute_aabb(self):
-        """Same corners as :meth:`_compute_obb` -- see its docstring."""
-        if self._vbo is None or self._geometry is None:
-            return
-
+        """The label's own AABB (``Text.local_aabb``) turned and moved to where
+        the label is drawn, then ``utils.adjust_aabb`` so every min is in the
+        min row and every max in the max row. Nothing to do until the housing
+        is known."""
         housing = self.housing
-        if housing is None:
+        if housing is None or self._vbo is None or self._name_position is None:
             return
 
-        corners = self._geometry.terminal_obb.copy()
-        corners @= housing.angle
-        corners += housing.position.as_numpy
+        local = self._vbo.local_aabb
+        corners = _utils.compute_obb(
+            _point.Point(*local[0].tolist()), _point.Point(*local[1].tolist()))
 
-        aabb = _utils.adjust_aabb(corners)
+        corners @= self._label_angle()
+        corners += self._name_position.as_numpy
 
-        self._aabb[:] = aabb
+        self._aabb[:] = _utils.adjust_aabb(corners)
+
+    @_check_types.do
+    def hit_test_step2(self, ray_origin, ray_direction):
+        """Only the box is tested (see :meth:`hit_test_step3`)."""
+        return _base_schematic.box_hit_test(self._obb, ray_origin, ray_direction)
+
+    @_check_types.do
+    def hit_test_step3(self, ray_origin, ray_dir):
+        """A terminal is picked by its name's box -- the OBB -- not by the
+        glyph triangles: the pool's own OBB test already said the ray is inside
+        it, and nothing finer is wanted."""
+        return _base_schematic.box_hit_test(self._obb, ray_origin, ray_dir)
 
     @_check_types.do
     def render(self, shaders):
@@ -576,10 +663,14 @@ class Terminal(_base_schematic.BaseSchematic):
         # _update_angle already flip this same Text's own h_align to
         # compensate, whenever this last crossed into/out of 180).
         if _is_180(real_angle.y):
-            self._angle = _angle.Angle()
+            self._angle = _NO_ROTATION
+
+        real_position = self._position
+        self._position = self._name_position
 
         super().render(shaders)
 
+        self._position = real_position
         self._angle = real_angle
 
         if self._bracket is not None:
@@ -597,6 +688,28 @@ class Terminal(_base_schematic.BaseSchematic):
 
             super().render(shaders)
 
+            # A second (or later) wire attached to this terminal has already
+            # pushed wire_position2d further out to make room for it (see
+            # objects.terminal.Terminal._make_room_for_second_wire) -- mark
+            # that fan-out point with a sphere, in its own distinct color, so
+            # it reads as "several of this terminal's own wires meet here",
+            # not a real splice. Purely visual -- not a separate object, not
+            # its own click target; this terminal's own hit box (its name
+            # label) is unaffected.
+            if len(self.parent.wires) > 1:
+                real_material = self._material
+
+                self._vbo = _sphere.create_vbo()
+                self._angle = _NO_ROTATION
+                diameter = Config.object_sizes.splice.diameter
+                self._scale = _point.Point(diameter, diameter, diameter)
+                self._position = self._wire_position
+                self._material = _WIRE_JUNCTION_MATERIAL
+
+                super().render(shaders)
+
+                self._material = real_material
+
             self._vbo = real_vbo
             self._angle = real_angle
             self._scale = real_scale
@@ -605,7 +718,7 @@ class Terminal(_base_schematic.BaseSchematic):
     @_check_types.do
     def _delete(self):
         # self._name_cb.unbind()
-        self._detach_extra_wires_at_position2d()
+        self._detach_extra_wires_at_wire_position2d()
         super()._delete()
 
     @classmethod
@@ -700,10 +813,16 @@ class Terminal(_base_schematic.BaseSchematic):
         from ...add_handlers.editor_schematic import terminal as _add_terminal
 
         if isinstance(self._active_handler, _add_terminal.Terminal):
-            handled = self._active_handler(
+            # A local reference, not another read of self._active_handler
+            # below -- a CANCEL can delete this object's own facade,
+            # whose generic delete() sees self._active_handler is this
+            # same handler and clears it right there, before this call
+            # even returns (see objects_3d.wire.Wire.handle_interaction).
+            handler = self._active_handler
+            handled = handler(
                 last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
-            if self._active_handler.is_finished:
+            if handler.is_finished and self._active_handler is handler:
                 self._active_handler = None
 
             return handled
@@ -724,23 +843,26 @@ class Terminal(_base_schematic.BaseSchematic):
         return TerminalMenu(self.editor2d.editor, self)
 
     @_check_types.do
-    def _detach_extra_wires_at_position2d(self):
+    def _detach_extra_wires_at_wire_position2d(self):
         """
-        Give every wire but the first one attached at this terminal's
-        own 2D point its own new point at the same coordinates.
+        Give every wire but the first one attached at this terminal's own
+        ``wire_position2d`` its own new point at the same coordinates.
 
-        Unlike 3D, a terminal has no separate crimp/layout-point chain
-        in the schematic view -- wires attach directly to the
-        terminal's own position2d, and seals aren't rendered in 2D at
-        all, so there's nothing else to clean up here. Only the first
-        wire found keeps the shared point (it becomes uniquely its own
-        once the terminal row is gone); every additional wire would
-        otherwise stay joined to it through a point that no longer
-        represents a real connection.
+        Unlike 3D/peg board, a terminal has no per-wire clone of its own
+        wire-attach point in the schematic view -- every wire attached here
+        points ``start_position2d_id``/``stop_position2d_id`` straight at
+        this SAME shared ``wire_position2d`` (see ``objects.terminal.
+        Terminal.add_wire``'s own docstring -- distinct from
+        ``position2d``, this terminal's own NAME anchor, which no wire ever
+        attaches to), and seals aren't rendered in 2D at all, so there's
+        nothing else to clean up here. Only the first wire found keeps the
+        shared point (it becomes uniquely its own once the terminal row is
+        gone); every additional wire would otherwise stay joined to it
+        through a point that no longer represents a real connection.
         """
 
         ptables = self.mainframe.project.ptables
-        point_id = self.db_obj.position2d_id
+        point_id = self.db_obj.wire_position2d_id
 
         if point_id is None:
             return

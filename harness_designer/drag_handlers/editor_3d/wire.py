@@ -72,7 +72,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
 
     @staticmethod
     def _get_editor(mainframe):
-        return mainframe.editor3d.editor
+        return mainframe.editor3d.editor._canvas  # NOQA
 
     @staticmethod
     def _points_table(project: "_project.Project"):

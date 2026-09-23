@@ -2091,6 +2091,12 @@ class SearchDialog(_dialog_base.BaseDialog):
         if initial_params is not None:
             self.search_edit.setPlainText(initial_params.to_text(self.schema))
 
+        # Run the search immediately on open (whatever's currently in the
+        # box -- the initial_params seed above, or blank for "show
+        # everything") so every caller's dialog opens straight to results
+        # instead of an empty grid waiting on a Search click.
+        self.do_search()
+
         QtCore.QTimer.singleShot(0, self._populate_filters)
 
     # ------------------------------------------------------------------

@@ -1,7 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""A string of cached character glyphs (see shapes/glyph.py), rendered
-as one draw call per glyph.
+"""A string of cached character glyphs, rendered as one draw call per WORD.
+
+Every character is tessellated once and kept as its own glyph VBO (see
+:func:`build_chars`, id ``text glyph:<style>:<char>``). A ``Text`` splits its
+string into words -- anything separated by a space -- and merges the glyph
+meshes of each word into ONE mesh with its own VBO (id ``text word:<style>:
+<word>``, made only if no VBO for that word exists yet), so a label costs a draw
+call per word instead of one per character. A one-character word just uses its
+glyph's VBO. The ``Text``'s own mesh (``vertices``/``data``/...) is the whole
+string as it is drawn; it is never uploaded -- the word VBOs are what get drawn.
 
 A ``Text`` owns no position/angle/scale of its own -- unlike a real
 mesh VBO's *data*, a glyph layout never moves on its own account, only
@@ -355,6 +363,17 @@ def _tessellate_char(char: str, depth: float, style: build123d.FontStyle):
     return packed, count, aabb, obb, width, height, center_y
 
 
+def _glyph_id(char: str, style: int) -> str:
+    """The VBO id of *char*'s glyph at *style* (``FontStyle.value``)."""
+    return f'text glyph:{style}:{char}'
+
+
+def _word_id(word: str, style: int) -> str:
+    """The VBO id of *word* at *style*. The style is part of it -- the same
+    letters in bold and regular are different meshes."""
+    return f'text word:{style}:{word}'
+
+
 def _build_char(char: str, depth: float, style: build123d.FontStyle,
                 tessellated: tuple | None = None):
     """Return this character's ``(vbo, dims, center_y)`` glyph entry.
@@ -381,7 +400,9 @@ def _build_char(char: str, depth: float, style: build123d.FontStyle,
         tessellated = _tessellate_char(char, depth, style)
 
     packed, count, aabb, obb, width, height, center_y = tessellated
-    vbo = _vbo_handler.NonPooledVBOHandler(packed, count, aabb=aabb, obb=obb)
+    vbo = _vbo_handler.PooledVBOHandler(
+        _glyph_id(char, style.value), packed, count, aabb=aabb, obb=obb,
+        arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
     return vbo, _point.Point(width, height, depth), center_y
 
@@ -880,7 +901,8 @@ class Text:
                  style: build123d.FontStyle | int,
                  h_align: build123d.TextAlign | int = build123d.TextAlign.LEFT,
                  local_tilt: _angle.Angle | None = None,
-                 center_anchor: bool = False):
+                 center_anchor: bool = False,
+                 measure_only: bool = False):
         """
         :param h_align: How each line is positioned relative to the
             others when *text* has more than one line (a single-line
@@ -926,6 +948,14 @@ class Text:
             one, never changes the widest line's own span, so it plays
             no part in where this overall center actually is either.
         :type center_anchor: bool
+        :param measure_only: ``True`` lays the string out from the glyph VBOs
+            that already exist and does NOT make its word VBOs, so it needs no
+            GL context -- for whatever only wants ``width``/``height``/bounds
+            (the database layer's cavity layout, say). Everything about the
+            geometry is the same. The word VBOs are made the first time the Text
+            is rendered (see :meth:`render`), or by :meth:`build_vbos`, either of
+            which needs the context current.
+        :type measure_only: bool
         """
 
         if not isinstance(style, int):
@@ -938,14 +968,14 @@ class Text:
         self._style = style
         self._local_tilt = local_tilt
 
-        # Per character: its own shared glyph VBO, and its own LOCAL
-        # (unrotated, font_size=1.0 basis) offset -- x is this line's
-        # own alignment offset (see line_x0 below) plus the cursor
-        # position within it, y is 0 for the last line and steps up by
-        # one line_height per line above it (y, not z -- a glyph's own
-        # raw mesh has height on Y now, see _tessellate_char's own
-        # docstring for why). Neither the per-character cursor nor a
-        # glyph's own local x/y needs any further offset of its own,
+        # Per WORD: its own shared VBO (the glyph's own, for a one-character
+        # word -- see _word_vbo), and its own LOCAL (unrotated, font_size=1.0
+        # basis) offset -- x is this line's own alignment offset (see line_x0
+        # below) plus the cursor position of the word's first character, y is 0
+        # for the last line and steps up by one line_height per line above it
+        # (y, not z -- a glyph's own raw mesh has height on Y now, see
+        # _tessellate_char's own docstring for why). Neither the per-character
+        # cursor nor a glyph's own local x/y needs any further offset of its own,
         # because each cached glyph's own X/Y is left at build123d's
         # own LEFT/BOTTOM-alignment reference (a real font-metric left
         # side-bearing/baseline, shared by every character in the font)
@@ -960,6 +990,19 @@ class Text:
         # single-line behavior).
         self._vbos = []
         self._locals = []
+
+        # Every word in the string, as ``(word, glyphs, x, y)`` with *glyphs* the
+        # ``(glyph vbo, x within the word)`` of each of its characters and
+        # ``(x, y)`` where the word starts -- what ``_vbos``/``_locals`` are laid
+        # out from (see _layout), in either of its two forms.
+        self._words: list[tuple[str, list, float, float]] = []
+
+        # Whether ``_vbos`` holds the word VBOs (True) or the bare glyph VBOs a
+        # measure-only Text starts with (False).
+        self._merged = False
+
+        # How far center_anchor moved every word.
+        self._shift = (0.0, 0.0)
 
         # Per-glyph world position cache -- see render()'s own docstring
         # for why. ``None`` means "never rendered yet" (always a miss).
@@ -1010,16 +1053,29 @@ class Text:
             cursor = 0.0
             last = len(line) - 1
 
+            # The glyphs of the word being read -- ``(char, glyph vbo, x within
+            # the word)`` -- and where the word starts on this line.
+            word: list[tuple[str, _vbo_handler.PooledVBOHandler, float]] = []
+            word_x0 = 0.0
+
             for i, char in enumerate(line):
                 vbo, dims = self._get(char)
 
-                if vbo is not None:
-                    self._vbos.append(vbo)
-                    self._locals.append(_point.Point(line_x0 + cursor, line_y, 0.0))
+                if vbo is None:
+                    # A space (no ink) ends the word.
+                    self._add_word(word, line_x0 + word_x0, line_y)
+                    word = []
+                else:
+                    if not word:
+                        word_x0 = cursor
+
+                    word.append((char, vbo, cursor - word_x0))
                     height = max(height, dims.y)
 
                 next_char = line[i + 1] if i != last else ''
                 cursor += self._advance(char, next_char)
+
+            self._add_word(word, line_x0 + word_x0, line_y)
 
         # Total block height: from the last line's own baseline (Y=0)
         # up through every extra line stacked above it, plus the
@@ -1031,81 +1087,142 @@ class Text:
         self.height = total_height * size
 
         if center_anchor:
-            # Shift every glyph's own local position by half this
+            # Shift every word's own local position by half this
             # block's own (alignment-independent -- see __init__'s own
             # docstring) width/height, so local (0, 0, 0) becomes this
             # block's own center instead of its bottom-left-of-widest-
             # line baseline corner.
-            half_width = max_line_width / 2.0
-            half_height = total_height / 2.0
+            self._shift = (max_line_width / 2.0, total_height / 2.0)
 
-            self._locals = [
-                _point.Point(local.x - half_width, local.y - half_height, local.z)
-                for local in self._locals
-            ]
+        self._layout(not measure_only)
 
         self._compute_local_bounds()
 
+    def _add_word(self, word: list, x: float, y: float) -> None:
+        """Record the word made of *word* (``(char, glyph vbo, x within the
+        word)`` for each of its characters -- nothing, for a stretch of spaces),
+        starting at local ``(x, y)``."""
+        if not word:
+            return
+
+        self._words.append((
+            ''.join(char for char, _, _ in word),
+            [(vbo, at) for _, vbo, at in word],
+            x, y))
+
+    def _layout(self, merged: bool) -> None:
+        """Set ``_vbos``/``_locals`` from ``_words``: one VBO per word (its own
+        cached one -- see :meth:`_word_vbo`; a one-character word just uses its
+        glyph's), or, if *merged* is False, one per glyph, which makes nothing
+        and so needs no GL context. Either way every glyph ends up in the same
+        place, so the geometry and bounds are identical."""
+        shift_x, shift_y = self._shift
+
+        self._vbos = []
+        self._locals = []
+
+        for word, glyphs, x, y in self._words:
+            x -= shift_x
+            y -= shift_y
+
+            if not merged:
+                for vbo, at in glyphs:
+                    self._vbos.append(vbo)
+                    self._locals.append(_point.Point(x + at, y, 0.0))
+
+                continue
+
+            if len(glyphs) == 1:
+                # One character: its own glyph VBO already IS the word.
+                vbo = glyphs[0][0]
+            else:
+                vbo = self._word_vbo(word, glyphs)
+
+            self._vbos.append(vbo)
+            self._locals.append(_point.Point(x, y, 0.0))
+
+        self._merged = merged
+
+        # what render() cached was for the old list
+        self._cached_position = None
+        self._cached_world_positions = []
+
+    def build_vbos(self) -> None:
+        """Make the word VBOs a measure-only Text left out, so it can be drawn.
+        Needs the GL context current. Does nothing if they already exist."""
+        if not self._merged:
+            self._layout(True)
+
+    def _word_vbo(self, word: str, glyphs: list) -> _vbo_handler.PooledVBOHandler:
+        """The VBO of *word* -- the one already made for it if there is one,
+        else a new one whose mesh is *glyphs* (``(glyph vbo, x within the
+        word)``) merged into a single mesh, in the font_size=1.0 basis every
+        glyph mesh is in (so it is drawn with exactly the transform a glyph
+        would be).
+
+        The VBO cache holds words weakly (``VBO_TYPE_MODEL``): this Text keeps
+        its words alive, and a word nothing uses any more is freed.
+        """
+        id_ = _word_id(word, self._style)
+
+        vbo = _vbo_handler.PooledVBOHandler.get(id_)
+        if vbo is not None:
+            return vbo
+
+        verts = []
+        smooth = []
+        face = []
+        count = 0
+
+        for glyph, at in glyphs:
+            verts.append(glyph.vertices.reshape(-1, 3) + np.array([at, 0.0, 0.0], dtype=np.float32))
+            smooth.append(glyph.smooth_normals.reshape(-1, 3))
+            face.append(glyph.face_normals.reshape(-1, 3))
+            count += glyph.vertex_count
+
+        verts = np.concatenate(verts)
+
+        packed = np.concatenate((
+            verts.ravel(), np.concatenate(smooth).ravel(), np.concatenate(face).ravel()
+        )).astype(np.float32)
+
+        aabb1, aabb2 = _utils.compute_aabb(verts)
+        aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+        obb = _utils.compute_obb(aabb1, aabb2)
+
+        return _vbo_handler.PooledVBOHandler(
+            id_, packed, count, aabb=aabb, obb=obb, arena_kind=_vbo_handler.VBO_TYPE_MODEL)
+
     def _compute_local_bounds(self) -> None:
-        """Combine every placed glyph's own ``local_aabb`` (each glyph's
-        cached VBO is a real VBO handler, so it already carries one --
-        see gl/vbo.py's VBOHandlerBase) into this Text's own overall
-        ``local_aabb``/``local_obb``, in this Text's own local
-        (unrotated -- everything render() itself later rotates by
-        whatever angle it's actually called with) frame, using the
-        exact same Y-scale/no-Z-scale convention render() lays glyphs
-        out with (see that method's own docstring for why).
-        Computed once here rather than lazily -- this Text's own glyph
-        layout never changes without a whole new Text being constructed
-        (see e.g. objects_3d.note.Note._rebuild), so there is nothing
-        that would ever make a cached result here stale.
+        """This Text's own ``local_aabb``/``local_obb``, in its own local
+        (unrotated -- everything render() itself later rotates by whatever angle
+        it's actually called with) frame.
 
-        Deliberately has nothing to do with ``h_align`` -- alignment is
-        purely a per-line *justification* concern (how a shorter line
-        sits relative to the widest one; see __init__ above), not a
-        change in the overall block's own size, so it plays no part in
-        this bounding-box math either.
+        The AABB is ``utils.compute_aabb`` of the Text's own mesh (``vertices``:
+        every word placed, scaled by the font size, centre-anchored and tilted --
+        the same geometry render() draws), so it is exactly the min and max of
+        that mesh. The OBB is then made FROM the AABB (``utils.compute_obb``),
+        never the other way around.
 
-        If this Text has its own ``local_tilt`` (see __init__), both
-        ``local_aabb``/``local_obb`` are pre-rotated by it here so they
-        match what render() actually draws (render() composes the same
-        tilt with whatever angle it's called with, every call).
+        Computed once here rather than lazily -- this Text's own glyph layout
+        never changes without a whole new Text being constructed (see e.g.
+        objects_3d.note.Note._rebuild), so there is nothing that would ever make
+        a cached result here stale.
+
+        Deliberately has nothing to do with ``h_align`` -- alignment is purely a
+        per-line *justification* concern (how a shorter line sits relative to
+        the widest one; see __init__ above), not a change in the overall
+        block's own size, so it plays no part in this bounding-box math either.
         """
         if not self._vbos:
             self.local_aabb = np.zeros((2, 3), dtype=np.float32)
             self.local_obb = np.zeros((8, 3), dtype=np.float32)
             return
 
-        mins = []
-        maxs = []
+        p1, p2 = _utils.compute_aabb(self.vertices.reshape(-1, 3))
 
-        for vbo, local in zip(self._vbos, self._locals):
-            glyph_min, glyph_max = vbo.local_aabb
-
-            x0 = (local.x + glyph_min[0]) * self._size
-            x1 = (local.x + glyph_max[0]) * self._size
-
-            y0 = (local.y + glyph_min[1]) * self._size
-            y1 = (local.y + glyph_max[1]) * self._size
-
-            z0 = float(glyph_min[2])
-            z1 = float(glyph_max[2])
-
-            mins.append((min(x0, x1), min(y0, y1), min(z0, z1)))
-            maxs.append((max(x0, x1), max(y0, y1), max(z0, z1)))
-
-        local_min = np.array(mins, dtype=np.float32).min(axis=0)
-        local_max = np.array(maxs, dtype=np.float32).max(axis=0)
-
-        p1 = _point.Point(*[float(v) for v in local_min.tolist()])
-        p2 = _point.Point(*[float(v) for v in local_max.tolist()])
-        corners = _utils.compute_obb(p1, p2)
-
-        if self._local_tilt is not None:
-            corners @= self._local_tilt
-
-        self.local_obb = corners
-        self.local_aabb = _utils.adjust_aabb(corners)
+        self.local_aabb = np.array([p1.as_float, p2.as_float], dtype=np.float32)
+        self.local_obb = _utils.compute_obb(p1, p2)
 
     def _advance(self, char: str, next_char: str) -> float:
         if char == ' ':
@@ -1143,9 +1260,10 @@ class Text:
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: _point.Point, angle: _angle.Angle, scale: _point.Point,
                smooth: bool | None) -> None:
-        """Draw every character in this string as its own shared glyph
-        VBO, computing each glyph's own world position/rotation/scale
-        fresh from *position*/*angle*/*scale* -- this Text's owner's
+        """Draw every word in this string as its own shared VBO (a glyph's,
+        for a one-character word), computing each one's own world
+        position/rotation/scale fresh from *position*/*angle*/*scale* --
+        this Text's owner's
         own current transform, handed to every VBO's ``render()``
         identically (see gl/vbo.py's ``VBOHandlerBase.render``) -- and
         letting that glyph's own (real mesh) VBO set its own uniforms
@@ -1183,6 +1301,11 @@ class Text:
         entirely through *local_tilt* (a real rotation -- see __init__)
         composed with *angle*, never through a separate axis flip.
         """
+        if not self._merged:
+            # A measure-only Text: drawing is when its word VBOs are made (the
+            # context is current here).
+            self.build_vbos()
+
         if self._local_tilt is not None:
             angle = self._local_tilt + angle
 
@@ -1340,29 +1463,80 @@ class Text:
         if hasattr(owner, 'refresh_canvas_registration'):
             owner.refresh_canvas_registration()
 
+    # The whole string as ONE mesh, packed like every VBO's data (vertices,
+    # then smooth normals, then face normals) and in this Text's own local frame
+    # -- every word placed, scaled by the font size, centre-anchored and tilted
+    # -- i.e. what would be drawn at position 0, angle 0, scale 1. It is only
+    # for whatever needs the geometry (a mesh hit test, say): it is never
+    # uploaded, the word VBOs are what get drawn. Built the first time it is
+    # asked for -- most labels never are.
+    _mesh: tuple[np.ndarray, int] | None = None
+
+    def _build_mesh(self) -> tuple[np.ndarray, int]:
+        if self._mesh is not None:
+            return self._mesh
+
+        verts = []
+        smooth = []
+        face = []
+        count = 0
+
+        for vbo, local in zip(self._vbos, self._locals):
+            v = vbo.vertices.reshape(-1, 3)
+
+            verts.append(np.column_stack((
+                (v[:, 0] + local.x) * self._size,
+                (v[:, 1] + local.y) * self._size,
+                v[:, 2] + local.z)).astype(np.float32))
+
+            smooth.append(vbo.smooth_normals.reshape(-1, 3))
+            face.append(vbo.face_normals.reshape(-1, 3))
+            count += vbo.vertex_count
+
+        if not count:
+            self._mesh = (np.zeros((0,), dtype=np.float32), 0)
+            return self._mesh
+
+        verts = np.concatenate(verts)
+        smooth = np.concatenate(smooth)
+        face = np.concatenate(face)
+
+        if self._local_tilt is not None:
+            verts @= self._local_tilt
+            smooth = smooth @ self._local_tilt
+            face = face @ self._local_tilt
+
+        packed = np.concatenate((verts.ravel(), smooth.ravel(), face.ravel())).astype(np.float32)
+
+        self._mesh = (packed, count)
+        return self._mesh
+
     @property
     def data(self):
-        return np.zeros((0,), dtype=np.float32)
+        return self._build_mesh()[0]
 
     @property
     def vertices(self):
-        return np.zeros((0,), dtype=np.float32)
+        packed, count = self._build_mesh()
+        return packed[:count * 3]
 
     @property
     def smooth_normals(self):
-        return np.zeros((0,), dtype=np.float32)
+        packed, count = self._build_mesh()
+        return packed[count * 3:count * 6]
 
     @property
     def face_normals(self):
-        return np.zeros((0,), dtype=np.float32)
+        packed, count = self._build_mesh()
+        return packed[count * 6:]
 
     @property
     def faces(self):
-        return np.zeros((0, 3), dtype=np.int32)
+        return None
 
     @property
     def vertex_count(self) -> int:
-        return 0
+        return self._build_mesh()[1]
 
     @staticmethod
     def get_aspect() -> tuple[float, float, float]:
@@ -1379,11 +1553,11 @@ class Text:
         return ctx
 
     def acquire(self) -> None:
-        """No-op -- each character's own cached glyph VBO (see
-        build_chars()) manages its own GL acquisition lazily."""
+        """No-op -- each word's own cached VBO (see :meth:`_word_vbo`) manages
+        its own GL acquisition lazily."""
 
     def release(self) -> None:
         """No-op -- a Text never owns a VBO of its own to release; its
-        character glyphs are globally shared/cached (see build_chars()),
-        and releasing them here would break every other Text instance
-        using the same letters."""
+        glyphs (see build_chars()) and words are globally shared/cached, and
+        releasing them here would break every other Text instance using the
+        same letters or words."""

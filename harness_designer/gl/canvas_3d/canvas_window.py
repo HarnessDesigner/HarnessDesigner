@@ -72,6 +72,21 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
         if axis_overlay is None:
             return
 
+        # Skip while this canvas isn't shown yet -- it's built (and the
+        # overlay moved to its remembered position) well before the
+        # surrounding dock widget/window is ever shown, and Qt fires
+        # several resizeEvents as that layout settles into its real
+        # size. Clamping the overlay against those still-too-small
+        # transitional sizes below would move() it, and that move()
+        # triggers the overlay's own moveEvent(), which persists
+        # whatever position it lands on back into config.position --
+        # permanently overwriting a correct remembered position with a
+        # wrong, pre-layout one before the user ever sees the window.
+        # Only a real post-show resize (the user resizing the window/
+        # dock) should ever clamp/persist a new position.
+        if not self.isVisible():
+            return
+
         pos = axis_overlay.pos()
         x1 = pos.x()
         y1 = pos.y()

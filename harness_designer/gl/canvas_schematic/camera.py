@@ -162,14 +162,25 @@ class Camera(_camera_base.CameraBase):
 
         Changes the distance while keeping the point under cursor fixed.
         Similar to 3D camera but for 2D orthographic view.
+
+        *delta* is the already-sensitivity-scaled step -- same convention
+        every other camera move method here takes (:meth:`Dolly`, :meth:`Zoom`)
+        -- the caller (``gl.canvas_base.mouse_handler_base.py``'s wheel
+        dispatch) applies ``config.input.zoom.sensitivity`` itself. This used
+        to read ``self.canvas.config.zoom.sensitivity`` directly, which both
+        double-applied sensitivity over :meth:`Zoom`'s own already-scaled
+        caller AND was the wrong path regardless -- ``canvas.config`` is the
+        whole editor config (``Config.editor_schematic``), which has no
+        ``zoom`` of its own (that lives under its own ``.input``, read via
+        ``canvas.config.input.zoom`` -- see mouse_handler_base.py's own
+        ``self.config = self.canvas.config.input``) -- so this raised
+        ``AttributeError: zoom`` the moment it was ever actually called.
         """
 
         # Get world position before zoom
         world_pos_before = self.screen_to_world(screen_pos)
 
-        # Apply zoom using the Zoom method logic
-        sensitivity = self.canvas.config.zoom.sensitivity
-        self.distance = self.distance - (delta * sensitivity)
+        self.distance = self.distance - delta
 
         # Get world position after zoom
         world_pos_after = self.screen_to_world(screen_pos)

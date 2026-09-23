@@ -115,6 +115,18 @@ class Canvas(_canvas_base.CanvasBase):
 
         super().add_object(obj)
 
+    def add_preview_object(self, obj):
+        """Register a wire that is still being drawn (one end not attached
+        yet) so it is rendered while the user places it -- what
+        :meth:`add_object` deliberately refuses. Removed like any other
+        object when the wire is deleted or the drawing is cancelled; once the
+        wire is fully attached :meth:`add_object` finds it already
+        registered."""
+        if obj in self._objects:
+            return
+
+        super().add_object(obj)
+
     @property
     @_check_types.do
     def light_position(self) -> np.ndarray:

@@ -35,7 +35,7 @@ the preview around during hover (see ``hover``'s own early-return on
 ``self._is_instant``).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 
@@ -51,6 +51,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ...ui.dialogs import part_search as _part_search
 
 
 @_check_types.do
@@ -83,19 +84,29 @@ def cavity_midpoint_pegboard(pjt_cavity):
 
 
 @_check_types.do
-def cavity_plug_pns(mainframe, max_dim: float) -> list:
-    """PLUG and dummy-pin seal part numbers whose dimensions fit *max_dim*."""
+def cavity_plug_search_params(max_dim: float) -> Union["_part_search.SearchParameters", None]:
+    """PLUG/dummy-pin search-box seed for a cavity whose dimensions fit
+    *max_dim* (the cavity's own ``max(width, height)``).
+
+    Only ``o_dia`` is seeded, not the ``width`` alternative the old
+    ``s.width <= ? OR s.o_dia <= ?`` SQL also checked -- the search
+    grammar ANDs different columns together, it never ORs across two of
+    them, so there's no single expression for "fits either dimension".
+    o_dia is the dominant case (most plugs/dummy pins are round); a
+    non-round one sized by width instead still turns up once that bound
+    is cleared/widened in the dialog itself.
+    """
     if max_dim <= 0.0:
-        return []
+        return None
 
-    mainframe.global_db.seals_table.execute(
-        'SELECT DISTINCT s.part_number FROM seals s '
-        'JOIN seal_types st ON s.type_id = st.id '
-        'WHERE (UPPER(st.name) = "PLUG" OR UPPER(st.name) = "DUMMY PIN") '
-        'AND (s.width <= ? OR s.o_dia <= ?);',
-        (max_dim, max_dim))
+    from ...ui.dialogs import part_search as _part_search
 
-    return [row[0] for row in mainframe.global_db.seals_table.fetchall()]
+    params = _part_search.SearchParameters()
+    params.add('type_id', _part_search.SearchTerm(phrase='Plug'))
+    params.add('type_id', _part_search.SearchTerm(phrase='Dummy Pin'))
+    params.add('o_dia', _part_search.SearchTerm(operator='<=', value=str(max_dim)))
+
+    return params
 
 
 class Seal(_base.AddHandlerBase):

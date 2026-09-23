@@ -34,6 +34,20 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_schematic
 
 
+def box_hit_test(obb: np.ndarray | None, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
+    """Whether a ray hits the oriented box *obb* (``(8, 3)``, the pool's
+    corner order) -- what a label's hit test is: the box, never its glyph
+    triangles."""
+    if obb is None:
+        return False
+
+    # avoid a cycle at import time
+    from ...gl import object_picker as _object_picker
+
+    hit, _t = _object_picker._ray_intersect_obb(ray_origin, ray_direction, obb)  # NOQA
+    return hit
+
+
 @_check_types.do
 def _quat_about_y(degrees: float) -> _quaternion.Quaternion:
     """Return the quaternion rotating *degrees* about world Y.

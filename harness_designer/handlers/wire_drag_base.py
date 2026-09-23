@@ -186,8 +186,14 @@ class WireDragMixin:
     @staticmethod
     def _get_editor(mainframe):
         """
-        Return this view's own canvas/editor widget -- used to parent
-        a :class:`~harness_designer.handlers.wire_snap.SnapOverlay`.
+        Return this view's own INNER GL canvas widget (``mainframe.editorX.
+        editor._canvas`` -- not the wrapper, ``mainframe.editorX.editor``
+        itself, which is un-offset and usually smaller: see
+        gl.canvas_base.canvas_window_base.CanvasWindowBase.objects_in_window's
+        own docstring on why the two differ) -- used to parent a
+        :class:`~harness_designer.handlers.wire_snap.SnapOverlay`, whose
+        ``show_message`` moves it using mouse positions measured against
+        that same inner canvas.
         """
 
         raise NotImplementedError

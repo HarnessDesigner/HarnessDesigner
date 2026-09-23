@@ -28,6 +28,14 @@ class Wire(_ObjectBase):
     objpegboard: _wire_pegboard.Wire = None
     db_obj: "_pjt_wire.PJTWire" = None
 
+    # Interior schematic waypoints ``(x, z)`` the user placed by hand while
+    # drawing this wire (see add_handlers.editor_schematic.wire). While set,
+    # the auto-route that runs when the wire's far end attaches keeps them and
+    # routes only from the last one onward (see wire_routing.reroute.
+    # on_wire_attached). The add handler sets it just before attaching the end
+    # and clears it right after.
+    route_prefix: list[tuple[float, float]] | None = None
+
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  db_obj: "_pjt_wire.PJTWire", project_load=False):

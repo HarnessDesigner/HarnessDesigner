@@ -1,6 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Line primitives built from :class:`harness_designer.geometry.point.Point`."""
+"""
+Line primitives built from :class:`harness_designer.geometry.point.Point`.
+"""
 
 from typing import Iterable as _Iterable
 
@@ -16,7 +18,9 @@ ZERO_5 = 0.5
 
 
 class Line:
-    """Represent a line segment between two :class:`~.point.Point` objects."""
+    """
+    Represent a line segment between two :class:`~.point.Point` objects.
+    """
 
     @_check_types.do
     def __array_ufunc__(self, func, _, inputs, instance, **__):
@@ -25,14 +29,19 @@ class Line:
 
         :param func: NumPy ufunc being invoked.
         :type func:
+
         :param method: Ufunc method name.
         :type method: str
+
         :param inputs: Left-hand input supplied by NumPy.
         :type inputs: :class:`numpy.ndarray` | None
+
         :param instance: Operand instance chosen by NumPy dispatch.
         :type instance: :class:`numpy.ndarray` | None
+
         :returns: Updated line or NumPy result depending on the operation.
         :rtype: :class:`Line` | :class:`numpy.ndarray`
+
         :raises RuntimeError: If the ufunc is unsupported.
         """
 
@@ -100,12 +109,16 @@ class Line:
 
         :param p1: Start point.
         :type p1: :class:`~.point.Point`
+
         :param p2: End point. When omitted, ``length`` and ``angle`` are used to derive it.
         :type p2: :class:`~.point.Point` | None
+
         :param length: Length used when ``p2`` is not supplied.
         :type length: float | None
+
         :param angle: Rotation applied to the generated end point when ``p2`` is omitted.
         :type angle: :class:`~.angle.Angle` | None
+
         :raises ValueError: If ``p2`` is omitted without both ``length`` and ``angle``.
         """
 
@@ -113,8 +126,9 @@ class Line:
 
         if p2 is None:
             if length is None or angle is None:
-                raise ValueError('If an end point is not supplied then the "length", '
-                                 '"x_angle", "y_angle" and "z_angle" parameters need to be supplied')
+                raise ValueError('If an end point is not supplied then the '
+                                 '"length", "x_angle", "y_angle" and "z_angle" '
+                                 'parameters need to be supplied')
 
             p2 = _point.Point(0.0, 0.0, length)
             p2 @= angle
@@ -252,8 +266,10 @@ class Line:
 
         :param angle: Rotation to apply.
         :type angle: :class:`~.angle.Angle`
+
         :param origin: Pivot used for the rotation.
         :type origin: :class:`~.point.Point`
+
         :returns: ``None``
         :rtype: None
         """
@@ -335,6 +351,7 @@ class Line:
 
         :param other: Offset to subtract.
         :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+
         :returns: This line instance.
         :rtype: :class:`Line`
         """
@@ -351,6 +368,7 @@ class Line:
 
         :param other: Offset to subtract.
         :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+
         :returns: New translated line.
         :rtype: :class:`Line`
         """
@@ -367,6 +385,7 @@ class Line:
 
         :param other: Offset to add.
         :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+
         :returns: This line instance.
         :rtype: :class:`Line`
         """
@@ -383,6 +402,7 @@ class Line:
 
         :param other: Offset to add.
         :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+
         :returns: New translated line.
         :rtype: :class:`Line`
         """
@@ -399,6 +419,7 @@ class Line:
 
         :param other: Scale factors.
         :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+
         :returns: This line instance.
         :rtype: :class:`Line`
         """
@@ -415,6 +436,7 @@ class Line:
 
         :param other: Scale factors.
         :type other: :class:`~.point.Point` | :class:`numpy.ndarray`
+
         :returns: New scaled line.
         :rtype: :class:`Line`
         """
@@ -429,8 +451,10 @@ class Line:
         """
         Rotate the line in place.
 
-        :param other: Rotation represented by an :class:`~.angle.Angle` or compatible array.
+        :param other: Rotation represented by an
+                      :class:`~.angle.Angle` or compatible array.
         :type other: :class:`~.angle.Angle` | :class:`numpy.ndarray`
+
         :returns: This line instance.
         :rtype: :class:`Line`
         """
@@ -445,8 +469,10 @@ class Line:
         """
         Return a rotated copy of the line.
 
-        :param other: Rotation represented by an :class:`~.angle.Angle` or compatible array.
+        :param other: Rotation represented by an
+                      :class:`~.angle.Angle` or compatible array.
         :type other: :class:`~.angle.Angle` | :class:`numpy.ndarray`
+
         :returns: New rotated line.
         :rtype: :class:`Line`
         """
@@ -489,8 +515,10 @@ class Line:
 
         :param angle: Rotation to apply.
         :type angle: :class:`~.angle.Angle`
+
         :param pivot: Rotation origin. When ``None``, :attr:`center` is used.
         :type pivot: :class:`~.point.Point` | None
+
         :returns: New rotated line.
         :rtype: :class:`Line`
         """
@@ -511,8 +539,13 @@ class Line:
         return Line(p1, p2)
 
     @_check_types.do
-    def get_parallel_line(self, offset: float, offset_dir: _point.Point | None = None,
-                          plane: str = 'x') -> "Line":
+    def get_parallel_line(
+        self,
+        offset: float,
+        offset_dir: _point.Point | None = None,
+        plane: str = 'x'
+    ) -> "Line":
+
         """
         Calculate a parallel line in 3D space by specifying
         either a direction vector or a plane.
@@ -586,14 +619,13 @@ class Line:
         return Line(p1, p2)
 
     @_check_types.do
-    def __contains__(self, test_point: _point.Point):
+    def __contains__(self, test_point: _point.Point) -> bool:
         """
         Check if a point lies on a line segment defined by two endpoints in 3D space.
 
-        Returns
-        -------
-        bool
-            True if point lies on the line segment between p1 and p2
+        :type test_point: :class:`~.point.Point`
+
+        :rtype: bool
         """
 
         p1 = self._p1.as_numpy
@@ -650,6 +682,7 @@ class Line:
         degenerate case that cross product can't resolve) falls back to
         world X.
         """
+
         base = self.length()
         if target_length <= base:
             return None
@@ -695,20 +728,14 @@ class Line:
             float(center.z) + float(offset[2]))
 
     @_check_types.do
-    def project_to_line(self, world_point: _point.Point):
+    def project_to_line(self, world_point: _point.Point) -> _point.Point:
         """
         Project a world space point onto a line defined by two endpoints.
         The result is constrained to the line segment.
 
-        Parameters
-        ----------
-        world_point : _point.Point
-            Point in world space [x, y, z]
+        :type world_point: :class:`~.point.Point`
 
-        Returns
-        -------
-        _point.Point
-            The closest point on the line segment to the world point
+        :rtype: :class:`~.point.Point`
         """
 
         line_start = self._p1.as_numpy

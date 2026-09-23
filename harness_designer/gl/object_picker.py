@@ -70,6 +70,51 @@ def _build_ray(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"])
     return origin, direc
 
 
+# Set True to print, for every pick, each candidate the OBB and AABB passes
+# return and what the mesh test and priority do with it -- for working out why
+# a click selected something other than what was under the cursor. Off by
+# default: it runs on every mouse move while an add session is hovering.
+_DEBUG_PICK = False
+
+
+def _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, hits, picked) -> None:
+    """Print one block describing a pick -- see ``_DEBUG_PICK``."""
+    def describe(pool, index, t):
+        obj = pool.resolve(index)
+        if obj is None:
+            return f'    slot {index:5d} t={t:9.3f}  <no object>'
+
+        row = np.asarray(pool.read(index), dtype=np.float64)
+        kind = f'{type(obj).__name__}/{type(getattr(obj, "parent", None)).__name__}'
+
+        if row.shape[0] == 8:
+            c0 = row[0]
+            seen = c0 + 0.5 * ((row[1] - c0) + (row[3] - c0) + (row[4] - c0))
+            lo = row.min(axis=0)
+            hi = row.max(axis=0)
+            box = (f'pool-centre=({seen[0]:8.2f},{seen[2]:8.2f}) '
+                   f'corners x[{lo[0]:8.2f},{hi[0]:8.2f}] z[{lo[2]:8.2f},{hi[2]:8.2f}]')
+        else:
+            box = f'aabb x[{row[0][0]:8.2f},{row[1][0]:8.2f}] z[{row[0][2]:8.2f},{row[1][2]:8.2f}]'
+
+        return f'    slot {index:5d} t={t:9.3f}  {kind:34s} prio={getattr(obj, "_pick_priority", "?")}  {box}'
+
+    lines = [f'---- pick: ray origin=({origin[0]:.2f},{origin[1]:.2f},{origin[2]:.2f}) '
+             f'dir=({direc[0]:.4f},{direc[1]:.4f},{direc[2]:.4f})']
+
+    lines.append(f'  OBB pass ({len(obb_hits)}):')
+    lines.extend(describe(canvas.bounds_manager.obb, i, t) for i, t in obb_hits)
+
+    lines.append(f'  AABB pass ({len(aabb_hits)}) -- only used if the OBB pass is empty:')
+    lines.extend(describe(canvas.bounds_manager.aabb, i, t) for i, t in aabb_hits)
+
+    lines.append('  survived the mesh test: ' + ', '.join(
+        f'{type(w).__name__}(prio {w._pick_priority})' for w in hits))  # NOQA
+    lines.append(f'  picked: {type(picked).__name__ if picked is not None else None}')
+
+    print('\n'.join(lines))
+
+
 @_debug.logfunc
 @_check_types.do
 def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"],
@@ -114,6 +159,12 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
     # guards) never wrongly swallows a real pick.
     pool = canvas.bounds_manager.obb
     pool_hits = pool.hit_test(origin, direc)
+    obb_hits = pool_hits
+    aabb_hits = []
+
+    if _DEBUG_PICK:
+        aabb_hits = canvas.bounds_manager.aabb.hit_test(origin, direc)
+
     if not pool_hits:
         pool = canvas.bounds_manager.aabb
         pool_hits = pool.hit_test(origin, direc)
@@ -125,6 +176,9 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
                   if obj is not None]
 
     if not candidates:
+        if _DEBUG_PICK:
+            _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, [], None)
+
         return None
 
     # A negative _pick_priority means "never pickable" (gizmo overlays --
@@ -133,6 +187,9 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
             if wrapped._pick_priority >= 0 and wrapped.hit_test_step3(origin, direc)]  # NOQA
 
     if not hits:
+        if _DEBUG_PICK:
+            _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, [], None)
+
         return None
 
     # A wire marker/wire layout handle can legitimately sit fully inside
@@ -150,13 +207,17 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
     picked = [wrapped.parent for wrapped in hits]
 
     if current_selection is None or len(picked) == 1:
-        return picked[0]
+        result = picked[0]
+    elif picked[0] is current_selection:
+        # If the closest hit is the currently selected object, cycle to the next.
+        result = picked[1]
+    else:
+        result = picked[0]
 
-    # If the closest hit is the currently selected object, cycle to the next.
-    if picked[0] is current_selection:
-        return picked[1]
+    if _DEBUG_PICK:
+        _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, hits, result)
 
-    return picked[0]
+    return result
 
 
 # Ray vs AABB (slab method)
