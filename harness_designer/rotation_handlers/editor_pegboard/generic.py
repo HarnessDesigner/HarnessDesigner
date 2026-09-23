@@ -1,11 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Pegboard-editor rotation gizmo -- a single Y-axis
-:class:`~..rotation_ring.RotationRing` (torus + protractor),
-reusing that exact same class. See :mod:`~..editor_schematic.generic`'s
-own module docstring for the full reasoning (identical here: the
-pegboard view is also permanently locked top-down, so only a rotation
-about world Y is ever meaningful).
+:class:`~..rotation_ring.RotationRing` (protractor only, no torus --
+see :mod:`~..editor_schematic.generic`'s own module docstring for the
+full reasoning, identical here: the pegboard view is also permanently
+locked top-down, so only a rotation about world Y is ever meaningful,
+and with one axis there's nothing to pick between via a torus).
 """
 
 from typing import TYPE_CHECKING
@@ -20,6 +20,7 @@ from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
 from ...shapes import text as _text
+from ...gl import materials as _materials
 
 
 Config = _config.Config.editor_pegboard
@@ -100,13 +101,23 @@ class RingsPegboard(_base_pegboard.BasePegboard):
                     # _update_label_angles's own "no camera at all"
                     # fallback, already built for exactly this case) --
                     # confirmed 2026-09-07 (Kevin) as the fix.
-                    None, local_tilt=_text.TOP_DOWN_TILT)
+                    None, local_tilt=_text.TOP_DOWN_TILT, has_torus=False)
                 for axis in self._axes
             }
 
-            material = self._rings[self._axes[-1]].torus.material
+            # No torus to reuse a material from (has_torus=False, see the
+            # module docstring) -- render() never uses this material
+            # either way; this axis's own ring color is as good as any.
+            material = _materials.Generic(self._colors[self._axes[-1]])
             super().__init__(parent, None, None,
                              angle, objpegboard.position, scale, material)
+
+            # Only one axis, nothing to pick between -- skip the torus'
+            # click-to-activate step and come up with the protractor
+            # already active (see the module docstring). Still inside
+            # the context manager above -- see editor_schematic.generic's
+            # identical comment.
+            self.activate('y')
 
         self._is_visible = True
 
@@ -138,12 +149,10 @@ class RingsPegboard(_base_pegboard.BasePegboard):
         old_sig = self._config_sig
         self._config_sig = self._current_config_sig()
 
-        if old_sig[1] != self._config_sig[1]:
-            for ring in self._rings.values():
-                ring.torus.rebuild(
-                    float(Config.rotation_handler.tube_diameter_scale),
-                    self._context)
-
+        # No torus to rebuild here (has_torus=False, see the module
+        # docstring) -- tube_diameter_scale only ever affected the torus
+        # tube's own cross-section, so a config change to it is a no-op
+        # for this view; only re-derive the protractor sizing below.
         self._compute_size()
 
     @property

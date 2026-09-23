@@ -1,15 +1,25 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """Schematic-editor rotation gizmo -- a single Y-axis
-:class:`~..rotation_ring.RotationRing` (torus + protractor),
-reusing that exact same class (it only ever needed a GL context and a
-camera, never anything 3D-view-specific) built around a selected
-object. Same visual/interaction design as the 3D editor's own 3-axis
-gizmo (see :mod:`~..rotation_rings`'s own module docstring) -- just one
-axis, since the schematic view is permanently locked top-down and only
-a rotation about world Y is ever meaningful here. Mirrors
+:class:`~..rotation_ring.RotationRing` (protractor only, no torus --
+see below), reusing that exact same class (it only ever needed a GL
+context and a camera, never anything 3D-view-specific) built around a
+selected object. Same visual/interaction design as the 3D editor's own
+3-axis gizmo (see :mod:`~..rotation_rings`'s own module docstring) --
+just one axis, since the schematic view is permanently locked top-down
+and only a rotation about world Y is ever meaningful here. Mirrors
 :mod:`~..editor_3d.generic`'s own ``Rings3D`` almost exactly; see that
 module for the fuller commentary this one deliberately doesn't repeat.
+
+No torus ring (``has_torus=False``, see :class:`~..rotation_ring.
+RotationRing`'s own docstring): the 3D gizmo's always-on torus exists so
+the user can pick which of 3 axes to rotate about -- with only one axis
+here, there is nothing to pick between, so the protractor is simply
+already active the moment this gizmo is built (see :meth:`__init__`'s
+own ``self.activate('y')`` call) instead of waiting for a click on a
+ring that would otherwise be the only thing ever shown. Confirmed
+2026-09-22 (Kevin) as the fix for both the pointless extra click and this
+gizmo taking a visible moment to appear.
 """
 
 from typing import TYPE_CHECKING
@@ -25,6 +35,7 @@ from ... import config as _config
 from ... import check_types as _check_types
 from .. import rotation_mesh as _rotation_mesh
 from ...shapes import text as _text
+from ...gl import materials as _materials
 
 
 Config = _config.Config.editor_schematic
@@ -96,13 +107,27 @@ class Rings2D(_base_schematic.BaseSchematic):
                     # mesh_rotation instead (see ProtractorRingBase's own
                     # "no camera at all" fallback) -- confirmed
                     # 2026-09-07 (Kevin) as the fix.
-                    None, local_tilt=_text.TOP_DOWN_TILT)
+                    None, local_tilt=_text.TOP_DOWN_TILT, has_torus=False)
                 for axis in self._axes
             }
 
-            material = self._rings[self._axes[-1]].torus.material
+            # No torus to reuse a material from (has_torus=False, see the
+            # module docstring) -- render() never uses this material
+            # either way (see Rings3D's own identical comment), so any
+            # valid material satisfies BaseSchematic.__init__'s own type
+            # check; this axis's own ring color is as good as any.
+            material = _materials.Generic(self._colors[self._axes[-1]])
             super().__init__(parent, None, None,
                              angle, objschematic.position, scale, material)
+
+            # Only one axis, nothing to pick between -- skip the torus'
+            # click-to-activate step and come up with the protractor
+            # already active (see the module docstring). Still inside
+            # the context manager above: unlike the 3D/pegboard gizmos'
+            # own activate() (called later, from mouse handling, once
+            # the canvas's own context is already current), this one
+            # builds the protractor's GL objects during __init__ itself.
+            self.activate('y')
 
         self._is_visible = True
 
@@ -134,12 +159,10 @@ class Rings2D(_base_schematic.BaseSchematic):
         old_sig = self._config_sig
         self._config_sig = self._current_config_sig()
 
-        if old_sig[1] != self._config_sig[1]:
-            for ring in self._rings.values():
-                ring.torus.rebuild(
-                    float(Config.rotation_handler.tube_diameter_scale),
-                    self._context)
-
+        # No torus to rebuild here (has_torus=False, see the module
+        # docstring) -- tube_diameter_scale only ever affected the torus
+        # tube's own cross-section, so a config change to it is a no-op
+        # for this view; only re-derive the protractor sizing below.
         self._compute_size()
 
     @property

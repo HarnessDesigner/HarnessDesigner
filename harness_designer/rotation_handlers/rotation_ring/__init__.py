@@ -101,6 +101,19 @@ class RotationRing:
     :param base_cls: Whichever of ``Base3D``/``BaseSchematic``/``BasePegboard``
                      matches the view this ring belongs to -- see
                      :class:`.outer_ring.OuterRing`'s own docstring.
+
+    :param has_torus: Whether this axis gets its own always-on torus
+                      ("first ring") at all. ``True`` for every 3D axis,
+                      where clicking one torus among several is how the
+                      user picks which axis to rotate about. ``False``
+                      for the schematic/pegboard single-Y-axis gizmos
+                      (see :mod:`~..editor_schematic.generic`/
+                      :mod:`~..editor_pegboard.generic`) -- with only one
+                      axis there is nothing to pick between, so those
+                      views skip the torus (and its click-to-activate
+                      step) entirely and come up with the protractor
+                      already active (see :meth:`activate`, called once
+                      up front by those views' own ``__init__``).
     """
 
     # How far outside the object's own corner-to-corner reach the inner
@@ -127,13 +140,20 @@ class RotationRing:
     # pokes out past the washer's own thickness on both sides.
     _PROTRACTOR_DEPTH_SCALE = 0.003
 
+    # Gap between the inner and outer protractor bands when there is no
+    # torus to seam them against (``has_torus=False``) -- a small purely
+    # cosmetic separation, as a fraction of *radius*, standing in for the
+    # torus-tube-sized gap the ``has_torus=True`` layout reserves instead.
+    _NO_TORUS_GAP_SCALE = 0.02
+
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point,
                  obj_angle: _angle.Angle, radius: float, object_radius: float,
                  tube_diameter_scale: float, color: _color.Color,
                  outer_color: _color.Color, label_size: float, context,
                  mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar],
-                 camera=None, local_tilt: _angle.Angle | None = None):
+                 camera=None, local_tilt: _angle.Angle | None = None,
+                 has_torus: bool = True):
 
         self.axis = axis
         self.center = center
@@ -147,12 +167,12 @@ class RotationRing:
         self._mainframe = mainframe
         self._base_cls = base_cls
         self._local_tilt = local_tilt
+        self._has_torus = has_torus
 
         self.is_active = False
         self._dimmed = False
 
         cr, cg, cb = color.rgb
-        torus_material = _materials.Plastic(color)
 
         # Inner protractor matches this axis's own ring color (it IS this
         # axis, dragged directly); the outer protractor is deliberately a
@@ -166,11 +186,15 @@ class RotationRing:
         self._outer_material = _materials.Glowing(
             _color.Color(ocr, ocg, ocb, 40))
 
-        torus_angle = _rotation_mesh.slot_ring_angle(
-            axis, obj_angle.as_euler_float)
+        if has_torus:
+            torus_material = _materials.Plastic(color)
+            torus_angle = _rotation_mesh.slot_ring_angle(
+                axis, obj_angle.as_euler_float)
 
-        self.torus = TorusRing(center, torus_angle, radius,
-                               tube_diameter_scale, torus_material, context)
+            self.torus = TorusRing(center, torus_angle, radius,
+                                   tube_diameter_scale, torus_material, context)
+        else:
+            self.torus = None
 
         # Every protractor position/offset this axis will ever need is
         # derived here, up front, from the same (radius, object_radius)
@@ -181,7 +205,7 @@ class RotationRing:
         # InnerRing/OuterRing GL objects still is (see below).
         (self._inner_id, self._inner_od,
          self._outer_id, self._outer_od) = self._compute_radii(
-            radius, object_radius, tube_diameter_scale)
+            radius, object_radius, tube_diameter_scale, has_torus)
 
         self._protractor_depth = radius * self._PROTRACTOR_DEPTH_SCALE
 
@@ -233,7 +257,8 @@ class RotationRing:
     @classmethod
     @_check_types.do
     def _compute_radii(cls, radius: float, object_radius: float,
-                       tube_diameter_scale: float) -> tuple[float, float, float, float]:
+                       tube_diameter_scale: float,
+                       has_torus: bool = True) -> tuple[float, float, float, float]:
         """
         Derive (inner_id, inner_od, outer_id, outer_od) from the torus
         radius and the object's own raw corner-to-corner reach -- see
@@ -245,11 +270,21 @@ class RotationRing:
         protractor's near edge is pulled back from the bare centerline
         *radius* by the tube's own half-thickness, on whichever side that
         protractor sits, so neither one intersects the torus at all.
+
+        With ``has_torus=False`` there is no tube to seam against -- the
+        inner protractor's OD sits directly at the bare *radius* (what
+        would have been the torus's own centerline) and the outer
+        protractor starts a small fixed cosmetic gap beyond that
+        (:attr:`_NO_TORUS_GAP_SCALE`) instead of a torus-tube-sized one.
         """
 
-        tube_radius = radius * tube_diameter_scale / 2.0
+        if has_torus:
+            tube_radius = radius * tube_diameter_scale / 2.0
+            inner_od = radius - tube_radius
+        else:
+            tube_radius = 0.0
+            inner_od = radius
 
-        inner_od = radius - tube_radius
         inner_id = object_radius * cls._INNER_ID_MARGIN
 
         band_width = inner_od - inner_id
@@ -258,10 +293,13 @@ class RotationRing:
             band_width = min_band_width
             inner_id = inner_od - band_width
 
-        # See _OUTER_GAP_SCALE above -- tube diameter (its cross-section),
-        # not the major-circle diameter.
-        tube_diameter = radius * tube_diameter_scale
-        outer_gap = cls._OUTER_GAP_SCALE * tube_diameter
+        if has_torus:
+            # See _OUTER_GAP_SCALE above -- tube diameter (its
+            # cross-section), not the major-circle diameter.
+            tube_diameter = radius * tube_diameter_scale
+            outer_gap = cls._OUTER_GAP_SCALE * tube_diameter
+        else:
+            outer_gap = radius * cls._NO_TORUS_GAP_SCALE
 
         outer_id = radius + tube_radius + outer_gap
         outer_od = outer_id + band_width
@@ -277,8 +315,9 @@ class RotationRing:
         nesting means any axis's change can move any ring's plane.
         """
 
-        self.torus.angle = _rotation_mesh.slot_ring_angle(
-            self.axis, self.obj_angle.as_euler_float)
+        if self.torus is not None:
+            self.torus.angle = _rotation_mesh.slot_ring_angle(
+                self.axis, self.obj_angle.as_euler_float)
 
         if self.inner is not None:
             self.inner.on_object_angle_changed()
@@ -298,11 +337,12 @@ class RotationRing:
         self.radius = radius
         self.object_radius = object_radius
 
-        self.torus.radius = radius
+        if self.torus is not None:
+            self.torus.radius = radius
 
         (self._inner_id, self._inner_od,
          self._outer_id, self._outer_od) = self._compute_radii(
-            radius, object_radius, self._tube_diameter_scale)
+            radius, object_radius, self._tube_diameter_scale, self._has_torus)
 
         self._protractor_depth = radius * self._PROTRACTOR_DEPTH_SCALE
 
@@ -334,9 +374,16 @@ class RotationRing:
         ``_handle_rotation_interaction``'s LEFT_DOWN branch) -- only the
         currently ACTIVE axis's own torus is excluded, since its
         protractor bands take over the click surface while it's shown.
+
+        A no-op when this axis has no torus at all (see :attr:`__init__`'s
+        own ``has_torus``) -- there is nothing to dim, and (single-axis
+        views only ever having one axis) nothing ever calls this anyway.
         """
 
         self._dimmed = flag
+
+        if self.torus is None:
+            return
 
         if flag:
             self.torus.material.diffuse[3] = _DIMMED_ALPHA
@@ -349,15 +396,18 @@ class RotationRing:
     def activate(self) -> None:
         """
         Show this axis's protractor (the torus itself stays visible --
-        it's still the seam the two protractor bands meet at) and stop
-        the torus from being pickable (dragging now happens on the
-        protractor bands instead).
+        it's still the seam the two protractor bands meet at -- and stop
+        it from being pickable, dragging now happens on the protractor
+        bands instead) -- when this axis has no torus at all
+        (``has_torus=False``), there is nothing to touch here beyond
+        showing the protractor itself.
         """
 
         self._ensure_protractor()
 
         self.is_active = True
-        self.torus.is_pickable = False
+        if self.torus is not None:
+            self.torus.is_pickable = False
         self.inner.is_visible = True
         self.outer.is_visible = True
         self.inner.reposition_all(self.inner._disc_rotation())  # NOQA
@@ -370,8 +420,9 @@ class RotationRing:
         """
 
         self.is_active = False
-        self.torus.is_visible = True
-        self.torus.is_pickable = not self._dimmed
+        if self.torus is not None:
+            self.torus.is_visible = True
+            self.torus.is_pickable = not self._dimmed
 
         if self.inner is None:
             return
@@ -384,6 +435,9 @@ class RotationRing:
     @_check_types.do
     def hit_test_torus(self, mouse_pos: _point.Point,
                        camera: _camera_base.CameraBase) -> bool:
+        if self.torus is None:
+            return False
+
         return self.torus.hit_test(mouse_pos, camera)
 
     @_check_types.do
@@ -393,7 +447,8 @@ class RotationRing:
 
     @_check_types.do
     def render(self, shaders: _shaders.ShaderProgram) -> None:
-        self.torus.render(shaders)
+        if self.torus is not None:
+            self.torus.render(shaders)
 
         if self.is_active:
             self.inner.render(shaders)
@@ -401,7 +456,8 @@ class RotationRing:
 
     @_check_types.do
     def delete(self, context) -> None:
-        self.torus.delete(context)
+        if self.torus is not None:
+            self.torus.delete(context)
 
         if self.inner is not None:
             self.inner.delete(context)

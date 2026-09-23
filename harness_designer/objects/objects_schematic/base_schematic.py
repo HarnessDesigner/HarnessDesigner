@@ -231,6 +231,13 @@ class BaseSchematic(_objectsvar.BaseVar):
         the same RIGHT_UP-not-RIGHT_DOWN, motion-gated toggle-off, so the
         camera's own mouse controls still work while the ring/protractor
         are on screen).
+
+        Simpler than Base3D's own LEFT_DOWN branch: this view's gizmo has
+        no torus and comes up with its one axis already active (see
+        rotation_handlers.editor_schematic.generic's own module
+        docstring), so there is no "pick a torus to activate" state and
+        no sibling axis to switch to -- a miss on both protractor bands
+        just leaves the gizmo exactly as it is.
         """
         rings = self._active_handler
         camera = self.editor2d.editor.camera
@@ -266,6 +273,17 @@ class BaseSchematic(_objectsvar.BaseVar):
                 return True
 
             return False
+
+        if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
+            if rings.objschematic.begin_inner_drag(current_pos, camera):
+                return True
+
+            if rings.objschematic.click_outer_snap():
+                return True
+
+            return False
+
+        return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
             if rings.objschematic.active_axis is not None:

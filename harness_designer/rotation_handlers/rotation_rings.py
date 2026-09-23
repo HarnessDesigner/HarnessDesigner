@@ -31,9 +31,13 @@ moves even while the object (and the inner ring) spin past it -- see
 This module is just the facade -- ``RotationRings`` -- that ties one
 view-specific implementation per view together (mirrors the same
 facade/view-package split every ``objects.*`` type already uses, e.g.
-``objects.wire.Wire`` holding ``obj3d``/``objschematic``): the real 3D
-gizmo lives in :mod:`.editor_3d.generic`, the (currently dummy)
-schematic one in :mod:`.editor_schematic.generic`.
+``objects.wire.Wire`` holding ``obj3d``/``objschematic``): the 3-axis 3D
+gizmo lives in :mod:`.editor_3d.generic`, the single-Y-axis schematic
+and pegboard ones (no torus -- see :class:`.rotation_ring.RotationRing`'s
+own docstring) in :mod:`.editor_schematic.generic`/
+:mod:`.editor_pegboard.generic`. Only the one matching whichever canvas
+armed a given ``RotationRings`` instance is actually built -- see
+:meth:`RotationRings.__init__`'s own comment.
 """
 
 from typing import TYPE_CHECKING
@@ -94,28 +98,32 @@ class RotationRings(_object_base.ObjectBase):
         _object_base.ObjectBase.__init__(self, mainframe, None)
         self.selected = selected
         self._treeitem = None
-        self.objschematic = _editor_schematic_generic.Rings2D(self, selected, mainframe)
-        self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
-        self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
 
-        # Which one of the 3 view-specific gizmos above actually gets
-        # drawn by :meth:`render` -- resolved once, here, from *canvas*
-        # (whichever one of editor3d/editor2d/editor_pegboard's own
-        # canvas armed this instance -- see the 3 call sites in
-        # objects_3d/objects_schematic/objects_pegboard's own
-        # ``base_*.py``), rather than every call site reaching into a
-        # RotationRings-specific attribute (.obj3d/.objschematic/
-        # .objpegboard) itself. That reach-in is exactly what made a
-        # plain drag handler's own render() call site (which has no such
-        # attributes) crash -- see BaseVar.render_handler's own
-        # docstring: every handler type exposes the same render(shaders)
-        # entry point so the caller never needs to know which kind of
-        # handler is actually armed.
+        # Build ONLY the view-specific gizmo *canvas* actually armed --
+        # resolved here, from *canvas* (whichever one of editor3d/
+        # editor2d/editor_pegboard's own canvas armed this instance --
+        # see the 3 call sites in objects_3d/objects_schematic/
+        # objects_pegboard's own ``base_*.py``). The other two attributes
+        # stay at their class-level ``None`` default (see above) -- each
+        # view's own ``_handle_rotation_interaction`` only ever reaches
+        # into its OWN matching attribute (``rings.obj3d``/
+        # ``rings.objschematic``/``rings.objpegboard``), never a sibling
+        # view's, so there is nothing else in the codebase that needs the
+        # other two to exist. Building all three unconditionally used to
+        # mean every rotation gizmo -- even a single-axis schematic/
+        # pegboard one -- paid to construct the full 3-axis 3D gizmo
+        # (attached-parts radius scan, 3 torus rings) AND the pegboard
+        # one too, just to throw both away unused: confirmed as the
+        # cause of a real, visible multi-second delay before the
+        # schematic ring appeared (2026-09-22, Kevin).
         if canvas is mainframe.editor2d.editor:
+            self.objschematic = _editor_schematic_generic.Rings2D(self, selected, mainframe)
             self._render_target = self.objschematic
         elif canvas is mainframe.editor_pegboard.editor:
+            self.objpegboard = _editor_pegboard_generic.RingsPegboard(self, selected, mainframe)
             self._render_target = self.objpegboard
         else:
+            self.obj3d = _editor_3d_generic.Rings3D(self, selected, mainframe)
             self._render_target = self.obj3d
 
         # Some object types track a user-settable "is my angle locked,

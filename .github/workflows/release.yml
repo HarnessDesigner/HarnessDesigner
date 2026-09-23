@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: Determine release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v7.0.0
+
+      - uses: actions/setup-python@v6.2.0
+        with:
+          python-version: '3.11'
+
+      - name: Read version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure this version hasn't already been released
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.version.outputs.version }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "::error::Release v${{ steps.version.outputs.version }} already exists. Bump the version in pyproject.toml before releasing."
+            exit 1
+          fi
+
+  windows:
+    name: Windows build
+    needs: check-version
+    uses: ./.github/workflows/windows.yml
+
+  linux:
+    name: Linux build
+    needs: check-version
+    uses: ./.github/workflows/unix.yml
+
+  macos:
+    name: macOS build
+    needs: check-version
+    uses: ./.github/workflows/macos.yml
+
+  publish:
+    name: Publish release
+    needs: [check-version, windows, linux, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: harness_designer-*
+          path: release-assets
+
+      - name: Package downloaded artifacts as release assets
+        shell: bash
+        run: |
+          mkdir -p release-final
+          for dir in release-assets/*/; do
+            name="$(basename "$dir")"
+            name="${name%.zip}"
+            case "$name" in
+              *-generated-c) continue ;;
+            esac
+            (cd "$dir" && zip -rq "$GITHUB_WORKSPACE/release-final/${name}.zip" .)
+          done
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ needs.check-version.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "${{ needs.check-version.outputs.tag }}" \
+            --generate-notes \
+            release-final/*.zip

@@ -552,6 +552,13 @@ class BasePegboard(_objectsvar.BaseVar):
         the same RIGHT_UP-not-RIGHT_DOWN, motion-gated toggle-off, so the
         camera's own mouse controls still work while the ring/protractor
         are on screen).
+
+        Simpler than Base3D's own LEFT_DOWN branch: this view's gizmo has
+        no torus and comes up with its one axis already active (see
+        rotation_handlers.editor_pegboard.generic's own module
+        docstring), so there is no "pick a torus to activate" state and
+        no sibling axis to switch to -- a miss on both protractor bands
+        just leaves the gizmo exactly as it is.
         """
         rings = self._active_handler
         camera = self.pegboard.editor.camera
@@ -589,25 +596,12 @@ class BasePegboard(_objectsvar.BaseVar):
             return False
 
         if interaction_type is _interaction.MouseInteraction.LEFT_DOWN:
-            if rings.objpegboard.active_axis is not None:
-                if rings.objpegboard.begin_inner_drag(current_pos, camera):
-                    return True
-
-                if rings.objpegboard.click_outer_snap():
-                    return True
-
-                # Missed both the inner and outer protractor bands --
-                # leave the gizmo exactly as it is (still active on this
-                # axis) and let the default click/drag behavior run.
-                return False
-
-            axis = rings.objpegboard.pick(current_pos, camera)
-            if axis is not None:
-                rings.objpegboard.activate(axis)
+            if rings.objpegboard.begin_inner_drag(current_pos, camera):
                 return True
 
-            rings.delete()
-            self._active_handler = None
+            if rings.objpegboard.click_outer_snap():
+                return True
+
             return False
 
         return False
