@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -22,7 +22,7 @@ class ManufacturerMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def manufacturer(self) -> "_manufacturer.Manufacturer":
+    def manufacturer(self) -> Union["_manufacturer.Manufacturer", None]:
         """Return the manufacturer.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,9 +33,13 @@ class ManufacturerMixin(BaseMixin):
         if self._stored_manufacturer is DefaultStoredValue:
             from .. import manufacturer as _manufacturer  # NOQA
 
-            mfg_id = self._table.select('mfg_id', id=self._db_id)
-            self._stored_manufacturer = _manufacturer.Manufacturer(
-                self._table.db.manufacturers_table, mfg_id[0][0])
+            mfg_id = self._table.select('mfg_id', id=self._db_id)[0][0]
+
+            if mfg_id == NIL_ID:
+                self._stored_manufacturer = None
+            else:
+                self._stored_manufacturer = _manufacturer.Manufacturer(
+                    self._table.db.manufacturers_table, mfg_id)
 
         return self._stored_manufacturer
 

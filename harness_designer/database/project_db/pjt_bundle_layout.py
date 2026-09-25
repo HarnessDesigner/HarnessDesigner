@@ -10,6 +10,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
+    PositionPegboardControl,
     Position3DControl,
     Visible3DMixin, Visible3DControl,
     VisiblePegboardMixin,
@@ -469,6 +470,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
             self.visible_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.position_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         self._tab_loaded[index] = True
 
     @_check_types.do
@@ -497,8 +499,11 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position_ctrl = Position3DControl(position_page)
+        self.position_pegboard_ctrl = PositionPegboardControl(position_page)
 
         position_page.addWidget(self.position_ctrl)
+
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible_ctrl = Visible3DControl(visible_page)

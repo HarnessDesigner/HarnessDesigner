@@ -20,10 +20,10 @@ from ... import logger as _logger
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle2DMixin, Angle2DControl,
-    AnglePegboardMixin,
+    AnglePegboardMixin, AnglePegboardControl,
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
-    PositionPegboardMixin,
+    PositionPegboardMixin, PositionPegboardControl,
     PartMixin,
     Visible3DMixin, Visible3DControl,
     Visible2DMixin, Visible2DControl,
@@ -823,7 +823,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         wire_point2d_id = self._table.select('wire_point2d_id', id=self._db_id)[0][0]
 
         if wire_point2d_id is None:
-            wire_point2d_id = self._table.db.pjt_points2d_table.insert(0.0, 0.0).db_id
+            wire_point2d_id = self._table.db.pjt_points2d_table.insert(0.0, 0.0, 0.0).db_id
             self._table.update(self._db_id, wire_point2d_id=wire_point2d_id)
 
         return wire_point2d_id
@@ -1101,6 +1101,63 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         return attach_point3d_id
 
     @_check_types.do
+    def sync_free_wire_points(self, view: str) -> None:
+        """Re-place this terminal's own wire points -- the crimp point
+        (``attach_position*``) and the back-face point (``wire_position*``),
+        plus every per-wire ``parent_point_id`` child of either -- from its
+        current position and angle in *view* ('3d' or 'pegboard'), so wires
+        attached to a free-standing terminal ride along when it is moved or
+        rotated.
+
+        Only for a terminal that is not in a cavity: a seated terminal's
+        points are carried by its housing (see ``PJTHousing.
+        _update_position3d``/``_update_angle3d``). Both points are a fixed
+        local offset along the terminal's own Z (see ``_compute_attach_
+        position3d``/``_compute_wire_position3d``), so this recomputes them
+        from the current position/angle instead of tracking deltas. Never
+        creates a point that does not exist yet.
+        """
+        # self.cavity is cached once a terminal is seated, so this guard costs
+        # nothing on the (hot) seated path.
+        if self.cavity is not None:
+            return
+
+        extent = self._wire_side_extent()
+        if extent is None:
+            return
+
+        front_z, back_z = extent
+        length = front_z - back_z
+
+        if view == '3d':
+            points_table = self._table.db.pjt_points3d_table
+            position = self.position3d
+            angle = self.angle3d
+            attach_id = self.attach_position3d_id_raw
+            wire_id = self.wire_position3d_id_raw
+        else:
+            points_table = self._table.db.pjt_points_pegboard_table
+            position = self.position_pegboard
+            angle = self.angle_pegboard
+            attach_id = self.attach_position_pegboard_id_raw
+            wire_id = self.wire_position_pegboard_id_raw
+
+        for local_z, point_id in ((back_z + length / 3.0, attach_id), (back_z, wire_id)):
+            if point_id is None:
+                continue
+
+            target = _point.Point(0.0, 0.0, local_z)
+            target @= angle
+            target += position
+
+            ids = [point_id]
+            ids.extend(row[0] for row in points_table.select('id', parent_point_id=point_id))
+
+            for db_id in ids:
+                point = points_table[db_id].point
+                point += target - point
+
+    @_check_types.do
     def _compute_seal_position3d(self) -> bytes | None:
         """Compute and persist the wire layout point.
 
@@ -1287,9 +1344,11 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
         elif page is self._angle_page:
             self.angle2d_ctrl.set_obj(self.db_obj)
             self.angle3d_ctrl.set_obj(self.db_obj)
+            self.angle_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._visible_page:
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
@@ -1338,16 +1397,20 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
+        self.angle_pegboard_ctrl = AnglePegboardControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
+        angle_page.addWidget(self.angle_pegboard_ctrl)
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
+        self.position_pegboard_ctrl = PositionPegboardControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)

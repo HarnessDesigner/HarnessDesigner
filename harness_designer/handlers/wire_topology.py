@@ -108,8 +108,8 @@ def split_wire_at_point(
     before_2d = waypoints2d[:split_idx_2d]
     after_2d = waypoints2d[split_idx_2d:]
 
-    coord_id_2d_before = ptables.pjt_points2d_table.insert(0.0, 0.0).db_id
-    coord_id_2d_after = ptables.pjt_points2d_table.insert(0.0, 0.0).db_id
+    coord_id_2d_before = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0).db_id
+    coord_id_2d_after = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0).db_id
 
     orig_start_sibling = wire.start_sibling
     orig_stop_sibling = wire.stop_sibling

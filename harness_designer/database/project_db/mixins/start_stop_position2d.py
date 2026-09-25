@@ -61,7 +61,7 @@ class StartStopPosition2DMixin(BaseMixin):
         if self._stored_start_position2d_id is DefaultStoredValue:
             point_id = self._table.select('start_point2d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0)
+                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
                 point_id = point.db_id
                 self._table.update(self._db_id, start_point2d_id=point_id)
             self._stored_start_position2d_id = point_id
@@ -132,7 +132,7 @@ class StartStopPosition2DMixin(BaseMixin):
         if self._stored_stop_position2d_id is DefaultStoredValue:
             point_id = self._table.select('stop_point2d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0)
+                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
                 point_id = point.db_id
                 self._table.update(self._db_id, stop_point2d_id=point_id)
 
@@ -175,10 +175,10 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
         """
         self.db_obj: StartStopPosition2DMixin | None = None
 
-        super().__init__(parent, '2D Positions', orientation='vertical')
+        super().__init__(parent, 'Schematic Positions', orientation='vertical')
 
-        self.start_ctrl = _prop_ctrls.Position2DProperty(self, 'Start')
-        self.stop_ctrl = _prop_ctrls.Position2DProperty(self, 'Stop')
+        self.start_ctrl = _prop_ctrls.PositionProperty(self, 'Start', axes='xz')
+        self.stop_ctrl = _prop_ctrls.PositionProperty(self, 'Stop', axes='xz')
 
         self.addWidget(self.start_ctrl)
         self.addWidget(self.stop_ctrl)

@@ -440,39 +440,47 @@ class BasePegboard(_objectsvar.BaseVar):
         return self.parent
 
     @_check_types.do
-    def delete(self):
-        """Delete this anchor -- first cascading to its own peg-board
-        data-table overlay's live VIEW object, if one currently exists.
+    def _delete_table_overlay(self) -> None:
+        """Tear down this anchor's own peg-board data-table overlay -- its
+        live VIEW object (``objects.pegboard_table.PegboardTable``: GL
+        texture, hidden off-screen ``QMdiArea``, its registration with
+        the peg-board editor) AND its ``pjt_pegboard_tables`` ROW.
 
-        The DB-level cascade (``mixins.table_position_peg.
-        TablePositionPegMixin.delete_table_overlay``, already called
-        from each anchor DB row's own ``delete()`` -- housing/bundle/
-        transition/transition-branch) only removes the
-        ``pjt_pegboard_tables`` ROW. Nothing else tears down the live
-        ``objects.pegboard_table.PegboardTable`` facade (its GL
-        texture, hidden off-screen ``QMdiArea``, etc.) if one is
-        currently displaying that row -- left dangling on a row that's
-        about to disappear out from under it otherwise.
+        Called from :meth:`_delete`, which ``ObjectBase.delete()`` runs
+        on every delete path -- a user delete from any editor, and also
+        cancelling a housing placement, where the add handler calls
+        ``ObjectBase.delete()`` directly and never goes through this
+        view's own ``delete()``. Every anchor builds its table view in
+        ``__init__`` (see the end of that method), even for a placement
+        preview, so every one of those paths has a table to clean up.
 
         Only anchor types mixing in ``TablePositionPegMixin`` have a
         ``table_position_peg_id_raw`` attribute at all -- every other
         peg-board object type (wires, splices, terminals, notes, ...)
-        is skipped via the ``getattr`` default, so this is safe to do
-        here once rather than duplicating it in each of that mixin's 4
-        concrete anchor types' own peg-board view class.
-        """
-        point_id = getattr(self.db_obj, 'table_position_peg_id_raw', None)
-        if point_id is not None:
-            table_row = self.db_obj.table.db.pjt_pegboard_tables_table.get_from_point_pegboard_id(point_id)
-            if table_row is not None:
-                table_obj = table_row.get_object()
-                if table_obj is not None:
-                    table_obj.delete()
+        gets ``None`` back from :meth:`_table_row` and is skipped, so
+        this is done here once rather than duplicated in each of that
+        mixin's concrete anchor types' own peg-board view class.
 
-        self.parent.delete()
+        The row is deleted here rather than left to the anchor DB row's
+        own ``delete()`` (``TablePositionPegMixin.delete_table_overlay``)
+        because that runs last in a long cascade, after this view is
+        already gone.
+        """
+        table_row = self._table_row()
+        if table_row is None:
+            return
+
+        table_obj = table_row.get_object()
+        if table_obj is not None:
+            # PegboardTable.delete() also deletes the row itself.
+            table_obj.delete()
+        else:
+            table_row.delete()
 
     @_check_types.do
     def _delete(self):
+        self._delete_table_overlay()
+
         if self._active_handler is not None:
             self._active_handler.delete()
             self._active_handler = None

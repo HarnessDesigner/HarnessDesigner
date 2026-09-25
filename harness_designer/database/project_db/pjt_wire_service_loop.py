@@ -14,7 +14,7 @@ from . import pjt_circuit as _pjt_circuit
 from ..global_db import wire as _wire
 from .mixins import (
     Angle3DMixin, Angle3DControl,
-    AnglePegboardMixin,
+    AnglePegboardMixin, AnglePegboardControl,
     StartStopPosition3DMixin, StartStopPosition3DControl,
     StartStopPositionPegboardMixin, StartStopPositionPegboardControl,
     PartMixin,
@@ -522,8 +522,10 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
             self.smooth_ctrl.set_obj(self.db_obj)
         elif page is self._angle_page:
             self.angle3d_ctrl.set_obj(self.db_obj)
+            self.angle_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._visible_page:
             self.visible3d_ctrl.set_obj(self.db_obj)
         elif page is self._circuit_page:
@@ -558,13 +560,19 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
 
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle3d_ctrl = Angle3DControl(angle_page)
+        self.angle_pegboard_ctrl = AnglePegboardControl(angle_page)
 
         angle_page.addWidget(self.angle3d_ctrl)
 
+        angle_page.addWidget(self.angle_pegboard_ctrl)
+
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
+        self.position_pegboard_ctrl = StartStopPositionPegboardControl(position_page)
 
         position_page.addWidget(self.position3d_ctrl)
+
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible3d_ctrl = Visible3DControl(visible_page)

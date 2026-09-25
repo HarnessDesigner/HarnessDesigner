@@ -41,6 +41,8 @@ EVT_GL_OBJECT_SELECTED = 'gl_object_selected'
 EVT_GL_OBJECT_UNSELECTED = 'gl_object_unselected'
 EVT_GL_OBJECT_ACTIVATED = 'gl_object_activated'
 EVT_GL_OBJECT_RIGHT_CLICK = 'gl_object_right_click'
+# Right click released over empty space (nothing pickable under the cursor).
+EVT_GL_EMPTY_RIGHT_CLICK = 'gl_empty_right_click'
 EVT_GL_OBJECT_RIGHT_DCLICK = 'gl_object_right_dclick'
 EVT_GL_OBJECT_MIDDLE_CLICK = 'gl_object_middle_click'
 EVT_GL_OBJECT_MIDDLE_DCLICK = 'gl_object_middle_dclick'

@@ -177,8 +177,8 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
 
         super().__init__(parent, '3D Positions', orientation='vertical')
 
-        self.start_ctrl = _prop_ctrls.Position3DProperty(self, 'Start')
-        self.stop_ctrl = _prop_ctrls.Position3DProperty(self, 'Stop')
+        self.start_ctrl = _prop_ctrls.PositionProperty(self, 'Start', axes='xyz')
+        self.stop_ctrl = _prop_ctrls.PositionProperty(self, 'Stop', axes='xyz')
 
         self.addWidget(self.start_ctrl)
         self.addWidget(self.stop_ctrl)

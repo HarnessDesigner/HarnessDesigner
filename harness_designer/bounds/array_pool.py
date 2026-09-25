@@ -90,6 +90,26 @@ class ArrayPool:
 
         self._shape = (self._block_size,) + self._sentinel_row.shape
 
+        self.reset()
+
+    @_check_types.do
+    def reset(self) -> None:
+        """Drop every block and slot, back to the freshly-constructed
+        empty state, *in place* -- the pool object itself stays the same,
+        so every object/canvas already holding a reference to it keeps a
+        valid one. For unloading a project: its objects are never
+        individually deleted (see ``MainFrame.unload``, the caller), so
+        their slots would otherwise stay behind forever.
+
+        Storage is dropped, not wiped: a torn-down object's ``_aabb``/
+        ``_obb`` row view keeps pointing at its own old array, so a stray
+        late write from it can't land in a slot a new object now owns.
+
+        Every slot index handed out before the reset is meaningless
+        afterwards -- delete anything that owns a slot you still want
+        (e.g. the 3D focal target, see ``Canvas.delete_focal_target``)
+        *before* calling this, and recreate it afterwards.
+        """
         self._blocks: list[np.ndarray] = []
         self._refs = []
         self._visible_refs = []
@@ -300,6 +320,30 @@ class ArrayPool:
             return np.empty((0,) + self._shape[1:], dtype=self._dtype)
 
         return np.concatenate(self._blocks, axis=0)
+
+    @_check_types.do
+    def snapshot_live(self) -> np.ndarray:
+        """Like :meth:`snapshot`, but only the rows whose slot is
+        currently issued -- released/never-issued slots are dropped
+        instead of being left in as inert sentinel rows. For a
+        whole-pool aggregate (e.g. :meth:`.aabb.AABB.extent`) where a
+        sentinel row would otherwise skew the answer.
+
+        "Issued" means the slot hasn't been :meth:`release`d, *not* that
+        its object is still alive: a project's objects are torn down
+        without being deleted, so their rows are still exactly what the
+        project occupied, and that is what a caller reading the bounds
+        after teardown wants.
+        """
+        rows = self.snapshot()
+        if not rows.shape[0]:
+            return rows
+
+        issued = np.fromiter(
+            (ref is not None for ref in self._refs),
+            dtype=bool, count=len(self._refs))
+
+        return rows[issued]
 
     def visible_objects(self) -> list[object]:
         ret = []

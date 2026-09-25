@@ -10,25 +10,41 @@ that lays this out in the first place).
 
 Only a segment fully bounded by two real waypoints (not the wire's own
 true start/stop, which are anchored to whatever they're attached to and
-never move here) is draggable -- clicking the segment nearest either
-true end is a no-op for this handler; a wire with fewer than 2 interior
-waypoints has no such segment at all. Dragging one moves both of its
+never move here) can be dragged directly. Dragging one moves both of its
 bounding waypoints together by the same perpendicular delta (their
 along-the-segment coordinate never changes -- it's shared with whichever
 fixed point the *next* segment over connects to, so the path either side
 stays orthogonal automatically, no re-derivation needed).
 
-Four things happen live, every move:
+**A segment touching a true end.** Clicking one (an L-shaped wire's two
+runs, or a straight wire's only run) makes it draggable by putting the
+missing waypoints in first (:func:`_plan_end_segment_drag`), so the run
+gets its own perpendicular jog at that end. A terminal's exit stub is a
+fixed straight run -- :func:`~...wire_routing.reroute._terminal_exit_stub_point`
+-- so at a terminal the jog goes at the END of that stub (two coincident
+waypoints there: the fixed one closing the stub, the dragged one opening
+the jog); anywhere without an exit direction (a splice, a junction
+terminal) it starts right at the true end (one waypoint). They start out
+coincident with what they split, so the path doesn't change until the
+mouse actually moves, and a click that never drags puts them straight
+back (see the commit in :meth:`Wire.delete`). A run that is only the
+stub itself (no room past it) isn't draggable.
+
+Five things happen live, every move:
 
 - **Straightening.** If the moved segment's own connecting segment to
   a fixed neighbor shrinks to zero length (the dragged point has
   reached that neighbor's own coordinate), the wire has gone straight
-  through there and that waypoint is redundant. Rather than delete/
-  recreate its ``WireLayout`` on every frame (thrashy, and wrong if the
-  user backtracks a pixel later), it's simply hidden
-  (``obj.objschematic.is_visible = False``) -- shown again the moment
-  the drag moves back past straight. The actual DB delete only happens
-  once, on release, for whichever side(s) are still collapsed then.
+  through there: the dragged segment now lies on the same line as the
+  segment on the far side of that neighbor, so the two are ONE section
+  and BOTH waypoints of the jog (the dragged point and the neighbor, if
+  the neighbor is a real waypoint rather than the wire's own true end)
+  are redundant. Rather than delete/recreate their ``WireLayout`` rows on
+  every frame (thrashy, and wrong if the user backtracks a pixel later),
+  they're simply hidden (``obj.objschematic.is_visible = False``) --
+  shown again the moment the drag moves back past straight. The actual
+  DB delete only happens once, on release, for whichever side(s) are
+  still collapsed then (judged from the live points, not a flag).
 - **Obstacle clamp.** The two connecting edges (dragged-point to fixed
   neighbor on either side) are a hard clamp, exactly as before: blocked
   by ``routing.segment_blocked`` (crosses a housing/terminal stub, or
@@ -137,16 +153,31 @@ class WireSegmentDragPlan:
         own delete-layout-then-delete-point pattern, mirrored exactly on
         commit here).
     :ivar waypoint_far: Same, for ``p_far``/the far side.
+    :ivar waypoint_before: The ``pjt_points2d`` row backing ``p_before``,
+        or None when ``p_before`` is the wire's own true start. When the
+        near side collapses, ``p_near`` sits on ``p_before`` and the
+        segment beyond ``p_before`` is parallel to the dragged one, so it
+        is now one section with it and this waypoint is redundant too --
+        removed alongside ``waypoint_near`` on release.
+    :ivar waypoint_after: Same, for ``p_after``/the far side (None when
+        ``p_after`` is the wire's own true stop).
+    :ivar layout_before: The real WireLayout facade at ``p_before`` (None
+        when there is no such waypoint, or no facade was found).
+    :ivar layout_after: Same, for ``p_after``.
     """
 
     __slots__ = (
         'p_before', 'p_near', 'p_far', 'p_after', 'horizontal',
-        'layout_near', 'layout_far', 'waypoint_near', 'waypoint_far')
+        'layout_near', 'layout_far', 'waypoint_near', 'waypoint_far',
+        'waypoint_before', 'waypoint_after', 'layout_before', 'layout_after')
 
     def __init__(self, p_before: _point.Point, p_near: _point.Point, p_far: _point.Point,
                 p_after: _point.Point, horizontal: bool,
                 layout_near: object | None, layout_far: object | None,
-                waypoint_near: "_pjt_point2d.PJTPoint2D", waypoint_far: "_pjt_point2d.PJTPoint2D") -> None:
+                waypoint_near: "_pjt_point2d.PJTPoint2D", waypoint_far: "_pjt_point2d.PJTPoint2D",
+                waypoint_before: "_pjt_point2d.PJTPoint2D | None" = None,
+                waypoint_after: "_pjt_point2d.PJTPoint2D | None" = None,
+                layout_before: object | None = None, layout_after: object | None = None) -> None:
         self.p_before = p_before
         self.p_near = p_near
         self.p_far = p_far
@@ -156,6 +187,10 @@ class WireSegmentDragPlan:
         self.layout_far = layout_far
         self.waypoint_near = waypoint_near
         self.waypoint_far = waypoint_far
+        self.waypoint_before = waypoint_before
+        self.waypoint_after = waypoint_after
+        self.layout_before = layout_before
+        self.layout_after = layout_after
 
 
 @_check_types.do
@@ -207,25 +242,144 @@ def _segment_plan_at(wire: "_wire_obj.Wire", points: list[_point.Point],
 
     project = wire.mainframe.project
 
+    # points[k] is waypoints[k - 1] for every interior point; the points
+    # either side of the dragged segment are real waypoints too unless
+    # they're the wire's own true start/stop.
+    waypoint_before = None
+    layout_before = None
+    if i - 1 >= 1:
+        waypoint_before = waypoints[i - 2]
+        layout_before = _find_layout(project, points[i - 1])
+
+    waypoint_after = None
+    layout_after = None
+    if i + 2 <= len(points) - 2:
+        waypoint_after = waypoints[i + 1]
+        layout_after = _find_layout(project, points[i + 2])
+
     return WireSegmentDragPlan(
         p_before=points[i - 1], p_near=points[i], p_far=points[i + 1],
         p_after=points[i + 2], horizontal=horizontal,
         layout_near=_find_layout(project, points[i]),
         layout_far=_find_layout(project, points[i + 1]),
-        waypoint_near=waypoints[i - 1], waypoint_far=waypoints[i])
+        waypoint_near=waypoints[i - 1], waypoint_far=waypoints[i],
+        waypoint_before=waypoint_before, waypoint_after=waypoint_after,
+        layout_before=layout_before, layout_after=layout_after)
+
+
+# Slack (world units) for "this point is on that line" / "this run has length"
+# checks when working out where an end segment's jog goes.
+_END_TOL = 1e-6
+
+
+def _end_jog_points(wire: "_wire_obj.Wire", end: str, p_end: tuple[float, float],
+                    p_next: tuple[float, float]) -> tuple[list[tuple[float, float]], float] | None:
+    """The new waypoints (all at the same spot) that give the run leaving
+    *end* ('start'/'stop') toward *p_next* a perpendicular jog to drag,
+    plus how far along that run (from *p_end*) they sit -- see the module
+    docstring's "segment touching a true end". None when that run has no
+    room for one: it's only the terminal's own exit stub, or it isn't a
+    straight horizontal/vertical run past the stub at all.
+    """
+    dx = p_next[0] - p_end[0]
+    dz = p_next[1] - p_end[1]
+    run_length = math.hypot(dx, dz)
+
+    if run_length < _END_TOL or (abs(dx) > _END_TOL and abs(dz) > _END_TOL):
+        return None
+
+    stub = _wire_reroute._terminal_exit_stub_point(wire, end)  # NOQA
+    if stub is None:
+        # No fixed exit direction (a splice, a junction terminal): the jog
+        # can start right at the true end.
+        return [p_end], 0.0
+
+    sx = stub[0] - p_end[0]
+    sz = stub[1] - p_end[1]
+    along = ((sx * dx) + (sz * dz)) / run_length
+    off = abs((sx * dz) - (sz * dx)) / run_length
+
+    if off > _END_TOL or along <= _END_TOL or along >= run_length - _END_TOL:
+        return None
+
+    # The fixed waypoint closing the stub and the one that moves opening
+    # the jog -- coincident until the drag actually moves.
+    return [stub, stub], along
+
+
+@_check_types.do
+def _plan_end_segment_drag(wire: "_wire_obj.Wire", points: list[_point.Point],
+                           seg_index: int) -> WireSegmentDragPlan | None:
+    """Make the segment ``points[seg_index] -> points[seg_index + 1]`` --
+    one touching the wire's own true start and/or stop, so not draggable
+    as it stands -- draggable, by inserting the waypoints it's missing
+    (:func:`_end_jog_points`) and planning the drag on the run they
+    leave. None (nothing changed) if that isn't possible.
+
+    A wire with no interior waypoints has one segment touching both ends,
+    so both get a jog.
+    """
+    project = wire.mainframe.project
+    positions = [(float(p.x), float(p.z)) for p in points]
+    count = len(positions)
+
+    start_jog = []
+    stop_jog = []
+    start_along = 0.0
+    stop_along = 0.0
+
+    if seg_index == 0:
+        result = _end_jog_points(wire, 'start', positions[0], positions[1])
+        if result is None:
+            return None
+
+        start_jog = result[0]
+        start_along = result[1]
+
+    if seg_index == count - 2:
+        result = _end_jog_points(wire, 'stop', positions[-1], positions[-2])
+        if result is None:
+            return None
+
+        stop_jog = result[0]
+        stop_along = result[1]
+
+    if start_jog and stop_jog:
+        # A straight wire between two ends: the two jogs have to leave a
+        # real run between them.
+        run_length = math.hypot(
+            positions[1][0] - positions[0][0], positions[1][1] - positions[0][1])
+
+        if run_length - stop_along - start_along <= _END_TOL:
+            return None
+
+    interior = positions[1:-1]
+
+    _wire_reroute.set_waypoints(project, wire, start_jog + interior + stop_jog)
+
+    new_points, new_waypoints = _chain_points(wire)
+
+    if start_jog:
+        # The dragged run starts at the last of the new start waypoints.
+        new_index = len(start_jog)
+    else:
+        # ... or, with only the stop end changed, at what was already the
+        # last interior waypoint.
+        new_index = count - 2
+
+    return _segment_plan_at(wire, new_points, new_waypoints, new_index)
 
 
 @_check_types.do
 def plan_wire_segment_drag(wire: "_wire_obj.Wire", world_click: tuple[float, float]) -> WireSegmentDragPlan | None:
     """Work out what a click on *wire*'s rendered strand at *world_click*
     (an ``(x, z)`` world position) should drag -- see the module
-    docstring for the full rule. None if the click's nearest segment
-    isn't fully bounded by two real waypoints.
+    docstring for the full rule. A click nearest a segment touching the
+    wire's own true start/stop puts the waypoints that segment needs in
+    first (:func:`_plan_end_segment_drag`); None only if there's no room
+    for them.
     """
     points, waypoints = _chain_points(wire)
-
-    if len(waypoints) < 2:
-        return None
 
     positions = [(float(p.x), float(p.z)) for p in points]
 
@@ -233,17 +387,19 @@ def plan_wire_segment_drag(wire: "_wire_obj.Wire", world_click: tuple[float, flo
     best_i = None
     best_dist = math.inf
 
-    # Only i in [1, len-3] has both bounding points as real waypoints
-    # (index 0 and len-1 are the wire's own true start/stop).
-    for i in range(1, len(points) - 2):
+    for i in range(len(points) - 1):
         ax, az = positions[i]
         bx, bz = positions[i + 1]
 
         if abs(az - bz) < 1e-9:  # horizontal segment
-            t = 0.0 if bx == ax else max(0.0, min(1.0, (click_x - ax) / (bx - ax)))
+            if bx == ax:
+                t = 0.0
+            else:
+                t = max(0.0, min(1.0, (click_x - ax) / (bx - ax)))
+
             px, pz = ax + t * (bx - ax), az
         else:  # vertical segment
-            t = 0.0 if bz == az else max(0.0, min(1.0, (click_z - az) / (bz - az)))
+            t = max(0.0, min(1.0, (click_z - az) / (bz - az)))
             px, pz = ax, az + t * (bz - az)
 
         dist = math.hypot(click_x - px, click_z - pz)
@@ -254,7 +410,12 @@ def plan_wire_segment_drag(wire: "_wire_obj.Wire", world_click: tuple[float, flo
     if best_i is None:
         return None
 
-    return _segment_plan_at(wire, points, waypoints, best_i)
+    # Only i in [1, len-3] has both bounding points as real waypoints
+    # (index 0 and len-1 are the wire's own true start/stop).
+    if 1 <= best_i <= len(points) - 3:
+        return _segment_plan_at(wire, points, waypoints, best_i)
+
+    return _plan_end_segment_drag(wire, points, best_i)
 
 
 def _pushable_segment_plan(wire: "_wire_obj.Wire", seg_index: int) -> WireSegmentDragPlan | None:
@@ -539,12 +700,20 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         collapsed_near = abs(candidate - before_fixed) < 1e-6
         collapsed_far = abs(candidate - after_fixed) < 1e-6
 
-        if collapsed_near != self._collapsed_near and plan.layout_near is not None:
-            plan.layout_near.objschematic.is_visible = not collapsed_near
+        # Both waypoints of a collapsed side's jog are redundant (see the
+        # module docstring's "Straightening"), so both handles go.
+        if collapsed_near != self._collapsed_near:
+            for layout in (plan.layout_near, plan.layout_before):
+                if layout is not None:
+                    layout.objschematic.is_visible = not collapsed_near
+
             self._collapsed_near = collapsed_near
 
-        if collapsed_far != self._collapsed_far and plan.layout_far is not None:
-            plan.layout_far.objschematic.is_visible = not collapsed_far
+        if collapsed_far != self._collapsed_far:
+            for layout in (plan.layout_far, plan.layout_after):
+                if layout is not None:
+                    layout.objschematic.is_visible = not collapsed_far
+
             self._collapsed_far = collapsed_far
 
     def _maybe_reroute_past(self, project: "_project.Project", candidate: float) -> None:
@@ -720,17 +889,40 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         return True
 
     @_check_types.do
+    def _remove_waypoint(self, project: "_project.Project", layout: object | None,
+                         waypoint: "_pjt_point2d.PJTPoint2D") -> None:
+        """Delete one redundant waypoint for real: its WireLayout marker
+        (proper facade teardown when one was found at drag-arm, a raw
+        ``delete_layouts_at()`` sweep otherwise) and then its
+        ``pjt_points2d`` row.
+
+        The row's ``wire_id`` has to be cleared first -- it counts as a
+        reference on its own, and ``PJTPoint2D.delete()`` silently refuses
+        while the point is referenced, which left the waypoint (and so a
+        bend in the wire's own path) in place after its handle was gone.
+        """
+        if layout is not None:
+            layout.delete()
+        else:
+            _pjt_wire.delete_layouts_at(
+                project.ptables.pjt_wire_layouts_table, 'point2d_id', waypoint.db_id)
+
+        waypoint.wire_id = None
+        waypoint.delete()
+
+    @_check_types.do
     def delete(self) -> None:
-        """Commit whatever's currently live: a still-collapsed side's
-        waypoint is deleted for real (it was only ever hidden during the
-        drag) -- both the WireLayout marker (proper facade teardown when
-        one was found at drag-arm; a raw delete_layouts_at() sweep as a
-        defensive fallback otherwise -- mirrors
-        ``wire_routing.reroute.reroute_wire``'s own blind sweep, used there
-        because it never holds a live facade reference to begin with)
-        and its backing pjt_points2d row. Anything not collapsed keeps
-        its own already-live position -- no full reroute() call needed,
-        the drag already left every point exactly where it should be.
+        """Commit whatever's currently live: for each side whose
+        connecting run is zero length (the dragged segment lies on the
+        same line as the segment beyond its fixed neighbor), the dragged
+        waypoint AND that neighbor -- if it's a real waypoint, not the
+        wire's own true end -- are deleted for real (they were only ever
+        hidden during the drag), joining the two sections into one. Judged
+        from the live points rather than the drag's own collapsed flags,
+        so a jog that was inserted for this drag and never moved (a plain
+        click) is taken back out too. Anything not collapsed keeps its own
+        already-live position -- no full reroute() call needed, the drag
+        already left every point exactly where it should be.
 
         If this drag ended in a mid-gesture reroute instead (see
         :meth:`_maybe_reroute_past`), there's nothing left to commit --
@@ -743,21 +935,25 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
         plan = self._plan
         project = self.canvas.mainframe.project
-        layouts_table = project.ptables.pjt_wire_layouts_table
 
-        if self._collapsed_near:
-            if plan.layout_near is not None:
-                plan.layout_near.delete()
-            else:
-                _pjt_wire.delete_layouts_at(layouts_table, 'point2d_id', plan.waypoint_near.db_id)
-            plan.waypoint_near.delete()
+        if plan.horizontal:
+            near_collapsed = abs(float(plan.p_near.z) - float(plan.p_before.z)) < 1e-6
+            far_collapsed = abs(float(plan.p_far.z) - float(plan.p_after.z)) < 1e-6
+        else:
+            near_collapsed = abs(float(plan.p_near.x) - float(plan.p_before.x)) < 1e-6
+            far_collapsed = abs(float(plan.p_far.x) - float(plan.p_after.x)) < 1e-6
 
-        if self._collapsed_far:
-            if plan.layout_far is not None:
-                plan.layout_far.delete()
-            else:
-                _pjt_wire.delete_layouts_at(layouts_table, 'point2d_id', plan.waypoint_far.db_id)
-            plan.waypoint_far.delete()
+        if near_collapsed:
+            self._remove_waypoint(project, plan.layout_near, plan.waypoint_near)
+
+            if plan.waypoint_before is not None:
+                self._remove_waypoint(project, plan.layout_before, plan.waypoint_before)
+
+        if far_collapsed:
+            self._remove_waypoint(project, plan.layout_far, plan.waypoint_far)
+
+            if plan.waypoint_after is not None:
+                self._remove_waypoint(project, plan.layout_after, plan.waypoint_after)
 
         self.target.objschematic.refresh_waypoints()
 

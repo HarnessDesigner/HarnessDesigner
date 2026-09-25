@@ -204,7 +204,7 @@ class Splice(_base.AddHandlerBase):
         start_db = ptables.pjt_points3d_table.insert(*start_np.tolist())
         stop_db = ptables.pjt_points3d_table.insert(*stop_np.tolist())
         branch_db = ptables.pjt_points3d_table.insert(*center.tolist())
-        point2d_db = ptables.pjt_points2d_table.insert(0.0, 0.0)
+        point2d_db = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0)
 
         name = f'{self._part.manufacturer.name} {self._part.part_number}'
 

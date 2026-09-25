@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -22,7 +22,7 @@ class GenderMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def gender(self) -> "_gender.Gender":
+    def gender(self) -> Union["_gender.Gender", None]:
         """Return the gender.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,8 +33,12 @@ class GenderMixin(BaseMixin):
         if self._stored_gender is DefaultStoredValue:
             from .. import gender as _gender  # NOQA
 
-            gender_id = self._table.select('gender_id', id=self._db_id)
-            self._stored_gender = _gender.Gender(self._table.db.genders_table, gender_id[0][0])
+            gender_id = self._table.select('gender_id', id=self._db_id)[0][0]
+
+            if gender_id == NIL_ID:
+                self._stored_gender = None
+            else:
+                self._stored_gender = _gender.Gender(self._table.db.genders_table, gender_id)
 
         return self._stored_gender
 
@@ -116,7 +120,13 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
 
             self.choices = sorted([row[0] for row in rows])
             self.SetItems(self.choices)
-            self.SetValue(db_obj.gender.name)
+            gender = db_obj.gender
+
+            if gender is None:
+                self.SetValue('')
+            else:
+                self.SetValue(gender.name)
+
             self.setEnabled(True)
 
     @_check_types.do

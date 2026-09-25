@@ -35,42 +35,41 @@ Config = _config.Config.editor_3d
 
 @_check_types.do
 def _build_sws(length: float, o_dia: float, i_dia: float) -> tuple[np.ndarray, np.ndarray]:
-    """Build the sws.
-
-    UNKNOWN details are inferred from the callable name and signature.
+    """
+    Build the sws.
 
     :param length: Value for ``length``.
     :type length: float
+
     :param o_dia: Value for ``o_dia``.
     :type o_dia: float
+
     :param i_dia: Value for ``i_dia``.
     :type i_dia: float
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: tuple[np.ndarray, np.ndarray]
     """
+
     o_radius = round(o_dia / 2.0, 6)
     i_radius = round(i_dia / 2.0, 6)
 
-    model1 = build123d.Cylinder(o_radius, length)
-    hole1 = build123d.Cylinder(i_radius, length)
-    model1 -= hole1
+    model1 = build123d.Cylinder(o_radius, length * 0.50)
+    model2 = build123d.Cylinder(o_radius * 0.66, length)
 
-    hole_radius = o_radius * 0.66
-    length *= 0.33
+    model1.move(build123d.Location((0, 0, -length * 0.25)))
+    model = model1 + model2
 
-    model2 = build123d.Cylinder(o_radius, length)
-    hole2 = build123d.Cylinder(hole_radius, length)
-    model2 -= hole2
+    hole = build123d.Cylinder(i_radius, length)
+    model -= hole
 
-    model1 -= model2
-    vertices, faces = _utils.convert_model_to_mesh(model1)
+    vertices, faces = _utils.convert_model_to_mesh(model)
     return vertices, faces
 
 
 class Seal(_base_3d.Base3D):
-    """Represent a seal in :mod:`harness_designer.objects.objects_3d.seal`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
+    """
+    Represent a seal in :mod:`harness_designer.objects.objects_3d.seal`.
     """
     parent: "_seal.Seal" = None
     db_obj: "_pjt_seal.PJTSeal" = None
@@ -84,12 +83,12 @@ class Seal(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal") -> None:
-        """Initialise the :class:`Seal` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`Seal` instance.
 
         :param parent: Parent object.
         :type parent: :class:`_seal.Seal`
+
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_seal.PJTSeal`
         """

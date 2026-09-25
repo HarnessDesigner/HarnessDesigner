@@ -401,11 +401,18 @@ class Wire(_base_schematic.BaseSchematic):
         mins = corners.min(axis=0)
         maxs = corners.max(axis=0)
 
+        # The pool's own corner order (utils.bounding_boxes.compute_obb):
+        # 1 toggles x, 3 toggles y, 4 toggles z -- NOT the order an AABB's
+        # corners are built in. The pool derives the box's three edge axes
+        # from corners 1/3/4, so the other order made a skewed box centered
+        # a whole z-extent off, and a click on the low-z half of a wire
+        # missed the OBB pass (which, finding some other wire's phantom box,
+        # then skipped the AABB fallback -- see gl.object_picker.find_object).
         obb = np.array([
-            [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
-            [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
-            [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
-            [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
+            [mins[0], mins[1], mins[2]], [maxs[0], mins[1], mins[2]],
+            [maxs[0], maxs[1], mins[2]], [mins[0], maxs[1], mins[2]],
+            [mins[0], mins[1], maxs[2]], [maxs[0], mins[1], maxs[2]],
+            [maxs[0], maxs[1], maxs[2]], [mins[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
 
         if self._obb is None:
@@ -631,7 +638,7 @@ class Wire(_base_schematic.BaseSchematic):
         else:
             idx = len(waypoints)
 
-        new_wp = ptables.pjt_points2d_table.insert(x, z, wire_id=self.db_obj.db_id, idx=idx)
+        new_wp = ptables.pjt_points2d_table.insert(x, 0.0, z, wire_id=self.db_obj.db_id, idx=idx)
         self.refresh_waypoints()
 
         return new_wp.point
@@ -838,7 +845,8 @@ class Wire(_base_schematic.BaseSchematic):
             float(initial_pos.x), float(initial_pos.y), float(initial_pos.z))
 
         start_pos2d = start.db_obj.position2d
-        stop2d = ptables.pjt_points2d_table.insert(float(start_pos2d.x), float(start_pos2d.z))
+        stop2d = ptables.pjt_points2d_table.insert(
+            float(start_pos2d.x), float(start_pos2d.y), float(start_pos2d.z))
 
         name = f'{part.manufacturer.name} {part.part_number}'
 

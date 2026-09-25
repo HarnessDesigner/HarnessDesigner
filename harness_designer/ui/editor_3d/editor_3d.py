@@ -208,6 +208,12 @@ class Editor3DPanel(_canvas3d.Canvas3D):
         if obj.obj3d is None or obj.obj3d.position is None:
             return
 
+        # Still showing the automatic whole-project framing (see
+        # request_fit_all) -- everything is already in view, and panning
+        # here would only cancel that framing.
+        if self.is_fit_active:
+            return
+
         self.camera.CenterOn(obj.obj3d.position)
 
         aabb_min, aabb_max = obj.obj3d.aabb

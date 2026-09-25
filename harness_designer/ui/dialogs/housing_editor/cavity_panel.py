@@ -470,15 +470,19 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
         cavity_tab.cavity.obj3d.apply_analysis(
             item.kind, item.params, item.d_start, item.d_end)
 
+        # The two sides are independent, however the terminal side came
+        # about (picked surface, hand-drawn shape, or detected hole).
         if item.is_manual:
             # No real recessed mesh surface exists for this cavity — render
             # a synthetic circle/rectangle marker from its OBB instead.
             cavity_tab.cavity.obj3d.db_obj.render_terminal_marker = True
-        elif item.wire_is_shared:
-            # Terminal side has real mesh geometry, but the wire side is one
-            # continuous surface shared with another cavity — render just
-            # the wire side as a synthetic marker from this cavity's own OBB
-            # back face instead of the shared real surface.
+
+        if item.wire_is_shared:
+            # The wire side is one continuous surface shared with another
+            # cavity — render just the wire side as a synthetic marker (this
+            # cavity's footprint projected onto that surface) instead of
+            # making the shared real surface the click target. When it's NOT
+            # shared, the real wire surface stays the click target.
             cavity_tab.cavity.obj3d.db_obj.render_wire_marker = True
 
         # Store the surface indices so the overlay can highlight them when

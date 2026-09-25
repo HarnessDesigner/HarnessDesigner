@@ -566,7 +566,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
 
         self.position2d_ctrl = Position2DControl(position_page)
-        self.branch_position3d_ctrl = _prop_ctrls.Position3DProperty(position_page, '3D Branch Position')
+        self.branch_position3d_ctrl = _prop_ctrls.PositionProperty(position_page, '3D Branch Position', axes='xyz')
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)

@@ -12,7 +12,7 @@ from ..global_db import wire_marker as _wire_marker
 from .mixins import (
     Position2DMixin, Position2DControl,
     Position3DMixin, Position3DControl,
-    PositionPegboardMixin,
+    PositionPegboardMixin, PositionPegboardControl,
     VisiblePegboardMixin,
     PartMixin,
     Visible3DMixin, Visible3DControl,
@@ -359,6 +359,7 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._visible_page:
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
@@ -393,9 +394,11 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
+        self.position_pegboard_ctrl = PositionPegboardControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)

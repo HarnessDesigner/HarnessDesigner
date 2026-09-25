@@ -62,7 +62,7 @@ class Angle2DMixin(BaseMixin):
         return self._stored_angle2d
 
 
-class Angle2DControl(_prop_ctrls.FloatProperty):
+class Angle2DControl(_prop_ctrls.AngleProperty):
     """Represent an angle 2dcontrol in :mod:`harness_designer.database.project_db.mixins.angle2d`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -79,32 +79,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         """
         self.db_obj: Angle2DMixin | None = None
 
-        super().__init__(parent, '2D Angle', min_value=-180.0, max_value=180.0, increment=90.0, units='°')
-
-        self.propertyChanged.connect(self._on_angle)
-
-    @_check_types.do
-    def _on_angle(self, evt):
-        """Handle the angle event.
-
-        Rotation in the 2D editor is about world Y (see ``angle2d.y``'s
-        axis convention, used everywhere in ``objects_schematic/``), and locked
-        to 90° increments (matches ``objects_schematic/housing.py``'s ``# TODO:
-        Lock a housing to only be able to be rotated in 90° increments``
-        note) -- round the typed/spun value to the nearest multiple of
-        90 rather than writing it verbatim, so this free-text field can't
-        put a housing at an angle the rotate menu itself never produces.
-
-        :param evt: Event object.
-        :type evt: UNKNOWN
-        """
-        y = round(evt.GetValue() / 90.0) * 90.0
-        if y > 180.0:
-            y -= 360.0
-        elif y < -180.0:
-            y += 360.0
-
-        self.db_obj.angle2d.y = y
+        super().__init__(parent, 'Schematic Angle', axes='y')
 
     @_check_types.do
     def set_obj(self, db_obj: Angle2DMixin | None):
@@ -117,8 +92,7 @@ class Angle2DControl(_prop_ctrls.FloatProperty):
         """
         self.db_obj = db_obj
         if db_obj is None:
-            self.SetValue(0.0)
-            self.setEnabled(False)
+            self.SetValue(None)
         else:
-            self.SetValue(db_obj.angle2d.y)
-            self.setEnabled(True)
+            self.SetValue(db_obj.angle2d)
+

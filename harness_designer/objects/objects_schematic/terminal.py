@@ -51,7 +51,7 @@ def _is_180(degrees: float) -> bool:
     :meth:`Terminal._update_angle`) to keep reading in the same
     direction relative to its own anchor.
     """
-    return round(degrees) % 360 == 180
+    return round(abs(degrees)) % 360 == 180
 
 
 # What a name is drawn with at exactly 180 degrees -- see Terminal.render.
@@ -252,7 +252,7 @@ class Terminal(_base_schematic.BaseSchematic):
                 name_x = box_left_x + (vbo.width / 2.0)
 
                 position2d = cavity.table.db.pjt_points2d_table.insert(
-                    name_x, cavity_geometry.position[1])
+                    name_x, 0.0, cavity_geometry.position[1])
 
                 db_obj.position2d_id = position2d.db_id
                 position = db_obj.position2d
@@ -263,7 +263,7 @@ class Terminal(_base_schematic.BaseSchematic):
                 position += housing.position2d
 
                 position2d = cavity.table.db.pjt_points2d_table.insert(
-                    *cavity_geometry.cylinder_stop)
+                    cavity_geometry.cylinder_stop[0], 0.0, cavity_geometry.cylinder_stop[1])
 
                 db_obj.wire_position2d_id = position2d.db_id
 
@@ -272,6 +272,14 @@ class Terminal(_base_schematic.BaseSchematic):
                     wire_position @= housing.angle2d
 
                 wire_position += housing.position2d
+
+                # See CavityGeometry.point_at_180 -- a plain rotation isn't
+                # right for it at exactly 180 degrees (the name position
+                # is on the slot's center, so nothing to correct there).
+                if _cavity_layout.is_180(housing.angle2d.y):
+                    with wire_position:
+                        wire_position.z = float(wire_position.z) + cavity_geometry.z_shift_at_180(
+                            cavity_geometry.cylinder_stop[1])
             else:
                 wire_position = db_obj.wire_position2d
 
@@ -292,21 +300,23 @@ class Terminal(_base_schematic.BaseSchematic):
                                            local_tilt=_text.TOP_DOWN_TILT,
                                            center_anchor=True)
 
-            bracket_position = _point.Point(
-                cavity_geometry.bracket_position[0],
-                0.0, cavity_geometry.bracket_position[1])
+            # Through _local_to_world (as _update_position does on every
+            # later change) so the 180 layout is applied here too.
+            # The ")" drawn instead of the "(" at 180 degrees. Turning the
+            # "(" half a turn would put its ink on the mirrored side, but the
+            # glyph's own vertical offset from its center anchor would flip
+            # with it and land it off the position the layout works out
+            # (see CavityGeometry.point_at_180); a real ")" built the same
+            # way, at the same size, drawn unturned at the mirrored anchor,
+            # is exactly the "(" mirrored.
+            with parent.mainframe.editor2d.editor.context:
+                self._bracket_close = _text.Text(')', cavity_geometry.bracket_font_size,
+                                                 build123d.FontStyle.REGULAR,
+                                                 local_tilt=_text.TOP_DOWN_TILT,
+                                                 center_anchor=True)
 
-            with bracket_position:
-                bracket_position @= self.housing.angle
-                bracket_position += housing.position2d
-
-            cylinder_start = _point.Point(
-                cavity_geometry.cylinder_start[0],
-                0.0, cavity_geometry.cylinder_start[1])
-
-            with cylinder_start:
-                cylinder_start @= self.housing.angle
-                cylinder_start += housing.position2d
+            bracket_position = self._local_to_world(*cavity_geometry.bracket_position)
+            cylinder_start = self._local_to_world(*cavity_geometry.cylinder_start)
 
             line = _line.Line(cylinder_start, wire_position)
             self._cylinder_angle = line.get_angle(cylinder_start)
@@ -387,8 +397,13 @@ class Terminal(_base_schematic.BaseSchematic):
         """
         housing = self.housing
 
-        points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
-        wx, wy, wz = _base_schematic._rotate_about_y(points, housing.angle.y)[0]  # NOQA
+        if _is_180(housing.angle.y):
+            # Not a plain rotation -- see CavityGeometry.point_at_180.
+            wx, wz = self._geometry.point_at_180((local_x, local_z))
+            wy = 0.0
+        else:
+            points = np.array([[local_x, 0.0, local_z]], dtype=np.float32)
+            wx, wy, wz = _base_schematic._rotate_about_y(points, housing.angle.y)[0]  # NOQA
 
         return _point.Point(
             housing.position.x + float(wx),
@@ -696,10 +711,19 @@ class Terminal(_base_schematic.BaseSchematic):
         super().render(shaders)
 
         if self._bracket is not None:
-            self._vbo = self._bracket
+            # At 180 the mirrored layout needs a ")" -- see __init__'s
+            # own comment on _bracket_close.
+            # self._angle is _label_angle() here, which is the _NO_ROTATION
+            # object itself at exactly 180 and never otherwise.
+            if self._angle is _NO_ROTATION:
+                self._vbo = self._bracket_close
+            else:
+                self._vbo = self._bracket
+
             self._position = self._bracket_position
             # self._angle is still label_angle from above -- the bracket
-            # rotates with the housing exactly like the name does.
+            # rotates with the housing exactly like the name does (and,
+            # like the name, is not turned at all at 180).
             super().render(shaders)
 
             self._vbo = _cylinder.create_vbo()
@@ -809,7 +833,7 @@ class Terminal(_base_schematic.BaseSchematic):
         name = f'{part.manufacturer.name} {part.part_number}'
 
         pos3d = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        pos2d = ptables.pjt_points2d_table.insert(0.0, 0.0)
+        pos2d = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0)
 
         db_obj = ptables.pjt_terminals_table.insert(
             part_id, name, pos2d.db_id, pos3d.db_id, None)
@@ -892,7 +916,7 @@ class Terminal(_base_schematic.BaseSchematic):
         if point_id is None:
             return
 
-        x, y, _ = ptables.pjt_points2d_table[point_id].point.as_float
+        x, y, z = ptables.pjt_points2d_table[point_id].point.as_float
         seen_first = False
 
         for column in ('start_point2d_id', 'stop_point2d_id'):
@@ -903,7 +927,7 @@ class Terminal(_base_schematic.BaseSchematic):
                     seen_first = True
                     continue
 
-                new_point = ptables.pjt_points2d_table.insert(x, y)
+                new_point = ptables.pjt_points2d_table.insert(x, y, z)
                 attr = column.replace('_point2d_id', '_position2d_id')
                 setattr(wire_db, attr, new_point.db_id)
 

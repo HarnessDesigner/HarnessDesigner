@@ -78,7 +78,7 @@ class ScalePegboardMixin(BaseMixin):
         self._populate('scale_pegboard_id')
 
 
-class ScalePegboardControl(_prop_ctrls.Scale3DProperty):
+class ScalePegboardControl(_prop_ctrls.ScaleProperty):
     """Represent a scale pegboard control in :mod:`harness_designer.database.project_db.mixins.scale_pegboard`."""
 
     @_check_types.do
@@ -90,7 +90,7 @@ class ScalePegboardControl(_prop_ctrls.Scale3DProperty):
         """
         self.db_obj: ScalePegboardMixin | None = None
 
-        super().__init__(parent, 'Peg-board Scale')
+        super().__init__(parent, 'Pegboard Scale')
 
     @_check_types.do
     def set_obj(self, db_obj: ScalePegboardMixin | None):

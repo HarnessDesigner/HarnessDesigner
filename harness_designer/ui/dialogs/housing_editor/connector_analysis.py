@@ -124,6 +124,11 @@ def extract_boundary_loops(
 ) -> List[np.ndarray]:
     """
     Return closed boundary loops (hole outlines) as list of (M, 3) float32 arrays.
+
+    A loop counts only if it makes a complete perimeter connection -- its
+    last vertex joins back to its first. How many vertices that takes doesn't
+    matter (a rectangular hole has just 4 corners); a chain that never closes
+    is an open edge, not a hole.
     """
 
     verts = vertices.reshape(-1, 3)
@@ -166,7 +171,9 @@ def extract_boundary_loops(
             loop.append(nxt)
             cur = nxt
 
-        if len(loop) >= 6:  # skip degenerate tiny loops
+        # Closed = the last vertex has an edge back to the first. (Two
+        # vertices joined only to each other can't enclose anything.)
+        if len(loop) >= 3 and start in adj.get(cur, []):
             loops.append(np.array(loop, dtype=np.float32))
 
     return loops
@@ -441,6 +448,42 @@ def inner_loops_only(
 
     # Keep loops that are clearly smaller than the outer boundary
     return [i for i, a in zip(loops, areas) if a < max_area * 0.5]
+
+
+@_check_types.do
+def surface_holes(
+    surface: _mesh_surface.Surface,
+    vertices: np.ndarray,   # (3N, 3)
+) -> list[dict]:
+    """
+    Return the holes cut through a single connected surface, as a list of
+    ``{'kind': 'circle' | 'rect', 'params': {...}}`` dicts -- same shape as a
+    manually-drawn cavity, so they feed the same analysis path.
+
+    ``surface`` is one connected island of coplanar triangles (what
+    ``MeshSurfacePicker`` builds), so exactly one of its boundary loops is
+    the outer perimeter -- the one enclosing the largest area -- and every
+    other loop is a hole in it. Unlike ``inner_loops_only`` this needs no
+    size-ratio guess, since there's never a second outer perimeter here.
+    """
+
+    loops = extract_boundary_loops(surface.tri_indices, vertices)
+    if len(loops) < 2:
+        return []
+
+    u, v = plane_frame(np.asarray(surface.normal, np.float64))
+    areas = [_loop_area_2d(loop, u, v) for loop in loops]
+    outer = areas.index(max(areas))
+
+    holes: list[dict] = []
+    for i, loop in enumerate(loops):
+        if i == outer:
+            continue
+
+        kind, params = classify_loop(loop, surface.normal)
+        holes.append(dict(kind=kind, params=params))
+
+    return holes
 
 
 # ── 7.  Size-consensus filtering ─────────────────────────────────────────────

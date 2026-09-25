@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -22,7 +22,7 @@ class CavityLockMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def cavity_lock(self) -> "_cavity_lock.CavityLock":
+    def cavity_lock(self) -> Union["_cavity_lock.CavityLock", None]:
         """Return the cavity lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,7 +33,12 @@ class CavityLockMixin(BaseMixin):
         if self._stored_cavity_lock is DefaultStoredValue:
             from ..cavity_lock import CavityLock
 
-            self._stored_cavity_lock = CavityLock(self._table.db.cavity_locks_table, self.cavity_lock_id)
+            cavity_lock_id = self.cavity_lock_id
+
+            if cavity_lock_id == NIL_ID:
+                self._stored_cavity_lock = None
+            else:
+                self._stored_cavity_lock = CavityLock(self._table.db.cavity_locks_table, cavity_lock_id)
 
         return self._stored_cavity_lock
 
@@ -121,8 +126,15 @@ class CavityLockControl(_prop_ctrls.Property):
 
             self.choices = sorted([row[0] for row in rows])
             self.name_ctrl.SetItems(self.choices)
-            self.name_ctrl.SetValue(db_obj.cavity_lock.name)
-            self.desc_ctrl.SetValue(db_obj.cavity_lock.description)
+            cavity_lock = db_obj.cavity_lock
+
+            if cavity_lock is None:
+                self.name_ctrl.SetValue('')
+                self.desc_ctrl.SetValue('')
+            else:
+                self.name_ctrl.SetValue(cavity_lock.name)
+                self.desc_ctrl.SetValue(cavity_lock.description)
+
             self.name_ctrl.setEnabled(True)
             self.desc_ctrl.setEnabled(True)
 

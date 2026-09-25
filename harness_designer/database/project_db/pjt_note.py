@@ -13,10 +13,10 @@ from .mixins import (
     Angle3DMixin, Angle3DControl,
     Angle3DLockMixin, Angle3DLockControl,
     Angle2DMixin, Angle2DControl,
-    AnglePegboardMixin,
+    AnglePegboardMixin, AnglePegboardControl,
     Position3DMixin, Position3DControl,
     Position2DMixin, Position2DControl,
-    PositionPegboardMixin,
+    PositionPegboardMixin, PositionPegboardControl,
     Visible2DMixin, Visible2DControl,
     Visible3DMixin, Visible3DControl,
     VisiblePegboardMixin, VisiblePegboardControl,
@@ -479,10 +479,12 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         elif page is self._angle_page:
             self.angle2d_ctrl.set_obj(self.db_obj)
             self.angle3d_ctrl.set_obj(self.db_obj)
+            self.angle_pegboard_ctrl.set_obj(self.db_obj)
             self.angle3d_lock_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._visible_page:
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
@@ -569,18 +571,22 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
+        self.angle_pegboard_ctrl = AnglePegboardControl(angle_page)
         self.angle3d_lock_ctrl = Angle3DLockControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
+        angle_page.addWidget(self.angle_pegboard_ctrl)
         angle_page.addWidget(self.angle3d_lock_ctrl)
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
+        self.position_pegboard_ctrl = PositionPegboardControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)

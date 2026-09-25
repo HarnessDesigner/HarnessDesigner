@@ -47,6 +47,13 @@ class SegmentPool:
     def __init__(self) -> None:
         self._zero = np.zeros(3, dtype=np.float32)
 
+        self.reset()
+
+    def reset(self) -> None:
+        """Forget every registered path, in place (see
+        :meth:`.array_pool.ArrayPool.reset`). Weakref callbacks from
+        before the reset find nothing to drop and do no harm.
+        """
         # Slot i's vertex buffer (a Point's live ``_data``), or the shared
         # ``_zero`` placeholder for a free slot.
         self._buffers: list[np.ndarray] = []

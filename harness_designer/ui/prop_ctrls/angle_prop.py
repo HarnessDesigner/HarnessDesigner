@@ -7,7 +7,7 @@ from . import float_prop as _float_prop
 from ... import check_types as _check_types
 
 
-class Angle3DProperty(QtWidgets.QGroupBox):
+class AngleProperty(QtWidgets.QGroupBox):
     """
     Represent an angle 3dproperty in :mod:`harness_designer.ui.prop_ctrls.angle3d_prop`.
 
@@ -15,15 +15,19 @@ class Angle3DProperty(QtWidgets.QGroupBox):
     """
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent, label: str, axes: str = 'xyz'):
         """Initialise the :class:`Angle3DProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :param parent: Parent object.
         :type parent: UNKNOWN
+
         :param label: Value for ``label``.
-        :type label: UNKNOWN
+        :type label: str
+
+        :param axes: Value for ``axes``.
+        :type axes: str
         """
 
         super().__init__(label, parent)
@@ -31,30 +35,51 @@ class Angle3DProperty(QtWidgets.QGroupBox):
         self._angle = None
         self._label = label
 
-        self.x_ctrl = _float_prop.FloatProperty(
-            self, 'X', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-        self.y_ctrl = _float_prop.FloatProperty(
-            self, 'Y', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-        self.z_ctrl = _float_prop.FloatProperty(
-            self, 'Z', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
-
         sizer = QtWidgets.QVBoxLayout()
-        sizer.addWidget(self.x_ctrl)
-        sizer.addWidget(self.y_ctrl)
-        sizer.addWidget(self.z_ctrl)
+
+        axes = axes.lower()
+
+        if 'x' in axes:
+            self.x_ctrl = _float_prop.FloatProperty(
+                self, 'X', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+
+            sizer.addWidget(self.x_ctrl)
+            self.x_ctrl.propertyChanged.connect(self._on_x)
+        else:
+            self.x_ctrl = None
+
+        if 'y' in axes:
+            self.y_ctrl = _float_prop.FloatProperty(
+                self, 'Y', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+
+            sizer.addWidget(self.y_ctrl)
+            self.y_ctrl.propertyChanged.connect(self._on_y)
+        else:
+            self.y_ctrl = None
+
+        if 'z' in axes:
+            self.z_ctrl = _float_prop.FloatProperty(
+                self, 'Z', min_value=-180.0, max_value=180.0, increment=0.01, units='°')
+
+            sizer.addWidget(self.z_ctrl)
+            self.z_ctrl.propertyChanged.connect(self._on_z)
+
+        else:
+            self.z_ctrl = None
 
         self.setLayout(sizer)
-
-        self.x_ctrl.propertyChanged.connect(self._on_x)
-        self.y_ctrl.propertyChanged.connect(self._on_y)
-        self.z_ctrl.propertyChanged.connect(self._on_z)
 
     @_check_types.do
     def _on_angle(self, angle):
         x, y, z = angle.as_euler_float
-        self.x_ctrl.SetValue(x)
-        self.y_ctrl.SetValue(y)
-        self.z_ctrl.SetValue(z)
+        if self.x_ctrl is not None:
+            self.x_ctrl.SetValue(x)
+
+        if self.y_ctrl is not None:
+            self.y_ctrl.SetValue(y)
+
+        if self.z_ctrl is not  None:
+            self.z_ctrl.SetValue(z)
 
     @_check_types.do
     def SetValue(self, angle):
@@ -75,8 +100,9 @@ class Angle3DProperty(QtWidgets.QGroupBox):
             (self.x_ctrl, self.y_ctrl, self.z_ctrl),
             (angle.x, angle.y, angle.z) if angle else (0.0, 0.0, 0.0)
         ):
-            ctrl.SetValue(val)
-            ctrl.setEnabled(enabled)
+            if ctrl is not None:
+                ctrl.SetValue(val)
+                ctrl.setEnabled(enabled)
 
         if angle is not None:
             angle.bind(self._on_angle)

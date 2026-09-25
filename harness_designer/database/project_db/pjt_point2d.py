@@ -45,7 +45,18 @@ class PJTPoints2DTable(PJTTableBase):
         """
         from ..create_database import points2d
 
+        had_z = 'z' in self._con.get_table_column_names(self.__table_name__)
+
         points2d.pjt_table.update_fields(self)
+
+        if not had_z:
+            # One-time migration. Before ``z`` existed, the schematic
+            # plane's second axis lived in ``y`` and was mapped onto
+            # ``Point.z`` (with ``Point.y`` locked to 0.0). Move every
+            # existing row's value into ``z`` so ``Point`` reads the same
+            # position it always did, then zero ``y`` to match.
+            self._con.execute(f'UPDATE {self.__table_name__} SET z = y, y = 0.0;')
+            self._con.commit()
 
     @_check_types.do
     def __iter__(self) -> _Iterable["PJTPoint2D"]:
@@ -83,7 +94,8 @@ class PJTPoints2DTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, x: float, y: float, wire_id: bytes = None, idx: int = None) -> "PJTPoint2D":
+    def insert(self, x: float | int, y: float | int, z: float | int,
+               wire_id: bytes = None, idx: int = None) -> "PJTPoint2D":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,6 +104,8 @@ class PJTPoints2DTable(PJTTableBase):
         :type x: float
         :param y: Y-coordinate value.
         :type y: float
+        :param z: Z-coordinate value.
+        :type z: float
         :param wire_id: Owning wire, for an interior waypoint row --
             ``None`` for an anchor's own position row.
         :type wire_id: bytes | None
@@ -101,7 +115,7 @@ class PJTPoints2DTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTPoint2D`
         """
-        db_id = PJTTableBase.insert(self, x=x, y=y, wire_id=wire_id, idx=idx)
+        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z), wire_id=wire_id, idx=idx)
         return PJTPoint2D(self, db_id)
 
     @_check_types.do
@@ -198,6 +212,32 @@ class PJTPoint2D(PJTEntryBase):
         self._stored_y = value
         self._table.update(self._db_id, y=value)
 
+    _stored_z: float | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def z(self) -> float:
+        """Return the z.
+
+        :returns: Property value.
+        :rtype: float
+        """
+        if self._stored_z is DefaultStoredValue:
+            self._stored_z = self._table.select('z', id=self._db_id)[0][0]
+
+        return self._stored_z
+
+    @z.setter
+    @_check_types.do
+    def z(self, value: float):
+        """Set the z.
+
+        :param value: Value to store or process.
+        :type value: float
+        """
+        self._stored_z = value
+        self._table.update(self._db_id, z=value)
+
     _stored_wire_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
@@ -259,9 +299,9 @@ class PJTPoint2D(PJTEntryBase):
         :rtype: :class:`_point.Point`
         """
         if self._stored_point2d is None:
-            x, z = self._table.select('x', 'y', id=self._db_id)[0]
+            x, y, z = self._table.select('x', 'y', 'z', id=self._db_id)[0]
 
-            self._stored_point2d = _point.Point(x, 0.0, z, db_id=self.db_id + b'2d')
+            self._stored_point2d = _point.Point(x, y, z, db_id=self.db_id + b'2d')
             self._stored_point2d.bind(self._update_point)
 
         return self._stored_point2d
@@ -278,10 +318,11 @@ class PJTPoint2D(PJTEntryBase):
         if PJTPoint2D._skip_db_write:
             return
 
-        x, _, y = point.as_float
+        x, y, z = point.as_float
         self._stored_x = x
         self._stored_y = y
-        self._table.update(self._db_id, x=x, y=y)
+        self._stored_z = z
+        self._table.update(self._db_id, x=x, y=y, z=z)
 
     @_check_types.do
     def is_referenced(self) -> bool:

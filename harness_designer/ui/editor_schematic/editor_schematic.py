@@ -184,6 +184,12 @@ class EditorSchematicPanel(_canvas_schematic.CanvasSchematic):
         if obj.objschematic is None or obj.objschematic.position is None:
             return
 
+        # Still showing the automatic whole-project framing (see
+        # request_fit_all) -- everything is already in view, and panning
+        # here would only cancel that framing.
+        if self.is_fit_active:
+            return
+
         self.camera.CenterOn(obj.objschematic.position)
 
         aabb_min, aabb_max = obj.objschematic.aabb

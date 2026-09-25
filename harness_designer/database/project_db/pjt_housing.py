@@ -36,12 +36,12 @@ from .mixins import (
     NotesMixin, NotesControl,
     Position2DMixin, Position2DControl,
     Position3DMixin, Position3DControl,
-    PositionPegboardMixin,
+    PositionPegboardMixin, PositionPegboardControl,
     TablePositionPegMixin,
     TableHiddenMixin,
     Angle2DMixin, Angle2DControl,
     Angle3DMixin, Angle3DControl,
-    AnglePegboardMixin,
+    AnglePegboardMixin, AnglePegboardControl,
     SmoothMixin, SmoothControl,
     Scale3DMixin, Scale3DControl,
     ScalePegboardMixin, ScalePegboardControl
@@ -235,7 +235,7 @@ class PJTHousingsTable(PJTTableBase):
         """
 
         if position2d_id is None:
-            position2d = self.db.pjt_points2d_table.insert(0.0, 0.0)
+            position2d = self.db.pjt_points2d_table.insert(0.0, 0.0, 0.0)
             position2d_id = position2d.db_id
         else:
             position2d = self.db.pjt_points2d_table[position2d_id]
@@ -323,7 +323,7 @@ class PJTHousingsTable(PJTTableBase):
                 dtype=np.float64)
 
             h_position2d = np.array(
-                [position2d.x, position2d.y],
+                [position2d.x, position2d.y, position2d.z],
                 dtype=np.float64)
 
             n = len(g_rows)
@@ -353,8 +353,11 @@ class PJTHousingsTable(PJTTableBase):
             # see that class's own docstring). geo.position would put the
             # label at the slot's own center instead of its own name
             # anchor (outside the housing, on the pin-edge side).
+            # The schematic plane is X/Z -- geo.name_position is (x, z), so Y
+            # is 0.0 here, same as the housing's own position2d.
             local_point2d = np.array(
-                [geo.name_position for geo in cavity_geometries], dtype=np.float64)
+                [[geo.name_position[0], 0.0, geo.name_position[1]]
+                 for geo in cavity_geometries], dtype=np.float64)
 
             # No rotation -- a housing has no rotation at the point its
             # cavities are first created.
@@ -398,10 +401,11 @@ class PJTHousingsTable(PJTTableBase):
 
             point2d_rows = [
                 (new_point2d_ids[i], float(position2d_arr[i, 0]),
-                 float(position2d_arr[i, 1])) for i in range(n)]
+                 float(position2d_arr[i, 1]), float(position2d_arr[i, 2]))
+                for i in range(n)]
 
             self.db.pjt_points2d_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points2d (id, x, y) VALUES (?, ?, ?);', point2d_rows)
+                'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
             self.db.pjt_points2d_table._con.commit()  # NOQA
 
             peg_rows = [
@@ -583,7 +587,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 dtype=np.float64)
 
             h_position2d = np.array(
-                [position2d.x, position2d.z],
+                [position2d.x, position2d.y, position2d.z],
                 dtype=np.float64)
 
             n = len(g_rows)
@@ -613,8 +617,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             # see that class's own docstring). geo.position would put the
             # label at the slot's own center instead of its own name
             # anchor (outside the housing, on the pin-edge side).
+            # The schematic plane is X/Z -- geo.name_position is (x, z), so Y
+            # is 0.0 here, same as the housing's own position2d.
             local_point2d = np.array(
-                [geo.name_position for geo in cavity_geometries], dtype=np.float64)
+                [[geo.name_position[0], 0.0, geo.name_position[1]]
+                 for geo in cavity_geometries], dtype=np.float64)
 
             # No rotation -- a housing has no rotation at the point its
             # cavities are first created.
@@ -662,10 +669,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             point2d_rows = [
                 (new_point2d_ids[i], float(position2d_arr[i, 0]),
-                 float(position2d_arr[i, 1])) for i in range(n)]
+                 float(position2d_arr[i, 1]), float(position2d_arr[i, 2]))
+                for i in range(n)]
 
             self.table.db.pjt_points2d_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points2d (id, x, y) VALUES (?, ?, ?);', point2d_rows)
+                'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
             self.table.db.pjt_points2d_table._con.commit()  # NOQA
 
             peg_rows = [
@@ -748,6 +756,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 point2d = _pjt_point2d.PJTPoint2D(point2d_table, new_point2d_ids[i])
                 point2d._stored_x = float(position2d_arr[i, 0])  # NOQA
                 point2d._stored_y = float(position2d_arr[i, 1])  # NOQA
+                point2d._stored_z = float(position2d_arr[i, 2])  # NOQA
                 cavity._stored_position2d_id = new_point2d_ids[i]  # NOQA
                 cavity._stored_position2d = point2d  # NOQA
 
@@ -1056,7 +1065,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         terminal_table = self._table.db.pjt_terminals_table
 
         self._table.db.connector.execute(
-            'SELECT cavity.id, cavity.name, cavity.point2d_id, point2d.x, point2d.y, '
+            'SELECT cavity.id, cavity.name, cavity.point2d_id, point2d.x, point2d.y, point2d.z, '
             'terminal.id, terminal.name '
             'FROM pjt_cavities AS cavity '
             'LEFT JOIN pjt_points2d AS point2d ON point2d.id = cavity.point2d_id '
@@ -1069,7 +1078,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         cavities = []
         terminals = []
 
-        for (cavity_id, cavity_name, point2d_id, point2d_x, point2d_y,
+        for (cavity_id, cavity_name, point2d_id, point2d_x, point2d_y, point2d_z,
              terminal_id, terminal_name) in rows:
             cavity = _pjt_cavity.PJTCavity(cavity_table, cavity_id)
             cavity._stored_name = cavity_name  # NOQA
@@ -1078,6 +1087,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 point2d = _pjt_point2d.PJTPoint2D(point2d_table, point2d_id)
                 point2d._stored_x = point2d_x  # NOQA
                 point2d._stored_y = point2d_y  # NOQA
+                point2d._stored_z = point2d_z  # NOQA
                 cavity._stored_position2d_id = point2d_id  # NOQA
                 cavity._stored_position2d = point2d  # NOQA
 
@@ -2191,10 +2201,10 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         always render upright/axis-aligned no matter which way the
         owning housing is rotated, only its anchor position follows the
         rotation, so nothing in this pipeline ever writes a cavity's own
-        ``angle2d`` at all. ``pjt_points2d`` stores only ``x``/
-        ``y`` columns, mapped onto the ``Point``'s X/Z axes (Y locked to
-        0.0 -- see ``PJTPoint2D.point``), so the batch row only carries
-        those two.
+        ``angle2d`` at all. ``pjt_points2d`` stores real
+        ``x``/``y``/``z`` columns, one per ``Point`` axis (the schematic
+        plane is X/Z, so Y stays 0.0 -- see ``PJTPoint2D.point``), so the
+        batch row carries all three.
 
         :param point: Point value.
         :type point: :class:`_point.Point`
@@ -2253,9 +2263,9 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         db_ids = [p.db_id[:-2] for p in positions]
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        rows = [[pos[0], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
+        rows = [[pos[0], pos[1], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
-        self._table.db.pjt_points2d_table.batch_update(['x', 'y'], rows)
+        self._table.db.pjt_points2d_table.batch_update(['x', 'y', 'z'], rows)
 
         _pjt_point2d.PJTPoint2D._skip_db_write = True
         try:
@@ -2908,9 +2918,27 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         cavities = [c for c in self.cavities if c is not None]
 
+        # Exactly 180 degrees is laid out differently from a plain rotation
+        # (see CavityGeometry.point_at_180): after the rotation below, each
+        # stored point gets its own Z correction, and it has to be taken
+        # back off first when this rotation starts from 180, so the
+        # rotation always runs on plain-rotated points.
+        from_180 = _cavity_layout.is_180(o_angle.y)
+        to_180 = _cavity_layout.is_180(angle.y)
+
+        if from_180 or to_180:
+            cavity_geometries = self.cavity_geometry
+
         positions = []
+        z_shifts = []
         for cavity in cavities:
             positions.append(cavity.position2d)
+
+            if from_180 or to_180:
+                geometry = cavity_geometries[cavity.db_id]
+                z_shifts.append(geometry.z_shift_at_180(geometry.name_position[1]))
+            else:
+                z_shifts.append(0.0)
 
             terminal = cavity.terminal
             if terminal is None:
@@ -2933,20 +2961,37 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             positions.append(terminal.wire_position2d)
             positions.append(terminal_position2d)
 
+            if from_180 or to_180:
+                # The wire position sits at the cylinder's far end; the
+                # terminal's own position2d is on its slot's center
+                # (nothing to correct).
+                z_shifts.append(geometry.z_shift_at_180(geometry.cylinder_stop[1]))
+                z_shifts.append(geometry.z_shift_at_180(geometry.position[1]))
+            else:
+                z_shifts.append(0.0)
+                z_shifts.append(0.0)
+
         if positions:
             w_d, x_d, y_d, z_d = actual_delta_q.as_float
             qvec_d = np.array([x_d, y_d, z_d], dtype=np.float32)
             center = position.as_numpy.copy()
 
             pos_arr = np.array([list(p.as_float) for p in positions], dtype=np.float32)
+
+            if from_180:
+                pos_arr[:, 2] -= np.array(z_shifts, dtype=np.float32)
+
             rel = pos_arr - center
             t_vec = np.cross(qvec_d, rel)
             new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
+            if to_180:
+                new_pos_arr[:, 2] += np.array(z_shifts, dtype=np.float32)
+
             f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
             db_ids = [p.db_id[:-2] for p in positions]
-            rows = [[pos[0], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
-            self._table.db.pjt_points2d_table.batch_update(['x', 'y'], rows)
+            rows = [[pos[0], pos[1], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
+            self._table.db.pjt_points2d_table.batch_update(['x', 'y', 'z'], rows)
 
             _pjt_point2d.PJTPoint2D._skip_db_write = True
             try:
@@ -2993,9 +3038,11 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         elif page is self._angle_page:
             self.angle2d_ctrl.set_obj(self.db_obj)
             self.angle3d_ctrl.set_obj(self.db_obj)
+            self.angle_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._cover_page:
             self.cover_ctrl.set_obj(None if self.db_obj is None else self.db_obj.cover)
         elif page is self._boot_page:
@@ -3093,16 +3140,20 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
         self.angle2d_ctrl = Angle2DControl(angle_page)
         self.angle3d_ctrl = Angle3DControl(angle_page)
+        self.angle_pegboard_ctrl = AnglePegboardControl(angle_page)
 
         angle_page.addWidget(self.angle2d_ctrl)
         angle_page.addWidget(self.angle3d_ctrl)
+        angle_page.addWidget(self.angle_pegboard_ctrl)
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
+        self.position_pegboard_ctrl = PositionPegboardControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._cavities_page = cavities_page = _prop_ctrls.Category(self, 'Cavities')
         self.cavities_notebook = QTabWidget(cavities_page)

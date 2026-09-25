@@ -1476,8 +1476,6 @@ class HousingControl(QTabWidget, LazyTabMixin):
             self.gender_ctrl.set_obj(self.db_obj)
             self.color_ctrl.set_obj(self.db_obj)
             self.direction_ctrl.set_obj(self.db_obj)
-            if self.db_obj is not None:
-                self.angle_ctrl.SetValue(self.db_obj.angle3d)
         elif page is self.manufacturer_page:
             self.manufacturer_page.set_obj(self.db_obj)
         elif page is self.family_page:
@@ -1735,14 +1733,12 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.gender_ctrl = GenderControl(general_page)
         self.color_ctrl = ColorControl(general_page)
         self.direction_ctrl = DirectionControl(general_page)
-        self.angle_ctrl = _prop_ctrls.Angle3DProperty(general_page, '3D Angle')
 
         general_page.addWidget(self.part_number_ctrl)
         general_page.addWidget(self.description_ctrl)
         general_page.addWidget(self.gender_ctrl)
         general_page.addWidget(self.color_ctrl)
         general_page.addWidget(self.direction_ctrl)
-        general_page.addWidget(self.angle_ctrl)
 
         self._housings_page = housings_page = _prop_ctrls.Category(self, 'Housings')
         self.compat_housings_ctrl = CompatHousingsControl(housings_page)
@@ -1810,7 +1806,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
 
         self.seal_type_ctrl.propertyChanged.connect(self._on_seal_type)
 
-        self.seal_ctrl = _prop_ctrls.Position3DProperty(seals_page, 'Seal')
+        self.seal_ctrl = _prop_ctrls.PositionProperty(seals_page, 'Seal', axes='xyz')
 
         seals_page.addWidget(self.seal_ctrl)
 
@@ -1822,11 +1818,11 @@ class HousingControl(QTabWidget, LazyTabMixin):
 
         self.compat_tpas_ctrl.propertyChanged.connect(self._on_compat_tpas)
 
-        self.tpa_lock_1_ctrl = _prop_ctrls.Position3DProperty(tpas_page, 'TPA Lock 1')
+        self.tpa_lock_1_ctrl = _prop_ctrls.PositionProperty(tpas_page, 'TPA Lock 1', axes='xyz')
 
         tpas_page.addWidget(self.tpa_lock_1_ctrl)
 
-        self.tpa_lock_2_ctrl = _prop_ctrls.Position3DProperty(tpas_page, 'TPA Lock 2')
+        self.tpa_lock_2_ctrl = _prop_ctrls.PositionProperty(tpas_page, 'TPA Lock 2', axes='xyz')
 
         tpas_page.addWidget(self.tpa_lock_2_ctrl)
 
@@ -1838,7 +1834,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
 
         self.compat_cpas_ctrl.propertyChanged.connect(self._on_compat_cpas)
 
-        self.cpa_lock_ctrl = _prop_ctrls.Position3DProperty(cpas_page, 'CPA Lock')
+        self.cpa_lock_ctrl = _prop_ctrls.PositionProperty(cpas_page, 'CPA Lock', axes='xyz')
 
         cpas_page.addWidget(self.cpa_lock_ctrl)
 
@@ -1849,7 +1845,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         boots_page.addWidget(self.compat_boots_ctrl)
 
         self.compat_boots_ctrl.propertyChanged.connect(self._on_compat_boots)
-        self.boot_ctrl = _prop_ctrls.Position3DProperty(boots_page, 'Boot')
+        self.boot_ctrl = _prop_ctrls.PositionProperty(boots_page, 'Boot', axes='xyz')
 
         boots_page.addWidget(self.boot_ctrl)
 
@@ -1860,7 +1856,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         covers_page.addWidget(self.compat_covers_ctrl)
 
         self.compat_covers_ctrl.propertyChanged.connect(self._on_compat_covers)
-        self.cover_ctrl = _prop_ctrls.Position3DProperty(covers_page, 'Cover')
+        self.cover_ctrl = _prop_ctrls.PositionProperty(covers_page, 'Cover', axes='xyz')
 
         covers_page.addWidget(self.cover_ctrl)
 

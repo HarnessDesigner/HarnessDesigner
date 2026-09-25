@@ -712,7 +712,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
 
         self.addWidget(self.angle_ctrl)
 
-        self.offset_ctrl = _prop_ctrls.Position2DProperty(self, 'Offset')
+        self.offset_ctrl = _prop_ctrls.PositionProperty(self, 'Offset', axes='xy')
 
         self.addWidget(self.offset_ctrl)
 
@@ -720,7 +720,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
 
         self.addWidget(bulb_group)
 
-        self.bulb_offset_ctrl = _prop_ctrls.Position2DProperty(bulb_group, 'Offset')
+        self.bulb_offset_ctrl = _prop_ctrls.PositionProperty(bulb_group, 'Offset', axes='xy')
         bulb_group.addWidget(self.bulb_offset_ctrl)
 
         self.bulb_length_ctrl = _prop_ctrls.FloatProperty(

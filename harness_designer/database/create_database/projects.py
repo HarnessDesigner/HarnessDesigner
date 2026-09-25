@@ -27,5 +27,14 @@ pjt_table = _con.SQLTable(
     # by _HELIX_OVERSHOOT_MM whenever it actually rebuilds the VBO, so a
     # live drag/preview has headroom to grow without triggering a GPU
     # reallocation on every frame. See Project.wire_stripe_max_length.
-    _con.FloatField('wire_stripe_max_length', default='1000.0', no_null=True)
+    _con.FloatField('wire_stripe_max_length', default='1000.0', no_null=True),
+    # The extent of everything the project occupies in each editor view, as
+    # a list string ``[[min_x, min_y, min_z], [max_x, max_y, max_z]]`` --
+    # read once when the project loads (to frame the camera before any
+    # object exists) and written once when it unloads/the app closes, from
+    # that view's AABB pool. NULL until the project has been unloaded once.
+    # See Project.bounds_3d/bounds_schematic/bounds_pegboard.
+    _con.TextField('bounds_3d', default='NULL'),
+    _con.TextField('bounds_schematic', default='NULL'),
+    _con.TextField('bounds_pegboard', default='NULL')
 )

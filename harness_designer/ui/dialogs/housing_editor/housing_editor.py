@@ -160,9 +160,16 @@ class SurfaceOverlay(QtWidgets.QWidget):
         # --- terminal plane groups (blue) ---
         term_active = bool(dlg.term_sel_surf_idxs)
 
-        for group in dlg.term_plane_groups:
+        for gi, group in enumerate(dlg.term_plane_groups):
+            # An inverted group's holes stand in for it (drawn further
+            # down); the plane itself is only a faint reminder of where
+            # they are.
+            inverted = dlg.term_plane_seeds[gi] in dlg.term_inverted_seeds
+
             for si in group:
-                if not term_active:
+                if inverted:
+                    draw_surf(dlg.surfaces[si], 51, 153, 255, 15)
+                elif not term_active:
                     draw_surf(dlg.surfaces[si], 51, 153, 255, 80)
                 elif si in dlg.term_sel_surf_idxs:
                     # selected → bright red
@@ -221,6 +228,17 @@ class SurfaceOverlay(QtWidgets.QWidget):
         for m in dlg.manual_cavities:
             # green = finalized
             draw_shape(m['kind'], m['params'], 40, 220, 80)
+
+        # --- holes selected in place of their plane's surface ---
+        for h in dlg.hole_cavities:
+            if h['source_si'] in dlg.term_sel_surf_idxs:
+                # selected → bright red
+                draw_shape(h['kind'], h['params'], 255, 40, 40, 200)
+            elif term_active:
+                # unselected while something else is → dim blue
+                draw_shape(h['kind'], h['params'], 51, 153, 255, 50)
+            else:
+                draw_shape(h['kind'], h['params'], 51, 153, 255, 140)
 
         if dlg.draw_preview is not None:
             # red = live drag
@@ -573,6 +591,24 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         # params schema matches connector_analysis.classify_loop's output.
         self.manual_cavities: list[dict] = []
 
+        # ── hole selection (housings whose cavities are holes cut through a
+        # surface rather than recessed surfaces of their own) ────────────────
+        # Seed surface index of every terminal plane group whose holes were
+        # selected instead of the plane itself (right-click menu on the
+        # terminal tree). Keyed by seed, not group index, so it survives
+        # groups being added/removed.
+        self.term_inverted_seeds: set[int] = set()
+
+        # Holes of the inverted groups, rebuilt by _rebuild_hole_cavities():
+        # [{'kind', 'params', 'source_si'}]. Same kind/params schema as
+        # manual_cavities, and analysed/committed through that same path
+        # (synthetic 3D marker) -- they only differ in where they come from.
+        self.hole_cavities: list[dict] = []
+
+        # surface index -> that surface's holes (independent of the plane
+        # tolerance, and the loop extraction isn't free, so memoized).
+        self._surface_holes_cache: dict[int, list[dict]] = {}
+
         # ── analysis preview state ────────────────────────────────────────────
         self.analysis_selected: int = -1
 
@@ -688,6 +724,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.term_tree_panel.selectionChanged.connect(self._on_term_sel_changed)
         self.term_tree_panel.removeRequested.connect(self._on_term_remove)
         self.term_tree_panel.addManualRequested.connect(self._on_add_manual_cavity)
+        self.term_tree_panel.invertHolesRequested.connect(self._on_term_invert_holes)
         self.term_tree_panel.addTerminalToggled.connect(self._on_add_terminal_toggled)
         self.term_tree_panel.clearTerminalsRequested.connect(self._clear_terminals)
 
@@ -947,7 +984,95 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         areas = {si: self._surface_area(si)
                  for group in self.term_plane_groups for si in group}
 
-        self.term_tree_panel.load(self.term_plane_groups, self.surfaces, areas)
+        # Every change to the terminal plane groups (add/remove/re-expand/
+        # clear) ends up here, so this is the one place the hole list is
+        # kept in step with them.
+        self._rebuild_hole_cavities()
+
+        group_holes: dict[int, int] = {}
+        for gi, seed in enumerate(self.term_plane_seeds):
+            if seed in self.term_inverted_seeds:
+                group_holes[gi] = sum(
+                    1 for h in self.hole_cavities
+                    if h['source_si'] in self.term_plane_groups[gi])
+
+        self.term_tree_panel.load(
+            self.term_plane_groups, self.surfaces, areas, group_holes)
+
+    @_check_types.do
+    def _surface_holes(self, si: int) -> list[dict]:
+        if si not in self._surface_holes_cache:
+            self._surface_holes_cache[si] = _analysis.surface_holes(
+                self.surfaces[si], self.vertices)
+
+        return self._surface_holes_cache[si]
+
+    @_check_types.do
+    def _rebuild_hole_cavities(self) -> None:
+        # A group that no longer exists can't stay inverted -- if its seed
+        # surface is picked again later it starts out as a plain plane.
+        self.term_inverted_seeds.intersection_update(self.term_plane_seeds)
+
+        holes: list[dict] = []
+        for gi, seed in enumerate(self.term_plane_seeds):
+            if seed not in self.term_inverted_seeds:
+                continue
+
+            for si in self.term_plane_groups[gi]:
+                for hole in self._surface_holes(si):
+                    holes.append(dict(
+                        kind=hole['kind'], params=hole['params'], source_si=si))
+
+        self.hole_cavities = holes
+
+    @_check_types.do
+    def _on_term_invert_holes(self, group_idxs: list) -> None:
+        """Toggle "select the holes in these plane groups instead of the
+        plane surface itself" -- for housings whose cavities are holes cut
+        through a face rather than recessed surfaces the picker can click.
+        """
+
+        group_idxs = [g for g in group_idxs
+                      if 0 <= g < len(self.term_plane_seeds)]
+        if not group_idxs:
+            return
+
+        seeds = [self.term_plane_seeds[g] for g in group_idxs]
+
+        if all(seed in self.term_inverted_seeds for seed in seeds):
+            self.term_inverted_seeds.difference_update(seeds)
+            message = 'Terminal: surface selection restored'
+        else:
+            n_inverted = 0
+            for g, seed in zip(group_idxs, seeds):
+                if seed in self.term_inverted_seeds:
+                    continue
+
+                if any(self._surface_holes(si)
+                       for si in self.term_plane_groups[g]):
+                    self.term_inverted_seeds.add(seed)
+                    n_inverted += 1
+
+            if not n_inverted:
+                self.term_tree_panel.set_info(
+                    'No holes found in the selected plane(s).')
+                return
+
+            message = (f'Terminal: holes selected instead of the surface'
+                       f' on {n_inverted} plane{"s" if n_inverted != 1 else ""}'
+                       f' — run Analyze when ready')
+
+        self._reload_term_tree()
+
+        # The rebuild dropped the tree selection; put it back so the plane
+        # stays selected (and pick mode stays armed) like before.
+        self.term_tree_panel.select_groups(group_idxs)
+        self.term_tree_panel.set_info(message)
+
+        self._update_analyze_enabled()
+
+        if self.surface_overlay is not None:
+            self.surface_overlay.update()
 
     @_check_types.do
     def _update_analyze_enabled(self) -> None:
@@ -967,7 +1092,14 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         """
         tol = self.plane_tol
         covered = set()
-        for m in self.manual_cavities:
+
+        # A plane whose holes were selected is covered outright -- its
+        # surface is never itself a cavity.
+        for gi, seed in enumerate(self.term_plane_seeds):
+            if seed in self.term_inverted_seeds:
+                covered.add(gi)
+
+        for m in self.manual_cavities + self.hole_cavities:
             n = np.asarray(m['params']['normal'], dtype=np.float64)
             n /= np.linalg.norm(n) + 1e-12
             d = float(np.asarray(m['params']['center'], dtype=np.float64) @ n)
@@ -1106,8 +1238,11 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         # user's drag), so skip generate_terminal_geometry's mesh-boundary
         # shape detection and go straight to generate_hole_geometry — only
         # the matching wire-side plane still needs to be found, to compute
-        # the cavity's length.
-        for m in self.manual_cavities:
+        # the cavity's length. Holes selected in place of a plane's surface
+        # take exactly the same route: no cavity-shaped mesh surface of
+        # their own, so they're committed as manual (synthetic-marker)
+        # cavities, which is what makes them selectable in the 3D editor.
+        for m in self.manual_cavities + self.hole_cavities:
             params = dict(m['params'])
             n_t = np.asarray(params['normal'], dtype=np.float64)
             n_t /= np.linalg.norm(n_t) + 1e-12
@@ -1294,6 +1429,8 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.terminal_overrides.clear()
         self.term_color_idx = 0
         self.manual_cavities = []
+        self.term_inverted_seeds.clear()
+        self.hole_cavities = []
         self.draw_mode = None
         self.draw_group = -1
         self.draw_preview = None

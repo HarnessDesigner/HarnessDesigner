@@ -12,6 +12,13 @@ pjt_table = _con.SQLTable(
     pjt_id_field,
     _con.FloatField('x', no_null=True),
     _con.FloatField('y', no_null=True),
+    # Added after the table already existed in users' project databases, so
+    # it needs a default for the ALTER TABLE ADD COLUMN to be legal on a
+    # NOT NULL column. PJTPoints2DTable._update_table_in_db moves every
+    # pre-existing row's old ``y`` into this column (the schematic plane's
+    # second axis used to be stored in ``y`` and mapped onto ``Point.z``)
+    # and zeroes ``y``, so x/y/z now line up 1:1 with ``Point``'s own axes.
+    _con.FloatField('z', default='0.0', no_null=True),
     # Wire-waypoint-only columns -- NULL for every other point2d row (an
     # anchor referenced FROM its owning row's own position2d_id/*_point2d_id
     # FK, same as always). Self-identifying via wire_id/idx instead of being

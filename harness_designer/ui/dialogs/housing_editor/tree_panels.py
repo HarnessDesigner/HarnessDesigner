@@ -259,6 +259,9 @@ class PlaneTreePanel(_TreeControlBase):
     """
 
     addManualRequested: QtCore.SignalInstance = QtCore.Signal(int, str)
+    # Plane-group indices whose "select holes instead of the surface" state
+    # should be toggled (terminal side only).
+    invertHolesRequested: QtCore.SignalInstance = QtCore.Signal(list)
     removeAllRequested: QtCore.SignalInstance = QtCore.Signal()
     clearTerminalsRequested: QtCore.SignalInstance = QtCore.Signal()
     addTerminalToggled: QtCore.SignalInstance = QtCore.Signal(bool)
@@ -273,6 +276,9 @@ class PlaneTreePanel(_TreeControlBase):
         self._groups: list[list[int]] = []
         self._surfaces: list = []
         self._areas: dict[int, float] = {}
+        # group index -> number of holes selected in place of that plane's
+        # surface(s); a group appears here only while it is inverted.
+        self._group_holes: dict[int, int] = {}
 
         # Populated by _build_toolbar(); terminal-only widgets stay None on
         # the wire instance.
@@ -402,6 +408,7 @@ class PlaneTreePanel(_TreeControlBase):
         groups: list[list[int]],
         surfaces: list,
         areas: dict[int, float],
+        group_holes: dict[int, int] | None = None,
     ) -> None:
         """
         Rebuild the tree from plane groups.
@@ -410,11 +417,18 @@ class PlaneTreePanel(_TreeControlBase):
         surfaces is the full picker surface list (for triangle-count labels).
         areas maps every surface index appearing in groups to its computed
         world-space area (used by the "Group by Size" view).
+        group_holes maps the index of each inverted plane group to the
+        number of holes selected in place of its surface(s).
         """
 
         self._groups = groups
         self._surfaces = surfaces
         self._areas = areas
+
+        if group_holes is None:
+            self._group_holes = {}
+        else:
+            self._group_holes = dict(group_holes)
 
         self._rebuild_tree()
         self._restore_selection_after_rebuild()
@@ -456,13 +470,31 @@ class PlaneTreePanel(_TreeControlBase):
             self._tree.setCurrentItem(item)
 
     @_check_types.do
+    def select_groups(self, group_idxs: list[int]) -> None:
+        """Re-select the given plane groups' top-level nodes (Plane view) --
+        used after a rebuild that would otherwise drop the selection."""
+
+        if self._view_mode != 'plane':
+            return
+
+        for g in group_idxs:
+            if 0 <= g < self._tree.topLevelItemCount():
+                item = self._tree.topLevelItem(g)
+                item.setSelected(True)
+                self._tree.setCurrentItem(item)
+
+    @_check_types.do
     def _build_plane_tree(self) -> None:
         for g, group in enumerate(self._groups):
             n = len(group)
 
-            parent_item = QtWidgets.QTreeWidgetItem(
-                self._tree,
-                [f'Plane {g + 1}  —  {n} surface{"s" if n != 1 else ""}'])
+            label = f'Plane {g + 1}  —  {n} surface{"s" if n != 1 else ""}'
+
+            if g in self._group_holes:
+                n_holes = self._group_holes[g]
+                label += f'  —  {n_holes} hole{"s" if n_holes != 1 else ""} selected'
+
+            parent_item = QtWidgets.QTreeWidgetItem(self._tree, [label])
 
             parent_item.setData(
                 0, QtCore.Qt.ItemDataRole.UserRole, ('plane_group', g))
@@ -566,6 +598,19 @@ class PlaneTreePanel(_TreeControlBase):
         self._btn_add_rect.setEnabled(enabled)
 
     @_check_types.do
+    def _selected_plane_groups(self) -> list[int]:
+        """Indices of every selected top-level plane_group node."""
+
+        result: list[int] = []
+
+        for item in self._tree.selectedItems():
+            kind, payload = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
+            if kind == 'plane_group':
+                result.append(payload)
+
+        return sorted(result)
+
+    @_check_types.do
     def _on_ctx_menu(self, pos: QtCore.QPoint) -> None:
         item = self._tree.itemAt(pos)
         if item is None:
@@ -595,6 +640,20 @@ class PlaneTreePanel(_TreeControlBase):
             act = menu.addAction('Add Rectangle Cavity')
             act.triggered.connect(
                 lambda: self.addManualRequested.emit(payload, 'rect'))
+
+        if self._is_terminal and self._view_mode == 'plane':
+            group_idxs = self._selected_plane_groups()
+
+            if group_idxs:
+                menu.addSeparator()
+
+                if all(g in self._group_holes for g in group_idxs):
+                    act = menu.addAction('Select Surface (Undo Hole Selection)')
+                else:
+                    act = menu.addAction('Select Holes Instead of Surface')
+
+                act.triggered.connect(
+                    lambda: self.invertHolesRequested.emit(group_idxs))
 
         menu.exec(self._tree.mapToGlobal(pos))
 

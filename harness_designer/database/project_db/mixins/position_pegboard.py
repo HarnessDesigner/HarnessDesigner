@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from ....ui import prop_ctrls as _prop_ctrls
+
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point_pegboard as _pjt_point_pegboard
@@ -76,3 +78,34 @@ class PositionPegboardMixin(BaseMixin):
 
         self._table.update(self._db_id, point_pegboard_id=value)
         self._populate('position_pegboard_id')
+
+
+class PositionPegboardControl(_prop_ctrls.PositionProperty):
+
+    @_check_types.do
+    def __init__(self, parent):
+        """Initialise the :class:`PositionPegboardControl` instance.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param parent: Parent object.
+        :type parent: UNKNOWN
+        """
+        self.db_obj: PositionPegboardMixin | None = None
+
+        super().__init__(parent, 'Pegboard Position', axes='xyz')
+
+    @_check_types.do
+    def set_obj(self, db_obj: PositionPegboardMixin | None):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`PositionPegboardMixin`
+        """
+        self.db_obj = db_obj
+        if db_obj is None:
+            self.SetValue(None)
+        else:
+            self.SetValue(db_obj.position_pegboard)

@@ -87,7 +87,9 @@ class Housing(_base_pegboard.BasePegboard):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_housing.Housing", None]:
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", mouse_pos: _point.Point | None = None
+    ) -> Union["_housing.Housing", None]:
         """Single-click free placement, pegboard-native -- mirrors
         objects_3d.housing.Housing.start_add/objects_schematic.housing.
         Housing.start_add. Unlike those two, this housing's own
@@ -130,10 +132,16 @@ class Housing(_base_pegboard.BasePegboard):
         facade = _housing_facade.Housing(mainframe, db_obj)
 
         from ...add_handlers.editor_pegboard import housing as _add_housing
+        from ...add_handlers import base as _add_base
 
         handler = _add_housing.Housing(canvas, facade)
         facade.objpegboard._active_handler = handler  # NOQA
         canvas.active_handler_obj = facade.objpegboard
+
+        # *mouse_pos* (the empty-space context menu's own click) places it
+        # right there instead of leaving it following the cursor.
+        if mouse_pos is not None:
+            _add_base.click_at(canvas, facade.objpegboard, mouse_pos)
 
         return facade
 

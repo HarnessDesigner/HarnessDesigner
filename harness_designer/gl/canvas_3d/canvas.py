@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 
 _debug_config = _config.Config.debug.rendering3d
 
+# Vertical field of view (degrees) of the 3D view's perspective projection --
+# a module constant so anything that has to reason about what the camera can
+# see (e.g. CanvasWindow's fit-to-project) uses the same value the renderer does.
+FOV_DEGREES = 65.0
+
 
 def _build_perspective_matrix(fov_deg: float, aspect: float,
                               near: float, far: float) -> np.ndarray:
@@ -125,8 +130,7 @@ class Canvas(_canvas_base.CanvasBase):
 
             self._headlight = _headlight.Headlight(self)
 
-            self._focal_target = _focal_target.FocalTarget(self)
-            self.set_focal_target(self.config.focal_target.enable)
+            self._create_focal_target()
 
             # Keep every camera-tracking Text (currently just unlocked
             # notes) facing the camera -- see shapes.text.
@@ -154,6 +158,54 @@ class Canvas(_canvas_base.CanvasBase):
         """
 
         _text.update_camera_tracking(self.camera)
+
+    @_check_types.do
+    def _create_focal_target(self) -> None:
+        """
+        Build the focal target if there isn't one and apply the persisted
+        visibility. Needs the GL context (its sphere VBO), which
+        :meth:`initializeGL` already has current.
+        """
+
+        if self._focal_target is not None:
+            return
+
+        with self.context:
+            self._focal_target = _focal_target.FocalTarget(self)
+
+        self.set_focal_target(self.config.focal_target.enable)
+
+    @_check_types.do
+    def create_focal_target(self) -> None:
+        """
+        Recreate the focal target after :meth:`delete_focal_target` -- when
+        a project loads. A no-op if it already exists, and if this canvas
+        hasn't created its GL context yet (nothing has shown it): then
+        :meth:`initializeGL` builds the target itself when it does.
+        """
+
+        if not self.isValid():
+            return
+
+        self._create_focal_target()
+
+    @_check_types.do
+    def delete_focal_target(self) -> None:
+        """
+        Delete the focal target, releasing its slots in every view's
+        bounds pools -- when a project unloads, before those pools are
+        reset. Recreated by :meth:`create_focal_target`. A no-op if there
+        isn't one.
+        """
+
+        focal_target = self._focal_target
+        if focal_target is None:
+            return
+
+        # Cleared first: nothing may draw a half-deleted target.
+        self._focal_target = None
+
+        focal_target.delete()
 
     @_check_types.do
     def set_focal_target(self, flag: bool):
@@ -190,7 +242,7 @@ class Canvas(_canvas_base.CanvasBase):
 
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
 
-        fov_deg = 65.0
+        fov_deg = FOV_DEGREES
         near = 0.1
         far = float(math.sqrt(f_size * f_size))
 

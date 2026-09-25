@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -22,20 +22,25 @@ class DirectionMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def direction(self) -> "_direction.Direction":
+    def direction(self) -> Union["_direction.Direction", None]:
         """Return the direction.
 
         UNKNOWN details are inferred from the callable name and signature.
 
         :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_direction.Direction`
+        :rtype: :class:`_direction.Direction` | None -- ``None`` when no
+            direction is set for this part.
         """
         if self._stored_direction is DefaultStoredValue:
             from .. import direction as _direction  # NOQA
 
-            direction_id = self._table.select('direction_id', id=self._db_id)
-            self._stored_direction = _direction.Direction(
-                self._table.db.directions_table, direction_id[0][0])
+            direction_id = self._table.select('direction_id', id=self._db_id)[0][0]
+
+            if direction_id == NIL_ID:
+                self._stored_direction = None
+            else:
+                self._stored_direction = _direction.Direction(
+                    self._table.db.directions_table, direction_id)
 
         return self._stored_direction
 
@@ -117,7 +122,13 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
 
             self.choices = sorted([row[0] for row in rows])
             self.SetItems(self.choices)
-            self.SetValue(db_obj.direction.name)
+            direction = db_obj.direction
+
+            if direction is None:
+                self.SetValue('')
+            else:
+                self.SetValue(direction.name)
+
             self.setEnabled(True)
 
     @_check_types.do

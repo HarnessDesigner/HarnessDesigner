@@ -2,6 +2,7 @@
 
 import uuid
 
+from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
 from .... import check_types as _check_types
@@ -60,3 +61,27 @@ class AnglePegboardMixin(BaseMixin):
             self._stored_angle_pegboard = angle
 
         return self._stored_angle_pegboard
+
+
+class AnglePegboardControl(_prop_ctrls.AngleProperty):
+
+    @_check_types.do
+    def __init__(self, parent):
+        self.db_obj: AnglePegboardMixin | None = None
+
+        super().__init__(parent, 'Pegboard Angle', axes='y')
+
+    @_check_types.do
+    def set_obj(self, db_obj: AnglePegboardMixin | None):
+        """Set the obj.
+
+        UNKNOWN details are inferred from the callable name and signature.
+
+        :param db_obj: Database-backed object.
+        :type db_obj: :class:`AnglePegboardMixin`
+        """
+        self.db_obj = db_obj
+        if db_obj is None:
+            self.SetValue(None)
+        else:
+            self.SetValue(db_obj.angle_pegboard)

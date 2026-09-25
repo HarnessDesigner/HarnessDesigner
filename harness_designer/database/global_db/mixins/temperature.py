@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -21,7 +21,7 @@ class TemperatureMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def min_temp(self) -> "_temperature.Temperature":
+    def min_temp(self) -> Union["_temperature.Temperature", None]:
         """Return the min temp.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -32,9 +32,13 @@ class TemperatureMixin(BaseMixin):
         if self._stored_min_temp is DefaultStoredValue:
             from .. import temperature as _temperature  # NOQA
 
-            min_temp_id = self._table.select('min_temp_id', id=self._db_id)
-            self._stored_min_temp = _temperature.Temperature(
-                self._table.db.temperatures_table, min_temp_id[0][0])
+            min_temp_id = self._table.select('min_temp_id', id=self._db_id)[0][0]
+
+            if min_temp_id == NIL_ID:
+                self._stored_min_temp = None
+            else:
+                self._stored_min_temp = _temperature.Temperature(
+                    self._table.db.temperatures_table, min_temp_id)
 
         return self._stored_min_temp
 
@@ -75,7 +79,7 @@ class TemperatureMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def max_temp(self) -> "_temperature.Temperature":
+    def max_temp(self) -> Union["_temperature.Temperature", None]:
         """Return the max temp.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -86,9 +90,13 @@ class TemperatureMixin(BaseMixin):
         if self._stored_max_temp is DefaultStoredValue:
             from .. import temperature as _temperature  # NOQA
 
-            max_temp_id = self._table.select('max_temp_id', id=self._db_id)
-            self._stored_max_temp = _temperature.Temperature(
-                self._table.db.temperatures_table, max_temp_id[0][0])
+            max_temp_id = self._table.select('max_temp_id', id=self._db_id)[0][0]
+
+            if max_temp_id == NIL_ID:
+                self._stored_max_temp = None
+            else:
+                self._stored_max_temp = _temperature.Temperature(
+                    self._table.db.temperatures_table, max_temp_id)
 
         return self._stored_max_temp
 
@@ -184,9 +192,17 @@ class TemperatureControl(_prop_ctrls.Category):
             self.choices = sorted([row[0] for row in rows])
 
             self.min_temp_ctrl.SetItems(self.choices)
-            self.min_temp_ctrl.SetValue(min_temp.name)
+            if min_temp is None:
+                self.min_temp_ctrl.SetValue('')
+            else:
+                self.min_temp_ctrl.SetValue(min_temp.name)
+
             self.max_temp_ctrl.SetItems(self.choices)
-            self.max_temp_ctrl.SetValue(max_temp.name)
+            if max_temp is None:
+                self.max_temp_ctrl.SetValue('')
+            else:
+                self.max_temp_ctrl.SetValue(max_temp.name)
+
 
             self.min_temp_ctrl.setEnabled(True)
             self.max_temp_ctrl.setEnabled(True)

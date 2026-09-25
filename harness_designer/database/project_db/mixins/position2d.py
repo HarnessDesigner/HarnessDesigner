@@ -59,7 +59,7 @@ class Position2DMixin(BaseMixin):
         if self._stored_position2d_id is DefaultStoredValue:
             point_id = self._table.select('point2d_id', id=self._db_id)[0][0]
             if point_id is None:
-                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0)
+                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
                 point_id = point.db_id
                 self._table.update(self._db_id, point2d_id=point_id)
 
@@ -85,7 +85,7 @@ class Position2DMixin(BaseMixin):
         self._populate('position2d_id')
 
 
-class Position2DControl(_prop_ctrls.Position2DProperty):
+class Position2DControl(_prop_ctrls.PositionProperty):
     """Represent a position 2dcontrol in :mod:`harness_designer.database.project_db.mixins.position2d`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -102,7 +102,7 @@ class Position2DControl(_prop_ctrls.Position2DProperty):
         """
         self.db_obj: Position2DMixin | None = None
 
-        super().__init__(parent, '2D Position')
+        super().__init__(parent, 'Schematic Position', axes='xz')
 
     @_check_types.do
     def set_obj(self, db_obj: Position2DMixin | None):

@@ -791,6 +791,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
             if self.db_obj is not None:
                 self.db_obj.start_position3d.bind(self._update_position3d)
                 self.db_obj.stop_position3d.bind(self._update_position3d)
@@ -833,9 +834,11 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
 
         self.position2d_ctrl = StartStopPosition2DControl(position_page)
         self.position3d_ctrl = StartStopPosition3DControl(position_page)
+        self.position_pegboard_ctrl = StartStopPositionPegboardControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)

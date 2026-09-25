@@ -208,6 +208,32 @@ class Project:
         self._model = _project_model.ProjectModel(self.mainframe, project_obj, vbo)
 
     @_check_types.do
+    def set_project_model(self, path: str, color_id: bytes) -> None:
+        """Make the 3D model file at *path*, drawn in the color *color_id*,
+        this project's own model -- replacing the current one, if any.
+
+        Same load path a project takes when it opens (see ``__init__``):
+        the model is converted on first use and :meth:`_set_model` builds
+        the object once it is ready (immediately, if it already was).
+        """
+        project_obj = self.mainframe.project_db.projects_table[self.project_id]
+
+        model = self.gtables.models3d_table.insert(path)
+        if model is None:
+            return
+
+        old_model = self._model
+        self._model = None
+
+        if old_model is not None:
+            old_model.delete()
+
+        project_obj.color_id = color_id
+        project_obj.model_id = model.db_id
+
+        model.load('project', self.project_id, self._set_model)
+
+    @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project.Project", project_name: str, project_id: int):
         """Initialise the :class:`Project` instance.
 
@@ -279,6 +305,29 @@ class Project:
         # _open_project() -- re-showing the open-project dialog -- for as
         # long as it's still None.
         mainframe.project = self
+
+        # Frame the three editors from the bounds stored when this project
+        # was last unloaded, so the camera is already in place while the
+        # objects load. Each waits inside until its tab is actually shown,
+        # since a tab that isn't selected has no real size to fit against.
+        # A view with nothing stored yet (first load since bounds were
+        # added, or an empty project) is framed from what actually loaded
+        # instead -- see the end of this method.
+        # Back after MainFrame.unload() deleted the previous project's.
+        mainframe.editor3d.editor.create_focal_target()
+
+        bounds_3d = db_obj.bounds_3d
+        schematic_bounds = db_obj.bounds_schematic
+        pegboard_bounds = db_obj.bounds_pegboard
+
+        if bounds_3d is not None:
+            mainframe.editor3d.editor.request_fit_all(bounds_3d)
+
+        if schematic_bounds is not None:
+            mainframe.editor2d.editor.request_fit_all(schematic_bounds)
+
+        if pegboard_bounds is not None:
+            mainframe.editor_pegboard.editor.request_fit_all(pegboard_bounds)
 
         count = 0
 
@@ -452,6 +501,17 @@ class Project:
         self.obj_count = count
 
         _logger.info(f'project loaded: object count: {count}')
+
+        # Nothing stored for a view -> frame it from the objects that just
+        # loaded (see the top of this method for the stored-bounds case).
+        if bounds_3d is None:
+            mainframe.editor3d.editor.request_fit_all()
+
+        if schematic_bounds is None:
+            mainframe.editor2d.editor.request_fit_all()
+
+        if pegboard_bounds is None:
+            mainframe.editor_pegboard.editor.request_fit_all()
 
     @_check_types.do
     def close(self) -> None:

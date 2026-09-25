@@ -1039,14 +1039,14 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.dimension_page = DimensionControl(self)
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
-        self.position2d_ctrl = _prop_ctrls.Position2DProperty(position_page, '2D Position')
-        self.position3d_ctrl = _prop_ctrls.Position3DProperty(position_page, '3D Position')
+        self.position2d_ctrl = _prop_ctrls.PositionProperty(position_page, '2D Position', axes='xy')
+        self.position3d_ctrl = _prop_ctrls.PositionProperty(position_page, '3D Position', axes='xyz')
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
 
         self._angle_page = angle_page = _prop_ctrls.Category(self, 'Angle')
-        self.angle3d_ctrl = _prop_ctrls.Angle3DProperty(angle_page, '3D Angle')
+        self.angle3d_ctrl = _prop_ctrls.AngleProperty(angle_page, '3D Angle')
 
         angle_page.addWidget(self.angle3d_ctrl)
 

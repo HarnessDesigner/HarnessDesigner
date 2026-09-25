@@ -46,7 +46,7 @@ def _is_180(degrees: float) -> bool:
     :meth:`Housing._build_corner_label`) to keep reading in the same
     direction relative to its own anchor.
     """
-    return round(degrees) % 360 == 180
+    return round(abs(degrees)) % 360 == 180
 
 
 class Housing(_base_schematic.BaseSchematic):
@@ -357,7 +357,9 @@ class Housing(_base_schematic.BaseSchematic):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> Union["_housing.Housing", None]:
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", mouse_pos: _point.Point | None = None
+    ) -> Union["_housing.Housing", None]:
         """
         Single-click free placement, schematic-native -- mirrors
         objects_3d.housing.Housing.start_add. This housing's own
@@ -397,7 +399,7 @@ class Housing(_base_schematic.BaseSchematic):
         ptables = mainframe.project.ptables
         part = mainframe.project.gtables.housings_table[part_id]
         name = f'{part.manufacturer.name} {part.part_number}'
-        position2d = ptables.pjt_points2d_table.insert(0, 0)
+        position2d = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0)
 
         db_obj = ptables.pjt_housings_table.insert(
             part_id, name, None, position2d.db_id)
@@ -405,10 +407,16 @@ class Housing(_base_schematic.BaseSchematic):
         facade = _housing_facade.Housing(mainframe, db_obj)
 
         from ...add_handlers.editor_schematic import housing as _add_housing
+        from ...add_handlers import base as _add_base
 
         handler = _add_housing.Housing(canvas, facade)
         facade.objschematic._active_handler = handler  # NOQA
         canvas.active_handler_obj = facade.objschematic
+
+        # *mouse_pos* (the empty-space context menu's own click) places it
+        # right there instead of leaving it following the cursor.
+        if mouse_pos is not None:
+            _add_base.click_at(canvas, facade.objschematic, mouse_pos)
 
         return facade
 

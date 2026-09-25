@@ -120,6 +120,7 @@ class Terminal(_base.AddHandlerBase):
 
         self.target.obj3d.is_visible = True
         self.mainframe.project.add_terminal(self.target)
+        self.target.reconnect_free_wires()
 
     @_check_types.do
     def cancel(self) -> None:

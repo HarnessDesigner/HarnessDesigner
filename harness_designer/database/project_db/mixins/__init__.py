@@ -35,6 +35,7 @@ Angle2DMixin = _angle2d.Angle2DMixin
 Angle2DControl = _angle2d.Angle2DControl
 
 AnglePegboardMixin = _angle_pegboard.AnglePegboardMixin
+AnglePegboardControl = _angle_pegboard.AnglePegboardControl
 
 Position2DMixin = _position2d.Position2DMixin
 Position2DControl = _position2d.Position2DControl
@@ -43,6 +44,7 @@ Position3DMixin = _position3d.Position3DMixin
 Position3DControl = _position3d.Position3DControl
 
 PositionPegboardMixin = _position_pegboard.PositionPegboardMixin
+PositionPegboardControl = _position_pegboard.PositionPegboardControl
 
 TablePositionPegMixin = _table_position_peg.TablePositionPegMixin
 

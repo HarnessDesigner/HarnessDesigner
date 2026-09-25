@@ -12,6 +12,12 @@ class View:
         self._obb = _obb.OBB()
         self._segments = _segment_pool.SegmentPool()
 
+    def reset(self) -> None:
+        """Empty every pool of this view, in place."""
+        self._aabb.reset()
+        self._obb.reset()
+        self._segments.reset()
+
     @property
     def aabb(self) -> _aabb.AABB:
         return self._aabb
@@ -31,6 +37,15 @@ class Manager:
         self._editor_3d = View()
         self._editor_schematic = View()
         self._editor_pegboard = View()
+
+    def reset(self) -> None:
+        """Empty every view's pools, in place -- the View objects (and the
+        pools inside them) are what canvases/objects hold references to,
+        so they must stay the same objects. Called when a project unloads.
+        """
+        self._editor_3d.reset()
+        self._editor_schematic.reset()
+        self._editor_pegboard.reset()
 
     @property
     def editor_3d(self) -> View:

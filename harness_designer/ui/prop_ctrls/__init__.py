@@ -15,15 +15,14 @@ from . import bitmap_combobox_prop as _bitmap_combobox_prop
 from . import color_prop as _color_prop
 from . import prop_base as _prop_base
 from . import autocomplete_string_prop as _autocomplete_string_prop
-from . import angle3d_prop as _angle3d_prop
-from . import position2d_prop as _position2d_prop
-from . import position3d_prop as _position3d_prop
+from . import angle_prop as _angle_prop
+from . import position_prop as _position_prop
 from . import path_prop as _path_prop
 from . import enum_prop as _enum_prop
 from . import events as _events
 from . import category as _category
 from . import tri_state_checkbox_prop as _tri_state_checkbox_prop
-from . import scale3d_prop as _scale3d_prop
+from . import scale_prop as _scale_prop
 
 
 EVT_PROPERTY_CHANGED = _events.EVT_PROPERTY_CHANGED
@@ -44,13 +43,12 @@ BitmapComboBoxProperty = _bitmap_combobox_prop.BitmapComboBoxProperty
 ColorProperty = _color_prop.ColorProperty
 Property = _prop_base.Property
 AutocompleteStringProperty = _autocomplete_string_prop.AutocompleteStringProperty
-Angle3DProperty = _angle3d_prop.Angle3DProperty
-Position2DProperty = _position2d_prop.Position2DProperty
-Position3DProperty = _position3d_prop.Position3DProperty
+AngleProperty = _angle_prop.AngleProperty
+PositionProperty = _position_prop.PositionProperty
 PathProperty = _path_prop.PathProperty
 EnumProperty = _enum_prop.EnumProperty
 TriStateCheckboxProperty = _tri_state_checkbox_prop.TriStateCheckboxProperty
-Scale3DProperty = _scale3d_prop.Scale3DProperty
+ScaleProperty = _scale_prop.ScaleProperty
 
 
 del _string_prop
@@ -68,12 +66,11 @@ del _bitmap_combobox_prop
 del _color_prop
 del _prop_base
 del _autocomplete_string_prop
-del _angle3d_prop
-del _position2d_prop
-del _position3d_prop
+del _angle_prop
+del _position_prop
 del _path_prop
 del _enum_prop
 del _events
 del _category
 del _tri_state_checkbox_prop
-del _scale3d_prop
+del _scale_prop

@@ -316,11 +316,14 @@ class Bundle(_base_pegboard.BasePegboard):
         mins = corners.min(axis=0)
         maxs = corners.max(axis=0)
 
+        # Pool corner order (utils.bounding_boxes.compute_obb): 1 toggles x,
+        # 3 toggles y, 4 toggles z -- see objects_schematic.wire.Wire.
+        # _store_obb for what the AABB corner order did to picking.
         obb = np.array([
-            [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
-            [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
-            [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
-            [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
+            [mins[0], mins[1], mins[2]], [maxs[0], mins[1], mins[2]],
+            [maxs[0], maxs[1], mins[2]], [mins[0], maxs[1], mins[2]],
+            [mins[0], mins[1], maxs[2]], [maxs[0], mins[1], maxs[2]],
+            [maxs[0], maxs[1], maxs[2]], [mins[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
 
         if self._obb is None:

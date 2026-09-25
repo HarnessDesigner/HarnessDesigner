@@ -115,6 +115,15 @@ class Canvas(_canvas_base.CanvasBase):
 
         super().add_object(obj)
 
+        # Ask for a repaint now that the object is really registered.
+        # CanvasBase.add_object's own Refresh() is a no-op (it runs inside
+        # `with self:`, which Refresh() treats as "batching, don't
+        # repaint"), and unlike the 3D/peg board views, a schematic
+        # object has no model-load step whose _set_model() refreshes
+        # afterwards -- so without this nothing repaints as a project's
+        # objects load. Still respects an outer `with canvas:` batch.
+        self.Refresh()
+
     def add_preview_object(self, obj):
         """Register a wire that is still being drawn (one end not attached
         yet) so it is rendered while the user places it -- what

@@ -24,36 +24,36 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
-def _build_sws(length, o_dia, i_dia):
-    """Build the sws.
-
-    UNKNOWN details are inferred from the callable name and signature.
+def _build_sws(length: float, o_dia: float, i_dia: float) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Build the sws.
 
     :param length: Value for ``length``.
-    :type length: UNKNOWN
+    :type length: float
+
     :param o_dia: Value for ``o_dia``.
-    :type o_dia: UNKNOWN
+    :type o_dia: float
+
     :param i_dia: Value for ``i_dia``.
-    :type i_dia: UNKNOWN
+    :type i_dia: float
+
     :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :rtype: tuple[np.ndarray, np.ndarray]
     """
+
     o_radius = round(o_dia / 2.0, 6)
     i_radius = round(i_dia / 2.0, 6)
 
-    model1 = build123d.Cylinder(o_radius, length)
-    hole1 = build123d.Cylinder(i_radius, length)
-    model1 -= hole1
+    model1 = build123d.Cylinder(o_radius, length * 0.50)
+    model2 = build123d.Cylinder(o_radius * 0.66, length)
 
-    hole_radius = o_radius * 0.66
-    length *= 0.33
+    model1.move(build123d.Location((0, 0, -length * 0.25)))
+    model = model1 + model2
 
-    model2 = build123d.Cylinder(o_radius, length)
-    hole2 = build123d.Cylinder(hole_radius, length)
-    model2 -= hole2
+    hole = build123d.Cylinder(i_radius, length)
+    model -= hole
 
-    model1 -= model2
-    vertices, faces = _utils.convert_model_to_mesh(model1)
+    vertices, faces = _utils.convert_model_to_mesh(model)
     return vertices, faces
 
 

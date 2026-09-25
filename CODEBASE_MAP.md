@@ -190,7 +190,8 @@ Contents/structure of the `harness_designer/` package.
   - pjt_bundle_layout — same hand-written exclusive-position pattern as `pjt_wire_layout`, but
     only `position3d`/`position_pegboard` (no schematic variant). `VisiblePegboardMixin` added
   - pjt_concentric*
-  - pjt_point2d
+  - pjt_point2d — real `x`/`y`/`z` columns/properties, 1:1 with `Point`'s axes (schematic plane is
+    X/Z, so `y` is 0.0); `insert(x, y, z, wire_id=None, idx=None)`
   - pjt_point3d
   - pjt_point_pegboard — `PJTPointPegboard`/`PJTPointsPegboardTable`, structurally identical to
     `pjt_point3d.PJTPoint3D` (same singleton/attach/clone/self-heal lifecycle, `wire_id`/
@@ -218,6 +219,11 @@ Contents/structure of the `harness_designer/` package.
   - `mixins/`:
     - base
     - position2d/3d
+    - **Object-editor controls (all `*Control` classes in `mixins/`)**: `PositionProperty(axes=...)`/`AngleProperty(axes=...)`
+      only (old `Position2D/3DProperty`/`Angle3DProperty` are gone) — schematic = `axes='xz'` position /
+      `axes='y'` angle, 3D/pegboard position = `'xyz'`, pegboard angle = `'y'`. Every `PJT*Control` composite
+      has a `*_pegboard_ctrl` next to its 3D one wherever the row class has the pegboard mixin
+      (splice deliberately excluded — not in the pegboard view)
     - position_pegboard (mirrors `position3d`, no default `.bind()` — subclasses needing a
       cascade override the property itself, e.g. `PJTHousing.position_pegboard`)
     - angle2d/3d
@@ -568,6 +574,7 @@ Contents/structure of the `harness_designer/` package.
   - list_ctrl
   - foldpanelbar
   - context_menus
+  - empty_space_menus.py: menus for right-clicking empty space in each view (3D: wire/terminal/housing/project model; pegboard: wire/terminal/housing; schematic: terminal/housing); the click position is where the new object goes
   - search_db
   - *_ctrl wrappers
 - `dialogs/`:
@@ -582,6 +589,7 @@ Contents/structure of the `harness_designer/` package.
   - export_dialog.py
   - transition_routing.py
   - add_project
+  - project_model_dialog.py: pick/change the project's own 3D model file + color (3D empty-space menu's Add/Edit Project Model)
   - add_note
   - project_dialog
   - render_setings (typo)
@@ -599,7 +607,12 @@ Contents/structure of the `harness_designer/` package.
       `_TreeControlBase` (shared caption/toolbar/tree/info-label shell,
       multi-select, Delete-key + auto-reselect-next-after-remove),
       `PlaneTreePanel` (wire/terminal, Group-by-Plane/Group-by-Size views),
-      `CavityTreePanel` (flat list of `AnalysisItem`s pending Accept Cavities)
+      `CavityTreePanel` (flat list of `AnalysisItem`s pending Accept Cavities).
+      The terminal tree's right-click menu also has "Select Holes Instead of
+      Surface" (`invertHolesRequested`) for housings whose cavities are holes
+      cut through a face -- the dialog swaps the plane for its holes
+      (`connector_analysis.surface_holes`), which are analysed/committed as
+      manual (synthetic-marker) cavities so they're selectable in the 3D editor
     - `config.py`
     - `housing_editor.py`: dialog orchestration, 3D surface picking/overlay,
       toolbar, the wire/terminal/cavity tree row + edit form <-> Cavities/

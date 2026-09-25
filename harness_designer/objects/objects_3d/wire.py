@@ -386,11 +386,14 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         mins = corners.min(axis=0)
         maxs = corners.max(axis=0)
 
+        # Pool corner order (utils.bounding_boxes.compute_obb): 1 toggles x,
+        # 3 toggles y, 4 toggles z -- see objects_schematic.wire.Wire.
+        # _store_obb for what the AABB corner order did to picking.
         obb = np.array([
-            [mins[0], mins[1], mins[2]], [mins[0], mins[1], maxs[2]],
-            [mins[0], maxs[1], mins[2]], [mins[0], maxs[1], maxs[2]],
-            [maxs[0], mins[1], mins[2]], [maxs[0], mins[1], maxs[2]],
-            [maxs[0], maxs[1], mins[2]], [maxs[0], maxs[1], maxs[2]],
+            [mins[0], mins[1], mins[2]], [maxs[0], mins[1], mins[2]],
+            [maxs[0], maxs[1], mins[2]], [mins[0], maxs[1], mins[2]],
+            [mins[0], mins[1], maxs[2]], [maxs[0], mins[1], maxs[2]],
+            [maxs[0], maxs[1], maxs[2]], [mins[0], maxs[1], maxs[2]],
         ], dtype=np.float32)
 
         if self._obb is None:
@@ -756,7 +759,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         cls, mainframe: "_ui.MainFrame", terminal: _Union["_terminal_facade.Terminal", None] = None,
         splice: _Union["_splice_facade.Splice", None] = None,
         extend_wire: tuple | None = None, add_to_wire: tuple | None = None,
-        preset_part_id: bytes | None = None
+        preset_part_id: bytes | None = None, mouse_pos: _point.Point | None = None
     ) -> _Union["_wire.Wire", None]:
         """Entry point for every way a 3D wire-placement session can
         start -- toolbar mode-select (all args None: free-space) or a
@@ -844,7 +847,17 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             if part_id is None:
                 return None
 
-        return cls._start_free_space(mainframe, canvas, part_id)
+        facade = cls._start_free_space(mainframe, canvas, part_id)
+
+        # Free-space start only: *mouse_pos* (the empty-space context menu's
+        # own click) is where the wire's first point is dropped; the session
+        # is then left armed for its second click as usual.
+        if facade is not None and mouse_pos is not None:
+            from ...add_handlers import base as _add_base
+
+            _add_base.click_at(canvas, facade.obj3d, mouse_pos)
+
+        return facade
 
     @classmethod
     @_check_types.do
@@ -1433,6 +1446,16 @@ class WireMenu(QtWidgets.QMenu):
         action.setEnabled(free_end is not None)
         action.triggered.connect(self.on_add_to_wire)
 
+        can_add_terminal = False
+        if free_end == 'start':
+            can_add_terminal = wire.start_sibling is None
+        elif free_end == 'stop':
+            can_add_terminal = wire.stop_sibling is None
+
+        action = self.addAction('Add Terminal')
+        action.setEnabled(can_add_terminal)
+        action.triggered.connect(self.on_add_terminal)
+
         self.addSeparator()
         action = self.addAction('Add to Bundle')
         action.triggered.connect(self.on_add_to_bundle)
@@ -1576,6 +1599,27 @@ class WireMenu(QtWidgets.QMenu):
         @_check_types.do
         def _do() -> None:
             Wire.start_add(mainframe, extend_wire=(wire, end))
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_add_terminal(self) -> None:
+        """Crimp a new terminal (not in a cavity) onto this wire's free
+        end -- see objects_3d.terminal.Terminal.add_at_wire_end."""
+        from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
+        from . import terminal as _terminal_3d
+
+        mainframe = self.selected.mainframe
+        wire = self.selected.parent
+        click_pos = self.selected._context_menu_click_pos  # NOQA
+
+        end = _wire_3d.Wire.pick_free_end(mainframe, wire, click_pos)
+        if end is None:
+            return
+
+        @_check_types.do
+        def _do() -> None:
+            _terminal_3d.Terminal.add_at_wire_end(mainframe, wire, end)
 
         QtCore.QTimer.singleShot(0, _do)
 

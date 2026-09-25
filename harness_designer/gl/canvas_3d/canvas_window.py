@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING
 
+import math
+import numpy as np
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QSize
 from PySide6 import QtGui
@@ -48,6 +50,83 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
             self._axis_overlay = _axis_overlay.Overlay(self, config.axis_overlay)
         else:
             self._axis_overlay = None
+
+    @_check_types.do
+    def create_focal_target(self) -> None:
+        """Forwarded from the inner canvas -- see
+        :meth:`Canvas.create_focal_target`."""
+        self._canvas.create_focal_target()
+
+    @_check_types.do
+    def delete_focal_target(self) -> None:
+        """Forwarded from the inner canvas -- see
+        :meth:`Canvas.delete_focal_target`."""
+        self._canvas.delete_focal_target()
+
+    @_check_types.do
+    def _camera_state(self) -> tuple[float, ...]:
+        """
+        Camera position and focal position -- everything a fit sets.
+        """
+
+        camera = self._canvas.camera
+
+        return (*camera.position.as_float, *camera.focal_position.as_float)
+
+    @_check_types.do
+    def _apply_fit(self, lo: np.ndarray, hi: np.ndarray, width: int, height: int) -> None:
+        """
+        Move the whole camera rig -- eye and focal point together -- to
+        where the box *lo*..*hi* is centered in the *width* x *height*
+        pixel window and just fits. The distance between the eye and the
+        focal point, and the viewing direction, are left exactly as they
+        are (see :meth:`Camera.MoveRigTo`): the rig slides sideways to
+        center the project and backs off along its own view axis until
+        all 8 corners are inside the window.
+
+        The projection is built for the whole fixed virtual surface (see
+        ``Canvas._set_view``), so both axes share one pixel scale, set by
+        that surface's height and the vertical FOV; the window is a
+        centered crop of it. With the box center on the view axis, a
+        corner lying ``x``/``y`` off the axis and ``z`` past the center
+        is ``t + z`` deep from an eye ``t`` back from the center, and is
+        visible when ``|x| <= tan_x * (t + z)`` (same for y) -- so the
+        ``t`` that just fits the whole box is the largest
+        ``|x| / tan_x - z`` / ``|y| / tan_y - z`` over the corners.
+        """
+
+        camera = self._canvas.camera
+
+        # forward/up are only refreshed at paint time, not on every move --
+        # make sure they reflect wherever the camera is right now.
+        camera.set()
+
+        focal_px = (self._virtual_size.height() / 2.0) / math.tan(math.radians(_canvas.FOV_DEGREES) / 2.0)
+        tan_x = (width / 2.0) / focal_px
+        tan_y = (height / 2.0) / focal_px
+
+        center = (lo + hi) / 2.0
+
+        corners = np.array(
+            [[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])],
+            dtype=np.float64) - center
+
+        forward = camera.forward.astype(np.float64)
+        right = np.cross(forward, camera.up.astype(np.float64))
+        right /= np.linalg.norm(right)
+        up = np.cross(right, forward)
+
+        across = corners @ right
+        vertical = corners @ up
+        depth = corners @ forward
+
+        back = max(float((np.abs(across) / tan_x - depth).max()),
+                   float((np.abs(vertical) / tan_y - depth).max()),
+                   # never let a corner end up at or behind the eye
+                   float(1.0 - depth.min()),
+                   self._fit_min_distance)
+
+        camera.MoveRigTo(center - forward * back)
 
     @_check_types.do
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:

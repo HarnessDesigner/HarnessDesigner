@@ -2,10 +2,13 @@
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from . import base_pegboard as _base_pegboard
 from ...gl import materials as _materials
 from ...shapes import cylinder_helix as _cylinder_helix
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ... import check_types as _check_types
 from ... import config as _config
 
@@ -37,11 +40,19 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
     material (never borrowed from ``obj3d`` -- see
     ``base_pegboard.BasePegboard.__init__``'s own docstring).
 
+    Like the 3D version, only the start point is the render pivot
+    (``BaseVar``/``BasePegboard`` know about that one ``Point`` alone);
+    the stop point is this class's own concern. :meth:`_update_position`
+    and :meth:`_update_angle` are overridden so that whenever the start
+    point moves or the loop rotates -- from the object editor, a drag or
+    the DB layer -- the derived stop point is recomputed to match, and a
+    rotation pivots around the loop's own centroid rather than its start
+    point.
+
     No collision avoidance/roll-slide resolution here yet (unlike the 3D
-    version's extensive ``_resolve_collision`` machinery) -- this is a
-    static placement only. Wire rendering in the peg-board view (so a
-    loop's own attached wires show where they connect) is a separate,
-    later piece of work.
+    version's extensive ``_resolve_collision`` machinery). Wire rendering
+    in the peg-board view (so a loop's own attached wires show where they
+    connect) is a separate, later piece of work.
     """
     _parent: "_wire_service_loop.WireServiceLoop" = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"
@@ -83,6 +94,13 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
         scale = _point.Point(diameter, diameter, diameter)
         material = _materials.Plastic(self._part.color.ui)
 
+        position = db_obj.start_position_pegboard
+        position2 = db_obj.stop_position_pegboard
+
+        # Must exist before BaseVar.__init__ binds the position/angle
+        # callbacks below -- both overrides read it.
+        self._last_centroid: np.ndarray | None = None
+
         with parent.mainframe.editor_pegboard.context:
             vbo = _cylinder_helix.create_vbo()
 
@@ -90,10 +108,19 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
                 parent, db_obj,
                 vbo=vbo,
                 angle=db_obj.angle_pegboard,
-                position=db_obj.start_position_pegboard,
+                position=position,
                 scale=scale,
                 material=material,
             )
+
+        self._p1 = position
+        self._p2 = position2
+
+        # Always derive the stop point fresh from the start point/angle/
+        # scale rather than trusting whatever was last persisted -- same
+        # self-healing as the 3D version.
+        self._last_centroid = self._world_centroid()
+        self._sync_stop_position()
 
         # Identity key for gl.canvas_pegboard's bundle-graph matching --
         # a service loop has no single position_pegboard the way housing/
@@ -128,6 +155,72 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
             self.db_obj.smooth = value
         except AttributeError:
             pass
+
+    @_check_types.do
+    def _world_centroid(self) -> np.ndarray:
+        """World-space centroid of the loop's own OBB -- the rotation pivot
+        (see :meth:`_update_angle`), not the start/stop connection points.
+        """
+        centroid = self._vbo.local_obb.mean(axis=0)
+        centroid = centroid * self._scale.as_numpy
+        centroid = centroid @ self._angle
+        centroid = centroid + self._position.as_numpy
+
+        return centroid
+
+    @_check_types.do
+    def _sync_stop_position(self) -> None:
+        """Recompute the derived stop point from the current start
+        position, angle and scale -- the same scale/rotate/translate of
+        the VBO's own endpoint that the render applies to the full mesh.
+        """
+        tmp = self._vbo.endpoint.copy()
+        tmp *= self._scale
+        tmp @= self._angle
+        tmp += self._position
+
+        self._p2 += tmp - self._p2
+
+    @_check_types.do
+    def _update_position(self, position: _point.Point) -> None:
+        """Keep the derived stop point in step with the start point, and
+        the centroid baseline used by :meth:`_update_angle` current.
+        """
+        super()._update_position(position)
+        self._sync_stop_position()
+        self._last_centroid = self._world_centroid()
+
+    @_check_types.do
+    def _update_angle(self, angle: _angle.Angle) -> None:
+        """Rotate the loop around its own centroid, not its start point.
+
+        The rendering pivot is always the start point, so pivoting around
+        the centroid means compensating the start position by however far
+        the centroid would otherwise move under the new angle -- applied
+        *before* the base bookkeeping (OBB/AABB) runs against the corrected
+        position. Only this object's own ``_update_position`` listener is
+        unbound for that one write (so it isn't re-entered); anything else
+        sharing this same ``Point`` (e.g. an attached wire's endpoint)
+        still sees the move normally.
+        """
+        if self._last_centroid is not None:
+            # Where the centroid would land if the position stayed put,
+            # under the angle that was just applied.
+            unshifted_centroid = self._world_centroid()
+            delta = self._last_centroid - unshifted_centroid
+
+            if not np.allclose(delta, 0.0, atol=1e-9):
+                self._position.unbind(self._update_position)
+
+                try:
+                    self._position += _point.Point(*[float(v) for v in delta])
+                finally:
+                    self._position.bind(self._update_position)
+
+        super()._update_angle(angle)
+
+        self._sync_stop_position()
+        self._last_centroid = self._world_centroid()
 
     @_check_types.do
     def _seed_position_near_housing(self) -> None:

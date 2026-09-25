@@ -143,7 +143,7 @@ class Splice(_base_schematic.BaseSchematic):
         start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, -half)
         stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, half)
         branch_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        point2d_db = ptables.pjt_points2d_table.insert(0.0, 0.0)
+        point2d_db = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0)
 
         name = f'{part.manufacturer.name} {part.part_number}'
 

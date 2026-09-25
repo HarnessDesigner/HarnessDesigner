@@ -1,13 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
 
 import os
 
+import numpy as np
 from PySide6 import QtWidgets
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from . import base_3d as _base_3d
 from . import menu_ops as _menu_ops
 from ...gl.canvas_base import interaction as _interaction
@@ -23,7 +26,9 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from ...database.project_db import pjt_cavity as _pjt_cavity_db
     from ...database.global_db import model3d as _model3d
+    from ...database.global_db import terminal as _global_terminal
     from .. import terminal as _terminal
+    from .. import wire as _wire
     from .. import housing as _housing
     from .. import cavity as _cavity
     from ...gl import shaders as _shaders
@@ -171,6 +176,19 @@ class Terminal(_base_3d.Base3D):
         if model is not None:
             model.load(self._part.manufacturer.name,
                        self._part.part_number, self._set_model)
+
+    @_check_types.do
+    def _update_position(self, position: _point.Point) -> None:
+        super()._update_position(position)
+
+        # A free-standing terminal's wire points ride along with it (no-op
+        # for a seated one -- its housing carries them).
+        self.db_obj.sync_free_wire_points('3d')
+
+    @_check_types.do
+    def _update_angle(self, angle: _angle.Angle) -> None:
+        super()._update_angle(angle)
+        self.db_obj.sync_free_wire_points('3d')
 
     @property
     @_check_types.do
@@ -458,6 +476,178 @@ class Terminal(_base_3d.Base3D):
 
         return params
 
+    @staticmethod
+    @_check_types.do
+    def _pick_free_part(mainframe: "_ui.MainFrame") -> _Union["_global_terminal.Terminal", None]:
+        """Part-search dialog + dimension check for a terminal that is not
+        going into a cavity (so no cavity-derived search filters). None if
+        cancelled."""
+        from ...handlers import terminal_handler as _terminal_handler
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from ...ui.dialogs.dimensions_dialog import ensure_dimensions
+
+        dlg = _part_search.SearchDialog(
+            mainframe, _editor_db.TerminalsPage, mainframe.global_db.terminals_table, 'Add Terminal')
+
+        part_id = None
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            part_id = dlg.GetValue()
+
+        dlg.deleteLater()
+
+        if part_id is None:
+            return None
+
+        part = mainframe.project.ptables.global_db.terminals_table[part_id]
+
+        estimates, suggested = _terminal_handler.estimate_dimensions(mainframe, part)
+        if not ensure_dimensions(mainframe, part, part.part_number, estimates, suggested):
+            return None
+
+        return part
+
+    @classmethod
+    @_check_types.do
+    def _create_free(
+        cls, mainframe: "_ui.MainFrame", part: "_global_terminal.Terminal",
+        direction3d: tuple[float, float, float], direction_pegboard: tuple[float, float, float],
+        place: Callable[[], tuple[tuple[float, float, float], tuple[float, float, float]]]
+    ) -> "_terminal.Terminal":
+        """Build a terminal that is not seated in any cavity, facing
+        *direction3d*/*direction_pegboard* (its +Z), at whatever *place*
+        returns -- ``((x, y, z), (px, py, pz))``, the 3D and peg-board
+        positions. *place* runs twice: once before the facade exists (so
+        the terminal is never created at the origin) and again after it
+        does, since Terminal.__init__ may only then assign a generic model
+        to a part that had none (see start_add's Mode 1) and *place* may
+        depend on the part's measured extent.
+        """
+        from .. import terminal as _terminal_facade
+
+        ptables = mainframe.project.ptables
+
+        (x, y, z), _ = place()
+        point_db = ptables.pjt_points3d_table.insert(x, y, z)
+
+        name = f'{part.manufacturer.name} {part.part_number}'
+        db_obj = ptables.pjt_terminals_table.insert(part.db_id, name, None, point_db.db_id, None)
+
+        # Written before anything reads the terminal's angles, so the row is
+        # created already facing the right way (+Z is canonical forward).
+        db_obj._update_angle3d(_angle.Angle.from_direction(np.array(direction3d)))  # NOQA
+        db_obj._update_angle_pegboard(_angle.Angle.from_direction(np.array(direction_pegboard)))  # NOQA
+
+        facade = _terminal_facade.Terminal(mainframe, db_obj)
+
+        (x, y, z), (px, py, pz) = place()
+
+        position = db_obj.position3d
+        position += _point.Point(x, y, z) - position
+
+        pegboard_position = db_obj.position_pegboard
+        pegboard_position += _point.Point(px, py, pz) - pegboard_position
+
+        mainframe.project.add_terminal(facade)
+        facade.reconnect_free_wires()
+
+        return facade
+
+    @classmethod
+    @_check_types.do
+    def add_at_wire_end(
+        cls, mainframe: "_ui.MainFrame", wire: "_wire.Wire", end: str
+    ) -> _Union["_terminal.Terminal", None]:
+        """Crimp a new terminal, not seated in any cavity, onto the free
+        (dangling) *end* ('start' or 'stop') of *wire*.
+
+        The terminal's back (wire-side) face center lands on the wire's end
+        in both the 3D and peg-board views, its front facing away along the
+        wire's last segment, and :meth:`objects.terminal.Terminal.
+        reconnect_free_wires` then attaches the wire (its end is at that
+        terminal's own wire-side point, the same match a replacement terminal
+        in a cavity gets). Synchronous once a part has been picked.
+        """
+        from ...handlers import terminal_handler as _terminal_handler
+
+        if end == 'start':
+            sibling = wire.start_sibling
+        else:
+            sibling = wire.stop_sibling
+
+        if sibling is not None:
+            return None
+
+        part = cls._pick_free_part(mainframe)
+        if part is None:
+            return None
+
+        wire_db = wire.db_obj
+
+        def _end_and_direction(
+            waypoints: list, start_point: _point.Point, stop_point: _point.Point
+        ) -> tuple[_point.Point, tuple[float, float, float]]:
+            if end == 'start':
+                end_point = start_point
+
+                if waypoints:
+                    neighbor = waypoints[0].point
+                else:
+                    neighbor = stop_point
+            else:
+                end_point = stop_point
+
+                if waypoints:
+                    neighbor = waypoints[-1].point
+                else:
+                    neighbor = start_point
+
+            return end_point, _terminal_handler.free_end_direction(end_point, neighbor)
+
+        end3d, direction3d = _end_and_direction(
+            wire_db.waypoints3d, wire_db.start_position3d, wire_db.stop_position3d)
+        end_pegboard, direction_pegboard = _end_and_direction(
+            wire_db.waypoints_pegboard, wire_db.start_position_pegboard,
+            wire_db.stop_position_pegboard)
+
+        def _place() -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+            return (_terminal_handler.free_end_position(part, end3d, direction3d),
+                    _terminal_handler.free_end_position(part, end_pegboard, direction_pegboard))
+
+        return cls._create_free(mainframe, part, direction3d, direction_pegboard, _place)
+
+    @classmethod
+    @_check_types.do
+    def add_free(
+        cls, mainframe: "_ui.MainFrame", view: str, mouse_pos: _point.Point
+    ) -> _Union["_terminal.Terminal", None]:
+        """Place a terminal, not in any cavity and not on any wire, at the
+        empty-space right click *mouse_pos* made in *view* ('3d' or
+        'pegboard'), unrotated. The other view gets the same spot on the
+        floor plane (y = 0), the way a placed housing does.
+        """
+        part = cls._pick_free_part(mainframe)
+        if part is None:
+            return None
+
+        if view == '3d':
+            click = mainframe.editor3d.editor.camera.get_position_on_focal_plane(mouse_pos)
+        else:
+            click = mainframe.editor_pegboard.editor.camera.screen_to_world(mouse_pos)
+
+        cx, cy, cz = click.as_float
+
+        if view == '3d':
+            placement = ((cx, cy, cz), (cx, 0.0, cz))
+        else:
+            placement = ((cx, 0.0, cz), (cx, cy, cz))
+
+        def _place() -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+            return placement
+
+        forward = (0.0, 0.0, 1.0)
+        return cls._create_free(mainframe, part, forward, forward, _place)
+
     @classmethod
     @_check_types.do
     def start_add(
@@ -524,6 +714,12 @@ class Terminal(_base_3d.Base3D):
             pjt_cavity = cavity.db_obj
             is_male = _terminal_handler._resolve_is_male(part, pjt_cavity.housing.part)  # NOQA
 
+            # Terminal.__init__ assigns a generic stand-in model to a part
+            # that has none. The position seeded below is measured before
+            # that happens (no model -> symmetric split of the catalog
+            # length), so it has to be recomputed once the facade exists.
+            had_model = part.model3d is not None
+
             if is_male:
                 tx, ty, tz = _terminal_handler._male_terminal_position(part, pjt_cavity)  # NOQA
             else:
@@ -551,7 +747,11 @@ class Terminal(_base_3d.Base3D):
             pegboard_position = db_obj.position_pegboard
             pegboard_position += _point.Point(px, py, pz) - pegboard_position
 
+            if not had_model and part.model3d is not None:
+                _terminal_handler.reposition_from_model(db_obj)
+
             mainframe.project.add_terminal(facade)
+            facade.reconnect_free_wires()
             return facade
 
         preview_material = _materials.Plastic(
@@ -673,86 +873,6 @@ class Terminal(_base_3d.Base3D):
         :rtype: UNKNOWN
         """
         return TerminalMenu(self.mainframe.editor3d.editor, self)
-
-    @_check_types.do
-    def _delete(self) -> None:
-        self._dangle_attached_wires()
-        super()._delete()
-
-    @_check_types.do
-    def _dangle_attached_wires(self) -> None:
-        """Detach every wire attached to this terminal (see
-        objects.terminal.Terminal.add_wire/.wires), leaving each dangling
-        at its own fresh point wherever its own routing through this
-        terminal last reached, instead of deleted or left referencing a
-        point this terminal (and its cavity, if seated) own.
-
-        add_wire tags a wire's own back point (and, if seated in a
-        cavity, the cavity's own wire-position point) as its interior
-        waypoints -- those are removed here along with their WireLayouts,
-        since they're only meaningful while this terminal exists. Each
-        wire gets its own new point at the same location (not a shared
-        one) so more than one wire attached here doesn't end up still
-        joined to the others through a point that no longer represents a
-        real connection.
-        """
-        terminal_obj = self.parent
-        ptables = self.mainframe.project.ptables
-        db_obj = self.db_obj
-
-        back_id = db_obj.wire_position3d_id_raw
-        cavity = db_obj.cavity
-        cav_back_id = cavity.wire_position3d_id_raw if cavity is not None else None
-        routing_ids = {i for i in (back_id, cav_back_id) if i is not None}
-
-        if not routing_ids:
-            return
-
-        last_routing_id = cav_back_id if cav_back_id is not None else back_id
-        last_pos = ptables.pjt_points3d_table[last_routing_id].point
-
-        for wire in list(terminal_obj.wires):
-            wire_db = wire.db_obj
-            waypoints = wire_db.waypoints3d
-            removed = [wp for wp in waypoints if wp.db_id in routing_ids]
-            if not removed:
-                continue
-
-            remaining = sorted(
-                (wp for wp in waypoints if wp.db_id not in routing_ids),
-                key=lambda w: w.idx)
-            for i, wp in enumerate(remaining):
-                wp.idx = i
-
-            is_start = wire.start_sibling is terminal_obj
-
-            new_point = ptables.pjt_points3d_table.insert(*last_pos.as_float)
-            if is_start:
-                wire_db.start_position3d_id = new_point.db_id
-                wire.obj3d.set_start_position(new_point.point)
-                wire.set_sibling(None, 'start')
-            else:
-                wire_db.stop_position3d_id = new_point.db_id
-                wire.obj3d.set_stop_position(new_point.point)
-                wire.set_sibling(None, 'stop')
-
-            for wp in removed:
-                self._delete_layout_at(ptables, wp.db_id)
-                wp.delete()
-
-            wire.obj3d.refresh_waypoints()
-
-    @staticmethod
-    @_check_types.do
-    def _delete_layout_at(ptables: object, point_id: bytes) -> None:
-        """Delete the WireLayout (if any) sitting at point_id."""
-        for row in ptables.pjt_wire_layouts_table.select('id', position3d_id=point_id):
-            layout_db = ptables.pjt_wire_layouts_table[row[0]]
-
-            obj = layout_db.get_object()
-            if obj is not None:
-                obj.delete()
-            break
 
 
 class TerminalMenu(QtWidgets.QMenu):

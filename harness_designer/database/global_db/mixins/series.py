@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Union
 
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -22,7 +22,7 @@ class SeriesMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def series(self) -> "_series.Series":
+    def series(self) -> Union["_series.Series", None]:
         """Return the series.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,8 +33,12 @@ class SeriesMixin(BaseMixin):
         if self._stored_series is DefaultStoredValue:
             from .. import series as _series  # NOQA
 
-            series_id = self._table.select('series_id', id=self._db_id)
-            self._stored_series = _series.Series(self._table.db.series_table, series_id[0][0])
+            series_id = self._table.select('series_id', id=self._db_id)[0][0]
+
+            if series_id == NIL_ID:
+                self._stored_series = None
+            else:
+                self._stored_series = _series.Series(self._table.db.series_table, series_id)
 
         return self._stored_series
 
@@ -126,17 +130,37 @@ class SeriesControl(_prop_ctrls.Category):
             self.desc_ctrl.setEnabled(False)
         else:
             series = db_obj.series
-            mfg_id = series.manufacturer.db_id
 
-            db_obj.table.execute('SELECT name FROM series WHERE mfg_id=?;', (mfg_id,))
+            if series is None:
+                # Nothing set for this part -- the name choices depend on
+                # the manufacturer, which there is none to go by.
+                self.choices = []
 
-            rows = db_obj.table.fetchall()
+                self.name_ctrl.SetItems([])
+                self.name_ctrl.SetValue('')
+                self.mfg_ctrl.SetValue('')
+                self.desc_ctrl.SetValue('')
+                self.name_ctrl.setEnabled(False)
+                self.mfg_ctrl.setEnabled(False)
+                self.desc_ctrl.setEnabled(False)
+                return
 
-            self.choices = sorted([row[0] for row in rows])
+            manufacturer = series.manufacturer
+
+            if manufacturer is None:
+                self.choices = []
+                mfg_name = ''
+            else:
+                db_obj.table.execute('SELECT name FROM series WHERE mfg_id=?;', (manufacturer.db_id,))
+
+                rows = db_obj.table.fetchall()
+
+                self.choices = sorted([row[0] for row in rows])
+                mfg_name = manufacturer.name
 
             self.name_ctrl.SetItems(self.choices)
             self.name_ctrl.SetValue(series.name)
-            self.mfg_ctrl.SetValue(series.manufacturer.name)
+            self.mfg_ctrl.SetValue(mfg_name)
             self.desc_ctrl.SetValue(series.description)
 
             self.name_ctrl.setEnabled(True)

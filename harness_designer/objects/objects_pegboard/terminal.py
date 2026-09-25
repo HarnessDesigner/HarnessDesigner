@@ -13,6 +13,8 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from ...geometry import point as _point
+    from ...geometry import angle as _angle
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from .. import terminal as _terminal
 
@@ -103,6 +105,19 @@ class Terminal(_base_pegboard.BasePegboard):
         if self._model is not None:
             self._model.load(
                 self._part.manufacturer.name, self._part.part_number, self._set_model)
+
+    @_check_types.do
+    def _update_position(self, position: "_point.Point") -> None:
+        super()._update_position(position)
+
+        # A free-standing terminal's wire points ride along with it (no-op
+        # for a seated one -- its housing carries them).
+        self.db_obj.sync_free_wire_points('pegboard')
+
+    @_check_types.do
+    def _update_angle(self, angle: "_angle.Angle") -> None:
+        super()._update_angle(angle)
+        self.db_obj.sync_free_wire_points('pegboard')
 
     @property
     @_check_types.do

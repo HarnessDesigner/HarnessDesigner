@@ -24,10 +24,12 @@ and returns the same True/False "did I consume this" contract.
 
 from typing import TYPE_CHECKING
 
+from ..gl.canvas_base import interaction as _interaction
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ..geometry import point as _point
     from ..gl.canvas_base import canvas_base as _canvas_base
     from .. import objects as _objects
     from ..gl import shaders as _shaders
@@ -97,3 +99,22 @@ class AddHandlerBase:
         placement guide, ...).
         """
         pass
+
+
+@_check_types.do
+def click_at(canvas: "_canvas_base.CanvasBase", view_obj: object, mouse_pos: "_point.Point") -> None:
+    """Replay a mouse move + left click at *mouse_pos* into the add session
+    just armed on *view_obj* (see each object's own ``start_add``), exactly
+    as the canvas would have delivered them, then release the canvas's
+    active-handler pointer if that click finished the session.
+
+    Used by the empty-space right-click menus, where the position of the
+    right click is where the new object goes: a one-click placement (a
+    housing) finishes right here, a multi-click one (a wire) is left armed
+    at its next step.
+    """
+    for interaction in (_interaction.MouseInteraction.MOVE, _interaction.MouseInteraction.LEFT_UP):
+        view_obj.handle_interaction(mouse_pos, mouse_pos, False, interaction, None)
+
+    if view_obj._active_handler is None and canvas.active_handler_obj is view_obj:  # NOQA
+        canvas.active_handler_obj = None

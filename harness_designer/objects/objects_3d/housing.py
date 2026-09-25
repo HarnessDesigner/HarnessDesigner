@@ -278,6 +278,126 @@ class Housing(_base_3d.Base3D):
         """
         return self.db_obj.seal_position3d
 
+    @_check_types.do
+    def _build_wire_marker(self, cavity_3d: "_cavity3d.Cavity") -> None:
+        """Build this cavity's synthetic wire-side marker (the click target
+        for a wire-side wall it shares with other cavities).
+
+        Shape/orientation come from the cavity's own OBB back face (corners
+        0-3; 4-7 are the terminal face -- see Cavity3D.apply_analysis). That
+        face sits wherever the cavity's length ends, which is short of the
+        wall whenever the length slider was under 100%, so when the stored
+        wire surface is known the face is projected along the cavity axis
+        onto that surface's plane -- the marker then lies on the wall the
+        wire actually exits through.
+        """
+        part = cavity_3d.db_obj.part
+        obb = part.obb
+        if obb is None:
+            return
+
+        obb_f = obb.astype(np.float64)
+        c0, c1, c2, c3 = obb_f[0], obb_f[1], obb_f[2], obb_f[3]
+        u_vec = c2 - c0
+        v_vec = c1 - c0
+        half_w = float(np.linalg.norm(u_vec)) / 2.0
+        half_h = float(np.linalg.norm(v_vec)) / 2.0
+        if half_w < 1e-9 or half_h < 1e-9:
+            return
+
+        u_dir = u_vec / (half_w * 2.0)
+        v_dir = v_vec / (half_h * 2.0)
+        normal = np.cross(u_dir, v_dir)
+        n_norm = np.linalg.norm(normal)
+        if n_norm < 1e-9:
+            return
+        normal /= n_norm
+        center = (c0 + c1 + c2 + c3) / 4.0
+
+        surfaces = self._picker.surfaces
+        wire_idxs = [i for i in part.wire_surf_indices if 0 <= i < len(surfaces)]
+        if wire_idxs:
+            axis = obb_f[4:].mean(axis=0) - center
+            axis_len = float(np.linalg.norm(axis))
+            surf = surfaces[wire_idxs[0]]
+            surf_normal = np.asarray(surf.normal, dtype=np.float64)
+            axis_dot = float(axis @ surf_normal)
+
+            # Skip when the cavity axis runs (nearly) parallel to the wall --
+            # there's no meaningful intersection to project onto.
+            if axis_len > 1e-9 and abs(axis_dot) > 1e-6 * axis_len:
+                verts = self._picker.vertices
+                tri_arr = np.asarray(surf.tri_indices, dtype=np.int64)
+                idx = (tri_arr[:, None] * 3 + np.arange(3, dtype=np.int64)).ravel()
+                wall_point = verts[idx].mean(axis=0)
+                t = float((wall_point - center) @ surf_normal) / axis_dot
+                center = center + t * axis
+
+        kind = 'circle' if part.round_terminal else 'rect'
+        local_verts = _build_marker_local_verts(
+            kind, center, u_dir, v_dir, half_w, half_h)
+
+        cavity_3d._wire_marker = _CavityMarker(  # NOQA
+            cavity_3d=cavity_3d, kind=kind, normal=normal, u=u_dir,
+            v=v_dir, center=center, half_w=half_w, half_h=half_h,
+            local_verts=local_verts, side='wire')
+
+    @_check_types.do
+    def _match_marker_cavity_wire_side(self, cavity_3d: "_cavity3d.Cavity") -> None:
+        """Wire side of a cavity whose *terminal* side is a synthetic marker
+        (hand-drawn or hole-derived -- ``render_terminal_marker``).
+
+        These skip the normal-cavity surface matching entirely, so without
+        this they'd have no wire-side click target at all. Shared wall ->
+        projected wire marker; own wall -> that real surface, replayed from
+        the mapping stored when the cavity was accepted in the housing
+        editor (or, if that's missing/stale, the nearest wire-parallel
+        surface to the cavity's wire face).
+        """
+        part = cavity_3d.db_obj.part
+        if part.render_wire_marker:
+            self._build_wire_marker(cavity_3d)
+            return
+
+        surfaces = self._picker.surfaces
+        n_surf = len(surfaces)
+
+        wire_idxs = [i for i in part.wire_surf_indices if 0 <= i < n_surf]
+        if not wire_idxs:
+            obb = part.obb
+            if obb is None or not n_surf:
+                return
+
+            obb_f = obb.astype(np.float64)
+            wire_center = obb_f[:4].mean(axis=0)
+            axis = obb_f[4:].mean(axis=0) - wire_center
+            axis /= np.linalg.norm(axis) + 1e-12
+
+            verts = self._picker.vertices
+            best_si = -1
+            best_dist = float('inf')
+            for si, surf in enumerate(surfaces):
+                if si in self._surf_to_cavity:
+                    continue
+
+                if abs(float(np.asarray(surf.normal, dtype=np.float64) @ axis)) <= 0.85:
+                    continue
+
+                idxs = [3 * ti + j for ti in surf.tri_indices for j in range(3)]
+                dist = float(np.linalg.norm(verts[idxs].mean(axis=0) - wire_center))
+                if dist < best_dist:
+                    best_dist = dist
+                    best_si = si
+
+            if best_si < 0:
+                return
+
+            wire_idxs = [best_si]
+
+        cavity_3d.wire_surf_idx = wire_idxs[0]
+        for si in wire_idxs:
+            self._surf_to_cavity.setdefault(si, cavity_3d)
+
     @_debug.logfunc
     @_check_types.do
     def match_cavity_surfaces(self) -> None:
@@ -347,49 +467,22 @@ class Housing(_base_3d.Base3D):
                 v=v_dir, center=center, half_w=half_w, half_h=half_h,
                 local_verts=local_verts, side='terminal')
 
-        # Cavities whose terminal side has real, distinguishable mesh
-        # geometry but whose wire side is one continuous surface shared
-        # with another cavity (Cavity.render_wire_marker) get a synthetic
-        # marker for just the wire side, built from their own OBB back face
-        # (corners 0-3 are the wire-side face, 4-7 the terminal/forward
-        # face -- see Cavity3D.apply_analysis) instead of that shared real
-        # surface. Their terminal side is untouched and still goes through
-        # the normal real-surface matching below.
+        # Wire side. Whatever way a cavity's terminal side came about (a
+        # picked mesh surface, a hand-drawn shape, or a detected hole), its
+        # wire side is one of two things:
+        #   * a wall surface shared with other cavities
+        #     (Cavity.render_wire_marker) -- no click target of its own, so
+        #     the cavity's terminal footprint is projected onto that wall
+        #     and drawn/clicked as a synthetic marker; or
+        #   * a wall surface all to itself -- that real surface is the
+        #     click target.
+        # Both are handled below for every cavity, marker or normal.
         for cavity_3d in normal_cavities:
-            part = cavity_3d.db_obj.part
-            if not part.render_wire_marker:
-                continue
+            if cavity_3d.db_obj.part.render_wire_marker:
+                self._build_wire_marker(cavity_3d)
 
-            obb = part.obb
-            if obb is None:
-                continue
-
-            obb_f = obb.astype(np.float64)
-            c0, c1, c2, c3 = obb_f[0], obb_f[1], obb_f[2], obb_f[3]
-            u_vec = c2 - c0
-            v_vec = c1 - c0
-            half_w = float(np.linalg.norm(u_vec)) / 2.0
-            half_h = float(np.linalg.norm(v_vec)) / 2.0
-            if half_w < 1e-9 or half_h < 1e-9:
-                continue
-
-            u_dir = u_vec / (half_w * 2.0)
-            v_dir = v_vec / (half_h * 2.0)
-            normal = np.cross(u_dir, v_dir)
-            n_norm = np.linalg.norm(normal)
-            if n_norm < 1e-9:
-                continue
-            normal /= n_norm
-            center = (c0 + c1 + c2 + c3) / 4.0
-
-            kind = 'circle' if part.round_terminal else 'rect'
-            local_verts = _build_marker_local_verts(
-                kind, center, u_dir, v_dir, half_w, half_h)
-
-            cavity_3d._wire_marker = _CavityMarker(  # NOQA
-                cavity_3d=cavity_3d, kind=kind, normal=normal, u=u_dir,
-                v=v_dir, center=center, half_w=half_w, half_h=half_h,
-                local_verts=local_verts, side='wire')
+        for cavity_3d in marker_cavities:
+            self._match_marker_cavity_wire_side(cavity_3d)
 
         if not surfaces or not normal_cavities:
             return
@@ -853,7 +946,9 @@ class Housing(_base_3d.Base3D):
 
     @classmethod
     @_check_types.do
-    def start_add(cls, mainframe: "_ui.MainFrame") -> _Union["_housing.Housing", None]:
+    def start_add(
+        cls, mainframe: "_ui.MainFrame", mouse_pos: _point.Point | None = None
+    ) -> _Union["_housing.Housing", None]:
         """Resolve the part (a preselected part-library row wins over the
         dialog, same as every other Add* entry point), build the real
         facade at a placeholder position, and arm its single-click
@@ -898,10 +993,16 @@ class Housing(_base_3d.Base3D):
         facade = _housing_facade.Housing(mainframe, db_obj)
 
         from ...add_handlers.editor_3d import housing as _add_housing
+        from ...add_handlers import base as _add_base
 
         handler = _add_housing.Housing(canvas, facade)
         facade.obj3d._active_handler = handler  # NOQA
         canvas.active_handler_obj = facade.obj3d
+
+        # *mouse_pos* (the empty-space context menu's own click) places it
+        # right there instead of leaving it following the cursor.
+        if mouse_pos is not None:
+            _add_base.click_at(canvas, facade.obj3d, mouse_pos)
 
         return facade
 

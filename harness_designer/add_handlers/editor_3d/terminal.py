@@ -168,6 +168,7 @@ class Terminal(_base.AddHandlerBase):
 
         self.target.identify(None)
         self.mainframe.project.add_terminal(self.target)
+        self.target.reconnect_free_wires()
 
         self._finalized = True
 

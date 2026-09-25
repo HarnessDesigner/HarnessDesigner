@@ -32,7 +32,7 @@ def _is_180(degrees: float) -> bool:
     so at that one angle the glyph itself renders upright instead (see
     :meth:`Cavity.render`).
     """
-    return round(degrees) % 360 == 180
+    return round(abs(degrees)) % 360 == 180
 
 
 # What a label is drawn with at exactly 180 degrees -- see Cavity.render.

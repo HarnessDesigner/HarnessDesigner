@@ -305,18 +305,26 @@ class MouseHandlerBase:
         last_pos = self._last_dispatch_pos
         self._last_dispatch_pos = mouse_pos
 
-        if not target.handle_interaction(
-            last_pos, mouse_pos, had_motion, interaction_type, clicked_object
-        ):
-            return False
+        consumed = target.handle_interaction(
+            last_pos, mouse_pos, had_motion, interaction_type, clicked_object)
 
-        if self.canvas.active_handler_obj is not target:
-            self.canvas.active_handler_obj = target
+        # The pointer has to be reconciled with the handler's own state on
+        # EVERY call, not just a consumed one: a handler can finish itself
+        # and still decline the event (a click-release with no motion
+        # returns False on purpose so the default select/deselect toggle
+        # runs -- see Base3D/BaseSchematic/BasePegboard.handle_interaction's
+        # LEFT_UP branch). Returning early there left this pointing at an
+        # object with nothing armed, and every later click was routed to
+        # that dead target instead of the object actually clicked, so
+        # nothing else could ever arm a drag/rotation.
+        if target.is_handler_active:
+            if consumed and self.canvas.active_handler_obj is not target:
+                self.canvas.active_handler_obj = target
 
-        if not target.is_handler_active:
+        elif self.canvas.active_handler_obj is target:
             self.canvas.active_handler_obj = None
 
-        return True
+        return consumed
 
     @_check_types.do
     def _dispatch_wheel_to_active_handler(self, mouse_pos: _point.Point,
@@ -1001,6 +1009,12 @@ class MouseHandlerBase:
                         self._send_event(event, evt)
                     else:
                         refresh = True
+
+                        # Nothing under the cursor at all (not just an
+                        # already-selected object): the empty-space menu.
+                        if selected is None:
+                            event = _events.GLEvent(_events.EVT_GL_EMPTY_RIGHT_CLICK)
+                            self._send_event(event, evt)
 
         self.canvas.releaseMouse()
 

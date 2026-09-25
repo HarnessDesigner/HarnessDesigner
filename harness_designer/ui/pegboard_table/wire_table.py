@@ -168,14 +168,18 @@ class _HeaderLiveMoveFilter(QtCore.QObject):
 
     def eventFilter(self, watched: QtCore.QObject, event: QtCore.QEvent) -> bool:
         event_type = event.type()
-        header = self._table.horizontalHeader()
 
+        # The header viewport keeps delivering non-mouse events (child
+        # removal, destroy, ...) while the table itself is being torn
+        # down, at which point ``self._table`` is already a dead C++
+        # object -- so it is only touched inside the mouse branches below.
         if event_type == QtCore.QEvent.Type.MouseButtonPress:
             self._logical = None
             self._dragging = False
             self._table._suppress_header_click = False  # NOQA
 
             if event.button() == Qt.MouseButton.LeftButton:
+                header = self._table.horizontalHeader()
                 x = int(event.position().x())
                 logical = header.logicalIndexAt(x)
                 if logical > 0:

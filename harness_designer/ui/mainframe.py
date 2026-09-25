@@ -605,6 +605,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_3d)
         self.editor3d.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_3d)
         self.editor3d.bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_3d)
+        self.editor3d.bind(_gl.EVT_GL_EMPTY_RIGHT_CLICK, self._on_empty_right_click_3d)
         self.editor3d.bind(_gl.EVT_GL_OBJECT_RIGHT_DCLICK, self._on_obj_right_dclick_3d)
         self.editor3d.bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_3d)
         self.editor3d.bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_3d)
@@ -669,6 +670,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_2d)
+        self.editor2d.bind(_gl.EVT_GL_EMPTY_RIGHT_CLICK, self._on_empty_right_click_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_2d)
@@ -702,6 +704,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_RIGHT_CLICK, self._on_obj_right_click_pegboard)
+        self.editor_pegboard.bind(_gl.EVT_GL_EMPTY_RIGHT_CLICK, self._on_empty_right_click_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_MIDDLE_CLICK, self._on_obj_middle_click_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_MIDDLE_DCLICK, self._on_obj_middle_dclick_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_AUX1_CLICK, self._on_obj_aux1_click_pegboard)
@@ -788,11 +791,25 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self._is_closing = True
 
-        close_dlg = _closing_dialog.ClosingDialog(self, total_steps=10)
+        close_dlg = _closing_dialog.ClosingDialog(self, total_steps=11)
         close_dlg.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
         close_dlg.show()
 
         self.logger.info('Harness Designer shutting down')
+
+        # Very first step: unload the open project, same as switching
+        # projects does -- this is what tears its objects down and writes
+        # its bounds (see unload()/_save_project_bounds()), so it has to
+        # happen while the editors and the database are all still up.
+        if self._project is not None:
+            self.logger.info('Unloading Project...')
+            close_dlg.set_message('Unloading Project...')
+            QtWidgets.QApplication.processEvents()
+
+            self.unload()
+
+        close_dlg.set_step(1)
+        QtWidgets.QApplication.processEvents()
 
         _memory_diagnostics.stop()
 
@@ -821,7 +838,7 @@ class MainFrame(QtWidgets.QMainWindow):
             if count == 30:
                 self.logger.error('Process manager did not shut down properly...')
 
-            close_dlg.set_step(1)
+            close_dlg.set_step(2)
             QtWidgets.QApplication.processEvents()
 
             self.logger.info('Saving UI layout...')
@@ -830,7 +847,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
             # saveState() returns QByteArray; store as bytes for Config
             Config.ui_perspective = bytes(self.saveState())
-            close_dlg.set_step(2)
+            close_dlg.set_step(3)
             QtWidgets.QApplication.processEvents()
 
             @_check_types.do
@@ -843,14 +860,14 @@ class MainFrame(QtWidgets.QMainWindow):
                 close_dlg.set_step(step)
                 QtWidgets.QApplication.processEvents()
 
-            _run('Closing 2D Editor....', self.editor2d.Destroy, 3)
-            _run('Closing Peg Board Editor....', self.editor_pegboard.Destroy, 4)
-            _run('Closing 3D Editor....', self.editor3d.Destroy, 5)
-            _run('Closing Database Editor....', self.editor_db.Destroy, 6)
-            _run('Closing Object Editor....', self.editor_obj.Destroy, 7)
-            _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 8)
-            _run('Closing Log Viewer....', self.log_viewer.Destroy, 9)
-            _run('Closing Database Connection....', self.db_connector.close, 10)
+            _run('Closing 2D Editor....', self.editor2d.Destroy, 4)
+            _run('Closing Peg Board Editor....', self.editor_pegboard.Destroy, 5)
+            _run('Closing 3D Editor....', self.editor3d.Destroy, 6)
+            _run('Closing Database Editor....', self.editor_db.Destroy, 7)
+            _run('Closing Object Editor....', self.editor_obj.Destroy, 8)
+            _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 9)
+            _run('Closing Log Viewer....', self.log_viewer.Destroy, 10)
+            _run('Closing Database Connection....', self.db_connector.close, 11)
 
             _app.CallLater(_finished)
 
@@ -1151,6 +1168,64 @@ class MainFrame(QtWidgets.QMainWindow):
                     gl_widget.rect().topLeft().__class__(x, y)
                 )
                 context_menu.exec(global_pos)
+
+    @_check_types.do
+    def _show_empty_space_menu(self, gl_widget: object, menu_cls: type, evt: _gl.GLEvent) -> None:
+        """Pop up *menu_cls* (see ``ui.widgets.empty_space_menus``) at the
+        position of the right click *evt* reports, over *gl_widget* (the
+        inner GL widget -- ``evt.GetPosition()`` is in its local coords).
+        The same position is handed to the menu to place whatever gets added.
+        """
+        mouse_pos = evt.GetPosition()
+        menu = menu_cls(self, mouse_pos)
+
+        x, y, _ = mouse_pos.as_int
+        global_pos = gl_widget.mapToGlobal(gl_widget.rect().topLeft().__class__(x, y))
+        menu.exec(global_pos)
+
+    @_check_types.do
+    def _on_empty_right_click_3d(self, evt: _gl.GLEvent) -> None:
+        """Right click over empty space in the 3D editor."""
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+            return
+
+        evt.Skip()
+
+        from .widgets import empty_space_menus as _empty_space_menus
+
+        self._show_empty_space_menu(
+            self.editor3d.editor._canvas, _empty_space_menus.EmptySpaceMenu3D, evt)  # NOQA
+
+    @_check_types.do
+    def _on_empty_right_click_2d(self, evt: _gl.GLEvent) -> None:
+        """Right click over empty space in the schematic editor."""
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+            return
+
+        evt.Skip()
+
+        from .widgets import empty_space_menus as _empty_space_menus
+
+        self._show_empty_space_menu(
+            self.editor2d.editor._canvas, _empty_space_menus.EmptySpaceMenuSchematic, evt)  # NOQA
+
+    @_check_types.do
+    def _on_empty_right_click_pegboard(self, evt: _gl.GLEvent) -> None:
+        """Right click over empty space in the peg board editor."""
+        self.Set2DCoordinates(evt)
+
+        if self._obj_handler is not None:
+            evt.StopPropagation()
+            return
+
+        evt.Skip()
+
+        from .widgets import empty_space_menus as _empty_space_menus
+
+        self._show_empty_space_menu(
+            self.editor_pegboard.editor._canvas, _empty_space_menus.EmptySpaceMenuPegboard, evt)  # NOQA
 
     @_check_types.do
     def _on_obj_right_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
@@ -3231,7 +3306,56 @@ class MainFrame(QtWidgets.QMainWindow):
 
         old_project.close()
 
+        # The 3D focal target holds slots in every view's bounds pools too:
+        # delete it with the rest of the objects, so its box isn't counted
+        # in the bounds saved below and doesn't outlive the pool reset
+        # after. Project.__init__ recreates it for the next project.
+        self.editor3d.editor.delete_focal_target()
+
+        # Stored bounds go after everything above has been torn down: a
+        # torn-down object's box is still in its view's AABB pool (slots
+        # are only released by ObjectBase.delete(), which this never
+        # calls), so the pools still hold exactly what the project
+        # occupied.
+        self._save_project_bounds(old_project)
+
+        # Only now, with the bounds saved, empty the pools -- for the same
+        # reason: nothing releases the torn-down objects' slots. Slots
+        # owned by the canvases themselves (the 3D focal target) are kept.
+        self.bounds_manager.reset()
+
         gc.collect()
+
+    @_check_types.do
+    def _save_project_bounds(self, project: "_project.Project") -> None:
+        """Write the extent of everything *project* occupies in each editor
+        view (from that view's AABB pool) into its ``bounds_3d``/
+        ``bounds_schematic``/``bounds_pegboard`` columns, so the next load
+        can frame the cameras before any object exists.
+
+        A view with nothing in it stores ``None``. Failures are logged
+        rather than raised: this runs on the shutdown path, where an
+        exception would stop the application from ever closing.
+
+        :param project: The project whose bounds to store.
+        :type project: :class:`_project.Project`
+        """
+        views = (
+            ('bounds_3d', self.bounds_manager.editor_3d),
+            ('bounds_schematic', self.bounds_manager.editor_schematic),
+            ('bounds_pegboard', self.bounds_manager.editor_pegboard))
+
+        try:
+            for column, view in views:
+                extent = view.aabb.extent()
+                if extent is None:
+                    value = None
+                else:
+                    value = [extent[0].tolist(), extent[1].tolist()]
+
+                setattr(project.db_obj, column, value)
+        except Exception as err:  # NOQA
+            self.logger.error(f'could not save project bounds: {err!r}')
 
     @_check_types.do
     def open_database(self, splash):

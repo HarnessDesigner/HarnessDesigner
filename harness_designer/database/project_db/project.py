@@ -2,6 +2,9 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
+import ast
+import numpy as np
+
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import ColorMixin
 from ... import check_types as _check_types
@@ -9,6 +12,27 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...objects import project as _project_obj
     from ..global_db import model3d as _model3d
+
+
+def _parse_bounds(text: str | None) -> list[list[float]] | None:
+    """A stored bounds list string back into ``[[min xyz], [max xyz]]``."""
+    if text is None:
+        return None
+
+    return [[float(v) for v in corner] for corner in ast.literal_eval(text)]
+
+
+def _format_bounds(value: "list[list[float]] | np.ndarray | None") -> str | None:
+    """``[[min xyz], [max xyz]]`` (a list or a ``(2, 3)`` array) as the
+    list string stored in the DB, or ``None`` for "no bounds"."""
+    if value is None:
+        return None
+
+    corners = np.asarray(value, dtype=np.float64)
+    if corners.shape != (2, 3):
+        raise ValueError(f'bounds must be [[min x, y, z], [max x, y, z]], got shape {corners.shape}')
+
+    return str(corners.tolist())
 
 
 class ProjectsTable(PJTTableBase):
@@ -325,3 +349,63 @@ class Project(PJTEntryBase, ColorMixin):
                 self._stored_model = self.table.db.global_db.models3d_table[model_id]
 
         return self._stored_model
+
+    # bounds_3d / bounds_schematic / bounds_pegboard: ``[[min xyz], [max xyz]]``
+    # of everything the project occupies in that editor view, or None if it
+    # has never been saved (a project that hasn't been unloaded yet, or one
+    # that was empty when it was). Stored as a list string -- see
+    # create_database.projects.
+
+    _stored_bounds_3d: list[list[float]] | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def bounds_3d(self) -> list[list[float]] | None:
+        if self._stored_bounds_3d is DefaultStoredValue:
+            self._stored_bounds_3d = _parse_bounds(
+                self._table.select('bounds_3d', id=self._db_id)[0][0])
+
+        return self._stored_bounds_3d
+
+    @bounds_3d.setter
+    @_check_types.do
+    def bounds_3d(self, value: "list[list[float]] | np.ndarray | None"):
+        text = _format_bounds(value)
+        self._stored_bounds_3d = _parse_bounds(text)
+        self._table.update(self._db_id, bounds_3d=text)
+
+    _stored_bounds_schematic: list[list[float]] | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def bounds_schematic(self) -> list[list[float]] | None:
+        if self._stored_bounds_schematic is DefaultStoredValue:
+            self._stored_bounds_schematic = _parse_bounds(
+                self._table.select('bounds_schematic', id=self._db_id)[0][0])
+
+        return self._stored_bounds_schematic
+
+    @bounds_schematic.setter
+    @_check_types.do
+    def bounds_schematic(self, value: "list[list[float]] | np.ndarray | None"):
+        text = _format_bounds(value)
+        self._stored_bounds_schematic = _parse_bounds(text)
+        self._table.update(self._db_id, bounds_schematic=text)
+
+    _stored_bounds_pegboard: list[list[float]] | None | DefaultStoredValueType = DefaultStoredValue
+
+    @property
+    @_check_types.do
+    def bounds_pegboard(self) -> list[list[float]] | None:
+        if self._stored_bounds_pegboard is DefaultStoredValue:
+            self._stored_bounds_pegboard = _parse_bounds(
+                self._table.select('bounds_pegboard', id=self._db_id)[0][0])
+
+        return self._stored_bounds_pegboard
+
+    @bounds_pegboard.setter
+    @_check_types.do
+    def bounds_pegboard(self, value: "list[list[float]] | np.ndarray | None"):
+        text = _format_bounds(value)
+        self._stored_bounds_pegboard = _parse_bounds(text)
+        self._table.update(self._db_id, bounds_pegboard=text)

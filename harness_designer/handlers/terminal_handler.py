@@ -200,6 +200,43 @@ def _male_terminal_position_pegboard(part: "_global_terminal.Terminal",
 
 
 @_check_types.do
+def free_end_direction(end_point: _point.Point, neighbor_point: _point.Point) -> tuple[float, float, float]:
+    """Unit vector from *neighbor_point* (the next point in along a wire's
+    path) toward *end_point* (the wire's free end) -- the way a terminal
+    crimped onto that end faces (its +Z/front points away from the wire).
+    Falls back to +Z when the two coincide.
+    """
+    ex, ey, ez = end_point.as_float
+    nx, ny, nz = neighbor_point.as_float
+
+    dx, dy, dz = ex - nx, ey - ny, ez - nz
+    length = float(np.linalg.norm((dx, dy, dz)))
+
+    if length < 1e-8:
+        return 0.0, 0.0, 1.0
+
+    return dx / length, dy / length, dz / length
+
+
+@_check_types.do
+def free_end_position(part: "_global_terminal.Terminal", end_point: _point.Point,
+                      direction: tuple[float, float, float]) -> tuple[float, float, float]:
+    """
+    Return the position for a terminal that is not in a cavity, crimped
+    onto a wire's free end: its back (wire-side) face center lands on
+    *end_point* and its front faces *direction* (see
+    :func:`free_end_direction`). The terminal's own angle must already be
+    the rotation of +Z onto *direction*.
+    """
+    _, back_z = _terminal_extent(part, None)
+
+    x, y, z = end_point.as_float
+    dx, dy, dz = direction
+
+    return x - dx * back_z, y - dy * back_z, z - dz * back_z
+
+
+@_check_types.do
 def _resolve_is_male(part: "_global_terminal.Terminal",
                       g_housing: _Union["_global_housing.Housing", None] = None) -> bool:
     """
@@ -225,8 +262,10 @@ def _resolve_is_male(part: "_global_terminal.Terminal",
 @_check_types.do
 def reposition_from_model(pjt_terminal: "_pjt_terminal.PJTTerminal") -> None:
     """
-    Recompute *pjt_terminal*'s position3d now that its 3D model has
-    finished converting for the first time.
+    Recompute *pjt_terminal*'s position3d and position_pegboard now that
+    its 3D model is available (finished converting for the first time, or
+    was only just assigned by ``objects.objects_3d.terminal.Terminal.
+    __init__`` after the initial placement was already computed).
 
     The initial placement (objects.objects_3d.terminal.Terminal.start_add)
     fell back to Terminal.effective_size / the terminal's own catalog dimensions
@@ -242,22 +281,53 @@ def reposition_from_model(pjt_terminal: "_pjt_terminal.PJTTerminal") -> None:
     """
 
     pjt_cavity = pjt_terminal.cavity
+    part = pjt_terminal.part
+
     if pjt_cavity is None:
+        # Crimped onto a free wire end (see free_end_position): keep the
+        # back face where it already is (the terminal's own wire_position
+        # points, which don't move with position3d/position_pegboard) and
+        # re-derive where the body sits from the real model's extent.
+        _, back_z = _terminal_extent(part, None)
+
+        if pjt_terminal.wire_position3d_id_raw is not None:
+            pos = _point.Point(0.0, 0.0, -back_z)
+            pos @= pjt_terminal.angle3d
+            pos += pjt_terminal.wire_position3d
+
+            position = pjt_terminal.position3d
+            position += pos - position
+
+        if pjt_terminal.wire_position_pegboard_id_raw is not None:
+            pos = _point.Point(0.0, 0.0, -back_z)
+            pos @= pjt_terminal.angle_pegboard
+            pos += pjt_terminal.wire_position_pegboard
+
+            position = pjt_terminal.position_pegboard
+            position += pos - position
+
         return
 
-    part = pjt_terminal.part
     is_male = _resolve_is_male(part, pjt_cavity.housing.part)
 
     if is_male:
         x, y, z = _male_terminal_position(part, pjt_cavity)
+        px, py, pz = _male_terminal_position_pegboard(part, pjt_cavity)
     else:
         x, y, z = _female_terminal_position(part, pjt_cavity)
+        px, py, pz = _female_terminal_position_pegboard(part, pjt_cavity)
 
     position = pjt_terminal.position3d
     with position:
         position.x = x
         position.y = y
         position.z = z
+
+    pegboard_position = pjt_terminal.position_pegboard
+    with pegboard_position:
+        pegboard_position.x = px
+        pegboard_position.y = py
+        pegboard_position.z = pz
 
 
 @_check_types.do

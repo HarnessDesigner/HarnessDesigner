@@ -86,7 +86,7 @@ class Scale3DMixin(BaseMixin):
         self._populate('scale3d_id')
 
 
-class Scale3DControl(_prop_ctrls.Scale3DProperty):
+class Scale3DControl(_prop_ctrls.ScaleProperty):
     """
     Represent a scale 3dcontrol in :mod:`harness_designer.database.project_db.mixins.scale3d`.
 
@@ -105,7 +105,7 @@ class Scale3DControl(_prop_ctrls.Scale3DProperty):
         """
         self.db_obj: Scale3DMixin | None = None
 
-        super().__init__(parent, '3D Scale')
+        super().__init__(parent, '3D Scale', axes='xyz')
 
     @_check_types.do
     def set_obj(self, db_obj: Scale3DMixin | None):

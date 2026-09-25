@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Union
 
 
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
@@ -22,7 +22,7 @@ class FamilyMixin(BaseMixin):
 
     @property
     @_check_types.do
-    def family(self) -> "_family.Family":
+    def family(self) -> Union["_family.Family", None]:
         """Return the family.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,8 +33,12 @@ class FamilyMixin(BaseMixin):
         if self._stored_family is DefaultStoredValue:
             from .. import family as _family  # NOQA
 
-            family_id = self._table.select('family_id', id=self._db_id)
-            self._stored_family = _family.Family(self._table.db.families_table, family_id[0][0])
+            family_id = self._table.select('family_id', id=self._db_id)[0][0]
+
+            if family_id == NIL_ID:
+                self._stored_family = None
+            else:
+                self._stored_family = _family.Family(self._table.db.families_table, family_id)
 
         return self._stored_family
 
@@ -126,17 +130,37 @@ class FamilyControl(_prop_ctrls.Category):
             self.desc_ctrl.setEnabled(False)
         else:
             family = db_obj.family
-            mfg_id = family.manufacturer.db_id
 
-            db_obj.table.execute('SELECT name FROM families WHERE mfg_id=?;', (mfg_id,))
+            if family is None:
+                # Nothing set for this part -- the name choices depend on
+                # the manufacturer, which there is none to go by.
+                self.choices = []
 
-            rows = db_obj.table.fetchall()
+                self.name_ctrl.SetItems([])
+                self.name_ctrl.SetValue('')
+                self.mfg_ctrl.SetValue('')
+                self.desc_ctrl.SetValue('')
+                self.name_ctrl.setEnabled(False)
+                self.mfg_ctrl.setEnabled(False)
+                self.desc_ctrl.setEnabled(False)
+                return
 
-            self.choices = sorted([row[0] for row in rows])
+            manufacturer = family.manufacturer
+
+            if manufacturer is None:
+                self.choices = []
+                mfg_name = ''
+            else:
+                db_obj.table.execute('SELECT name FROM families WHERE mfg_id=?;', (manufacturer.db_id,))
+
+                rows = db_obj.table.fetchall()
+
+                self.choices = sorted([row[0] for row in rows])
+                mfg_name = manufacturer.name
 
             self.name_ctrl.SetItems(self.choices)
             self.name_ctrl.SetValue(family.name)
-            self.mfg_ctrl.SetValue(family.manufacturer.name)
+            self.mfg_ctrl.SetValue(mfg_name)
             self.desc_ctrl.SetValue(family.description)
             self.name_ctrl.setEnabled(True)
             self.mfg_ctrl.setEnabled(True)

@@ -2,11 +2,11 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QWidget, QSizePolicy
-from PySide6.QtCore import Qt, QTimer, QSize
-from PySide6 import QtCore, QtGui
+import numpy as np
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import canvas_base as _canvas_base
+from ...geometry import point as _point
 from ... import check_types as _check_types
 
 
@@ -14,10 +14,22 @@ if TYPE_CHECKING:
     from ... import ui as _ui
 
 
-class CanvasWindowBase(QWidget):
+# Fit-to-project framing (see CanvasWindowBase.request_fit_all): padding
+# added beyond each edge of the project's extent, as a fraction of that
+# extent on the same axis, and the closest a fit is allowed to zoom in --
+# so a project that is a single small part isn't blown up to fill the
+# whole window.
+_FIT_PADDING = 0.15
+_FIT_MIN_DISTANCE = 100.0
+
+
+class CanvasWindowBase(QtWidgets.QWidget):
     """
     Represent a canvas 3D.
     """
+
+    # Closest a fit may zoom in -- see _FIT_MIN_DISTANCE.
+    _fit_min_distance = _FIT_MIN_DISTANCE
 
     # the canvas must be set before calling super()
     _canvas: _canvas_base.CanvasBase = None
@@ -37,17 +49,22 @@ class CanvasWindowBase(QWidget):
         :type size: UNKNOWN
         """
 
-        QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
         self._canvas.setParent(self)
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
         self._ref_count = 0
         self.config = config
 
+        # Fit-to-project bookkeeping -- see request_fit_all().
+        self._fit_requested = False
+        self._fit_state = None
+        self._fit_bounds = None
+
         vw, vh = size
         self._canvas.setFixedSize(vw, vh)
-        self._virtual_size = QSize(vw, vh)
+        self._virtual_size = QtCore.QSize(vw, vh)
 
         size = self.size()
         w = size.width()
@@ -71,7 +88,7 @@ class CanvasWindowBase(QWidget):
         therefore stable — exactly like wx SetVirtualSize.
         """
 
-        self._virtual_size = QSize(w, h)
+        self._virtual_size = QtCore.QSize(w, h)
         self._canvas.setFixedSize(w, h)
         # Tell the inner canvas to update its GL viewport for the new size
         self._canvas.notify_virtual_size_changed(w, h)
@@ -100,7 +117,7 @@ class CanvasWindowBase(QWidget):
         :type event: :class:`QtGui.QResizeEvent`
         """
 
-        QWidget.resizeEvent(self, event)
+        QtWidgets.QWidget.resizeEvent(self, event)
 
         vw = self._virtual_size.width()
         vh = self._virtual_size.height()
@@ -112,6 +129,161 @@ class CanvasWindowBase(QWidget):
         x = (w - vw) // 2
         y = (h - vh) // 2
         self._canvas.move(x, y)
+
+        self._try_fit_all()
+
+    @_check_types.do
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
+        """
+        Retry a pending fit-to-project (see :meth:`request_fit_all`) now
+        that this window is on screen.
+
+        Deferred one event-loop turn so the surrounding dock layout has
+        finished settling into its real size first.
+
+        :param event: Event object.
+        :type event: :class:`QtGui.QShowEvent`
+        """
+
+        QtWidgets.QWidget.showEvent(self, event)
+
+        QtCore.QTimer.singleShot(0, self._try_fit_all)
+
+    # ------------------------------------------------------------------
+    # Fit-to-project
+    # ------------------------------------------------------------------
+
+    @property
+    @_check_types.do
+    def is_fit_active(self) -> bool:
+        """True while this view is still showing the automatic
+        fit-to-project framing the user hasn't touched yet, including
+        the "waiting for the tab to be shown for the first time" period
+        before any fit has been applied.
+        """
+
+        return self._fit_requested
+
+    @_check_types.do
+    def request_fit_all(self, bounds: list[list[float]] | None = None) -> None:
+        """
+        Frame the whole project in this view.
+
+        *bounds* is the extent to frame, ``[[min x, y, z], [max x, y, z]]``
+        -- normally the project's stored bounds, which are known before any
+        object has loaded. Without it, the extent is read from this view's
+        AABB pool, so that form is only useful once the objects are in.
+
+        The fit needs the size of the *visible* window (not the fixed
+        virtual canvas), which isn't known until the tab is actually
+        shown -- a tab that isn't selected at startup has no real size
+        yet. So this applies the fit right away when it can, and
+        otherwise remembers the request and applies it on the first
+        show/resize with a real size. Until the user pans or zooms it
+        also re-applies on every resize (the dock settling, the main
+        window being maximized), so the framing stays correct.
+
+        :param bounds: Extent to frame, or ``None`` to use the pool's.
+        :type bounds: list[list[float]] | None
+        """
+
+        self._fit_requested = True
+        self._fit_state = None
+        self._fit_bounds = bounds
+
+        self._try_fit_all()
+
+    @_check_types.do
+    def _camera_state(self) -> tuple[float, ...]:
+        """
+        Everything a fit sets on the camera, compared before/after to tell
+        whether something other than a fit has moved it since. (Distance,
+        focal x, focal z) here; the 3D window overrides it.
+        """
+
+        camera = self._canvas.camera
+        focal = camera.focal_position
+
+        return float(camera.distance), float(focal.x), float(focal.z)
+
+    @_check_types.do
+    def _padded_bounds(self) -> tuple[np.ndarray, np.ndarray] | None:
+        """
+        World-space ``(min corner, max corner)`` of everything this view
+        shows, each a float64 ``(3,)`` array, grown by :data:`_FIT_PADDING`
+        of the extent past each edge on every axis -- or ``None`` if there
+        is nothing to frame.
+
+        Taken from the bounds :meth:`request_fit_all` was given, else from
+        the view's AABB pool (``bounds_manager.aabb``), which already holds
+        every object's box, instead of walking the objects.
+        """
+
+        if self._fit_bounds is not None:
+            lo = np.asarray(self._fit_bounds[0], dtype=np.float64)
+            hi = np.asarray(self._fit_bounds[1], dtype=np.float64)
+        else:
+            extent = self.bounds_manager.aabb.extent()
+            if extent is None:
+                return None
+
+            lo, hi = extent
+
+        pad = (hi - lo) * _FIT_PADDING
+
+        return lo - pad, hi + pad
+
+    @_check_types.do
+    def _apply_fit(self, lo: np.ndarray, hi: np.ndarray, width: int, height: int) -> None:
+        """
+        Point the camera so the box *lo*..*hi* just fills a *width* x
+        *height* pixel window. This is the top-down 2D (schematic/pegboard)
+        version; the 3D window overrides it.
+        """
+
+        # world units per pixel is distance / 1000 on these cameras (see
+        # Camera.screen_to_world), so the distance that makes the
+        # project just span the window is 1000 * (extent / pixels).
+        # The view plane is X/Z.
+        distance = max((hi[0] - lo[0]) / width, (hi[2] - lo[2]) / height)
+        distance = max(distance * 1000.0, self._fit_min_distance)
+
+        camera = self._canvas.camera
+        camera.CenterOn(_point.Point(float((lo[0] + hi[0]) / 2.0), 0.0, float((lo[2] + hi[2]) / 2.0)))
+        camera.distance = distance
+
+    @_check_types.do
+    def _try_fit_all(self) -> None:
+        """
+        Apply a requested fit if the window is ready for it; no-op if none
+        was requested, the window has no real size yet (still waiting), or
+        the user has already moved the camera (request dropped).
+        """
+
+        if not self._fit_requested:
+            return
+
+        if self._fit_state is not None and self._camera_state() != self._fit_state:
+            # Something other than a fit moved the camera since the last
+            # one -- the user took over, don't fight them.
+            self._fit_requested = False
+            return
+
+        # Only the part of the virtual canvas the window actually shows.
+        w = min(self.width(), self._virtual_size.width())
+        h = min(self.height(), self._virtual_size.height())
+
+        if not self.isVisible() or w <= 0 or h <= 0:
+            return
+
+        bounds = self._padded_bounds()
+        if bounds is None:
+            self._fit_requested = False
+            return
+
+        self._apply_fit(bounds[0], bounds[1], w, h)
+
+        self._fit_state = self._camera_state()
 
     # ------------------------------------------------------------------
     # Forwarded API — identical public interface as before
@@ -129,7 +301,7 @@ class CanvasWindowBase(QWidget):
         :rtype: UNKNOWN
         """
 
-        return QWidget.event(self, evt)
+        return QtWidgets.QWidget.event(self, evt)
 
     @property
     @_check_types.do
@@ -239,6 +411,11 @@ class CanvasWindowBase(QWidget):
         changing how zoomed in they are, beyond what's needed to actually
         see the thing" rule.
         """
+        if not self.isVisible():
+            # A tab that isn't showing has a placeholder size, not the
+            # real one -- scaling against it zooms out absurdly far.
+            return 1.0
+
         camera = self._canvas.camera
 
         xs = []

@@ -84,7 +84,7 @@ class Position3DMixin(BaseMixin):
         self._populate('position3d_id')
 
 
-class Position3DControl(_prop_ctrls.Position3DProperty):
+class Position3DControl(_prop_ctrls.PositionProperty):
     """Represent a position 3dcontrol in :mod:`harness_designer.database.project_db.mixins.position3d`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -101,7 +101,7 @@ class Position3DControl(_prop_ctrls.Position3DProperty):
         """
         self.db_obj: Position3DMixin | None = None
 
-        super().__init__(parent, '3D Position')
+        super().__init__(parent, '3D Position', axes='xyz')
 
     @_check_types.do
     def set_obj(self, db_obj: Position3DMixin | None):

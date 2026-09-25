@@ -180,10 +180,10 @@ class StartStopPositionPegboardControl(_prop_ctrls.Property):
         """
         self.db_obj: StartStopPositionPegboardMixin | None = None
 
-        super().__init__(parent, 'Peg-board Positions', orientation='vertical')
+        super().__init__(parent, 'Pegboard Positions', orientation='vertical')
 
-        self.start_ctrl = _prop_ctrls.Position3DProperty(self, 'Start')
-        self.stop_ctrl = _prop_ctrls.Position3DProperty(self, 'Stop')
+        self.start_ctrl = _prop_ctrls.PositionProperty(self, 'Start', axes='xyz')
+        self.stop_ctrl = _prop_ctrls.PositionProperty(self, 'Stop', axes='xyz')
 
         self.addWidget(self.start_ctrl)
         self.addWidget(self.stop_ctrl)

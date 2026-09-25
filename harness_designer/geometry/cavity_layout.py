@@ -100,6 +100,45 @@ class CavityGeometry(NamedTuple):
     term_text_width: float
     text_padding: float
 
+    def point_at_180(self, point: tuple[float, float]) -> tuple[float, float]:
+        """Where a housing-local *point* of this cavity (its own name
+        anchor, bracket, cylinder start/stop -- anything laid out inside
+        its slot) lands, relative to the housing's own center, when the
+        housing is rotated exactly 180 degrees.
+
+        A plain rotation about the housing's center is right for the slot
+        itself (cavity 1 goes from the top to the bottom, on the opposite
+        side) and for X, but wrong for what's laid out INSIDE the slot:
+        the flat glyphs are drawn upright (never turned upside-down), so
+        the cavity name has to stay above its own bracket -- a plain
+        rotation puts it below. So X comes from the rotation and Z keeps
+        the point's own offset from its slot center, riding on the rotated
+        slot instead of being flipped with it.
+
+        Same as rotating a copy of every point, then putting the original
+        Z offsets back onto the rotated slots in reverse order (cavity 1's
+        offsets on what was the last slot), without needing the other
+        cavities.
+        """
+        return -point[0], point[1] - (2.0 * self.position[1])
+
+    def z_shift_at_180(self, point_z: float) -> float:
+        """How far a point at housing-local *point_z*, already rotated 180
+        degrees about the housing's center, has to move in Z to be where
+        :meth:`point_at_180` puts it -- the same correction for a point that
+        is stored already rotated (a cavity's or terminal's own
+        ``position2d``) rather than derived. Also its own undo, subtracted
+        before rotating away from 180 again.
+        """
+        return 2.0 * (point_z - self.position[1])
+
+
+def is_180(degrees: float) -> bool:
+    """Whether *degrees* (a housing's own ``angle2d.y``) is the 180
+    special case -- see :meth:`CavityGeometry.point_at_180`.
+    """
+    return round(abs(degrees)) % 360 == 180
+
 
 def compute_housing_cavity_geometry(
     cavity_names: list[str]

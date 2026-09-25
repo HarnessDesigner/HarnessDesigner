@@ -462,6 +462,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
             self.visible_ctrl.set_obj(self.db_obj)
         elif page is self._position_page:
             self.start_stop_ctrl.set_obj(self.db_obj)
+            self.start_stop_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._part_page:
             self.part_ctrl.set_obj(self.db_obj)
         self._tab_loaded[index] = True
@@ -497,8 +498,11 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
 
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.start_stop_ctrl = StartStopPosition3DControl(position_page)
+        self.start_stop_pegboard_ctrl = StartStopPositionPegboardControl(position_page)
 
         position_page.addWidget(self.start_stop_ctrl)
+
+        position_page.addWidget(self.start_stop_pegboard_ctrl)
 
         self._part_page = part_page = _prop_ctrls.Category(self, 'Part')
         self.part_ctrl = _bundle_cover.BundleCoverControl(part_page)

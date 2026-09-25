@@ -7,6 +7,7 @@ import numpy as np
 from ...geometry import point as _point
 from ... import check_types as _check_types
 from ..canvas_base import camera_base as _camera_base
+from .. import events as _events
 
 
 if TYPE_CHECKING:
@@ -52,6 +53,34 @@ class Camera(_camera_base.CameraBase):
     def Reset(self):
         super().Reset()
         self._position.z = 75.0
+
+    @_check_types.do
+    def MoveRigTo(self, eye_position: np.ndarray) -> None:
+        """
+        Put the camera eye at *eye_position*, moving the focal point by the
+        same amount -- a rigid translation of the whole rig, so the
+        distance between them and the viewing direction stay exactly as
+        they are. The same mechanics :meth:`CenterOn` and :meth:`Dolly`
+        use (each of position/focal_position written once, with the first
+        write's own recompute suppressed via ``_updating_rig``), just
+        aimed at an absolute eye position instead of a delta or a focal
+        target.
+
+        :param eye_position: World-space position for the camera eye.
+        :type eye_position: :class:`np.ndarray`
+        """
+
+        move = np.asarray(eye_position, dtype=np.float64) - self._position.as_numpy
+
+        self._is_dirty = True
+
+        self._updating_rig = True
+        self._position += move
+        self._updating_rig = False
+
+        self._focal_position += move
+
+        self._send_event(_events.EVT_GL_CAMERA_WALK)
 
     @_check_types.do
     def set(self) -> None:

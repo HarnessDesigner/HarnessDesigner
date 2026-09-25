@@ -262,6 +262,237 @@ class Terminal(_ObjectBase):
 
         return True
 
+    # How close (in scene units, in any one view) a wire's free end has to be
+    # to a newly placed terminal's wire-side point for reconnect_free_wires
+    # to infer the wire was cut from a terminal that used to sit there.
+    _RECONNECT_TOLERANCE = 0.5
+
+    @_check_types.do
+    def detach_wires(self) -> None:
+        """Cut every wire attached to this terminal free, in all three views.
+
+        Which point is the cut depends on the view (see :meth:`add_wire`,
+        which builds this route):
+
+        - 3D/peg-board: the wire's real end is the terminal's crimp point
+          (``attach_position``), with interior waypoints (each with its own
+          WireLayout) at the terminal's own back point and, when seated, the
+          cavity's wire-side point. The wire is trimmed back to the
+          outermost of those -- the cavity's when seated, otherwise the
+          terminal's own -- which becomes the wire's new free end, and the
+          waypoints at/inside it (with their layouts) are removed.
+        - Schematic: the wire's end is the terminal's ``wire_position2d``
+          (the far end of its stub). The wire keeps that location as its
+          free end.
+
+        In every view the free end gets its own brand-new point row, so
+        nothing is left shared with this terminal or its cavity. That
+        location is what :meth:`reconnect_free_wires` later matches a
+        replacement terminal against.
+
+        Which end of the wire was attached comes from the sibling graph, not
+        from proximity.
+        """
+        for wire in list(self.wires):
+            if wire.start_sibling is self:
+                end = 'start'
+            elif wire.stop_sibling is self:
+                end = 'stop'
+            else:
+                continue
+
+            self._detach_wire_waypoints(wire, end, '3d')
+            self._detach_wire_waypoints(wire, end, 'pegboard')
+            self._detach_wire_2d(wire, end)
+
+            wire.set_sibling(None, end)
+
+        self._wire_refs = []
+
+    @_check_types.do
+    def _detach_wire_waypoints(self, wire: "_wire_obj.Wire", end: str, view: str) -> None:
+        """3D (``view='3d'``) or peg-board (``view='pegboard'``) half of
+        :meth:`detach_wires` for one wire end."""
+        ptables = self.mainframe.project.ptables
+        db_obj = self.db_obj
+        cavity = db_obj.cavity
+        wire_db = wire.db_obj
+
+        if view == '3d':
+            points_table = ptables.pjt_points3d_table
+            layout_column = 'point3d_id'
+            waypoints = wire_db.waypoints3d
+            view_obj = wire.obj3d
+            end_attr = f'{end}_position3d_id'
+            back_id = db_obj.wire_position3d_id_raw
+
+            if cavity is not None:
+                cavity_id = cavity.wire_position3d_id_raw
+            else:
+                cavity_id = None
+        else:
+            points_table = ptables.pjt_points_pegboard_table
+            layout_column = 'point_pegboard_id'
+            waypoints = wire_db.waypoints_pegboard
+            view_obj = wire.objpegboard
+            end_attr = f'{end}_position_pegboard_id'
+            back_id = db_obj.wire_position_pegboard_id_raw
+
+            if cavity is not None:
+                cavity_id = cavity.wire_position_pegboard_id_raw
+            else:
+                cavity_id = None
+
+        # The canonical rows belong to the terminal/cavity, not to the wire:
+        # they are only untagged from it, never deleted (the cavity keeps its
+        # own wire-side point for the next terminal/wire). Any other wire
+        # attached here got its own child row (parent_point_id, see
+        # _own_or_cloned_point_id), which is the wire's own to delete.
+        canonical_ids = {i for i in (back_id, cavity_id) if i is not None}
+        if not canonical_ids:
+            return
+
+        if cavity_id is not None:
+            outer_id = cavity_id
+        else:
+            outer_id = back_id
+
+        new_point = points_table.insert(*points_table[outer_id].point.as_float)
+        setattr(wire_db, end_attr, new_point.db_id)
+
+        if end == 'start':
+            view_obj.set_start_position(new_point.point)
+        else:
+            view_obj.set_stop_position(new_point.point)
+
+        removed = []
+        remaining = []
+
+        for wp in waypoints:
+            if wp.db_id in canonical_ids or wp.parent_point_id in canonical_ids:
+                removed.append(wp)
+            else:
+                remaining.append(wp)
+
+        layouts_table = ptables.pjt_wire_layouts_table
+
+        for wp in removed:
+            for row in layouts_table.select('id', **{layout_column: wp.db_id}):
+                layout_db = layouts_table[row[0]]
+                layout_obj = layout_db.get_object()
+
+                if layout_obj is not None:
+                    layout_obj.delete()
+                else:
+                    layout_db.delete()
+                break
+
+            wp.wire_id = None
+            wp.idx = None
+
+            if wp.db_id not in canonical_ids:
+                wp.delete()
+
+        for i, wp in enumerate(remaining):
+            wp.idx = i
+
+        view_obj.refresh_waypoints()
+
+    @_check_types.do
+    def _detach_wire_2d(self, wire: "_wire_obj.Wire", end: str) -> None:
+        """Schematic half of :meth:`detach_wires` for one wire end."""
+        ptables = self.mainframe.project.ptables
+        stub_id = self.db_obj.wire_position2d_id_raw
+
+        if stub_id is None:
+            return
+
+        new_point = ptables.pjt_points2d_table.insert(
+            *ptables.pjt_points2d_table[stub_id].point.as_float)
+
+        if end == 'start':
+            wire.db_obj.start_position2d_id = new_point.db_id
+            wire.objschematic.set_start_position(new_point.point)
+        else:
+            wire.db_obj.stop_position2d_id = new_point.db_id
+            wire.objschematic.set_stop_position(new_point.point)
+
+    @_check_types.do
+    def reconnect_free_wires(self) -> None:
+        """Reattach any wire whose free end sits where this newly placed
+        terminal's wire-side point is -- the "wrong terminal, replace it"
+        case (see :meth:`detach_wires`, which leaves a cut wire's end at
+        exactly that spot).
+
+        Seated in a cavity, the spot is the cavity's own wire-side point;
+        otherwise it is this terminal's own back point. A wire end matches
+        when it is within ``_RECONNECT_TOLERANCE`` of that spot in any one
+        of the three views (the schematic one is only compared when this
+        terminal's stub point has actually been computed) and is not already
+        attached to something.
+        """
+        project = self.mainframe.project
+        db_obj = self.db_obj
+        cavity = db_obj.cavity
+
+        if cavity is not None:
+            target3d = cavity.wire_position3d
+            target_pegboard = cavity.wire_position_pegboard
+        else:
+            target3d = db_obj.wire_position3d
+            target_pegboard = db_obj.wire_position_pegboard
+
+        if db_obj.wire_position2d_id_raw is not None:
+            target2d = db_obj.wire_position2d
+        else:
+            target2d = None
+
+        matches = []
+
+        for wire in project.wires:
+            wire_db = wire.db_obj
+
+            for end in ('start', 'stop'):
+                if end == 'start':
+                    sibling = wire.start_sibling
+                else:
+                    sibling = wire.stop_sibling
+
+                if sibling is not None:
+                    continue
+
+                ends = (
+                    (target3d, getattr(wire_db, f'{end}_position3d')),
+                    (target_pegboard, getattr(wire_db, f'{end}_position_pegboard')),
+                    (target2d, getattr(wire_db, f'{end}_position2d')))
+
+                for target, end_point in ends:
+                    if target is None or end_point is None:
+                        continue
+
+                    if math.dist(target.as_float, end_point.as_float) <= self._RECONNECT_TOLERANCE:
+                        matches.append((wire, end))
+                        break
+
+        ptables = project.ptables
+
+        for wire, end in matches:
+            wire_db = wire.db_obj
+
+            stale_ends = (
+                (ptables.pjt_points3d_table, getattr(wire_db, f'{end}_position3d_id')),
+                (ptables.pjt_points_pegboard_table, getattr(wire_db, f'{end}_position_pegboard_id')),
+                (ptables.pjt_points2d_table, getattr(wire_db, f'{end}_position2d_id')))
+
+            self.add_wire(wire, end)
+
+            # add_wire pointed the wire at this terminal's own points; the
+            # free-end rows detach_wires made are now unused. delete() is a
+            # no-op for anything still referenced.
+            for table, point_id in stale_ends:
+                if point_id is not None:
+                    table[point_id].delete()
+
     # The floor on how far _junction_push_length pushes wire_position2d out,
     # as a multiple of this terminal's own original (un-extended) stub
     # length -- see that method's own docstring for when it pushes further.
@@ -489,15 +720,15 @@ class Terminal(_ObjectBase):
 
     @_check_types.do
     def delete(self):
-        # The attached-wire dangling/repointing and the internal wire-routing
-        # stub/layout cleanup (see handlers.wire_handler._route_from_terminal)
-        # live on obj3d's own _delete() -- that's 3D-view geometry/position
-        # work, not wrapper-level cascade.
         seal = self.db_obj.seal
         if seal is not None:
             seal_obj = seal.get_object()
             if seal_obj is not None:
                 seal_obj.delete()
+
+        # Cut attached wires free before anything view-side is torn down --
+        # needs the terminal's own points and cavity link still intact.
+        self.detach_wires()
 
         super().delete()
         self.mainframe.project.delete_terminal(self.db_obj.db_id)

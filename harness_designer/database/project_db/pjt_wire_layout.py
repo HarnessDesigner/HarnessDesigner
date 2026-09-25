@@ -10,6 +10,7 @@ from ..common_db.lazy_tab_mixin import LazyTabMixin
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from .mixins import (
+    PositionPegboardControl,
     Position3DControl,
     Position2DControl,
     Visible3DMixin, Visible2DControl,
@@ -550,6 +551,7 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
         elif page is self._position_page:
             self.position2d_ctrl.set_obj(self.db_obj)
             self.position3d_ctrl.set_obj(self.db_obj)
+            self.position_pegboard_ctrl.set_obj(self.db_obj)
         elif page is self._visible_page:
             self.visible2d_ctrl.set_obj(self.db_obj)
             self.visible3d_ctrl.set_obj(self.db_obj)
@@ -578,9 +580,11 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
         self._position_page = position_page = _prop_ctrls.Category(self, 'Position')
         self.position2d_ctrl = Position2DControl(position_page)
         self.position3d_ctrl = Position3DControl(position_page)
+        self.position_pegboard_ctrl = PositionPegboardControl(position_page)
 
         position_page.addWidget(self.position2d_ctrl)
         position_page.addWidget(self.position3d_ctrl)
+        position_page.addWidget(self.position_pegboard_ctrl)
 
         self._visible_page = visible_page = _prop_ctrls.Category(self, 'Visible')
         self.visible2d_ctrl = Visible2DControl(visible_page)

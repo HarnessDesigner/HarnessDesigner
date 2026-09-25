@@ -354,8 +354,8 @@ class Model3DControl(_prop_ctrls.Category):
         file_type_page.addWidget(self.extension_ctrl)
         file_type_page.addWidget(self.mimetype_ctrl)
 
-        self.angle3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Angle')
-        self.position3d_page = _prop_ctrls.Angle3DProperty(self.nb, '3D Position')
+        self.angle3d_page = _prop_ctrls.AngleProperty(self.nb, 'Angle')
+        self.position3d_page = _prop_ctrls.PositionProperty(self.nb, 'Position')
 
         preview_page = _prop_ctrls.Category(self.nb, 'Model Preview')
         # self.model_preview = _model_preview.PreviewCanvas(preview_page)

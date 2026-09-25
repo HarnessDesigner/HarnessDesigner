@@ -297,6 +297,12 @@ class EditorPegboardPanel(_canvas_pegboard.CanvasPegboard):
         if obj.objpegboard is None or obj.objpegboard.position is None:
             return
 
+        # Still showing the automatic whole-project framing (see
+        # request_fit_all) -- everything is already in view, and panning
+        # here would only cancel that framing.
+        if self.is_fit_active:
+            return
+
         self.camera.CenterOn(obj.objpegboard.position)
 
         aabb_min, aabb_max = obj.objpegboard.aabb

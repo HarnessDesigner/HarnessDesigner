@@ -674,6 +674,20 @@ class BaseVar:
         else:
             self._material = self._unselected_material
 
+            # An armed handler (the rotation gizmo, mainly) only renders
+            # while its object is selected, so leaving it armed after a
+            # deselect makes it invisible but still live -- it kept
+            # swallowing clicks over its own ring area (nothing under it
+            # could be selected or dragged) and reappeared the next time
+            # this object was selected.
+            if self._active_handler is not None:
+                self._active_handler.delete()
+                self._active_handler = None
+
+                canvas = self.editor.editor
+                if canvas.active_handler_obj is self:
+                    canvas.active_handler_obj = None
+
         if self._material is None:
             self._is_opaque[0] = 1
         else:

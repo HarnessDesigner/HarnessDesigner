@@ -320,6 +320,12 @@ class CavityMenu(QtWidgets.QMenu):
             action.setEnabled(not has_seal)
             action.triggered.connect(self.on_add_terminal)
 
+        # Deleting a terminal also deletes its wire seal (see
+        # objects.terminal.Terminal.delete) and dangles any attached wires.
+        action = self.addAction('Delete Terminal')
+        action.setEnabled(has_terminal)
+        action.triggered.connect(self.on_delete_terminal)
+
         # Single "Add Seal" covers both a cavity plug seal (no terminal
         # present) and a wire seal on the terminal (terminal present) --
         # on_add_seal decides which; grayed out once one is already
@@ -327,6 +333,11 @@ class CavityMenu(QtWidgets.QMenu):
         action = self.addAction('Add Seal')
         action.setEnabled(not has_seal)
         action.triggered.connect(self.on_add_seal)
+
+        # Same plug-vs-wire seal split as on_add_seal (see has_seal above).
+        action = self.addAction('Delete Seal')
+        action.setEnabled(has_seal)
+        action.triggered.connect(self.on_delete_seal)
 
         if cavity_3d._selected_is_wire_side:  # NOQA
             action = self.addAction('Add Wire')
@@ -404,6 +415,48 @@ class CavityMenu(QtWidgets.QMenu):
         @_check_types.do
         def _do() -> None:
             _seal_3d.Seal.start_add(mainframe, terminal=terminal_obj)
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_delete_terminal(self) -> None:
+        """Delete the terminal seated in this cavity (and its wire seal)."""
+        @_check_types.do
+        def _do() -> None:
+            terminal_db = self._cavity_3d.db_obj.terminal
+            if terminal_db is None:
+                return
+
+            terminal_obj = terminal_db.get_object()
+            if terminal_obj is None:
+                return
+
+            terminal_obj.delete()
+
+        QtCore.QTimer.singleShot(0, _do)
+
+    @_check_types.do
+    def on_delete_seal(self) -> None:
+        """Delete the seal in this cavity: the wire seal on the seated
+        terminal if there is one, otherwise the cavity's plug seal."""
+        @_check_types.do
+        def _do() -> None:
+            pjt_cavity = self._cavity_3d.db_obj
+            terminal_db = pjt_cavity.terminal
+
+            if terminal_db is not None:
+                seal_db = terminal_db.seal
+            else:
+                seal_db = pjt_cavity.seal
+
+            if seal_db is None:
+                return
+
+            seal_obj = seal_db.get_object()
+            if seal_obj is None:
+                return
+
+            seal_obj.delete()
 
         QtCore.QTimer.singleShot(0, _do)
 

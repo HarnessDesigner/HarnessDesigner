@@ -296,6 +296,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     gl_object_unselected = QtCore.Signal(object)
     gl_object_activated = QtCore.Signal(object)
     gl_object_right_click = QtCore.Signal(object)
+    gl_empty_right_click = QtCore.Signal(object)
     gl_object_right_dclick = QtCore.Signal(object)
     gl_object_middle_click = QtCore.Signal(object)
     gl_object_middle_dclick = QtCore.Signal(object)

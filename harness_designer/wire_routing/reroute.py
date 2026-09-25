@@ -265,7 +265,7 @@ def apply_shifts(project: "_project.Project", targets: list[tuple[object, float,
         return
 
     rows = [[float(x), float(z), point.db_id[:-2]] for point, x, z in targets]
-    project.ptables.pjt_points2d_table.batch_update(['x', 'y'], rows)
+    project.ptables.pjt_points2d_table.batch_update(['x', 'z'], rows)
 
     _pjt_point2d.PJTPoint2D._skip_db_write = True
     try:
@@ -395,7 +395,7 @@ def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, 
 
     ptables = project.ptables
 
-    point = ptables.pjt_points2d_table.insert(x, z, wire_id=wire.db_obj.db_id, idx=idx)
+    point = ptables.pjt_points2d_table.insert(x, 0.0, z, wire_id=wire.db_obj.db_id, idx=idx)
 
     layout_db = ptables.pjt_wire_layouts_table.insert(point2d_id=point.db_id)
     layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
