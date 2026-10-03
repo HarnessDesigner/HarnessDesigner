@@ -579,7 +579,7 @@ class Branch:
             pl = build123d.Plane(origin=pos.as_float, z_dir=(1, 0, 0))
             sphere = pl * build123d.Sphere(max_dia / 2.0).rotate(
                 build123d.Axis(origin=(0, 0, 0), direction=(1, 0, 0)), angle.z)
-            
+
             model += sphere
 
         else:
