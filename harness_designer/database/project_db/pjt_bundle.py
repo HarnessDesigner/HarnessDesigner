@@ -141,21 +141,34 @@ class PJTBundlesTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, part_id: bytes, name: str) -> "PJTBundle":
+    def insert(
+        self, part_id: bytes, name: str, start_point3d_id: bytes, stop_point3d_id: bytes
+    ) -> "PJTBundle":
         """Execute the insert operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
 
         :param part_id: Identifier for the part.
         :type part_id: bytes
 
         :param name: Name for the project part.
-        :type part_id: str
+        :type name: str
+
+        :param start_point3d_id: The bundle's own start point (``pjt_points3d``
+            row id) -- ``pjt_bundles.start_point3d_id`` is ``NOT NULL`` with no
+            default, so this must be supplied at insert time (a fresh
+            placeholder point works fine; callers reassign it later via
+            ``start_position3d_id`` as placement/merge progresses).
+        :type start_point3d_id: bytes
+
+        :param stop_point3d_id: Same as *start_point3d_id*, for the bundle's
+            own stop point.
+        :type stop_point3d_id: bytes
 
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTBundle`
         """
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name)
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name,
+            start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id)
 
         db_obj = PJTBundle(self, db_id)
 
@@ -191,21 +204,34 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     """
     _table: PJTBundlesTable = None
 
-    _stored_diameter: float | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def diameter(self) -> float:
-        if self._stored_diameter is DefaultStoredValue:
-            self._stored_diameter = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
-            
-        return self._stored_diameter
+        """This bundle's own effective diameter, computed fresh on every
+        access -- never a stored column, and never cached (there is no
+        single moment that could invalidate a cache: a wire added or
+        removed, a concentric repack, or an attached transition branch's
+        own catalog part changing could all move this number, and none
+        of them notify this row).
 
-    @diameter.setter
-    @_check_types.do
-    def diameter(self, value: float):
-        # TODO: figure out the code that is needed here.
-        concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
+        Was a stub before 2026-10-01 (the getter actually returned a
+        ``pjt_concentrics`` row id, mislabeled as a diameter, and the
+        setter was an unfinished TODO that wrote nothing at all -- see
+        ``BUNDLE_PLACEMENT.md`` section 8/4c and ``objects.bom.
+        build_bundle_cut_sheet``'s own workaround, now stale). Delegates
+        to ``handlers.bundle_diameter.effective_diameter`` -- see that
+        module's own docstring for the real rule (the larger of what
+        this bundle's own wires need and any attached transition
+        branch's own catalog minimum, growing that branch's own
+        ``diameter`` to match when the wires need more room than its
+        minimum allows). Read-only: the old setter never did anything
+        real, and there is no longer a single stored value here to set --
+        change the bundle's own wires or attached branch instead, and
+        this follows automatically.
+        """
+        from ...handlers import bundle_diameter as _bundle_diameter
+
+        return _bundle_diameter.effective_diameter(self)
 
     @_check_types.do
     def get_object(self) -> "_bundle_obj.Bundle":
@@ -256,10 +282,11 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         exclusively by this bundle -- the same shared-anchor-point-reused-
         as-a-waypoint hazard applies here too).
 
-        bundle_id on pjt_points3d has no DB-enforced FK (see
-        create_database/points3d.py), so there is no cascade delete to
-        rely on for the BundleLayout markers either; those ARE still
-        cleaned up here explicitly. Start/stop themselves are never
+        This bundle's own waypoint list rows (``pjt_bundle_paths``) are
+        deleted here too, in every view -- the shared point rows they
+        referenced are left alone, same as above. There is no cascade
+        delete to rely on for the BundleLayout markers either; those ARE
+        still cleaned up here explicitly. Start/stop themselves are never
         touched -- they're owned by whatever transition/other bundle the
         endpoint is attached to, not by this bundle.
 
@@ -271,7 +298,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         layouts_table = self._table.db.pjt_bundle_layouts_table
 
         for point in self.waypoints3d:
-            for row in layouts_table.select('id', position3d_id=point.db_id):
+            for row in layouts_table.select('id', point3d_id=point.db_id):
                 layout_db = layouts_table[row[0]]
                 layout_obj = layout_db.get_object()
                 if layout_obj is not None:
@@ -288,6 +315,8 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
                 else:
                     layout_db.delete()
 
+        self._table.db.pjt_bundle_paths_table.delete_for_bundle(self.db_id)
+
         self.delete_table_overlay()
 
         super().delete()
@@ -298,7 +327,10 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         """Every interior 3D waypoint on this bundle, in chain order
         (start and stop themselves are not included -- see
         start_position3d/stop_position3d)."""
-        return self._table.db.pjt_points3d_table.for_bundle(self.db_id)
+        points_table = self._table.db.pjt_points3d_table
+        point_ids = self._table.db.pjt_bundle_paths_table.point_ids(self.db_id, '3d')
+
+        return [points_table[point_id] for point_id in point_ids]
 
     @property
     @_check_types.do
@@ -308,7 +340,36 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         start_position_pegboard/stop_position_pegboard). No schematic
         equivalent exists -- bundles are never shown in the schematic
         view."""
-        return self._table.db.pjt_points_pegboard_table.for_bundle(self.db_id)
+        points_table = self._table.db.pjt_points_pegboard_table
+        point_ids = self._table.db.pjt_bundle_paths_table.point_ids(self.db_id, 'pegboard')
+
+        return [points_table[point_id] for point_id in point_ids]
+
+    @property
+    @_check_types.do
+    def position_pegboard(self) -> "_point.Point":
+        """A single peg-board position for generic anchor-position readers
+        that only know about single-position anchors (currently only
+        ``objects_pegboard.table.Table.__init__``, for its
+        connector line to this bundle's own floating wire table) -- a
+        bundle has no single peg-board position of its own
+        (``StartStopPositionPegboardMixin`` runs between two points, not
+        one, unlike ``PositionPegboardMixin``).
+
+        The first interior waypoint if this bundle has one, else the stop
+        end -- NOT a midpoint of start/stop (a bundle with waypoints can
+        bend arbitrarily far from that straight-line midpoint, which would
+        leave the connector line pointing at empty space next to the
+        bundle rather than at a real point on its own path). Always the
+        real, live point row -- never a cached/derived copy -- so it needs
+        no rebinding when an endpoint's own point row is swapped for a
+        different one (e.g. attaching to a transition branch).
+        """
+        waypoints = self.waypoints_pegboard
+        if waypoints:
+            return waypoints[0].point
+
+        return self.stop_position_pegboard
 
     @property
     @_check_types.do
@@ -347,33 +408,63 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     @property
     @_check_types.do
     def wires(self) -> list["_pjt_wire.PJTWire"]:
-        """Return the wires.
+        """Every real wire inside this bundle's own span, de-duplicated.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Prefers the general ``pjt_wire_paths`` tag (``bundle_id`` -- see
+        BUNDLE_DESIGN.md section 2.6, "membership must not depend on
+        concentric packing"), falling back to this bundle's own
+        concentric layers (unwrapping each row's own ``.wire`` -- a
+        layer's own ``wires`` are ``PJTConcentricWire`` join rows, not
+        ``PJTWire`` itself; the previous version of this returned those
+        join rows directly, contradicting its own declared return type
+        and ``objects_3d.bundle.Bundle._delete``'s own
+        ``concentric_wire.wire.get_object()`` unwrap of exactly the same
+        list) for as long as routing a wire through a bundle without
+        concentric-twisting it has no UI entry point of its own yet (see
+        BUNDLE_DESIGN.md section 2.6's own "Written, but never run"
+        audit). Mirrors ``PJTBundleLayout.attached_bundles``'s/
+        ``PJTWireLayout.attached_wires``'s own "general tag, concentric
+        fallback" shape.
 
-        :returns: Property value. UNKNOWN details.
+        :returns: Property value.
         :rtype: list['_pjt_wire.PJTWire']
         """
+        wire_ids = self._table.db.pjt_wire_paths_table.wire_ids_for_bundle(self.db_id)
+        if wire_ids:
+            return [self._table.db.pjt_wires_table[wire_id] for wire_id in wire_ids]
+
+        concentric = self.concentric
+        if concentric is None:
+            return []
+
         res = []
-        for layer in self.concentric.layers:
-            res.extend(layer.wires)
+        seen = set()
+        for layer in concentric.layers:
+            for concentric_wire in layer.wires:
+                wire = concentric_wire.wire
+                if wire.db_id not in seen:
+                    seen.add(wire.db_id)
+                    res.append(wire)
 
         return res
-    
+
     _stored_concentric: Union["_pjt_concentric.PJTConcentric", None, DefaultStoredValueType] = DefaultStoredValue
-    
+
     @property
     @_check_types.do
-    def concentric(self) -> "_pjt_concentric.PJTConcentric":
-        """Return the concentric.
+    def concentric(self) -> Union["_pjt_concentric.PJTConcentric", None]:
+        """Return this bundle's own concentric-twisting row, or ``None``.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_pjt_concentric.PJTConcentric`
+        A skeleton bundle no longer gets an empty placeholder concentric
+        row at placement time (concentric twisting is being redesigned --
+        not every harness is concentric-twisted -- see
+        ``objects_3d.bundle.Bundle.start_add``'s own docstring), so
+        ``None`` is now the common case, not an edge case: every reader
+        of this property must handle it.
         """
         if self._stored_concentric is DefaultStoredValue:
-            concentric_id = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)[0][0]
+            rows = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)
+            concentric_id = rows[0][0] if rows else None
             if concentric_id is None:
                 self._stored_concentric = None
             else:

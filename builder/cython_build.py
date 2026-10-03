@@ -10,10 +10,28 @@ _IGNORE_DIRS = frozenset(['__pycache__'])
 _SKIP_STEMS = frozenset(['__init__', '__main__'])
 
 # Hand-written Cython extensions that ship as .pyx source rather than being
-# auto-discovered from plain .py files.
+# auto-discovered from plain .py files. Every one of these ALWAYS compiles
+# as part of the wheel build, regardless of the `cythonize=false` dev-path
+# flag (see wheel_build.py's own `_compile_modules`) -- unlike an
+# auto-discovered module, a hand-written .pyx has no plain-.py form to fall
+# back to shipping as-is.
+#
+# wire_routing/astar.pyx and rope_pull/rope_pull.pyx DO have a pure-Python
+# fallback each module's own consumer imports in a try/except (routing.py's
+# `_astar_py`, rope_pull's own rope_pull_py.py) -- they're listed here anyway
+# so a from-scratch wheel build always ships the fast compiled path instead
+# of silently depending on a gitignored .pyd already sitting in the tree
+# from an earlier manual dev-time compile (which a clean checkout/CI build
+# would never have). Found 2026-09-30: astar.pyx had been missing from this
+# list all along, so every from-scratch wheel build has been shipping the
+# pure-Python A* fallback in production without anyone noticing, since
+# nothing short of reading this file would reveal it -- both the app and
+# its tests still work either way, just slower.
 _HAND_WRITTEN_EXTENSIONS = (
     'ray_tracing/bvh.pyx',
     'gl/culling/culling.pyx',
+    'wire_routing/astar.pyx',
+    'rope_pull/rope_pull.pyx',
 )
 
 

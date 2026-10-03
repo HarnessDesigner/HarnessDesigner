@@ -45,6 +45,8 @@ class BundleLayout(_ObjectBase):
         self.objpegboard = _bundle_layout_pegboard.BundleLayout(self, db_obj)
         self.objschematic = _bundle_layout_schematic.BundleLayout(self, db_obj)
 
+        self.mainframe.add_object(self)
+
     @_check_types.do
     def delete(self):
         # TODO: handle deleting a layout

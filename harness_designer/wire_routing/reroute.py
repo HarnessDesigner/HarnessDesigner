@@ -395,7 +395,8 @@ def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, 
 
     ptables = project.ptables
 
-    point = ptables.pjt_points2d_table.insert(x, 0.0, z, wire_id=wire.db_obj.db_id, idx=idx)
+    point = ptables.pjt_points2d_table.insert(x, 0.0, z)
+    ptables.pjt_wire_paths_table.add(wire.db_obj.db_id, '2d', idx, point.db_id)
 
     layout_db = ptables.pjt_wire_layouts_table.insert(point2d_id=point.db_id)
     layout_obj = _wire_layout.WireLayout(wire.mainframe, layout_db)
@@ -407,13 +408,18 @@ def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, 
 def remove_waypoint(project: "_project.Project", point) -> None:
     """Delete a waypoint row *point* (a ``PJTPoint2D``) and its WireLayout.
 
-    ``wire_id`` has to be cleared first: it counts as a reference on its own,
-    and ``PJTPoint2D.delete()`` silently refuses while the point is still
-    referenced (see the note in :func:`reroute_wire`). The caller refreshes
-    the wire afterwards."""
-    _pjt_wire.delete_layouts_at(project.ptables.pjt_wire_layouts_table, 'point2d_id', point.db_id)
+    The point has to come out of its wire's route first: a route row counts
+    as a reference on its own, and ``PJTPoint2D.delete()`` silently refuses
+    while the point is still referenced (see the note in
+    :func:`reroute_wire`). The caller refreshes the wire afterwards."""
+    ptables = project.ptables
 
-    point.wire_id = None
+    _pjt_wire.delete_layouts_at(ptables.pjt_wire_layouts_table, 'point2d_id', point.db_id)
+
+    paths_table = ptables.pjt_wire_paths_table
+    for wire_id in paths_table.wire_ids_for_point('2d', point.db_id):
+        paths_table.remove(wire_id, '2d', point.db_id)
+
     point.delete()
 
 

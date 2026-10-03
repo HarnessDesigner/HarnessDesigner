@@ -6,7 +6,7 @@ Wraps a :class:`~.wire_table.WireTable` (the real, DB-backed, virtually-
 scrolled/sortable table) inside a hidden ``QMdiArea``/``QMdiSubWindow``
 pair, never shown on a real screen (``WA_DontShowOnScreen``), and grabbed
 on demand into a raw RGBA buffer that
-``objects.objects_pegboard.pegboard_table.PegboardTable`` uploads as a GL
+``objects.objects_pegboard.table.Table`` uploads as a GL
 texture and draws on a world-space quad. Everything here is proven,
 measured behavior ported from the scratch prototype this whole feature
 started as (``scratches/pegboard_spreadsheet_widget/gl_qtable_test.py``) --
@@ -83,7 +83,7 @@ _SUB_WINDOW_REST_POINT = QtCore.QPoint(
 # PJTPegboardTable.size mm dimension maps to PIXELS_PER_MM times as many
 # logical pixels when the hidden sub-window is actually built/resized
 # (see PegboardTableHost.__init__), and back again in
-# objects_pegboard.pegboard_table.PegboardTable's own
+# objects_pegboard.table.Table's own
 # _regrab_texture/_screen_to_panel_local. Purely a pixel-density/text-
 # legibility knob -- does NOT change a table's own WORLD/mm footprint
 # (see pjt_pegboard_table.DEFAULT_TABLE_WIDTH/HEIGHT for that), and is
@@ -144,7 +144,7 @@ class PegboardTableHost(QtWidgets.QMdiArea):
     still composites correctly via :meth:`grab` even though this is
     never shown on a real screen), and all fully native/interactive when
     driven with synthetic events (see :meth:`objects_pegboard.
-    pegboard_table.PegboardTable`'s own dispatch code for the "why" on
+    table.Table`'s own dispatch code for the "why" on
     exactly how those need to be sequenced).
     """
 
@@ -254,7 +254,7 @@ class PegboardTableHost(QtWidgets.QMdiArea):
         """Return how far the sub-window has drifted from
         :data:`_SUB_WINDOW_REST_POINT` -- a nonzero result means the
         user just dragged its title bar or an edge/corner. The caller
-        (:class:`PegboardTable`) is responsible for folding this into
+        (:class:`~..objects.objects_pegboard.table.Table`) is responsible for folding this into
         its own world-space position and calling
         :meth:`reset_sub_window_position` to zero it back out; kept
         separate from that reset so the caller can choose its own

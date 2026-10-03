@@ -1803,9 +1803,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         _own_or_cloned_point_id``/``PJTPoint3D.parent_point_id``.
 
         A second-or-later wire attached to the same terminal/cavity gets
-        its own cloned point (a ``pjt_points3d`` row's own ``wire_id``/
-        ``idx`` can only belong to one wire's own waypoint list at a
-        time, so the canonical row itself can't be shared directly) --
+        its own cloned point (historically a ``pjt_points3d`` row's own
+        ``wire_id``/``idx`` tag could only belong to one wire, so the
+        canonical row couldn't be shared directly; wire routes are now
+        ``pjt_wire_paths`` rows and can share a point, but the clone
+        mechanism is kept as is until reworked) --
         without this, a housing move/rotate would carry the canonical
         point along (it's already in *canonical_positions*) while leaving
         every clone of it behind. Called by ``_update_position3d``/

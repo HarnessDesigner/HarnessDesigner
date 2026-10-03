@@ -25,6 +25,13 @@ Each entry is ``(label, info)`` where ``info`` is either:
   _get_cell_text` overrides the displayed text for these specific columns by
   looking up the real :class:`PJTCircuit` object and reading the real
   property, ignoring the placeholder.
+
+An entry may also carry ``'transition_only': True`` -- the column only
+exists for a transition's table (the column checklist doesn't offer it for
+any other anchor type). Today that is the branch column, which lists the
+``branch_id`` of each of the transition's branches a wire passes through
+(read from ``pjt_wire_paths``, the same source ``PJTTransitionBranch.wires``
+uses).
 """
 
 # Indices into this list are what PJTPegboardTable.visible_columns stores --
@@ -63,6 +70,7 @@ COLUMN_DEFS: list[tuple[str, dict]] = [
     ('Circuit Weight', {'alias': 'circuit_weight', 'computed': True}),  # 30
     ('Circuit Length', {'alias': 'circuit_length', 'computed': True}),  # 31
     ('Cavity Name', {'alias': 'cavity_name', 'computed': True}),  # 32
+    ('Branch', {'alias': 'branch_index', 'computed': True, 'transition_only': True}),  # 33
 ]
 
 # Shown when a peg-board table has never had its column selection saved
@@ -71,6 +79,11 @@ COLUMN_DEFS: list[tuple[str, dict]] = [
 # manufacturer, part number ("wire model number"), AWG, mm² -- with the
 # cavity name (32) leading, so it's the first data column.
 DEFAULT_VISIBLE_COLUMNS: list[int] = [32, 21, 22, 2, 0, 16, 15]
+
+# The same default for a transition's table, with the branch column (33)
+# leading -- a transition's one table lists every branch's wires, so which
+# branch each wire passes through is the first thing it needs to show.
+DEFAULT_VISIBLE_COLUMNS_TRANSITION: list[int] = [33, 32, 21, 22, 2, 0, 16, 15]
 
 # Reverse lookup (SQL alias -> COLUMN_DEFS index), used to translate a
 # dragged header's new logical-column order back into COLUMN_DEFS indices

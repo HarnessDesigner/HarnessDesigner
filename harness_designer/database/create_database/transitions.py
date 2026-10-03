@@ -220,7 +220,17 @@ def add_records(con, splash, data_path):
             for i, item in enumerate(data):
                 splash.SetText(f'Adding {name}transition to db [{i + 1} | {data_len}]...', log=False)
 
-                item['protection'] = '\n'.join(item['protection'])
+                # transitions.json can list several protections per part
+                # (joined into one composite `protections` catalog row,
+                # see get_protection_id) -- but 'n'.join() on a bare
+                # string (a single protection already stored as a plain
+                # string, not a list) iterates its own characters instead,
+                # producing a one-letter-per-line name ("L", "o", "n",
+                # "g", ...). Only join an actual list; a string is already
+                # the name.
+                protection = item['protection']
+                if isinstance(protection, list):
+                    item['protection'] = '\n'.join(protection)
 
                 item['image'] = None
                 item['datasheet'] = None
@@ -326,8 +336,22 @@ pjt_table = _con.SQLTable(
     _con.TextField('notes', default='""', no_null=True),
     _con.TextField('quat3d', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
     _con.TextField('angle3d', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.TextField('quat_pegboard', default='"[1.0, 0.0, 0.0, 0.0]"', no_null=True),
-    _con.TextField('angle_pegboard', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    # Defaulted to a -90-degree X rotation (quat [w, x, y, z] =
+    # [0.7071067811865476, -0.7071067811865476, 0.0, 0.0], confirmed via
+    # Angle.from_euler(-90.0, 0.0, 0.0)._q -- NOT identity, unlike every
+    # other pegboard-placed table's own quat_pegboard/angle_pegboard
+    # default) -- a transition's own branch geometry is built in the
+    # SAME native/catalog orientation the 3D view uses (no separate
+    # "flatten" transform anywhere in objects_pegboard/transition.py),
+    # so this default is what makes it render flat on the peg-board
+    # right out of the gate. The peg-board's own rotation UI only ever
+    # touches Y (see TRANSITION_DESIGN.md), so this X component is never
+    # written again after a transition is first placed. See
+    # TRANSITION_DESIGN.md's own record of this decision.
+    _con.TextField(
+        'quat_pegboard',
+        default='"[0.7071067811865476, -0.7071067811865476, 0.0, 0.0]"', no_null=True),
+    _con.TextField('angle_pegboard', default='"[-90.0, 0.0, 0.0]"', no_null=True),
     _con.IntField('is_visible3d', default='1', no_null=True),
     _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL')

@@ -128,18 +128,16 @@ def split_wire_at_point(
         is_visible3d, is_visible2d,
         layer_view_point_id, layer_id, is_filler_wire)
 
-    for i, wp in enumerate(before_3d):
-        wp.wire_id = wire1_db.db_id
-        wp.idx = i
-    for i, wp in enumerate(after_3d):
-        wp.wire_id = wire2_db.db_id
-        wp.idx = i
-    for i, wp in enumerate(before_2d):
-        wp.wire_id = wire1_db.db_id
-        wp.idx = i
-    for i, wp in enumerate(after_2d):
-        wp.wire_id = wire2_db.db_id
-        wp.idx = i
+    paths_table = ptables.pjt_wire_paths_table
+    paths_table.set_route(wire1_db.db_id, '3d', [wp.db_id for wp in before_3d])
+    paths_table.set_route(wire2_db.db_id, '3d', [wp.db_id for wp in after_3d])
+    paths_table.set_route(wire1_db.db_id, '2d', [wp.db_id for wp in before_2d])
+    paths_table.set_route(wire2_db.db_id, '2d', [wp.db_id for wp in after_2d])
+
+    # The waypoints now belong to the two new wires; take them out of the
+    # original's own route so its delete() finds nothing of its own to
+    # clean up (see PJTWire.delete's WireLayout sweep over its waypoints).
+    paths_table.delete_for_wire(orig.db_id)
 
     wire1_obj = _wire.Wire(mainframe, wire1_db)
     wire2_obj = _wire.Wire(mainframe, wire2_db)
@@ -227,21 +225,19 @@ def merge_wires(
         is_visible3d, is_visible2d,
         layer_view_point_id, layer_id, is_filler_wire)
 
-    offset_3d = len(before_waypoints3d)
-    for i, wp in enumerate(before_waypoints3d):
-        wp.wire_id = merged_db.db_id
-        wp.idx = i
-    for i, wp in enumerate(after_waypoints3d):
-        wp.wire_id = merged_db.db_id
-        wp.idx = offset_3d + i
+    paths_table = ptables.pjt_wire_paths_table
+    paths_table.set_route(
+        merged_db.db_id, '3d',
+        [wp.db_id for wp in before_waypoints3d] + [wp.db_id for wp in after_waypoints3d])
+    paths_table.set_route(
+        merged_db.db_id, '2d',
+        [wp.db_id for wp in before_waypoints2d] + [wp.db_id for wp in after_waypoints2d])
 
-    offset_2d = len(before_waypoints2d)
-    for i, wp in enumerate(before_waypoints2d):
-        wp.wire_id = merged_db.db_id
-        wp.idx = i
-    for i, wp in enumerate(after_waypoints2d):
-        wp.wire_id = merged_db.db_id
-        wp.idx = offset_2d + i
+    # The waypoints now belong to the merged wire; take them out of both
+    # originals' routes so their delete() finds nothing of its own to
+    # clean up (see PJTWire.delete's WireLayout sweep over its waypoints).
+    paths_table.delete_for_wire(wire_before.db_obj.db_id)
+    paths_table.delete_for_wire(wire_after.db_obj.db_id)
 
     merged_obj = _wire.Wire(mainframe, merged_db)
 
@@ -264,7 +260,7 @@ def merge_wires(
         marker.db_obj.wire_id = merged_db.db_id
         marker.obj3d.rebind_wire(merged_db)
 
-    # Waypoints from both originals have already been re-tagged onto
+    # Waypoints from both originals have already been moved onto
     # merged_db above, so each delete() finds nothing left of its own to
     # clean up (see Wire.delete's waypoint-cleanup loop).
     for w in (wire_before, wire_after):

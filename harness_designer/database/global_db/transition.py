@@ -322,9 +322,20 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
             branches_table = self._table.db.transition_branches_table
             rows = branches_table.select('id', 'idx', transition_id=self._db_id)
 
+            # idx is 0-based in the actual catalog data (confirmed directly
+            # against harness_designer.db -- every part's rows are
+            # 0, 1, 2, ... up to branch_count - 1) -- this used to be
+            # `res[idx - 1]`, silently rotating the list by one slot (and
+            # wrapping idx=0 to the LAST slot via Python's negative
+            # indexing) instead of raising. Fixed per TRANSITION_DESIGN.md
+            # section 6/7 step 5 -- flagged there as a real bug to fix
+            # before wiring up real branch objects against this list,
+            # which by-position consumers (Transition.start_add,
+            # TransitionControl._load_tab's branch tabs, this dialog's own
+            # preview.py) all now depend on being correct.
             res = [None] * self.branch_count
             for branch_id, idx in rows:
-                res[idx - 1] = _transition_branch_module.TransitionBranch(branches_table, branch_id)
+                res[idx] = _transition_branch_module.TransitionBranch(branches_table, branch_id)
 
             self._stored_branches = res
 

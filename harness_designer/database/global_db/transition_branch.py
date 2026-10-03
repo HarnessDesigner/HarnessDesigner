@@ -2,11 +2,13 @@
 
 from typing import Iterable as _Iterable, TYPE_CHECKING, Union
 
+import ast
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin, NameControl
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ... import check_types as _check_types
 
 
@@ -94,7 +96,7 @@ class TransitionBranchesTable(TableBase):
     @_check_types.do
     def insert(self, transition_id: bytes, idx: int, name: int, bulb_offset: _point.Point | None,
                bulb_length: float | None, min_dia: float, max_dia: float, length: float,
-               angle: float, offset: _point.Point | None, flange_height: float | None,
+               angle: _angle.Angle, offset: _point.Point, flange_height: float | None,
                flange_width: float | None) -> "TransitionBranch":
         """Execute the insert operation.
 
@@ -131,7 +133,8 @@ class TransitionBranchesTable(TableBase):
         db_id = TableBase.insert(self, transition_id=transition_id, idx=idx, name=name,
                                  bulb_offset=bulb_offset, bulb_length=bulb_length,
                                  min_dia=min_dia, max_dia=max_dia,
-                                 length=length, angle=angle, offset=offset,
+                                 length=length, angle=str(list(angle.as_euler_float)),
+                                 offset=str(list(offset.as_float)),
                                  flange_height=flange_height, flange_width=flange_width)
 
         return TransitionBranch(self, db_id)
@@ -213,7 +216,7 @@ class TransitionBranch(EntryBase, NameMixin):
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
 
-    _stored_bulb_offset: _point.Point | DefaultStoredValueType = DefaultStoredValue
+    _stored_bulb_offset: _point.Point | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -228,16 +231,19 @@ class TransitionBranch(EntryBase, NameMixin):
         if self._stored_bulb_offset is DefaultStoredValue:
             offset = self._table.select('bulb_offset', id=self._db_id)[0][0]
             if offset is None:
-                self._stored_bulb_offset = _point.Point(0.0, 0.0)
+                self._stored_bulb_offset = None
             else:
-                offset = eval(offset)
-                self._stored_bulb_offset = _point.Point(offset[0], offset[1], 0)
+                # 3-axis "[x, y, z]" text (see TRANSITION_DESIGN.md) --
+                # previously only the first 2 axes were read and z was
+                # hardcoded to 0, a leftover from the old 2-axis column.
+                x, y, z = ast.literal_eval(offset)
+                self._stored_bulb_offset = _point.Point(x, y, z)
 
         return self._stored_bulb_offset
 
     @bulb_offset.setter
     @_check_types.do
-    def bulb_offset(self, value: _point.Point):
+    def bulb_offset(self, value: _point.Point | None):
         """Set the bulb offset.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -246,7 +252,10 @@ class TransitionBranch(EntryBase, NameMixin):
         :type value: :class:`_point.Point`
         """
         self._stored_bulb_offset = value
-        self._table.update(self._db_id, bulb_offset=str(list(value.as_float)))
+        if value is None:
+            self._table.update(self._db_id, bulb_offset=None)
+        else:
+            self._table.update(self._db_id, bulb_offset=str(list(value.as_float)))
         self._populate('bulb_offset')
 
     _stored_bulb_length: float | DefaultStoredValueType = DefaultStoredValue
@@ -399,72 +408,71 @@ class TransitionBranch(EntryBase, NameMixin):
         self._table.update(self._db_id, length=value)
         self._populate('length')
 
-    _stored_angle: float | DefaultStoredValueType = DefaultStoredValue
+    _stored_angle: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
+
+    @_check_types.do
+    def _update_angle(self, angle: _angle.Angle) -> None:
+        """Write a change made to the live angle back to the database."""
+        self._table.update(self._db_id, angle=str(list(angle.as_euler_float)))
+        self._populate('angle')
 
     @property
     @_check_types.do
-    def angle(self) -> float:
-        """Return the angle.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: float
+    def angle(self) -> _angle.Angle:
+        """The branch's direction as euler degrees about the X, Y and Z
+        axes, stored as the text ``"[x, y, z]"``. The returned angle is
+        live: changing it writes the new value to the database.
         """
         if self._stored_angle is DefaultStoredValue:
-            self._stored_angle = self._table.select('angle', id=self._db_id)[0][0]
+            x, y, z = ast.literal_eval(self._table.select('angle', id=self._db_id)[0][0])
+
+            angle = _angle.Angle.from_euler(x, y, z)
+            angle.bind(self._update_angle)
+            self._stored_angle = angle
 
         return self._stored_angle
 
     @angle.setter
     @_check_types.do
-    def angle(self, value: float):
-        """Set the angle.
+    def angle(self, value: _angle.Angle):
+        self.angle.unbind(self._update_angle)
 
-        UNKNOWN details are inferred from the callable name and signature.
+        value.bind(self._update_angle)
+        self._stored_angle = value
+        self._update_angle(value)
 
-        :param value: Value to store or process.
-        :type value: float
-        """
-        self._stored_angle = float(value)
-        self._table.update(self._db_id, angle=float(value))
-        self._populate('angle')
+    _stored_offset: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
-    _stored_offset: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
+    @_check_types.do
+    def _update_offset(self, point: _point.Point) -> None:
+        """Write a change made to the live offset back to the database."""
+        self._table.update(self._db_id, offset=str(list(point.as_float)))
+        self._populate('offset')
 
     @property
     @_check_types.do
     def offset(self) -> _point.Point:
-        """Return the offset.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_point.Point`
+        """Where the branch starts, in mm, stored as the text
+        ``"[x, y, z]"``. The returned point is live: changing it writes the
+        new value to the database.
         """
         if self._stored_offset is DefaultStoredValue:
-            offset = self._table.select('offset', id=self._db_id)[0][0]
-            if offset is None:
-                self._stored_offset = None
-            else:
-                offset = eval(offset)
-                self._stored_offset = _point.Point(offset[0], offset[1], 0)
+            x, y, z = ast.literal_eval(self._table.select('offset', id=self._db_id)[0][0])
+
+            point = _point.Point(x, y, z)
+            point.bind(self._update_offset)
+            self._stored_offset = point
 
         return self._stored_offset
 
     @offset.setter
     @_check_types.do
     def offset(self, value: _point.Point):
-        """Set the offset.
+        self.offset.unbind(self._update_offset)
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param value: Value to store or process.
-        :type value: :class:`_point.Point`
-        """
+        value.bind(self._update_offset)
         self._stored_offset = value
-        self._table.update(self._db_id, offset=str(list(value.as_float)))
-        self._populate('offset')
+        self._update_offset(value)
 
     _stored_flange_height: float | DefaultStoredValueType = DefaultStoredValue
 
@@ -550,7 +558,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
 
         if db_obj is None:
             self.length_ctrl.SetValue(0.01)
-            self.angle_ctrl.SetValue(0.0)
+            self.angle_ctrl.SetValue(None)
             self.offset_ctrl.SetValue(None)
             self.bulb_offset_ctrl.SetValue(None)
             self.bulb_length_ctrl.SetValue(0.0)
@@ -600,18 +608,6 @@ class TransitionBranchControl(_prop_ctrls.Category):
         """
         value = evt.GetValue()
         self.db_obj.length = value
-
-    @_check_types.do
-    def _on_angle(self, evt):
-        """Handle the angle event.
-
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param evt: Event object.
-        :type evt: UNKNOWN
-        """
-        value = evt.GetValue()
-        self.db_obj.angle = value
 
     @_check_types.do
     def _on_bulb_length(self, evt):
@@ -706,13 +702,13 @@ class TransitionBranchControl(_prop_ctrls.Category):
 
         self.addWidget(self.length_ctrl)
 
-        self.angle_ctrl = _prop_ctrls.FloatProperty(
-            self, 'Angle', min_value=-180.0,
-            max_value=180.0, increment=0.1, units='°')
+        # both edit the branch's live Angle / Point, which write themselves
+        # back to the database
+        self.angle_ctrl = _prop_ctrls.AngleProperty(self, 'Angle', axes='xyz')
 
         self.addWidget(self.angle_ctrl)
 
-        self.offset_ctrl = _prop_ctrls.PositionProperty(self, 'Offset', axes='xy')
+        self.offset_ctrl = _prop_ctrls.PositionProperty(self, 'Offset', axes='xyz')
 
         self.addWidget(self.offset_ctrl)
 
@@ -761,7 +757,6 @@ class TransitionBranchControl(_prop_ctrls.Category):
         flange_group.addWidget(self.flange_width_ctrl)
 
         self.length_ctrl.propertyChanged.connect(self._on_length)
-        self.angle_ctrl.propertyChanged.connect(self._on_angle)
         self.bulb_length_ctrl.propertyChanged.connect(self._on_bulb_length)
         self.min_dia_ctrl.propertyChanged.connect(self._on_min_dia)
         self.max_dia_ctrl.propertyChanged.connect(self._on_max_dia)

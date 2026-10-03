@@ -21,16 +21,18 @@ from ... import config as _config
 from ...gl import materials as _materials
 from . import mixins as _mixins
 from ... import utils as _utils
-from ... import color as _color
+from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from ...database.project_db import pjt_bundle as _pjt_bundle
     from .. import bundle as _bundle
+    from .. import transition as _transition_obj
     from ...gl import shaders as _shaders
     from ... import ui as _ui
     from . import wire as _wire_3d
+    from . import transition as _transition_3d
 
 
 Config = _config.Config.editor_3d
@@ -60,11 +62,16 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         with parent.mainframe.editor3d.context:
             self._part = db_obj.part
 
-            layers = db_obj.concentric.layers
-            if layers:
-                self._diameter = layers[-1].diameter
-            else:
-                self._diameter = self._part.min_dia
+            # See handlers.bundle_diameter's own module docstring: the
+            # larger of what this bundle's own wires need and the
+            # catalog minimum of any transition branch it's plugged
+            # into (growing that branch's own diameter to match as a
+            # side effect, when the wires need more room than the
+            # branch's own minimum allows) -- replaces the previous
+            # concentric-or-part-min-dia-only fallback, which ignored
+            # both real wire sizing (for a non-concentric bundle) and
+            # any attached branch entirely.
+            self._diameter = _bundle_diameter.effective_diameter(db_obj)
 
             color = self._part.color.ui
             material = _materials.Rubber(color)
@@ -106,18 +113,46 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             self._bind_waypoints()
             self._recalculate_geometry()
 
+    @staticmethod
+    @_check_types.do
+    def _new_placeholder_bundle_db(mainframe: "_ui.MainFrame", part_id: bytes, part):
+        """Insert a fresh ``pjt_bundles`` row spanning two degenerate
+        (0, 0, 0) placeholder points -- shared by every :meth:`start_add`/
+        :meth:`start_add_from_branch` entry point so they can't drift
+        apart.
+
+        No ``pjt_concentrics`` row is created here (2026-09-29, user
+        decision -- concentrics detached from bundles for now):
+        concentric twisting is being redesigned and not every harness is
+        concentric-twisted, so a skeleton bundle carries no attachment to
+        it at all, same treatment ``PJTTransitionBranch`` already got
+        (BUNDLE_PLACEMENT.md section 9 #5). ``PJTBundle.concentric`` (and
+        everything derived from it -- ``.wires``, ``.diameter``, this
+        view's own diameter/color seeding, ``BundleLayout``'s) is
+        guarded to return ``None``/an empty default instead of crashing
+        when no concentric row exists.
+        """
+        ptables = mainframe.project.ptables
+
+        start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+        stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+
+        name = f'{part.manufacturer.name} {part.part_number}'
+        return ptables.pjt_bundles_table.insert(part_id, name, start_db.db_id, stop_db.db_id)
+
     @classmethod
     @_check_types.do
     def start_add(cls, mainframe: "_ui.MainFrame") -> _Union["_bundle.Bundle", None]:
-        """Wire-snapping bundle-cover placement, ported from
-        handlers.bundle_handler.AddBundleHandler -- always free/
-        interactive, no housing/wire argument (see
-        add_handlers.editor_3d.bundle for why).
+        """Skeleton-first free bundle placement -- BUNDLE_PLACEMENT.md
+        section 3 (toolbar "Add Bundle": always free/interactive, no
+        housing/wire argument -- the old wire-snapping flow this
+        replaced always spanned one whole wire end to end; a bundle now
+        starts empty and wires are routed onto it afterwards).
 
-        A placeholder preview is armed immediately, same reasoning as
-        Splice.start_add: a bundle's geometry is only ever meaningful
-        once a wire is picked, but a real view instance is needed from
-        the start to hang canvas.active_handler_obj on.
+        A placeholder preview (start = stop = the origin) is armed
+        immediately, same reasoning as ``Wire._start_free_space``: the
+        very first hover call relocates the growing (start) point to the
+        cursor, or onto a free transition branch if one is under it.
         """
         from ...ui.dialogs import part_search as _part_search
         from ...ui import editor_db as _editor_db
@@ -131,7 +166,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         if part_id is None:
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.BundleCoversPage, mainframe.global_db.bundle_covers_table,
-                'Add Bundle Cover')
+                'Add Bundle')
 
             if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
@@ -146,36 +181,107 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         ptables = mainframe.project.ptables
         part = ptables.global_db.bundle_covers_table[part_id]
 
-        preview_material = _materials.Plastic(
-            _color.Color(*_config.Config.colors.add_object.preview_color))
-        wire_highlight_material = _materials.Plastic(
-            _color.Color(*_config.Config.colors.add_object.wire_highlight))
-
-        for w in mainframe.project.wires:
-            if _add_bundle._wire_fits_bundle(part, w):  # NOQA
-                w.identify(wire_highlight_material)
-
-        # Degenerate placeholder span -- swapped for a real one locked
-        # to whichever wire the first hover finds compatible.
-        start_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
-        stop_db = ptables.pjt_points3d_table.insert(0.0, 0.0, float(part.min_dia) or 1.0)
-
-        name = f'{part.manufacturer.name} {part.part_number}'
-        bundle_db = ptables.pjt_bundles_table.insert(part_id, name)
-        bundle_db.start_position3d_id = start_db.db_id
-        bundle_db.stop_position3d_id = stop_db.db_id
-
-        preview_conc_db = ptables.pjt_concentrics_table.insert(bundle_db.db_id, None)
+        bundle_db = cls._new_placeholder_bundle_db(mainframe, part_id, part)
 
         facade = _bundle_facade.Bundle(mainframe, bundle_db)
-        facade.identify(preview_material)
+        diameter = float(part.min_dia)
+        facade.obj3d._diameter = diameter  # NOQA
+        facade.obj3d.scale.x = diameter
+        facade.obj3d.scale.y = diameter
         facade.obj3d.is_visible = False
 
-        handler = _add_bundle.Bundle(canvas, facade, part_id, part, preview_material)
-        handler._preview_conc_db = preview_conc_db  # NOQA
-
+        handler = _add_bundle.Bundle(
+            canvas, facade, part, phase=0,
+            diameter_lo=diameter, diameter_hi=float(part.max_dia))
         facade.obj3d._active_handler = handler  # NOQA
         canvas.active_handler_obj = facade.obj3d
+
+        return facade
+
+    @classmethod
+    @_check_types.do
+    def start_add_from_branch(
+        cls, mainframe: "_ui.MainFrame", transition: "_transition_obj.Transition",
+        branch: "_transition_3d.Branch"
+    ) -> _Union["_bundle.Bundle", None]:
+        """Interactive placement of a new, empty bundle whose START point
+        is pre-attached to *branch* -- started only from a branch's own
+        context menu (``objects_3d.transition.BranchMenu.on_add_bundle``),
+        never the toolbar (see :meth:`start_add` for that).
+
+        Builds the exact same placeholder facade + ``add_handlers.
+        editor_3d.bundle.Bundle`` session :meth:`start_add` does (phase
+        0), then immediately replays a phase-0 "click" on *branch*
+        (``Bundle._handle_first_click``, which reads only its own
+        ``self._hovered_branch``, never the mouse position it's passed)
+        so the start attach goes through the session's own real attach
+        path -- diameter narrowing, the branch's own diameter raised to
+        match, the joint ``BundleLayout`` marker -- instead of a second,
+        separately maintained copy of it.
+
+        Only a bundle cover part whose own diameter range overlaps
+        *branch*'s own (``branch_min <= bundle_max and
+        branch_max >= bundle_min``) can be used: the DB editor's
+        currently-selected cover is used only if it already fits, and
+        the part-search dialog (opened otherwise) is pre-filtered to
+        exactly that compatible set.
+        """
+        from ...ui.dialogs import part_search as _part_search
+        from ...ui import editor_db as _editor_db
+        from ...add_handlers.editor_3d import bundle as _add_bundle
+        from .. import bundle as _bundle_facade
+
+        canvas = mainframe.editor3d.editor
+        ptables = mainframe.project.ptables
+        covers_table = ptables.global_db.bundle_covers_table
+
+        def _fits(cover) -> bool:
+            return (float(cover.max_dia) >= branch.min_diameter and
+                    float(cover.min_dia) <= branch.max_diameter)
+
+        part_id = mainframe.editor_db.editor.bundle_covers.GetSelection()
+        part = covers_table[part_id] if part_id is not None else None
+
+        if part is None or not _fits(part):
+            params = _part_search.SearchParameters()
+            params.add('max_dia', _part_search.SearchTerm(
+                operator='>=', value=str(branch.min_diameter)))
+            params.add('min_dia', _part_search.SearchTerm(
+                operator='<=', value=str(branch.max_diameter)))
+
+            dlg = _part_search.SearchDialog(
+                mainframe, _editor_db.BundleCoversPage, covers_table, 'Add Bundle',
+                initial_params=params)
+
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+                part_id = dlg.GetValue()
+            else:
+                part_id = None
+
+            dlg.deleteLater()
+
+            if part_id is None:
+                return None
+
+            part = covers_table[part_id]
+
+        bundle_db = cls._new_placeholder_bundle_db(mainframe, part_id, part)
+
+        facade = _bundle_facade.Bundle(mainframe, bundle_db)
+        diameter = float(part.min_dia)
+        facade.obj3d._diameter = diameter  # NOQA
+        facade.obj3d.scale.x = diameter
+        facade.obj3d.scale.y = diameter
+        facade.obj3d.is_visible = False
+
+        handler = _add_bundle.Bundle(
+            canvas, facade, part, phase=0,
+            diameter_lo=diameter, diameter_hi=float(part.max_dia))
+        facade.obj3d._active_handler = handler  # NOQA
+        canvas.active_handler_obj = facade.obj3d
+
+        handler._hovered_branch = (transition, branch)  # NOQA
+        handler._handle_first_click(None)  # NOQA -- reads only _hovered_branch
 
         return facade
 
@@ -261,14 +367,21 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     @diameter.setter
     @_check_types.do
     def diameter(self, value: float) -> None:
+        # self._scale.x/.y hold the rendered diameter directly, not a
+        # radius -- matches __init__'s own scale = Point(self._diameter,
+        # self._diameter, 0.0) and set_diameter's own self._scale.x =
+        # value exactly. This setter used to halve it into a radius
+        # instead, rendering the bundle at half its real diameter
+        # whenever this property (rather than __init__ or set_diameter)
+        # was the one to set it -- confirmed wrong against both of those
+        # while wiring up handlers.bundle_diameter (2026-10-01).
         self._diameter = value
-        radius = value / 2
-        self._scale.x = radius
-        self._scale.y = radius
+        self._scale.x = value
+        self._scale.y = value
 
     @_check_types.do
     def _bind_waypoints(self) -> None:
-        """(Re-)bind this bundle's own _update_position callback to every
+        """(Re-)bindthis bundle's own _update_position callback to every
         current interior waypoint's live Point, unbinding it from whatever
         set was bound before.
 
@@ -291,6 +404,20 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         waypoint rows change (added, removed, or reordered) so live
         callbacks, cached length, and geometry all catch up."""
         self._bind_waypoints()
+        self._recalculate_geometry()
+        self.editor3d.Refresh()
+
+    @_check_types.do
+    def refresh_diameter(self) -> None:
+        """Public entry point for handlers: call after anything that
+        could change this bundle's own effective diameter (its wire
+        content, or which branch(es) it's attached to -- see
+        ``handlers.bundle_diameter``'s own module docstring) so the
+        rendered geometry catches up. Growing an attached branch's own
+        ``diameter`` to match, when the wires need more room than its
+        own minimum allows, is a side effect of the recompute itself.
+        """
+        self.diameter = _bundle_diameter.effective_diameter(self.db_obj)
         self._recalculate_geometry()
         self.editor3d.Refresh()
 
@@ -704,6 +831,25 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
                 count += 1
 
         return count
+
+    @_check_types.do
+    def _delete(self) -> None:
+        """Make every wire this bundle covers visible again in the 3D view
+        before the bundle goes away.
+
+        Membership is read from the concentric rows (the DB is the truth --
+        ``_wires`` is only what this session happened to add through
+        :meth:`add_wire`, and is empty after a project reload). Runs from
+        ``ObjectBase.delete`` before ``db_obj.delete()``, so the rows are
+        still there to read.
+        """
+        for concentric_wire in self.db_obj.wires:
+            wire = concentric_wire.wire.get_object()
+            wire.obj3d.is_visible = True
+
+        self._wires.clear()
+
+        super()._delete()
 
     @_check_types.do
     def get_context_menu(self) -> "BundleMenu":

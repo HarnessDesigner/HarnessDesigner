@@ -53,7 +53,8 @@ class ScalePegboardMixin(BaseMixin):
         :rtype: bytes
         """
         if self._stored_scale_pegboard_id is DefaultStoredValue:
-            point_id = self._table.select('scale_pegboard_id', id=self._db_id)[0][0]
+            _rows = self._table.select('scale_pegboard_id', id=self._db_id)
+            point_id = _rows[0][0] if _rows else None
             if point_id is None:
                 point = self._table.db.pjt_points_pegboard_table.insert(x=1.0, y=1.0, z=1.0)
                 point_id = point.db_id

@@ -53,8 +53,10 @@ class Angle3DMixin(BaseMixin):
         """
         if self._stored_angle3d is DefaultStoredValue:
 
-            quat = eval(self._table.select('quat3d', id=self._db_id)[0][0])
-            euler = eval(self._table.select('angle3d', id=self._db_id)[0][0])
+            _rows = self._table.select('quat3d', id=self._db_id)
+            quat = eval(_rows[0][0]) if _rows else None
+            _rows = self._table.select('angle3d', id=self._db_id)
+            euler = eval(_rows[0][0]) if _rows else None
     
             if self._angle3d_db_id is None:
                 self._angle3d_db_id = uuid.uuid4().bytes

@@ -58,19 +58,18 @@ def merge_bundles(
     orig_start_sibling = bundle_before.start_sibling
     orig_stop_sibling = bundle_after.stop_sibling
 
-    merged_db = ptables.pjt_bundles_table.insert(part_id, name)
-    merged_db.start_position3d_id = start_id_3d
-    merged_db.stop_position3d_id = stop_id_3d
+    merged_db = ptables.pjt_bundles_table.insert(part_id, name, start_id_3d, stop_id_3d)
 
-    offset_3d = len(before_waypoints3d)
+    paths_table = ptables.pjt_bundle_paths_table
+    paths_table.set_route(
+        merged_db.db_id, '3d',
+        [wp.db_id for wp in before_waypoints3d] + [wp.db_id for wp in after_waypoints3d])
 
-    for i, wp in enumerate(before_waypoints3d):
-        wp.bundle_id = merged_db.db_id
-        wp.idx = i
-
-    for i, wp in enumerate(after_waypoints3d):
-        wp.bundle_id = merged_db.db_id
-        wp.idx = offset_3d + i
+    # The 3D waypoints now belong to the merged bundle; take them out of
+    # both originals' lists so their delete() finds nothing of its own to
+    # clean up (see PJTBundle.delete's BundleLayout sweep).
+    paths_table.set_route(bundle_before.db_obj.db_id, '3d', [])
+    paths_table.set_route(bundle_after.db_obj.db_id, '3d', [])
 
     merged_concentric = ptables.pjt_concentrics_table.insert(merged_db.db_id,
                                                              None)

@@ -115,6 +115,25 @@ def _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, hits, picked)
     print('\n'.join(lines))
 
 
+@_check_types.do
+def _render_id_of(wrapped) -> int:
+    """*wrapped*'s own ``render_id`` (see ``objects_pegboard.table.
+    Table._render_id_counter``) if it's a peg-board Table, else 0 for
+    every other object type -- an ``isinstance``-backed type check via
+    the facade's own ``is_pegboard_table`` (``wrapped.parent``, the
+    facade, is where every ``is_*`` property in this codebase lives; see
+    ``ObjectBase``), not a duck-typed ``getattr(wrapped, 'render_id', 0)``
+    probe: only a peg-board Table's own per-view class actually HAS a
+    ``render_id`` attribute at all, so branching on the real type here is
+    the correct way to decide whether reading it even makes sense, per
+    this codebase's own "no getattr/hasattr for control flow" rule.
+    """
+    if wrapped.parent.is_pegboard_table:
+        return wrapped.render_id
+
+    return 0
+
+
 @_debug.logfunc
 @_check_types.do
 def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"],
@@ -197,12 +216,24 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
     # nearest-ray-distance alone can never reliably prefer it -- the
     # wire's own near surface is, correctly, physically closer along that
     # ray. BaseVar._pick_priority (default 0, bumped by WireMarker/
-    # WireLayout/BundleLayout) breaks that tie explicitly: higher
-    # priority wins outright. ``hit_test`` already returned *candidates*
-    # nearest-hit first, and Python's sort is stable, so re-sorting on
-    # priority alone preserves that original distance order within each
-    # priority tier.
-    hits.sort(key=lambda wrapped: -wrapped._pick_priority)  # NOQA
+    # WireLayout/BundleLayout, and by the peg-board Table higher still --
+    # a table always wins against ordinary scene geometry, see that
+    # class's own comment) breaks that tie explicitly: higher priority
+    # wins outright. ``hit_test`` already returned *candidates* nearest-
+    # hit first, and Python's sort is stable, so re-sorting on priority
+    # alone preserves that original distance order within each priority
+    # tier -- EXCEPT for whatever ``_render_id_of`` supplies as a second
+    # key first: several Tables placed at the exact same default position
+    # (0, 0, 0) are, by construction, equally "nearest" along the ray
+    # (identical geometry -> identical hit distance), so distance can
+    # never break that tie at all -- only real draw order can, and
+    # render_id is exactly that (bumped once per table, every time
+    # render() actually draws it -- see objects_pegboard.table.Table.
+    # render). Every other object type falls through to 0 here, so this
+    # adds no behavior change for them: their ties still fall through to
+    # the original nearest-hit-first order via the stable sort, same as
+    # before.
+    hits.sort(key=lambda wrapped: (-wrapped._pick_priority, -_render_id_of(wrapped)))
 
     picked = [wrapped.parent for wrapped in hits]
 

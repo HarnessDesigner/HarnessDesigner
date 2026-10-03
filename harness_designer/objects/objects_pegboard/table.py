@@ -150,18 +150,17 @@ _RESIZE_CURSOR_FOR_ZONE = {
 
 
 class _TableInteractionHandler:
-    """Real (if inert) handler object for :attr:`PegboardTable.
-    _active_handler` while a mouse interaction is being forwarded into
-    the hidden widget.
+    """Real (if inert) handler object for :attr:`Table._active_handler`
+    while a mouse interaction is being forwarded into the hidden widget.
 
     Every other handler in this codebase (``drag_handlers.editor_pegboard.
     generic.Generic``, ``add_handlers.editor_pegboard.wire.Wire``,
     ``rotation_handlers.rotation_rings.RotationRings``, ...) is a real
     object stored on ``_active_handler`` -- ``BaseVar._delete()``
     unconditionally calls ``self._active_handler.delete()`` during
-    teardown if it's not ``None``. ``PegboardTable`` does all of its own
-    dispatch/rendering directly in :meth:`PegboardTable.handle_interaction`/
-    :meth:`PegboardTable.handle_wheel` rather than delegating to a
+    teardown if it's not ``None``. ``Table`` does all of its own
+    dispatch/rendering directly in :meth:`Table.handle_interaction`/
+    :meth:`Table.handle_wheel` rather than delegating to a
     separate handler class, so this exists only to satisfy that
     interface -- a bare ``True`` sentinel (what this replaced) has no
     ``delete()`` and would raise ``AttributeError`` the moment the table
@@ -172,7 +171,7 @@ class _TableInteractionHandler:
     shared render loop's own deferred pass for whichever object is
     currently selected) unconditionally calls
     ``self._active_handler.render(shaders)`` whenever ``_active_handler``
-    is armed -- since :meth:`PegboardTable.set_selected` arms this
+    is armed -- since :meth:`Table.set_selected` arms this
     handler for the WHOLE selected duration (not just a drag), that
     fires on every single frame the table is selected, not just while a
     press/drag is in progress. A no-op here (this handler has nothing
@@ -190,25 +189,68 @@ class _TableInteractionHandler:
         pass
 
 
-# Stateless -- one shared instance is reused everywhere PegboardTable
-# arms its own _active_handler, rather than allocating a fresh one per
+# Stateless -- one shared instance is reused everywhere Table arms its
+# own _active_handler, rather than allocating a fresh one per
 # press/double-click.
 _TABLE_HANDLER = _TableInteractionHandler()
 
 
-class PegboardTable(_base_pegboard.BasePegboard):
-    """Peg Board Editor representation of a floating wire table."""
+class Table(_base_pegboard.BasePegboard):
+    """Peg Board Editor representation of a floating wire table -- not
+    view-specific (the same table also exists in the 3D view, and
+    eventually gets a real billboard presence there too, see
+    BUNDLE_DESIGN.md section 2.7); this module holds the peg-board
+    view's own implementation.
+    """
 
     db_obj: "_pjt_pegboard_table.PJTPegboardTable"
+
+    # A table always wins picking against ordinary scene geometry -- it
+    # already always wins RENDERING against it too (render()'s own
+    # GL_ALWAYS depth-bypass, see that method's docstring), so the two
+    # need to agree. Strictly above every other _pick_priority bump in
+    # the codebase (1, for wire/bundle markers sitting inside their own
+    # parent's tube).
+    _pick_priority = 2
 
     # class-level default: set_selected can run before __init__ finishes
     _hover_cursor_active = False
     _swallow_release = False
 
+    # Shared across every Table instance -- bumped once per table
+    # per actual render() call, never guessed/predicted from creation
+    # order or anything else (see the "arbitrary bucket order" comment on
+    # CanvasBase._draw_scene -- render order is NOT insertion order).
+    # Whichever table most recently had render() actually draw it (this
+    # frame or an earlier one -- irrelevant, only RELATIVE order between
+    # stacked tables matters) has read this counter's most recent value,
+    # and is therefore the one currently sitting on top on screen. Never
+    # reset to 0 -- see object_picker.find_object's own comment on why a
+    # per-frame reset would actually break the comparison instead of
+    # helping it (a momentarily frustum-culled table's stale-but-still-
+    # meaningful render_id has to stay comparable against one that just
+    # rendered this frame).
+    #
+    # Deliberately left UNANNOTATED (no `: int`) -- this is a plain
+    # Python attribute, not a Cython-typed one, specifically so it stays
+    # an arbitrary-precision Python int under compilation instead of
+    # becoming a bounded C integer. Per this codebase's own Cython
+    # typing rules (MEMORY.md), a bare builtin annotation like `: int`
+    # DOES get a real native C-level type from Cython (unlike a quoted
+    # class forward-reference, which costs nothing) -- so typing this
+    # would hand it a real ceiling (a wraparound after 2**31/2**63
+    # increments) for a value that increments for the entire lifetime of
+    # the running app and has no reason to ever need one. Confirmed via
+    # `sys.int_info` (bits_per_digit=30): a bare Python int is a
+    # dynamically-sized array of base-2^30 digits with no fixed ceiling
+    # at all short of exhausting system memory, which is what this stays
+    # by not annotating it.
+    _render_id_counter = 0
+
     @_check_types.do
     def __init__(self, parent: "_pegboard_table.PegboardTable",
                  db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
-        """Initialise the :class:`PegboardTable` instance.
+        """Initialise the :class:`Table` instance.
 
         :param parent: Parent object.
         :type parent: :class:`_pegboard_table.PegboardTable`
@@ -230,13 +272,17 @@ class PegboardTable(_base_pegboard.BasePegboard):
                 material=_materials.Plastic(_color.Color(255, 255, 255)),
             )
 
+            # 0 until this table's own render() actually draws it for the
+            # first time -- see _render_id_counter's own comment.
+            self.render_id = 0
+
             self._anchor = anchor
             self._anchor_position = anchor.position_pegboard if anchor is not None else None
 
             # Locally cached mirror of the anchor's own visibility --
             # deliberately never written back onto this table's own
             # is_visible_pegboard/is_visible (see module docstring on
-            # PegboardTable and _on_anchor_visibility_changed's own
+            # Table and _on_anchor_visibility_changed's own
             # docstring): this table stays independently show/hide-able
             # by the user (closing the hosted sub-window), and render()
             # additionally skips drawing while the anchor itself is
@@ -244,6 +290,21 @@ class PegboardTable(_base_pegboard.BasePegboard):
             self._anchor_is_visible = anchor.is_visible_pegboard if anchor is not None else True
             if anchor is not None:
                 anchor.bind(self._on_anchor_visibility_changed, 'is_visible_pegboard')
+
+                # A bundle's own position_pegboard (this table's connector
+                # target) is the first interior waypoint if it has one,
+                # else its stop end (see PJTBundle.position_pegboard) --
+                # NOT a single fixed point row. Adding/removing a waypoint
+                # can therefore swap which point row it resolves to
+                # entirely, which a plain position bind (below) can never
+                # detect on its own (it only fires when the point object
+                # it's ALREADY bound to moves, not when a different point
+                # becomes the relevant one). PJTBundlePathsTable.add/
+                # remove/set_route fire this tag on the bundle's own row
+                # every time its waypoint list actually changes shape --
+                # harmless no-op bind for any other anchor type that never
+                # fires it.
+                anchor.bind(self._on_anchor_waypoints_changed, 'waypoints_pegboard')
 
             self._host = _mdi_host.PegboardTableHost(
                 parent.mainframe, self._table_title(), db_obj)
@@ -287,6 +348,8 @@ class PegboardTable(_base_pegboard.BasePegboard):
         self._host.close_requested.connect(self._on_close_requested)
         self._host.table.wire_selection_synced.connect(self._regrab_texture)
         self._host.table.appearance_changed.connect(self._regrab_texture)
+        self._host.table.wire_selected.connect(self._on_wire_selected)
+        self._host.table.wire_deselected.connect(self._on_wire_deselected)
 
         # Same "hover reaches the target before press" and "grab-
         # emulation across press/drag/release" state the scratch
@@ -327,6 +390,24 @@ class PegboardTable(_base_pegboard.BasePegboard):
             return self._anchor.name
 
         return 'Wire Table'
+
+    @_check_types.do
+    def _on_wire_selected(self, wire_id: bytes) -> None:
+        """A wire row was picked in this table -- light up everything
+        that wire touches (see ``wire_highlight``)."""
+        self.pegboard.wire_highlight.show(self, self.db_obj.table.db, wire_id)
+
+    @_check_types.do
+    def _on_wire_deselected(self) -> None:
+        """This table's selection was cleared -- turn the highlight off."""
+        self.pegboard.wire_highlight.clear(self)
+
+    @_check_types.do
+    def _delete(self):
+        # A table deleted (closed with its anchor) while its wire is
+        # still selected must not leave the highlight behind.
+        self.pegboard.wire_highlight.clear(self)
+        super()._delete()
 
     @_check_types.do
     def refresh_wires(self) -> None:
@@ -387,6 +468,39 @@ class PegboardTable(_base_pegboard.BasePegboard):
         See :meth:`_update_position` for the table-side half of the same
         recompute.
         """
+        self._recompute_connector()
+        self.pegboard.Refresh()
+
+    @_check_types.do
+    def _on_anchor_waypoints_changed(self, *_args, **_kwargs) -> None:
+        """Bound to the anchor's own ``waypoints_pegboard`` tag (see the
+        constructor's own comment, and ``PJTBundlePathsTable.
+        _notify_waypoints_changed``) -- re-reads ``position_pegboard``
+        fresh, since adding/removing a waypoint can change WHICH point
+        row it resolves to entirely (the first interior waypoint if one
+        exists, else the stop end), not just move the one already bound.
+        Rebinds :meth:`_update_connector` from the old point to the new
+        one (a no-op re-bind when the resolved point didn't actually
+        change, e.g. a second waypoint added after an already-existing
+        first one) and recomputes immediately, since the position has
+        likely already changed by the time this fires.
+        """
+        if self._anchor is None:
+            return
+
+        new_position = self._anchor.position_pegboard
+
+        if new_position is self._anchor_position:
+            return
+
+        if self._anchor_position is not None:
+            self._anchor_position.unbind(self._update_connector)
+
+        self._anchor_position = new_position
+
+        if self._anchor_position is not None:
+            self._anchor_position.bind(self._update_connector)
+
         self._recompute_connector()
         self.pegboard.Refresh()
 
@@ -547,6 +661,14 @@ class PegboardTable(_base_pegboard.BasePegboard):
 
         self._aabb_manager.mark_visible(self._aabb_index)
         self._obb_manager.mark_visible(self._obb_index)
+
+        # Bumped only once this table has cleared every early-return
+        # above and is actually about to draw -- a hidden/anchor-hidden/
+        # not-yet-textured table never reaches here, so it never claims a
+        # render_id it didn't earn (see _render_id_counter's own comment,
+        # and object_picker.find_object's tie-break that reads this).
+        Table._render_id_counter += 1
+        self.render_id = Table._render_id_counter
 
         # Drawn BEFORE the table's own quad, not after -- see
         # _render_selection_border's own docstring for why: it's a

@@ -969,7 +969,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             self._shaders.vertices.view = view_matrix
 
         # ---------- Texture program (peg-board floating wire tables --
-        # see objects.objects_pegboard.pegboard_table.PegboardTable.render)
+        # see objects.objects_pegboard.table.Table.render)
         # -- unlit, no lighting/floor/reflection uniforms of its own, but
         # still needs projection/view every frame like every other
         # program above; left unset it defaults to an all-zero matrix

@@ -909,6 +909,10 @@ class Config(metaclass=ConfigDB):
             # of one terminal's own wires fan out from.
             wire_junction = [0.85, 0.55, 0.15, 1.0]
 
+            # A free-standing (not in a cavity) terminal's ring glyph -- see
+            # objects_schematic/free_terminal.py.
+            free_terminal = [0.05, 0.05, 0.05, 1.0]
+
         class object_sizes(metaclass=ConfigDB):
 
             class terminal(metaclass=ConfigDB):
@@ -918,6 +922,17 @@ class Config(metaclass=ConfigDB):
                 # terminal may render smaller than this to fit its own
                 # name inside that computed slot height.
                 name_font_size = 2.0
+
+            class free_terminal(metaclass=ConfigDB):
+                """
+                Fixed size of the ring glyph a free-standing (not in a
+                cavity) terminal is drawn as in the 2D schematic editor --
+                one shared flat ring mesh (shapes/torus.py's
+                create_flat_ring_vbo), the same for every such terminal.
+                """
+
+                # Outer diameter, mm.
+                diameter = 3.0
 
             class splice(metaclass=ConfigDB):
                 """
@@ -981,6 +996,10 @@ class Config(metaclass=ConfigDB):
         background_color = [0.60, 0.60, 0.60, 1.0]
         selected_color = [0.2, 0.6, 0.2, 0.25]
 
+        # Glow color for everything the wire selected in a wire table
+        # touches (objects_pegboard/wire_highlight.py).
+        wire_highlight_color = [0.2, 0.5, 1.0, 1.0]
+
         class lighting(metaclass=ConfigDB):
             position = [100.0, 100.0, 100.0]
             ambient = [0.6, 0.6, 0.6, 1.0]
@@ -1001,6 +1020,24 @@ class Config(metaclass=ConfigDB):
 
         class drag_handler(metaclass=ConfigDB):
             mode = ''
+
+        class rope_pull(metaclass=ConfigDB):
+            # Maximum bow height for one slack-absorbing span, as a
+            # fraction of that span's own straight-line length -- see
+            # rope_pull.rope_pull_py.solve_chain's own docstring for the
+            # closed-form bow count/height this feeds. A smaller fraction
+            # means shallower, more numerous bows for the same amount of
+            # slack; placeholder value, not yet tuned against a real
+            # project (BUNDLE_PLACEMENT.md section 6/6b flagged this as
+            # still open).
+            height_cap_fraction = 0.3
+
+            # Absolute floor under height_cap_fraction's own result, for
+            # a span whose two fixed endpoints are at (or very near) the
+            # same position -- without this, a near-zero straight length
+            # would force an unbounded bow count. Placeholder value, same
+            # caveat as height_cap_fraction above.
+            min_height_mm = 5.0
 
         class rotation_handler(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
@@ -1311,6 +1348,21 @@ class Config(metaclass=ConfigDB):
             is_visible = True
             size = None
             position = None
+
+    class bundle(metaclass=ConfigDB):
+        """
+        Bundle diameter calculation -- shared by both the 3D and
+        peg-board views (a bundle's own physical diameter is a single
+        project fact, not a per-view rendering choice).
+        """
+
+        # A bundle with no concentric (organized-twist) packing falls
+        # back to this "unorganized packing" estimate: the diameter of
+        # the circle whose area equals the sum of its wires' own
+        # cross-sectional areas (sqrt(sum(od**2)), the zero-gap/perfect-
+        # packing minimum), times this factor to account for the real
+        # gaps an unorganized bundle of loose wires actually has.
+        unorganized_pack_fudge_factor = 1.25
 
     class logging(metaclass=ConfigDB):
         """

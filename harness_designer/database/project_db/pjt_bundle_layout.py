@@ -77,7 +77,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTBundleLayout`
         """
-        rows = self.select('id', position3d_id=position3d_id)
+        rows = self.select('id', point3d_id=position3d_id)
         if rows:
             return self[rows[0][0]]
 
@@ -366,9 +366,10 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
     def attached_bundles(self) -> list["_pjt_bundle.PJTBundle"]:
         """Every bundle whose true start/stop lands on this layout's point.
 
-        Falls back to the ``bundle_id`` tag on the point itself when no
-        start/stop match is found -- the layout sits on an interior
-        waypoint rather than a bundle's true endpoint, mirroring
+        Falls back to the bundles whose own waypoint list
+        (``pjt_bundle_paths``) contains the point when no start/stop
+        match is found -- the layout sits on an interior waypoint rather
+        than a bundle's true endpoint, mirroring
         ``PJTWireLayout.attached_wires``.
 
         :returns: Bundles attached at this layout's position.
@@ -376,17 +377,16 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         """
         point3d_id = self.position3d_id
         if point3d_id is not None:
-            start_col, stop_col, points_table = (
-                'start_point3d_id', 'stop_point3d_id', self._table.db.pjt_points3d_table)
+            view = '3d'
+            start_col, stop_col = 'start_point3d_id', 'stop_point3d_id'
             point_id = point3d_id
         else:
             point_pegboard_id = self.position_pegboard_id
             if point_pegboard_id is None:
                 return []
 
-            start_col, stop_col, points_table = (
-                'start_point_pegboard_id', 'stop_point_pegboard_id',
-                self._table.db.pjt_points_pegboard_table)
+            view = 'pegboard'
+            start_col, stop_col = 'start_point_pegboard_id', 'stop_point_pegboard_id'
             point_id = point_pegboard_id
 
         db_ids = self._table.db.pjt_bundles_table.select(
@@ -396,12 +396,9 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         if res:
             return res
 
-        point = points_table[point_id]
-        bundle_id = point.bundle_id
-        if bundle_id is not None:
-            return [self._table.db.pjt_bundles_table[bundle_id]]
+        bundle_ids = self._table.db.pjt_bundle_paths_table.bundle_ids_for_point(view, point_id)
 
-        return []
+        return [self._table.db.pjt_bundles_table[bundle_id] for bundle_id in bundle_ids]
 
     @property
     @_check_types.do
@@ -434,7 +431,17 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         """
         bundles = self.attached_bundles
         if bundles:
-            return bundles[-1].concentric.layers[-1].diameter
+            bundle = bundles[-1]
+            bundle_obj = bundle.get_object()
+            if bundle_obj is not None:
+                return bundle_obj.obj3d._diameter  # NOQA
+
+            concentric = bundle.concentric
+            layers = concentric.layers if concentric is not None else []
+            if layers:
+                return layers[-1].diameter
+
+            return bundle.part.min_dia
 
         return 3.0
 

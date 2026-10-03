@@ -287,9 +287,16 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :rtype: list[:class:`_pjt_wire.PJTWire`]
         """
         res = []
+        seen = set()
 
+        # A wire entering through one branch and leaving through another
+        # is on both branches' lists but is ONE row in this transition's
+        # (single) table.
         for branch in self.branches:
-            res.extend(branch.wires)
+            for wire in branch.wires:
+                if wire.db_id not in seen:
+                    seen.add(wire.db_id)
+                    res.append(wire)
 
         return res
 
@@ -380,6 +387,29 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
                 pos._process_callbacks()  # NOQA
         finally:
             _pjt_point3d.PJTPoint3D._skip_db_write = False
+
+    _o_scale3d: _point.Point = None
+
+    @property
+    @_check_types.do
+    def scale3d(self) -> _point.Point:
+        """Always ``Point(1.0, 1.0, 1.0)`` -- a transition has no whole-
+        object scale of its own (this class mixes in no
+        ``Scale3DMixin``, and ``pjt_transitions`` has no ``scale3d_id``
+        column at all): its apparent size comes entirely from its own
+        branches' diameters (``PJTTransitionBranch``/its catalog row),
+        never a single uniform scale the way e.g. ``PJTHousing.scale3d``
+        works. A real, bindable ``Point`` (not a bare tuple), cached per
+        instance, purely so generic callers that treat every placed
+        object the same way -- e.g. ``ui/toolbar/toolbar.py``'s
+        ``_on_obj_3d_selected`` -- can ``.bind()``/``.unbind()``/read
+        ``.as_float`` on it exactly like a real stored scale, even though
+        nothing ever actually writes to it.
+        """
+        if self._o_scale3d is None:
+            self._o_scale3d = _point.Point(1.0, 1.0, 1.0)
+
+        return self._o_scale3d
 
     _o_position_pegboard: _point.Point = None
 

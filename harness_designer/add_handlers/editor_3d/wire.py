@@ -678,18 +678,13 @@ class Wire(_base.AddHandlerBase):
         growing_point_id = self._growing_point.db_id[:-2]
         growing_pos = self._growing_point
 
-        existing = self.target.db_obj.waypoints3d
+        wire_id = self.target.db_obj.db_id
+        paths_table = self.ptables.pjt_wire_paths_table
 
         if self._growing_end == 'stop':
-            new_idx = len(existing)
+            paths_table.append(wire_id, '3d', growing_point_id)
         else:
-            for wp in existing:
-                wp.idx = wp.idx + 1
-            new_idx = 0
-
-        point = self.ptables.pjt_points3d_table[growing_point_id]
-        point.wire_id = self.target.db_obj.db_id
-        point.idx = new_idx
+            paths_table.add(wire_id, '3d', 0, growing_point_id)
 
         layout_db = self.ptables.pjt_wire_layouts_table.insert(growing_point_id)
         layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
@@ -748,12 +743,8 @@ class Wire(_base.AddHandlerBase):
 
         last_point = last_waypoint.point
 
-        last_waypoint.wire_id = None
-        last_waypoint.idx = None
-
-        if self._growing_end == 'start':
-            for wp in self.target.db_obj.waypoints3d:
-                wp.idx = wp.idx - 1
+        self.ptables.pjt_wire_paths_table.remove(
+            self.target.db_obj.db_id, '3d', last_waypoint.db_id)
 
         self._set_growing_position3d_id(last_waypoint.db_id)
         self._set_growing_obj3d_position(last_point)

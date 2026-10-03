@@ -1256,7 +1256,22 @@ class MouseHandlerBase:
             # cleanup, leaving the canvas permanently stuck routing every
             # future click back to this now-dead handler instead of
             # whatever gets freshly picked.
-            self._is_motion = True
+            #
+            # Only when an actual button is held, though (2026-09-29 fix):
+            # an add-handler's own hover-preview (add_handlers.base.
+            # AddHandlerBase -- Wire/Transition/Bundle placement) consumes
+            # every plain MOVE too, with NO button down at all, to track
+            # the growing point/highlight a snap target. That is not a
+            # drag, and marking it as "motion" poisoned every later
+            # LEFT_UP/RIGHT_UP for the rest of the session (had_motion
+            # stays True from the last bit of hover before the click, even
+            # though the click itself had none) -- a click could never
+            # commit a waypoint and right-click could never finalize the
+            # placement, confirmed live 2026-09-29 with bundle placement
+            # (BUNDLE_PLACEMENT.md section 3) -- the first of these
+            # sessions anyone actually finished exercising end to end.
+            if evt.buttons() != QtCore.Qt.MouseButton.NoButton:
+                self._is_motion = True
 
             # A consumed MOVE (e.g. the inner ring's own free-rotation
             # drag advancing) has no button-drag delta of its own to

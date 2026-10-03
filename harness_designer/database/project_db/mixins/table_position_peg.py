@@ -58,7 +58,8 @@ class TablePositionPegMixin(BaseMixin):
         :rtype: bytes
         """
         if self._stored_table_position_peg_id is DefaultStoredValue:
-            point_id = self._table.select('table_point_peg_id', id=self._db_id)[0][0]
+            rows = self._table.select('table_point_peg_id', id=self._db_id)
+            point_id = rows[0][0] if rows else None
             if point_id is None:
                 point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
                 point_id = point.db_id
@@ -98,7 +99,14 @@ class TablePositionPegMixin(BaseMixin):
         if self._stored_table_position_peg_id is not DefaultStoredValue:
             return self._stored_table_position_peg_id
 
-        return self._table.select('table_point_peg_id', id=self._db_id)[0][0]
+        # Same defensive shape as every other single-row-by-id lookup in
+        # this codebase that turned out to need it this session
+        # (PJTTransitionBranch.concentric/.bundle): an empty result used
+        # to be indexed straight into with [0][0], crashing with
+        # IndexError instead of falling back to this property's own
+        # documented "never been computed" meaning.
+        rows = self._table.select('table_point_peg_id', id=self._db_id)
+        return rows[0][0] if rows else None
 
     @_check_types.do
     def delete_table_overlay(self) -> None:
@@ -122,5 +130,22 @@ class TablePositionPegMixin(BaseMixin):
             return
 
         table_row = self._table.db.pjt_pegboard_tables_table.get_from_point_pegboard_id(point_id)
-        if table_row is not None:
+        if table_row is None:
+            return
+
+        # Go through the live facade when one exists (objects.pegboard_
+        # table.PegboardTable.delete(), whose own docstring says exactly
+        # this: "its owning anchor's own delete() is responsible for
+        # calling this") -- calling table_row.delete() directly here
+        # skips that facade's own teardown entirely (its per-view
+        # widgets, the MDI sub-window/host, the GL texture allocated in
+        # objects_pegboard.table.Table.__init__), which
+        # leaves a real, un-freed resource leak and an orphaned floating
+        # table widget still on screen after its anchor is long gone.
+        # Only fall back to deleting the bare row when no view was ever
+        # built for it (e.g. loaded but never displayed this session).
+        table_obj = table_row.get_object()
+        if table_obj is not None:
+            table_obj.delete()
+        else:
             table_row.delete()

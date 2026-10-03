@@ -49,8 +49,10 @@ class AnglePegboardMixin(BaseMixin):
         :rtype: :class:`_angle.Angle`
         """
         if self._stored_angle_pegboard is DefaultStoredValue:
-            quat = eval(self._table.select('quat_pegboard', id=self._db_id)[0][0])
-            euler = eval(self._table.select('angle_pegboard', id=self._db_id)[0][0])
+            _rows = self._table.select('quat_pegboard', id=self._db_id)
+            quat = eval(_rows[0][0]) if _rows else None
+            _rows = self._table.select('angle_pegboard', id=self._db_id)
+            euler = eval(_rows[0][0]) if _rows else None
 
             if self._angle_pegboard_db_id is None:
                 self._angle_pegboard_db_id = uuid.uuid4().bytes

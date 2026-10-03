@@ -56,8 +56,22 @@ class BundleLayout(_base_3d.Base3D):
 
             if bundles:
                 bundle = bundles[-1]
-                layers = bundle.concentric.layers
-                self._diameter = layers[-1].diameter
+                bundle_obj = bundle.get_object()
+                if bundle_obj is not None:
+                    # The bundle's own live view object already caches its
+                    # real current diameter (set at placement time, kept
+                    # current by Bundle.diameter's setter) -- reading it
+                    # directly here is both correct (matches whatever this
+                    # bundle is actually rendered at, wires or no wires)
+                    # and crash-safe: a brand-new skeleton bundle with no
+                    # wires routed through it yet has no concentric layer
+                    # at all, so falling through to `layers[-1]` below
+                    # would raise IndexError.
+                    self._diameter = bundle_obj.obj3d._diameter  # NOQA
+                else:
+                    concentric = bundle.concentric
+                    layers = concentric.layers if concentric is not None else []
+                    self._diameter = layers[-1].diameter if layers else bundle.part.min_dia
                 color = bundle.part.color.ui
             else:
                 self._diameter = db_obj.diameter

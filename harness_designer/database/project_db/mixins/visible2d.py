@@ -24,7 +24,8 @@ class Visible2DMixin(BaseMixin):
         :rtype: bool
         """
         if self._stored_is_visible2d is DefaultStoredValue:
-            self._stored_is_visible2d = bool(self._table.select('is_visible2d', id=self._db_id)[0][0])
+            _rows = self._table.select('is_visible2d', id=self._db_id)
+            self._stored_is_visible2d = bool(_rows[0][0]) if _rows else None
         
         return self._stored_is_visible2d
         

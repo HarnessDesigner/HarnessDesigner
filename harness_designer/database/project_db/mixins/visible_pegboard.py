@@ -28,7 +28,8 @@ class VisiblePegboardMixin(BaseMixin):
         :rtype: bool
         """
         if self._stored_is_visible_pegboard is DefaultStoredValue:
-            self._stored_is_visible_pegboard = bool(self._table.select('is_visible_pegboard', id=self._db_id)[0][0])
+            _rows = self._table.select('is_visible_pegboard', id=self._db_id)
+            self._stored_is_visible_pegboard = bool(_rows[0][0]) if _rows else None
 
         return self._stored_is_visible_pegboard
 

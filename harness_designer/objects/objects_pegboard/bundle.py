@@ -15,6 +15,7 @@ from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ... import utils as _utils
+from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
 from ... import config as _config
 
@@ -76,11 +77,16 @@ class Bundle(_base_pegboard.BasePegboard):
         # min_dia otherwise) -- never borrowed from obj3d.
         self._part = db_obj.part
 
-        layers = db_obj.concentric.layers
-        if layers:
-            self._diameter = layers[-1].diameter
-        else:
-            self._diameter = self._part.min_dia
+        # See handlers.bundle_diameter's own module docstring: the
+        # larger of what this bundle's own wires need and the catalog
+        # minimum of any transition branch it's plugged into (growing
+        # that branch's own diameter to match as a side effect, when
+        # the wires need more room than the branch's own minimum
+        # allows) -- replaces the previous concentric-or-part-min-dia-
+        # only fallback, which ignored both real wire sizing (for a
+        # non-concentric bundle) and any attached branch entirely.
+        # Mirrors objects_3d.bundle.Bundle.__init__'s own same fix.
+        self._diameter = _bundle_diameter.effective_diameter(db_obj)
 
         material = _materials.Rubber(self._part.color.ui)
 
@@ -140,10 +146,16 @@ class Bundle(_base_pegboard.BasePegboard):
     @diameter.setter
     @_check_types.do
     def diameter(self, value: float):
+        # self._scale.x/.y hold the rendered diameter directly, not a
+        # radius -- matches __init__'s own scale = Point(self._diameter,
+        # self._diameter, 0.0). This setter used to halve it into a
+        # radius instead, rendering the bundle at half its real diameter
+        # whenever this property was the one to set it -- same bug,
+        # same fix, as objects_3d.bundle.Bundle.diameter's own setter
+        # (2026-10-01, found wiring up handlers.bundle_diameter).
         self._diameter = value
-        radius = value / 2.0
-        self._scale.x = radius
-        self._scale.y = radius
+        self._scale.x = value
+        self._scale.y = value
 
     @_check_types.do
     def _bind_waypoints(self) -> None:
@@ -167,6 +179,20 @@ class Bundle(_base_pegboard.BasePegboard):
         live callbacks and cached geometry all catch up.
         """
         self._bind_waypoints()
+        self._recalculate_geometry()
+        self.pegboard.Refresh()
+
+    @_check_types.do
+    def refresh_diameter(self) -> None:
+        """Public entry point for handlers: call after anything that
+        could change this bundle's own effective diameter (its wire
+        content, or which branch(es) it's attached to -- see
+        ``handlers.bundle_diameter``'s own module docstring) so the
+        rendered geometry catches up. Growing an attached branch's own
+        ``diameter`` to match, when the wires need more room than its
+        own minimum allows, is a side effect of the recompute itself.
+        """
+        self.diameter = _bundle_diameter.effective_diameter(self.db_obj)
         self._recalculate_geometry()
         self.pegboard.Refresh()
 

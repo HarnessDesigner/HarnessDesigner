@@ -896,10 +896,11 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         ``delete_layouts_at()`` sweep otherwise) and then its
         ``pjt_points2d`` row.
 
-        The row's ``wire_id`` has to be cleared first -- it counts as a
-        reference on its own, and ``PJTPoint2D.delete()`` silently refuses
-        while the point is referenced, which left the waypoint (and so a
-        bend in the wire's own path) in place after its handle was gone.
+        The point has to come out of its wire's route first -- a route row
+        counts as a reference on its own, and ``PJTPoint2D.delete()``
+        silently refuses while the point is referenced, which left the
+        waypoint (and so a bend in the wire's own path) in place after its
+        handle was gone.
         """
         if layout is not None:
             layout.delete()
@@ -907,7 +908,10 @@ class Wire(_editor_schematic.DragHandlerSchematic):
             _pjt_wire.delete_layouts_at(
                 project.ptables.pjt_wire_layouts_table, 'point2d_id', waypoint.db_id)
 
-        waypoint.wire_id = None
+        paths_table = project.ptables.pjt_wire_paths_table
+        for wire_id in paths_table.wire_ids_for_point('2d', waypoint.db_id):
+            paths_table.remove(wire_id, '2d', waypoint.db_id)
+
         waypoint.delete()
 
     @_check_types.do

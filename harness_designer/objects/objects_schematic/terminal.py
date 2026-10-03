@@ -2,6 +2,8 @@
 
 from typing import TYPE_CHECKING, Union
 
+import math
+
 import build123d
 import numpy as np
 from PySide6 import QtWidgets
@@ -28,13 +30,16 @@ from ...geometry import cavity_layout as _cavity_layout
 from ...shapes import text as _text
 from ...shapes import cylinder as _cylinder
 from ...shapes import sphere as _sphere
+from ...shapes import torus as _torus
 from ...handlers import terminal_handler as _terminal_handler
 from ... import utils as _utils
 
 
 if TYPE_CHECKING:
     from .. import terminal as _terminal
+    from .. import wire as _wire_obj
     from ...database.project_db import pjt_terminal as _pjt_terminal
+    from ...database.project_db import pjt_point2d as _pjt_point2d
     from ... import ui as _ui
 
 
@@ -135,9 +140,22 @@ class Terminal(_base_schematic.BaseSchematic):
     # seated cavity's id).
     _geometry: _cavity_layout.CavityGeometry | None = None
 
+    # Only ever set by the seated-in-a-cavity branch of __init__; None for a
+    # free-standing (ring) or not-yet-seated terminal, so callers can test
+    # them (see objects.terminal.Terminal._make_room_for_second_wire).
+    _bracket: _text.Text | None = None
+    _bracket_close: _text.Text | None = None
+    _cylinder_start: _point.Point | None = None
+    _wire_position: _point.Point | None = None
+
+    # True for a free-standing terminal (one that is not in a cavity and never
+    # will be), drawn as a ring instead of from its cavity's stub -- see
+    # __init__'s *free*.
+    _is_free: bool = False
+
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
-                 db_obj: "_pjt_terminal.PJTTerminal"):
+                 db_obj: "_pjt_terminal.PJTTerminal", free: bool = False):
         """
         Initialise the :class:`Terminal` instance.
 
@@ -146,6 +164,13 @@ class Terminal(_base_schematic.BaseSchematic):
 
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_terminal.PJTTerminal`
+
+        :param free: A terminal that is not in a cavity and is not just a
+            placement preview about to be seated in one (the add handlers
+            build those without this, and they stay unseen): drawn as a ring
+            at its own ``position2d``, with its ``wire_position2d`` at the
+            ring's center so wires attach there.
+        :type free: bool
         """
 
         self._part = db_obj.part
@@ -340,6 +365,9 @@ class Terminal(_base_schematic.BaseSchematic):
                 super().__init__(parent, db_obj, vbo, angle,
                                  position, scale, material)
 
+        elif free:
+            self._init_free(parent, db_obj)
+
         else:
 
             super().__init__(parent, db_obj, None, None,
@@ -347,6 +375,130 @@ class Terminal(_base_schematic.BaseSchematic):
 
         # TODO: add in recalculating the positions based on the name
         # self._name_cb = self.db_obj.bind(self._rebuild, 'name')
+
+    @_check_types.do
+    def _init_free(self, parent: "_terminal.Terminal",
+                   db_obj: "_pjt_terminal.PJTTerminal") -> None:
+        """Build the ring a free-standing terminal is drawn as.
+
+        One flat ring mesh, built once and shared by every such terminal
+        (``shapes.torus.create_flat_ring_vbo`` -- the schematic draws them all
+        the same size, so a preset ring is scaled to
+        ``Config.object_sizes.free_terminal.diameter`` rather than a new one
+        being computed per terminal). Wires attach at the ring's center: this
+        terminal's ``wire_position2d`` is kept on its ``position2d`` (see
+        :meth:`_update_position`), the same point every wire on it shares.
+        """
+        self._is_free = True
+
+        position = db_obj.position2d
+        if position is None:
+            position_db = parent.mainframe.project.ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0)
+            db_obj.position2d_id = position_db.db_id
+            position = db_obj.position2d
+
+        self._wire_position = db_obj.wire_position2d
+        self._sync_free_wire_position(position)
+
+        # PJTTerminal has no angle2d that would mean anything for a ring; a
+        # static, unbound identity Angle gives BaseVar's OBB/AABB math a real
+        # rotation to use (same reason objects_schematic/splice.py does this).
+        angle = _angle.Angle.from_euler(0.0, 0.0, 0.0)
+
+        diameter = Config.object_sizes.free_terminal.diameter
+        scale = _point.Point(diameter, diameter, diameter)
+        material = _materials.Generic(_color.Color(*Config.colors.free_terminal))
+
+        with parent.mainframe.editor2d.editor.context:
+            vbo = _torus.create_flat_ring_vbo()
+            super().__init__(parent, db_obj, vbo, angle, position, scale, material)
+
+    # A free-standing terminal's ring takes up to four wires without any of
+    # them overlapping: one attach point on each side of its edge, as
+    # (x, z) unit directions -- E, W, N, S (-z is up the screen).
+    _FREE_SLOTS = ((1.0, 0.0), (-1.0, 0.0), (0.0, -1.0), (0.0, 1.0))
+
+    @_check_types.do
+    def free_slot_points(self) -> list[tuple[float, float, float]]:
+        """World ``(x, y, z)`` of each of this free-standing terminal's four
+        wire attach points, in :attr:`_FREE_SLOTS` order -- computed from the
+        ring's current position, not stored."""
+        radius = Config.object_sizes.free_terminal.diameter / 2.0
+        cx, cy, cz = self.db_obj.position2d.as_float
+
+        return [(cx + dx * radius, cy, cz + dz * radius) for dx, dz in self._FREE_SLOTS]
+
+    @_check_types.do
+    def attach_wire_point(self, wire: "_wire_obj.Wire", end: str) -> "_pjt_point2d.PJTPoint2D":
+        """A new 2D point row for *wire*'s *end* to attach to this free-
+        standing terminal's ring at, on whichever of its four sides is still
+        free and faces the way the wire comes in from (toward its first
+        interior waypoint, or its other end). With all four taken (a fifth
+        wire) the wire shares the best-facing one.
+
+        Each wire gets its own row, unlike a seated terminal's one shared
+        ``wire_position2d``, so :meth:`_update_position` moves them
+        individually and detaching one leaves it a free end of its own.
+        """
+        ptables = self.mainframe.project.ptables
+        wire_db = wire.db_obj
+        slots = self.free_slot_points()
+        cx, _, cz = self.db_obj.position2d.as_float
+
+        waypoints = wire_db.waypoints2d
+
+        if end == 'start':
+            if waypoints:
+                neighbor = waypoints[0].point
+            else:
+                neighbor = wire_db.stop_position2d
+        else:
+            if waypoints:
+                neighbor = waypoints[-1].point
+            else:
+                neighbor = wire_db.start_position2d
+
+        nx, _, nz = neighbor.as_float
+        wx, wz = nx - cx, nz - cz
+
+        radius = Config.object_sizes.free_terminal.diameter / 2.0
+        used = set()
+
+        for other in self.parent.wires:
+            if other is wire:
+                continue
+
+            if other.start_sibling is self.parent:
+                other_end = other.db_obj.start_position2d
+            else:
+                other_end = other.db_obj.stop_position2d
+
+            ox, _, oz = other_end.as_float
+            nearest = min(range(len(slots)), key=lambda i: math.dist((ox, oz), (slots[i][0], slots[i][2])))
+
+            if math.dist((ox, oz), (slots[nearest][0], slots[nearest][2])) < radius / 2.0:
+                used.add(nearest)
+
+        # Best-facing first; the slot order breaks a tie (or a zero-length
+        # approach) the same way every time.
+        order = sorted(range(len(slots)), key=lambda i: -(self._FREE_SLOTS[i][0] * wx + self._FREE_SLOTS[i][1] * wz))
+
+        chosen = order[0]
+        for index in order:
+            if index not in used:
+                chosen = index
+                break
+
+        return ptables.pjt_points2d_table.insert(*slots[chosen])
+
+    @_check_types.do
+    def _sync_free_wire_position(self, position: _point.Point) -> None:
+        """Keep a free-standing terminal's ``wire_position2d`` (where its
+        wires attach) on *position*, the ring's center."""
+        with self._wire_position:
+            self._wire_position.x = float(position.x)
+            self._wire_position.y = float(position.y)
+            self._wire_position.z = float(position.z)
 
     @property
     @_check_types.do
@@ -454,6 +606,24 @@ class Terminal(_base_schematic.BaseSchematic):
         stub direction is derived straight from these two points -- see
         ``wire_routing.reroute._terminal_exit_stub_point``).
         """
+
+        if self._is_free:
+            # Nothing housing-derived to re-derive: the ring just follows its
+            # own position, and so do the points its wires attach at.
+            delta = position.as_numpy - self._o_position.as_numpy
+
+            self._sync_free_wire_position(position)
+            super()._update_position(position)
+
+            for wire in self.parent.wires:
+                if wire.start_sibling is self.parent:
+                    end_point = wire.db_obj.start_position2d
+                else:
+                    end_point = wire.db_obj.stop_position2d
+
+                end_point += _point.Point(*delta.tolist())
+
+            return
 
         with self._bracket_position:
             fresh = self._local_to_world(*self._geometry.bracket_position)
@@ -611,6 +781,10 @@ class Terminal(_base_schematic.BaseSchematic):
     def _compute_obb(self):
         """The label's own OBB (``Text.local_obb``) turned and moved to where
         the label is drawn. Nothing to do until the housing is known."""
+        if self._is_free:
+            super()._compute_obb()
+            return
+
         housing = self.housing
         if housing is None or self._vbo is None or self._name_position is None:
             return
@@ -631,6 +805,10 @@ class Terminal(_base_schematic.BaseSchematic):
         the label is drawn, then ``utils.adjust_aabb`` so every min is in the
         min row and every max in the max row. Nothing to do until the housing
         is known."""
+        if self._is_free:
+            super()._compute_aabb()
+            return
+
         housing = self.housing
         if housing is None or self._vbo is None or self._name_position is None:
             return
@@ -647,6 +825,9 @@ class Terminal(_base_schematic.BaseSchematic):
     @_check_types.do
     def hit_test_step2(self, ray_origin, ray_direction):
         """Only the box is tested (see :meth:`hit_test_step3`)."""
+        if self._is_free:
+            return super().hit_test_step2(ray_origin, ray_direction)
+
         return _base_schematic.box_hit_test(self._obb, ray_origin, ray_direction)
 
     @_check_types.do
@@ -654,6 +835,9 @@ class Terminal(_base_schematic.BaseSchematic):
         """A terminal is picked by its name's box -- the OBB -- not by the
         glyph triangles: the pool's own OBB test already said the ray is inside
         it, and nothing finer is wanted."""
+        if self._is_free:
+            return super().hit_test_step3(ray_origin, ray_dir)
+
         return _base_schematic.box_hit_test(self._obb, ray_origin, ray_dir)
 
     @_check_types.do
@@ -692,6 +876,11 @@ class Terminal(_base_schematic.BaseSchematic):
         (in the overwhelmingly common case) an unchanged result.
         """
         if not self.is_visible:
+            return
+
+        if self._is_free:
+            # A single shared-mesh ring: the inherited pipeline draws it.
+            super().render(shaders)
             return
 
         real_angle = self._angle

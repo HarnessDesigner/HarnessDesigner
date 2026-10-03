@@ -94,43 +94,20 @@ class PJTPoints2DTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, x: float | int, y: float | int, z: float | int,
-               wire_id: bytes = None, idx: int = None) -> "PJTPoint2D":
-        """Execute the insert operation.
+    def insert(self, x: float | int, y: float | int, z: float | int) -> "PJTPoint2D":
+        """Add a point row.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        A point is pure geometry: it carries no owner and no order. Which
+        wires/bundles use it, and where in their routes, is stored in
+        ``pjt_wire_paths``/``pjt_bundle_paths``, not here.
 
         :param x: X-coordinate value.
-        :type x: float
         :param y: Y-coordinate value.
-        :type y: float
         :param z: Z-coordinate value.
-        :type z: float
-        :param wire_id: Owning wire, for an interior waypoint row --
-            ``None`` for an anchor's own position row.
-        :type wire_id: bytes | None
-        :param idx: 0-based order along the wire's waypoint chain, for a
-            waypoint row -- ``None`` for an anchor's own position row.
-        :type idx: int | None
-        :returns: Return value. UNKNOWN details.
-        :rtype: :class:`PJTPoint2D`
+        :returns: The new point row.
         """
-        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z), wire_id=wire_id, idx=idx)
+        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z))
         return PJTPoint2D(self, db_id)
-
-    @_check_types.do
-    def for_wire(self, wire_id: bytes) -> list["PJTPoint2D"]:
-        """Return every interior waypoint on a wire, ordered by ``idx`` ascending.
-
-        :param wire_id: Identifier of the wire whose waypoints to fetch.
-        :type wire_id: bytes
-        :returns: The wire's interior waypoints, in chain order.
-        :rtype: list['PJTPoint2D']
-        """
-        rows = self.select('id', 'idx', wire_id=wire_id)
-        rows = sorted(rows, key=lambda row: row[1])
-
-        return [self[row[0]] for row in rows]
 
 
 class PJTPoint2D(PJTEntryBase):
@@ -238,50 +215,6 @@ class PJTPoint2D(PJTEntryBase):
         self._stored_z = value
         self._table.update(self._db_id, z=value)
 
-    _stored_wire_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def wire_id(self) -> bytes | None:
-        """Return the id of the wire this waypoint belongs to, or
-        ``None`` for an anchor's own position row.
-
-        :returns: The referenced ``pjt_wires`` row id, or ``None``.
-        :rtype: bytes | None
-        """
-        if self._stored_wire_id is DefaultStoredValue:
-            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
-
-        return self._stored_wire_id
-
-    @wire_id.setter
-    @_check_types.do
-    def wire_id(self, value: bytes | None):
-        self._stored_wire_id = value
-        self._table.update(self._db_id, wire_id=value)
-
-    _stored_idx: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def idx(self) -> int | None:
-        """Return this waypoint's 0-based order along the wire's chain,
-        or ``None`` for an anchor's own position row.
-
-        :returns: The order index, or ``None``.
-        :rtype: int | None
-        """
-        if self._stored_idx is DefaultStoredValue:
-            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
-
-        return self._stored_idx
-
-    @idx.setter
-    @_check_types.do
-    def idx(self, value: int | None):
-        self._stored_idx = value
-        self._table.update(self._db_id, idx=value)
-
     _stored_point2d: _point.Point = None
 
     # Class-level flag: set True during bulk position batch-writes so the
@@ -372,14 +305,13 @@ class PJTPoint2D(PJTEntryBase):
         ):
             return True
 
-        # Phase 6 (2026-09-02): pjt_wires -- own start/stop (forward
-        # reference) plus the backward, count-unknown interior-waypoint
-        # case (this point's own wire_id tag, checked for whether that
-        # wire still actually exists -- see
-        # pjt_point3d.PJTPoint3D.is_referenced's own inline comment for
-        # the full reasoning). No bundle_id here -- bundles have no 2D/
-        # schematic presence at all.
-        if self.wire_id is not None and self.wire_id in db.pjt_wires_table:
+        # Interior waypoints: a wire's own ordered waypoint list is stored
+        # as rows in pjt_wire_paths that reference this point (any number
+        # of wires can share it), not as an owner tag on the point itself.
+        # A route row is deleted with its wire (PJTWire.delete), so a row
+        # that exists always means the point is still in use. No bundle
+        # paths here -- bundles have no 2D/schematic presence at all.
+        if db.pjt_wire_paths_table.select('id', point2d_id=self.db_id):
             return True
 
         if db.pjt_wires_table.select(

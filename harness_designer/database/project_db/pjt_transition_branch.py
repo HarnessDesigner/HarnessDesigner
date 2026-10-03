@@ -4,12 +4,10 @@ from typing import TYPE_CHECKING, Iterable as _Iterable, Union
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
-    Position3DMixin, PositionPegboardMixin, VisiblePegboardMixin,
-    PartMixin, TablePositionPegMixin, TableHiddenMixin
+    Position3DMixin, PositionPegboardMixin, VisiblePegboardMixin, PartMixin
 )
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
-from ...geometry import point as _point
 from ... import check_types as _check_types
 
 
@@ -122,38 +120,19 @@ class PJTTransitionBranchesTable(PJTTableBase):
                                     point3d_id=point_id, branch_id=branch_id,
                                     diameter=float(diameter))
 
-        db_obj = PJTTransitionBranch(self, db_id)
-
-        # See PJTHousingsTable.insert's own comment -- same wiring.
-        from . import pjt_pegboard_table as _pjt_pegboard_table
-
-        position_pegboard = db_obj.position_pegboard  # lazily creates at (0,0,0)
-        table_point_id = db_obj.table_position_peg_id
-        self.db.pjt_pegboard_tables_table.insert(
-            table_point_id, _point.Point(position_pegboard.x, 0.0, position_pegboard.z),
-            _pjt_pegboard_table.DEFAULT_TABLE_WIDTH, _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
-
-        return db_obj
+        # No peg-board data table of its own (unlike housing/bundle/
+        # transition) -- a transition has ONE table, listing the wires of
+        # all its branches.
+        return PJTTransitionBranch(self, db_id)
 
 
 class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, PartMixin,
-                          VisiblePegboardMixin, TablePositionPegMixin, TableHiddenMixin):
+                          VisiblePegboardMixin):
     """Represent a PJT transition branch in :mod:`harness_designer.database.project_db.pjt_transition_branch`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     _table: PJTTransitionBranchesTable = None
-
-    @_check_types.do
-    def delete(self) -> None:
-        """Delete this transition-branch row -- cascading first to its
-        own peg-board data-table overlay row, if it has one (Phase 4 of
-        the point-safety-check rollout, 2026-09-02, see TODO.md and
-        ``TablePositionPegMixin.delete_table_overlay``'s own docstring).
-        """
-        self.delete_table_overlay()
-
-        super().delete()
 
     @property
     @_check_types.do
@@ -169,40 +148,33 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
 
     @property
     @_check_types.do
-    def wires(self) -> "_pjt_wire.PJTWire":
-        """Return the wires.
+    def wires(self) -> list["_pjt_wire.PJTWire"]:
+        """Every wire routed through this branch's own position, via
+        ``pjt_wire_paths`` (one row per point per wire per view -- see
+        that table's own docstring) -- NOT via concentric twisting.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        Concentric twisting is being redesigned (not every harness is
+        concentric-twisted), so a transition branch carries no attachment
+        to it at all any more -- ``pjt_wire_paths`` is the new, general
+        "which wires pass through this point" mechanism, and works
+        whether or not this branch (or its transition) is part of any
+        concentric grouping.
 
-        :returns: Property value. UNKNOWN details.
-        :rtype: :class:`_pjt_wire.PJTWire`
+        :returns: Every distinct wire with a route row tagged
+            ``transition_branch_id=self.db_id``, across every view.
+        :rtype: list[:class:`_pjt_wire.PJTWire`]
         """
-        res = []
+        rows = self.table.db.pjt_wire_paths_table.for_transition_branch(self.db_id)
 
-        for layer in self.concentric.layers:
-            res.extend(layer.wires)
+        seen = set()
+        res = []
+        for row in rows:
+            wire = row.wire
+            if wire.db_id not in seen:
+                seen.add(wire.db_id)
+                res.append(wire)
 
         return res
-
-    @property
-    @_check_types.do
-    def name(self) -> str:
-        """Title-bar label for this branch's own peg-board data-table
-        overlay (see ``objects.objects_pegboard.pegboard_table.
-        PegboardTable._table_title``) -- a branch has no ``NameMixin``
-        of its own (unlike its owning transition, it's never
-        independently named by the user), so this is synthesized from
-        the owning transition's own name instead of stored.
-
-        Same ``name`` API point every anchor type that can own a peg-
-        board data-table overlay exposes identically (see
-        ``pjt_housing.PJTHousing``/``pjt_bundle.PJTBundle``/
-        ``pjt_transition.PJTTransition``, all via ``NameMixin``).
-
-        :returns: ``"<transition name> (branch <branch id>)"``.
-        :rtype: str
-        """
-        return f'{self.transition.name} (branch {self.branch_id})'
 
     _stored_bundle: Union["_pjt_bundle.PJTBundle", None, DefaultStoredValueType] = DefaultStoredValue
 
@@ -218,14 +190,23 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         """
         if self._stored_bundle is DefaultStoredValue:
             position_id = self.position3d_id
-            bundle_ids = self.table.db.pjt_bundles_table.select('id', start_point3d_id=position_id)[0][0]
-            if not bundle_ids:
-                bundle_ids = self.table.db.pjt_bundles_table.select('id', stop_point3d_id=position_id)[0][0]
+            bundles_table = self.table.db.pjt_bundles_table
 
-            if not bundle_ids:
+            # A brand-new branch (nothing attached yet) has no bundle row
+            # referencing its position at all -- the previous version of
+            # this indexed [0][0] straight into the (possibly empty)
+            # row list, crashing with IndexError, and its own fallback
+            # confused "a list of rows" with "a single id" (indexing
+            # [0][0] into a bytes id on the way out, which would itself
+            # have failed the moment this branch actually got a bundle).
+            rows = bundles_table.select('id', start_point3d_id=position_id)
+            if not rows:
+                rows = bundles_table.select('id', stop_point3d_id=position_id)
+
+            if not rows:
                 self._stored_bundle = None
             else:
-                self._stored_bundle = self.table.db.pjt_bundles_table[bundle_ids[0][0]]
+                self._stored_bundle = bundles_table[rows[0][0]]
 
         return self._stored_bundle
 
@@ -242,7 +223,12 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :rtype: :class:`_pjt_concentric.PJTConcentric`
         """
         if self._stored_concentric is DefaultStoredValue:
-            concentric_id = self.table.db.pjt_concentrics_table.select('id', transition_branch_id=self.db_id)[0][0]
+            rows = self.table.db.pjt_concentrics_table.select('id', transition_branch_id=self.db_id)
+            # A plain transition branch has no pjt_concentrics row at all
+            # any more (see .wires, which no longer needs one either) --
+            # an empty result means "not concentric-twisted", not an
+            # error, so this no longer indexes [0] blindly.
+            concentric_id = rows[0][0] if rows else None
 
             if concentric_id is None:
                 self._stored_concentric = None

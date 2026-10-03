@@ -13,6 +13,41 @@ from .. import id_generator as _id_generator
 
 
 @_check_types.do
+def _offset_to_text(offset: list | tuple | None) -> str:
+    """Convert a branch offset from the catalog JSON into the stored
+    ``"[x, y, z]"`` text. The JSON still uses the old form -- missing, or
+    ``[x, y]`` -- so a missing value becomes the origin and a missing z
+    becomes 0.0. Remove the 2 value handling once the JSON is updated.
+    """
+    if offset is None:
+        return '[0.0, 0.0, 0.0]'
+
+    values = [float(v) for v in offset]
+
+    if len(values) == 2:
+        values.append(0.0)
+
+    return str(values)
+
+
+@_check_types.do
+def _angle_to_text(angle: int | float | list | tuple | None) -> str:
+    """Convert a branch angle from the catalog JSON into the stored
+    ``"[x, y, z]"`` euler-degrees text. The JSON still holds the old single
+    float, which was a rotation about Z (so it becomes ``[0, 0, angle]``);
+    a missing value becomes no rotation. Remove the single float handling
+    once the JSON is updated.
+    """
+    if angle is None:
+        return '[0.0, 0.0, 0.0]'
+
+    if isinstance(angle, (list, tuple)):
+        return str([float(v) for v in angle])
+
+    return str([0.0, 0.0, float(angle)])
+
+
+@_check_types.do
 def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length=None,
                           min_dia=0.0, max_dia=0.0, length=0.0, offset=None, angle=None,
                           flange_height=None, flange_width=None, commit=True):
@@ -50,8 +85,8 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
     :rtype: UNKNOWN
     """
 
-    if offset is not None:
-        offset = str(offset)
+    offset = _offset_to_text(offset)
+    angle = _angle_to_text(angle)
 
     if bulb_offset is not None:
         bulb_offset = str(bulb_offset)
@@ -119,8 +154,10 @@ table = _con.SQLTable(
     _con.FloatField('min_dia', no_null=True),
     _con.FloatField('max_dia', no_null=True),
     _con.FloatField('length', no_null=True),
-    _con.TextField('offset', default='NULL'),
-    _con.FloatField('angle', default='NULL'),
+    # Both are "[x, y, z]" strings: ``offset`` in mm, ``angle`` as euler
+    # degrees about the X, Y and Z axes.
+    _con.TextField('offset', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('angle', default='"[0.0, 0.0, 0.0]"', no_null=True),
     _con.FloatField('flange_height', default='NULL'),
     _con.FloatField('flange_width', default='NULL')
 )

@@ -718,36 +718,29 @@ class WireDragMixin:
             is_visible3d, is_visible2d,
             layer_view_point_id, layer_id, is_filler_wire)
 
-        for i, wp in enumerate(own_wp_3d):
-            wp.wire_id = merged_db.db_id
-            wp.idx = i
-
-        seam_point_3d = ptables.pjt_points3d_table[seam_id_3d]
-        seam_point_3d.wire_id = merged_db.db_id
-        seam_point_3d.idx = len(own_wp_3d)
-
-        for i, wp in enumerate(other_wp_3d):
-            wp.wire_id = merged_db.db_id
-            wp.idx = len(own_wp_3d) + 1 + i
+        # The seam point becomes an interior waypoint between the two
+        # wires' own waypoints.
+        paths_table = ptables.pjt_wire_paths_table
+        paths_table.set_route(
+            merged_db.db_id, '3d',
+            [wp.db_id for wp in own_wp_3d] + [seam_id_3d] +
+            [wp.db_id for wp in other_wp_3d])
 
         if pegboard_present:
             _wire_pegboard.Wire._set_start_position_id(merged_db, start_id_pegboard)  # NOQA
             _wire_pegboard.Wire._set_stop_position_id(merged_db, stop_id_pegboard)  # NOQA
             merged_db.is_visible_pegboard = wire_obj.db_obj.is_visible_pegboard
 
-            pegboard_points_table = _wire_pegboard.Wire._points_table(project)  # NOQA
+            paths_table.set_route(
+                merged_db.db_id, 'pegboard',
+                [wp.db_id for wp in own_wp_pegboard] + [seam_id_pegboard] +
+                [wp.db_id for wp in other_wp_pegboard])
 
-            for i, wp in enumerate(own_wp_pegboard):
-                wp.wire_id = merged_db.db_id
-                wp.idx = i
-
-            seam_point_pegboard = pegboard_points_table[seam_id_pegboard]
-            seam_point_pegboard.wire_id = merged_db.db_id
-            seam_point_pegboard.idx = len(own_wp_pegboard)
-
-            for i, wp in enumerate(other_wp_pegboard):
-                wp.wire_id = merged_db.db_id
-                wp.idx = len(own_wp_pegboard) + 1 + i
+        # The waypoints now belong to the merged wire; take them out of
+        # both originals' routes so their delete() finds nothing of its
+        # own to clean up (see PJTWire.delete's WireLayout sweep).
+        paths_table.delete_for_wire(wire_obj.db_obj.db_id)
+        paths_table.delete_for_wire(other_wire.db_obj.db_id)
 
         merged_obj = _wire_object_mod.Wire(mainframe, merged_db)
 

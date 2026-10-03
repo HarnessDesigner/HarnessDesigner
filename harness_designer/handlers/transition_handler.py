@@ -9,6 +9,25 @@ module's own former ``AddTransitionHandler``). ``RouteThroughTransitionHandler``
 ``RouteThroughBundleHandler``/``RoutedWireHandler`` below have no UI
 entry point anywhere in the app -- kept as-is, not part of that
 migration.
+
+``RouteThroughTransitionHandler``'s and ``RoutedWireHandler``'s own
+branch highlighting/clearing were updated (2026-09-28) to use
+``Transition.highlight_branch``/``branch_fits`` instead of a branch's
+own (now-removed) ``identify()`` -- a branch is no longer its own
+pickable ``Base3D`` object, see ``objects_3d.transition``'s own module
+docstring. ``RouteThroughTransitionHandler.release_capture`` was updated
+the same way, using ``Transition.hit_test_branch_ray`` in place of the
+generic canvas picker for branch resolution. ``RoutedWireHandler``'s OWN
+branch-picking (``_handle_routing_click``/``_handle_exit_click``,
+`isinstance(selected, _Branch3D)` against a plain
+``gl.object_picker.find_object`` result) was left AS IS -- already dead
+before this session, and now structurally unreachable rather than just
+unwired (``find_object`` can never resolve to a branch any more, so that
+``isinstance`` is always ``False``) -- fixing it properly needs the same
+`_object_picker._build_ray`/``hit_test_branch_ray`` swap the other two
+handlers got, folded into its own mixed wire/bundle/branch pick logic;
+left for whoever actually revives this handler, since there is still no
+way to exercise or verify it.
 """
 
 from typing import TYPE_CHECKING, Union as _Union
@@ -109,12 +128,10 @@ def _insert_wire(
 
 
 @_check_types.do
-def _insert_bundle(ptables: object, part_id: bytes, start_id: object, stop_id: object) -> object:
-    db = ptables.pjt_bundles_table.insert(part_id)
-    db.start_position3d_id = start_id
-    db.stop_position3d_id = stop_id
-
-    return db
+def _insert_bundle(
+    ptables: object, part_id: bytes, name: str, start_id: object, stop_id: object
+) -> object:
+    return ptables.pjt_bundles_table.insert(part_id, name, start_id, stop_id)
 
 
 @_check_types.do
@@ -310,11 +327,8 @@ def _create_branch_concentric(ptables: object, branch_db: object, conc_wires: li
         ptables.pjt_concentric_wires_table.insert(
             layer_db.db_id, idx, cw.wire_id, False)
 
-    # Notify both this branch's own table (PJTTransitionBranch.wires)
-    # and its owning transition's (PJTTransition.wires is the union of
-    # every branch's own) -- either may have a live table showing this
-    # branch's wires.
-    _base_pegboard.notify_table_wires_changed(branch_db)
+    # The transition's one table lists every branch's wires
+    # (PJTTransition.wires is the union of its branches' own).
     _base_pegboard.notify_table_wires_changed(branch_db.transition)
 
 
@@ -346,6 +360,243 @@ def _find_bundle(mouse_pos: _point.Point, camera: "_camera.Camera",
             best_dist_sq, best = dist_sq, bndl
 
     return best
+
+
+@_check_types.do
+def _is_bundle_end_free(ptables: object, bundle: _bundle.Bundle, endpoint: str) -> bool:
+    """Whether *bundle*'s *endpoint* ('start'/'stop') has nothing already
+    attached to it -- BUNDLE_PLACEMENT.md section 5/8: "free-end/free-
+    branch helpers" needed by placement, "which one is the source of
+    truth for 'free' needs to be settled while writing the helpers."
+    Settled here as: a point row that no transition branch already
+    references. Mirrors the same by-point-id lookup
+    ``PJTTransitionBranch.bundle`` already does in the opposite
+    direction (branch -> attached bundle, by matching
+    start/stop_point3d_id).
+    """
+    point_id = (bundle.db_obj.start_position3d_id if endpoint == 'start'
+                else bundle.db_obj.stop_position3d_id)
+
+    rows = ptables.pjt_transition_branches_table.select('id', point3d_id=point_id)
+    return not rows
+
+
+@_check_types.do
+def _find_free_bundle_end(
+    mouse_pos: _point.Point, camera: "_camera.Camera", project: "_project.Project"
+) -> tuple[_bundle.Bundle, str] | None:
+    """The closest FREE bundle end (start or stop -- never a mid-span
+    point) within snapping distance of the mouse, or ``None``.
+
+    BUNDLE_PLACEMENT.md section 4: "no mid-bundle placement... a
+    transition is never snapped onto the middle of a bundle" -- unlike
+    ``_find_bundle`` above (kept for whatever still-reachable code uses
+    it), this only ever considers the two actual endpoints of each
+    bundle, and skips one already attached to another transition branch.
+    """
+    world_pos = camera.get_position_on_focal_plane(mouse_pos).as_numpy
+    ptables = project.ptables
+
+    best = None
+    best_dist_sq = _SNAP_THRESHOLD ** 2
+
+    for bndl in project.bundles:
+        if not bndl.is_in_3dview:
+            continue
+
+        for endpoint, point in (
+            ('start', bndl.obj3d.start_position), ('stop', bndl.obj3d.stop_position)
+        ):
+            if not _is_bundle_end_free(ptables, bndl, endpoint):
+                continue
+
+            dist_sq = float(np.sum((world_pos - point.as_numpy) ** 2))
+            if dist_sq < best_dist_sq:
+                best_dist_sq, best = dist_sq, (bndl, endpoint)
+
+    return best
+
+
+@_check_types.do
+def _find_free_branch_ray(
+    origin: np.ndarray, direc: np.ndarray, project: "_project.Project",
+    exclude_transition: object | None = None
+) -> tuple[object, "_transition_3d.Branch"] | None:
+    """The first FREE branch (no bundle already attached), across every
+    transition in the project, that world-space ray (*origin*, *direc* --
+    from ``gl.object_picker._build_ray``) actually intersects -- the
+    bundle-placement mirror of ``_find_free_bundle_end`` above (which
+    finds a free BUNDLE end for a transition being placed; this finds a
+    free BRANCH for a bundle being placed). Same first-hit-wins scan
+    ``RouteThroughTransitionHandler.release_capture``/``RoutedWireHandler.
+    _highlight_exit_branches`` already use -- no cross-transition
+    "closest" comparison, since real ray-sphere intersection
+    (``Transition.hit_test_branch_ray``) makes a hit unambiguous and
+    transitions essentially never overlap along one ray in practice.
+
+    *exclude_transition* (if given) skips that whole transition --
+    BUNDLE_PLACEMENT.md section 5's hard rule: "a bundle cannot have both
+    of its ends connected to the same transition" -- so a bundle's own
+    already-attached start transition is never offered again for its
+    stop end.
+    """
+    for t_obj in project.transitions:
+        if t_obj is exclude_transition:
+            continue
+
+        branch = t_obj.obj3d.hit_test_branch_ray(origin, direc)
+        if branch is None:
+            continue
+
+        if branch.db_obj is not None and branch.db_obj.bundle is not None:
+            continue  # already occupied
+
+        return t_obj, branch
+
+    return None
+
+
+@_check_types.do
+def _rotation_matrix_between(v_from: np.ndarray, v_to: np.ndarray) -> np.ndarray:
+    """3x3 rotation matrix mapping unit vector *v_from* onto unit vector
+    *v_to* (Rodrigues' rotation formula) -- plain linear algebra, not the
+    matrix-to-euler decomposition ``_apply_rotation`` below still has to
+    do (see that function's own docstring for why THAT part is the
+    genuinely delicate operation, not this one).
+    """
+    norm_from = float(np.linalg.norm(v_from))
+    norm_to = float(np.linalg.norm(v_to))
+    v_from = v_from / (norm_from or 1.0)
+    v_to = v_to / (norm_to or 1.0)
+
+    axis = np.cross(v_from, v_to)
+    axis_len = float(np.linalg.norm(axis))
+    cos_angle = float(np.clip(np.dot(v_from, v_to), -1.0, 1.0))
+
+    if axis_len < 1e-8:
+        if cos_angle > 0:
+            return np.eye(3, dtype=np.float64)
+
+        # 180 degrees -- v_from and v_to are anti-parallel, so any axis
+        # perpendicular to v_from is a valid rotation axis.
+        perp = np.array([1.0, 0.0, 0.0]) if abs(v_from[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        axis = np.cross(v_from, perp)
+        axis /= np.linalg.norm(axis)
+        angle = math.pi
+    else:
+        axis = axis / axis_len
+        angle = math.acos(cos_angle)
+
+    k = np.array([
+        [0.0, -axis[2], axis[1]],
+        [axis[2], 0.0, -axis[0]],
+        [-axis[1], axis[0], 0.0],
+    ], dtype=np.float64)
+
+    return np.eye(3, dtype=np.float64) + math.sin(angle) * k + (1.0 - math.cos(angle)) * (k @ k)
+
+
+@_check_types.do
+def _apply_rotation(transition_db_obj: object, rot_mat: np.ndarray) -> None:
+    """Set *transition_db_obj*'s ``angle3d`` to match rotation matrix
+    *rot_mat*, continuously (no jump relative to its current value) --
+    the same Shepperd-stable-quaternion-plus-``euler_from_matrix_
+    continuous`` technique ``_set_angle_from_bundle`` above already uses
+    (duplicated here, not factored out, to avoid touching that
+    already-working function while it still has its own caller) -- see
+    that function's own comment for why matrix->euler decomposition is
+    the genuinely delicate half of this (TRANSITION_DESIGN.md's own
+    euler-vs-quaternion decision is specifically about never needing to
+    do this for a *stored* branch angle; this is the one place in the
+    whole transition feature that still does, because there is no other
+    way to persist "the transition, as a whole, is rotated this way" as
+    euler degrees).
+    """
+    trace = rot_mat[0, 0] + rot_mat[1, 1] + rot_mat[2, 2]
+    if trace > 0:
+        s = math.sqrt(trace + 1.0) * 2
+        qw = 0.25 * s
+        qx = (rot_mat[2, 1] - rot_mat[1, 2]) / s
+        qy = (rot_mat[0, 2] - rot_mat[2, 0]) / s
+        qz = (rot_mat[1, 0] - rot_mat[0, 1]) / s
+    elif rot_mat[0, 0] > rot_mat[1, 1] and rot_mat[0, 0] > rot_mat[2, 2]:
+        s = math.sqrt(1.0 + rot_mat[0, 0] - rot_mat[1, 1] - rot_mat[2, 2]) * 2
+        qw = (rot_mat[2, 1] - rot_mat[1, 2]) / s
+        qx = 0.25 * s
+        qy = (rot_mat[0, 1] + rot_mat[1, 0]) / s
+        qz = (rot_mat[0, 2] + rot_mat[2, 0]) / s
+    elif rot_mat[1, 1] > rot_mat[2, 2]:
+        s = math.sqrt(1.0 + rot_mat[1, 1] - rot_mat[0, 0] - rot_mat[2, 2]) * 2
+        qw = (rot_mat[0, 2] - rot_mat[2, 0]) / s
+        qx = (rot_mat[0, 1] + rot_mat[1, 0]) / s
+        qy = 0.25 * s
+        qz = (rot_mat[1, 2] + rot_mat[2, 1]) / s
+    else:
+        s = math.sqrt(1.0 + rot_mat[2, 2] - rot_mat[0, 0] - rot_mat[1, 1]) * 2
+        qw = (rot_mat[1, 0] - rot_mat[0, 1]) / s
+        qx = (rot_mat[0, 2] + rot_mat[2, 0]) / s
+        qy = (rot_mat[1, 2] + rot_mat[2, 1]) / s
+        qz = 0.25 * s
+
+    obj_angle = transition_db_obj.angle3d
+    old_euler = obj_angle.as_euler_float
+
+    new_euler = _handler_base.HandlerBase.euler_from_matrix_continuous(rot_mat, old_euler)
+
+    obj_angle._q.w, obj_angle._q.x = float(qw), float(qx)  # NOQA
+    obj_angle._q.y, obj_angle._q.z = float(qy), float(qz)  # NOQA
+    cache = obj_angle._Angle__euler_angles  # NOQA
+    if cache is not None:
+        cache[0], cache[1], cache[2] = new_euler[0], new_euler[1], new_euler[2]
+
+    obj_angle._matrix[:] = obj_angle._q.as_matrix  # NOQA
+    obj_angle._process_callbacks()  # NOQA
+
+
+@_check_types.do
+def _branch_local_direction(branch: object) -> np.ndarray:
+    """A catalog branch's own trunk direction in the transition's local
+    space -- local +X rotated by the branch's own 3-axis euler angle.
+    Same definition ``objects_3d.transition._branch_direction`` (and its
+    peg-board equivalent) use, duplicated rather than imported -- the
+    user's own steer (2026-09-27) that this whole apparatus belongs
+    directly in each consumer rather than a shared module.
+    """
+    direction = np.array([1.0, 0.0, 0.0], dtype=np.float32) @ branch.angle
+    direction = np.asarray(direction, dtype=np.float64)
+    norm = float(np.linalg.norm(direction))
+    if norm > 1e-9:
+        direction /= norm
+
+    return direction
+
+
+@_check_types.do
+def _align_branch_to_bundle(
+    transition_db_obj: object, branch_local_direction: np.ndarray, bundle: _bundle.Bundle,
+    endpoint: str
+) -> None:
+    """Rotate *transition_db_obj* so the branch whose own local direction
+    is *branch_local_direction* ends up pointing back along *bundle* from
+    *endpoint* -- BUNDLE_PLACEMENT.md section 4: "the branch's outward
+    axis points back along the bundle, so the bundle runs straight into
+    the branch mouth." Generalizes ``_set_angle_from_bundle``'s own
+    "align local X to the bundle" special case (which assumed the
+    trunk's own local direction always WAS local +X) to whichever branch
+    the user actually picked.
+    """
+    p1 = bundle.obj3d.start_position.as_numpy
+    p2 = bundle.obj3d.stop_position.as_numpy
+    seg = p2 - p1
+    seg_len = float(np.linalg.norm(seg))
+    if seg_len < 1e-8:
+        return
+
+    bundle_direction = seg / seg_len
+    target_direction = bundle_direction if endpoint == 'stop' else -bundle_direction
+
+    rot_mat = _rotation_matrix_between(branch_local_direction, target_direction)
+    _apply_rotation(transition_db_obj, rot_mat)
 
 
 class RouteThroughTransitionHandler(_handler_base.HandlerBase):
@@ -390,23 +641,22 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def _highlight_branches(self) -> None:
+        # (obj3d, branch) pairs, not bare branches -- clearing a branch's
+        # own highlight override (2026-09-28: Transition.highlight_branch/
+        # clear_branch_highlight, a branch is no longer its own pickable
+        # Base3D object with its own identify()) needs the OWNING
+        # transition, not just the branch.
         for t_obj in self.mainframe.project.transitions:
-
-            # TODO: Figure out the missing branches attribute
             for branch in t_obj.obj3d.branches:
-
-                if self._fits(self.diameter, branch):
-                    mat = _BRANCH_FIT
-                else:
-                    mat = _BRANCH_NO_FIT
-
-                branch.identify(mat)
-                self._highlighted.append(branch)
+                mat = (_BRANCH_FIT if t_obj.obj3d.branch_fits(branch, self.diameter)
+                       else _BRANCH_NO_FIT)
+                t_obj.obj3d.highlight_branch(branch, mat)
+                self._highlighted.append((t_obj.obj3d, branch))
 
     @_check_types.do
     def _clear_highlights(self) -> None:
-        for b in self._highlighted:
-            b.identify(None)
+        for obj3d, branch in self._highlighted:
+            obj3d.clear_branch_highlight(branch)
 
         self._highlighted.clear()
 
@@ -419,14 +669,23 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         if self._finalized or self._captured_position is None:
             return
 
-        from ..objects.objects_3d.transition import Branch as _Branch3D
+        # Real ray-sphere test against each transition's own branches
+        # (Transition.hit_test_branch_ray), not the generic canvas
+        # object picker -- a branch is no longer its own pickable
+        # Base3D object the picker could resolve to (2026-09-28).
+        origin, direc = _object_picker._build_ray(self._captured_position, self.camera)  # NOQA
 
-        selected = _object_picker.find_object(self._captured_position, self.camera, self.camera.canvas)
+        selected = None
+        if origin is not None:
+            for t_obj in self.mainframe.project.transitions:
+                selected = t_obj.obj3d.hit_test_branch_ray(origin, direc)
+                if selected is not None:
+                    break
 
         self._clear_highlights()
         self._finalized = True
 
-        if not isinstance(selected, _Branch3D):
+        if selected is None:
             return
 
         if not self._fits(self.diameter, selected):
@@ -556,8 +815,12 @@ class RoutedWireHandler(_handler_base.HandlerBase):
 
     @_check_types.do
     def _clear_highlights(self) -> None:
-        for obj in self._highlighted:
-            obj.identify(None)
+        # (obj3d, branch) pairs, not bare branches -- see
+        # RouteThroughTransitionHandler._clear_highlights's own comment
+        # for why (a branch is no longer its own pickable Base3D object
+        # with its own identify()).
+        for obj3d, branch in self._highlighted:
+            obj3d.clear_branch_highlight(branch)
 
         self._highlighted.clear()
 
@@ -586,19 +849,13 @@ class RoutedWireHandler(_handler_base.HandlerBase):
     @_check_types.do
     def _highlight_exit_branches(self, diameter: float, exclude_branch: "_transition_3d.Branch") -> None:
         for t_obj in self.mainframe.project.transitions:
-
-            # TODO: figure out missing attribute
             for branch in t_obj.obj3d.branches:
                 if branch is exclude_branch:
                     continue
 
-                if self._fits(diameter, branch):
-                    mat = _BRANCH_FIT
-                else:
-                    mat = _BRANCH_NO_FIT
-
-                branch.identify(mat)
-                self._highlighted.append(branch)
+                mat = _BRANCH_FIT if self._fits(diameter, branch) else _BRANCH_NO_FIT
+                t_obj.obj3d.highlight_branch(branch, mat)
+                self._highlighted.append((t_obj.obj3d, branch))
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:

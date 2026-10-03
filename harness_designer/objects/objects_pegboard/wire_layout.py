@@ -145,25 +145,21 @@ class WireLayout(_base_pegboard.BasePegboard):
             return
 
         ptables = self.parent.mainframe.project.ptables
-        point = ptables.pjt_points_pegboard_table[point_id]
+        wire_db = pjt_wires[0]
 
-        if point.wire_id is None:
+        # Not a waypoint of this wire (e.g. the layout sits on the wire's
+        # own start/stop) -- nothing in the route to remove.
+        if wire_db.db_id not in ptables.pjt_wire_paths_table.wire_ids_for_point('pegboard', point_id):
             return
 
-        removed_idx = point.idx
-        wire_db = pjt_wires[0]
-        for waypoint in wire_db.waypoints_pegboard:
-            if waypoint.idx > removed_idx:
-                waypoint.idx = waypoint.idx - 1
-
         # PJTPointPegboard.delete() refuses outright while
-        # is_referenced() is True -- and this point's own wire_id
-        # column, still pointing at THIS (very much still-alive) wire,
-        # counts as a reference on its own -- so without clearing it
-        # first, delete() would silently no-op, leaving this waypoint
-        # sitting in the database forever.
-        point.wire_id = None
-        point.delete()
+        # is_referenced() is True -- and this wire's own route row still
+        # references the point -- so the row has to be removed first, or
+        # delete() would silently no-op, leaving this waypoint in the
+        # database forever. Removing it also renumbers the rest of the
+        # wire's route.
+        ptables.pjt_wire_paths_table.remove(wire_db.db_id, 'pegboard', point_id)
+        ptables.pjt_points_pegboard_table[point_id].delete()
 
     @_check_types.do
     def can_drag(self) -> bool:

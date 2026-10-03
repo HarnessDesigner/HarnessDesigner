@@ -39,7 +39,7 @@ class Terminal(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_terminal.PJTTerminal", project_load=False):
+                 db_obj: "_pjt_terminal.PJTTerminal", project_load=False, free: bool = False):
         """Initialise the :class:`Terminal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -57,7 +57,13 @@ class Terminal(_ObjectBase):
 
         self.obj3d = _terminal_3d.Terminal(self, db_obj)
         self.objpegboard = _terminal_pegboard.Terminal(self, db_obj)
-        self.objschematic = _terminal_schematic.Terminal(self, db_obj)
+
+        # A terminal that is not in a cavity is either a free-standing one
+        # (created with *free*, or loaded from a project -- a preview that is
+        # about to be seated is never saved) or a placement preview, which
+        # the schematic view leaves unseen.
+        self.objschematic = _terminal_schematic.Terminal(
+            self, db_obj, free or (project_load and db_obj.cavity is None))
 
         # Sibling graph: every Wire currently crimped into this terminal
         # (open-ended -- a terminal has no fixed start/stop shape, any
@@ -150,19 +156,30 @@ class Terminal(_ObjectBase):
         attach_point_pegboard = ptables.pjt_points_pegboard_table[
             self.db_obj.attach_position_pegboard_id]
 
+        # A seated terminal's wires all share its one wire_position2d; a
+        # free-standing (ring) terminal gives each wire its own point on the
+        # ring (see objects_schematic.terminal.Terminal.attach_wire_point).
+        if self.objschematic._is_free:  # NOQA
+            point2d = self.objschematic.attach_wire_point(wire, end)
+            point2d_id = point2d.db_id
+            attach_point2d = point2d.point
+        else:
+            point2d_id = self.db_obj.wire_position2d_id
+            attach_point2d = self.db_obj.wire_position2d
+
         if end == 'start':
             wire.db_obj.start_position3d_id = attach_point.db_id
-            wire.db_obj.start_position2d_id = self.db_obj.wire_position2d_id
+            wire.db_obj.start_position2d_id = point2d_id
             wire.db_obj.start_position_pegboard_id = attach_point_pegboard.db_id
             wire.obj3d.set_start_position(attach_point.point)
-            wire.objschematic.set_start_position(self.db_obj.wire_position2d)
+            wire.objschematic.set_start_position(attach_point2d)
             wire.objpegboard.set_start_position(attach_point_pegboard.point)
         else:
             wire.db_obj.stop_position3d_id = attach_point.db_id
-            wire.db_obj.stop_position2d_id = self.db_obj.wire_position2d_id
+            wire.db_obj.stop_position2d_id = point2d_id
             wire.db_obj.stop_position_pegboard_id = attach_point_pegboard.db_id
             wire.obj3d.set_stop_position(attach_point.point)
-            wire.objschematic.set_stop_position(self.db_obj.wire_position2d)
+            wire.objschematic.set_stop_position(attach_point2d)
             wire.objpegboard.set_stop_position(attach_point_pegboard.point)
 
         new_point_ids = [self._own_or_cloned_point_id(
@@ -186,46 +203,27 @@ class Terminal(_ObjectBase):
             new_point_ids.reverse()
             new_point_pegboard_ids.reverse()
 
-        existing_waypoints = wire.db_obj.waypoints3d
-        n_new = len(new_point_ids)
+        paths_table = ptables.pjt_wire_paths_table
+        wire_id = wire.db_obj.db_id
 
-        if end == 'start':
-            for point in existing_waypoints:
-                point.idx = point.idx + n_new
-            offsets = range(n_new)
-        else:
-            base = len(existing_waypoints)
-            offsets = range(base, base + n_new)
-
-        for point_id, idx in zip(new_point_ids, offsets):
-            point = ptables.pjt_points3d_table[point_id]
-            point.wire_id = wire.db_obj.db_id
-            point.idx = idx
+        for offset, point_id in enumerate(new_point_ids):
+            if end == 'start':
+                paths_table.add(wire_id, '3d', offset, point_id)
+            else:
+                paths_table.append(wire_id, '3d', point_id)
 
             layout_db = ptables.pjt_wire_layouts_table.insert(point3d_id=point_id)
             layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
             project.add_wire_layout(layout_obj)
 
-        # Peg-board waypoints are independent rows/idx sequence in their
-        # own points table (see database.create_database.points_pegboard's
-        # own module docstring on why waypoint counts genuinely differ
-        # per view) -- offsets computed the same way, against the
-        # peg-board view's own existing waypoint count, not the 3D one's.
-        existing_waypoints_pegboard = wire.db_obj.waypoints_pegboard
-        n_new_pegboard = len(new_point_pegboard_ids)
-
-        if end == 'start':
-            for point in existing_waypoints_pegboard:
-                point.idx = point.idx + n_new_pegboard
-            offsets_pegboard = range(n_new_pegboard)
-        else:
-            base = len(existing_waypoints_pegboard)
-            offsets_pegboard = range(base, base + n_new_pegboard)
-
-        for point_id, idx in zip(new_point_pegboard_ids, offsets_pegboard):
-            point = ptables.pjt_points_pegboard_table[point_id]
-            point.wire_id = wire.db_obj.db_id
-            point.idx = idx
+        # The peg-board view has its own independent route (waypoint
+        # counts genuinely differ per view), so the same walk is done
+        # against the peg-board rows.
+        for offset, point_id in enumerate(new_point_pegboard_ids):
+            if end == 'start':
+                paths_table.add(wire_id, 'pegboard', offset, point_id)
+            else:
+                paths_table.append(wire_id, 'pegboard', point_id)
 
             layout_db = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=point_id)
             layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
@@ -366,13 +364,10 @@ class Terminal(_ObjectBase):
             view_obj.set_stop_position(new_point.point)
 
         removed = []
-        remaining = []
 
         for wp in waypoints:
             if wp.db_id in canonical_ids or wp.parent_point_id in canonical_ids:
                 removed.append(wp)
-            else:
-                remaining.append(wp)
 
         layouts_table = ptables.pjt_wire_layouts_table
 
@@ -387,20 +382,24 @@ class Terminal(_ObjectBase):
                     layout_db.delete()
                 break
 
-            wp.wire_id = None
-            wp.idx = None
+            # Out of the wire's route (which renumbers what is left); the
+            # canonical rows themselves stay -- they belong to the
+            # terminal/cavity.
+            ptables.pjt_wire_paths_table.remove(wire_db.db_id, view, wp.db_id)
 
             if wp.db_id not in canonical_ids:
                 wp.delete()
-
-        for i, wp in enumerate(remaining):
-            wp.idx = i
 
         view_obj.refresh_waypoints()
 
     @_check_types.do
     def _detach_wire_2d(self, wire: "_wire_obj.Wire", end: str) -> None:
         """Schematic half of :meth:`detach_wires` for one wire end."""
+        # A ring's wires each attach at a point of their own (see
+        # attach_wire_point), so there is no shared point to cut at.
+        if self.objschematic._is_free:  # NOQA
+            return
+
         ptables = self.mainframe.project.ptables
         stub_id = self.db_obj.wire_position2d_id_raw
 
@@ -442,10 +441,16 @@ class Terminal(_ObjectBase):
             target3d = db_obj.wire_position3d
             target_pegboard = db_obj.wire_position_pegboard
 
+        # Schematic: the stub's end (seated) or ring center (free), plus, for
+        # a ring, each of its four wire attach points -- a wire cut from a
+        # ring ends at one of those.
+        targets2d = []
+
         if db_obj.wire_position2d_id_raw is not None:
-            target2d = db_obj.wire_position2d
-        else:
-            target2d = None
+            targets2d.append(db_obj.wire_position2d)
+
+        if self.objschematic._is_free:  # NOQA
+            targets2d.extend(_point.Point(*p) for p in self.objschematic.free_slot_points())  # NOQA
 
         matches = []
 
@@ -461,10 +466,12 @@ class Terminal(_ObjectBase):
                 if sibling is not None:
                     continue
 
-                ends = (
+                ends = [
                     (target3d, getattr(wire_db, f'{end}_position3d')),
-                    (target_pegboard, getattr(wire_db, f'{end}_position_pegboard')),
-                    (target2d, getattr(wire_db, f'{end}_position2d')))
+                    (target_pegboard, getattr(wire_db, f'{end}_position_pegboard'))]
+
+                end2d = getattr(wire_db, f'{end}_position2d')
+                ends.extend((target2d, end2d) for target2d in targets2d)
 
                 for target, end_point in ends:
                     if target is None or end_point is None:

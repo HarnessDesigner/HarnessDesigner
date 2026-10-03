@@ -285,10 +285,10 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
         dst_grp.branch_db.diameter = new_dst_dia
         dst_layer.diameter = new_dst_dia
 
-        # Update the 3D branch sphere diameters
-        if src_grp is not None:
-            self._update_branch_3d(src_grp, new_src_dia)
-        self._update_branch_3d(dst_grp, new_dst_dia)
+        # Update the 3D branch sphere diameters -- one rebuild covers
+        # both branches at once, each one reseeding its own diameter
+        # fresh from branch_db.diameter (already updated above).
+        self._update_branch_3d()
 
         # Refresh list widgets
         if src_grp is not None:
@@ -303,12 +303,15 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
         return None
 
     @_check_types.do
-    def _update_branch_3d(self, grp: _BranchGroup, new_diameter: float):
-        branch_id = grp.branch_db.branch_id
-        branches = self._transition_3d._branches
-        if branch_id - 1 < len(branches):
-            branch_3d = branches[branch_id - 1]
-            branch_3d.diameter = new_diameter
+    def _update_branch_3d(self) -> None:
+        """Rebuild the 3D view's own geometry -- each ``Branch`` reseeds
+        its own diameter fresh from ``db_obj.diameter`` (just updated by
+        the caller above) on every ``build()``, so there's nothing to
+        push through to any specific branch object directly any more
+        (unlike the old, separate tip-marker design's own ``diameter``
+        setter, which wrote to the database itself -- now done by the
+        caller directly on ``branch_db``, the actual source of truth)."""
+        self._transition_3d.build()
 
     @_check_types.do
     def GetValue(self):

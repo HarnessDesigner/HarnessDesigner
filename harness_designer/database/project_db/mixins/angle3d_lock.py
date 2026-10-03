@@ -29,7 +29,8 @@ class Angle3DLockMixin(BaseMixin):
         :rtype: bool
         """
         if self._stored_angle3d_lock is DefaultStoredValue:
-            self._stored_angle3d_lock = bool(self._table.select('angle3d_lock', id=self._db_id)[0][0])
+            _rows = self._table.select('angle3d_lock', id=self._db_id)
+            self._stored_angle3d_lock = bool(_rows[0][0]) if _rows else None
 
         return self._stored_angle3d_lock
 

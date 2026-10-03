@@ -512,12 +512,15 @@ class Terminal(_base_3d.Base3D):
     def _create_free(
         cls, mainframe: "_ui.MainFrame", part: "_global_terminal.Terminal",
         direction3d: tuple[float, float, float], direction_pegboard: tuple[float, float, float],
-        place: Callable[[], tuple[tuple[float, float, float], tuple[float, float, float]]]
+        place: Callable[[], tuple[tuple[float, float, float], tuple[float, float, float]]],
+        position2d: tuple[float, float, float] = (0.0, 0.0, 0.0)
     ) -> "_terminal.Terminal":
         """Build a terminal that is not seated in any cavity, facing
         *direction3d*/*direction_pegboard* (its +Z), at whatever *place*
         returns -- ``((x, y, z), (px, py, pz))``, the 3D and peg-board
-        positions. *place* runs twice: once before the facade exists (so
+        positions -- and at *position2d* in the schematic, where it is drawn
+        as a ring (see ``objects_schematic.terminal.Terminal``'s *free*).
+        *place* runs twice: once before the facade exists (so
         the terminal is never created at the origin) and again after it
         does, since Terminal.__init__ may only then assign a generic model
         to a part that had none (see start_add's Mode 1) and *place* may
@@ -531,14 +534,16 @@ class Terminal(_base_3d.Base3D):
         point_db = ptables.pjt_points3d_table.insert(x, y, z)
 
         name = f'{part.manufacturer.name} {part.part_number}'
-        db_obj = ptables.pjt_terminals_table.insert(part.db_id, name, None, point_db.db_id, None)
+        point2d_db = ptables.pjt_points2d_table.insert(*position2d)
+        db_obj = ptables.pjt_terminals_table.insert(
+            part.db_id, name, point2d_db.db_id, point_db.db_id, None)
 
         # Written before anything reads the terminal's angles, so the row is
         # created already facing the right way (+Z is canonical forward).
         db_obj._update_angle3d(_angle.Angle.from_direction(np.array(direction3d)))  # NOQA
         db_obj._update_angle_pegboard(_angle.Angle.from_direction(np.array(direction_pegboard)))  # NOQA
 
-        facade = _terminal_facade.Terminal(mainframe, db_obj)
+        facade = _terminal_facade.Terminal(mainframe, db_obj, free=True)
 
         (x, y, z), (px, py, pz) = place()
 
@@ -614,7 +619,15 @@ class Terminal(_base_3d.Base3D):
             return (_terminal_handler.free_end_position(part, end3d, direction3d),
                     _terminal_handler.free_end_position(part, end_pegboard, direction_pegboard))
 
-        return cls._create_free(mainframe, part, direction3d, direction_pegboard, _place)
+        # The ring goes where the wire already ends in the schematic, so its
+        # wire attach point matches the wire's end for reconnect_free_wires.
+        if end == 'start':
+            end2d = wire_db.start_position2d
+        else:
+            end2d = wire_db.stop_position2d
+
+        return cls._create_free(
+            mainframe, part, direction3d, direction_pegboard, _place, end2d.as_float)
 
     @classmethod
     @_check_types.do
@@ -622,31 +635,35 @@ class Terminal(_base_3d.Base3D):
         cls, mainframe: "_ui.MainFrame", view: str, mouse_pos: _point.Point
     ) -> _Union["_terminal.Terminal", None]:
         """Place a terminal, not in any cavity and not on any wire, at the
-        empty-space right click *mouse_pos* made in *view* ('3d' or
-        'pegboard'), unrotated. The other view gets the same spot on the
-        floor plane (y = 0), the way a placed housing does.
+        empty-space right click *mouse_pos* made in *view* ('3d', 'pegboard'
+        or 'schematic'), unrotated. A 3D/peg-board click puts it at the same
+        spot on the floor plane (y = 0) in the other of those two, the way a
+        placed housing does; the views it was not placed in start at their
+        origin.
         """
         part = cls._pick_free_part(mainframe)
         if part is None:
             return None
 
-        if view == '3d':
-            click = mainframe.editor3d.editor.camera.get_position_on_focal_plane(mouse_pos)
-        else:
-            click = mainframe.editor_pegboard.editor.camera.screen_to_world(mouse_pos)
-
-        cx, cy, cz = click.as_float
+        origin = (0.0, 0.0, 0.0)
+        position2d = origin
 
         if view == '3d':
+            cx, cy, cz = mainframe.editor3d.editor.camera.get_position_on_focal_plane(mouse_pos).as_float
             placement = ((cx, cy, cz), (cx, 0.0, cz))
-        else:
+        elif view == 'pegboard':
+            cx, cy, cz = mainframe.editor_pegboard.editor.camera.screen_to_world(mouse_pos).as_float
             placement = ((cx, 0.0, cz), (cx, cy, cz))
+        else:
+            cx, _, cz = mainframe.editor2d.editor.camera.screen_to_world(mouse_pos).as_float
+            placement = (origin, origin)
+            position2d = (cx, 0.0, cz)
 
         def _place() -> tuple[tuple[float, float, float], tuple[float, float, float]]:
             return placement
 
         forward = (0.0, 0.0, 1.0)
-        return cls._create_free(mainframe, part, forward, forward, _place)
+        return cls._create_free(mainframe, part, forward, forward, _place, position2d)
 
     @classmethod
     @_check_types.do

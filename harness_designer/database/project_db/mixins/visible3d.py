@@ -24,7 +24,8 @@ class Visible3DMixin(BaseMixin):
         :rtype: bool
         """
         if self._stored_is_visible3d is DefaultStoredValue: 
-            self._stored_is_visible3d = bool(self._table.select('is_visible3d', id=self._db_id)[0][0])
+            _rows = self._table.select('is_visible3d', id=self._db_id)
+            self._stored_is_visible3d = bool(_rows[0][0]) if _rows else None
         
         return self._stored_is_visible3d
 

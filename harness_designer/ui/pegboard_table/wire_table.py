@@ -67,17 +67,21 @@ class _ColumnPickerPopup(QFrame):
     texture as the table itself and stays inside the table's bounds. That
     also means Qt won't auto-close it on an outside click the way it
     would a real popup -- :meth:`WireTable.close_column_picker` is called
-    by whoever routes the mouse (see ``objects_pegboard.pegboard_table``).
+    by whoever routes the mouse (see ``objects_pegboard.table``).
     """
 
     @_check_types.do
-    def __init__(self, parent: QWidget, visible_indices: list[int], on_toggle):
+    def __init__(self, parent: QWidget, visible_indices: list[int],
+                 available_indices: list[int], on_toggle):
         """Initialise the popup.
 
         :param parent: The table this popup lives inside.
         :type parent: QWidget
         :param visible_indices: COLUMN_DEFS indices currently shown.
         :type visible_indices: list[int]
+        :param available_indices: COLUMN_DEFS indices this table's anchor
+            can show at all (see :meth:`WireTable._available_def_indices`).
+        :type available_indices: list[int]
         :param on_toggle: Called with ``(def_index, checked)`` whenever a
             checkbox is toggled.
         :type on_toggle: Callable[[int, bool], None]
@@ -104,6 +108,9 @@ class _ColumnPickerPopup(QFrame):
 
         visible_set = set(visible_indices)
         for def_index, (label, _info) in enumerate(_column_defs.COLUMN_DEFS):
+            if def_index not in available_indices:
+                continue
+
             box = QCheckBox(label, body)
             box.setChecked(def_index in visible_set)
             box.toggled.connect(
@@ -233,13 +240,20 @@ class WireTable(_base.EditorList):
     _live_tables: "weakref.WeakSet[WireTable]" = weakref.WeakSet()
 
     # Emitted after a selection was changed programmatically by another
-    # table (see _select_wire) -- the owning PegboardTable object listens
+    # table (see _select_wire) -- the owning Table object listens
     # so it can regrab its GL texture; nothing else would repaint it.
     wire_selection_synced = QtCore.Signal()
 
     # Emitted whenever the table's own look changed with no mouse event
     # to trigger a repaint (column toggled/moved) -- same listener.
     appearance_changed = QtCore.Signal()
+
+    # The user picked a wire row in THIS table (not a programmatic sync
+    # from another table -- see _select_wire), carrying the wire's row id;
+    # and the user then cleared that selection. The owning Table
+    # forwards both to the editor's WireHighlight.
+    wire_selected = QtCore.Signal(object)
+    wire_deselected = QtCore.Signal()
 
     @_check_types.do
     def __init__(self, parent, mainframe, label, table,
@@ -259,8 +273,15 @@ class WireTable(_base.EditorList):
         :type pegboard_table: :class:`PJTPegboardTable`
         """
         self.pegboard_table = pegboard_table
-        self.column_mapping = self._build_column_mapping(
-            pegboard_table.visible_columns or _column_defs.DEFAULT_VISIBLE_COLUMNS)
+
+        visible_columns = pegboard_table.visible_columns
+        if not visible_columns:
+            if self._anchor_is_transition():
+                visible_columns = _column_defs.DEFAULT_VISIBLE_COLUMNS_TRANSITION
+            else:
+                visible_columns = _column_defs.DEFAULT_VISIBLE_COLUMNS
+
+        self.column_mapping = self._build_column_mapping(visible_columns)
 
         super().__init__(parent, mainframe, label, table)
 
@@ -288,7 +309,38 @@ class WireTable(_base.EditorList):
 
         self._syncing_selection = False
         self.itemSelected.connect(self._on_row_selected)
+        self.itemUnselected.connect(self._on_row_unselected)
         WireTable._live_tables.add(self)
+
+    # ------------------------------------------------------------------
+    # Anchor-dependent columns
+    # ------------------------------------------------------------------
+
+    @_check_types.do
+    def _anchor_is_transition(self) -> bool:
+        """Whether this table belongs to a transition (the only anchor
+        type with the branch column).
+        """
+        from ...database.project_db import pjt_transition as _pjt_transition  # NOQA -- avoid a cycle at import time
+
+        return isinstance(self.pegboard_table.anchor, _pjt_transition.PJTTransition)
+
+    @_check_types.do
+    def _available_def_indices(self) -> list[int]:
+        """COLUMN_DEFS indices this table's anchor can show -- every
+        column, except the ``transition_only`` ones unless the anchor is
+        a transition.
+        """
+        is_transition = self._anchor_is_transition()
+
+        available = []
+        for def_index, (_label, info) in enumerate(_column_defs.COLUMN_DEFS):
+            if info.get('transition_only') and not is_transition:
+                continue
+
+            available.append(def_index)
+
+        return available
 
     # ------------------------------------------------------------------
     # column_mapping construction
@@ -400,8 +452,8 @@ class WireTable(_base.EditorList):
         """Rebuild the query (re-fetching the anchor's current wire ids
         -- see :meth:`_build_query`'s own docstring) and requery, so a
         wire connecting/disconnecting from this table's own anchor is
-        reflected. Called from ``objects_pegboard.pegboard_table.
-        PegboardTable.refresh_wires`` -- a plain ``Refresh()`` alone
+        reflected. Called from ``objects_pegboard.table.
+        Table.refresh_wires`` -- a plain ``Refresh()`` alone
         would only repaint the SAME (now stale) id list ``_build_query``
         baked in at construction/last refresh time.
         """
@@ -441,6 +493,9 @@ class WireTable(_base.EditorList):
         if col_name == 'cavity_name':
             return self._cavity_names_for_wire(db_id)
 
+        if col_name == 'branch_index':
+            return self._branch_indexes_for_wire(db_id)
+
         # See _get_icon's own comment -- get_obj_id can transiently
         # return an id not yet resolvable via a plain select() here.
         circuit_rows = self.table.select('circuit_id', id=db_id)
@@ -472,6 +527,34 @@ class WireTable(_base.EditorList):
             return str(circuit.wire_length_mm)
 
         return ''
+
+    @_check_types.do
+    def _branch_indexes_for_wire(self, wire_id: bytes) -> str:
+        """The ``branch_id`` of each of this table's transition's
+        branches *wire_id* passes through, ascending and joined with
+        `` / `` (a wire can enter through one branch and leave through
+        another).
+
+        Read from ``pjt_wire_paths`` -- the same source
+        ``PJTTransitionBranch.wires`` uses, so this column and the rows
+        the table lists can never disagree. Branches of OTHER transitions
+        the wire also passes through are ignored.
+
+        :param wire_id: The ``pjt_wires`` row id.
+        :type wire_id: bytes
+        :returns: e.g. ``'1 / 3'``, or ``''`` if no branch is recorded.
+        :rtype: str
+        """
+        routed_ids = self.table.db.pjt_wire_paths_table.transition_branch_ids_for_wire(wire_id)
+
+        indexes = []
+        for branch in self.pegboard_table.anchor.branches:
+            if branch.db_id in routed_ids:
+                indexes.append(branch.branch_id)
+
+        indexes.sort()
+
+        return ' / '.join(str(index) for index in indexes)
 
     @_check_types.do
     def _cavity_names_for_wire(self, wire_id: bytes) -> str:
@@ -647,7 +730,9 @@ class WireTable(_base.EditorList):
         """
         self.close_column_picker()
 
-        self._picker = _ColumnPickerPopup(self, self._visible_def_indices(), self._on_column_toggled)
+        self._picker = _ColumnPickerPopup(
+            self, self._visible_def_indices(), self._available_def_indices(),
+            self._on_column_toggled)
         self._picker.place_within(self.rect(), pos)
         self._picker.show()
         self._picker.raise_()
@@ -918,6 +1003,8 @@ class WireTable(_base.EditorList):
         if wire_id is None:
             return
 
+        self.wire_selected.emit(wire_id)
+
         for other in list(WireTable._live_tables):
             if other is self or other.table.db is not self.table.db:
                 continue
@@ -927,6 +1014,14 @@ class WireTable(_base.EditorList):
             except RuntimeError:
                 # underlying C++ widget already destroyed
                 WireTable._live_tables.discard(other)
+
+    @_check_types.do
+    def _on_row_unselected(self) -> None:
+        """The user cleared this table's selection."""
+        if self._syncing_selection:
+            return
+
+        self.wire_deselected.emit()
 
     @_check_types.do
     def _row_for_wire(self, wire_id: bytes) -> int | None:
@@ -965,7 +1060,7 @@ class WireTable(_base.EditorList):
     def _select_wire(self, wire_id: bytes) -> None:
         """Select *wire_id*'s row and scroll it into view, if this table
         lists that wire. Doesn't propagate back out (guarded), and asks
-        the owning PegboardTable to repaint via
+        the owning Table to repaint via
         :attr:`wire_selection_synced`.
 
         :param wire_id: The ``pjt_wires`` row id.

@@ -446,35 +446,33 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         Checks two cases: this point is some wire's own true start/stop
         (a layout placed at an endpoint, or a splice/service-loop's own
         cut point -- possibly two wires, one on each side); or, failing
-        that, the point is tagged as an interior waypoint (wire_id) of a
-        single wire's own path -- an ordinary bend, or one of a
-        terminal's own back/cavity routing points (see
-        objects.terminal.Terminal.add_wire) -- ``wire_id`` has no
-        DB-enforced FK (see create_database/points3d.py), so this is a
-        second, explicit lookup rather than something a join could do.
+        that, the point is an interior waypoint in the route of one or
+        more wires (``pjt_wire_paths`` rows referencing it in this
+        layout's view) -- an ordinary bend, one of a terminal's own
+        back/cavity routing points (see objects.terminal.Terminal.
+        add_wire), or a point several wires share.
 
         :returns: Property value.
         :rtype: list['_pjt_wire.PJTWire']
         """
         point3d_id = self.position3d_id
         if point3d_id is not None:
-            start_col, stop_col, points_table = (
-                'start_point3d_id', 'stop_point3d_id', self._table.db.pjt_points3d_table)
+            view = '3d'
+            start_col, stop_col = 'start_point3d_id', 'stop_point3d_id'
             point_id = point3d_id
         else:
             point2d_id = self.position2d_id
             if point2d_id is not None:
-                start_col, stop_col, points_table = (
-                    'start_point2d_id', 'stop_point2d_id', self._table.db.pjt_points2d_table)
+                view = '2d'
+                start_col, stop_col = 'start_point2d_id', 'stop_point2d_id'
                 point_id = point2d_id
             else:
                 point_pegboard_id = self.position_pegboard_id
                 if point_pegboard_id is None:
                     return []
 
-                start_col, stop_col, points_table = (
-                    'start_point_pegboard_id', 'stop_point_pegboard_id',
-                    self._table.db.pjt_points_pegboard_table)
+                view = 'pegboard'
+                start_col, stop_col = 'start_point_pegboard_id', 'stop_point_pegboard_id'
                 point_id = point_pegboard_id
 
         db_ids = self._table.db.pjt_wires_table.select(
@@ -484,12 +482,9 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         if res:
             return res
 
-        point = points_table[point_id]
-        wire_id = point.wire_id
-        if wire_id is not None:
-            return [self._table.db.pjt_wires_table[wire_id]]
+        wire_ids = self._table.db.pjt_wire_paths_table.wire_ids_for_point(view, point_id)
 
-        return []
+        return [self._table.db.pjt_wires_table[wire_id] for wire_id in wire_ids]
 
     @property
     @_check_types.do

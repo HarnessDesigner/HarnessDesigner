@@ -10,11 +10,12 @@ Usage::
     python diagnostics/dep_trace.py <file_or_dir> --types        [--name PATTERN] [--json]
     python diagnostics/dep_trace.py <file_or_dir> --string-types [--name PATTERN] [--json]
     python diagnostics/dep_trace.py <file_or_dir> --calls        [--name PATTERN] [--json]
+    python diagnostics/dep_trace.py <file_or_dir> --constructs   [--name PATTERN] [--json]
     python diagnostics/dep_trace.py <file_or_dir> --overrides    [--name PATTERN] [--json]
     python diagnostics/dep_trace.py <file_or_dir> --imported-by  [--name PATTERN] [--json]
 
-``target`` (a file or directory) and the five mode flags (``--types``, ``--string-types``,
-``--calls``, ``--overrides``, ``--imported-by``) can appear in any order on the command line. The filter
+``target`` (a file or directory) and the six mode flags (``--types``, ``--string-types``,
+``--calls``, ``--constructs``, ``--overrides``, ``--imported-by``) can appear in any order on the command line. The filter
 pattern for whichever mode(s) are active is always given via the separate ``--name PATTERN``
 flag, never attached to a mode flag itself -- this is deliberate: an early version let the mode
 flags optionally take their own trailing value (``--imported-by [NAME]``), but that is ambiguous
@@ -24,7 +25,7 @@ positional ``target``, and silently consumes it as the former, leaving ``target`
 Splitting the filter into its own always-named flag removes the ambiguity entirely, independent
 of argument order.
 
-Any combination of the five mode flags can be given together in one run, sharing the one
+Any combination of the six mode flags can be given together in one run, sharing the one
 ``--name`` filter -- e.g. ``--calls --overrides --name __init__`` runs both and reports both.
 Each mode still runs exactly as it would alone (results are identical either way); only the
 output shape changes once more than one mode is active: text output prints one ``== --mode ==``
@@ -97,6 +98,28 @@ actually runs -- the override, or a specific ancestor's, when one exists.
 Calls through any other receiver expression are still listed but can't be
 resolved statically (heuristic name match only).
 
+Constructor-call mode (``--constructs``) finds every call that instantiates
+a class defined under the target -- ``ClassName(...)`` or
+``obj.ClassName(...)`` -- distinct from ``--calls``, which reports the same
+call site but can't tell a constructor call apart from an ordinary function
+call (both are just a bare-name ``ast.Call`` at the AST level). A name
+matching zero classes under the target (a stdlib/third-party class, or a
+plain function) isn't reported at all.
+
+When several classes under the target share the called name (e.g. the
+per-editor ``Housing`` classes), this mode doesn't just bail out to "could be
+any of these" -- it traces the call site's own file-local import bindings
+(the same ``from X import Y`` resolution ``--imported-by`` uses, followed
+through re-export chains such as a package ``__init__.py``) to pin down
+which *specific* one is actually in scope at that call site, exactly the way
+Python itself would resolve the name. If that resolves to exactly one class,
+only that one is reported; if the name is locally defined in the same file,
+that local definition wins outright. Only when import tracing genuinely
+can't pin one down (dynamic imports, star imports, or another already-
+documented blind spot of this tool) does it fall back to listing every
+same-named class under the target, so you at least see every candidate
+instead of nothing.
+
 Override-mapping mode (``--overrides``) takes ``--name`` as a class name or
 a method name and reports every override relationship found: which
 ancestor(s) define the same method, and whether the override calls
@@ -115,7 +138,7 @@ whole reverse graph, or add ``--name`` to filter to one file -- it may match
 a bare filename (``camera``), a path fragment (``gl/canvas_3d/camera.py``),
 or a dotted module path (``harness_designer.gl.canvas_3d.camera``).
 
-``--calls``, ``--overrides``, and ``--imported-by`` all build their picture
+``--calls``, ``--constructs``, ``--overrides``, and ``--imported-by`` all build their picture
 from every file under the given target, so point them at a directory (or
 the whole package) for meaningful cross-file resolution -- a single file
 only resolves against things defined/reachable in that same file.
@@ -991,6 +1014,176 @@ def calls_to_json(call_sites: list[CallSite]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# --constructs: constructor-call sites (class instantiations, distinct from
+# --calls, which can't tell a constructor call apart from an ordinary one)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ConstructSite:
+    class_name: str
+    file: str
+    lineno: int
+    caller_qualname: str
+    class_locations: list[tuple[str, int]] = field(default_factory=list)
+
+
+def _build_import_resolution_map(path: Path, module_index: dict[str, Path]) -> dict[str, Path]:
+    """For one file, map every locally-bound import name to the resolved
+    Path of the file it actually comes from (the specific submodule for
+    ``from X import Y``, or the module file for ``import X [as Y]``) --
+    reuses the exact resolution ``--imported-by`` does, just keyed by the
+    LOCAL name a construct call site would use, not the importer.
+
+    Unlike ``--imported-by`` (which only resolves module-level imports via
+    ``_iter_module_level_imports``), this walks the *whole* file, including
+    imports inside function bodies -- a common pattern in this codebase for
+    avoiding circular imports (``from .. import housing as _housing_facade``
+    written right before the one function that needs it). Construct-site
+    resolution needs to see those too, or every qualifier bound by a
+    function-local import would wrongly fall back to 'ambiguous'."""
+    tree = _parse_file(path)
+    if tree is None:
+        return {}
+
+    importing_module = _module_path_for_file(path)
+    resolution: dict[str, Path] = {}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in module_index:
+                    local_name = alias.asname or alias.name.split('.')[0]
+                    resolution[local_name] = module_index[alias.name]
+        elif isinstance(node, ast.ImportFrom):
+            for imported_name, target_path in _resolve_from_import(node, path, importing_module, module_index):
+                if imported_name == '*':
+                    continue
+                matching_alias = next((a for a in node.names if a.name == imported_name), None)
+                local_name = matching_alias.asname if matching_alias and matching_alias.asname else imported_name
+                resolution[local_name] = target_path
+
+    return resolution
+
+
+def _resolve_construct_target(
+    path: Path,
+    class_name: str,
+    module_qualifier: str | None,
+    import_maps: dict[str, dict[str, Path]],
+    module_index: dict[str, Path],
+    candidates: list[ClassInfo],
+) -> ClassInfo | None:
+    """Pin a construct call site to the one specific class (among possibly
+    several sharing ``class_name``) actually in scope there, by following
+    this file's own import bindings -- the same way Python itself would
+    resolve the name -- rather than matching the bare name against every
+    class under target. Returns None (ambiguous/unresolved) rather than
+    guessing when the chain can't be followed statically."""
+    if module_qualifier is None:
+        local_match = next((c for c in candidates if c.file == str(path)), None)
+        if local_match is not None:
+            return local_match
+
+    current_path = path
+    lookup_name = class_name if module_qualifier is None else module_qualifier
+    seen: set[Path] = set()
+
+    for _ in range(6):
+        if current_path in seen:
+            return None
+        seen.add(current_path)
+
+        import_map = import_maps.setdefault(
+            str(current_path), _build_import_resolution_map(current_path, module_index),
+        )
+        target_path = import_map.get(lookup_name)
+        if target_path is None:
+            return None
+
+        matches = [c for c in candidates if c.file == str(target_path)]
+        if matches:
+            return matches[0] if len(matches) == 1 else None
+
+        current_path = target_path
+        lookup_name = class_name  # follow a re-export chain (e.g. a package __init__.py)
+
+    return None
+
+
+def collect_constructs(
+    paths: list[Path], name_filter: str, registry: dict[str, list[ClassInfo]], module_index: dict[str, Path],
+) -> list[ConstructSite]:
+    matcher = _make_matcher(name_filter)
+    results: list[ConstructSite] = []
+    import_maps: dict[str, dict[str, Path]] = {}
+
+    for path in paths:
+        tree = _parse_file(path)
+        if tree is None:
+            continue
+        _attach_parents(tree)
+
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+
+            func = node.func
+            if isinstance(func, ast.Name):
+                class_name = func.id
+                module_qualifier = None
+            elif isinstance(func, ast.Attribute):
+                class_name = func.attr
+                module_qualifier = func.value.id if isinstance(func.value, ast.Name) else None
+            else:
+                continue
+
+            if class_name not in registry or not matcher(class_name):
+                continue
+
+            candidates = registry[class_name]
+            resolved = _resolve_construct_target(path, class_name, module_qualifier, import_maps, module_index, candidates)
+            if resolved is not None:
+                class_locations = [(resolved.file, resolved.lineno)]
+            else:
+                class_locations = [(candidate.file, candidate.lineno) for candidate in candidates]
+
+            results.append(ConstructSite(class_name, str(path), node.lineno, _qualname(node), class_locations))
+
+    return results
+
+
+def print_constructs_report(construct_sites: list[ConstructSite], name_filter: str | None) -> None:
+    if not construct_sites:
+        print(f'no constructor calls found matching {name_filter!r}' if name_filter else 'no constructor calls found')
+        return
+
+    for cs in sorted(construct_sites, key=lambda c: (c.file, c.lineno)):
+        print(f'{cs.file}:{cs.lineno}  in {cs.caller_qualname}  {cs.class_name}(...)')
+        if len(cs.class_locations) == 1:
+            loc_file, loc_lineno = cs.class_locations[0]
+            print(f'    -> resolves to the class defined at {loc_file}:{loc_lineno}')
+        else:
+            print(f'    -> could not pin which one via import tracing; {len(cs.class_locations)} classes named {cs.class_name!r} exist:')
+            for loc_file, loc_lineno in cs.class_locations:
+                print(f'       {loc_file}:{loc_lineno}')
+
+    print()
+
+
+def constructs_to_json(construct_sites: list[ConstructSite]) -> list[dict]:
+    return [
+        {
+            'class_name': cs.class_name,
+            'file': cs.file,
+            'lineno': cs.lineno,
+            'caller_qualname': cs.caller_qualname,
+            'class_locations': [{'file': f, 'lineno': l} for f, l in cs.class_locations],
+        }
+        for cs in construct_sites
+    ]
+
+
+# ---------------------------------------------------------------------------
 # --overrides: override / super-call mapping
 # ---------------------------------------------------------------------------
 
@@ -1294,6 +1487,15 @@ def _run_calls(paths: list[Path], name_filter: str | None, registry: dict[str, l
     return text, data
 
 
+def _run_constructs(
+    paths: list[Path], name_filter: str | None, registry: dict[str, list[ClassInfo]], module_index: dict[str, Path],
+) -> tuple[str, list[dict]]:
+    construct_sites = collect_constructs(paths, name_filter or '', registry, module_index)
+    text = _capture(print_constructs_report, construct_sites, name_filter)
+    data = constructs_to_json(construct_sites)
+    return text, data
+
+
 def _run_overrides(registry: dict[str, list[ClassInfo]], name_filter: str | None) -> tuple[str, list[dict]]:
     overrides = collect_overrides(registry)
     text = _capture(print_override_report, overrides, name_filter)
@@ -1323,7 +1525,7 @@ def _run_imported_by(paths: list[Path], name_filter: str | None, module_index: d
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Trace import, type, call, and override usage in Python source.')
+    parser = argparse.ArgumentParser(description='Trace import, type, call, construct, and override usage in Python source.')
     parser.add_argument('target', help='a .py file, or a directory to scan recursively')
     parser.add_argument('--depth', choices=['shallow', 'deep'], default='deep', help='import-trace detail level')
 
@@ -1343,6 +1545,12 @@ def main() -> None:
              'resolving self./super. receivers against the class hierarchy',
     )
     parser.add_argument(
+        '--constructs', action='store_true',
+        help='switch to constructor-call mode: find every call that instantiates a class '
+             'defined under target (ClassName(...) or obj.ClassName(...)), distinct from '
+             '--calls which cannot tell a constructor call apart from an ordinary function call',
+    )
+    parser.add_argument(
         '--overrides', action='store_true',
         help='switch to override-mapping mode: show override chains and whether each '
              'override calls super()',
@@ -1356,7 +1564,7 @@ def main() -> None:
     parser.add_argument(
         '--name', default=None, metavar='PATTERN',
         help='regex pattern (matched with re.search) filtering the results of --types/'
-             '--string-types/--calls/--overrides/--imported-by (any combination of these five '
+             '--string-types/--calls/--constructs/--overrides/--imported-by (any combination of these six '
              'can be given together, sharing this one filter); omit for a full unfiltered '
              'dump. A plain '
              'literal name works fine here too -- it behaves as a substring match. If no mode '
@@ -1385,6 +1593,8 @@ def main() -> None:
         active_modes.append('string-types')
     if args.calls:
         active_modes.append('calls')
+    if args.constructs:
+        active_modes.append('constructs')
     if args.overrides:
         active_modes.append('overrides')
     if args.imported_by:
@@ -1421,11 +1631,11 @@ def main() -> None:
         return
 
     registry: dict[str, list[ClassInfo]] | None = None
-    if 'calls' in active_modes or 'overrides' in active_modes:
+    if 'calls' in active_modes or 'constructs' in active_modes or 'overrides' in active_modes:
         registry = build_class_registry(paths)
 
     module_index: dict[str, Path] | None = None
-    if 'imported-by' in active_modes:
+    if 'imported-by' in active_modes or 'constructs' in active_modes:
         module_index = build_module_index(paths)
 
     texts: dict[str, str] = {}
@@ -1438,6 +1648,8 @@ def main() -> None:
             text, data = _run_string_types(paths, args.name)
         elif mode == 'calls':
             text, data = _run_calls(paths, args.name, registry)
+        elif mode == 'constructs':
+            text, data = _run_constructs(paths, args.name, registry, module_index)
         elif mode == 'overrides':
             text, data = _run_overrides(registry, args.name)
         else:

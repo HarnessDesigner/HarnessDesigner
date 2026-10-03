@@ -562,6 +562,17 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             self._stripe._angle = stripe_angle  # NOQA
 
     @_check_types.do
+    def identify(self, material: _materials.GLMaterial | None) -> None:
+        """Override the display material of the wire AND its stripe --
+        the stripe is drawn over the wire (unlike :meth:`set_selected`'s
+        case, where the stripe is skipped entirely), so a striped wire
+        would otherwise keep its own stripe color under a highlight.
+        """
+        super().identify(material)
+        if self._stripe is not None:
+            self._stripe.identify(material)
+
+    @_check_types.do
     def set_selected(self, flag: bool):
         """Set the selected.
 

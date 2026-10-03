@@ -3,9 +3,9 @@
 from typing import TYPE_CHECKING
 
 from . import ObjectBase as _ObjectBase
-from .objects_3d import pegboard_table as _pegboard_table_3d
-from .objects_schematic import pegboard_table as _pegboard_table_schematic
-from .objects_pegboard import pegboard_table as _pegboard_table_pegboard
+from .objects_3d import table as _table_3d
+from .objects_schematic import table as _table_schematic
+from .objects_pegboard import table as _table_pegboard
 from .. import check_types as _check_types
 
 
@@ -15,15 +15,16 @@ if TYPE_CHECKING:
 
 
 class PegboardTable(_ObjectBase):
-    """Facade for a floating peg-board wire table -- owns the per-view
-    wrapper instances (``objpegboard`` is the only one with any real
-    presence; ``obj3d``/``objschematic`` are inert placeholders, this
-    object type has no rendering presence in either of those views), same
-    shape as every other facade in this package (see ``wire_marker.py``).
+    """Facade for a floating wire table -- owns the per-view wrapper
+    instances (``objpegboard`` is the only one with any real presence
+    today; ``obj3d`` is a placeholder pending the real 3D billboard table,
+    BUNDLE_DESIGN.md section 2.7; ``objschematic`` is permanently inert,
+    this object type is never shown in the schematic view), same shape as
+    every other facade in this package (see ``wire_marker.py``).
     """
-    objschematic: _pegboard_table_schematic.PegboardTable = None
-    obj3d: _pegboard_table_3d.PegboardTable = None
-    objpegboard: _pegboard_table_pegboard.PegboardTable = None
+    objschematic: _table_schematic.Table = None
+    obj3d: _table_3d.Table = None
+    objpegboard: _table_pegboard.Table = None
     db_obj: "_pjt_pegboard_table.PJTPegboardTable" = None
 
     @_check_types.do
@@ -41,9 +42,9 @@ class PegboardTable(_ObjectBase):
 
         super().__init__(mainframe, db_obj)
 
-        self.obj3d = _pegboard_table_3d.PegboardTable(self, db_obj)
-        self.objpegboard = _pegboard_table_pegboard.PegboardTable(self, db_obj)
-        self.objschematic = _pegboard_table_schematic.PegboardTable(self, db_obj)
+        self.obj3d = _table_3d.Table(self, db_obj)
+        self.objpegboard = _table_pegboard.Table(self, db_obj)
+        self.objschematic = _table_schematic.Table(self, db_obj)
 
         self.mainframe.add_object(self)
 

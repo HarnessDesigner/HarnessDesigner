@@ -312,10 +312,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         whether a point is still referenced by anything before removing
         it, run at project close or on an interval, not written yet.
 
-        wire_id on pjt_points2d/pjt_points3d has no DB-enforced FK (see
-        create_database/points2d.py/points3d.py -- a real FK back to
-        pjt_wires would be a circular module import), so there is no
-        cascade delete to rely on for the WireLayout markers either;
+        This wire's own route rows (``pjt_wire_paths``) are deleted here
+        too, in every view -- the shared point rows they referenced are
+        left alone, same as above. There is no cascade delete to rely on
+        for the WireLayout markers either;
         those ARE still cleaned up here explicitly (deleting a wire but
         leaving a WireLayout referencing one of its waypoints would leave
         a dangling, meaningless marker -- unlike the underlying point,
@@ -346,6 +346,8 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         for marker in self.wire_markers:
             marker.delete()
+
+        self._table.db.pjt_wire_paths_table.delete_for_wire(self.db_id)
 
         super().delete()
 
@@ -523,7 +525,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """Every interior 3D waypoint on this wire, in chain order (start
         and stop themselves are not included -- see start_position3d/
         stop_position3d)."""
-        return self._table.db.pjt_points3d_table.for_wire(self.db_id)
+        points_table = self._table.db.pjt_points3d_table
+        point_ids = self._table.db.pjt_wire_paths_table.point_ids(self.db_id, '3d')
+
+        return [points_table[point_id] for point_id in point_ids]
 
     @property
     @_check_types.do
@@ -531,7 +536,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """Every interior 2D waypoint on this wire, in chain order (start
         and stop themselves are not included -- see start_position2d/
         stop_position2d)."""
-        return self._table.db.pjt_points2d_table.for_wire(self.db_id)
+        points_table = self._table.db.pjt_points2d_table
+        point_ids = self._table.db.pjt_wire_paths_table.point_ids(self.db_id, '2d')
+
+        return [points_table[point_id] for point_id in point_ids]
 
     @property
     @_check_types.do
@@ -541,7 +549,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         start_position_pegboard/stop_position_pegboard). Its own
         independent set of waypoints, not shared with waypoints3d/
         waypoints2d -- each view's waypoint count can differ."""
-        return self._table.db.pjt_points_pegboard_table.for_wire(self.db_id)
+        points_table = self._table.db.pjt_points_pegboard_table
+        point_ids = self._table.db.pjt_wire_paths_table.point_ids(self.db_id, 'pegboard')
+
+        return [points_table[point_id] for point_id in point_ids]
 
     @property
     @_check_types.do

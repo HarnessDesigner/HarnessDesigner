@@ -2207,7 +2207,26 @@ class SearchDialog(_dialog_base.BaseDialog):
                 row = rows[0]
                 for i, column in enumerate(numeric_cols):
                     lo, hi = row[i * 2], row[i * 2 + 1]
-                    if lo is None or hi is None or lo == hi:
+                    if lo is None or hi is None:
+                        continue
+
+                    # MIN()/MAX() over a column declared numeric can still
+                    # come back holding whatever a bad row actually stored
+                    # in it -- a numeric-looking TEXT value (needs a plain
+                    # float() cast) or, seen in the wild, a genuinely blank
+                    # '' (some catalog rows have an unset/unknown value for
+                    # an optional numeric field, e.g. weight, stored as an
+                    # empty string instead of NULL). RangeFilterPanel's own
+                    # QDoubleSpinBox controls need real floats either way;
+                    # a column that isn't usably numeric for ANY row here
+                    # just doesn't get a range filter, same as the existing
+                    # lo is None/hi is None skip above.
+                    try:
+                        lo, hi = float(lo), float(hi)
+                    except (TypeError, ValueError):
+                        continue
+
+                    if lo == hi:
                         continue
 
                     panel = RangeFilterPanel(

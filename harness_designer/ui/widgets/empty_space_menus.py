@@ -137,18 +137,14 @@ class EmptySpaceMenuSchematic(_EmptySpaceMenu):
     def __init__(self, mainframe: "_ui.MainFrame", mouse_pos: "_point.Point") -> None:
         super().__init__(mainframe, mouse_pos)
 
-        # A free-standing terminal has no schematic drawing yet (a cavity-less
-        # terminal has no stub/name box to be drawn from) -- shown, but off,
-        # until that visual is designed.
-        action = self._add_action('Add Terminal', self.on_add_terminal)
-        action.setEnabled(False)
-        action.setToolTip('Free-standing terminals are not drawn in the schematic yet')
-
+        self._add_action('Add Terminal', self.on_add_terminal)
         self._add_action('Add Housing', self.on_add_housing)
 
     @_check_types.do
     def on_add_terminal(self) -> None:
-        pass
+        from ...objects.objects_3d import terminal as _terminal_3d
+
+        _terminal_3d.Terminal.add_free(self.mainframe, 'schematic', self.mouse_pos)
 
     @_check_types.do
     def on_add_housing(self) -> None:

@@ -22,7 +22,8 @@ class TableHiddenMixin(BaseMixin):
         :rtype: bool
         """
         if self._stored_is_table_hidden is DefaultStoredValue:
-            self._stored_is_table_hidden = bool(self._table.select('table_hidden', id=self._db_id)[0][0])
+            _rows = self._table.select('table_hidden', id=self._db_id)
+            self._stored_is_table_hidden = bool(_rows[0][0]) if _rows else None
 
         return self._stored_is_table_hidden
 

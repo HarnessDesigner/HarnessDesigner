@@ -144,7 +144,7 @@ def _create_bundle_layout_on_bundle(
     *position* and mark it with a BundleLayout.
 
     No new ``pjt_bundles`` row is created -- an ordinary bend is just a
-    tagged waypoint (``bundle_id``/``idx``) on the same bundle, shifting
+    waypoint in the same bundle's own ``pjt_bundle_paths`` list, shifting
     every existing waypoint at or past the insertion point up by one
     index. Mirrors handlers.wire_layout_handler._create_wire_layout_on_wire.
 
@@ -160,13 +160,11 @@ def _create_bundle_layout_on_bundle(
     if insert_idx is None:
         insert_idx = _find_insertion_index(bundle, position.as_numpy)
 
-    existing = bundle.db_obj.waypoints3d
-    for waypoint in reversed(existing[insert_idx:]):
-        waypoint.idx = waypoint.idx + 1
-
     pos_db = ptables.pjt_points3d_table.insert(
-        float(position.x), float(position.y), float(position.z),
-        bundle_id=bundle.db_obj.db_id, idx=insert_idx)
+        float(position.x), float(position.y), float(position.z))
+
+    ptables.pjt_bundle_paths_table.add(
+        bundle.db_obj.db_id, '3d', insert_idx, pos_db.db_id)
 
     db_obj = ptables.pjt_bundle_layouts_table.insert(point3d_id=pos_db.db_id)
     layout_obj = _bundle_layout.BundleLayout(project.mainframe, db_obj)

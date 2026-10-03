@@ -7,6 +7,7 @@ from PySide6 import QtCore
 
 from ...gl import canvas_pegboard as _canvas_pegboard
 from ...objects.objects_pegboard import base_pegboard as _base_pegboard
+from ...objects.objects_pegboard import wire_highlight as _wire_highlight
 from ... import config as _config
 from .. import dock_base as _dock_base
 from ... import check_types as _check_types
@@ -44,6 +45,10 @@ class EditorPegboard(_dock_base.DockBase):
 
         super().__init__(mainframe, 'Pegboard Editor', 'editor_pegboard',
                          QtCore.Qt.DockWidgetArea.RightDockWidgetArea)
+
+        # What the wire selected in any wire table touches, lit up blue --
+        # see objects_pegboard/wire_highlight.py.
+        self.wire_highlight = _wire_highlight.WireHighlight(self)
 
     @property
     @_check_types.do

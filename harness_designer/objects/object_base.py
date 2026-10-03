@@ -281,6 +281,13 @@ class ObjectBase:
 
     @property
     @_check_types.do
+    def is_pegboard_table(self) -> bool:
+        from . import pegboard_table as _pegboard_table
+
+        return isinstance(self, _pegboard_table.PegboardTable)
+
+    @property
+    @_check_types.do
     def is_project(self) -> bool:
         from . import project as _project
 

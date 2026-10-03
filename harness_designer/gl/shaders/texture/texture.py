@@ -10,7 +10,7 @@ Ported from the proven ``TextureProgram`` in scratches/pegboard_spreadsheet_
 widget/gl_spreadsheet_test.py (built and visually verified there for the
 wire-icon column) -- same GLSL, same compile/link pattern as every other
 shader in this package, just placed here now that it has a second real
-consumer: ``objects.objects_pegboard.pegboard_table.PegboardTable`` renders
+consumer: ``objects.objects_pegboard.table.Table`` renders
 a peg-board floating wire table by capturing a hidden ``QMdiSubWindow`` to a
 QImage and uploading it as this shader's texture each time its content
 changes (see that module for the capture side).

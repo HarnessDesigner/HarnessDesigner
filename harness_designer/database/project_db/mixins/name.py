@@ -24,7 +24,8 @@ class NameMixin(BaseMixin):
         :rtype: str
         """
         if self._stored_name is DefaultStoredValue:
-            self._stored_name = self._table.select('name', id=self._db_id)[0][0]
+            _rows = self._table.select('name', id=self._db_id)
+            self._stored_name = _rows[0][0] if _rows else None
             
         return self._stored_name
 

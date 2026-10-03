@@ -74,8 +74,18 @@ class BundleLayout(_base_pegboard.BasePegboard):
 
         if bundles:
             bundle = bundles[-1]
-            layers = bundle.concentric.layers
-            diameter = layers[-1].diameter
+            bundle_obj = bundle.get_object()
+            if bundle_obj is not None:
+                # See objects_3d.bundle_layout.BundleLayout.__init__'s own
+                # comment -- the bundle's own live view object already
+                # caches its real current diameter, and reading it
+                # directly here is crash-safe against a skeleton bundle
+                # with no concentric row at all (the normal case now).
+                diameter = bundle_obj.obj3d._diameter  # NOQA
+            else:
+                concentric = bundle.concentric
+                layers = concentric.layers if concentric is not None else []
+                diameter = layers[-1].diameter if layers else bundle.part.min_dia
             color = bundle.part.color.ui
         else:
             diameter = db_obj.diameter
@@ -136,13 +146,14 @@ class BundleLayout(_base_pegboard.BasePegboard):
         if self.point3d_id is None:
             return []
 
-        project = self.parent.mainframe.project
-        waypoint_row = project.ptables.pjt_points_pegboard_table[self.point3d_id]
+        ptables = self.parent.mainframe.project.ptables
+        bundle_ids = ptables.pjt_bundle_paths_table.bundle_ids_for_point(
+            'pegboard', self.point3d_id)
 
-        if waypoint_row.bundle_id is None:
+        if not bundle_ids:
             return []
 
-        bundle_db_obj = project.ptables.pjt_bundles_table[waypoint_row.bundle_id]
+        bundle_db_obj = ptables.pjt_bundles_table[bundle_ids[0]]
         return _chain_edges.touching_edges(bundle_db_obj, self.point3d_id)
 
     @classmethod

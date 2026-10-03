@@ -154,13 +154,11 @@ def _create_wire_layout_on_wire(
     if insert_idx is None:
         insert_idx = _find_insertion_index(wire, position.as_numpy)
 
-    existing = wire.db_obj.waypoints3d
-    for waypoint in reversed(existing[insert_idx:]):
-        waypoint.idx = waypoint.idx + 1
-
     pos_db = ptables.pjt_points3d_table.insert(
-        float(position.x), float(position.y), float(position.z),
-        wire_id=wire.db_obj.db_id, idx=insert_idx)
+        float(position.x), float(position.y), float(position.z))
+
+    ptables.pjt_wire_paths_table.add(
+        wire.db_obj.db_id, '3d', insert_idx, pos_db.db_id)
 
     db_obj = ptables.pjt_wire_layouts_table.insert(pos_db.db_id)
     layout_obj = _wire_layout.WireLayout(project.mainframe, db_obj)

@@ -925,6 +925,8 @@ from .pjt_splice import PJTSplicesTable  # NOQA
 from .pjt_transition import PJTTransitionsTable  # NOQA
 from .pjt_wire import PJTWiresTable  # NOQA
 from .pjt_wire_layout import PJTWireLayoutsTable  # NOQA
+from .pjt_wire_path import PJTWirePathsTable  # NOQA
+from .pjt_bundle_path import PJTBundlePathsTable  # NOQA
 from .pjt_cavity import PJTCavitiesTable  # NOQA
 from .pjt_terminal import PJTTerminalsTable  # NOQA
 from .pjt_wire_marker import PJTWireMarkersTable  # NOQA
@@ -979,6 +981,8 @@ class PJTTables:
         self._pjt_transitions_table = None
         self._pjt_wires_table = None
         self._pjt_wire_layouts_table = None
+        self._pjt_wire_paths_table = None
+        self._pjt_bundle_paths_table = None
         self._pjt_cavities_table = None
         self._pjt_terminals_table = None
         self._pjt_seals_table = None
@@ -1058,6 +1062,8 @@ class PJTTables:
         self._pjt_transitions_table = PJTTransitionsTable(self, project_id, tables, Splash)
         self._pjt_wires_table = PJTWiresTable(self, project_id, tables, Splash)
         self._pjt_wire_layouts_table = PJTWireLayoutsTable(self, project_id, tables, Splash)
+        self._pjt_wire_paths_table = PJTWirePathsTable(self, project_id, tables, Splash)
+        self._pjt_bundle_paths_table = PJTBundlePathsTable(self, project_id, tables, Splash)
         self._pjt_cavities_table = PJTCavitiesTable(self, project_id, tables, Splash)
         self._pjt_terminals_table = PJTTerminalsTable(self, project_id, tables, Splash)
         self._pjt_seals_table = PJTSealsTable(self, project_id, tables, Splash)
@@ -1194,6 +1200,28 @@ class PJTTables:
         :rtype: :class:`PJTWireLayoutsTable`
         """
         return self._pjt_wire_layouts_table
+
+    @property
+    @_check_types.do
+    def pjt_wire_paths_table(self) -> PJTWirePathsTable:
+        """Return the PJT wire paths table (every wire's route, one row per
+        point per wire per view).
+
+        :returns: The wire paths table.
+        :rtype: :class:`PJTWirePathsTable`
+        """
+        return self._pjt_wire_paths_table
+
+    @property
+    @_check_types.do
+    def pjt_bundle_paths_table(self) -> PJTBundlePathsTable:
+        """Return the PJT bundle paths table (every bundle's interior
+        waypoint list, one row per point per bundle per view).
+
+        :returns: The bundle paths table.
+        :rtype: :class:`PJTBundlePathsTable`
+        """
+        return self._pjt_bundle_paths_table
 
     @property
     @_check_types.do

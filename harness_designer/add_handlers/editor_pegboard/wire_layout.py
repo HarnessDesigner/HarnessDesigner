@@ -133,13 +133,11 @@ def create_wire_layout_on_wire_pegboard(
 
     ptables = project.ptables
 
-    existing = wire.db_obj.waypoints_pegboard
-    for waypoint in reversed(existing[insert_idx:]):
-        waypoint.idx = waypoint.idx + 1
-
     pos_db = ptables.pjt_points_pegboard_table.insert(
-        float(position.x), 0.0, float(position.z),
-        wire_id=wire.db_obj.db_id, idx=insert_idx)
+        float(position.x), 0.0, float(position.z))
+
+    ptables.pjt_wire_paths_table.add(
+        wire.db_obj.db_id, 'pegboard', insert_idx, pos_db.db_id)
 
     db_obj = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=pos_db.db_id)
 

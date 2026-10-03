@@ -45,13 +45,11 @@ def create_bundle_layout_on_bundle_pegboard(
 
     ptables = project.ptables
 
-    existing = bundle.db_obj.waypoints_pegboard
-    for waypoint in reversed(existing[insert_idx:]):
-        waypoint.idx = waypoint.idx + 1
-
     pos_db = ptables.pjt_points_pegboard_table.insert(
-        float(position.x), 0.0, float(position.z),
-        bundle_id=bundle.db_obj.db_id, idx=insert_idx)
+        float(position.x), 0.0, float(position.z))
+
+    ptables.pjt_bundle_paths_table.add(
+        bundle.db_obj.db_id, 'pegboard', insert_idx, pos_db.db_id)
 
     db_obj = ptables.pjt_bundle_layouts_table.insert(point_pegboard_id=pos_db.db_id)
 

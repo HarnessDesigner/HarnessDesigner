@@ -83,8 +83,7 @@ def _add_waypoint_3d(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire",
 
     point_db = ptables.pjt_points3d_table.insert(
         float(waypoint.x), float(waypoint.y), float(waypoint.z))
-    point_db.wire_id = wire_obj.db_obj.db_id
-    point_db.idx = 0
+    ptables.pjt_wire_paths_table.add(wire_obj.db_obj.db_id, '3d', 0, point_db.db_id)
 
     layout_db = ptables.pjt_wire_layouts_table.insert(point3d_id=point_db.db_id)
     layout_obj = _wire_layout.WireLayout(mainframe, layout_db)
@@ -114,8 +113,7 @@ def _add_waypoint_pegboard(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire",
 
     point_db = ptables.pjt_points_pegboard_table.insert(
         float(waypoint.x), float(waypoint.y), float(waypoint.z))
-    point_db.wire_id = wire_obj.db_obj.db_id
-    point_db.idx = 0
+    ptables.pjt_wire_paths_table.add(wire_obj.db_obj.db_id, 'pegboard', 0, point_db.db_id)
 
     layout_db = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=point_db.db_id)
     layout_obj = _wire_layout.WireLayout(mainframe, layout_db)

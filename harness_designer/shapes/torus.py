@@ -15,6 +15,13 @@ from .. import check_types as _check_types
 
 
 _vbo: _vbo_handler.PooledVBOHandler = None
+_flat_ring_vbo: _vbo_handler.PooledVBOHandler = None
+
+# Proportions of the flat ring below: outer diameter is exactly 1.0
+# (2 * (FLAT_RING_RADIUS + FLAT_RING_TUBE_RADIUS)), so a scale of `d` renders
+# a ring `d` across; the hole is 2 * (FLAT_RING_RADIUS - FLAT_RING_TUBE_RADIUS).
+FLAT_RING_RADIUS = 0.41
+FLAT_RING_TUBE_RADIUS = 0.09
 
 
 @_check_types.do
@@ -41,6 +48,45 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
             arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
 
     return _vbo
+
+
+@_check_types.do
+def create_flat_ring_vbo() -> _vbo_handler.PooledVBOHandler:
+    """Create or return the cached flat ring VBO used for the schematic's
+    free-standing terminal glyph.
+
+    Built once and shared by every such terminal (the schematic draws them
+    all the same size, so there is never a reason to build another). Unlike
+    :func:`create_vbo`'s torus, which lies in the XY plane with its axis on
+    +Z, this one is rotated to lie flat in the XZ plane with its axis on +Y
+    -- the plane the schematic is drawn in. Unit sized (see
+    ``FLAT_RING_RADIUS``/``FLAT_RING_TUBE_RADIUS``) and coarse: a few
+    thousand vertices, not the 360 x 360 of the general torus.
+
+    :returns: Cached VBO data for the flat ring mesh.
+    :rtype: :class:`harness_designer.gl.vbo.PooledVBOHandler`
+    """
+    global _flat_ring_vbo
+
+    if _flat_ring_vbo is None:
+        vertices, faces = create(FLAT_RING_RADIUS, FLAT_RING_TUBE_RADIUS, 64, 16)
+
+        # Rotate +90 degrees about X: (x, y, z) -> (x, -z, y). A pure
+        # rotation, so the faces' winding is unchanged.
+        vertices = np.column_stack((vertices[:, 0], -vertices[:, 2], vertices[:, 1])).astype(np.float32)
+
+        packed, count = _utils.compute_normals(vertices, faces)
+
+        unpacked_verts = packed[:count * 3].reshape(-1, 3)
+        aabb1, aabb2 = _utils.compute_aabb(unpacked_verts)
+        aabb = np.array([aabb1.as_float, aabb2.as_float], dtype=np.float32)
+        obb = _utils.compute_obb(aabb1, aabb2)
+
+        _flat_ring_vbo = _vbo_handler.PooledVBOHandler(
+            'terminal_flat_ring', packed, count, aabb=aabb, obb=obb,
+            arena_kind=_vbo_handler.VBO_TYPE_PRIMITIVE)
+
+    return _flat_ring_vbo
 
 
 @_check_types.do

@@ -171,8 +171,10 @@ Contents/structure of the `harness_designer/` package.
     rename-breakage fixes only (`PositionPegMixin`/`AnglePegMixin` → `...Pegboard...`), no new
     capability
   - pjt_transition (+_branch) — transition has `PositionPegboardMixin`/`AnglePegboardMixin`/
-    `VisiblePegboardMixin` (leaf, no cascade); transition_branch has `PositionPegboardMixin`
-    only (no angle, matches its 3D shape) + `VisiblePegboardMixin`
+    `VisiblePegboardMixin` (leaf, no cascade) and owns ONE peg-board wire table (`wires` = the
+    de-duplicated union of its branches' wires); transition_branch has `PositionPegboardMixin`
+    only (no angle, matches its 3D shape) + `VisiblePegboardMixin`, and NO table of its own
+    (no `TablePositionPegMixin`; its `table_point_peg_id`/`table_hidden` schema columns are unused)
   - pjt_wire — `StartStopPositionPegboardMixin`/`VisiblePegboardMixin`; `waypoints_pegboard`
     property (own independent waypoint set via `pjt_points_pegboard_table.for_wire`, separate
     from `waypoints3d`/`waypoints2d` — counts differ per view)
@@ -184,6 +186,18 @@ Contents/structure of the `harness_designer/` package.
     `point_pegboard_id` columns) is ever non-NULL per row, each setter clears the other two.
     Deliberately doesn't use `Position3DMixin`/`Position2DMixin`/`PositionPegboardMixin` — their
     shared blind auto-create-on-NULL getter is wrong here. `VisiblePegboardMixin` added
+  - pjt_wire_path — NEW 2026-09-26, untested (see `BUNDLE_DESIGN.md` section 2.6):
+    `PJTWirePathsTable`/`PJTWirePath` for `pjt_wire_paths`, one row per INTERIOR waypoint per wire per
+    view (`wire_id`, `idx`, exactly one of `point3d_id`/`point_pegboard_id`/`point2d_id`, plus optional
+    `bundle_id`/`concentric_id`/`transition_id`/`transition_branch_id` tags; a wire's start/stop stay
+    columns on `pjt_wires`). Rows reference SHARED point rows, so `idx` lives here, not on the point.
+    THE source of every wire waypoint index: everything writes through the table's `add`/`append`/
+    `remove`/`set_route` (which renumber in one `batch_update`), and `PJTWire.waypoints3d`/
+    `waypoints2d`/`waypoints_pegboard` read from it
+  - pjt_bundle_path — NEW 2026-09-26, untested: `PJTBundlePathsTable`/`PJTBundlePath` for
+    `pjt_bundle_paths`, the bundle equivalent (`bundle_id`, `idx`, exactly one of `point3d_id`/
+    `point_pegboard_id` -- no schematic), same `add`/`append`/`remove`/`set_route` API;
+    `PJTBundle.waypoints3d`/`waypoints_pegboard` read from it
   - pjt_bundle (`length_mm`/`length_m` properties added — mirrors `pjt_wire`'s, via
     `geometry.line.Line.length()`) — `StartStopPositionPegboardMixin`/`VisiblePegboardMixin`;
     `waypoints_pegboard` property (no schematic equivalent — bundles never shown in schematic)
@@ -194,8 +208,8 @@ Contents/structure of the `harness_designer/` package.
     X/Z, so `y` is 0.0); `insert(x, y, z, wire_id=None, idx=None)`
   - pjt_point3d
   - pjt_point_pegboard — `PJTPointPegboard`/`PJTPointsPegboardTable`, structurally identical to
-    `pjt_point3d.PJTPoint3D` (same singleton/attach/clone/self-heal lifecycle, `wire_id`/
-    `bundle_id`/`idx`/`parent_point_id` waypoint columns, `_skip_db_write` batch flag) against
+    `pjt_point3d.PJTPoint3D` (same singleton/attach/clone/self-heal lifecycle, `parent_point_id`
+    column, `_skip_db_write` batch flag) against
     `pjt_points_pegboard` instead — uses an 8-byte `b'pegboard'` `Point.db_id` suffix for
     clone-detection (`pjt_point3d`/`pjt_point2d` use 2-byte `b'3d'`/`b'2d'` suffixes)
   - pjt_circuit
@@ -246,10 +260,15 @@ Contents/structure of the `harness_designer/` package.
       "pegboard", a distinct feature from an anchor's own `position_pegboard`)
 - `create_database/`: one file per table containing seed/creation 
                       logic (mirrors global_db naming)
+  - `bundle_paths.py`: schema for `pjt_bundle_paths` (see `pjt_bundle_path` above); same sibling-repo
+    note as `wire_paths.py` below
+  - `wire_paths.py`: schema for `pjt_wire_paths` (see `pjt_wire_path` above); NOT yet in the sibling
+    `harness_designer_database` repo's `builder/create_database/`, which has already drifted (no
+    `bundle_cover_layouts.py`, `wire_layouts.py`, `points_pegboard.py`, ...)
   - `points_pegboard.py`: schema for `pjt_points_pegboard` — same shape as `points3d.py`/
-    `points2d.py` (real x/y/z, `wire_id`/`bundle_id`/`idx`/`parent_point_id`); deliberately no
-    real `SQLFieldReference` on `wire_id`/`bundle_id` (avoids circular import with
-    `wires.py`/`bundle_covers.py`, which import this module for their own start/stop FK columns)
+    `points2d.py` (real x/y/z and `parent_point_id`; the `wire_id`/`bundle_id`/`idx` waypoint tags
+    were REMOVED 2026-09-26 -- a point is pure geometry, order lives in `pjt_wire_paths`/
+    `pjt_bundle_paths`; existing databases keep the old, now unused columns)
 - `common_db/`
   - `callback.py`: DB callback plumbing
   - `lazy_tab_mixin.py`: lazy per-tab DB table loading
@@ -307,6 +326,18 @@ Contents/structure of the `harness_designer/` package.
   - `mixins/`:
     - angle
     - move
+- `objects_pegboard/`: the peg-board views (same one-file-per-part layout as `objects3d`/`objects2d`)
+  - `table.py`: `Table` — the floating wire table (GL texture of a hosted `WireTable`); not view-
+    specific (same class name mirrored in `objects3d`/`objects_schematic`'s own `table.py`, the
+    facade is `objects/pegboard_table.py` still named for its DB table), just the peg-board view's
+    own implementation; forwards the table's `wire_selected`/`wire_deselected` signals to the
+    editor's `WireHighlight`
+  - `wire_highlight.py`: `WireHighlight` (one per editor, `EditorPegboard.wire_highlight`) — when a wire
+    is selected in ANY wire table, lights up everything it touches in `Config.editor_pegboard.
+    wire_highlight_color` via `identify()`: the wire (if visible in the peg board) or its bundle(s),
+    each transition BRANCH it is routed through (never the whole transition), and its end housings
+    (or the terminal itself when not seated in a housing); bundle/branch membership comes from
+    `pjt_wire_paths` tags
 
   
 
@@ -649,6 +680,12 @@ Contents/structure of the `harness_designer/` package.
     app-level dialogs). `gl/canvas_pegboard/canvas.py`'s `Canvas.snap_to_grid()`
     was changed to check `config.grid.manual_snap_spacing` first, falling back
     to `self._grid.grid_spacing` (the live LOD tier) when it's `None`.
+- `pegboard_table/`: the peg-board wire table widget
+  - `wire_table.py`: `WireTable` (an `EditorList`) — columns from `column_defs.py`, cross-table wire
+    selection sync, `wire_selected`/`wire_deselected` signals; the transition-only Branch column
+    (`transition_only` in `COLUMN_DEFS`, index 33) lists the `branch_id`s a wire passes through
+  - `column_defs.py`: append-only `COLUMN_DEFS` catalog + default column sets
+  - `mdi_host.py`: hosts the table in an off-screen `QMdiSubWindow` for texture grabbing
 - `log_viewer/viewer.py`
 - `datasheet_viewer/viewer.py`
 - `web_viewer/` (empty)
@@ -681,7 +718,13 @@ Contents/structure of the `harness_designer/` package.
     for a single `route()` call) and `Router`, one drag frame's shared
     grid (obstacle / lane counts painted in and out, generation-stamped
     search buffers) that `RoutingFrame` drives. Built in place to `astar.<abi>.pyd` (gitignored); `routing.py`
-    falls back to its pure-Python `_astar_py` if the binary isn't there
+    falls back to its pure-Python `_astar_py` if the binary isn't there.
+    Found 2026-09-30, missing from `builder/cython_build.py`'s
+    `_HAND_WRITTEN_EXTENSIONS` the whole time -- a from-scratch wheel
+    build never compiled it from source at all (only ever picked up a
+    pre-built `.pyd` if one happened to already be in the tree, which a
+    clean checkout never has, since `.pyd` is gitignored); added to that
+    list so a packaged build always ships the compiled path
   - `routing.py` also holds `RoutingFrame` / `build_frame()`: one grid for a
     whole batch of wires (the ones attached to a dragged object), built once
     per drag frame instead of once per wire. Routes also PACK: `Router.paint_pack`
@@ -700,6 +743,38 @@ Contents/structure of the `harness_designer/` package.
     connected" hook), `_terminal_exit_stub_point()` (the mandatory
     straight-exit-off-a-terminal stub), `wires_attached_to()`/
     `sweep_for_overlaps()` (drag-time helpers)
+- `rope_pull/`: the peg-board rope-pull solver that keeps a WIRE's or a
+  BUNDLE's peg-board polyline length identical to its real 3D length
+  while it's dragged (`BUNDLE_PLACEMENT.md` section 6b) -- pure numeric
+  geometry, no DB/objects (works unchanged for either chain type, since
+  a `PJTWire`/`PJTBundle` row exposes the same anchor/length shape, per
+  `objects_pegboard.chain_edges`'s own docstring); same `.pyx` +
+  pure-Python-reference split as `wire_routing/`. Compiled and verified
+  2026-09-30 (2000 randomized cases, exact agreement with the reference);
+  not yet wired into any drag handler
+  - `__init__.py`: the single public entry point, `solve_chain()` --
+    prefers the compiled extension when built, falls back to the
+    pure-Python reference otherwise (same pattern `wire_routing.routing`
+    uses for `astar`)
+  - `rope_pull_py.py`: the pure-Python reference. `solve_chain()` --
+    given the chain's two peg-board anchors, the required total length,
+    which point is being dragged (`DragEnd.START`/`STOP`/`WAYPOINT`) and
+    its target, returns the WHOLE new chain (stateless -- recomputes
+    every interior waypoint from scratch every call, never reads the
+    old ones) or refuses outright if even the bare anchor-to-anchor
+    skeleton already needs more than the required length. Slack beyond
+    the bare skeleton is split across its segment(s) proportional to
+    their own straight length, then laid out per segment as independent
+    diamond-shaped bumps (closed-form bow count/height, `count == 1`
+    matches `geometry.line.Line.bow_midpoint`'s own construction
+    exactly)
+  - `rope_pull.pyx`/`.pyi`: the compiled hot path, a line-for-line port
+    of `rope_pull_py.py` with `drag_end` as a plain `int` instead of
+    `DragEnd` (no Python-level objects at this boundary at all).
+    Registered in `builder/cython_build.py`'s `_HAND_WRITTEN_EXTENSIONS`
+    so a from-scratch wheel build always compiles it (see that list's
+    own comment for why -- `wire_routing/astar.pyx` was found missing
+    from it the same day and added too, see that package's own entry)
 - `geometry/`: 
   - point
   - line

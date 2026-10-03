@@ -43,15 +43,15 @@ def notify_table_wires_changed(anchor_db_obj) -> None:
     add_wire`` (housing, via the seated terminal's own cavity),
     ``add_handlers.editor_3d.bundle``'s ``pjt_concentric_wires_table.
     insert`` call site (bundle), and ``handlers.transition_handler``'s
-    (transition branch -- and its owning transition too, since
-    ``PJTTransition.wires`` is the union of its branches' own). NOT
+    (transition -- ``PJTTransition.wires`` is the union of its
+    branches' own; a branch has no table of its own). NOT
     from a general "any wire changed anywhere" broadcast -- only the
     call site that just changed membership actually knows which
     anchor(s) were affected.
 
     No-op if *anchor_db_obj* isn't a table-owning anchor type at all
     (no ``table_position_peg_id_raw`` attribute -- everything except
-    housing/bundle/transition/transition-branch), has no table row yet,
+    housing/bundle/transition), has no table row yet,
     or has a row but no live view built for it this session (its table
     has never actually been shown).
 
@@ -250,7 +250,7 @@ class BasePegboard(_objectsvar.BaseVar):
 
         Only meaningful for anchor types mixing in ``mixins.
         table_position_peg.TablePositionPegMixin`` (housing/bundle/
-        transition/transition-branch) -- every other peg-board object
+        transition) -- every other peg-board object
         type has no ``table_position_peg_id_raw`` attribute at all, so
         this returns ``None`` for those too, via the ``getattr``
         default. Used by both :meth:`has_visible_table` and

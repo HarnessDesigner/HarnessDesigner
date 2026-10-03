@@ -5,9 +5,9 @@
 One row per peg-board point -- either an anchor's own position (housing/
 cavity/terminal/transition/transition-branch, referenced FROM the owning
 row's own ``position_pegboard_id`` FK, mirroring ``pjt_points3d``/
-``pjt_points2d`` exactly), a wire/bundle waypoint (self-identifying via
-``wire_id``/``bundle_id`` + ``idx`` instead of being referenced from
-elsewhere), or a wire/bundle's own start/stop point (referenced FROM the
+``pjt_points2d`` exactly), a wire/bundle waypoint (referenced FROM the
+wire's/bundle's own ordered list in ``pjt_wire_paths``/``pjt_bundle_paths``),
+or a wire/bundle's own start/stop point (referenced FROM the
 owning row's own ``start_point_pegboard_id``/``stop_point_pegboard_id``
 FK). Structurally identical to ``pjt_points3d`` -- real ``x``/``y``/``z``,
 same waypoint/clone columns -- since every peg-board point is a genuine
@@ -30,20 +30,10 @@ pjt_table = _con.SQLTable(
     _con.FloatField('x', no_null=True),
     _con.FloatField('y', no_null=True),
     _con.FloatField('z', no_null=True),
-    # Wire/bundle-waypoint-only columns -- NULL for every other peg-board
-    # point row (an anchor referenced FROM its owning row's own
-    # position_pegboard_id/*_point_pegboard_id FK, same as always).
-    # Self-identifying via wire_id/bundle_id + idx instead of being
-    # referenced from elsewhere, mirroring pjt_points3d exactly.
-    #
-    # No SQLFieldReference to pjt_wires/pjt_bundles here -- same reason as
-    # pjt_points3d: wires.py/bundle_covers.py already import this module
-    # for their own start/stop point_pegboard FK columns, so a real FK back
-    # the other way would be a circular module import. Cleanup on delete is
-    # explicit (see PJTWire.delete/PJTBundle.delete), same as points3d.
-    _con.UUIDField('wire_id', default='NULL'),
-    _con.UUIDField('bundle_id', default='NULL'),
-    _con.IntField('idx', default='NULL'),
+    # A point is pure geometry: it carries no owner and no order. A wire's or
+    # bundle's own ordered waypoint list is stored in pjt_wire_paths/
+    # pjt_bundle_paths, whose rows reference these rows (any number of
+    # wires can share one point).
     # Set only on a cloned point (see objects.terminal.Terminal.
     # _own_or_cloned_point_id) -- the id of the "real"/canonical point this
     # one was cloned from, so a housing move/rotate can find every clone

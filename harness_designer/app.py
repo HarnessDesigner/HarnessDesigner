@@ -37,6 +37,17 @@ def _qt_message_handler(msg_type: QtCore.QtMsgType, context: QtCore.QMessageLogC
         function fields depending on build config.
     :param message: The message text.
     """
+    # Benign Qt-internal noise: QOpenGLWidget canvases briefly ride along
+    # on a transient top-level "ghost" window while a QDockWidget tab is
+    # being dragged (even when the drop target is another dock slot in
+    # the same main window, not a real float) -- each such reparent hands
+    # the canvas's backing-store texture to a new QRhi, and Qt's own
+    # compositor logs this warning about the stale one. Cosmetic only;
+    # confirmed 2026-09-29 by reproducing it via dragging each GL canvas
+    # tab (3D/schematic/pegboard) out of its notebook.
+    if 'belongs to QRhi' in message and 'client code attempted to use it with QRhi' in message:
+        return
+
     thread_name = threading.current_thread().name
     location = f'{context.file}:{context.line}' if context.file else ''
     text = f'[Qt] {message} (thread={thread_name}){" " + location if location else ""}'

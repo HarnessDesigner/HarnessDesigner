@@ -9,7 +9,7 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 
 from .. import config as _config
-from .dialogs import closing_dialog as _closing_dialog
+# from .dialogs import closing_dialog as _closing_dialog
 from . import toolbar as _toolbar
 from .. import gl as _gl
 from ..gl.canvas_base import interaction as _interaction
@@ -49,10 +49,10 @@ _ASSUMED_TITLE_BAR_HEIGHT = 40
 
 
 class MainFrame(QtWidgets.QMainWindow):
-    """Represent a main frame in :mod:`harness_designer.ui.mainframe`.
-
-    UNKNOWN details are inferred from the class name and surrounding code.
     """
+    Represent a main frame in :mod:`harness_designer.ui.mainframe`.
+    """
+
     db_connector: "_SQLConnector" = None
 
     global_db: "_global_db.GLBTables" = None
@@ -61,7 +61,6 @@ class MainFrame(QtWidgets.QMainWindow):
     _project_opened: bool = False
 
     @property
-    @_check_types.do
     def project(self) -> "_project.Project":
 
         while self._project is None:
@@ -70,7 +69,6 @@ class MainFrame(QtWidgets.QMainWindow):
         return self._project
 
     @project.setter
-    @_check_types.do
     def project(self, value: Union["_project.Project", None]):
         self._project = value
 
@@ -95,15 +93,16 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def __init__(self, splash, logger: "_logger.Log"):
-        """Initialise the :class:`MainFrame` instance.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Initialise the :class:`MainFrame` instance.
 
         :param splash: Value for ``splash``.
         :type splash: UNKNOWN
+
         :param logger: Value for ``logger``.
         :type logger: :class:`_logger.Log`
         """
+
         QtWidgets.QMainWindow.__init__(self)
 
         # As early as possible so tracemalloc (when Config.debug.memory.enabled)
@@ -540,15 +539,16 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def set_progress(self, value: int, label: str = None):
-        """Set the progress.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the progress.
 
         :param value: Value to store or process.
         :type value: int
+
         :param label: Value for ``label``.
         :type label: str | None
         """
+
         if label is not None:
             self.status_bar.showMessage(label)
 
@@ -567,15 +567,16 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def start_progress(self, label: str, max_value: int):
-        """Start the progress.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Start the progress.
 
         :param label: Value for ``label``.
         :type label: str
+
         :param max_value: Value for ``max_value``.
         :type max_value: int
         """
+
         self.progress_bar.setRange(0, max_value)
         self.progress_bar.setValue(0)
         self.status_bar.showMessage(label)
@@ -583,10 +584,10 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _center_on_screen(self):
-        """Execute the center on screen operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Execute the center on screen operation.
+        """
+
         screen = self.screen()
         geo = screen.availableGeometry()
         x = (geo.width() - self.width()) // 2
@@ -599,7 +600,9 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _connect_editor3d_signals(self):
-        """Wire all EVT_GL_* signal sentinels to their mainframe handlers."""
+        """
+        Wire all EVT_GL_* signal sentinels to their mainframe handlers.
+        """
 
         self.editor3d.bind(_gl.EVT_GL_OBJECT_SELECTED, self._on_obj_selected_3d)
         self.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_3d)
@@ -738,33 +741,32 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def moveEvent(self, event):
-        """Execute the move event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the move event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         QtWidgets.QMainWindow.moveEvent(self, event)
         QtCore.QTimer.singleShot(0, self._save_position)
 
     @_check_types.do
     def resizeEvent(self, event):
-        """Execute the resize event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the resize event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         QtWidgets.QMainWindow.resizeEvent(self, event)
         QtCore.QTimer.singleShot(0, self._save_size)
 
     @_check_types.do
     def closeEvent(self, event):
-        """Execute the close event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the close event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
@@ -791,9 +793,9 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self._is_closing = True
 
-        close_dlg = _closing_dialog.ClosingDialog(self, total_steps=11)
-        close_dlg.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
-        close_dlg.show()
+        # close_dlg = _closing_dialog.ClosingDialog(self, total_steps=11)
+        # close_dlg.setWindowModality(QtCore.Qt.WindowModality.ApplicationModal)
+        # close_dlg.show()
 
         self.logger.info('Harness Designer shutting down')
 
@@ -803,24 +805,24 @@ class MainFrame(QtWidgets.QMainWindow):
         # happen while the editors and the database are all still up.
         if self._project is not None:
             self.logger.info('Unloading Project...')
-            close_dlg.set_message('Unloading Project...')
-            QtWidgets.QApplication.processEvents()
+            # close_dlg.set_message('Unloading Project...')
+            # QtWidgets.QApplication.processEvents()
 
             self.unload()
 
-        close_dlg.set_step(1)
+        # close_dlg.set_step(1)
         QtWidgets.QApplication.processEvents()
 
         _memory_diagnostics.stop()
 
         self.logger.info('Stopping Process Manager...')
-        close_dlg.set_message('Stopping Process Manager...')
+        # close_dlg.set_message('Stopping Process Manager...')
 
         self.process_manager.stop()
 
         @_check_types.do
         def _finished():
-            close_dlg.close()
+            # close_dlg.close()
             QtWidgets.QApplication.instance().quit()
 
         @_check_types.do
@@ -838,26 +840,26 @@ class MainFrame(QtWidgets.QMainWindow):
             if count == 30:
                 self.logger.error('Process manager did not shut down properly...')
 
-            close_dlg.set_step(2)
+            # close_dlg.set_step(2)
             QtWidgets.QApplication.processEvents()
 
             self.logger.info('Saving UI layout...')
-            close_dlg.set_message('Saving UI layout...')
+            # close_dlg.set_message('Saving UI layout...')
             QtWidgets.QApplication.processEvents()
 
             # saveState() returns QByteArray; store as bytes for Config
             Config.ui_perspective = bytes(self.saveState())
-            close_dlg.set_step(3)
+            # close_dlg.set_step(3)
             QtWidgets.QApplication.processEvents()
 
             @_check_types.do
-            def _run(label, func, step):
-                time.sleep(0.250)
+            def _run(label, func, step):  # NOQA
+                # time.sleep(0.250)
                 self.logger.info(label)
-                close_dlg.set_message(label)
+                # close_dlg.set_message(label)
                 QtWidgets.QApplication.processEvents()
                 func()
-                close_dlg.set_step(step)
+                # close_dlg.set_step(step)
                 QtWidgets.QApplication.processEvents()
 
             _run('Closing 2D Editor....', self.editor2d.Destroy, 4)
@@ -877,19 +879,19 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _save_position(self):
-        """Save the position.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Save the position.
+        """
+
         pos = self.pos()
         Config.position = (pos.x(), pos.y())
 
     @_check_types.do
     def _save_size(self):
-        """Save the size.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Save the size.
+        """
+
         sz = self.size()
         Config.size = (sz.width(), sz.height())
 
@@ -927,34 +929,34 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def SetStatusText(self, text, _=None):
-        """Execute the set status text operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the set status text operation.
 
         :param text: Text value.
         :type text: UNKNOWN
-        :param _: Value for ``_``.
-        :type _: UNKNOWN
+
+        :param _:
         """
+
         self.status_bar.showMessage(text)
 
     @_check_types.do
     def RevertStatusText(self):
-        """Execute the revert status text operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
         """
+        Execute the revert status text operation.
+        """
+
         self.status_bar.clearMessage()
 
     @_check_types.do
     def Set3DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
-        """Execute the set 3dcoordinates operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the set 3dcoordinates operation.
 
         :param evt: event.
         :type evt: UNKNOWN
         """
+
         if isinstance(evt, _gl.GLObjectEvent):
             obj = evt.GetEventObject()
             position = obj.position
@@ -969,13 +971,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
-        """Execute the set 3dcoordinates operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the set 3dcoordinates operation.
 
         :param evt: event.
         :type evt: UNKNOWN
         """
+
         # if isinstance(evt, _gl.GLObjectEvent):
         position = evt.GetWorldPosition()
         # else:
@@ -989,13 +991,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def showEvent(self, event):
-        """Execute the show event operation.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Execute the show event operation.
 
         :param event: Event object.
         :type event: UNKNOWN
         """
+
         super().showEvent(event)
 
         # The splash stays up (see _open_project below) -- it isn't torn
@@ -1056,8 +1058,8 @@ class MainFrame(QtWidgets.QMainWindow):
                 # stay up through cache_primitives() above).
                 import harness_designer as _hd
                 _hd.splash = None
-                if _hd._app is not None:
-                    _hd._app.splash = None
+                if _hd._app is not None:  # NOQA
+                    _hd._app.splash = None  # NOQA
 
             self.editor_db.load_db(self.global_db)
 
@@ -1067,7 +1069,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def load_project(self):
-        """Handler for the ``File > Load Project...`` menu action.
+        """
+        Handler for the ``File > Load Project...`` menu action.
 
         Shows the same open-project dialog :meth:`objects.project.Project.
         select_project` uses at startup, but can run any time the app is
@@ -1079,6 +1082,7 @@ class MainFrame(QtWidgets.QMainWindow):
         calls :meth:`unload` first to release every in-memory reference to
         the outgoing project before the new project's objects load.
         """
+
         from ..objects import project as _proj
 
         resolved = _proj.Project.resolve_project_id(self)
@@ -1101,13 +1105,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_selected_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj selected 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj selected 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1115,13 +1119,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_unselected_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj unselected 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj unselected 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1129,13 +1133,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_activated_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj activated 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj activated 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1143,13 +1147,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_click_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right click 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj right click 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1170,12 +1174,14 @@ class MainFrame(QtWidgets.QMainWindow):
                 context_menu.exec(global_pos)
 
     @_check_types.do
-    def _show_empty_space_menu(self, gl_widget: object, menu_cls: type, evt: _gl.GLEvent) -> None:
-        """Pop up *menu_cls* (see ``ui.widgets.empty_space_menus``) at the
+    def _show_empty_space_menu(self, gl_widget, menu_cls: type, evt: _gl.GLEvent) -> None:
+        """
+        Pop up *menu_cls* (see ``ui.widgets.empty_space_menus``) at the
         position of the right click *evt* reports, over *gl_widget* (the
         inner GL widget -- ``evt.GetPosition()`` is in its local coords).
         The same position is handed to the menu to place whatever gets added.
         """
+
         mouse_pos = evt.GetPosition()
         menu = menu_cls(self, mouse_pos)
 
@@ -1185,7 +1191,10 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_empty_right_click_3d(self, evt: _gl.GLEvent) -> None:
-        """Right click over empty space in the 3D editor."""
+        """
+        Right click over empty space in the 3D editor.
+        """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
             return
@@ -1199,7 +1208,10 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_empty_right_click_2d(self, evt: _gl.GLEvent) -> None:
-        """Right click over empty space in the schematic editor."""
+        """
+        Right click over empty space in the schematic editor.
+        """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
             return
@@ -1213,7 +1225,10 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_empty_right_click_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Right click over empty space in the peg board editor."""
+        """
+        Right click over empty space in the peg board editor.
+        """
+
         self.Set2DCoordinates(evt)
 
         if self._obj_handler is not None:
@@ -1229,13 +1244,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj right dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1243,13 +1258,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_middle_click_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj middle click 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj middle click 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1257,13 +1272,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_middle_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj middle dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj middle dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1271,13 +1286,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux1_click_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 1 click 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 1 click 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1285,13 +1300,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux1_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 1 dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 1 dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1299,13 +1314,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux2_click_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 2 click 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 2 click 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1313,9 +1328,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux2_dclick_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 2 dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 2 dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -1330,9 +1344,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_drag_3d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj drag 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj drag 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -1347,13 +1360,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_key_down_3d(self, evt: _gl.GLKeyEvent) -> None:
-        """Handle the key down 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the key down 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLKeyEvent`
         """
+
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
             if keycode == QtCore.Qt.Key.Key_Escape:
@@ -1384,7 +1397,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _cancel_active_handler_obj(self, canvas) -> bool:
-        """Escape for the new object-owned handler system (see
+        """
+        Escape for the new object-owned handler system (see
         objectsvar.base_var.BaseVar.handle_interaction) -- there's no
         mouse position to give a CANCEL interaction (it's a key event),
         so this bypasses the normal mouse dispatch and calls straight
@@ -1394,6 +1408,7 @@ class MainFrame(QtWidgets.QMainWindow):
 
         :returns: Whether an active handler was actually cancelled.
         """
+
         target = canvas.active_handler_obj
         if target is None:
             return False
@@ -1408,13 +1423,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_key_up_3d(self, evt: _gl.GLKeyEvent) -> None:
-        """Handle the key up 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the key up 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLKeyEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1422,9 +1437,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_mouse_move_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the mouse move 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the mouse move 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1440,13 +1454,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_capture_lost_3d(self, evt: _gl.GLCaptureLostEvent) -> None:
-        """Handle the capture lost 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the capture lost 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLCaptureLostEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1454,9 +1468,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_down_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the left down 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left down 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1475,9 +1488,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_up_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the left up 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left up 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1507,9 +1519,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_dclick_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the left dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1524,9 +1535,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_down_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the right down 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right down 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1541,9 +1551,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_up_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the right up 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right up 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1561,9 +1570,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_dclick_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the right dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1578,9 +1586,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_down_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle down 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the middle down 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1595,9 +1602,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_up_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle up 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the middle up 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1612,9 +1618,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_dclick_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the middle dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1629,9 +1634,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_down_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 down 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 1 down 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1646,9 +1650,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_up_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 up 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 1 up 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1663,13 +1666,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_dclick_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 1 dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1677,9 +1680,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_down_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 down 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 2 down 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1694,9 +1696,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_up_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 up 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 2 up 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1711,9 +1712,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_dclick_3d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 dclick 3D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 2 dclick 3D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -1734,9 +1734,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_selected_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj selected 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj selected 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -1749,13 +1748,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_unselected_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj unselected 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj unselected 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1763,13 +1762,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_activated_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj activated 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj activated 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1777,13 +1776,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_click_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right click 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj right click 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1801,13 +1800,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj right dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1815,13 +1814,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_middle_click_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj middle click 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj middle click 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1829,13 +1828,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_middle_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj middle dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj middle dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1843,13 +1842,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux1_click_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 1 click 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 1 click 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1857,13 +1856,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux1_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 1 dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 1 dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1871,13 +1870,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux2_click_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 2 click 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 2 click 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1885,13 +1884,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux2_dclick_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 2 dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj aux 2 dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1899,13 +1898,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_drag_2d(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj drag 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the obj drag 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1913,13 +1912,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_key_down_2d(self, evt: _gl.GLKeyEvent) -> None:
-        """Handle the key down 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the key down 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLKeyEvent`
         """
+
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
             if keycode == QtCore.Qt.Key.Key_Escape:
@@ -1946,13 +1945,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_key_up_2d(self, evt: _gl.GLKeyEvent) -> None:
-        """Handle the key up 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the key up 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLKeyEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1960,13 +1959,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_mouse_move_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the mouse move 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the mouse move 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1982,13 +1981,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_capture_lost_2d(self, evt: _gl.GLCaptureLostEvent) -> None:
-        """Handle the capture lost 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the capture lost 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLCaptureLostEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -1996,14 +1995,15 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_down_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the left down 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left down 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
+
         :raises RuntimeError: Raised when the operation cannot be completed.
         """
+
         if self._obj_handler is not None:
             position = evt.GetPosition()
             self._obj_handler.capture_position(position)
@@ -2077,13 +2077,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_up_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the left up 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left up 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             self._obj_handler.release_capture()
 
@@ -2096,13 +2096,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_dclick_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the left dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the left dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2110,13 +2110,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_down_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the right down 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right down 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2124,13 +2124,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_up_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the right up 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right up 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2138,13 +2138,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_dclick_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the right dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the right dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2152,13 +2152,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_down_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle down 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the middle down 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2166,13 +2166,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_up_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle up 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the middle up 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2180,13 +2180,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_dclick_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the middle dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2194,13 +2194,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_down_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 down 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 1 down 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2208,13 +2208,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_up_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 up 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 1 up 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2222,13 +2222,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_dclick_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 1 dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2236,13 +2236,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_down_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 down 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 2 down 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2250,13 +2250,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_up_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 up 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 2 up 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2264,13 +2264,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_dclick_2d(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 dclick 2D event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the aux 2 dclick 2D event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2287,7 +2287,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_selected_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj selected peg board event.
+        """
+        Handle the obj selected peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2302,7 +2303,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_unselected_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj unselected peg board event.
+        """
+        Handle the obj unselected peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2317,7 +2319,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_activated_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj activated peg board event.
+        """
+        Handle the obj activated peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2332,8 +2335,10 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right click peg board event -- see
-        _on_obj_right_click_3d, mirrored exactly.
+        """
+        Handle the obj right click peg board event
+
+         see _on_obj_right_click_3d, mirrored exactly.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2359,7 +2364,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_right_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj right dclick peg board event.
+        """
+        Handle the obj right dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2374,7 +2380,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_middle_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj middle click peg board event.
+        """
+        Handle the obj middle click peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2389,7 +2396,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_middle_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj middle dclick peg board event.
+        """
+        Handle the obj middle dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2404,7 +2412,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux1_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 1 click peg board event.
+        """
+        Handle the obj aux 1 click peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2419,7 +2428,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux1_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 1 dclick peg board event.
+        """
+        Handle the obj aux 1 dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2434,7 +2444,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux2_click_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 2 click peg board event.
+        """
+        Handle the obj aux 2 click peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2449,7 +2460,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_aux2_dclick_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj aux 2 dclick peg board event.
+        """
+        Handle the obj aux 2 dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2464,7 +2476,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_obj_drag_pegboard(self, evt: _gl.GLObjectEvent) -> None:
-        """Handle the obj drag peg board event.
+        """
+        Handle the obj drag peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLObjectEvent`
@@ -2479,11 +2492,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_key_down_pegboard(self, evt: _gl.GLKeyEvent) -> None:
-        """Handle the key down peg board event.
+        """
+        Handle the key down peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLKeyEvent`
         """
+
         if self._obj_handler is not None:
             keycode = evt.GetKeyCode()
             if keycode == QtCore.Qt.Key.Key_Escape:
@@ -2510,11 +2525,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_key_up_pegboard(self, evt: _gl.GLKeyEvent) -> None:
-        """Handle the key up peg board event.
+        """
+        Handle the key up peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLKeyEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2522,7 +2539,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_mouse_move_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the mouse move peg board event.
+        """
+        Handle the mouse move peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2538,11 +2556,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_capture_lost_pegboard(self, evt: _gl.GLCaptureLostEvent) -> None:
-        """Handle the capture lost peg board event.
+        """
+        Handle the capture lost peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLCaptureLostEvent`
         """
+
         if self._obj_handler is not None:
             evt.StopPropagation()
         else:
@@ -2550,7 +2570,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_down_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the left down peg board event.
+        """
+        Handle the left down peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2568,7 +2589,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_up_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the left up peg board event.
+        """
+        Handle the left up peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2588,7 +2610,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_left_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the left dclick peg board event.
+        """
+        Handle the left dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2603,7 +2626,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_down_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the right down peg board event.
+        """
+        Handle the right down peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2618,7 +2642,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_up_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the right up peg board event.
+        """
+        Handle the right up peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2633,7 +2658,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_right_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the right dclick peg board event.
+        """
+        Handle the right dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2648,7 +2674,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_down_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle down peg board event.
+        """
+        Handle the middle down peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2660,7 +2687,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_up_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle up peg board event.
+        """
+        Handle the middle up peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2675,7 +2703,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_middle_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the middle dclick peg board event.
+        """
+        Handle the middle dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2690,7 +2719,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_down_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 down peg board event.
+        """
+        Handle the aux 1 down peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2705,7 +2735,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_up_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 up peg board event.
+        """
+        Handle the aux 1 up peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2720,7 +2751,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux1_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 1 dclick peg board event.
+        """
+        Handle the aux 1 dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2735,7 +2767,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_down_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 down peg board event.
+        """
+        Handle the aux 2 down peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2750,7 +2783,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_up_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 up peg board event.
+        """
+        Handle the aux 2 up peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2765,7 +2799,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_aux2_dclick_pegboard(self, evt: _gl.GLEvent) -> None:
-        """Handle the aux 2 dclick peg board event.
+        """
+        Handle the aux 2 dclick peg board event.
 
         :param evt: Event object.
         :type evt: :class:`_gl.GLEvent`
@@ -2780,7 +2815,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_canvas_view_activated(self, view_key: str, visible: bool) -> None:
-        """Fired by whichever of editor3d/editor2d/editor_pegboard's own
+        """
+        Fired by whichever of editor3d/editor2d/editor_pegboard's own
         dock just became the active tab (visible=True) or got replaced
         by another tab becoming active (visible=False) -- see the
         visibilityChanged wiring in __init__. Only the "became active"
@@ -2788,6 +2824,7 @@ class MainFrame(QtWidgets.QMainWindow):
         previously-active view fires as its own separate, redundant
         False call and is ignored.
         """
+
         if not visible:
             return
 
@@ -2800,13 +2837,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _on_pane_activated(self, dock: QtWidgets.QDockWidget) -> None:
-        """Handle the pane activated event.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Handle the pane activated event.
 
         :param dock: Value for ``dock``.
         :type dock: :class:`QDockWidget`
         """
+
         widget = dock.widget() if dock is not None else None
 
         if widget is self.editor2d.editor:
@@ -2828,13 +2865,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def set_clone_obj(self, obj):
-        """Set the clone obj.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the clone obj.
 
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
+
         self._clone_obj = obj
         self.editor3d.set_clone_obj(obj)
         self.editor2d.set_clone_obj(obj)
@@ -2842,18 +2879,19 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def get_clone_obj(self):
-        """Return the clone obj.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the clone obj.
 
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+
         return self._clone_obj
 
     @_check_types.do
     def set_obj_handler(self, handler):
-        """Install an interactive placement handler.
+        """
+        Install an interactive placement handler.
 
         Cancels any handler that is currently active. Used by the editor
         context menus to start the same add-object flows as the toolbar.
@@ -2861,6 +2899,7 @@ class MainFrame(QtWidgets.QMainWindow):
         :param handler: Handler to install.
         :type handler: :class:`_handlers.HandlerBase`
         """
+
         if self._obj_handler is not None and not self._obj_handler.is_finalized:
             self._obj_handler.cancel()
 
@@ -2868,7 +2907,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def add_object(self, obj):
-        """Add an object.
+        """
+        Add an object.
 
         Fans out to all three editors -- peg board add is now genuinely
         incremental (``obj_pegboard`` is built once, at ``obj.__init__``
@@ -2880,6 +2920,7 @@ class MainFrame(QtWidgets.QMainWindow):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
+
         self.editor2d.add_object(obj)
         self.editor3d.add_object(obj)
         self.editor_pegboard.add_object(obj)
@@ -2887,7 +2928,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _add_to_object_browser(self, obj: "_objects.ObjectBase") -> None:
-        """Register ``obj`` under the appropriate category in the object
+        """
+        Register ``obj`` under the appropriate category in the object
         browser tree, if it is a part type the browser tracks.
 
         Single dispatch point for populating the browser -- covers both a
@@ -2899,6 +2941,7 @@ class MainFrame(QtWidgets.QMainWindow):
         and part types the browser has no category for (project, generic,
         project_model, wire_layout, bundle_layout) fall through untouched.
         """
+
         if obj.is_boot:
             self.object_browser.add_boot(obj)
         elif obj.is_bundle:
@@ -2934,7 +2977,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def remove_object(self, obj):
-        """Remove the object.
+        """
+        Remove the object.
 
         See :meth:`add_object` -- same incremental-fan-out shape, same
         removed unconditional peg-board rebuild.
@@ -2942,19 +2986,20 @@ class MainFrame(QtWidgets.QMainWindow):
         :param obj: Object instance to operate on.
         :type obj: UNKNOWN
         """
+
         self.editor2d.remove_object(obj)
         self.editor3d.remove_object(obj)
         self.editor_pegboard.remove_object(obj)
 
     @_check_types.do
     def _set_selected(self, obj: "_objects.ObjectBase"):
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the selected.
 
         :param obj: Object instance to operate on.
         :type obj: :class:`_objects.ObjectBase`
         """
+
         self._selected_obj = obj
         self.editor3d.set_selected(obj)
         self.editor2d.set_selected(obj)
@@ -3013,25 +3058,25 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA
-        """Set the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Set the selected.
 
         :param obj: Object instance to operate on.
         :type obj: :class:`_objects.ObjectBase`
         """
+
         if obj is not None:
             obj.set_selected(True)
 
     @_check_types.do
     def get_selected(self) -> "_objects.ObjectBase":
-        """Return the selected.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Return the selected.
 
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`_objects.ObjectBase`
         """
+
         return self._selected_obj
 
     # ------------------------------------------------------------------
@@ -3040,11 +3085,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _get_active_canvas(self):
-        """Return the currently-active canvas's own inner editor widget
+        """
+        Return the currently-active canvas's own inner editor widget
         (editor3d.editor / editor2d.editor / editor_pegboard.editor) --
         see self._active_canvas_view, kept up to date by
         _on_canvas_view_activated.
         """
+
         return {
             'editor3d': self.editor3d.editor,
             'editor2d': self.editor2d.editor,
@@ -3260,7 +3307,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def unload(self):
-        """Tear down the currently loaded project's in-memory state,
+        """
+        Tear down the currently loaded project's in-memory state,
         without touching the database or deleting anything.
 
         The sole caller is ``database.project_db.pjt_bases.PJTTables.
@@ -3283,6 +3331,7 @@ class MainFrame(QtWidgets.QMainWindow):
         (the only thing that ever calls this, indirectly) always
         overwrites it with the new project moments after this returns.
         """
+
         old_project = self._project
         if old_project is None:
             return
@@ -3328,7 +3377,8 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def _save_project_bounds(self, project: "_project.Project") -> None:
-        """Write the extent of everything *project* occupies in each editor
+        """
+        Write the extent of everything *project* occupies in each editor
         view (from that view's AABB pool) into its ``bounds_3d``/
         ``bounds_schematic``/``bounds_pegboard`` columns, so the next load
         can frame the cameras before any object exists.
@@ -3340,6 +3390,7 @@ class MainFrame(QtWidgets.QMainWindow):
         :param project: The project whose bounds to store.
         :type project: :class:`_project.Project`
         """
+
         views = (
             ('bounds_3d', self.bounds_manager.editor_3d),
             ('bounds_schematic', self.bounds_manager.editor_schematic),
@@ -3359,13 +3410,13 @@ class MainFrame(QtWidgets.QMainWindow):
 
     @_check_types.do
     def open_database(self, splash):
-        """Open the database.
-
-        UNKNOWN details are inferred from the callable name and signature.
+        """
+        Open the database.
 
         :param splash: Value for ``splash``.
         :type splash: UNKNOWN
         """
+
         from ..database.db_connectors import SQLConnector
 
         self.db_connector = SQLConnector(self)

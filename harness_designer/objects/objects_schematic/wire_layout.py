@@ -130,27 +130,22 @@ class WireLayout(_base_schematic.BaseSchematic):
             return
 
         ptables = self.mainframe.project.ptables
-        point = ptables.pjt_points2d_table[point_id]
+        wire_db = pjt_wires[0]
 
-        if point.wire_id is None:
+        # Not a waypoint of this wire (e.g. the layout sits on the wire's
+        # own start/stop) -- nothing in the route to remove.
+        if wire_db.db_id not in ptables.pjt_wire_paths_table.wire_ids_for_point('2d', point_id):
             return
 
-        removed_idx = point.idx
-        wire_db = pjt_wires[0]
         wire_obj = wire_db.get_object()
 
-        for waypoint in wire_db.waypoints2d:
-            if waypoint.idx > removed_idx:
-                waypoint.idx = waypoint.idx - 1
-
         # PJTPoint2D.delete() refuses outright while is_referenced() is
-        # True -- and this point's own wire_id column, still pointing at
-        # THIS (very much still-alive) wire, counts as a reference on
-        # its own -- so without clearing it first, delete() would
-        # silently no-op, leaving this waypoint sitting in the database
-        # forever.
-        point.wire_id = None
-        point.delete()
+        # True -- and this wire's own route row still references the
+        # point -- so the row has to be removed first, or delete() would
+        # silently no-op, leaving this waypoint in the database forever.
+        # Removing it also renumbers the rest of the wire's route.
+        ptables.pjt_wire_paths_table.remove(wire_db.db_id, '2d', point_id)
+        ptables.pjt_points2d_table[point_id].delete()
 
         # The wire's own segment-pool registration (see
         # objects_schematic/wire.py's Wire._register_segments) still lists

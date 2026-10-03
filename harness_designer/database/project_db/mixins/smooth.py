@@ -24,7 +24,8 @@ class SmoothMixin(BaseMixin):
         :rtype: bool | None
         """
         if self._stored_smooth is DefaultStoredValue:
-            value = self._table.select('smooth', id=self._db_id)[0][0]
+            _rows = self._table.select('smooth', id=self._db_id)
+            value = _rows[0][0] if _rows else None
             if value is not None:
                 value = bool(value)
                 

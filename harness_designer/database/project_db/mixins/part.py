@@ -24,7 +24,8 @@ class PartMixin(BaseMixin):
         :rtype: bytes
         """
         if self._stored_part_id is DefaultStoredValue:
-            self._stored_part_id = self._table.select('part_id', id=self._db_id)[0][0]
+            _rows = self._table.select('part_id', id=self._db_id)
+            self._stored_part_id = _rows[0][0] if _rows else None
 
         return self._stored_part_id
 

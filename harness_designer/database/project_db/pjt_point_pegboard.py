@@ -82,62 +82,20 @@ class PJTPointsPegboardTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, x: float | int, y: float | int, z: float | int,
-               wire_id: bytes = None, bundle_id: bytes = None, idx: int = None) -> "PJTPointPegboard":
-        """Execute the insert operation.
+    def insert(self, x: float | int, y: float | int, z: float | int) -> "PJTPointPegboard":
+        """Add a point row.
 
-        UNKNOWN details are inferred from the callable name and signature.
+        A point is pure geometry: it carries no owner and no order. Which
+        wires/bundles use it, and where in their routes, is stored in
+        ``pjt_wire_paths``/``pjt_bundle_paths``, not here.
 
         :param x: X-coordinate value.
-        :type x: float
         :param y: Y-coordinate value.
-        :type y: float
         :param z: Z-coordinate value.
-        :type z: float
-        :param wire_id: Owning wire, for an interior waypoint row --
-            ``None`` for an anchor's own position row or a bundle waypoint.
-        :type wire_id: bytes | None
-        :param bundle_id: Owning bundle, for an interior waypoint row --
-            ``None`` for an anchor's own position row or a wire waypoint.
-        :type bundle_id: bytes | None
-        :param idx: 0-based order along the wire's/bundle's waypoint
-            chain, for a waypoint row -- ``None`` for an anchor's own
-            position row.
-        :type idx: int | None
-        :returns: Return value. UNKNOWN details.
-        :rtype: :class:`PJTPointPegboard`
+        :returns: The new point row.
         """
-        db_id = PJTTableBase.insert(
-            self, x=float(x), y=float(y), z=float(z), wire_id=wire_id, bundle_id=bundle_id, idx=idx)
+        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z))
         return PJTPointPegboard(self, db_id)
-
-    @_check_types.do
-    def for_wire(self, wire_id: bytes) -> list["PJTPointPegboard"]:
-        """Return every interior waypoint on a wire, ordered by ``idx`` ascending.
-
-        :param wire_id: Identifier of the wire whose waypoints to fetch.
-        :type wire_id: bytes
-        :returns: The wire's interior waypoints, in chain order.
-        :rtype: list['PJTPointPegboard']
-        """
-        rows = self.select('id', 'idx', wire_id=wire_id)
-        rows = sorted(rows, key=lambda row: row[1])
-
-        return [self[row[0]] for row in rows]
-
-    @_check_types.do
-    def for_bundle(self, bundle_id: bytes) -> list["PJTPointPegboard"]:
-        """Return every interior waypoint on a bundle, ordered by ``idx`` ascending.
-
-        :param bundle_id: Identifier of the bundle whose waypoints to fetch.
-        :type bundle_id: bytes
-        :returns: The bundle's interior waypoints, in chain order.
-        :rtype: list['PJTPointPegboard']
-        """
-        rows = self.select('id', 'idx', bundle_id=bundle_id)
-        rows = sorted(rows, key=lambda row: row[1])
-
-        return [self[row[0]] for row in rows]
 
 
 class PJTPointPegboard(PJTEntryBase):
@@ -145,8 +103,8 @@ class PJTPointPegboard(PJTEntryBase):
 
     Structurally identical to :class:`~harness_designer.database.project_db.
     pjt_point3d.PJTPoint3D` -- same singleton/attach/clone/self-heal
-    lifecycle, same ``wire_id``/``bundle_id``/``idx``/``parent_point_id``
-    waypoint columns, same ``_skip_db_write`` batch-suppression flag. See
+    lifecycle, same ``parent_point_id`` column, same ``_skip_db_write``
+    batch-suppression flag. See
     that class's docstring for the full mechanics (NORMAL LIFECYCLE,
     ATTACH/CLONE LIFECYCLE, SELF-HEALING VIA ``_update_point``, CLONE GUARD,
     SINGLETON CACHE CLEANUP) -- none of it is repeated here since it applies
@@ -296,72 +254,6 @@ class PJTPointPegboard(PJTEntryBase):
         self._stored_y = y
         self._stored_z = z
         self._table.update(self._db_id, x=x, y=y, z=z)
-
-    _stored_wire_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def wire_id(self) -> bytes | None:
-        """Return the id of the wire this waypoint belongs to, or
-        ``None`` for an anchor's own position row.
-
-        :returns: The referenced ``pjt_wires`` row id, or ``None``.
-        :rtype: bytes | None
-        """
-        if self._stored_wire_id is DefaultStoredValue:
-            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
-
-        return self._stored_wire_id
-
-    @wire_id.setter
-    @_check_types.do
-    def wire_id(self, value: bytes | None):
-        self._stored_wire_id = value
-        self._table.update(self._db_id, wire_id=value)
-
-    _stored_bundle_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def bundle_id(self) -> bytes | None:
-        """Return the id of the bundle this waypoint belongs to, or
-        ``None`` for an anchor's own position row or a wire waypoint.
-
-        :returns: The referenced ``pjt_bundles`` row id, or ``None``.
-        :rtype: bytes | None
-        """
-        if self._stored_bundle_id is DefaultStoredValue:
-            self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
-
-        return self._stored_bundle_id
-
-    @bundle_id.setter
-    @_check_types.do
-    def bundle_id(self, value: bytes | None):
-        self._stored_bundle_id = value
-        self._table.update(self._db_id, bundle_id=value)
-
-    _stored_idx: int | None | DefaultStoredValueType = DefaultStoredValue
-
-    @property
-    @_check_types.do
-    def idx(self) -> int | None:
-        """Return this waypoint's 0-based order along the wire's chain,
-        or ``None`` for an anchor's own position row.
-
-        :returns: The order index, or ``None``.
-        :rtype: int | None
-        """
-        if self._stored_idx is DefaultStoredValue:
-            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
-
-        return self._stored_idx
-
-    @idx.setter
-    @_check_types.do
-    def idx(self, value: int | None):
-        self._stored_idx = value
-        self._table.update(self._db_id, idx=value)
 
     _stored_parent_point_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
@@ -544,16 +436,16 @@ class PJTPointPegboard(PJTEntryBase):
         ):
             return True
 
-        # Phase 6 (2026-09-02): pjt_wires/pjt_bundles -- own start/stop
-        # (forward reference) plus the backward, count-unknown interior-
-        # waypoint case (this point's own wire_id/bundle_id tag, checked
-        # for whether that wire/bundle still actually exists -- see
-        # pjt_point3d.PJTPoint3D.is_referenced's own inline comment for
-        # the full reasoning).
-        if self.wire_id is not None and self.wire_id in db.pjt_wires_table:
+        # Interior waypoints: a wire's or a bundle's own ordered waypoint
+        # list is stored as rows in pjt_wire_paths/pjt_bundle_paths that
+        # reference this point (any number of wires can share it), not as
+        # owner tags on the point itself. A route row is deleted with its
+        # wire/bundle (PJTWire.delete/PJTBundle.delete), so a row that
+        # exists always means the point is still in use.
+        if db.pjt_wire_paths_table.select('id', point_pegboard_id=self.db_id):
             return True
 
-        if self.bundle_id is not None and self.bundle_id in db.pjt_bundles_table:
+        if db.pjt_bundle_paths_table.select('id', point_pegboard_id=self.db_id):
             return True
 
         if db.pjt_wires_table.select(

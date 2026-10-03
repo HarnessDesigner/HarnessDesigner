@@ -318,10 +318,11 @@ def build_bundle_cut_sheet(
         project: "_project.Project", bundle_excess_pct: float) -> list[BundleCutRow]:
     """Build one row per bundle-covering instance in *project*.
 
-    Diameter comes from the catalog part's ``min_dia``/``max_dia`` --
-    ``PJTBundle.diameter`` is a pre-existing, unrelated bug (its getter
-    returns a ``pjt_concentrics`` row id, not a diameter) and must not be
-    used here.
+    Diameter shows the catalog part's own ``min_dia``/``max_dia`` range,
+    a cut sheet's usual shape for a cover part -- not
+    ``PJTBundle.diameter`` (fixed 2026-10-01 to compute this bundle's
+    own single effective diameter on demand; still the wrong shape for
+    this particular row, a spec range rather than one number).
 
     :param project: The project to walk.
     :type project: :class:`~harness_designer.objects.project.Project`

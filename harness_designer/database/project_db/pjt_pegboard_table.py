@@ -9,8 +9,8 @@ from :class:`~..mixins.position_pegboard.PositionPegboardMixin` -- via
 the SAME ``pjt_points_pegboard`` row as the owning anchor's own
 ``table_point_peg_id`` (see ``mixins.table_position_peg.
 TablePositionPegMixin``, already mixed into every anchor type that can own
-one of these overlays: ``PJTHousing``/``PJTBundle``/``PJTTransition``/
-``PJTTransitionBranch``), not a fresh point of this row's own. Sharing that
+one of these overlays: ``PJTHousing``/``PJTBundle``/``PJTTransition`` --
+a transition has ONE table for all its branches), not a fresh point of this row's own. Sharing that
 one point is what lets :attr:`PJTPegboardTable.anchor` and
 :meth:`PJTPegboardTablesTable.get_from_point_pegboard_id` find one row from
 the other with a plain equality lookup, in either direction, without a
@@ -31,12 +31,10 @@ if TYPE_CHECKING:
     from . import pjt_housing as _pjt_housing
     from . import pjt_bundle as _pjt_bundle
     from . import pjt_transition as _pjt_transition
-    from . import pjt_transition_branch as _pjt_transition_branch
     from ...objects import pegboard_table as _pegboard_table_obj
 
     _Anchor = Union["_pjt_housing.PJTHousing", "_pjt_bundle.PJTBundle",
-                    "_pjt_transition.PJTTransition",
-                    "_pjt_transition_branch.PJTTransitionBranch"]
+                    "_pjt_transition.PJTTransition"]
 
 
 # On the peg board, X/Z are the screen's own two axes (top-down camera) --
@@ -145,7 +143,7 @@ class PJTPegboardTablesTable(PJTTableBase):
             ``(0.0, 0.0, 0.0)`` the first time it's needed).
         :type point_id: bytes
         :param position: World-space X/Z CENTER of the table -- the
-            caller (see ``objects.objects_pegboard.pegboard_table``) is
+            caller (see ``objects.objects_pegboard.table``) is
             responsible for choosing this, typically via a nearest-free-
             spot search against every other object's OBB/AABB so the new
             table doesn't land on top of anything. ``position.y`` is
@@ -255,7 +253,7 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
     @_check_types.do
     def anchor(self) -> "_Anchor | None":
         """Return the owning anchor row -- a housing, bundle,
-        transition, or transition branch, found by matching this
+        or transition, found by matching this
         table's own :attr:`position_pegboard_id` against each anchor
         type's own ``table_point_peg_id`` column (the same SHARED
         point -- see this module's own docstring, and
@@ -267,13 +265,13 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         (``NameMixin``/``PositionPegboardMixin``, plus each type's own
         ``wires`` -- see ``pjt_housing.PJTHousing.wires`` and its
         siblings), so callers (``objects.objects_pegboard.
-        pegboard_table.PegboardTable``) never need to know which one
+        table.Table``) never need to know which one
         this actually is.
 
-        :returns: The owning anchor row, or ``None`` if none of the 4
+        :returns: The owning anchor row, or ``None`` if none of the 3
             anchor tables reference this table's own point (should not
             normally happen for a live table row).
-        :rtype: :class:`PJTHousing` | :class:`PJTBundle` | :class:`PJTTransition` | :class:`PJTTransitionBranch` | None
+        :rtype: :class:`PJTHousing` | :class:`PJTBundle` | :class:`PJTTransition` | None
         """
         if self._stored_anchor is DefaultStoredValue:
             point_id = self.position_pegboard_id
@@ -282,7 +280,7 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
             self._stored_anchor = None
 
             for table in (db.pjt_housings_table, db.pjt_bundles_table,
-                         db.pjt_transitions_table, db.pjt_transition_branches_table):
+                         db.pjt_transitions_table):
                 rows = table.select('id', table_point_peg_id=point_id)
                 if rows:
                     self._stored_anchor = table[rows[0][0]]

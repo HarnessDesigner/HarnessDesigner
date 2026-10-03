@@ -24,7 +24,8 @@ class NotesMixin(BaseMixin):
         :rtype: str
         """
         if self._stored_notes is DefaultStoredValue:
-            self._stored_notes = self._table.select('notes', id=self._db_id)[0][0]
+            _rows = self._table.select('notes', id=self._db_id)
+            self._stored_notes = _rows[0][0] if _rows else None
             
         return self._stored_notes
 

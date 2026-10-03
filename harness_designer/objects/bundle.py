@@ -8,6 +8,7 @@ from . import ObjectBase as _ObjectBase
 from .objects_schematic import bundle as _bundle_schematic
 from .objects_3d import bundle as _bundle_3d
 from .objects_pegboard import bundle as _bundle_pegboard
+from ..handlers import bundle_diameter as _bundle_diameter
 from .. import check_types as _check_types
 
 
@@ -96,24 +97,14 @@ class Bundle(_ObjectBase):
         else:
             raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
 
+        # Attaching to (or detaching from) a transition branch changes
+        # whether handlers.bundle_diameter's own branch-floor applies to
+        # this bundle at all -- recompute right away rather than leaving
+        # the diameter set at whatever it was before this end existed.
+        _bundle_diameter.refresh_diameter(self)
+
     @_check_types.do
     def delete(self):
         super().delete()
         self.mainframe.project.delete_bundle(self.db_obj.db_id)
         self.db_obj.delete()
-
-    # TODO: We need to move things like wires so they are held here.
-    #       anything that is held in any of the obj* class instances should
-    #       only hold objects that areof the same instance type
-
-    @_check_types.do
-    def _delete(self):
-        """Override delete to restore wire visibility."""
-        # Restore visibility of all wires before deleting
-        for ref in self._wires[:]:
-            wire = ref()
-            if wire is not None:
-                wire.is_visible = True
-
-        self._wires.clear()
-        super()._delete()

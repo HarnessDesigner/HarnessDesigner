@@ -629,16 +629,13 @@ class Wire(_base_schematic.BaseSchematic):
         returning the new waypoint's own live Point.
         """
         ptables = self.mainframe.project.ptables
-        waypoints = self.db_obj.waypoints2d
+        new_wp = ptables.pjt_points2d_table.insert(x, 0.0, z)
 
         if at_start:
-            for wp in waypoints:
-                wp.idx = wp.idx + 1
-            idx = 0
+            ptables.pjt_wire_paths_table.add(self.db_obj.db_id, '2d', 0, new_wp.db_id)
         else:
-            idx = len(waypoints)
+            ptables.pjt_wire_paths_table.append(self.db_obj.db_id, '2d', new_wp.db_id)
 
-        new_wp = ptables.pjt_points2d_table.insert(x, 0.0, z, wire_id=self.db_obj.db_id, idx=idx)
         self.refresh_waypoints()
 
         return new_wp.point

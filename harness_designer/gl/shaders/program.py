@@ -759,7 +759,7 @@ class TextureProgram(Program):
     @quad_size_px.setter
     def quad_size_px(self, value: tuple[float, float]):
         """Pixel size of the captured widget this quad displays --
-        ``objects_pegboard.pegboard_table.PegboardTable`` sets this from
+        ``objects_pegboard.table.Table`` sets this from
         its own ``_texture_px_size`` every time it re-grabs, so the
         fragment shader's rounded-corner clip (see ``cornerRadiusPx``)
         can convert its normalized UV into real pixels and get a

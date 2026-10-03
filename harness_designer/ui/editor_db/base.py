@@ -394,6 +394,15 @@ class EditorList(QTableView):
             return None
 
         row = self.get_row(indexes[0].row())
+        if row is None:
+            # The selection model can still point at a row index that no
+            # longer exists in the buffered window (e.g. a live table
+            # refresh/filter reset raced with a selectionChanged signal
+            # already queued on the event loop) -- same "nothing valid
+            # selected" case the empty-indexes branch above already
+            # returns None for.
+            return None
+
         return row[1]
 
     @_check_types.do

@@ -707,7 +707,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
                        # A peg-board table has no angle_pegboard at all --
                        # its quad is always screen-axis-aligned (the
                        # mouse-dispatch math in objects_pegboard.
-                       # pegboard_table.PegboardTable assumes this), so
+                       # table.Table assumes this), so
                        # rotating it would be actively wrong even if it
                        # had one. Excluded the same way Wire/Bundle are,
                        # for its own different "doesn't fit this single
