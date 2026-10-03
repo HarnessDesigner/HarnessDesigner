@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Skeleton-first bundle placement for the 3D editor -- BUNDLE_PLACEMENT.md
+"""
+Skeleton-first bundle placement for the 3D editor -- BUNDLE_PLACEMENT.md
 section 3, replacing the old wire-snapping flow entirely (a bundle no
 longer spans an existing wire end to end; it is placed free, in empty
 space or attached to transition branches, and starts empty -- wires are
@@ -79,9 +80,10 @@ if TYPE_CHECKING:
 
 @_check_types.do
 def drop_joint_layout(
-    mainframe: object, branch: "_transition_3d.Branch"
+    mainframe, branch: "_transition_3d.Branch"
 ) -> "_bundle_layout_facade.BundleLayout":
-    """Create a ``BundleLayout`` marker exactly on *branch*'s own shared
+    """
+    Create a ``BundleLayout`` marker exactly on *branch*'s own shared
     point -- used at every branch attach (phase 0's start attach, phase
     1's end attach, and :meth:`objects.objects_3d.bundle.Bundle.
     start_add_from_branch`'s own pre-attached start, all three going
@@ -91,27 +93,35 @@ def drop_joint_layout(
     attached_bundles`` / ``objects_3d.bundle_layout.BundleLayout.
     __init__``) -- no separate diameter/color plumbing needed here.
     """
-    from ...objects import bundle_layout as _bundle_layout_facade
+
+    from ...objects import bundle_layout as _bundle_layout
 
     ptables = mainframe.project.ptables
     layout_db = ptables.pjt_bundle_layouts_table.insert(point3d_id=branch.db_obj.position3d_id)
-    layout_facade = _bundle_layout_facade.BundleLayout(mainframe, layout_db)
-    mainframe.project.add_bundle_layout(layout_facade)
+    layout = _bundle_layout.BundleLayout(mainframe, layout_db)
+    mainframe.project.add_bundle_layout(layout)
 
-    return layout_facade
+    return layout
 
 
 class Bundle(_base.AddHandlerBase):
-    """Skeleton-first bundle placement session -- see the module
-    docstring."""
+    """
+    Skeleton-first bundle placement session -- see the module
+    docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part,
-        phase: int, diameter_lo: float, diameter_hi: float,
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        part,
+        phase: int,
+        diameter_lo: float,
+        diameter_hi: float,
         start_branch: tuple | None = None,
         start_branch_orig_diameter: float | None = None,
-        start_layout: "_bundle_layout_facade.BundleLayout | None" = None,
+        start_layout: "_bundle_layout_facade.BundleLayout | None" = None
     ):
         super().__init__(canvas, target)
 
@@ -128,13 +138,13 @@ class Bundle(_base.AddHandlerBase):
         # can be pre-populated by start_add_from_branch (phase starts at
         # 1 directly, skipping phase 0 entirely); stop is only ever set
         # by this session's own _finish_attached.
-        self._start_branch: tuple | None = start_branch
-        self._start_branch_orig_diameter: float | None = start_branch_orig_diameter
+        self._start_branch = start_branch
+        self._start_branch_orig_diameter = start_branch_orig_diameter
         self._start_layout = start_layout
-        self._stop_branch: tuple | None = None
+        self._stop_branch = None
 
-        self._hovered_branch: tuple | None = None
-        self._committed_layouts: list = []
+        self._hovered_branch = None
+        self._committed_layouts = []
         self._has_committed_waypoint = False
         self._session_waypoint_count = 0
         self._finalized = False
@@ -150,7 +160,10 @@ class Bundle(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
+        self,
+        last_pos,
+        current_pos,
+        had_motion: bool,
         interaction_type: _interaction.MouseInteraction, clicked_object
     ) -> bool:
         if self._finalized:
@@ -165,16 +178,18 @@ class Bundle(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
-            if self._phase == 0:
-                self._handle_first_click(current_pos)
-            else:
-                self._handle_later_click(current_pos)
-            return True
+        if not had_motion:
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                if self._phase == 0:
+                    self._handle_first_click(current_pos)
+                else:
+                    self._handle_later_click(current_pos)
 
-        if interaction_type is _interaction.MouseInteraction.RIGHT_UP and not had_motion:
-            self.finalize_at_last_point()
-            return True
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.RIGHT_UP:
+                self.finalize_at_last_point()
+                return True
 
         return False
 
@@ -188,6 +203,7 @@ class Bundle(_base.AddHandlerBase):
     def _growing_point(self) -> _point.Point:
         if self._phase == 0:
             return self.target.obj3d.start_position
+
         return self.target.obj3d.stop_position
 
     @_check_types.do
@@ -238,13 +254,17 @@ class Bundle(_base.AddHandlerBase):
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
         with self.mainframe.editor3d.context:
-            exclude_transition = self._start_branch[0] if self._start_branch is not None else None
+            if self._start_branch is not None:
+                exclude_transition = self._start_branch[0]
+            else:
+                exclude_transition = None
 
             origin, direc = _object_picker._build_ray(mouse_pos, self.camera)  # NOQA
             hit = None
             if origin is not None:
                 hit = _transition_handler._find_free_branch_ray(  # NOQA
-                    origin, direc, self.mainframe.project, exclude_transition=exclude_transition)
+                    origin, direc, self.mainframe.project,
+                    exclude_transition=exclude_transition)
 
             if hit is not None:
                 t_obj, branch = hit
@@ -252,15 +272,20 @@ class Bundle(_base.AddHandlerBase):
                 if hit != self._hovered_branch:
                     self._clear_branch_hover()
                     fits = self._branch_fits(branch)
-                    mat = (_transition_handler._BRANCH_FIT if fits  # NOQA
-                           else _transition_handler._BRANCH_NO_FIT)  # NOQA
-                    t_obj.obj3d.highlight_branch(branch, mat)
+
+                    if fits:
+                        mat = _transition_handler._BRANCH_FIT   # NOQA
+                    else:
+                        mat = _transition_handler._BRANCH_NO_FIT  # NOQA
+
+                    t_obj.obj3d.highlight_branch(branch, mat)  # NOQA
                     self._hovered_branch = hit
 
                 self._move_growing_point(branch.tip_point)
             else:
                 self._clear_branch_hover()
-                self._move_growing_point(self.camera.get_position_on_focal_plane(mouse_pos))
+                self._move_growing_point(
+                    self.camera.get_position_on_focal_plane(mouse_pos))
 
             self.target.obj3d.is_visible = True
 
@@ -273,15 +298,17 @@ class Bundle(_base.AddHandlerBase):
 
     @_check_types.do
     def _branch_fits(self, branch: "_transition_3d.Branch") -> bool:
-        return self._diameter_lo <= branch.max_diameter and self._diameter_hi >= branch.min_diameter
+        return (self._diameter_lo <= branch.max_diameter and
+                self._diameter_hi >= branch.min_diameter)
 
     # ------------------------------------------------------------------
     # Clicks
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _handle_first_click(self, mouse_pos: _point.Point | None) -> None:
-        """Lock the start point wherever hover last left it (free, or a
+    def _handle_first_click(self, mouse_pos: _point.Point | None) -> None:  # NOQA
+        """
+        Lock the start point wherever hover last left it (free, or a
         fitting branch's own tip) and move on to phase 1. A click while
         hovering a NON-fitting branch is ignored -- stays in phase 0.
 
@@ -293,6 +320,7 @@ class Bundle(_base.AddHandlerBase):
         reusing this method's own real attach path instead of a second
         copy of it.
         """
+
         if self._hovered_branch is not None:
             t_obj, branch = self._hovered_branch
 
@@ -310,12 +338,15 @@ class Bundle(_base.AddHandlerBase):
         self._phase = 1
 
     @_check_types.do
-    def _handle_later_click(self, mouse_pos: _point.Point) -> None:
-        """A click on a fitting free branch attaches the stop end there
+    def _handle_later_click(self, mouse_pos: _point.Point) -> None:  # NOQA
+        """
+        A click on a fitting free branch attaches the stop end there
         and ends the whole placement; any other click (empty space, or a
         non-fitting branch, ignored the same way phase 0 ignores one)
         commits the current growing point as an interior waypoint and
-        keeps the session going."""
+        keeps the session going.
+        """
+
         if self._hovered_branch is not None:
             t_obj, branch = self._hovered_branch
 
@@ -327,7 +358,11 @@ class Bundle(_base.AddHandlerBase):
         self._commit_waypoint()
 
     @_check_types.do
-    def _attach_growing_end_to_branch(self, branch: "_transition_3d.Branch") -> None:
+    def _attach_growing_end_to_branch(
+        self,
+        branch: "_transition_3d.Branch"
+    ) -> None:
+
         stale_id = self._growing_point.db_id[:-2]
 
         self._set_growing_obj3d_position(branch.db_obj.position3d)
@@ -355,11 +390,17 @@ class Bundle(_base.AddHandlerBase):
         # now-stale diameter forever. Refresh them all to the new value.
         if self._start_layout is not None:
             self._start_layout.obj3d.set_diameter(self._diameter_lo)
+
         for layout_obj in self._committed_layouts:
             layout_obj.obj3d.set_diameter(self._diameter_lo)
 
     @_check_types.do
-    def _finish_attached(self, t_obj: "_transition_obj.Transition", branch: "_transition_3d.Branch") -> None:
+    def _finish_attached(
+        self,
+        t_obj: "_transition_obj.Transition",
+        branch: "_transition_3d.Branch"
+    ) -> None:
+
         self._attach_growing_end_to_branch(branch)
         t_obj.add_bundle(self.target, 'stop', branch.db_obj.branch_id)
         self._stop_branch = (t_obj, branch)
@@ -374,7 +415,7 @@ class Bundle(_base.AddHandlerBase):
 
     @_check_types.do
     def _commit_waypoint(self) -> None:
-        from ...objects import bundle_layout as _bundle_layout_facade
+        from ...objects import bundle_layout as _bundle_layout
 
         self._has_committed_waypoint = True
 
@@ -382,10 +423,14 @@ class Bundle(_base.AddHandlerBase):
         growing_pos = self._growing_point
 
         bundle_id = self.target.db_obj.db_id
-        self.ptables.pjt_bundle_paths_table.append(bundle_id, '3d', growing_point_id)
 
-        layout_db = self.ptables.pjt_bundle_layouts_table.insert(point3d_id=growing_point_id)
-        layout_obj = _bundle_layout_facade.BundleLayout(self.mainframe, layout_db)
+        self.ptables.pjt_bundle_paths_table.append(
+            bundle_id, '3d', growing_point_id)
+
+        layout_db = self.ptables.pjt_bundle_layouts_table.insert(
+            point3d_id=growing_point_id)
+
+        layout_obj = _bundle_layout.BundleLayout(self.mainframe, layout_db)
         self.mainframe.project.add_bundle_layout(layout_obj)
         self._committed_layouts.append(layout_obj)
         self._session_waypoint_count += 1
@@ -451,13 +496,16 @@ class Bundle(_base.AddHandlerBase):
 
         for layout_obj in reversed(self._committed_layouts):
             layout_obj.delete()
+
         self._committed_layouts = []
 
         if self._start_branch is not None:
             _t_obj, branch = self._start_branch
             branch.set_diameter(self._start_branch_orig_diameter)
+
             if self._start_layout is not None:
                 self._start_layout.delete()
+
             self._start_branch = None
 
         if self.target is not None:
@@ -475,24 +523,32 @@ class Bundle(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _drop_joint_layout_pegboard(self, branch: "_transition_3d.Branch") -> None:
-        """Peg-board counterpart of :func:`drop_joint_layout` -- a branch
+    def _drop_joint_layout_pegboard(
+        self,
+        branch: "_transition_3d.Branch"
+    ) -> None:
+
+        """
+        Peg-board counterpart of :func:`drop_joint_layout` -- a branch
         attach needs its own marker in EACH view (a ``BundleLayout`` row
         is exclusive to one view, section 2.5), so the 3D joint layout
         created by :func:`drop_joint_layout` does not cover the peg-board
         side at all; this drops the peg-board one, at the branch's own
         peg-board position, from :meth:`_seed_pegboard`.
         """
-        from ...objects import bundle_layout as _bundle_layout_facade
+
+        from ...objects import bundle_layout as _bundle_layout
 
         layout_db = self.ptables.pjt_bundle_layouts_table.insert(
             point_pegboard_id=branch.db_obj.position_pegboard_id)
-        layout_facade = _bundle_layout_facade.BundleLayout(self.mainframe, layout_db)
+
+        layout_facade = _bundle_layout.BundleLayout(self.mainframe, layout_db)
         self.mainframe.project.add_bundle_layout(layout_facade)
 
     @_check_types.do
     def _seed_pegboard(self) -> None:
-        """Give the freshly placed bundle a non-degenerate peg-board
+        """
+        Give the freshly placed bundle a non-degenerate peg-board
         presence (BUNDLE_PLACEMENT.md section 10 item 1) by unfolding its
         3D path into the peg-board plane: walk from the peg-board start,
         stepping each 3D segment's own REAL length along that segment's
@@ -533,6 +589,7 @@ class Bundle(_base.AddHandlerBase):
         the 3D attach does (``set_start/stop_position`` + deleting the
         now-stale lazy one).
         """
+
         ptables = self.ptables
         db = self.target.db_obj
         obj_peg = self.target.objpegboard
@@ -549,10 +606,14 @@ class Bundle(_base.AddHandlerBase):
             start_pos = obj_peg.start_position
             start_pos += _point.Point(float(p.x), 0.0, float(p.z)) - start_pos
 
-        points3d = [db.start_position3d, *(w.point for w in db.waypoints3d), db.stop_position3d]
+        points3d = [db.start_position3d,
+                    *(w.point for w in db.waypoints3d),
+                    db.stop_position3d]
 
         start_peg = obj_peg.start_position
-        current_np = np.array([float(start_peg.x), 0.0, float(start_peg.z)], dtype=np.float64)
+        current_np = np.array(
+            [float(start_peg.x), 0.0, float(start_peg.z)], dtype=np.float64)
+
         prev_dir = np.array([1.0, 0.0], dtype=np.float64)
 
         walked_points = []
@@ -571,20 +632,28 @@ class Bundle(_base.AddHandlerBase):
                 direction = prev_dir
 
             current_np = current_np + np.array(
-                [direction[0] * length, 0.0, direction[1] * length], dtype=np.float64)
+                [direction[0] * length, 0.0, direction[1] * length],
+                dtype=np.float64)
+
             walked_points.append(current_np.copy())
 
         walked_stop_np = walked_points.pop() if walked_points else current_np
 
-        from ...objects import bundle_layout as _bundle_layout_facade
+        from ...objects import bundle_layout as _bundle_layout
 
         for pos_np in walked_points:
             peg = ptables.pjt_points_pegboard_table.insert(
                 float(pos_np[0]), 0.0, float(pos_np[2]))
-            ptables.pjt_bundle_paths_table.append(db.db_id, 'pegboard', peg.db_id)
 
-            layout_db = ptables.pjt_bundle_layouts_table.insert(point_pegboard_id=peg.db_id)
-            layout_facade = _bundle_layout_facade.BundleLayout(self.mainframe, layout_db)
+            ptables.pjt_bundle_paths_table.append(
+                db.db_id, 'pegboard', peg.db_id)
+
+            layout_db = ptables.pjt_bundle_layouts_table.insert(
+                point_pegboard_id=peg.db_id)
+
+            layout_facade = _bundle_layout.BundleLayout(
+                self.mainframe, layout_db)
+
             self.mainframe.project.add_bundle_layout(layout_facade)
 
         if self._stop_branch is not None:

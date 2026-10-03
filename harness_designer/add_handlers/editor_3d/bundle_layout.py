@@ -28,11 +28,16 @@ if TYPE_CHECKING:
 
 
 class BundleLayout(_base.AddHandlerBase):
-    """Interactive bundle-waypoint placement -- see the module docstring."""
+    """
+    Interactive bundle-waypoint placement -- see the module docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", bundle: "_bundle.Bundle"
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        bundle: "_bundle.Bundle"
     ):
         super().__init__(canvas, target)
 
@@ -47,10 +52,10 @@ class BundleLayout(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -63,7 +68,10 @@ class BundleLayout(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize(current_pos)
             return True
 
@@ -71,7 +79,9 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        raw_pos, _is_at_endpoint, _endpoint = self._bundle.obj3d.get_closest_endpoint(mouse_pos)
+        raw_pos, _is_at_endpoint, _endpoint = (
+            self._bundle.obj3d.get_closest_endpoint(mouse_pos))
+
         if not isinstance(raw_pos, _point.Point):
             raw_pos = _point.Point(*raw_pos)
 
@@ -84,22 +94,29 @@ class BundleLayout(_base.AddHandlerBase):
     def _finalize(self, mouse_pos: _point.Point) -> None:
         from ...handlers import bundle_layout_handler as _bundle_layout_handler
 
-        raw_pos, is_at_endpoint, endpoint = self._bundle.obj3d.get_closest_endpoint(mouse_pos)
+        raw_pos, is_at_endpoint, endpoint = (
+            self._bundle.obj3d.get_closest_endpoint(mouse_pos))
 
         if is_at_endpoint:
             if endpoint == 'start':
-                self._bundle.obj3d.start_position.attach(self.target.obj3d.position)
+                self._bundle.obj3d.start_position.attach(
+                    self.target.obj3d.position)
             else:
-                self._bundle.obj3d.stop_position.attach(self.target.obj3d.position)
+                self._bundle.obj3d.stop_position.attach(
+                    self.target.obj3d.position)
 
-            self.target.db_obj.position3d_id = self.target.obj3d.position.db_id[:-2]
+            self.target.db_obj.position3d_id = (
+                self.target.obj3d.position.db_id[:-2])
+
             self.target.obj3d.is_visible = True
             self.mainframe.project.add_bundle_layout(self.target)
         else:
             preview_position = _point.Point(*self.target.obj3d.position.as_float)
             self.target.delete()
+
             self.target = _bundle_layout_handler._create_bundle_layout_on_bundle(  # NOQA
                 self.mainframe.project, self._bundle, preview_position)
+
             self.target.obj3d.is_visible = True
 
         self._finalized = True

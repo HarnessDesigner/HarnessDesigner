@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Seal placement for the 3D editor -- what
+"""
+Seal placement for the 3D editor -- what
 ``objects.objects_3d.seal.Seal.start_add`` was given (*housing*/
 *terminal*/*cavity*) decides which project-wide scope to search, but for
 *housing* specifically it's the picked part's own **category** (SWS/
@@ -46,17 +47,21 @@ from ...objects import housing as _housing
 from ...objects import terminal as _terminal
 from .. import base as _base
 from ... import check_types as _check_types
+from ...ui.dialogs import part_search as _part_search
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
-    from ...ui.dialogs import part_search as _part_search
 
 
 @_check_types.do
 def cavity_midpoint(pjt_cavity):
-    """World-space midpoint of *pjt_cavity* along its insertion axis."""
+    """
+    World-space midpoint of *pjt_cavity* along its insertion axis.
+    """
+
     cpos_np = pjt_cavity.position3d.as_numpy.astype(np.float64)
     cav_ang = pjt_cavity.angle3d
     length = float(pjt_cavity.part.length)
@@ -69,10 +74,12 @@ def cavity_midpoint(pjt_cavity):
 
 @_check_types.do
 def cavity_midpoint_pegboard(pjt_cavity):
-    """Peg-board equivalent of :func:`cavity_midpoint` -- same insertion-
+    """
+    Peg-board equivalent of :func:`cavity_midpoint` -- same insertion-
     axis-midpoint math, using the cavity's own ``position_pegboard``/
     ``angle_pegboard`` instead of ``position3d``/``angle3d``.
     """
+
     cpos_np = pjt_cavity.position_pegboard.as_numpy.astype(np.float64)
     cav_ang = pjt_cavity.angle_pegboard
     length = float(pjt_cavity.part.length)
@@ -84,8 +91,12 @@ def cavity_midpoint_pegboard(pjt_cavity):
 
 
 @_check_types.do
-def cavity_plug_search_params(max_dim: float) -> Union["_part_search.SearchParameters", None]:
-    """PLUG/dummy-pin search-box seed for a cavity whose dimensions fit
+def cavity_plug_search_params(
+    max_dim: float
+) -> Union["_part_search.SearchParameters", None]:
+
+    """
+    PLUG/dummy-pin search-box seed for a cavity whose dimensions fit
     *max_dim* (the cavity's own ``max(width, height)``).
 
     Only ``o_dia`` is seeded, not the ``width`` alternative the old
@@ -96,27 +107,40 @@ def cavity_plug_search_params(max_dim: float) -> Union["_part_search.SearchParam
     non-round one sized by width instead still turns up once that bound
     is cleared/widened in the dialog itself.
     """
+
     if max_dim <= 0.0:
         return None
 
-    from ...ui.dialogs import part_search as _part_search
-
     params = _part_search.SearchParameters()
-    params.add('type_id', _part_search.SearchTerm(phrase='Plug'))
-    params.add('type_id', _part_search.SearchTerm(phrase='Dummy Pin'))
-    params.add('o_dia', _part_search.SearchTerm(operator='<=', value=str(max_dim)))
+
+    params.add('type_id',
+               _part_search.SearchTerm(phrase='Plug'))
+
+    params.add('type_id',
+               _part_search.SearchTerm(phrase='Dummy Pin'))
+
+    params.add('o_dia',
+               _part_search.SearchTerm(operator='<=', value=str(max_dim)))
 
     return params
 
 
 class Seal(_base.AddHandlerBase):
-    """Category-driven seal placement -- see the module docstring."""
+    """
+    Category-driven seal placement -- see the module docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-        housing: _housing.Housing | None, terminal: _terminal.Terminal | None,
-        cavity, is_instant: bool, snap_targets: list, is_dummy_pin: bool
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        housing: _housing.Housing | None,
+        terminal: _terminal.Terminal | None,
+        cavity,
+        is_instant: bool,
+        snap_targets: list,
+        is_dummy_pin: bool
     ):
         super().__init__(canvas, target)
 
@@ -138,10 +162,10 @@ class Seal(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -154,7 +178,10 @@ class Seal(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize()
             return True
 
@@ -163,8 +190,6 @@ class Seal(_base.AddHandlerBase):
     @property
     @_check_types.do
     def snap_pool(self):
-        from ... import utils as _utils
-
         objects = []
         positions = []
 
@@ -206,33 +231,42 @@ class Seal(_base.AddHandlerBase):
         # snapped) still wants a single point.
         snap_pool = self.snap_pool
         origin, direction = self.camera.get_mouse_ray(mouse_pos)
-        snapped = snap_pool.query_ray(origin, direction) if origin is not None else None
+
+        if origin is not None:
+            snapped = snap_pool.query_ray(origin, direction)
+        else:
+            snapped = None
 
         prev_snapped = self._snapped
 
         if snapped is None:
             point = self.camera.get_position_on_focal_plane(mouse_pos)
             self._snapped = None
+
             if prev_snapped is not None:
                 _handler_base.HandlerBase.reset_angle(self.target)
 
         else:
             if isinstance(snapped, _housing.Housing):
                 point = snapped.db_obj.seal_position3d
+
                 if prev_snapped is not snapped:
-                    _handler_base.HandlerBase.set_angle_from_housing(self.target, snapped)
+                    _handler_base.HandlerBase.set_angle_from_housing(
+                        self.target, snapped)
 
             elif isinstance(snapped, _terminal.Terminal):
                 point = snapped.db_obj.wire_position3d
                 pjt_cav = snapped.db_obj.cavity
+
                 if prev_snapped is not snapped:
                     if pjt_cav is not None:
-                        _handler_base.HandlerBase.set_angle_from_cavity(self.target, pjt_cav)
+                        _handler_base.HandlerBase.set_angle_from_cavity(
+                            self.target, pjt_cav)
                     else:
                         _handler_base.HandlerBase.reset_angle(self.target)
 
             else:  # Cavity
-                pjt_cav = snapped.db_obj
+                pjt_cav = snapped.db_obj  # NOQA
                 if self._is_dummy_pin:
                     gender = pjt_cav.housing.part.gender.name.lower()
                     if gender == 'male':
@@ -245,7 +279,8 @@ class Seal(_base.AddHandlerBase):
                 point = _point.Point(x, y, z)
 
                 if prev_snapped is not snapped:
-                    _handler_base.HandlerBase.set_angle_from_cavity(self.target, pjt_cav)
+                    _handler_base.HandlerBase.set_angle_from_cavity(
+                        self.target, pjt_cav)
 
             self._snapped = snapped
 
@@ -263,14 +298,19 @@ class Seal(_base.AddHandlerBase):
                 for h in self.mainframe.project.housings:
                     h.identify(None)
 
-                self._snapped.db_obj.seal_position3d.attach(self.target.db_obj.position3d)
+                self._snapped.db_obj.seal_position3d.attach(
+                    self.target.db_obj.position3d)
+
                 # Peg-board equivalent -- same shared-point .attach(), just
                 # on position_pegboard/seal_position_pegboard instead of
                 # position3d/seal_position3d. Confirmed 2026-09-11 (Kevin).
                 self._snapped.db_obj.seal_position_pegboard.attach(
                     self.target.db_obj.position_pegboard)
+
                 self.target.db_obj.housing_id = self._snapped.db_obj.db_id
-                _handler_base.HandlerBase.set_angle_from_housing(self.target, self._snapped)
+
+                _handler_base.HandlerBase.set_angle_from_housing(
+                    self.target, self._snapped)
 
             elif isinstance(self._snapped, _terminal.Terminal):
                 for t in self.mainframe.project.terminals:
@@ -278,7 +318,8 @@ class Seal(_base.AddHandlerBase):
 
                 pjt_cav = self._snapped.db_obj.cavity
                 if pjt_cav is not None:
-                    _handler_base.HandlerBase.set_angle_from_cavity(self.target, pjt_cav)
+                    _handler_base.HandlerBase.set_angle_from_cavity(
+                        self.target, pjt_cav)
 
                 self.target.db_obj.terminal_id = self._snapped.db_obj.db_id
 
@@ -294,7 +335,9 @@ class Seal(_base.AddHandlerBase):
                 for cav in self.mainframe.project.cavities:
                     cav.identify(None)
 
-                _handler_base.HandlerBase.set_angle_from_cavity(self.target, self._snapped.db_obj)
+                _handler_base.HandlerBase.set_angle_from_cavity(
+                    self.target, self._snapped.db_obj)
+
                 self.target.db_obj.cavity_id = self._snapped.db_obj.db_id
 
                 # Peg-board equivalent of hover()'s own dummy-pin/gender

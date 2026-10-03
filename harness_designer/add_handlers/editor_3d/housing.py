@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Single-click housing placement for the 3D editor.
+"""
+Single-click housing placement for the 3D editor.
 
 Ported from ``handlers.housing_handler.AddHousingHandler`` -- a housing
 floats freely (no attach targets, no snapping, unlike a wire), so this
@@ -23,7 +24,9 @@ if TYPE_CHECKING:
 
 
 class Housing(_base.AddHandlerBase):
-    """Single-click housing placement -- see the module docstring."""
+    """
+    Single-click housing placement -- see the module docstring.
+    """
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
@@ -39,10 +42,10 @@ class Housing(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -55,7 +58,10 @@ class Housing(_base.AddHandlerBase):
             self._follow(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._follow(current_pos)
 
             self.mainframe.project.add_housing(self.target)
@@ -75,8 +81,8 @@ class Housing(_base.AddHandlerBase):
             peg_pos = self.target.objpegboard.position
             peg_pos += pos
 
-            self.target.db_obj.update_cavities()
-            self.target.obj3d.match_cavity_surfaces()
+            self.target.db_obj.update_cavities()  # NOQA
+            self.target.obj3d.match_cavity_surfaces()  # NOQA
 
             self._finalized = True
             return True

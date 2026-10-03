@@ -13,6 +13,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
 from .. import base as _base
 from ... import check_types as _check_types
+from ...shapes import text as _text
 
 
 if TYPE_CHECKING:
@@ -37,10 +38,10 @@ class Note(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -53,7 +54,10 @@ class Note(_base.AddHandlerBase):
             self._follow(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._follow(current_pos)
 
             self.mainframe.project.add_note(self.target)
@@ -70,7 +74,6 @@ class Note(_base.AddHandlerBase):
             # with its very first rendered frame instead of however it
             # happens to be oriented until the user next nudges the
             # camera.
-            from ...shapes import text as _text
             _text.update_camera_tracking(self.camera)
 
             self._finalized = True
@@ -80,7 +83,7 @@ class Note(_base.AddHandlerBase):
 
     @_check_types.do
     def _follow(self, mouse_pos: _point.Point) -> None:
-        position = self.target.db_obj.position3d
+        position = self.target.db_obj.position3d  # NOQA
         world_pos = self.camera.get_position_on_focal_plane(mouse_pos)
         position += world_pos - position
 

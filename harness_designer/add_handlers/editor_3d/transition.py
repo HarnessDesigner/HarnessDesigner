@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Transition placement for the 3D editor -- rewritten (2026-09-27) to
+"""
+Transition placement for the 3D editor -- rewritten (2026-09-27) to
 match `BUNDLE_PLACEMENT.md` section 4's decided design, replacing the
 previous bundle-snap-only implementation (which `BUNDLE_PLACEMENT.md`
 section 8 already called out for full replacement, and which in fact
@@ -64,10 +65,12 @@ from typing import TYPE_CHECKING
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
+from ...geometry import angle as _angle
 from ...objects import bundle as _bundle
 from .. import base as _base
 from ... import check_types as _check_types
-
+from ...handlers import transition_handler as _transition_handler
+from ...gl import object_picker as _object_picker
 
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
@@ -75,14 +78,21 @@ if TYPE_CHECKING:
 
 
 class Transition(_base.AddHandlerBase):
-    """Free or bundle-end-snapping transition placement -- see the module
-    docstring."""
+    """
+    Free or bundle-end-snapping transition placement -- see the module
+    docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part_id: bytes,
-        part, highlight_material
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        part_id: bytes,
+        part,
+        highlight_material
     ):
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -102,10 +112,10 @@ class Transition(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -118,7 +128,10 @@ class Transition(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._on_click(current_pos)
             return True
 
@@ -128,16 +141,17 @@ class Transition(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        from ...handlers import transition_handler as _transition_handler
-        from ...gl import object_picker as _object_picker
-
         bundle_end = _transition_handler._find_free_bundle_end(  # NOQA
             mouse_pos, self.camera, self.mainframe.project)
 
         if bundle_end is None:
             self._clear_bundle_hover()
-            self._move_target_to(self.camera.get_position_on_focal_plane(mouse_pos))
+
+            self._move_target_to(
+                self.camera.get_position_on_focal_plane(mouse_pos))
+
             self.target.obj3d.is_visible = True
+
             return
 
         bundle, endpoint = bundle_end
@@ -148,8 +162,11 @@ class Transition(_base.AddHandlerBase):
             self._snapped_bundle = bundle
             self._snapped_endpoint = endpoint
 
-        end_position = (bundle.obj3d.start_position if endpoint == 'start'
-                        else bundle.obj3d.stop_position)
+        if endpoint == 'start':
+            end_position = bundle.obj3d.start_position
+        else:
+            end_position = bundle.obj3d.stop_position
+
         self._move_target_to(end_position)
         self.target.obj3d.is_visible = True
 
@@ -159,8 +176,11 @@ class Transition(_base.AddHandlerBase):
         # resolve it any more; the transition itself now owns hit-
         # testing its own branches directly.
         origin, direc = _object_picker._build_ray(mouse_pos, self.camera)  # NOQA
-        selected = (None if origin is None else
-                    self.target.obj3d.hit_test_branch_ray(origin, direc))
+
+        if origin is None:
+            selected = None
+        else:
+            selected = self.target.obj3d.hit_test_branch_ray(origin, direc)
 
         if selected is not self._hovered_branch:
             self._clear_branch_hover()
@@ -168,7 +188,12 @@ class Transition(_base.AddHandlerBase):
             if selected is not None:
                 diameter = _transition_handler.RouteThroughTransitionHandler._diameter_of(bundle)  # NOQA
                 fits = self.target.obj3d.branch_fits(selected, diameter)
-                mat = _transition_handler._BRANCH_FIT if fits else _transition_handler._BRANCH_NO_FIT  # NOQA
+
+                if fits:
+                    mat = _transition_handler._BRANCH_FIT  # NOQA
+                else:
+                    mat = _transition_handler._BRANCH_NO_FIT  # NOQA
+
                 self.target.obj3d.highlight_branch(selected, mat)
                 self._hovered_branch = selected
 
@@ -198,6 +223,7 @@ class Transition(_base.AddHandlerBase):
     def _on_click(self, _mouse_pos: _point.Point) -> None:
         if self._snapped_bundle is None:
             self._commit_free()
+
             return
 
         if self._hovered_branch is None:
@@ -206,33 +232,36 @@ class Transition(_base.AddHandlerBase):
             # they want to attach to the end." Stay in placement mode.
             return
 
-        from ...handlers import transition_handler as _transition_handler
-
         diameter = _transition_handler.RouteThroughTransitionHandler._diameter_of(  # NOQA
             self._snapped_bundle)
+
         if not self.target.obj3d.branch_fits(self._hovered_branch, diameter):
             return  # highlighted orange (no fit) -- refuse the pick, stay active
 
-        self._commit_attached(self._snapped_bundle, self._snapped_endpoint, self._hovered_branch)
+        self._commit_attached(self._snapped_bundle,
+                              self._snapped_endpoint,
+                              self._hovered_branch)
 
     @_check_types.do
     def _commit_free(self) -> None:
-        """Place with nothing attached -- section 4's "DECIDED -- free
+        """
+        Place with nothing attached -- section 4's "DECIDED -- free
         placement." Every branch is free; peg-board position is seeded
         automatically from the 3D one by ``objects_pegboard.transition.
         Transition.__init__``'s own existing x/z-projection seed, the
         same as it already does for every fresh transition.
         """
-        from ...geometry import angle as _angle
-        from ...objects import transition as _transition_facade
+
+        from ...objects import transition as _transition
 
         project = self.mainframe.project
         ptables = project.ptables
 
         pos = self.target.obj3d.position
         px, py, pz = float(pos.x), float(pos.y), float(pos.z)
+
         current_angle = self.target.obj3d.angle
-        ax, ay, az = float(current_angle.x), float(current_angle.y), float(current_angle.z)
+        ax, ay, az = current_angle.as_euler_float
 
         self.target.delete()
         self.target = None
@@ -247,29 +276,37 @@ class Transition(_base.AddHandlerBase):
         for branch_id in range(1, self._part.branch_count + 1):
             g_br = self._part.branches[branch_id - 1]
             pt_db = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0)
+
             ptables.pjt_transition_branches_table.insert(
-                g_br.db_id, transition_db.db_id, pt_db.db_id, branch_id, float(g_br.min_dia))
+                g_br.db_id, transition_db.db_id, pt_db.db_id,
+                branch_id, float(g_br.min_dia))
+
             # No concentric row, no wires -- section 4's "a new transition
             # has all branches free," and see TRANSITION_EDITOR_DIALOG.md
             # section 7.10 for why a transition branch needs neither at
             # all any more.
 
-        transition_obj = _transition_facade.Transition(self.mainframe, transition_db)
+        transition_obj = _transition.Transition(self.mainframe, transition_db)
         project.add_transition(transition_obj)
 
         self._finalized = True
 
     @_check_types.do
-    def _commit_attached(self, bundle: _bundle.Bundle, endpoint: str, branch) -> None:
-        """Place with the chosen branch attached to *bundle*'s free
+    def _commit_attached(
+        self,
+        bundle: _bundle.Bundle,
+        endpoint: str, branch
+    ) -> None:
+
+        """
+        Place with the chosen branch attached to *bundle*'s free
         *endpoint* -- section 4's "DECIDED -- placement at the end of a
         bundle" and section 5's "the bundle's start/stop point and the
         branch's position point are the same row." Every OTHER branch is
         left free, same as the free-placement case.
         """
-        from ...geometry import angle as _angle
-        from ...objects import transition as _transition_facade
-        from ...handlers import transition_handler as _transition_handler
+
+        from ...objects import transition as _transition
 
         project = self.mainframe.project
         ptables = project.ptables
@@ -284,11 +321,14 @@ class Transition(_base.AddHandlerBase):
         catalog_branch = self._part.branches[branch_id - 1]
         local_direction = _transition_handler._branch_local_direction(catalog_branch)  # NOQA
 
-        end_point_id = (bundle.db_obj.start_position3d_id if endpoint == 'start'
-                        else bundle.db_obj.stop_position3d_id)
-        end_position = (bundle.obj3d.start_position if endpoint == 'start'
-                        else bundle.obj3d.stop_position)
-        ex, ey, ez = float(end_position.x), float(end_position.y), float(end_position.z)
+        if endpoint == 'start':
+            end_point_id = bundle.db_obj.start_position3d_id
+            end_position = bundle.obj3d.start_position
+        else:
+            end_point_id = bundle.db_obj.stop_position3d_id
+            end_position = bundle.obj3d.stop_position
+
+        ex, ey, ez = end_position.as_float
 
         bundle.identify(None)
         self._clear_branch_hover()
@@ -309,16 +349,19 @@ class Transition(_base.AddHandlerBase):
                 # bundle's existing endpoint row, not a new one.
                 point_id = end_point_id
             else:
-                point_id = ptables.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+                point_id = ptables.pjt_points3d_table.insert(
+                    0.0, 0.0, 0.0).db_id
 
             ptables.pjt_transition_branches_table.insert(
-                g_br.db_id, transition_db.db_id, point_id, i, float(g_br.min_dia))
+                g_br.db_id, transition_db.db_id,
+                point_id, i, float(g_br.min_dia))
+
             # No concentric row, no wires -- see _commit_free's own comment.
 
         _transition_handler._align_branch_to_bundle(  # NOQA
             transition_db, local_direction, bundle, endpoint)
 
-        transition_obj = _transition_facade.Transition(self.mainframe, transition_db)
+        transition_obj = _transition.Transition(self.mainframe, transition_db)
         transition_obj.add_bundle(bundle, endpoint, branch_id)
         project.add_transition(transition_obj)
 

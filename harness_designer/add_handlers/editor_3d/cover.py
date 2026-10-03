@@ -17,6 +17,7 @@ from ...handlers import handler_base as _handler_base
 from ...geometry import point as _point
 from .. import base as _base
 from ... import check_types as _check_types
+from ... import utils as _utils
 
 
 if TYPE_CHECKING:
@@ -30,9 +31,13 @@ class Cover(_base.AddHandlerBase):
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
-        housing: Union["_housing.Housing", None], project_housings: list
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        housing: Union["_housing.Housing", None],
+        project_housings: list
     ):
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -49,10 +54,10 @@ class Cover(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -65,7 +70,10 @@ class Cover(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize()
             return True
 
@@ -74,8 +82,6 @@ class Cover(_base.AddHandlerBase):
     @property
     @_check_types.do
     def snap_pool(self):
-        from ... import utils as _utils
-
         housings = []
         positions = []
 
@@ -110,7 +116,8 @@ class Cover(_base.AddHandlerBase):
             self._snapped = housing
 
             if prev_snapped is not housing:
-                _handler_base.HandlerBase.set_angle_from_housing(self.target, housing)
+                _handler_base.HandlerBase.set_angle_from_housing(
+                    self.target, housing)
 
         position = self.target.db_obj.position3d
         delta = point - position
@@ -125,9 +132,13 @@ class Cover(_base.AddHandlerBase):
             for housing in self.mainframe.project.housings:
                 housing.identify(None)
 
-            self._snapped.db_obj.cover_position3d.attach(self.target.db_obj.position3d)
+            self._snapped.db_obj.cover_position3d.attach(
+                self.target.db_obj.position3d)
+
             self.target.db_obj.housing_id = self._snapped.db_obj.db_id
-            _handler_base.HandlerBase.set_angle_from_housing(self.target, self._snapped)
+
+            _handler_base.HandlerBase.set_angle_from_housing(
+                self.target, self._snapped)
 
         self._finalized = True
         self.mainframe.project.add_cover(self.target)

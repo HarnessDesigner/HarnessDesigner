@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Two-click interactive wire placement for the 3D editor.
+"""
+Two-click interactive wire placement for the 3D editor.
 
 Ported from ``handlers.wire_handler.AddWireHandler`` -- the underlying
 mechanics (phase 0/1 hover-preview + click-to-commit state machine, snap
@@ -66,15 +67,25 @@ _SNAP_THRESHOLD = 5.0
 
 
 class Wire(_base.AddHandlerBase):
-    """Two-click wire placement session -- see the module docstring."""
+    """
+    Two-click wire placement session -- see the module docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part_id: bytes,
-        phase: int, growing_end: str = 'stop', preexisting_wire: bool = False,
-        start_circuit_id=None, extension_mode: bool = False, source_wire=None,
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        part_id: bytes,
+        phase: int,
+        growing_end: str = 'stop',
+        preexisting_wire: bool = False,
+        start_circuit_id=None,
+        extension_mode: bool = False,
+        source_wire=None,
         source_endpoint: str | None = None,
     ):
+
         super().__init__(canvas, target)
 
         self.mainframe: "_ui.MainFrame" = canvas.mainframe
@@ -119,9 +130,14 @@ class Wire(_base.AddHandlerBase):
         # see CanvasWindowBase.objects_in_window's own docstring.
         self._overlay = _wire_snap.SnapOverlay(canvas._canvas)  # NOQA
 
-        self._terminal_highlight = _materials.Plastic(_color.Color(*Config.add_object.terminal_highlight))
-        self._wire_layout_highlight = _materials.Plastic(_color.Color(*Config.add_object.wire_highlight))
-        self._splice_highlight = _materials.Plastic(_color.Color(*Config.add_object.splice_highlight))
+        self._terminal_highlight = _materials.Plastic(
+            _color.Color(*Config.add_object.terminal_highlight))
+
+        self._wire_layout_highlight = _materials.Plastic(
+            _color.Color(*Config.add_object.wire_highlight))
+
+        self._splice_highlight = _materials.Plastic(
+            _color.Color(*Config.add_object.splice_highlight))
 
     @property
     @_check_types.do
@@ -133,32 +149,38 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
             self.cancel()
             self._finalized = True
+
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
             self.hover(current_pos)
+
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
-            if self._phase == 0:
-                self._handle_first_click(current_pos)
-            else:
-                self._handle_second_click(current_pos)
-            return True
+        if not had_motion:
 
-        if interaction_type is _interaction.MouseInteraction.RIGHT_UP and not had_motion:
-            self.finalize_at_last_point()
-            return True
+            if interaction_type is _interaction.MouseInteraction.LEFT_UP:
+                if self._phase == 0:
+                    self._handle_first_click(current_pos)
+                else:
+                    self._handle_second_click(current_pos)
+
+                return True
+
+            if interaction_type is _interaction.MouseInteraction.RIGHT_UP:
+                self.finalize_at_last_point()
+
+                return True
 
         return False
 
@@ -182,16 +204,23 @@ class Wire(_base.AddHandlerBase):
         if wire_part is None:
             return
 
-        if self._snap_probes is not None and self._snap_probes_part_id == wire_part.db_id:
+        if (
+            self._snap_probes is not None and
+            self._snap_probes_part_id == wire_part.db_id
+        ):
             return
 
         if self._snap_probes is not None:
             self._snap_probes.close()
 
-        exclude_wire = self._source_wire if self._extension_mode else self.target
+        if self._extension_mode:
+            exclude_wire = self._source_wire
+        else:
+            exclude_wire = self.target
 
         self._snap_probes = _wire_snap_3d.SnapProbeSet(
             self.mainframe, wire_part, exclude_wire=exclude_wire)
+
         self._snap_probes_part_id = wire_part.db_id
 
     @_check_types.do
@@ -222,6 +251,7 @@ class Wire(_base.AddHandlerBase):
     def _growing_point(self) -> _point.Point:
         if self._growing_end == 'stop':
             return self.target.obj3d.stop_position
+
         return self.target.obj3d.start_position
 
     @_check_types.do
@@ -265,6 +295,7 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def _project_extension(self, world_np):
         t = float(np.dot(world_np - self._extension_origin, self._extension_dir))
+
         return self._extension_origin + max(0.0, t) * self._extension_dir
 
     @_check_types.do
@@ -272,9 +303,10 @@ class Wire(_base.AddHandlerBase):
         proj = self._project_extension(world_np)
         proj_pt = _point.Point(*proj)
 
-        ep = (self._source_wire.obj3d.stop_position
-              if self._source_endpoint == 'stop'
-              else self._source_wire.obj3d.start_position)
+        if self._source_endpoint == 'stop':
+            ep = self._source_wire.obj3d.stop_position
+        else:
+            ep = self._source_wire.obj3d.start_position
 
         ep += proj_pt - ep
 
@@ -300,36 +332,46 @@ class Wire(_base.AddHandlerBase):
     def _hover_extension(self, mouse_pos: _point.Point) -> None:
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
-        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
+        picked = _object_picker.find_object(
+            mouse_pos, self.camera, self.camera.canvas)
+
         kind, target = _wire_snap.get_snap_info(picked)
 
         wire_part = self._get_wire_part()
 
         if kind is not None:
             if kind == 'terminal':
-                _ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(target, wire_part)
+                _ok, block_msg, warning_msg = (
+                    _wire_snap.check_terminal_compat(target, wire_part))
             elif kind == 'splice':
-                _ok, block_msg, warning_msg = _wire_snap.check_splice_compat(target, wire_part)
+                _ok, block_msg, warning_msg = (
+                    _wire_snap.check_splice_compat(target, wire_part))
             else:
                 block_msg, warning_msg = None, None
 
             if block_msg:
-                self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                self._overlay.show_message(
+                    mouse_pos, block_msg, blocking=True)
             elif warning_msg:
-                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                self._overlay.show_message(
+                    mouse_pos, warning_msg, blocking=False)
             else:
                 self._overlay.hide_message()
 
             target_point = _wire_snap.snap_point(kind, target)
-            ep = (self._source_wire.obj3d.stop_position
-                  if self._source_endpoint == 'stop'
-                  else self._source_wire.obj3d.start_position)
+
+            if self._source_endpoint == 'stop':
+                ep = self._source_wire.obj3d.stop_position
+            else:
+                ep = self._source_wire.obj3d.start_position
+
             ep += target_point - ep
 
             self._extension_snap_kind = kind
             self._extension_snap_target = target
 
             self.mainframe.editor3d.Refresh(False)
+
             return
 
         self._extension_snap_kind = None
@@ -340,15 +382,19 @@ class Wire(_base.AddHandlerBase):
 
     @_check_types.do
     def _hover_phase0(self, mouse_pos: _point.Point) -> None:
-        """Free-space start only (every other entry point skips phase 0
+        """
+        Free-space start only (every other entry point skips phase 0
         entirely) -- mirrors _hover_phase1's own shape (highlight a
         valid attach target with a compat warning, else live-preview the
         growing point at the cursor), growing 'start' instead of 'stop'.
         """
+
         wire_part = self._get_wire_part()
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
-        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
+        picked = _object_picker.find_object(
+            mouse_pos, self.camera, self.camera.canvas)
+
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:
@@ -357,15 +403,21 @@ class Wire(_base.AddHandlerBase):
         if isinstance(picked, _terminal.Terminal):
             warning_msg = None
             if wire_part is not None:
-                ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
+                ok, block_msg, warning_msg = (
+                    _wire_snap.check_terminal_compat(picked, wire_part))
+
                 if not ok:
-                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                    self._overlay.show_message(
+                        mouse_pos, block_msg, blocking=True)
+
                     self._clear_hover()
                     self._update_preview_stop(picked.db_obj.attach_position3d)
+
                     return
 
             if warning_msg:
-                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                self._overlay.show_message(
+                    mouse_pos, warning_msg, blocking=False)
             else:
                 self._overlay.hide_message()
 
@@ -375,15 +427,21 @@ class Wire(_base.AddHandlerBase):
         elif isinstance(picked, _splice.Splice):
             warning_msg = None
             if wire_part is not None:
-                ok, block_msg, warning_msg = _wire_snap.check_splice_compat(picked, wire_part)
+                ok, block_msg, warning_msg = (
+                    _wire_snap.check_splice_compat(picked, wire_part))
+
                 if not ok:
-                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                    self._overlay.show_message(
+                        mouse_pos, block_msg, blocking=True)
+
                     self._clear_hover()
                     self._update_preview_stop(picked.obj3d.wire_position)
+
                     return
 
             if warning_msg:
-                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                self._overlay.show_message(
+                    mouse_pos, warning_msg, blocking=False)
             else:
                 self._overlay.hide_message()
 
@@ -407,7 +465,9 @@ class Wire(_base.AddHandlerBase):
 
         world_pos_pt = self.camera.get_position_on_focal_plane(mouse_pos)
 
-        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
+        picked = _object_picker.find_object(
+            mouse_pos, self.camera, self.camera.canvas)
+
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:
@@ -416,15 +476,21 @@ class Wire(_base.AddHandlerBase):
         if isinstance(picked, _terminal.Terminal):
             warning_msg = None
             if wire_part is not None:
-                ok, block_msg, warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
+                ok, block_msg, warning_msg = (
+                    _wire_snap.check_terminal_compat(picked, wire_part))
+
                 if not ok:
-                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                    self._overlay.show_message(
+                        mouse_pos, block_msg, blocking=True)
+
                     self._clear_hover()
                     self._update_preview_stop(picked.obj3d.position)
+
                     return
 
             if warning_msg:
-                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                self._overlay.show_message(
+                    mouse_pos, warning_msg, blocking=False)
             else:
                 self._overlay.hide_message()
 
@@ -434,8 +500,12 @@ class Wire(_base.AddHandlerBase):
         elif isinstance(picked, _wire_layout.WireLayout):
             self._overlay.hide_message()
 
-            from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
-            end_wire, _end = _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id)
+            # NOQA -- avoid a cycle at import time
+            from ...drag_handlers.editor_3d import wire as _wire_3d
+
+            end_wire, _end = (
+                _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id))
+
             if end_wire is not None:
                 self._set_hover_obj(picked, self._wire_layout_highlight)
             else:
@@ -446,15 +516,20 @@ class Wire(_base.AddHandlerBase):
         elif isinstance(picked, _splice.Splice):
             warning_msg = None
             if wire_part is not None:
-                ok, block_msg, warning_msg = _wire_snap.check_splice_compat(picked, wire_part)
+                ok, block_msg, warning_msg = (
+                    _wire_snap.check_splice_compat(picked, wire_part))
                 if not ok:
-                    self._overlay.show_message(mouse_pos, block_msg, blocking=True)
+                    self._overlay.show_message(
+                        mouse_pos, block_msg, blocking=True)
+
                     self._clear_hover()
                     self._update_preview_stop(picked.obj3d.wire_position)
+
                     return
 
             if warning_msg:
-                self._overlay.show_message(mouse_pos, warning_msg, blocking=False)
+                self._overlay.show_message(
+                    mouse_pos, warning_msg, blocking=False)
             else:
                 self._overlay.hide_message()
 
@@ -471,21 +546,29 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _handle_first_click(self, mouse_pos: _point.Point) -> None:
-        """Lock the start point at wherever hover last left it (or
+    def _handle_first_click(self, mouse_pos: _point.Point) -> None:  # NOQA
+        """
+        Lock the start point at wherever hover last left it (or
         whatever it's attached to) and move on to phase 1 -- free-space
         start only, see the module docstring.
         """
+
         wire_part = self._get_wire_part()
 
         if isinstance(self._hover_obj, _terminal.Terminal):
             terminal = self._hover_obj
 
-            ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, wire_part) \
-                if wire_part is not None else (True, None, None)
+            if wire_part is not None:
+                ok, block_msg, _warning_msg = (
+                    _wire_snap.check_terminal_compat(terminal, wire_part))
+            else:
+                ok, block_msg, _warning_msg = (True, None, None)
+
             if not ok:
                 block_msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                button = QMessageBox.question(
+                    self.mainframe, 'Incompatible Wire', block_msg)
+
                 if button == QMessageBox.StandardButton.No:
                     return
 
@@ -498,11 +581,17 @@ class Wire(_base.AddHandlerBase):
         elif isinstance(self._hover_obj, _splice.Splice):
             splice = self._hover_obj
 
-            ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(splice, wire_part) \
-                if wire_part is not None else (True, None, None)
+            if wire_part is not None:
+                ok, block_msg, _warning_msg = (
+                    _wire_snap.check_splice_compat(splice, wire_part))
+            else:
+                ok, block_msg, _warning_msg = (True, None, None)
+
             if not ok:
                 block_msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                button = QMessageBox.question(
+                    self.mainframe, 'Incompatible Wire', block_msg)
+
                 if button == QMessageBox.StandardButton.No:
                     return
 
@@ -518,6 +607,7 @@ class Wire(_base.AddHandlerBase):
 
         elif isinstance(self._hover_obj, _wire_layout.WireLayout):
             layout = self._hover_obj
+
             attached = layout.db_obj.attached_wires
             if attached:
                 self.part_id = attached[0].part_id
@@ -553,7 +643,9 @@ class Wire(_base.AddHandlerBase):
             self._finalized = True
             return
 
-        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
+        picked = _object_picker.find_object(
+            mouse_pos, self.camera, self.camera.canvas)
+
         picked = _wire_snap.resolve_picked(picked)
 
         if picked is self.target:
@@ -563,10 +655,14 @@ class Wire(_base.AddHandlerBase):
 
         if isinstance(picked, _terminal.Terminal):
             if wire_part is not None:
-                ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(picked, wire_part)
+                ok, block_msg, _warning_msg = (
+                    _wire_snap.check_terminal_compat(picked, wire_part))
+
                 if not ok:
                     block_msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                    button = QMessageBox.question(
+                        self.mainframe, 'Incompatible Wire', block_msg)
+
                     if button == QMessageBox.StandardButton.No:
                         return
 
@@ -578,26 +674,36 @@ class Wire(_base.AddHandlerBase):
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
         elif isinstance(picked, _wire_layout.WireLayout):
-            from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
+            # NOQA -- avoid a cycle at import time
+            from ...drag_handlers.editor_3d import wire as _wire_3d
 
-            end_wire, other_end = _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id)
+            end_wire, other_end = (
+                _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id))
+
             if end_wire is not None:
                 merged = _wire_3d.Wire.merge_wire_into(
-                    project, self.target, end_wire, other_end, own_end=self._growing_end)
+                    project, self.target, end_wire,
+                    other_end, own_end=self._growing_end)
+
                 self.target = merged
                 self.target.identify(None)
                 self._cleanup()
                 self._destroy_overlay()
                 self._finalized = True
+
                 return
             # else: mid-wire or mismatched part -- preview stop already at world pos; keep as-is
 
         elif isinstance(picked, _splice.Splice):
             if wire_part is not None:
-                ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(picked, wire_part)
+                ok, block_msg, _warning_msg = (
+                    _wire_snap.check_splice_compat(picked, wire_part))
+
                 if not ok:
                     block_msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                    button = QMessageBox.question(
+                        self.mainframe, 'Incompatible Wire', block_msg)
+
                     if button == QMessageBox.StandardButton.No:
                         return
 
@@ -614,15 +720,18 @@ class Wire(_base.AddHandlerBase):
             _wire_reroute.on_wire_attached(project, self.target)
 
             branch_id = picked.db_obj.branch_position3d_id
+
             existing_layout = self.ptables.pjt_wire_layouts_table.select(
                 'id', position3d_id=branch_id)
+
             if not existing_layout:
                 layout_db = self.ptables.pjt_wire_layouts_table.insert(branch_id)
                 layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
                 project.add_wire_layout(layout_obj)
 
         elif isinstance(picked, _wire.Wire):
-            from ...drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
+            # NOQA -- avoid a cycle at import time
+            from ...drag_handlers.editor_3d import wire as _wire_3d
 
             world_np = self.camera.get_position_on_focal_plane(mouse_pos).as_numpy
             start_np = picked.obj3d.start_position.as_numpy
@@ -635,22 +744,32 @@ class Wire(_base.AddHandlerBase):
                 return
 
             if picked.db_obj.part_id != self.target.db_obj.part_id:
-                self._overlay.show_message(mouse_pos, 'Different wire part — cannot join')
+                self._overlay.show_message(
+                    mouse_pos, 'Different wire part — cannot join')
+
                 return
 
-            other_end = 'start' if near_start else 'stop'
+            if near_start:
+                other_end = 'start'
+            else:
+                other_end = 'stop'
+
             merged = _wire_3d.Wire.merge_wire_into(
-                project, self.target, picked, other_end, own_end=self._growing_end)
+                project, self.target, picked,
+                other_end, own_end=self._growing_end)
+
             self.target = merged
 
             self.target.identify(None)
             self._cleanup()
             self._destroy_overlay()
             self._finalized = True
+
             return
 
         else:
             self._commit_waypoint()
+
             return
 
         if circuit_id != self._start_circuit_id:

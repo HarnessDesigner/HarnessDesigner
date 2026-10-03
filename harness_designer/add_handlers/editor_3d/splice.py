@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Wire-snapping splice placement for the 3D editor.
+"""
+Wire-snapping splice placement for the 3D editor.
 
 Ported from ``handlers.splice_handler.AddSpliceHandler`` -- the preview
 splice is rebuilt (deleted and recreated) every time the wire it's
@@ -40,13 +41,22 @@ if TYPE_CHECKING:
 
 
 class Splice(_base.AddHandlerBase):
-    """Wire-snapping splice placement -- see the module docstring."""
+    """
+    Wire-snapping splice placement -- see the module docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part_id: bytes,
-        part, preview_material, compat_material, snapped_wire=None
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        part_id: bytes,
+        part,
+        preview_material,
+        compat_material,
+        snapped_wire=None
     ):
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -69,10 +79,10 @@ class Splice(_base.AddHandlerBase):
         return obj.obj3d
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -85,23 +95,32 @@ class Splice(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize(current_pos)
+
             return True
 
         return False
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
+        picked = _object_picker.find_object(
+            mouse_pos, self.camera, self.camera.canvas)
 
-        wire = picked if isinstance(picked, _wire.Wire) else None
+        if isinstance(picked, _wire.Wire):
+            wire = picked
+        else:
+            wire = None
 
         if wire is None or not _splice_handler._wire_fits(self._part, wire):  # NOQA
             if self.target is not None:
                 self.target.obj3d.is_visible = False
 
             self._snapped_wire = None
+
             return
 
         if wire is not self._snapped_wire:
@@ -126,12 +145,14 @@ class Splice(_base.AddHandlerBase):
 
     @_check_types.do
     def _recreate_preview(self, wire: _wire.Wire) -> None:
-        """Tear down the current preview (if any -- the placeholder
+        """
+        Tear down the current preview (if any -- the placeholder
         built at arm time, or whichever wire's preview this replaces)
         and build a new one locked to *wire*, re-arming this same
         session on the new facade's own view instance.
         """
-        from ...objects import splice as _splice_facade
+
+        from ...objects import splice as _splice
 
         if self.target is not None:
             self.target.delete()
@@ -143,6 +164,7 @@ class Splice(_base.AddHandlerBase):
         seg_len = float(np.linalg.norm(seg))
         if seg_len < 1e-8:
             self._snapped_wire = None
+
             return
 
         direction = seg / seg_len
@@ -161,9 +183,10 @@ class Splice(_base.AddHandlerBase):
 
         db_obj = ptables.pjt_splices_table.insert(
             self._part_id, name,
-            start_db.db_id, stop_db.db_id, branch_db.db_id, None, None)
+            start_db.db_id, stop_db.db_id, branch_db.db_id,
+            None, None)
 
-        facade = _splice_facade.Splice(self.mainframe, db_obj)
+        facade = _splice.Splice(self.mainframe, db_obj)
         facade.identify(self._preview_material)
 
         self.target = facade
@@ -188,6 +211,7 @@ class Splice(_base.AddHandlerBase):
             self.target.delete()
             self.target = None
             self._finalized = True
+
             return
 
         direction = wire_angle.as_matrix_numpy[:, 2]

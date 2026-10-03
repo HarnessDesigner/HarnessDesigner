@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-"""Interactive cavity-snapping terminal placement for the 3D editor.
+"""
+Interactive cavity-snapping terminal placement for the 3D editor.
 
 Ported from ``handlers.terminal_handler.AddTerminalHandler`` -- only its
 Mode 2 ("housing given, snap to that housing's own empty cavities") and
@@ -36,13 +37,20 @@ if TYPE_CHECKING:
 
 
 class Terminal(_base.AddHandlerBase):
-    """Cavity-snapping terminal placement -- see the module docstring."""
+    """
+    Cavity-snapping terminal placement -- see the module docstring.
+    """
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part,
-        project_cavities: list, is_male: bool
+        self,
+        canvas: "_canvas.Canvas",
+        target: "_objects.ObjectBase",
+        part,
+        project_cavities: list,
+        is_male: bool
     ):
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -60,10 +68,10 @@ class Terminal(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
-    ) -> bool:
+    def __call__(self, last_pos, current_pos, had_motion: bool,
+                 interaction_type: _interaction.MouseInteraction,
+                 clicked_object) -> bool:
+
         if self._finalized:
             return False
 
@@ -76,7 +84,10 @@ class Terminal(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize()
             return True
 
@@ -93,9 +104,11 @@ class Terminal(_base.AddHandlerBase):
                 continue
 
             if self._is_male:
-                x, y, z = _terminal_handler._male_terminal_position(self._part, cavity.db_obj)  # NOQA
+                x, y, z = _terminal_handler._male_terminal_position(  # NOQA
+                    self._part, cavity.db_obj)
             else:
-                x, y, z = _terminal_handler._female_terminal_position(self._part, cavity.db_obj)  # NOQA
+                x, y, z = _terminal_handler._female_terminal_position(  # NOQA
+                    self._part, cavity.db_obj)
 
             positions.append(_point.Point(x, y, z))
             objects.append(cavity)
@@ -113,7 +126,11 @@ class Terminal(_base.AddHandlerBase):
         # against.
         snap_pool = self.snap_pool
         origin, direction = self.camera.get_mouse_ray(mouse_pos)
-        snapped = snap_pool.query_ray(origin, direction) if origin is not None else None
+
+        if origin is None:
+            snapped = None
+        else:
+            snapped = snap_pool.query_ray(origin, direction)
 
         prev_snapped = self._snapped
 
@@ -125,17 +142,20 @@ class Terminal(_base.AddHandlerBase):
                 _handler_base.HandlerBase.reset_angle(self.target)
         else:
             if self._is_male:
-                x, y, z = _terminal_handler._male_terminal_position(self._part, snapped.db_obj)  # NOQA
+                x, y, z = _terminal_handler._male_terminal_position(  # NOQA
+                    self._part, snapped.db_obj)
             else:
-                x, y, z = _terminal_handler._female_terminal_position(self._part, snapped.db_obj)  # NOQA
+                x, y, z = _terminal_handler._female_terminal_position(  # NOQA
+                    self._part, snapped.db_obj)
 
             point = _point.Point(x, y, z)
             self._snapped = snapped
 
             if prev_snapped is not snapped:
-                _handler_base.HandlerBase.set_angle_from_cavity(self.target, snapped.db_obj)
+                _handler_base.HandlerBase.set_angle_from_cavity(
+                    self.target, snapped.db_obj)
 
-        position = self.target.db_obj.position3d
+        position = self.target.db_obj.position3d  # NOQA
         position += point - position
 
     @_check_types.do
@@ -147,7 +167,9 @@ class Terminal(_base.AddHandlerBase):
             cavity.identify(None)
 
         self.target.db_obj.cavity_id = self._snapped.db_obj.db_id
-        _handler_base.HandlerBase.set_angle_from_cavity(self.target, self._snapped.db_obj)
+
+        _handler_base.HandlerBase.set_angle_from_cavity(
+            self.target, self._snapped.db_obj)
 
         # Peg-board equivalent of position3d's own live-tracked hover
         # position above -- position3d already ended up correct via
@@ -163,12 +185,12 @@ class Terminal(_base.AddHandlerBase):
             px, py, pz = _terminal_handler._female_terminal_position_pegboard(  # NOQA
                 self._part, self._snapped.db_obj)
 
-        pegboard_position = self.target.db_obj.position_pegboard
+        pegboard_position = self.target.db_obj.position_pegboard  # NOQA
         pegboard_position += _point.Point(px, py, pz) - pegboard_position
 
         self.target.identify(None)
         self.mainframe.project.add_terminal(self.target)
-        self.target.reconnect_free_wires()
+        self.target.reconnect_free_wires()  # NOQA
 
         self._finalized = True
 
