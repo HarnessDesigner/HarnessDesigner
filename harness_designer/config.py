@@ -1364,6 +1364,22 @@ class Config(metaclass=ConfigDB):
         # gaps an unorganized bundle of loose wires actually has.
         unorganized_pack_fudge_factor = 1.25
 
+        class routing(metaclass=ConfigDB):
+            """
+            Shared floor for the two skeleton-routing standoff distances
+            that BUNDLE_DESIGN.md 2.7 says use "the same floor logic":
+            a wire guard's distance from the bundle end it is attached
+            to, and a housing's breakout point's distance from the back
+            of the housing. Both are the larger of guard_distance_min_mm
+            and a bundle's own diameter times guard_distance_diameter_
+            multiple -- see handlers.wire_routing_handler.guard_distance.
+            Placeholder values, not yet tuned against a real project
+            (same caveat as editor_pegboard.rope_pull's own placeholders).
+            """
+
+            guard_distance_min_mm = 10.0
+            guard_distance_diameter_multiple = 2.0
+
     class logging(metaclass=ConfigDB):
         """
         Logging destinations and verbosity settings.
