@@ -255,6 +255,33 @@ class WireRouteMixin:
     _eligible_ends = None
     _eligible_branches = None
 
+    # Class-level placeholders for everything this mixin reads but never
+    # sets itself -- established by WireDragMixin (mixed in alongside
+    # this one, on the concrete WireRoute subclass's OTHER base,
+    # handlers.wire_drag_base.WireDragMixin), never by this mixin's own
+    # __init__ (it has none -- see this mixin's own docstring on why).
+    # WireRouteMixin has no inheritance relationship to WireDragMixin --
+    # they only meet on the concrete subclass -- so without these,
+    # static analysis has no way to know self.canvas/self.target/
+    # self.end/self._moving/self._get_view_object are ever going to
+    # exist. Same convention WireDragMixin itself follows for its own
+    # ``canvas``/``target``/etc. placeholders, for the identical reason.
+    canvas = None
+    target = None
+    end = None
+    _moving = None
+
+    @staticmethod
+    def _get_view_object(obj: object) -> object:
+        """Established by WireDragMixin -- see that class's own
+        docstring. Declared here only so static analysis can resolve
+        ``self._get_view_object(...)`` inside this mixin's own methods;
+        never actually called through this placeholder at runtime (the
+        concrete subclass's MRO always resolves to WireDragMixin's real
+        per-view override instead).
+        """
+        raise NotImplementedError
+
     @_check_types.do
     def _is_routing_eligible(self) -> bool:
         """BUNDLE_PLACEMENT.md section 12's entry precondition: the
