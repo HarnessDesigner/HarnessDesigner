@@ -371,8 +371,9 @@ Contents/structure of the `harness_designer/` package.
   - wire_routing (`wire_routing_handler.py` -- skeleton-first wire routing
     engine, BUNDLE_DESIGN.md 2.7: chain-walk through bundles/transitions,
     guard/housing-breakout-point geometry, commits to `pjt_wire_paths`.
-    3D view only; no UI entry point yet -- see BUNDLE_DESIGN.md section 6's
-    own "wires onto the skeleton" status note)
+    Takes a `view` arg ('3d'/'pegboard') throughout -- same skeleton
+    topology, each view's own point columns; no UI entry point yet -- see
+    BUNDLE_DESIGN.md section 6's own "wires onto the skeleton" status note)
   - wire_service_loop
 
 ## `gl/` (OpenGL)

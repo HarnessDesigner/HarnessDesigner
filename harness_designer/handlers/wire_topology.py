@@ -25,14 +25,31 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def _segment_index(wire: _wire.Wire, position: np.ndarray) -> int:
+def _segment_index(wire: _wire.Wire, position: np.ndarray, view: str = '3d') -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
-    waypoints come before it."""
-    points = [wire.obj3d.start_position.as_numpy]
-    for wp in wire.db_obj.waypoints3d:
+    waypoints come before it. *view* selects which of the wire's
+    independent per-view point lists to walk (``'3d'``, the original and
+    still the default, or ``'pegboard'`` -- added for
+    handlers.wire_routing_handler's own peg-board routing pass; each
+    view's waypoints are independent, per BUNDLE_PLACEMENT.md, so the
+    same *position* against a different view's own list can legitimately
+    return a different index)."""
+    if view == '3d':
+        start = wire.obj3d.start_position.as_numpy
+        stop = wire.obj3d.stop_position.as_numpy
+        waypoints = wire.db_obj.waypoints3d
+    elif view == 'pegboard':
+        start = wire.objpegboard.start_position.as_numpy
+        stop = wire.objpegboard.stop_position.as_numpy
+        waypoints = wire.db_obj.waypoints_pegboard
+    else:
+        raise ValueError(f"view must be '3d' or 'pegboard', got {view!r}")
+
+    points = [start]
+    for wp in waypoints:
         points.append(wp.point.as_numpy)
-    points.append(wire.obj3d.stop_position.as_numpy)
+    points.append(stop)
 
     best_idx = 0
     best_dist = None
