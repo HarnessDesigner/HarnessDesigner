@@ -24,7 +24,7 @@ branch-picking (``_handle_routing_click``/``_handle_exit_click``,
 before this session, and now structurally unreachable rather than just
 unwired (``find_object`` can never resolve to a branch any more, so that
 ``isinstance`` is always ``False``) -- fixing it properly needs the same
-`_object_picker._build_ray`/``hit_test_branch_ray`` swap the other two
+`_object_picker.build_ray`/``hit_test_branch_ray`` swap the other two
 handlers got, folded into its own mixed wire/bundle/branch pick logic;
 left for whoever actually revives this handler, since there is still no
 way to exercise or verify it.
@@ -60,9 +60,13 @@ if TYPE_CHECKING:
 Config = _config.Config.colors
 _SNAP_THRESHOLD = 5.0
 
-_HOVER_HIGHLIGHT = _materials.Plastic(_color.Color(0.2, 0.6, 1.0, 0.8))
-_BRANCH_FIT = _materials.Plastic(_color.Color(0.3, 1.0, 0.3, 1.0))
-_BRANCH_NO_FIT = _materials.Plastic(_color.Color(1.0, 0.4, 0.0, 1.0))
+# Public (not module-private): used by several other modules directly
+# (add_handlers.editor_3d.bundle/transition, handlers.wire_routing_drag)
+# for the same green/orange/blue fit-highlight materials this module's
+# own branch-highlighting code uses.
+HOVER_HIGHLIGHT = _materials.Plastic(_color.Color(0.2, 0.6, 1.0, 0.8))
+BRANCH_FIT = _materials.Plastic(_color.Color(0.3, 1.0, 0.3, 1.0))
+BRANCH_NO_FIT = _materials.Plastic(_color.Color(1.0, 0.4, 0.0, 1.0))
 
 
 # ---------------------------------------------------------------------------
@@ -363,7 +367,7 @@ def _find_bundle(mouse_pos: _point.Point, camera: "_camera.Camera",
 
 
 @_check_types.do
-def _is_bundle_end_free(ptables: object, bundle: _bundle.Bundle, endpoint: str) -> bool:
+def is_bundle_end_free(ptables: object, bundle: _bundle.Bundle, endpoint: str) -> bool:
     """Whether *bundle*'s *endpoint* ('start'/'stop') has nothing already
     attached to it -- BUNDLE_PLACEMENT.md section 5/8: "free-end/free-
     branch helpers" needed by placement, "which one is the source of
@@ -372,7 +376,8 @@ def _is_bundle_end_free(ptables: object, bundle: _bundle.Bundle, endpoint: str) 
     references. Mirrors the same by-point-id lookup
     ``PJTTransitionBranch.bundle`` already does in the opposite
     direction (branch -> attached bundle, by matching
-    start/stop_point3d_id).
+    start/stop_point3d_id). Public (not module-private) because
+    handlers.wire_routing_drag calls this from outside this module.
     """
     point_id = (bundle.db_obj.start_position3d_id if endpoint == 'start'
                 else bundle.db_obj.stop_position3d_id)
@@ -407,7 +412,7 @@ def _find_free_bundle_end(
         for endpoint, point in (
             ('start', bndl.obj3d.start_position), ('stop', bndl.obj3d.stop_position)
         ):
-            if not _is_bundle_end_free(ptables, bndl, endpoint):
+            if not is_bundle_end_free(ptables, bndl, endpoint):
                 continue
 
             dist_sq = float(np.sum((world_pos - point.as_numpy) ** 2))
@@ -424,7 +429,7 @@ def _find_free_branch_ray(
 ) -> tuple[object, "_transition_3d.Branch"] | None:
     """The first FREE branch (no bundle already attached), across every
     transition in the project, that world-space ray (*origin*, *direc* --
-    from ``gl.object_picker._build_ray``) actually intersects -- the
+    from ``gl.object_picker.build_ray``) actually intersects -- the
     bundle-placement mirror of ``_find_free_bundle_end`` above (which
     finds a free BUNDLE end for a transition being placed; this finds a
     free BRANCH for a bundle being placed). Same first-hit-wins scan
@@ -648,8 +653,8 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         # transition, not just the branch.
         for t_obj in self.mainframe.project.transitions:
             for branch in t_obj.obj3d.branches:
-                mat = (_BRANCH_FIT if t_obj.obj3d.branch_fits(branch, self.diameter)
-                       else _BRANCH_NO_FIT)
+                mat = (BRANCH_FIT if t_obj.obj3d.branch_fits(branch, self.diameter)
+                       else BRANCH_NO_FIT)
                 t_obj.obj3d.highlight_branch(branch, mat)
                 self._highlighted.append((t_obj.obj3d, branch))
 
@@ -673,7 +678,7 @@ class RouteThroughTransitionHandler(_handler_base.HandlerBase):
         # (Transition.hit_test_branch_ray), not the generic canvas
         # object picker -- a branch is no longer its own pickable
         # Base3D object the picker could resolve to (2026-09-28).
-        origin, direc = _object_picker._build_ray(self._captured_position, self.camera)  # NOQA
+        origin, direc = _object_picker.build_ray(self._captured_position, self.camera)
 
         selected = None
         if origin is not None:
@@ -738,7 +743,7 @@ class RouteThroughBundleHandler(_handler_base.HandlerBase):
             if self._hovered_bundle is not None:
                 self._hovered_bundle.identify(None)
 
-            selected.identify(_HOVER_HIGHLIGHT)
+            selected.identify(HOVER_HIGHLIGHT)
             self._hovered_bundle = selected
 
     @_check_types.do
@@ -853,7 +858,7 @@ class RoutedWireHandler(_handler_base.HandlerBase):
                 if branch is exclude_branch:
                     continue
 
-                mat = _BRANCH_FIT if self._fits(diameter, branch) else _BRANCH_NO_FIT
+                mat = BRANCH_FIT if self._fits(diameter, branch) else BRANCH_NO_FIT
                 t_obj.obj3d.highlight_branch(branch, mat)
                 self._highlighted.append((t_obj.obj3d, branch))
 

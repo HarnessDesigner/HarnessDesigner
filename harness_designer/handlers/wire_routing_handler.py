@@ -104,6 +104,8 @@ import numpy as np
 from ..geometry.point import Point as _Point
 from .. import config as _config
 from .. import check_types as _check_types
+from . import wire_topology as _wire_topology
+from ..objects import terminal as _terminal_obj
 
 
 if TYPE_CHECKING:
@@ -113,7 +115,6 @@ if TYPE_CHECKING:
     from ..database.project_db.pjt_transition import PJTTransition as _PJTTransition
     from ..database.project_db.pjt_housing import PJTHousing as _PJTHousing
     from ..objects import wire as _wire_obj
-    from ..objects import terminal as _terminal_obj
     from ..objects import splice as _splice_obj
     from ..objects import wire_service_loop as _wsl_obj
 
@@ -129,7 +130,9 @@ _VIEW_BRANCH_COLUMN = {'3d': 'point3d_id', 'pegboard': 'point_pegboard_id'}
 
 
 @_check_types.do
-def _check_view(view: str) -> None:
+def check_view(view: str) -> None:
+    """Public (not module-private) because handlers.wire_routing_drag
+    calls this from outside this module."""
     if view not in _VIEWS:
         raise ValueError(f"view must be one of {_VIEWS!r}, got {view!r}")
 
@@ -139,14 +142,14 @@ def _points_table(ptables: "_ProjectTables", view: str):
     """The ptables point table for *view* -- ``pjt_points3d_table`` or
     ``pjt_points_pegboard_table``.
     """
-    _check_view(view)
+    check_view(view)
     return getattr(ptables, _VIEW_POINTS_TABLE_ATTR[view])
 
 
 @_check_types.do
 def _bundle_end_point_id(bundle: "_PJTBundle", end: str, view: str) -> bytes:
     """*bundle*'s own start/stop point id for *view*."""
-    _check_view(view)
+    check_view(view)
     if view == '3d':
         return bundle.start_position3d_id if end == 'start' else bundle.stop_position3d_id
 
@@ -156,21 +159,21 @@ def _bundle_end_point_id(bundle: "_PJTBundle", end: str, view: str) -> bytes:
 @_check_types.do
 def _branch_point_id(branch: "_PJTTransitionBranch", view: str) -> bytes:
     """*branch*'s own position point id for *view*."""
-    _check_view(view)
+    check_view(view)
     return branch.position3d_id if view == '3d' else branch.position_pegboard_id
 
 
 @_check_types.do
 def _transition_centre_point_id(transition: "_PJTTransition", view: str) -> bytes:
     """*transition*'s own centre point id for *view*."""
-    _check_view(view)
+    check_view(view)
     return transition.position3d_id if view == '3d' else transition.position_pegboard_id
 
 
 @_check_types.do
 def _wire_end_point(wire_db, is_start: bool, view: str) -> _Point:
     """*wire_db*'s own start/stop ``Point`` for *view*."""
-    _check_view(view)
+    check_view(view)
     if view == '3d':
         return wire_db.start_position3d if is_start else wire_db.stop_position3d
 
@@ -319,7 +322,7 @@ def compute_housing_breakout_point(
     housing's own angle properties (``angle3d``/``angle_pegboard``)
     supplies the "local -Z" rotation.
     """
-    _check_view(view)
+    check_view(view)
     center = _centroid(cavity_points)
 
     r = 0.0
@@ -348,10 +351,10 @@ def compute_housing_breakout_point(
 def _branch_at_point(ptables: "_ProjectTables", point_id: bytes, view: str) -> _Union["_PJTTransitionBranch", None]:
     """Whether *point_id* (a row in *view*'s own point table) is a
     transition branch's own position -- the same query shape as
-    ``handlers.transition_handler._is_bundle_end_free``, just returning
+    ``handlers.transition_handler.is_bundle_end_free``, just returning
     the branch itself instead of a bool.
     """
-    _check_view(view)
+    check_view(view)
     column = _VIEW_BRANCH_COLUMN[view]
     rows = ptables.pjt_transition_branches_table.select('id', **{column: point_id})
     if not rows:
@@ -376,8 +379,7 @@ def _group_center_for_wire_point(
     ends to form a real multi-wire centroid yet. *view* selects the
     housing's/terminal's own ``position3d``/``position_pegboard``.
     """
-    _check_view(view)
-    from ..objects import terminal as _terminal_obj
+    check_view(view)
 
     if isinstance(sibling, _terminal_obj.Terminal):
         cavity = sibling.db_obj.cavity
@@ -435,15 +437,13 @@ class RouteWalk:
         self, ptables: "_ProjectTables", wire: "_wire_obj.Wire",
         grabbed_position: np.ndarray, entry: _Union[EnterBundle, EnterBranch], view: str,
     ) -> None:
-        _check_view(view)
-
-        from . import wire_topology as _wire_topology
+        check_view(view)
 
         self._ptables = ptables
         self._wire = wire
         self._view = view
         self._points_table = _points_table(ptables, view)
-        self._section_idx = _wire_topology._segment_index(wire, grabbed_position, view)  # NOQA -- same private helper split_wire_at_point uses
+        self._section_idx = _wire_topology.segment_index(wire, grabbed_position, view)  # same helper split_wire_at_point uses
 
         self._point_tags: dict[bytes, dict] = {}
         self._ordered: list[bytes] = []
@@ -626,7 +626,7 @@ def route_wire(
     *grabbed_position* is the world-space position used to find which
     existing section of *wire* (P(i), P(i+1)), IN *view*'S OWN POINT
     LIST, the drag started from, via ``handlers.wire_topology.
-    _segment_index`` -- exactly the "where the route starts" rule from
+    segment_index`` -- exactly the "where the route starts" rule from
     BUNDLE_DESIGN.md 2.7.
 
     Raises ``ValueError`` if *hops* runs out before the walk reaches a
@@ -661,7 +661,7 @@ def _commit_route(
 ) -> None:
     """Splice [entry guard, *skeleton_point_ids*, exit guard] into
     *wire*'s own *view* interior waypoint list at *section_idx* (see
-    ``handlers.wire_topology._segment_index`` for what that index means
+    ``handlers.wire_topology.segment_index`` for what that index means
     against ``[start] + interior + [stop]``), preserving every OTHER
     interior point's own existing route tags (``pjt_wire_paths_table.
     set_route`` wholesale-replaces and drops tags -- see that method's
@@ -683,7 +683,7 @@ def _commit_route(
 
     # P(i)/P(i+1) -- the wire's own two points bracketing the grabbed
     # section (section_idx indexes into [start] + interior + [stop], see
-    # wire_topology._segment_index) -- needed only to find each side's
+    # wire_topology.segment_index) -- needed only to find each side's
     # own sibling (Terminal/Splice), for the guard group-center rule.
     # Neither is otherwise touched: both stay exactly where they are,
     # per 2.7's "the wire's own points up to P(i) stay"/"P(i+1) onward

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def _segment_index(wire: _wire.Wire, position: np.ndarray, view: str = '3d') -> int:
+def segment_index(wire: _wire.Wire, position: np.ndarray, view: str = '3d') -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
     waypoints come before it. *view* selects which of the wire's
@@ -34,7 +34,8 @@ def _segment_index(wire: _wire.Wire, position: np.ndarray, view: str = '3d') -> 
     handlers.wire_routing_handler's own peg-board routing pass; each
     view's waypoints are independent, per BUNDLE_PLACEMENT.md, so the
     same *position* against a different view's own list can legitimately
-    return a different index)."""
+    return a different index). Public (not module-private) because
+    handlers.wire_routing_handler calls this from outside this module."""
     if view == '3d':
         start = wire.obj3d.start_position.as_numpy
         stop = wire.obj3d.stop_position.as_numpy
@@ -114,7 +115,7 @@ def split_wire_at_point(
     stop_id_2d = orig.stop_position2d_id
 
     coord_point = ptables.pjt_points3d_table[coord_id_3d]
-    split_idx = _segment_index(wire, coord_point.point.as_numpy)
+    split_idx = segment_index(wire, coord_point.point.as_numpy)
 
     waypoints3d = orig.waypoints3d
     before_3d = waypoints3d[:split_idx]

@@ -32,7 +32,7 @@ Two placement modes, decided in section 4:
   green/orange by diameter fit (``Transition.branch_fits``/
   ``highlight_branch``, reusing ``handlers.transition_handler.
   RouteThroughTransitionHandler._diameter_of`` and the
-  ``_BRANCH_FIT``/``_BRANCH_NO_FIT`` materials already defined there).
+  ``BRANCH_FIT``/``BRANCH_NO_FIT`` materials already defined there).
   Clicking while a branch is highlighted (and
   fits) commits: the chosen branch's own position becomes the SAME point
   row as the bundle's end (section 5's "the bundle's start/stop point and
@@ -175,7 +175,7 @@ class Transition(_base.AddHandlerBase):
         # pickable Base3D object (2026-09-28), so find_object can't
         # resolve it any more; the transition itself now owns hit-
         # testing its own branches directly.
-        origin, direc = _object_picker._build_ray(mouse_pos, self.camera)  # NOQA
+        origin, direc = _object_picker.build_ray(mouse_pos, self.camera)
 
         if origin is None:
             selected = None
@@ -190,9 +190,9 @@ class Transition(_base.AddHandlerBase):
                 fits = self.target.obj3d.branch_fits(selected, diameter)
 
                 if fits:
-                    mat = _transition_handler._BRANCH_FIT  # NOQA
+                    mat = _transition_handler.BRANCH_FIT
                 else:
-                    mat = _transition_handler._BRANCH_NO_FIT  # NOQA
+                    mat = _transition_handler.BRANCH_NO_FIT
 
                 self.target.obj3d.highlight_branch(selected, mat)
                 self._hovered_branch = selected

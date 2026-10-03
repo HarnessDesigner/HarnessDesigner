@@ -259,7 +259,7 @@ class Bundle(_base.AddHandlerBase):
             else:
                 exclude_transition = None
 
-            origin, direc = _object_picker._build_ray(mouse_pos, self.camera)  # NOQA
+            origin, direc = _object_picker.build_ray(mouse_pos, self.camera)
             hit = None
             if origin is not None:
                 hit = _transition_handler._find_free_branch_ray(  # NOQA
@@ -274,9 +274,9 @@ class Bundle(_base.AddHandlerBase):
                     fits = self._branch_fits(branch)
 
                     if fits:
-                        mat = _transition_handler._BRANCH_FIT   # NOQA
+                        mat = _transition_handler.BRANCH_FIT
                     else:
-                        mat = _transition_handler._BRANCH_NO_FIT  # NOQA
+                        mat = _transition_handler.BRANCH_NO_FIT
 
                     t_obj.obj3d.highlight_branch(branch, mat)  # NOQA
                     self._hovered_branch = hit

@@ -81,7 +81,7 @@ def _find_insertion_index(wire: _wire.Wire, position: np.ndarray) -> int:
     """Return which sub-segment of *wire*'s current path *position* falls
     closest to -- equivalently, how many of its existing interior
     waypoints come before a new one inserted there. Same technique as
-    handlers.wire_topology._segment_index (duplicated locally rather than
+    handlers.wire_topology.segment_index (duplicated locally rather than
     imported -- that module is for the splice/service-loop fork/merge
     case specifically; this file never forks a wire's own row anymore)."""
     best_idx = 0

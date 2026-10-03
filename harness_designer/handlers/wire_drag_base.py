@@ -161,8 +161,8 @@ class WireDragMixin:
     # WireTypeMixin already uses for the same reason.
     canvas = None
     target = None
-    _moving = None
-    _anchor = None
+    moving = None
+    anchor = None
     last_pos = None
     end = None
     _snap_probes = None
@@ -876,9 +876,9 @@ class WireDragMixin:
         self.canvas = canvas
         self.target = target
 
-        self._moving = plan.moving
-        self._anchor = plan.anchor
-        self.last_pos = self._anchor.copy()
+        self.moving = plan.moving
+        self.anchor = plan.anchor
+        self.last_pos = self.anchor.copy()
         self.end = plan.snap_end
 
         self._snap_probes = None
@@ -956,7 +956,7 @@ class WireDragMixin:
 
                 target_point = _wire_snap.snap_point(kind, target)
 
-                moving_point = self._moving[0]
+                moving_point = self.moving[0]
                 moving_point += target_point - moving_point
 
                 self.snapped_kind = kind
@@ -965,8 +965,8 @@ class WireDragMixin:
                 # A copy -- never the live target Point itself, which the
                 # next drag event (or a snap-to-something-else) would
                 # otherwise mutate in place via the arithmetic above.
-                self._anchor = target_point.copy()
-                self.last_pos = self._anchor.copy()
+                self.anchor = target_point.copy()
+                self.last_pos = self.anchor.copy()
                 return
 
             if self._overlay is not None:
@@ -976,16 +976,16 @@ class WireDragMixin:
             self.snapped_target = None
 
         move_delta = self._move_delta(
-            self._anchor, self.last_pos, delta,
+            self.anchor, self.last_pos, delta,
             self._get_view_object(self.target).aabb)
 
         if move_delta is None:
             return
 
-        move_delta = self._apply_budget_clamp(self._moving, move_delta)
+        move_delta = self._apply_budget_clamp(self.moving, move_delta)
 
-        for point in self._moving:
+        for point in self.moving:
             point += move_delta
 
-        self._anchor += move_delta
-        self.last_pos = self._anchor.copy()
+        self.anchor += move_delta
+        self.last_pos = self.anchor.copy()

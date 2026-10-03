@@ -1086,7 +1086,7 @@ class Transition(_base_3d.Base3D):
         coarse bounds-pool pass ``gl.object_picker.find_object`` uses),
         for screen-space mouse hover where the query point's depth isn't
         otherwise known. Callers get *origin*/*direc* from
-        ``gl.object_picker._build_ray(mouse_pos, camera)`` -- the same
+        ``gl.object_picker.build_ray(mouse_pos, camera)`` -- the same
         ray-construction helper the generic canvas picker itself uses,
         reused here directly rather than duplicated.
         """
@@ -1376,7 +1376,7 @@ class Transition(_base_3d.Base3D):
         click_pos = self._context_menu_click_pos
         branch = None
         if click_pos is not None:
-            origin, direc = _object_picker._build_ray(click_pos, canvas.camera)  # NOQA
+            origin, direc = _object_picker.build_ray(click_pos, canvas.camera)
             if origin is not None:
                 branch = self.hit_test_branch_ray(origin, direc)
 

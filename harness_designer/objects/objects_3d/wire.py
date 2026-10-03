@@ -1114,7 +1114,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             return handled
 
         if self._active_handler is not None:
-            from ...drag_handlers.editor_3d import wire_route as _wire_route
+            from ...drag_handlers.editor_3d import wire_route as _wire_route  # NOQA -- avoid a cycle at import time
 
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)
@@ -1126,14 +1126,14 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
                 if isinstance(handler, _wire_route.WireRoute) and handler.drop_hit is not None:
                     # Dropped on an eligible bundle end/transition branch
                     # (BUNDLE_PLACEMENT.md section 12) -- route instead of
-                    # just leaving the ordinary bend in place. _anchor is
+                    # just leaving the ordinary bend in place. anchor is
                     # the path point nearest the original click, moved
                     # rigidly with the dragged pair all drag long -- still
                     # resolves to the originally-grabbed section (see
                     # handlers.wire_routing_handler.route_wire's own
                     # docstring on what grabbed_position needs to be).
                     hit = handler.drop_hit
-                    grabbed_position = handler._anchor.as_numpy  # NOQA
+                    grabbed_position = handler.anchor.as_numpy
                     canvas = handler.canvas
                     handler.delete()
                     self._active_handler = None
@@ -1167,7 +1167,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         ):
             return False
 
-        from ...drag_handlers.editor_3d import wire_route as _wire_route
+        from ...drag_handlers.editor_3d import wire_route as _wire_route  # NOQA -- avoid a cycle at import time
 
         plan = _wire_route.WireRoute.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
         if plan is None:

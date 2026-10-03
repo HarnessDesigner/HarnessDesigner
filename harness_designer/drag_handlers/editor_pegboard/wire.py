@@ -156,7 +156,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         perfect top-down camera -- any float32 imprecision in that
         shared depth channel bleeds into world-space Y specifically, and
         because ``WireDragMixin.__call__`` accumulates ``move_delta``
-        into ``self._anchor`` every frame (re-deriving depth fresh from
+        into ``self.anchor`` every frame (re-deriving depth fresh from
         THAT anchor next frame), an un-clamped Y drift compounds across
         a drag instead of staying a one-frame rounding error -- confirmed
         2026-09-13 as the actual mechanism behind a live bug report

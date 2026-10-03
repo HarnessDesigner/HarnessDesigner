@@ -33,11 +33,15 @@ def _unproject_from_ndc(ndc, inv_mvp):
 
 
 @_check_types.do
-def _build_ray(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
+def build_ray(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
     """Unproject *mouse_pos* into a world-space ray (*origin*, *direc*,
     *direc* already normalized), or ``(None, None)`` if the camera's
     current matrices can't be inverted (degenerate view -- callers treat
-    that as "nothing to pick").
+    that as "nothing to pick"). Public (not module-private): called from
+    several other modules directly (every branch-ray-test site --
+    handlers.transition_handler, objects.objects_3d.transition,
+    add_handlers.editor_3d.bundle/transition, handlers.wire_routing_drag
+    -- that need a raw ray rather than going through find_object).
     """
     mx, my = mouse_pos.as_float[:-1]
 
@@ -167,7 +171,7 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
         next closest overlapping object when the closest hit matches it.
     :returns: The picked object, or ``None`` if nothing was hit.
     """
-    origin, direc = _build_ray(mouse_pos, camera)
+    origin, direc = build_ray(mouse_pos, camera)
     if origin is None:
         return None
 

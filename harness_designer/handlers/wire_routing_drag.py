@@ -71,12 +71,12 @@ from . import wire_routing_handler as _wire_routing_handler
 from ..gl import object_picker as _object_picker
 from ..gl.canvas_base import interaction as _interaction
 from .. import check_types as _check_types
+from ..objects import bundle as _bundle_obj
 
 
 if TYPE_CHECKING:
     from ..geometry import point as _point
     from ..objects import project as _project
-    from ..objects import bundle as _bundle_obj
     from ..objects import transition as _transition_obj
     from ..objects import wire as _wire_obj
     from ..gl.canvas_base import canvas_base as _canvas_base
@@ -87,8 +87,8 @@ if TYPE_CHECKING:
 # blue-means-hovered-now visual language already used for bundle/
 # transition placement (BUNDLE_PLACEMENT.md section 12's own open item
 # on this, resolved this way: no dedicated new colors).
-_ELIGIBLE = _transition_handler._BRANCH_FIT
-_HOVERED = _transition_handler._HOVER_HIGHLIGHT
+_ELIGIBLE = _transition_handler.BRANCH_FIT
+_HOVERED = _transition_handler.HOVER_HIGHLIGHT
 
 # A "hit" is one of:
 #   ('bundle', bundle_facade, end)         end is 'start'/'stop'
@@ -109,7 +109,7 @@ def compute_eligible_targets(
     into, for *view* (``'3d'``/``'pegboard'``) -- BUNDLE_PLACEMENT.md
     section 12's drag-start eligibility scan.
 
-    Freeness/occupancy (``_is_bundle_end_free``, ``branch.bundle``) are
+    Freeness/occupancy (``is_bundle_end_free``, ``branch.bundle``) are
     project-wide topology facts, checked the same way regardless of
     *view* (see ``handlers.wire_drag_base.wire_end_anchors``'s own
     docstring on why -- the same convention applies here); only WHICH
@@ -121,7 +121,7 @@ def compute_eligible_targets(
         ``(bundle_facade, end)`` and a list of
         ``(transition_facade, branch)`` tuples respectively.
     """
-    _wire_routing_handler._check_view(view)
+    _wire_routing_handler.check_view(view)
 
     eligible_ends = []
     for bndl in project.bundles:
@@ -130,7 +130,7 @@ def compute_eligible_targets(
             continue
 
         for end in ('start', 'stop'):
-            if not _transition_handler._is_bundle_end_free(project.ptables, bndl, end):
+            if not _transition_handler.is_bundle_end_free(project.ptables, bndl, end):
                 continue
             if _bundle_diameter.wire_fits_bundle(wire_od, bndl.db_obj):
                 eligible_ends.append((bndl, end))
@@ -190,13 +190,12 @@ def find_drop_hit(
 
     picked = _object_picker.find_object(mouse_pos, camera, canvas)
     if picked is not None:
-        from ..objects import bundle as _bundle_obj
         if isinstance(picked, _bundle_obj.Bundle):
             for bndl, end in eligible_ends:
                 if bndl is picked:
                     return 'bundle', bndl, end
 
-    origin, direc = _object_picker._build_ray(mouse_pos, camera)  # NOQA -- same private helper every branch-pick site uses
+    origin, direc = _object_picker.build_ray(mouse_pos, camera)
     if origin is not None:
         for t_obj, branch in eligible_branches:
             candidate = _view_transition(t_obj, view).hit_test_branch_ray(origin, direc)
@@ -438,7 +437,7 @@ class RouteSession:
     ) -> bool:
         if interaction_type is _interaction.MouseInteraction.MOVE:
             view_transition = self._current_transition_view_obj()
-            origin, direc = _object_picker._build_ray(current_pos, self.canvas.camera)  # NOQA
+            origin, direc = _object_picker.build_ray(current_pos, self.canvas.camera)
             hit = None
             if origin is not None:
                 candidate = view_transition.hit_test_branch_ray(origin, direc)
