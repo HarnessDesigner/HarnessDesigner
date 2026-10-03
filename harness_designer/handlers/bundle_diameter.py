@@ -101,6 +101,61 @@ def _attached_branches(
 
 
 @_check_types.do
+def _wires_diameter_including(bundle_db_obj: "_pjt_bundle.PJTBundle", extra_od: float | None) -> float:
+    """The same unorganized-pack area-sum estimate as :func:`_wires_diameter`,
+    but as if a wire of *extra_od* (or no extra wire at all, if ``None``)
+    were in the bundle in ADDITION to its real current wires.
+
+    Always uses the unorganized area-sum formula for this hypothetical
+    total, even for an otherwise concentric-packed bundle -- simulating a
+    real concentric repack just to answer "would a new wire fit" is out
+    of scope (concentric twisting is itself being redesigned project-
+    wide, BUNDLE_DESIGN.md/MEMORY.md "Wire bundle packing requirements").
+    This is a deliberately conservative estimate for a fit CHECK, not the
+    bundle's own currently-rendered diameter -- see :func:`wire_fits_bundle`.
+    """
+    ods = [wire.part.od_mm for wire in bundle_db_obj.wires]
+    if extra_od is not None:
+        ods.append(extra_od)
+
+    if not ods:
+        return 0.0
+
+    area_equivalent = math.sqrt(sum(od ** 2 for od in ods))
+    return area_equivalent * Config.unorganized_pack_fudge_factor
+
+
+@_check_types.do
+def wire_fits_bundle(wire_od: float, bundle_db_obj: "_pjt_bundle.PJTBundle") -> bool:
+    """Whether a wire of *wire_od* can be routed into *bundle_db_obj* --
+    the drag-and-drop eligibility check (BUNDLE_PLACEMENT.md section 12,
+    user 2026-10-03): the ceiling is the bundle's own catalog
+    ``part.max_dia``, further narrowed to the smallest ``part.max_dia``
+    of EVERY transition branch attached to either of the bundle's own
+    two ends (not just the end nearest the drop) -- a bundle whose far
+    end is already plugged into a tight transition can refuse a wire
+    even though the near end has plenty of room. The bundle's own
+    hypothetical packed diameter with this wire added (see
+    :func:`_wires_diameter_including`) must stay within that ceiling.
+    """
+    ceiling = bundle_db_obj.part.max_dia
+    for branch in _attached_branches(bundle_db_obj):
+        ceiling = min(ceiling, branch.part.max_dia)
+
+    return _wires_diameter_including(bundle_db_obj, wire_od) <= ceiling
+
+
+@_check_types.do
+def wire_fits_branch(wire_od: float, branch_db_obj: "_pjt_transition_branch.PJTTransitionBranch") -> bool:
+    """Whether a wire of *wire_od* can be routed directly into
+    *branch_db_obj* with no bundle attached (BUNDLE_PLACEMENT.md section
+    12) -- just the branch's own catalog ``part.max_dia`` ceiling, since
+    there is no existing bundle content to add it to.
+    """
+    return wire_od <= branch_db_obj.part.max_dia
+
+
+@_check_types.do
 def effective_diameter(bundle_db_obj: "_pjt_bundle.PJTBundle") -> float:
     """The diameter to render *bundle_db_obj* at right now -- see the
     module docstring for the rule. Growing an attached branch's own

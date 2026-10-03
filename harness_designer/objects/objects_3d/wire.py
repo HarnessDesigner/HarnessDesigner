@@ -1079,16 +1079,22 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         (see handlers.wire_snap.commit_snap's own docstring).
 
         Also forwards to an active add-session (see
-        add_handlers.editor_3d.wire.Wire) -- both this object's own
-        drag and its own placement session use the same
-        self._active_handler slot (never simultaneously), told apart by
-        which kind is actually armed since their call shapes differ
-        (add takes the full event tuple this method itself received;
-        drag takes just a screen delta + position).
+        add_handlers.editor_3d.wire.Wire) OR an active wire-routing
+        click-continuation (handlers.wire_routing_drag.RouteSession,
+        BUNDLE_PLACEMENT.md section 12 -- the click-driven "pick which
+        branch to exit a transition from" step once a routing drag has
+        landed mid-skeleton) -- all three of this object's own
+        interaction modes (bend/route drag, wire-placement session,
+        routing click-continuation) share the one self._active_handler
+        slot (never simultaneously), told apart by which kind is
+        actually armed since their call shapes differ (an add/
+        continuation session takes the full event tuple this method
+        itself received; a drag takes just a screen delta + position).
         """
         from ...add_handlers.editor_3d import wire as _add_wire  # NOQA -- avoid a cycle at import time
+        from ...handlers import wire_routing_drag as _wire_routing_drag  # NOQA -- avoid a cycle at import time
 
-        if isinstance(self._active_handler, _add_wire.Wire):
+        if isinstance(self._active_handler, (_add_wire.Wire, _wire_routing_drag.RouteSession)):
             # A local reference, not another read of self._active_handler below
             # -- a right click with nothing left to undo cancels the session,
             # which deletes this wire's own facade; BaseVar's generic delete()
@@ -1108,12 +1114,36 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
             return handled
 
         if self._active_handler is not None:
+            from ...drag_handlers.editor_3d import wire_route as _wire_route
+
             if interaction_type is _interaction.MouseInteraction.MOVE:
                 self._active_handler(current_pos - last_pos, current_pos)
                 return True
 
             if interaction_type is _interaction.MouseInteraction.LEFT_UP:
                 handler = self._active_handler
+
+                if isinstance(handler, _wire_route.WireRoute) and handler.drop_hit is not None:
+                    # Dropped on an eligible bundle end/transition branch
+                    # (BUNDLE_PLACEMENT.md section 12) -- route instead of
+                    # just leaving the ordinary bend in place. _anchor is
+                    # the path point nearest the original click, moved
+                    # rigidly with the dragged pair all drag long -- still
+                    # resolves to the originally-grabbed section (see
+                    # handlers.wire_routing_handler.route_wire's own
+                    # docstring on what grabbed_position needs to be).
+                    hit = handler.drop_hit
+                    grabbed_position = handler._anchor.as_numpy  # NOQA
+                    canvas = handler.canvas
+                    handler.delete()
+                    self._active_handler = None
+
+                    session = _wire_routing_drag.begin_route(
+                        canvas, self.parent, grabbed_position, hit, '3d')
+                    if session is not None:
+                        self._active_handler = session
+
+                    return True
 
                 if handler.end is not None and handler.snapped_kind is not None:
                     from ...handlers import wire_snap as _wire_snap  # NOQA -- avoid a cycle at import time
@@ -1137,13 +1167,13 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         ):
             return False
 
-        from ...drag_handlers.editor_3d import wire as _wire_drag_handler
+        from ...drag_handlers.editor_3d import wire_route as _wire_route
 
-        plan = _wire_drag_handler.Wire.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
+        plan = _wire_route.WireRoute.plan_wire_drag(self.mainframe.project, self.parent, current_pos)
         if plan is None:
             return False
 
-        self._active_handler = _wire_drag_handler.Wire(self.editor3d.editor, self.parent, plan)
+        self._active_handler = _wire_route.WireRoute(self.editor3d.editor, self.parent, plan)
         return True
 
 

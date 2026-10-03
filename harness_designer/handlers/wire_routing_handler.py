@@ -413,6 +413,188 @@ def _diameter_of_terminus(entry: _Union[EnterBundle, EnterBranch, "_PJTBundle", 
     return float(entry.diameter)
 
 
+class RouteWalk:
+    """Resumable version of the skeleton chain-walk -- lets an
+    interactive session (the drag-and-drop UI, BUNDLE_PLACEMENT.md
+    section 12) drive the engine ONE hop at a time, pausing at each
+    transition reached (:attr:`pending_transition`) instead of requiring
+    every hop to be known up front the way a single :func:`route_wire`
+    call does. :func:`route_wire` itself is now a thin wrapper around
+    this, for the already-resolved-hops-list case every existing
+    caller/test uses -- its own behavior and signature are unchanged.
+
+    Usage: construct with the entry terminus; while not
+    :attr:`is_finished`, read :attr:`pending_transition` to know which
+    transition needs a choice and call :meth:`choose` with it; once
+    :attr:`is_finished`, call :meth:`commit` exactly once to write the
+    result into ``pjt_wire_paths``.
+    """
+
+    @_check_types.do
+    def __init__(
+        self, ptables: "_ProjectTables", wire: "_wire_obj.Wire",
+        grabbed_position: np.ndarray, entry: _Union[EnterBundle, EnterBranch], view: str,
+    ) -> None:
+        _check_view(view)
+
+        from . import wire_topology as _wire_topology
+
+        self._ptables = ptables
+        self._wire = wire
+        self._view = view
+        self._points_table = _points_table(ptables, view)
+        self._section_idx = _wire_topology._segment_index(wire, grabbed_position, view)  # NOQA -- same private helper split_wire_at_point uses
+
+        self._point_tags: dict[bytes, dict] = {}
+        self._ordered: list[bytes] = []
+        self._bundle = None
+        self._current_end = None
+        self._branch = None
+        self._exit_diameter = None
+        self._finished = False
+
+        if isinstance(entry, EnterBundle):
+            self._bundle = entry.bundle
+            self._current_end = entry.end
+            entry_point_id = _bundle_end_point_id(self._bundle, self._current_end, view)
+            self._add(entry_point_id, bundle_id=self._bundle.db_id)
+        elif isinstance(entry, EnterBranch):
+            self._branch = entry.branch
+            self._add(
+                _branch_point_id(self._branch, view),
+                transition_id=self._branch.transition_id, transition_branch_id=self._branch.db_id)
+        else:
+            raise TypeError('entry must be EnterBundle or EnterBranch')
+
+        self._entry_diameter = _diameter_of_terminus(entry)
+        self._advance()
+
+    def _add(self, point_id: bytes, **tags) -> None:
+        self._ordered.append(point_id)
+        d = self._point_tags.setdefault(point_id, {})
+        for key, value in tags.items():
+            if value is not None:
+                d[key] = value
+
+    def _advance(self) -> None:
+        """Auto-walk ``self._bundle`` (if any) to its far end, then
+        either finish (a genuinely free end reached) or add the
+        transition centre at ``self._branch`` and pause there, waiting
+        for :meth:`choose`.
+        """
+        if self._bundle is not None:
+            bundle = self._bundle
+            waypoint_ids = self._ptables.pjt_bundle_paths_table.point_ids(bundle.db_id, self._view)
+            if self._current_end == 'stop':
+                waypoint_ids = list(reversed(waypoint_ids))
+
+            for point_id in waypoint_ids:
+                self._add(point_id, bundle_id=bundle.db_id)
+
+            far_end = 'stop' if self._current_end == 'start' else 'start'
+            far_point_id = _bundle_end_point_id(bundle, far_end, self._view)
+
+            far_branch = _branch_at_point(self._ptables, far_point_id, self._view)
+            if far_branch is None:
+                self._add(far_point_id, bundle_id=bundle.db_id)
+                self._exit_diameter = _diameter_of_terminus(bundle)
+                self._finished = True
+                self._bundle = None
+                return
+
+            self._add(
+                far_point_id, bundle_id=bundle.db_id,
+                transition_id=far_branch.transition_id, transition_branch_id=far_branch.db_id)
+            self._branch = far_branch
+            self._bundle = None
+
+        transition = self._branch.transition
+        self._add(_transition_centre_point_id(transition, self._view), transition_id=transition.db_id)
+
+    @property
+    def is_finished(self) -> bool:
+        return self._finished
+
+    @property
+    def pending_transition(self) -> _Union["_PJTTransition", None]:
+        """The transition currently awaiting a :meth:`choose` call, or
+        ``None`` once :attr:`is_finished`."""
+        return None if self._finished else self._branch.transition
+
+    @_check_types.do
+    def choose(self, hop: _Union[ContinueBranch, EndAtSplice]) -> None:
+        """Resolve the hop at :attr:`pending_transition`. May finish the
+        walk immediately (a free exit branch, or an
+        :class:`EndAtSplice`), or may need another :meth:`choose` call if
+        the chosen branch's own attached bundle leads to yet another
+        transition (handled automatically via :meth:`_advance`).
+
+        Raises ``RuntimeError`` if already :attr:`is_finished`,
+        ``ValueError`` if the chosen branch does not belong to
+        :attr:`pending_transition`.
+        """
+        if self._finished:
+            raise RuntimeError('walk is already finished')
+
+        transition = self._branch.transition
+
+        if isinstance(hop, EndAtSplice):
+            self._add(hop.point_id)
+            self._exit_diameter = _diameter_of_terminus(self._branch)
+            self._finished = True
+            self._branch = None
+            return
+
+        if not isinstance(hop, ContinueBranch):
+            raise TypeError('each hop must be ContinueBranch or EndAtSplice')
+
+        next_branch = hop.branch
+        if next_branch.transition_id != transition.db_id:
+            raise ValueError('chosen branch does not belong to the transition just reached')
+
+        next_bundle = next_branch.bundle
+
+        # A branch's own point row carries the attached bundle's id too
+        # (2.6: "a branch with a bundle plugged in always carries that
+        # bundle's id") -- next_bundle must be resolved before this _add()
+        # call, not after, or that tag is silently dropped.
+        self._add(
+            _branch_point_id(next_branch, self._view),
+            bundle_id=(next_bundle.db_id if next_bundle is not None else None),
+            transition_id=transition.db_id, transition_branch_id=next_branch.db_id)
+
+        if next_bundle is None:
+            self._exit_diameter = _diameter_of_terminus(next_branch)
+            self._finished = True
+            self._branch = None
+            return
+
+        if _bundle_end_point_id(next_bundle, 'start', self._view) == _branch_point_id(next_branch, self._view):
+            self._bundle, self._current_end = next_bundle, 'start'
+        else:
+            self._bundle, self._current_end = next_bundle, 'stop'
+        self._branch = None
+
+        self._advance()
+
+    @_check_types.do
+    def commit(self) -> None:
+        """Write the finished route into ``pjt_wire_paths``. Call
+        exactly once, only once :attr:`is_finished`.
+        """
+        if not self._finished:
+            raise RuntimeError('cannot commit an unfinished route walk')
+
+        first_point = self._points_table[self._ordered[0]].point
+        last_point = self._points_table[self._ordered[-1]].point
+
+        _commit_route(
+            self._ptables, self._wire, self._section_idx, self._view,
+            entry_point=first_point, entry_diameter=self._entry_diameter,
+            exit_point=last_point, exit_diameter=self._exit_diameter,
+            skeleton_point_ids=self._ordered, point_tags=self._point_tags)
+
+
 @_check_types.do
 def route_wire(
     ptables: "_ProjectTables",
@@ -427,6 +609,10 @@ def route_wire(
     per transition the walk reaches, in order) until the route reaches a
     genuinely free end or an :class:`EndAtSplice` hop, then commits the
     result to ``pjt_wire_paths`` for *view* (``'3d'`` or ``'pegboard'``).
+    A thin wrapper around :class:`RouteWalk` for callers that already
+    have the complete hop sequence resolved; the interactive drag UI
+    uses :class:`RouteWalk` directly instead, one hop at a time, since it
+    doesn't know the later hops until the user clicks each one.
 
     Routing the SAME wire into the SAME skeleton edges for both views is
     two separate calls -- one per view -- since each view keeps its own
@@ -451,121 +637,19 @@ def route_wire(
     enforces by construction (a route can only ever walk real skeleton
     edges).
     """
-    _check_view(view)
+    walk = RouteWalk(ptables, wire, grabbed_position, entry, view)
 
-    from . import wire_topology as _wire_topology
-
-    section_idx = _wire_topology._segment_index(wire, grabbed_position, view)  # NOQA -- same private helper split_wire_at_point uses
-
-    point_tags: dict[bytes, dict] = {}
-    ordered: list[bytes] = []
-
-    def add(point_id: bytes, **tags) -> None:
-        ordered.append(point_id)
-        d = point_tags.setdefault(point_id, {})
-        for key, value in tags.items():
-            if value is not None:
-                d[key] = value
-
-    bundle = None
-    current_end = None
-    branch = None
-
-    if isinstance(entry, EnterBundle):
-        bundle = entry.bundle
-        current_end = entry.end
-        entry_point_id = _bundle_end_point_id(bundle, current_end, view)
-        add(entry_point_id, bundle_id=bundle.db_id)
-    elif isinstance(entry, EnterBranch):
-        branch = entry.branch
-        add(
-            _branch_point_id(branch, view),
-            transition_id=branch.transition_id, transition_branch_id=branch.db_id)
-    else:
-        raise TypeError('entry must be EnterBundle or EnterBranch')
-
-    points_table = _points_table(ptables, view)
-    first_point_id = ordered[0]
-    first_point = points_table[first_point_id].point
-    entry_diameter = _diameter_of_terminus(entry)
-
-    hop_iter = iter(hops)
-
-    while True:
-        if bundle is not None:
-            waypoint_ids = ptables.pjt_bundle_paths_table.point_ids(bundle.db_id, view)
-            if current_end == 'stop':
-                waypoint_ids = list(reversed(waypoint_ids))
-
-            for point_id in waypoint_ids:
-                add(point_id, bundle_id=bundle.db_id)
-
-            far_end = 'stop' if current_end == 'start' else 'start'
-            far_point_id = _bundle_end_point_id(bundle, far_end, view)
-
-            far_branch = _branch_at_point(ptables, far_point_id, view)
-            if far_branch is None:
-                add(far_point_id, bundle_id=bundle.db_id)
-                exit_diameter = _diameter_of_terminus(bundle)
-                break
-
-            add(
-                far_point_id, bundle_id=bundle.db_id,
-                transition_id=far_branch.transition_id, transition_branch_id=far_branch.db_id)
-            branch = far_branch
-            bundle = None
-            # Fall through to the transition handling below.
-
-        transition = branch.transition
-        add(_transition_centre_point_id(transition, view), transition_id=transition.db_id)
-
-        try:
-            choice = next(hop_iter)
-        except StopIteration:
-            raise ValueError(
-                f'route reached transition {transition.db_id!r} with no hop supplied for it')
-
-        if isinstance(choice, EndAtSplice):
-            add(choice.point_id)
-            exit_diameter = _diameter_of_terminus(branch)
+    for hop in hops:
+        if walk.is_finished:
             break
+        walk.choose(hop)
 
-        if not isinstance(choice, ContinueBranch):
-            raise TypeError('each hop must be ContinueBranch or EndAtSplice')
+    if not walk.is_finished:
+        transition = walk.pending_transition
+        raise ValueError(
+            f'route reached transition {transition.db_id!r} with no hop supplied for it')
 
-        next_branch = choice.branch
-        if next_branch.transition_id != transition.db_id:
-            raise ValueError('chosen branch does not belong to the transition just reached')
-
-        next_bundle = next_branch.bundle
-
-        # A branch's own point row carries the attached bundle's id too
-        # (2.6: "a branch with a bundle plugged in always carries that
-        # bundle's id") -- next_bundle must be resolved before this add()
-        # call, not after, or that tag is silently dropped.
-        add(
-            _branch_point_id(next_branch, view),
-            bundle_id=(next_bundle.db_id if next_bundle is not None else None),
-            transition_id=transition.db_id, transition_branch_id=next_branch.db_id)
-
-        if next_bundle is None:
-            exit_diameter = _diameter_of_terminus(next_branch)
-            break
-
-        if _bundle_end_point_id(next_bundle, 'start', view) == _branch_point_id(next_branch, view):
-            bundle, current_end = next_bundle, 'start'
-        else:
-            bundle, current_end = next_bundle, 'stop'
-        branch = None
-
-    last_point_id = ordered[-1]
-    last_point = points_table[last_point_id].point
-
-    _commit_route(
-        ptables, wire, section_idx, view,
-        entry_point=first_point, entry_diameter=entry_diameter,
-        exit_point=last_point, exit_diameter=exit_diameter,
-        skeleton_point_ids=ordered, point_tags=point_tags)
+    walk.commit()
 
 
 @_check_types.do

@@ -369,11 +369,20 @@ Contents/structure of the `harness_designer/` package.
   - wire
   - wire_layout
   - wire_routing (`wire_routing_handler.py` -- skeleton-first wire routing
-    engine, BUNDLE_DESIGN.md 2.7: chain-walk through bundles/transitions,
-    guard/housing-breakout-point geometry, commits to `pjt_wire_paths`.
-    Takes a `view` arg ('3d'/'pegboard') throughout -- same skeleton
-    topology, each view's own point columns; no UI entry point yet -- see
-    BUNDLE_DESIGN.md section 6's own "wires onto the skeleton" status note)
+    engine, BUNDLE_DESIGN.md 2.7: `RouteWalk` (resumable, one hop at a
+    time) + `route_wire` (thin wrapper for an already-resolved hop list)
+    walk bundles/transitions, computing guard/housing-breakout-point
+    geometry, and commit to `pjt_wire_paths`. Takes a `view` arg
+    ('3d'/'pegboard') throughout -- same skeleton topology, each view's
+    own point columns. `wire_routing_drag.py` is the UI half --
+    BUNDLE_PLACEMENT.md section 12: drag-start eligibility scan + two-tier
+    highlight (`compute_eligible_targets`/`highlight_eligible`/
+    `set_hover_highlight`), `WireRouteMixin` (mixed into `drag_handlers.
+    editor_3d/editor_pegboard.wire_route.WireRoute`, alongside that
+    view's own ordinary `wire.Wire` drag handler), and `RouteSession` (the
+    click-driven continuation through further transitions, installed as a
+    Wire view object's own `_active_handler` -- see `objects.objects_3d/
+    objects_pegboard.wire.Wire.handle_interaction`'s dispatch))
   - wire_service_loop
 
 ## `gl/` (OpenGL)
