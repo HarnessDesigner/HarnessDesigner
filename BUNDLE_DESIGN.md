@@ -52,6 +52,7 @@ Early proposals here (a `bundle_id` column on the wire table, then a `pjt_bundle
 
 - A transition branch has a position, stored in the point table with the transition branch id attached to it. A bundle's start or stop pulls that position and uses it as its own start/stop; the same position is also a wire waypoint.
 - **Chain rule:** when a branch position is a wire waypoint, the very NEXT waypoint on the wire must be the transition's own centre position, and the waypoint after that is another branch position of the same transition. **What goes in must come out, or the wire must end via a splice.** (Referenced directly by 2.7.)
+- **Splice placement rule (user, 2026-10-03, answering the "what does ending via a splice mean" open question):** a wire that does not come back out another branch must exit or attach to a splice, and that splice is located INSIDE the transition. Splices can also exist inside a bundle's own span -- EXCEPT when the bundle uses concentric twisting, where a splice inside the bundle is not allowed. When concentric twisting is in use, a splice must instead sit either outside the bundle or inside a transition. (The existing `PJTSplice`/`objects/splice.py` model is the current 2-wire-in-1-branch-out shape, already flagged by its own module docstring TODO for a rewrite to a diameter-driven point-count model -- that rewrite is a separate, not-yet-scoped task; this placement rule is about WHERE a splice may sit relative to a bundle/transition, independent of that still-pending point-count rework.)
 
 ### 2.4d Joining wires, and the toolbar -- mechanics superseded by 2.7
 
@@ -161,7 +162,7 @@ Four tag columns added by the user 2026-09-26. Every row always has `wire_id`, e
 
 The original 5 questions here (pegboard span mapping, housing standoff, wire-to-bundle column details, click-and-drag-to-join mechanics, which cover part a right-click uses) were all obsoleted or answered by the 2026-09-26 skeleton-first workflow change (2.7) and the `pjt_wire_path` storage design (2.6). Live open items now live at the end of 2.6 and in 2.7/`BUNDLE_PLACEMENT.md`.
 
-Still genuinely open: **transitions and splices** -- what exactly "must end via a splice" means in the chain (branch position, transition centre, then a splice instead of an exit branch?), and how a wire with NO bundle references its branch positions.
+**ANSWERED 2026-10-03:** "must end via a splice" -- see 2.4e's new splice-placement rule (splice inside the transition, or inside a bundle unless that bundle is concentric-twisted, in which case outside the bundle or inside a transition). **ANSWERED (already, via 2.6):** a wire with no bundle plugged into a branch still has a `pjt_wire_path` row at that branch position -- `transition_id`/`transition_branch_id` set, `bundle_id` left NULL (2.6's own test-scenario rows for wire Y row 0 / wire X row 28 already show this; `bundle_id` is explicitly optional per 2.6's row-meaning paragraph). No remaining genuinely-open items in this section as of 2026-10-03.
 
 ## 4. Current code state (audit, 2026-09-25)
 
@@ -236,4 +237,5 @@ User, 2026-09-26: **none of the bundle code has ever been tested.** Everything i
 - 2026-09-25: Toolbar Add Bundle button stays (2.4d).
 - 2026-09-25: Bundles always start from a wire via right-click "Create New Bundle"; waypoint-to-waypoint only; extend via bundle right-click; central-point rule; 1-to-1 wire/bundle-layout rule (section 2).
 - 2026-09-25: Bundles are 3D and pegboard only; schematic stubs stay inert (section 1).
+- 2026-10-03: Splice placement answered (2.4e, section 3): a wire ending via a splice (not coming back out another transition branch) attaches to a splice located INSIDE the transition; a splice may also sit inside a bundle's own span, except when that bundle is concentric-twisted, in which case the splice must be outside the bundle or inside a transition instead. The existing `PJTSplice` 2-wire-in/1-branch-out model's own pending diameter-driven point-count rewrite (its module docstring TODO) stays a separate, not-yet-scoped task -- this only settles WHERE a splice may sit, not its internal shape.
 - 2026-09-30: The 3D billboard table (still unbuilt) gets all three position coordinates set freely, unlike the peg-board table's plane-pinned position; its captured image renders onto a real box with 0.1 mm depth, not a zero-thickness quad (2.7).
