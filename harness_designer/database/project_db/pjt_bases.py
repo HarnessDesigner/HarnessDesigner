@@ -717,7 +717,7 @@ class PJTTableBase:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return any([name for name in self.field_names if name.endswith('_point3d_id')])
+        return any([name for name in self.field_names if name.endswith('point3d_id')])
 
     @property
     @_check_types.do
@@ -729,7 +729,7 @@ class PJTTableBase:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return any([name for name in self.field_names if name.endswith('_point2d_id')])
+        return any([name for name in self.field_names if name.endswith('point2d_id')])
 
     @_check_types.do
     def find_unreferenced_point3d_ids(self, candidate_ids: list[int]) -> list[int]:
@@ -742,7 +742,7 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: list[int]
         """
-        return self._find_unreferenced_point_ids(candidate_ids, '_point3d_id')
+        return self._find_unreferenced_point_ids(candidate_ids, 'point3d_id')
 
     @_check_types.do
     def find_unreferenced_point2d_ids(self, candidate_ids: list[int]) -> list[int]:
@@ -755,7 +755,7 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: list[int]
         """
-        return self._find_unreferenced_point_ids(candidate_ids, '_point2d_id')
+        return self._find_unreferenced_point_ids(candidate_ids, 'point2d_id')
 
     @_check_types.do
     def _find_unreferenced_point_ids(self, candidate_ids: list[int], suffix: str) -> list[int]:
@@ -797,7 +797,7 @@ class PJTTableBase:
             IDs still unconfirmed as referenced.  Passed in from the
             previous table call (or the full batch on the first call).
         suffix : str
-            Column suffix to match, e.g. ``'_point3d_id'``.
+            Column suffix to match, e.g. ``'point3d_id'``.
 
         Returns
         -------

@@ -34,8 +34,8 @@ IDs that survive all table checks are confirmed orphans and are deleted.
 
 No hardcoded column lists are needed — ``find_unreferenced_ids`` discovers
 relevant columns at runtime from the cached ``field_names`` on each table,
-filtered by the naming convention suffix (``'_point3d_id'`` /
-``'_point2d_id'``).  New tables added to the schema are covered automatically.
+filtered by the naming convention suffix (``'point3d_id'`` /
+``'point2d_id'``).  New tables added to the schema are covered automatically.
 
 CURSOR DESIGN (chunked idle pass)
 ----------------------------------
