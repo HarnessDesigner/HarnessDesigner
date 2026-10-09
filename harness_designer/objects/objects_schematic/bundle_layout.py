@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 from . import base_schematic as _base_schematic
-from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
     from .. import bundle_layout as _bundle_layout
 
@@ -23,7 +22,7 @@ class BundleLayout(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
+                 db_obj: "_pjt_bundle_layout.PJTBundleLayout") -> None:
         """Initialise the :class:`BundleLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -37,5 +36,5 @@ class BundleLayout(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

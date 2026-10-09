@@ -1,8 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Union as _Union
+
 from PySide6 import QtWidgets
 from . import float_prop as _float_prop
+from . import events as _events
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ...geometry import point as _point_geo
 
 
 class PointProperty(QtWidgets.QGroupBox):
@@ -14,7 +20,7 @@ class PointProperty(QtWidgets.QGroupBox):
     INCREMENT: float = 0.01
 
     @_check_types.do
-    def __init__(self, parent, label: str, units: str, axes: str = 'xyz'):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, units: str, axes: str = 'xyz') -> None:
         """
         Initialise the :class:`PointProperty` instance.
 
@@ -70,7 +76,7 @@ class PointProperty(QtWidgets.QGroupBox):
         self.setLayout(sizer)
 
     @_check_types.do
-    def SetValue(self, point):
+    def SetValue(self, point: _Union["_point_geo.Point", None]) -> None:
         """
         Execute the set value operation.
 
@@ -100,7 +106,7 @@ class PointProperty(QtWidgets.QGroupBox):
             point.bind(self._on_point)
 
     @_check_types.do
-    def _on_point(self, point):
+    def _on_point(self, point: "_point_geo.Point") -> None:
         x, y, z = point.as_float
 
         if self.x_ctrl is not None:
@@ -113,7 +119,7 @@ class PointProperty(QtWidgets.QGroupBox):
             self.z_ctrl.SetValue(z)
 
     @_check_types.do
-    def _on_x(self, evt):
+    def _on_x(self, evt: _events.PropertyEvent) -> None:
         """
         Handle the x event.
 
@@ -125,7 +131,7 @@ class PointProperty(QtWidgets.QGroupBox):
         self._point.bind(self._on_point)
 
     @_check_types.do
-    def _on_y(self, evt):
+    def _on_y(self, evt: _events.PropertyEvent) -> None:
         """
         Handle the y event.
 
@@ -137,7 +143,7 @@ class PointProperty(QtWidgets.QGroupBox):
         self._point.bind(self._on_point)
 
     @_check_types.do
-    def _on_z(self, evt):
+    def _on_z(self, evt: _events.PropertyEvent) -> None:
         """
         Handle the z event.
 
@@ -149,7 +155,7 @@ class PointProperty(QtWidgets.QGroupBox):
         self._point.bind(self._on_point)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self.setTitle(value)
 

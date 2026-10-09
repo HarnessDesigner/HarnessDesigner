@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -25,6 +25,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects import cover as _cover_obj
+    from ... import ui as _ui
 
 
 class PJTCoversTable(PJTTableBase):
@@ -54,7 +55,7 @@ class PJTCoversTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -79,7 +80,7 @@ class PJTCoversTable(PJTTableBase):
         return covers.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -89,7 +90,7 @@ class PJTCoversTable(PJTTableBase):
         covers.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -111,7 +112,7 @@ class PJTCoversTable(PJTTableBase):
             yield PJTCover(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTCover":
+    def __getitem__(self, item: int | bytes | str) -> "PJTCover":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,7 +147,10 @@ class PJTCoversTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCover`
         """
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, point3d_id=position3d_id, housing_id=housing_id)
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, point3d_id=position3d_id, housing_id=housing_id,
+            scale3d_id=None, notes='', quat3d='[1.0, 0.0, 0.0, 0.0]', angle3d='[0.0, 0.0, 0.0]',
+            is_visible3d=1, smooth=None)
 
         return PJTCover(self, db_id)
 
@@ -175,7 +179,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -186,7 +190,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_cover_obj.Cover"):
+    def set_object(self, obj: "_cover_obj.Cover") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -239,14 +243,14 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
         return self._stored_part
 
 
-class PJTCoverControl(QTabWidget, LazyTabMixin):
+class PJTCoverControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT cover control in :mod:`harness_designer.database.project_db.pjt_cover`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTCover | None):
+    def set_obj(self, db_obj: PJTCover | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -257,7 +261,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -274,7 +278,7 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTCoverControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -285,8 +289,8 @@ class PJTCoverControl(QTabWidget, LazyTabMixin):
 
         self.db_obj: PJTCover | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

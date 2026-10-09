@@ -7,6 +7,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_cover as _pjt_cover
     from .. import cover as _cover
 
@@ -21,7 +22,7 @@ class Cover(_base_pegboard.BasePegboard):
     db_obj: "_pjt_cover.PJTCover"
 
     @_check_types.do
-    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover"):
+    def __init__(self, parent: "_cover.Cover", db_obj: "_pjt_cover.PJTCover") -> None:
         """Initialise the :class:`Cover` instance.
 
         :param parent: Parent object.
@@ -33,5 +34,5 @@ class Cover(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

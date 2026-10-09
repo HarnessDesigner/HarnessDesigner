@@ -1,11 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import math
 
 import numpy as np
-from OpenGL import GL
 
 from .. import objectsvar as _objectsvar
 
@@ -18,14 +17,13 @@ from ...gl import materials as _materials
 from ...gl.canvas_base import interaction as _interaction
 from ...gl import vbo as _vbo
 from ...shapes import text as _text
-from ... import utils as _utils
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
-    from ...ui import editor_2d as _editor_2d
+    from ...ui import editor_schematic as _editor_schematic
     from ...database import project_db as _project_db
     from ...gl import vbo as _vbo
     from ...gl import shaders as _shaders
@@ -96,7 +94,7 @@ class BaseSchematic(_objectsvar.BaseVar):
     def __init__(self, parent: "_ObjectBase", db_obj: "_project_db.PJTEntryBase",
                  vbo: _vbo.VBOHandlerBase | _text.Text | None, angle: _angle.Angle | None,
                  position: _point.Point | None, scale: _point.Point | None,
-                 material: _materials.GLMaterial | None):
+                 material: _materials.GLMaterial | None) -> None:
         """Initialise the :class:`BaseSchematic` instance.
 
         :param parent: Parent object.
@@ -121,7 +119,7 @@ class BaseSchematic(_objectsvar.BaseVar):
         """
 
         try:
-            self.editor2d: "_editor_2d.Editor2D" = parent.mainframe.editor2d
+            self.editor2d: "_editor_schematic.EditorSchematic" = parent.mainframe.editor2d
             self.mainframe: "_ui.MainFrame" = parent.mainframe
         except AttributeError:
             return
@@ -162,7 +160,7 @@ class BaseSchematic(_objectsvar.BaseVar):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Generic locked-X/Z drag arming/dispatch, plus rotation-gizmo
         arming/dispatch (see rotation_handlers.rotation_rings.
@@ -222,7 +220,7 @@ class BaseSchematic(_objectsvar.BaseVar):
     @_check_types.do
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo --
         see objects_3d.base_3d.Base3D._handle_rotation_interaction (same
@@ -344,7 +342,7 @@ class BaseSchematic(_objectsvar.BaseVar):
 
     @property
     @_check_types.do
-    def editor(self):
+    def editor(self) -> "_editor_schematic.EditorSchematic":
         return self.editor2d
 
     @property
@@ -361,7 +359,7 @@ class BaseSchematic(_objectsvar.BaseVar):
 
     @is_visible.setter
     @_check_types.do
-    def is_visible(self, value: bool):
+    def is_visible(self, value: bool) -> None:
         """Set the is visible.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -376,7 +374,7 @@ class BaseSchematic(_objectsvar.BaseVar):
             pass
 
     @_check_types.do
-    def _is_visible_callback(self, *_, **__):
+    def _is_visible_callback(self, *_: tuple[Any], **__: dict[str, Any]) -> None:
         self._is_visible = self.db_obj.is_visible2d  # NOQA
         self.mainframe.editor2d.Refresh()
 
@@ -390,21 +388,3 @@ class BaseSchematic(_objectsvar.BaseVar):
     # against the OBB/AABB computed above; legacy subclasses override them
     # against their own manual geometry as before.
     # ------------------------------------------------------------------
-
-    @_check_types.do
-    def get_bounds(self):
-        """
-        Get the world-space bounding box from the OBB/AABB ``BaseVar``
-        already computes for any VBO-backed object -- generic for every
-        such subclass (Housing2D, Cavity2D, Terminal2D, ...); legacy
-        (``vbo is None``) subclasses have no ``_aabb`` and fall through
-        to ``None``.
-
-        Returns:
-            tuple: (min_x, min_z, max_x, max_z) or None
-        """
-        if self._aabb is None:
-            return None
-
-        (min_x, _, min_z), (max_x, _, max_z) = self._aabb
-        return float(min_x), float(min_z), float(max_x), float(max_z)

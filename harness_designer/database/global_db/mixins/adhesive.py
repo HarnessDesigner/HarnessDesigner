@@ -9,6 +9,8 @@ from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import adhesive as _adhesive  # NOQA
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class AdhesiveMixin(BaseMixin):
@@ -70,7 +72,7 @@ class AdhesiveMixin(BaseMixin):
 
     @adhesive_ids.setter
     @_check_types.do
-    def adhesive_ids(self, value: list[str]):
+    def adhesive_ids(self, value: list[str]) -> None:
         """Set the adhesive IDs.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -91,7 +93,7 @@ class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`AdhesiveControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +106,7 @@ class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
         super().__init__(parent, 'Adhesives')
 
     @_check_types.do
-    def _on_adhesives(self, evt):
+    def _on_adhesives(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the adhesives event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -116,7 +118,7 @@ class AdhesiveControl(_prop_ctrls.ArrayStringProperty):
         self.db_obj.adhesive_ids = value
 
     @_check_types.do
-    def set_obj(self, db_obj: AdhesiveMixin):
+    def set_obj(self, db_obj: AdhesiveMixin) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

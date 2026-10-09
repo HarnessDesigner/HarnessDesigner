@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -13,19 +15,22 @@ from . import models3d as _models3d
 from . import directions as _directions
 from . import temperatures as _temperatures
 from . import families as _families
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import housings as _housings
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_covers(con, data: tuple[dict] | list[dict]):
+def add_covers(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """
     Add a covers.
 
@@ -41,7 +46,7 @@ def add_covers(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """
     Add a records.
 
@@ -110,10 +115,10 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_cover(con, part_number, description, mfg=None, family=None, series=None,
-              color=None, direction=None, image=None, datasheet=None, cad=None,
-              min_temp=None, max_temp=None, model3d=None, length=0.0, width=0.0,
-              height=0.0, weight=0.0, pins=0, compat_housings=None, commit=True):
+def add_cover(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+              color: str | None = None, direction: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None,
+              min_temp: str | None = None, max_temp: str | None = None, model3d: str | None = None, length: float = 0.0, width: float = 0.0,
+              height: float = 0.0, weight: float = 0.0, pins: int = 0, compat_housings: list[str] | None = None, commit: bool = True) -> bytes:
     """
     Add a cover.
 

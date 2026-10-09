@@ -72,23 +72,16 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
 
     @_check_types.do
     def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
-        # Bypass DragHandlerPegboard.__init__ -- it caches
-        # target.objpegboard.touching_budgets() for the older per-edge
-        # clamp this handler no longer uses at all (see the module
-        # docstring); that cache would just be wasted work here now,
-        # same reasoning drag_handlers.editor_pegboard.bundle.Bundle's
-        # own segment-drag __init__ already applies for the same reason.
         _base.DragHandlerBase.__init__(self, canvas, target)
 
-        # Every real peg-board point this drag could ever move, each at
-        # ITS OWN position right now (the drag's start) -- see the module
-        # docstring's own "caches every real peg-board point" section for
-        # why this must never be re-derived from a "current" position on
-        # a later frame.
+        # Every real peg-board point this drag could ever move, each at ITS
+        # OWN position right now (the drag's start). Never re-derived from a
+        # "current" position on a later frame.
         objpegboard = target.objpegboard
         point_id = objpegboard.point3d_id
 
         self._point_starts: list[tuple[bytes, _point.Point]] = []
+        self._attach_live: _point.Point | None = None
         if point_id is not None:
             self._point_starts.append((point_id, objpegboard.position.copy()))
 
@@ -99,9 +92,19 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
                         self._point_starts.append(
                             (branch_point_id, branch.position_pegboard.copy()))
 
+            # A terminal's wires/bundles plug in at its attach point, which sits
+            # off the terminal's own center. It moves with the drag, so the
+            # attached chain's length is measured from where it really is.
+            if target.is_terminal:
+                attach_id = target.db_obj.attach_position_pegboard_id_raw
+                if attach_id is not None:
+                    attach_live = target.db_obj.attach_position_pegboard
+                    self._point_starts.append((attach_id, attach_live.copy()))
+                    self._attach_live = attach_live
+
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
         objpegboard = self.target.objpegboard
 
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
@@ -113,12 +116,17 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
                 float(target_pos.x) - float(center_start.x),
                 float(target_pos.z) - float(center_start.z))
 
-            t = _rope_pull_handler.resolve_rigid_move(
-                self.canvas.mainframe, self._point_starts, full_delta)
+            if _rope_pull_handler.is_enabled():
+                t = _rope_pull_handler.resolve_rigid_move(
+                    self.canvas.mainframe, self._point_starts, full_delta)
+                displacement = (full_delta[0] * t, full_delta[1] * t)
+            else:
+                displacement = _rope_pull_handler.resolve_local_move(
+                    self.canvas.mainframe, self._point_starts, full_delta)
 
             target_pos = _point.Point(
-                float(center_start.x) + full_delta[0] * t, 0.0,
-                float(center_start.z) + full_delta[1] * t)
+                float(center_start.x) + displacement[0], 0.0,
+                float(center_start.z) + displacement[1])
 
         current = objpegboard.position
         world_delta = _point.Point(
@@ -126,3 +134,12 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
             float(target_pos.z) - float(current.z))
 
         objpegboard.drag(world_delta)
+
+        if self._attach_live is not None:
+            _, center_start = self._point_starts[0]
+            _, attach_start = self._point_starts[1]
+            attach_x = float(attach_start.x) + float(target_pos.x) - float(center_start.x)
+            attach_z = float(attach_start.z) + float(target_pos.z) - float(center_start.z)
+            attach_now = self._attach_live
+            attach_now += _point.Point(
+                attach_x - float(attach_now.x), 0.0, attach_z - float(attach_now.z))

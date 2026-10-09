@@ -58,10 +58,16 @@ the result back to real slot indices a caller can :meth:`resolve` into
 the objects that actually got hit.
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import weakref
 import numpy as np
 
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ..objects.objectsvar import base_var as _base_var
 
 
 # Slot categories for :meth:`ArrayPool.set_tag`. Add new ones here.
@@ -152,7 +158,7 @@ class ArrayPool:
         self._issued_in_last_block = 0
 
     @_check_types.do
-    def allocate(self, obj: object) -> int:
+    def allocate(self, obj: "_base_var.BaseVar") -> int:
         """Claim a row for *obj* -- a freed slot from an earlier
         release if one's available (reused at its own original
         address), otherwise the next never-issued row in the current
@@ -213,11 +219,11 @@ class ArrayPool:
         block, slot = divmod(index, self._block_size)
         self._blocks[block][slot][:] = values
 
-    def __contains__(self, item: object) -> bool:
+    def __contains__(self, item: "_base_var.BaseVar") -> bool:
         ref = weakref.ref(item)
         return ref in self._refs
 
-    def __getitem__(self, item: object) -> int:
+    def __getitem__(self, item: "_base_var.BaseVar") -> int:
         # this next bit of code makes sure we are not double allocating
         # an aabb or obb for any object.
         ref = weakref.ref(item)
@@ -263,6 +269,12 @@ class ArrayPool:
         return self._blocks[block][slot]
 
     @_check_types.do
+    def is_visible(self, index: int) -> bool:
+        """Whether *index*'s own object was drawn in this view's current pass
+        (set by :meth:`mark_visible`, cleared by :meth:`reset_visible`)."""
+        return bool(self._visible[index])
+
+    @_check_types.do
     def mark_visible(self, index: int) -> None:
         """Called from inside the owning object's own ``render()`` --
         see the module docstring's ``_visible`` bullet. A no-op for a
@@ -281,7 +293,7 @@ class ArrayPool:
         del self._visible_refs[:]
 
     @_check_types.do
-    def resolve(self, index: int) -> object | None:
+    def resolve(self, index: int) -> _Union["_base_var.BaseVar", None]:
         """The real, live object *slot* belongs to, or ``None`` if it's
         already been garbage collected (a defensive guard, same as
         ``objects.wire.Wire.start_sibling``/``objects.terminal.Terminal
@@ -345,7 +357,7 @@ class ArrayPool:
 
         return rows[issued]
 
-    def visible_objects(self) -> list[object]:
+    def visible_objects(self) -> list["_base_var.BaseVar"]:
         ret = []
         for ref in self._visible_refs:
             if ref is None:

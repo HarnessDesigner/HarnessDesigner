@@ -16,7 +16,8 @@ to the handler.  They are emitted through the matching Qt Signal and
 received directly by the connected handler — no conversion step needed.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import Union as _Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtGui
 from PySide6 import QtWidgets
@@ -30,6 +31,7 @@ if TYPE_CHECKING:
     from .. import objects as _objects
     from .canvas_3d import camera as _camera3d
     from .canvas_schematic import camera as _camera2d
+    from .canvas_base import canvas_base as _canvas_base
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +119,7 @@ class _GLEventBase:
     """Common base for all GL event data objects."""
 
     @_check_types.do
-    def __init__(self, type_):
+    def __init__(self, type_: str) -> None:
         """Initialise the :class:`_GLEventBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -132,7 +134,7 @@ class _GLEventBase:
         self._stop_prop = False
 
     @_check_types.do
-    def GetType(self):
+    def GetType(self) -> str:
         """
         Execute the get type operation.
 
@@ -144,7 +146,7 @@ class _GLEventBase:
         return self._type
 
     @_check_types.do
-    def Skip(self):
+    def Skip(self) -> None:
         """
         Execute the skip operation.
 
@@ -153,7 +155,7 @@ class _GLEventBase:
         self._skipped = True
 
     @_check_types.do
-    def StopPropagation(self):
+    def StopPropagation(self) -> None:
         """
         Execute the stop propagation operation.
 
@@ -162,7 +164,7 @@ class _GLEventBase:
         self._stop_prop = True
 
     @_check_types.do
-    def ShouldPropagate(self):
+    def ShouldPropagate(self) -> bool:
         """
         Execute the should propagate operation.
 
@@ -174,7 +176,7 @@ class _GLEventBase:
         return not self._stop_prop
 
     @_check_types.do
-    def SetId(self, id_):
+    def SetId(self, id_: int) -> None:
         """
         Execute the set ID operation.
 
@@ -186,7 +188,7 @@ class _GLEventBase:
         self._id = id_
 
     @_check_types.do
-    def GetId(self):
+    def GetId(self) -> int:
         """
         Execute the get ID operation.
 
@@ -198,7 +200,7 @@ class _GLEventBase:
         return self._id
 
     @_check_types.do
-    def SetEventObject(self, obj):
+    def SetEventObject(self, obj: "_canvas_base.CanvasBase") -> None:
         """
         Execute the set event object operation.
 
@@ -210,7 +212,7 @@ class _GLEventBase:
         self._obj = obj
 
     @_check_types.do
-    def GetEventObject(self):
+    def GetEventObject(self) -> "_canvas_base.CanvasBase":
         """
         Execute the get event object operation.
 
@@ -245,7 +247,7 @@ class GLCameraEvent(_GLEventBase):
 
     @classmethod
     @_check_types.do
-    def from_canvas(cls, type_, canvas):
+    def from_canvas(cls, type_: str, canvas: "_canvas_base.CanvasBase") -> _Union["GLCameraEvent", None]:
         global_pos = QtGui.QCursor.pos()
         local_pos = canvas.mapFromGlobal(global_pos)
 
@@ -284,18 +286,18 @@ class GLCameraEvent(_GLEventBase):
         return instance
 
     @_check_types.do
-    def __init__(self, type_):
+    def __init__(self, type_: str) -> None:
         super().__init__(type_)
         self._mouse_pos = None
         self._mouse_buttons: int = BTN_NONE
         self._camera = None
 
     @_check_types.do
-    def GetCamera(self) -> Union["_camera2d.Camera", "_camera3d.Camera"]:
+    def GetCamera(self) -> _Union["_camera2d.Camera", "_camera3d.Camera"]:
         return self._camera
 
     @_check_types.do
-    def SetCamera(self, value: Union["_camera2d.Camera", "_camera3d.Camera"]):
+    def SetCamera(self, value: _Union["_camera2d.Camera", "_camera3d.Camera"]) -> None:
         self._camera = value
 
     @_check_types.do
@@ -402,7 +404,7 @@ class GLEvent(_GLEventBase):
     """Mouse-position event on a GL canvas."""
 
     @_check_types.do
-    def __init__(self, type_):
+    def __init__(self, type_: str) -> None:
         """Initialise the :class:`GLEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -541,7 +543,7 @@ class GLObjectEvent(_GLEventBase):
     """Mouse interaction with a specific GL object."""
 
     @_check_types.do
-    def __init__(self, type_):
+    def __init__(self, type_: str) -> None:
         """Initialise the :class:`GLObjectEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -703,7 +705,7 @@ class GLKeyEvent(_GLEventBase):
     """Keyboard event on a GL canvas."""
 
     @_check_types.do
-    def __init__(self, type_):
+    def __init__(self, type_: str) -> None:
         """Initialise the :class:`GLKeyEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

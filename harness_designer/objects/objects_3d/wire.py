@@ -26,6 +26,8 @@ from . import mixins as _mixins
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
     from ...gl import shaders as _shaders
@@ -293,6 +295,10 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
         :type angle: :class:`_angle.Angle`
         """
         self._update_position(None)
+
+    @_check_types.do
+    def _endpoint_diameter(self) -> float:
+        return self.db_obj.part.od_mm
 
     @_check_types.do
     def _recalculate_geometry(self) -> None:
@@ -862,7 +868,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     @classmethod
     @_check_types.do
     def _start_from_terminal(
-            cls, mainframe: "_ui.MainFrame", canvas: object, terminal: "_terminal_facade.Terminal",
+            cls, mainframe: "_ui.MainFrame", canvas: "_editor_3d.Editor3DPanel", terminal: "_terminal_facade.Terminal",
             part_id: bytes) -> _Union["_wire.Wire", None]:
         """Pin the preview wire's start to *terminal* and enter phase 1
         directly -- see handlers.wire_handler.AddWireHandler.
@@ -907,7 +913,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     @classmethod
     @_check_types.do
     def _start_from_splice(
-            cls, mainframe: "_ui.MainFrame", canvas: object, splice: "_splice_facade.Splice",
+            cls, mainframe: "_ui.MainFrame", canvas: "_editor_3d.Editor3DPanel", splice: "_splice_facade.Splice",
             part_id: bytes) -> _Union["_wire.Wire", None]:
         from ...handlers import wire_snap as _wire_snap
         from .. import wire as _wire_facade
@@ -945,7 +951,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     @classmethod
     @_check_types.do
     def _start_extend_from_wire(
-            cls, mainframe: "_ui.MainFrame", canvas: object, wire_obj: "_wire.Wire",
+            cls, mainframe: "_ui.MainFrame", canvas: "_editor_3d.Editor3DPanel", wire_obj: "_wire.Wire",
             end: str) -> _Union["_wire.Wire", None]:
         """Extension mode: live-move *wire_obj*'s own dangling *end*
         directly, never creating a fresh preview -- see
@@ -987,7 +993,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     @classmethod
     @_check_types.do
     def _start_add_to_wire(
-            cls, mainframe: "_ui.MainFrame", canvas: object, wire_obj: "_wire.Wire",
+            cls, mainframe: "_ui.MainFrame", canvas: "_editor_3d.Editor3DPanel", wire_obj: "_wire.Wire",
             end: str) -> _Union["_wire.Wire", None]:
         """Continue *wire_obj* from its own free *end* -- tags that end
         as a permanent interior waypoint, then continues the live
@@ -1011,7 +1017,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @classmethod
     @_check_types.do
-    def _start_free_space(cls, mainframe: "_ui.MainFrame", canvas: object, part_id: bytes) -> _Union["_wire.Wire", None]:
+    def _start_free_space(cls, mainframe: "_ui.MainFrame", canvas: "_editor_3d.Editor3DPanel", part_id: bytes) -> _Union["_wire.Wire", None]:
         """Build the preview wire eagerly, at a placeholder start point
         the very first hover call immediately relocates to the cursor --
         see the module-level docstring on add_handlers.editor_3d.wire.Wire
@@ -1039,7 +1045,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @classmethod
     @_check_types.do
-    def _arm(cls, canvas: object, facade: "_wire.Wire", part_id: bytes, phase: int, growing_end: str,
+    def _arm(cls, canvas: "_editor_3d.Editor3DPanel", facade: "_wire.Wire", part_id: bytes, phase: int, growing_end: str,
              start_circuit_id: bytes | None) -> "_wire.Wire":
         from ...add_handlers.editor_3d import wire as _add_wire
 
@@ -1066,7 +1072,7 @@ class Wire(_base_3d.Base3D, _mixins.WireTypeMixin):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Segment-local wire drag -- overrides Base3D's generic single-
         position drag outright: what a click on the wire's body actually
@@ -1431,7 +1437,7 @@ class WireMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: Wire) -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: Wire) -> None:
         """Initialise the :class:`WireMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1556,7 +1562,7 @@ class WireMenu(QtWidgets.QMenu):
             mainframe = self.selected.mainframe
 
             part_id = _menu_ops.get_part_id(
-                mainframe, 'wire_markers',
+                mainframe, mainframe.editor_db.editor.wire_markers,
                 mainframe.global_db.wire_markers_table, 'Add Wire Marker')
 
             if part_id is None:

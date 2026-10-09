@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
 
-from PySide6.QtWidgets import QApplication
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 
 from ...gl import canvas_schematic as _canvas_schematic
 from ... import config as _config
@@ -13,6 +13,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
+    from ... import objects as _objects
+    from ...gl import context as _gl_context
 
 
 Config = _config.Config.editor_schematic
@@ -25,7 +27,7 @@ class EditorSchematic(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`Editor2D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -45,7 +47,7 @@ class EditorSchematic(_dock_base.DockBase):
 
     @property
     @_check_types.do
-    def context(self):
+    def context(self) -> "_gl_context.GLContext":
         """Return the GL context manager owned by the inner canvas.
 
         Mirrors ``ui.editor_3d.editor3d.Editor3D.context``/
@@ -61,7 +63,7 @@ class EditorSchematic(_dock_base.DockBase):
         return self._ui_obj.context
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -72,7 +74,7 @@ class EditorSchematic(_dock_base.DockBase):
         self._ui_obj.set_selected(obj)
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         """Add an object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -83,7 +85,7 @@ class EditorSchematic(_dock_base.DockBase):
         self._ui_obj.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         """Remove the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -102,7 +104,7 @@ class EditorSchematic(_dock_base.DockBase):
         self._ui_obj.clear()
 
     @_check_types.do
-    def bind(self, signal_name, handler):
+    def bind(self, signal_name: str, handler: Callable[..., None]) -> None:
         """Execute the bind operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -115,7 +117,7 @@ class EditorSchematic(_dock_base.DockBase):
         self._ui_obj.bind(signal_name, handler)
 
     @_check_types.do
-    def set_clone_obj(self, obj):
+    def set_clone_obj(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """Set the clone obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -133,7 +135,7 @@ class EditorSchematicPanel(_canvas_schematic.CanvasSchematic):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`Editor2DPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,7 +148,7 @@ class EditorSchematicPanel(_canvas_schematic.CanvasSchematic):
             max_y = 0
             min_x = 0
             min_y = 0
-            for screen in QApplication.screens():
+            for screen in QtWidgets.QApplication.screens():
                 geo = screen.geometry()
                 x, y, w, h = geo.x(), geo.y(), geo.width(), geo.height()
                 max_x = max(x + w, max_x)
@@ -166,7 +168,7 @@ class EditorSchematicPanel(_canvas_schematic.CanvasSchematic):
         super().__init__(parent, Config, size)
 
     @_check_types.do
-    def center_on_object(self, obj) -> None:
+    def center_on_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Pan the schematic camera to bring *obj* into view, then zoom out
         (never in) just enough to fit it if it wouldn't otherwise fit in

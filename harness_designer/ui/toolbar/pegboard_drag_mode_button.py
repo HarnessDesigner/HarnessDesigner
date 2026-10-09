@@ -37,7 +37,7 @@ class PegboardDragModeButton(QtWidgets.QToolButton):
     dragModeChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent)
 
         self._mode = 'clamp'

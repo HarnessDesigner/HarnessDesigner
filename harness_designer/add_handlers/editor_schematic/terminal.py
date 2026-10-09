@@ -18,7 +18,7 @@ male/female 3D attach position 3D's own Mode 1/2/3 already do (reused
 directly, not duplicated).
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
@@ -31,6 +31,9 @@ if TYPE_CHECKING:
     from ...gl.canvas_schematic import canvas as _canvas
     from ... import objects as _objects
     from ...objects import housing as _housing
+    from ...objects import cavity as _cavity
+    from ...objects.objects_schematic import base_schematic as _base_schematic
+    from ...database.global_db import terminal as _glb_terminal
 
 
 class Terminal(_base.AddHandlerBase):
@@ -38,9 +41,9 @@ class Terminal(_base.AddHandlerBase):
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part,
-        housing: Union["_housing.Housing", None]
-    ):
+        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part: "_glb_terminal.Terminal",
+        housing: _Union["_housing.Housing", None]
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -56,20 +59,21 @@ class Terminal(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_schematic.BaseSchematic":
         return obj.objschematic
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
@@ -99,7 +103,7 @@ class Terminal(_base.AddHandlerBase):
         self._finalized = True
 
     @_check_types.do
-    def _seat(self, cavity_obj) -> None:
+    def _seat(self, cavity_obj: "_cavity.Cavity") -> None:
         from ...handlers import terminal_handler as _terminal_handler
         from ...handlers import handler_base as _handler_base
 
@@ -131,5 +135,5 @@ class Terminal(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

@@ -5,10 +5,10 @@
 #       single splice point and the number of connected wires would be
 #       dictated by the diameter of the splice
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from . import pjt_point3d as _pjt_point3d
     from . import pjt_point_pegboard as _pjt_point_pegboard
     from ...objects import splice as _splice_obj
+    from ... import ui as _ui
 
 
 class PJTSplicesTable(PJTTableBase):
@@ -69,7 +70,7 @@ class PJTSplicesTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +95,7 @@ class PJTSplicesTable(PJTTableBase):
         return splices.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +105,7 @@ class PJTSplicesTable(PJTTableBase):
         splices.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -126,7 +127,7 @@ class PJTSplicesTable(PJTTableBase):
             yield PJTSplice(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTSplice":
+    def __getitem__(self, item: int | bytes | str) -> "PJTSplice":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -169,9 +170,15 @@ class PJTSplicesTable(PJTTableBase):
         :rtype: :class:`PJTSplice`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
-                                    start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
-                                    branch_point3d_id=branch_point3d_id, point2d_id=point2d_id)
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, circuit_id=circuit_id,
+            start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
+            branch_point3d_id=branch_point3d_id, point2d_id=point2d_id,
+            start_point_pegboard_id=None, stop_point_pegboard_id=None,
+            branch_point_pegboard_id=None, table_point_peg_id=None,
+            quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
+            scale3d_id=None, scale_pegboard_id=None, notes='',
+            is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None)
 
         return PJTSplice(self, db_id)
 
@@ -213,7 +220,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -224,7 +231,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_splice_obj.Splice"):
+    def set_object(self, obj: "_splice_obj.Splice") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -270,7 +277,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         branch_db_ids2 = self._table.db.pjt_wires_table.select('id', start_point3d_id=self.branch_position3d_id)
 
         @_check_types.do
-        def _get_wires(rows):
+        def _get_wires(rows: list[tuple]) -> list["_pjt_wire.PJTWire"]:
             """Return the wires.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -297,7 +304,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return [start_wires, stop_wires, branch_wires]
 
-    _stored_branch_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_branch_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -318,8 +325,6 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return self._stored_branch_position3d.point
 
-    _stored_branch_position3d_id: bytes | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def branch_position3d_id(self) -> bytes:
@@ -330,20 +335,19 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_branch_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
-            if point_id is None:
-                point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, branch_point3d_id=point_id)
+        point_id = self._table.select('branch_point3d_id', id=self._db_id)[0][0]
 
-            self._stored_branch_position3d_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, branch_point3d_id=point_id)
+            self._populate('branch_position3d_id')
 
-        return self._stored_branch_position3d_id
+        return point_id
 
     @branch_position3d_id.setter
     @_check_types.do
-    def branch_position3d_id(self, value: bytes):
+    def branch_position3d_id(self, value: bytes) -> None:
         """Set the branch position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -351,13 +355,12 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_branch_position3d_id = value
         self._stored_branch_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, branch_point3d_id=value)
         self._populate('branch_position3d_id')
 
-    _stored_branch_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_branch_position_pegboard: _Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -376,8 +379,6 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
 
         return self._stored_branch_position_pegboard.point
 
-    _stored_branch_position_pegboard_id: bytes | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def branch_position_pegboard_id(self) -> bytes:
@@ -388,32 +389,28 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value.
         :rtype: bytes
         """
-        if self._stored_branch_position_pegboard_id is DefaultStoredValue:
-            point_id = self._table.select('branch_point_pegboard_id', id=self._db_id)[0][0]
-            if point_id is None:
-                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, branch_point_pegboard_id=point_id)
+        point_id = self._table.select('branch_point_pegboard_id', id=self._db_id)[0][0]
 
-            self._stored_branch_position_pegboard_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, branch_point_pegboard_id=point_id)
+            self._populate('branch_position_pegboard_id')
 
-        return self._stored_branch_position_pegboard_id
+        return point_id
 
     @branch_position_pegboard_id.setter
     @_check_types.do
-    def branch_position_pegboard_id(self, value: bytes):
+    def branch_position_pegboard_id(self, value: bytes) -> None:
         """Set the peg-board mirror of :attr:`branch_position3d_id`.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_branch_position_pegboard_id = value
         self._stored_branch_position_pegboard = DefaultStoredValue
 
         self._table.update(self._db_id, branch_point_pegboard_id=value)
         self._populate('branch_position_pegboard_id')
-
-    _stored_circuit: _pjt_circuit.PJTCircuit | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -425,13 +422,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_circuit.PJTCircuit`
         """
-        if self._stored_circuit is DefaultStoredValue:
-            circuit_id = self.circuit_id
-            self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
-
-        return self._stored_circuit
-
-    _stored_circuit_id: bytes | DefaultStoredValueType = DefaultStoredValue
+        return self._table.db.pjt_circuits_table[self.circuit_id]
 
     @property
     @_check_types.do
@@ -443,14 +434,11 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_circuit_id is DefaultStoredValue:
-            self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
-
-        return self._stored_circuit_id
+        return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes):
+    def circuit_id(self, value: bytes) -> None:
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -458,9 +446,6 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_circuit_id = value
-        self._stored_circuit = DefaultStoredValue
-
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
 
@@ -499,14 +484,14 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._stored_part
 
 
-class PJTSpliceControl(QTabWidget, LazyTabMixin):
+class PJTSpliceControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT splice control in :mod:`harness_designer.database.project_db.pjt_splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTSplice | None):
+    def set_obj(self, db_obj: PJTSplice | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -517,7 +502,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -540,7 +525,7 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTSpliceControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -550,8 +535,8 @@ class PJTSpliceControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTSplice | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

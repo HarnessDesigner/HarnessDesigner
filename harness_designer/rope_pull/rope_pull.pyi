@@ -7,8 +7,9 @@ def solve_chain(
     required_length: float,
     drag_end: int,
     target: tuple[float, float],
-    height_cap_fraction: float,
-    min_height_mm: float,
+    diameter_mm: float,
+    zigzag_length_factor: float,
+    threshold_factor: float,
     tolerance: float = 1e-6,
 ) -> tuple[bool, list[tuple[float, float]]]:
     """See ``rope_pull.rope_pull_py.solve_chain`` -- identical behavior;

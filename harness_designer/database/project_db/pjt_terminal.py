@@ -3,7 +3,7 @@
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -40,6 +40,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
     from ...objects import terminal as _terminal_obj
+    from ... import ui as _ui
 
 
 class PJTTerminalsTable(PJTTableBase):
@@ -69,7 +70,7 @@ class PJTTerminalsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +95,7 @@ class PJTTerminalsTable(PJTTableBase):
         return terminals.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +105,7 @@ class PJTTerminalsTable(PJTTableBase):
         terminals.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -126,7 +127,7 @@ class PJTTerminalsTable(PJTTableBase):
             yield PJTTerminal(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTTerminal":
+    def __getitem__(self, item: int | bytes | str) -> "PJTTerminal":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -172,18 +173,27 @@ class PJTTerminalsTable(PJTTableBase):
         :rtype: :class:`PJTTerminal`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, cavity_id=cavity_id,
-                                    point2d_id=position2d_id, point3d_id=position3d_id)
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, cavity_id=cavity_id,
+            point2d_id=position2d_id, point3d_id=position3d_id,
+            circuit_id=None, wire_point3d_id=None, wire_point_pegboard_id=None,
+            attach_point3d_id=None, attach_point_pegboard_id=None, wire_point2d_id=None,
+            seal_point3d_id=None, seal_point_pegboard_id=None, point_pegboard_id=None,
+            scale3d_id=None, scale_pegboard_id=None, notes='',
+            quat3d='[1.0, 0.0, 0.0, 0.0]', angle3d='[0.0, 0.0, 0.0]',
+            quat2d='[1.0, 0.0, 0.0, 0.0]', angle2d='[0.0, 0.0, 0.0]',
+            quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
+            is_start=1, volts=0.0, load=0.0, voltage_drop=0.0,
+            is_visible3d=1, is_visible2d=1, is_visible_pegboard=1, smooth=None)
 
         terminal = PJTTerminal(self, db_id)
 
-        # PJTCavity.terminal caches the reverse lookup (DefaultStoredValue
-        # sentinel) — it has no way to know a new row now points at it, so
-        # the cache is primed here directly instead of left to go stale.
-        # See the cavity_id setter below for the move/reassign case.
+        # PJTCavity.terminal has no local cache to prime any more (it
+        # always reads straight through) -- only the notification below
+        # is still needed. See the cavity_id setter below for the
+        # move/reassign case.
         if cavity_id is not None:
             cavity = self.db.pjt_cavities_table[cavity_id]
-            cavity._stored_terminal = terminal  # NOQA
             # 'terminal_id' isn't a real column on pjt_cavities (the FK
             # lives on this row, cavity_id above) -- a synthetic tag so
             # listeners (objects2d.housing.Housing) can react to "this
@@ -236,7 +246,6 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
         if cavity_id is not None:
             cavity = self._table.db.pjt_cavities_table[cavity_id]
-            cavity._stored_terminal = None  # NOQA
             cavity._populate('terminal_id')  # see PJTTerminalsTable.insert
 
     @_check_types.do
@@ -254,7 +263,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -265,7 +274,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_terminal_obj.Terminal"):
+    def set_object(self, obj: "_terminal_obj.Terminal") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -304,7 +313,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @is_start.setter
     @_check_types.do
-    def is_start(self, value: bool):
+    def is_start(self, value: bool) -> None:
         """Set the is start.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -324,7 +333,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._populate('is_start')
 
     @_check_types.do
-    def __check_for_other_starts(self):
+    def __check_for_other_starts(self) -> None:
         """Execute the check for other starts operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -354,7 +363,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @voltage_drop.setter
     @_check_types.do
-    def voltage_drop(self, value: float):
+    def voltage_drop(self, value: float) -> None:
         """Set the voltage drop.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -399,7 +408,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @volts.setter
     @_check_types.do
-    def volts(self, value: float):
+    def volts(self, value: float) -> None:
         """Set the volts.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -432,7 +441,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @load.setter
     @_check_types.do
-    def load(self, value: float):
+    def load(self, value: float) -> None:
         """Set the load.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -497,7 +506,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @cavity_id.setter
     @_check_types.do
-    def cavity_id(self, value: bytes):
+    def cavity_id(self, value: bytes) -> None:
         """Set the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -512,17 +521,15 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._table.update(self._db_id, cavity_id=value)
         self._populate('cavity_id')
 
-        # Keep PJTCavity.terminal's cache (a reverse lookup PJTCavity has no
-        # way to invalidate on its own) in sync with this row's new home —
-        # see PJTTerminalsTable.insert for the initial-placement case.
+        # PJTCavity.terminal has no local cache to keep in sync any more
+        # (it always reads straight through) -- only the notification
+        # below is still needed, for both the old and new cavity.
         if old_cavity_id is not None and old_cavity_id != value:
             old_cavity = self._table.db.pjt_cavities_table[old_cavity_id]
-            old_cavity._stored_terminal = None  # NOQA
             old_cavity._populate('terminal_id')  # see PJTTerminalsTable.insert
 
         if value is not None:
             new_cavity = self._table.db.pjt_cavities_table[value]
-            new_cavity._stored_terminal = self  # NOQA
             new_cavity._populate('terminal_id')
 
     _stored_circuit: _pjt_circuit.PJTCircuit = None
@@ -562,7 +569,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes):
+    def circuit_id(self, value: bytes) -> None:
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -649,22 +656,17 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         setter below (identical to the inherited one) is still how a
         real point gets attached the first time.
         """
-        if self._stored_position2d_id is DefaultStoredValue:
-            self._stored_position2d_id = self._table.select(
-                'point2d_id', id=self._db_id)[0][0]
-
-        return self._stored_position2d_id
+        return self._table.select('point2d_id', id=self._db_id)[0][0]
 
     @position2d_id.setter
     @_check_types.do
-    def position2d_id(self, value: bytes):
+    def position2d_id(self, value: bytes) -> None:
         """Set the position 2D ID -- same as ``Position2DMixin``'s own
         setter, redefined here only because overriding the getter
         above (see its own docstring) also requires redefining the
         setter (a property completely shadows its parent's, setter
         included).
         """
-        self._stored_position2d_id = value
         self._stored_position2d = DefaultStoredValue
 
         self._table.update(self._db_id, point2d_id=value)
@@ -830,7 +832,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @wire_position2d_id.setter
     @_check_types.do
-    def wire_position2d_id(self, value: bytes):
+    def wire_position2d_id(self, value: bytes) -> None:
         """Persist *value* as the ``wire_point2d_id`` column and
         invalidate the cache -- same shape as :attr:`position2d_id`'s
         own setter.
@@ -1227,7 +1229,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @seal_position3d_id.setter
     @_check_types.do
-    def seal_position3d_id(self, value: bytes):
+    def seal_position3d_id(self, value: bytes) -> None:
         """Persist *value* as the seal position point id and invalidate the cache."""
         self._stored_seal_position3d = None
         self._table.update(self._db_id, seal_point3d_id=value)
@@ -1262,7 +1264,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
 
     @seal_position_pegboard_id.setter
     @_check_types.do
-    def seal_position_pegboard_id(self, value: bytes):
+    def seal_position_pegboard_id(self, value: bytes) -> None:
         """Persist *value* as the peg-board seal position point id and invalidate the cache."""
         self._stored_seal_position_pegboard = None
         self._table.update(self._db_id, seal_point_pegboard_id=value)
@@ -1291,14 +1293,14 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         return self._stored_part
 
 
-class PJTTerminalControl(QTabWidget, LazyTabMixin):
+class PJTTerminalControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT terminal control in :mod:`harness_designer.database.project_db.pjt_terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTTerminal | None):
+    def set_obj(self, db_obj: PJTTerminal | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1309,7 +1311,7 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -1361,7 +1363,7 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTTerminalControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1371,8 +1373,8 @@ class PJTTerminalControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTTerminal | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

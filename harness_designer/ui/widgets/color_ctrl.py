@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Union as _Union
+
 from PySide6 import QtWidgets
 from PySide6 import QtGui
 from PySide6 import QtCore
@@ -7,6 +9,9 @@ from PySide6 import QtCore
 from .combobox_ctrl import ComboBoxCtrl
 from ... import color as _color
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ...database.global_db import color as _global_color
 
 
 class ColorCtrl(QtWidgets.QWidget):
@@ -21,7 +26,8 @@ class ColorCtrl(QtWidgets.QWidget):
     colorChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent=None, label: str = '', table=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '',
+                 table: _Union["_global_color.ColorsTable", None] = None) -> None:
         """Initialise the :class:`ColorCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -62,7 +68,7 @@ class ColorCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     @_check_types.do
-    def _update_button_colour(self, qc: QtGui.QColor):
+    def _update_button_colour(self, qc: QtGui.QColor) -> None:
         """Update the button colour.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +101,7 @@ class ColorCtrl(QtWidgets.QWidget):
         return r << 24 | g << 16 | b << 8 | 0xFF
 
     @_check_types.do
-    def _on_colour_button(self):
+    def _on_colour_button(self) -> None:
         """Handle the colour button event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -121,7 +127,7 @@ class ColorCtrl(QtWidgets.QWidget):
         self.colorChanged.emit(self.GetColor())
 
     @_check_types.do
-    def _on_combobox(self, value: str):
+    def _on_combobox(self, value: str) -> None:
         """Handle the combobox event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,7 +152,7 @@ class ColorCtrl(QtWidgets.QWidget):
     # wx-compatible public API
     # ------------------------------------------------------------------
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """Execute the enable operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -158,7 +164,7 @@ class ColorCtrl(QtWidgets.QWidget):
         self.button.setEnabled(flag)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -206,7 +212,7 @@ class ColorCtrl(QtWidgets.QWidget):
         return self.ctrl.GetValue()
 
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

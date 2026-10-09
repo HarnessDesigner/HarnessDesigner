@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import build123d
 
@@ -46,7 +46,7 @@ class Note(_base_pegboard.BasePegboard):
     _vbo: _text.Text | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
+    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote") -> None:
         """Initialise the :class:`Note` instance.
 
         :param parent: Parent object.
@@ -99,7 +99,7 @@ class Note(_base_pegboard.BasePegboard):
         db_obj.bind(self._on_label_changed, 'style')
 
     @_check_types.do
-    def _on_label_changed(self, *_, **__):
+    def _on_label_changed(self, *_: tuple[Any], **__: dict[str, Any]) -> None:
         with self.pegboard.context:
             self._rebuild()
         self.pegboard.Refresh()
@@ -114,7 +114,7 @@ class Note(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -147,7 +147,7 @@ class Note(_base_pegboard.BasePegboard):
             local_tilt=_text.TOP_DOWN_TILT, center_anchor=True)
 
     @_check_types.do
-    def _rebuild(self):
+    def _rebuild(self) -> None:
         """Rebuild this note's label from its current db_obj fields and
         re-derive its OBB/AABB -- called by every ``set_*`` method below.
         """
@@ -156,7 +156,7 @@ class Note(_base_pegboard.BasePegboard):
         self._compute_aabb()
 
     @_check_types.do
-    def set_size(self, size):
+    def set_size(self, size: int) -> None:
         """Set this note's (shared) font size -- rebuild/refresh happens
         via the bound callback from __init__, for every view, not just
         this one.
@@ -164,17 +164,17 @@ class Note(_base_pegboard.BasePegboard):
         self.db_obj.size = size
 
     @_check_types.do
-    def set_style(self, style):
+    def set_style(self, style: int) -> None:
         """Set this note's (shared) font style -- see :meth:`set_size`."""
         self.db_obj.style = style
 
     @_check_types.do
-    def set_alignment(self, alignment):
+    def set_alignment(self, alignment: int) -> None:
         """Set this note's (shared) horizontal alignment -- see
         :meth:`set_size`."""
         self.db_obj.h_align = alignment
 
     @_check_types.do
-    def set_text(self, text: str):
+    def set_text(self, text: str) -> None:
         """Set this note's (shared) text -- see :meth:`set_size`."""
         self.db_obj.notes = text

@@ -15,6 +15,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...objects import project as _project
 
 
 _HOUSING_KIND_LABELS = {
@@ -46,7 +47,7 @@ class _BomToolbarRow(QtWidgets.QWidget):
     bundleExcessChanged: QtCore.SignalInstance = QtCore.Signal(float)
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
 
         self.view_ctrl = _choice_ctrl.ChoiceCtrl(
@@ -73,7 +74,7 @@ class _BomToolbarRow(QtWidgets.QWidget):
         self.bundle_excess_ctrl.value_changed.connect(self.bundleExcessChanged.emit)
 
     @_check_types.do
-    def _on_view_changed(self, _text: str):
+    def _on_view_changed(self, _text: str) -> None:
         self.viewChanged.emit(self.view_ctrl.GetSelection())
 
 
@@ -85,7 +86,7 @@ class _FlatListTree(QtWidgets.QTreeWidget):
     """View 1: flat parts list, one row per distinct part number."""
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
@@ -95,7 +96,7 @@ class _FlatListTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def load(self, rows: list[_bom.BomLineItem]):
+    def load(self, rows: list[_bom.BomLineItem]) -> None:
         self.clear()
         for row in rows:
             qty_text = f'{row.quantity:.1f} mm' if row.is_length else str(int(row.quantity))
@@ -107,7 +108,7 @@ class _HousingTree(QtWidgets.QTreeWidget):
     """View 2: one expandable tree per housing."""
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
         self.setColumnCount(6)
         self.setHeaderLabels(
@@ -116,7 +117,7 @@ class _HousingTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def _add_node(self, parent, node: _bom.HousingTreeNode, bold: bool):
+    def _add_node(self, parent: QtWidgets.QTreeWidget | QtWidgets.QTreeWidgetItem, node: _bom.HousingTreeNode, bold: bool) -> QtWidgets.QTreeWidgetItem:
         awg_min = '' if node.awg_min is None else str(node.awg_min)
         awg_max = '' if node.awg_max is None else str(node.awg_max)
         label = _HOUSING_KIND_LABELS.get(node.kind, node.kind)
@@ -136,7 +137,7 @@ class _HousingTree(QtWidgets.QTreeWidget):
         return item
 
     @_check_types.do
-    def load(self, nodes: list[_bom.HousingTreeNode]):
+    def load(self, nodes: list[_bom.HousingTreeNode]) -> None:
         self.clear()
         for node in nodes:
             item = self._add_node(self, node, bold=True)
@@ -149,7 +150,7 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
     _COLOR_COLUMN = 7
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
@@ -162,7 +163,7 @@ class _WireCutSheetTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def load(self, rows: list[_bom.WireCutRow]):
+    def load(self, rows: list[_bom.WireCutRow]) -> None:
         self.clear()
         for row in rows:
             item = QtWidgets.QTreeWidgetItem(self, [
@@ -178,7 +179,7 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
     """View 4: one row per bundle-covering instance."""
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
         self.setRootIsDecorated(False)
         self.setAlternatingRowColors(True)
@@ -190,7 +191,7 @@ class _BundleCutSheetTree(QtWidgets.QTreeWidget):
             QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
 
     @_check_types.do
-    def load(self, rows: list[_bom.BundleCutRow]):
+    def load(self, rows: list[_bom.BundleCutRow]) -> None:
         self.clear()
         for row in rows:
             QtWidgets.QTreeWidgetItem(self, [
@@ -210,7 +211,7 @@ class BomDialog(_dialog_base.BaseDialog):
     here is persisted."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         super().__init__(
             parent, 'Bill of Materials', size=(960, 640),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)
@@ -245,11 +246,11 @@ class BomDialog(_dialog_base.BaseDialog):
         self._reload_all()
 
     @_check_types.do
-    def _project(self):
+    def _project(self) -> "_project.Project":
         return self.mainframe.project
 
     @_check_types.do
-    def _reload_all(self):
+    def _reload_all(self) -> None:
         project = self._project()
         if project is None:
             for view in (self._flat_view, self._housing_view,
@@ -264,7 +265,7 @@ class BomDialog(_dialog_base.BaseDialog):
         self._bundle_view.load(_bom.build_bundle_cut_sheet(project, self._bundle_excess_pct))
 
     @_check_types.do
-    def _on_wire_excess_changed(self, pct: float):
+    def _on_wire_excess_changed(self, pct: float) -> None:
         self._wire_excess_pct = pct
         project = self._project()
         if project is None:
@@ -275,7 +276,7 @@ class BomDialog(_dialog_base.BaseDialog):
         self._wire_view.load(_bom.build_wire_cut_sheet(project, pct))
 
     @_check_types.do
-    def _on_bundle_excess_changed(self, pct: float):
+    def _on_bundle_excess_changed(self, pct: float) -> None:
         self._bundle_excess_pct = pct
         project = self._project()
         if project is None:
@@ -286,9 +287,9 @@ class BomDialog(_dialog_base.BaseDialog):
         self._bundle_view.load(_bom.build_bundle_cut_sheet(project, pct))
 
     @_check_types.do
-    def _on_print(self, checked: bool = False):
+    def _on_print(self, checked: bool = False) -> None:
         pass
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> None:
         return None

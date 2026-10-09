@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
     from . import pjt_point_pegboard as _pjt_point_pegboard
 
     from ...objects import bundle_layout as _bundle_layout_obj
+    from ... import ui as _ui
 
 
 class PJTBundleLayoutsTable(PJTTableBase):
@@ -55,7 +56,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -67,7 +68,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         cls._control.hide()
 
     @_check_types.do
-    def get_from_position3d_id(self, position3d_id) -> "PJTBundleLayout":
+    def get_from_position3d_id(self, position3d_id: bytes) -> "PJTBundleLayout":
         """Return the from position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +96,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         return bundle_cover_layouts.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -105,7 +106,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         bundle_cover_layouts.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -127,7 +128,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
             yield PJTBundleLayout(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTBundleLayout":
+    def __getitem__(self, item: int | bytes | str) -> "PJTBundleLayout":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -172,12 +173,13 @@ class PJTBundleLayoutsTable(PJTTableBase):
                 'insert() takes exactly one of point3d_id/point_pegboard_id')
 
         db_id = PJTTableBase.insert(
-            self, point3d_id=point3d_id, point_pegboard_id=point_pegboard_id)
+            self, point3d_id=point3d_id, point_pegboard_id=point_pegboard_id,
+            notes='', is_visible3d=1, is_visible_pegboard=1, smooth=None)
 
         return PJTBundleLayout(self, db_id)
 
     @_check_types.do
-    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> Union["PJTBundleLayout", None]:
+    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> _Union["PJTBundleLayout", None]:
         """Return the bundle-layout row whose peg-board position is
         *point_pegboard_id*, or ``None`` if no row references it.
 
@@ -209,7 +211,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
     """
     _table: PJTBundleLayoutsTable = None
 
-    _stored_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -236,36 +238,29 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
 
         return point
 
-    _stored_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def position3d_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points3d`` row id, or ``None``.
         Never auto-creates -- see the class docstring.
         """
-        if self._stored_position3d_id is DefaultStoredValue:
-            self._stored_position3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-
-        return self._stored_position3d_id
+        return self._table.select('point3d_id', id=self._db_id)[0][0]
 
     @position3d_id.setter
     @_check_types.do
-    def position3d_id(self, value: bytes | None):
+    def position3d_id(self, value: bytes | None) -> None:
         """Set this waypoint's 3D point row id -- clears
         ``position_pegboard_id`` to ``NULL`` so exactly one view stays
         populated.
         """
-        self._stored_position3d_id = value
         self._stored_position3d = DefaultStoredValue
-        self._stored_position_pegboard_id = None
         self._stored_position_pegboard = None
 
         self._table.update(self._db_id, point3d_id=value, point_pegboard_id=None)
         self._populate('position3d_id')
         self._populate('position_pegboard_id')
 
-    _stored_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_position_pegboard: _Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -292,29 +287,23 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
 
         return point
 
-    _stored_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points_pegboard`` row id, or
         ``None``. Never auto-creates -- see the class docstring.
         """
-        if self._stored_position_pegboard_id is DefaultStoredValue:
-            self._stored_position_pegboard_id = self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
-        return self._stored_position_pegboard_id
+        return self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
     @position_pegboard_id.setter
     @_check_types.do
-    def position_pegboard_id(self, value: bytes | None):
+    def position_pegboard_id(self, value: bytes | None) -> None:
         """Set this waypoint's peg-board point row id -- clears
         ``position3d_id`` to ``NULL`` so exactly one view stays
         populated.
         """
-        self._stored_position_pegboard_id = value
         self._stored_position_pegboard = DefaultStoredValue
-        self._stored_position3d_id = None
         self._stored_position3d = None
 
         self._table.update(self._db_id, point_pegboard_id=value, point3d_id=None)
@@ -336,7 +325,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -347,7 +336,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_bundle_layout_obj.BundleLayout"):
+    def set_object(self, obj: "_bundle_layout_obj.BundleLayout") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -446,14 +435,14 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         return 3.0
 
 
-class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
+class PJTBundleLayoutControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT bundle layout control in :mod:`harness_designer.database.project_db.pjt_bundle_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTBundleLayout | None):
+    def set_obj(self, db_obj: PJTBundleLayout | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -464,7 +453,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.notes_ctrl.set_obj(self.db_obj)
@@ -481,7 +470,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTBundleLayoutControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -491,7 +480,7 @@ class PJTBundleLayoutControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTBundleLayout | None = None
         super().__init__(parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

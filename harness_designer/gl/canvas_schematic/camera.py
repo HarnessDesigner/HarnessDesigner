@@ -15,10 +15,10 @@ import numpy as np
 from ...geometry import point as _point
 from ... import check_types as _check_types
 from ..canvas_base import camera_base as _camera_base
-from .. import events as _events
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
+    from ... import objects as _objects
 
 
 # Default distance in "units" -- used both at construction and by Reset().
@@ -36,8 +36,10 @@ class Camera(_camera_base.CameraBase):
     - Zoom: changes distance (closer = more zoomed in, farther = more zoomed out)
     """
 
+    is_top_down: bool = True
+
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: "_canvas.Canvas") -> None:
         """Initialise the :class:`Camera` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +110,7 @@ class Camera(_camera_base.CameraBase):
 
     @distance.setter
     @_check_types.do
-    def distance(self, value: float):
+    def distance(self, value: float) -> None:
         """Set camera distance (clamped to min/max).
 
         Single-axis write, no batching needed -- fires immediately.
@@ -118,7 +120,7 @@ class Camera(_camera_base.CameraBase):
         self._position.y = max(self._min_distance, min(self._max_distance, float(value)))
 
     @_check_types.do
-    def Dolly(self, delta: float):
+    def Dolly(self, delta: float) -> None:
         """
         Zoom in/out by changing the distance between camera and focal plane.
 
@@ -137,7 +139,7 @@ class Camera(_camera_base.CameraBase):
         self.distance = self.distance - delta
 
     @_check_types.do
-    def Zoom(self, delta, *_):
+    def Zoom(self, delta: float, *_) -> None:
         """Mouse-wheel zoom (see ``mouse_handler_base.py``'s wheel-tick
         dispatch, which calls ``camera.Zoom()`` unconditionally for every
         canvas type). Without this override, ``CameraBase.Zoom()`` runs
@@ -156,7 +158,7 @@ class Camera(_camera_base.CameraBase):
         self.Dolly(delta)
 
     @_check_types.do
-    def zoom_at_point(self, screen_pos: _point.Point, delta: float):
+    def zoom_at_point(self, screen_pos: _point.Point, delta: float) -> None:
         """
         Zoom in/out centered on a specific screen point.
 
@@ -265,78 +267,8 @@ class Camera(_camera_base.CameraBase):
 
         return _point.Point(int(screen_x), int(screen_y))
 
-    @property
     @_check_types.do
-    def objects_in_view(self) -> list:
-        """Objects (``ObjectBase`` wrappers) currently visible in the
-        viewport rectangle.
-
-        Backs ``ObjectBase.is_in_2dview``/``is_in_pegboardview`` (``self in
-        editorX.camera.objects_in_view``) -- previously ``is_in_2dview``
-        referenced this attribute before it existed, so any access raised
-        ``AttributeError``. ``Camera`` is reused unchanged by both the 2D
-        schematic canvas and the peg board canvas (deliberately not
-        subclassed per Phase 1 of the peg board editor), and those two
-        canvases hold their scene contents in different shapes -- real
-        ``ObjectBase`` wrappers with ``objschematic.get_bounds()`` for the
-        schematic canvas, ``objects.objects_pegboard.base_pegboard.BasePegboard``
-        (``.obj``/``.position.x``/``.position.z``) for the peg board -- so this duck-types on
-        which shape ``self.canvas``
-        actually exposes rather than assuming one. Computed fresh on each
-        access (no per-frame cache, unlike the 3D camera's
-        GPU-culling-backed ``objects_in_view`` -- a 2D bounds/point test is
-        cheap enough not to need one), using the exact same
-        ``distance / 1000.0`` world-per-pixel convention as
-        :meth:`screen_to_world`/:meth:`zoom_to_fit`.
-
-        :returns: Objects currently visible in the viewport.
-        :rtype: list
-        """
-        size = self.canvas.size
-        if size is None:
-            return []
-
-        width, height = size
-        world_per_pixel = self._position.y / 1000.0
-        half_width = (width / 2.0) * world_per_pixel
-        half_height = (height / 2.0) * world_per_pixel
-
-        left = self._focal_position.x - half_width
-        right = self._focal_position.x + half_width
-        bottom = self._focal_position.z - half_height
-        top = self._focal_position.z + half_height
-
-        result = []
-
-        # 2D schematic canvas: real ObjectBase wrappers, bounds via objschematic.
-        if hasattr(self.canvas, 'objects'):
-            for obj in self.canvas.objects:
-                if not hasattr(obj, 'objschematic') or not hasattr(obj.objschematic, 'get_bounds'):
-                    continue
-
-                bounds = obj.objschematic.get_bounds()
-                if bounds is None:
-                    continue
-
-                min_x, min_y, max_x, max_y = bounds
-                if max_x < left or min_x > right or max_y < bottom or min_y > top:
-                    continue
-
-                result.append(obj)
-
-            return result
-
-        # Peg board canvas: BasePegboard anchor point-containment (x/z world position).
-        anchors = getattr(self.canvas, '_anchors', None)
-        if anchors:
-            for anchor in anchors:
-                if left <= anchor.position.x <= right and bottom <= anchor.position.z <= top:
-                    result.append(anchor.obj)
-
-        return result
-
-    @_check_types.do
-    def zoom_to_fit(self, objects):
+    def zoom_to_fit(self, objects: list["_objects.ObjectBase"]) -> None:
         """
         Zoom camera to fit all objects in view
 
@@ -354,8 +286,9 @@ class Camera(_camera_base.CameraBase):
         max_y = float('-inf')
 
         for obj in objects:
-            if hasattr(obj, 'objschematic') and hasattr(obj.objschematic, 'get_bounds'):
-                bounds = obj.objschematic.get_bounds()
+            schematic = obj.objschematic
+            if schematic is not None:
+                bounds = schematic.get_bounds()
                 if bounds is not None:
                     min_x = min(min_x, bounds[0])
                     min_y = min(min_y, bounds[1])

@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QTabWidget
+
+from PySide6 import QtWidgets
 
 from . import housing_obj as _housing_obj
 from ...widgets import triple_float_ctrl as _triple_float_ctrl
@@ -13,15 +14,16 @@ if TYPE_CHECKING:
     from . import housing_editor as _housing_editor
 
 
-class HousingPanel(QTabWidget):
+class HousingPanel(QtWidgets.QTabWidget):
     """Represent a housing panel in :mod:`harness_designer.ui.dialogs.housing_editor.housing_panel`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, dialog, panel: "_housing_editor.HousingEditorDialog",
-                 housing: _housing_obj.Housing3D):
+    def __init__(self, dialog: "_housing_editor.HousingEditorDialog",
+                 panel: QtWidgets.QTabWidget,
+                 housing: _housing_obj.Housing3D) -> None:
         """Initialise the :class:`HousingPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -34,7 +36,7 @@ class HousingPanel(QTabWidget):
         :type housing: :class:`_housing_obj.Housing3D`
         """
 
-        QTabWidget.__init__(self, panel)
+        QtWidgets.QTabWidget.__init__(self, panel)
 
         self.housing = housing
         self.dialog = dialog
@@ -62,7 +64,7 @@ class HousingPanel(QTabWidget):
         self.enable_housing_ctrls(True)
 
     @_check_types.do
-    def enable_housing_ctrls(self, flag: bool):
+    def enable_housing_ctrls(self, flag: bool) -> None:
         """Execute the enable housing ctrls operation.
 
         UNKNOWN details are inferred from the callable name and signature.

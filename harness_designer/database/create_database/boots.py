@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -15,19 +17,22 @@ from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
 from . import protections as _protections
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import housings as _housings
-
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_boots(con, data: tuple[dict] | list[dict]):
+def add_boots(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """
     Add a boots.
 
@@ -43,11 +48,11 @@ def add_boots(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_boot(con, part_number, description, mfg=None, family=None, series=None,
-             color=None, material=None, direction=None, image=None, datasheet=None,
-             cad=None, min_temp=None, max_temp=None, model3d=None, length=0.0,
-             width=0.0, height=0.0, weight=0.0, compat_housings=None, min_dia=0.0,
-             max_dia=0.0, protection=None, commit=True):
+def add_boot(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+             color: str | None = None, material: str | None = None, direction: str | None = None, image: str | None = None, datasheet: str | None = None,
+             cad: str | None = None, min_temp: str | None = None, max_temp: str | None = None, model3d: str | None = None, length: float = 0.0,
+             width: float = 0.0, height: float = 0.0, weight: float = 0.0, compat_housings: list[str] | None = None, min_dia: float = 0.0,
+             max_dia: float = 0.0, protection: str | None = None, commit: bool = True) -> bytes:
     """
     Add a boot.
 
@@ -168,7 +173,7 @@ def add_boot(con, part_number, description, mfg=None, family=None, series=None,
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """
     Add a records.
 
@@ -338,3 +343,4 @@ pjt_table = _con.SQLTable(
     _con.IntField('is_visible_pegboard', default='1', no_null=True),
     _con.IntField('smooth', default='NULL')
 )
+

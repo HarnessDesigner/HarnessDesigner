@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import shutil
 
@@ -11,8 +13,12 @@ from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def get_image_id(con, path: str):  # NOQA
+def get_image_id(con: "_connector_base.ConnectorBase", path: str) -> bytes | None:  # NOQA
     """
     Return the image ID.
 

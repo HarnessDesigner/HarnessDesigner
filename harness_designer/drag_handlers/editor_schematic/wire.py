@@ -92,8 +92,9 @@ Five things happen live, every move:
   there's nothing left here to keep dragging.
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import math
-from typing import TYPE_CHECKING
 
 from .. import editor_schematic as _editor_schematic
 from ...wire_routing import routing as _wire_routing
@@ -173,11 +174,11 @@ class WireSegmentDragPlan:
 
     def __init__(self, p_before: _point.Point, p_near: _point.Point, p_far: _point.Point,
                 p_after: _point.Point, horizontal: bool,
-                layout_near: object | None, layout_far: object | None,
+                layout_near: _Union["_wire_layout_obj.WireLayout", None], layout_far: _Union["_wire_layout_obj.WireLayout", None],
                 waypoint_near: "_pjt_point2d.PJTPoint2D", waypoint_far: "_pjt_point2d.PJTPoint2D",
-                waypoint_before: "_pjt_point2d.PJTPoint2D | None" = None,
-                waypoint_after: "_pjt_point2d.PJTPoint2D | None" = None,
-                layout_before: object | None = None, layout_after: object | None = None) -> None:
+                waypoint_before: _Union["_pjt_point2d.PJTPoint2D", None] = None,
+                waypoint_after: _Union["_pjt_point2d.PJTPoint2D", None] = None,
+                layout_before: _Union["_wire_layout_obj.WireLayout", None] = None, layout_after: _Union["_wire_layout_obj.WireLayout", None] = None) -> None:
         self.p_before = p_before
         self.p_near = p_near
         self.p_far = p_far
@@ -194,7 +195,7 @@ class WireSegmentDragPlan:
 
 
 @_check_types.do
-def _find_layout(project: "_project.Project", point: _point.Point) -> object | None:
+def _find_layout(project: "_project.Project", point: _point.Point) -> _Union["_wire_layout_obj.WireLayout", None]:
     """Return the real WireLayout facade anchored at *point* (a live 2D
     Point), or None. One-time lookup at drag-arm -- see
     objects.wire.Wire.layouts for the exact same scan, done there for a
@@ -597,7 +598,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
         if self._rerouted:
             return
 
@@ -889,7 +890,7 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         return True
 
     @_check_types.do
-    def _remove_waypoint(self, project: "_project.Project", layout: object | None,
+    def _remove_waypoint(self, project: "_project.Project", layout: _Union["_wire_layout_obj.WireLayout", None],
                          waypoint: "_pjt_point2d.PJTPoint2D") -> None:
         """Delete one redundant waypoint for real: its WireLayout marker
         (proper facade teardown when one was found at drag-arm, a raw

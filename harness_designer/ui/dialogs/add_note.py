@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import build123d
 
 from PySide6 import QtWidgets
@@ -10,6 +12,10 @@ from ..widgets import int_ctrl as _int_ctrl
 from ..widgets import color_ctrl as _color_ctrl
 from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import ui as _ui
 
 
 TEXT_ALIGN = ['Left', 'Center', 'Right']
@@ -33,7 +39,7 @@ class AddNoteDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`AddNoteDialog` instance.
 
@@ -82,7 +88,7 @@ class AddNoteDialog(_dialog_base.BaseDialog):
         vsizer.addWidget(self.color_ctrl)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> tuple[str, int, int, bytes, int]:
         """
         Get the set values.
 

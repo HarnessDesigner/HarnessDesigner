@@ -95,7 +95,7 @@ waypoint reindexing, matching 3D), whenever both wires actually have
 peg-board geometry.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 from collections.abc import Callable
 
 import numpy as np
@@ -109,6 +109,13 @@ from . import snap_probe_set as _snap_probe_set
 
 
 if TYPE_CHECKING:
+    from ..objects.objectsvar import base_var as _base_var
+    from ..database.project_db import pjt_wire as _pjt_wire
+    from ..database.project_db import pjt_terminal as _pjt_terminal
+    from ..database.project_db import pjt_cavity as _pjt_cavity
+    from ..database.project_db import pjt_wire_layout as _pjt_wire_layout
+    from ..database.project_db import pjt_point3d as _pjt_point3d
+    from ..database.project_db import pjt_point_pegboard as _pjt_point_pegboard
     from ..gl.canvas_base import canvas_base as _canvas_base
     from .. import objects as _objects
     from .. import ui as _ui
@@ -178,7 +185,7 @@ class WireDragMixin:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _get_view_object(obj: "_objects.ObjectBase") -> object:
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         """
         Return *obj*'s own view-specific wrapper for this editor --
         ``obj.obj3d`` or ``obj.objpegboard``.
@@ -187,7 +194,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _get_editor(mainframe: object) -> object:
+    def _get_editor(mainframe: "_ui.MainFrame") -> "_canvas_base.CanvasBase":
         """
         Return this view's own INNER GL canvas widget (``mainframe.editorX.
         editor._canvas`` -- not the wrapper, ``mainframe.editorX.editor``
@@ -202,7 +209,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _points_table(project: "_project.Project") -> object:
+    def _points_table(project: "_project.Project") -> _Union["_pjt_point3d.PJTPoints3DTable", "_pjt_point_pegboard.PJTPointsPegboardTable"]:
         """
         This view's own peg-board/3D points table (``pjt_points3d_table``
         / ``pjt_points_pegboard_table``), used to resolve a point id's own
@@ -212,7 +219,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _waypoints(wire_db_obj: object) -> list:
+    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire") -> list:
         """
         This wire's own ordered interior waypoints for this view
         (``wire_db_obj.waypoints3d`` / ``waypoints_pegboard``).
@@ -221,7 +228,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _wire_position_id_raw(obj: object) -> bytes | None:
+    def _wire_position_id_raw(obj: _Union["_pjt_cavity.PJTCavity", "_pjt_terminal.PJTTerminal"]) -> bytes | None:
         """
         A cavity's or terminal's own ``wire_position*_id_raw`` column
         for this view (see :meth:`is_anchor_point`).
@@ -230,7 +237,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _attach_position_id_raw(obj: object) -> bytes | None:
+    def _attach_position_id_raw(obj: "_pjt_terminal.PJTTerminal") -> bytes | None:
         """
         A terminal's own ``attach_position*_id_raw`` column for this
         view (see :meth:`is_anchor_point`).
@@ -239,7 +246,7 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _get_start_position_id(wire_db_obj: object) -> bytes | None:
+    def _get_start_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         """
         This view's own ``start_position*_id`` column on a wire's DB
         row (see :meth:`merge_wire_into`).
@@ -248,11 +255,11 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _set_start_position_id(wire_db_obj: object, value: bytes | None) -> None:
+    def _set_start_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         raise NotImplementedError
 
     @staticmethod
-    def _get_stop_position_id(wire_db_obj: object) -> bytes | None:
+    def _get_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire") -> bytes | None:
         """
         This view's own ``stop_position*_id`` column on a wire's DB
         row (see :meth:`merge_wire_into`).
@@ -261,11 +268,11 @@ class WireDragMixin:
         raise NotImplementedError
 
     @staticmethod
-    def _set_stop_position_id(wire_db_obj: object, value: bytes | None) -> None:
+    def _set_stop_position_id(wire_db_obj: "_pjt_wire.PJTWire", value: bytes | None) -> None:
         raise NotImplementedError
 
     @staticmethod
-    def _layout_position_id(layout_db_obj: object) -> bytes | None:
+    def _layout_position_id(layout_db_obj: "_pjt_wire_layout.PJTWireLayout") -> bytes | None:
         """
         This view's own ``position*_id`` column on a WireLayout's DB
         row (see :meth:`wire_layout_end_wire`).
@@ -784,7 +791,7 @@ class WireDragMixin:
 
     @_check_types.do
     def _raw_move_delta(self, anchor: _point.Point,
-                        last_pos: _point.Point, delta: object) -> _point.Point:
+                        last_pos: _point.Point, delta: _point.Point) -> _point.Point:
 
         """
         Project *anchor* to screen space, add the raw mouse *delta*,
@@ -813,7 +820,7 @@ class WireDragMixin:
 
     @_check_types.do
     def _move_delta(self, anchor: _point.Point,
-                    last_pos: _point.Point, delta: object, aabb: object) -> _point.Point:
+                    last_pos: _point.Point, delta: _point.Point, aabb: np.ndarray) -> _point.Point:
 
         """
         The delta actually applied this frame. Default: the raw,
@@ -914,7 +921,7 @@ class WireDragMixin:
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
         if self._snap_probes is not None:
             # Hit-test against the real cursor position, not a position
             # reconstructed from the (possibly axis-locked) dragged

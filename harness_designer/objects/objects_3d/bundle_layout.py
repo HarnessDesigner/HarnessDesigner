@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -17,6 +17,8 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
     from .. import bundle_layout as _bundle_layout
     from .. import bundle as _bundle_facade
@@ -172,7 +174,7 @@ class BundleLayout(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -216,7 +218,7 @@ class BundleLayoutMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "BundleLayout") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "BundleLayout") -> None:
         """Initialise the :class:`BundleLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -240,7 +242,6 @@ class BundleLayoutMenu(QtWidgets.QMenu):
     @_check_types.do
     def on_add_transition(self) -> None:
         """Start the interactive transition placement flow."""
-        from PySide6 import QtCore
         from . import transition as _transition_3d
 
         mainframe = self.selected.mainframe
@@ -248,7 +249,7 @@ class BundleLayoutMenu(QtWidgets.QMenu):
         @_check_types.do
         def _do() -> None:
             part_id = _menu_ops.get_part_id(
-                mainframe, 'transitions',
+                mainframe, mainframe.editor_db.editor.transitions,
                 mainframe.global_db.transitions_table, 'Add Transition')
 
             if part_id is None:

@@ -14,7 +14,6 @@ from ... import config as _config
 # PySide6 colour picker — uses QColorDialog indirectly via a thin wrapper.
 # We provide a small ColourPickerCtrl shim below that matches the wx API
 # used in this file (GetColour / SetColour).
-from PySide6.QtWidgets import QPushButton, QColorDialog
 from ... import check_types as _check_types
 
 
@@ -25,11 +24,11 @@ if TYPE_CHECKING:
 Config = _config.Config
 
 
-class _ColourPickerCtrl(QPushButton):
+class _ColourPickerCtrl(QtWidgets.QPushButton):
     """Minimal wx.ColourPickerCtrl replacement."""
 
     @_check_types.do
-    def __init__(self, parent, colour: _color.Color):
+    def __init__(self, parent: QtWidgets.QWidget, colour: _color.Color) -> None:
         """Initialise the :class:`_ColourPickerCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -45,7 +44,7 @@ class _ColourPickerCtrl(QPushButton):
         self.clicked.connect(self._pick)
 
     @_check_types.do
-    def _apply_color(self, c):
+    def _apply_color(self, c: _color.Color) -> None:
         """Execute the apply color operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -63,7 +62,7 @@ class _ColourPickerCtrl(QPushButton):
             f'background-color: {qc.name()}; min-width: 40px; min-height: 20px;')
 
     @_check_types.do
-    def _pick(self):
+    def _pick(self) -> None:
         """Execute the pick operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -75,7 +74,7 @@ class _ColourPickerCtrl(QPushButton):
         except AttributeError:
             qc = QtGui.QColor(c.GetRed(), c.GetGreen(), c.GetBlue())
 
-        chosen = QColorDialog.getColor(qc, self, "Choose colour")
+        chosen = QtWidgets.QColorDialog.getColor(qc, self, "Choose colour")
         if chosen.isValid():
             new_c = _color.Color(
                 chosen.red(), chosen.green(), chosen.blue(), 255)
@@ -83,7 +82,7 @@ class _ColourPickerCtrl(QPushButton):
             self._apply_color(new_c)
 
     @_check_types.do
-    def GetColour(self):
+    def GetColour(self) -> _color.Color:
         """Execute the get colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -101,7 +100,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         """Initialise the :class:`DebugSettingsDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -267,7 +266,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         vsizer.addWidget(functions_box)
 
     @_check_types.do
-    def SetValues(self):
+    def SetValues(self) -> None:
         """Execute the set values operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -276,7 +275,7 @@ class DebugSettingsDialog(_dialog_base.BaseDialog):
         :rtype: UNKNOWN
         """
         @_check_types.do
-        def _get_color(picker):
+        def _get_color(picker: _ColourPickerCtrl) -> tuple[float, float, float]:
             """Return the color.
 
             UNKNOWN details are inferred from the callable name and signature.

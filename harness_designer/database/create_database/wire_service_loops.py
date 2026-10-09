@@ -1,24 +1,29 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points_pegboard as _points_pegboard
 from . import circuits as _circuits
 from . import wires as _wires
-
 from .. import db_connectors as _con
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
+
+
+if TYPE_CHECKING:
+    from ..db_connectors import base as _connector_base
 
 
 pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
-def add_pjt_wire_service_loop(con, project_id, part_id, name='', start_point3d_id=None,
-                              stop_point3d_id=None, circuit_id=None, notes='',
-                              quat3d=[1.0, 0.0, 0.0, 0.0], angle3d=[0.0, 0.0, 0.0],
-                              is_visible3d=1):
+def add_pjt_wire_service_loop(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, name: str = '', start_point3d_id: bytes | None = None,
+                              stop_point3d_id: bytes | None = None, circuit_id: bytes = None, notes: str = '',
+                              quat3d: list[float] | None = [1.0, 0.0, 0.0, 0.0], angle3d: list[float] | None = [0.0, 0.0, 0.0],
+                              is_visible3d: int = 1) -> None:
     """Add a PJT wire service loop.
 
     UNKNOWN details are inferred from the callable name and signature.

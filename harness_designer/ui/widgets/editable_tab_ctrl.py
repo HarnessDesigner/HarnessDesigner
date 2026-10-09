@@ -2,7 +2,7 @@
 
 from typing import cast
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 from ... import check_types as _check_types
@@ -25,7 +25,7 @@ class EditableTabBar(QtWidgets.QTabBar):
     tabAddRequested: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, parent: "EditableTabCtrl"):
+    def __init__(self, parent: "EditableTabCtrl") -> None:
         """Initialise the :class:`EditableTabBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -45,7 +45,7 @@ class EditableTabBar(QtWidgets.QTabBar):
             self.setToolTip(parent.tab_bar_tooltip)
 
     @_check_types.do
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event: QtGui.QContextMenuEvent) -> None:
         """Execute the context menu event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +95,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         menu.exec(event.globalPos())
 
     @_check_types.do
-    def mouseDoubleClickEvent(self, event):
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse double click event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +108,7 @@ class EditableTabBar(QtWidgets.QTabBar):
             self._start_editing(index)
 
     @_check_types.do
-    def _start_editing(self, index):
+    def _start_editing(self, index: int) -> None:
         """Start the editing.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -125,7 +125,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         self._editor.setFocus()
 
     @_check_types.do
-    def _finish_editing(self):
+    def _finish_editing(self) -> None:
         """Execute the finish editing operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -141,7 +141,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         self._editor.hide()
 
     @_check_types.do
-    def _request_delete(self, index):
+    def _request_delete(self, index: int) -> None:
         """Execute the request delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -155,7 +155,7 @@ class EditableTabBar(QtWidgets.QTabBar):
         self.tabDeleteRequested.emit(index, name, widget)
 
     @_check_types.do
-    def _request_add(self, _):
+    def _request_add(self, _: int) -> None:
         """Execute the request add operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -194,7 +194,7 @@ class EditableTabCtrl(QtWidgets.QTabWidget):
     tab_bar_tooltip = None
 
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """Initialise the :class:`EditableTabCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

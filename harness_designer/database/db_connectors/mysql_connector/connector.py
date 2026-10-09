@@ -2,7 +2,8 @@
 
 """MySQL connector dialogs and connection management classes."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Generator as _Generator
 
 import threading
 import mysql.connector
@@ -11,17 +12,11 @@ from mysql.connector.cursor import MySQLCursor as _MySQLCursor
 from decimal import Decimal as _Decimal
 from time import struct_time as _struct_time
 import mysql.connector.constants
-from typing import (Optional as _Optional,
-                    Union as _Union,
-                    Generator as _Generator)
 from datetime import (date as _date,
                       datetime as _datetime,
                       time as _time,
                       timedelta as _timedelta)
-
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QVBoxLayout,
-                               QHBoxLayout, QLabel, QLineEdit, QPushButton)
+from PySide6 import QtCore, QtWidgets
 
 from .. import base as _base
 from . import row_id_functions as _row_id_functions
@@ -44,59 +39,57 @@ if Config.client_flags is None:
 
 
 _StrOrBytes = _Union[str, bytes]
-_ToMysqlInputTypes = _Optional[_Union[int, float, _Decimal, _StrOrBytes, bool,
-                                      _datetime, _date, _time, _struct_time, _timedelta]]
-_ToPythonOutputTypes = _Optional[_Union[float, int, _Decimal, _StrOrBytes, _date,
-                                        _timedelta, _datetime, set[str]]]
+_ToMysqlInputTypes = _Union[int, float, _Decimal, _StrOrBytes, bool, _datetime, _date, _time, _struct_time, _timedelta] | None
+_ToPythonOutputTypes = _Union[float, int, _Decimal, _StrOrBytes, _date, _timedelta, _datetime, set[str]] | None
 _ParamsSequenceType = list[_ToMysqlInputTypes] | tuple[_ToMysqlInputTypes]
 _ParamsDictType = dict[str, _ToMysqlInputTypes]
 _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
 _RowType = tuple[_ToPythonOutputTypes, ...]
 
 
-class LoginDialog(QDialog):
+class LoginDialog(QtWidgets.QDialog):
     """Collect MySQL login credentials from the user.
     """
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Build the MySQL login dialog widgets.
 
         :param parent: Parent Qt widget for the login dialog.
         :type parent: UNKNOWN
         """
-        QDialog.__init__(self, parent, Qt.WindowType.Dialog | Qt.WindowType.WindowStaysOnTopHint)
+        QtWidgets.QDialog.__init__(self, parent, QtCore.Qt.WindowType.Dialog | QtCore.Qt.WindowType.WindowStaysOnTopHint)
         self.setWindowTitle('LOGIN')
         self.resize(400, 250)
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
 
-        user_row = QHBoxLayout()
-        user_label = QLabel('Username:')
+        user_row = QtWidgets.QHBoxLayout()
+        user_label = QtWidgets.QLabel('Username:')
         self.username_ctrl = auto_complete.AutoComplete(
             self, autocomplete_choices=Config.recent_users)
         user_row.addWidget(user_label)
         user_row.addWidget(self.username_ctrl)
         layout.addLayout(user_row)
 
-        pass_row = QHBoxLayout()
-        pass_label = QLabel('Password:')
-        self.password_ctrl = QLineEdit()
-        self.password_ctrl.setEchoMode(QLineEdit.EchoMode.Password)
+        pass_row = QtWidgets.QHBoxLayout()
+        pass_label = QtWidgets.QLabel('Password:')
+        self.password_ctrl = QtWidgets.QLineEdit()
+        self.password_ctrl.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
         pass_row.addWidget(pass_label)
         pass_row.addWidget(self.password_ctrl)
         layout.addLayout(pass_row)
 
         layout.addStretch(1)
 
-        btn_row = QHBoxLayout()
-        self._settings_button = QPushButton('Settings')
+        btn_row = QtWidgets.QHBoxLayout()
+        self._settings_button = QtWidgets.QPushButton('Settings')
         btn_row.addWidget(self._settings_button)
         btn_row.addStretch()
 
-        button_box = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         # Rename OK to Login
-        ok_btn = button_box.button(QDialogButtonBox.StandardButton.Ok)
+        ok_btn = button_box.button(QtWidgets.QDialogButtonBox.StandardButton.Ok)
         ok_btn.setText('Login')
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
@@ -107,7 +100,7 @@ class LoginDialog(QDialog):
         self._settings_button.clicked.connect(self._on_settings_button)
 
     @_check_types.do
-    def _on_settings_button(self):
+    def _on_settings_button(self) -> None:
         """Open the MySQL settings dialog and persist accepted changes.
 
         :returns: ``None``.
@@ -119,13 +112,13 @@ class LoginDialog(QDialog):
             import settings_dialog
 
         dlg = settings_dialog.SQLOptionsDialog(self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             values = dlg.GetValue()
             for key, value in values.items():
                 setattr(Config, key, value)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> tuple[str, str]:
         """Return the username and password entered in the dialog.
 
         :returns: The current values collected by the dialog.
@@ -143,7 +136,7 @@ class SQLConnector(_base.ConnectorBase):
     Implement database access through :mod:`mysql.connector`.
     """
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialize the MySQL connector state.
 
@@ -157,7 +150,7 @@ class SQLConnector(_base.ConnectorBase):
         self.cred_manager: _manager.CredManager = None
 
     @_check_types.do
-    def connect(self):
+    def connect(self) -> bool:
         """
         Prompt for credentials and connect to the configured MySQL database.
 
@@ -168,7 +161,7 @@ class SQLConnector(_base.ConnectorBase):
 
         dlg = LoginDialog(self.mainframe)
         try:
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 username, password = dlg.GetValue()
             else:
                 return False
@@ -270,8 +263,8 @@ class SQLConnector(_base.ConnectorBase):
 
     @_check_types.do
     def execute(self, operation: _StrOrBytes,
-                params: _Optional[_ParamsSequenceOrDictType] = None,
-                multi: bool = False) -> _Optional[_Generator[_MySQLCursor, None, None]]:
+                params: _ParamsSequenceOrDictType | None = None,
+                multi: bool = False) -> _Generator[_MySQLCursor, None, None] | None:
 
         """
         Execute a MySQL operation using the active cursor.
@@ -279,7 +272,7 @@ class SQLConnector(_base.ConnectorBase):
         :param operation: SQL statement to execute.
         :type operation: _StrOrBytes
         :param params: Parameters supplied for the SQL operation.
-        :type params: _Optional[_ParamsSequenceOrDictType]
+        :type params: _ParamsSequenceOrDictType | None
         :param multi: Whether the connector should execute multiple statements.
         :type multi: bool
 
@@ -292,7 +285,7 @@ class SQLConnector(_base.ConnectorBase):
     @_check_types.do
     def executemany(
         self, operation: str, seq_params: list[_ParamsSequenceOrDictType] | tuple[_ParamsSequenceOrDictType]
-    ) -> _Optional[_Generator[_MySQLCursor, None, None]]:
+    ) -> _Generator[_MySQLCursor, None, None] | None:
 
         """
         Execute a MySQL operation for multiple parameter sets.
@@ -310,7 +303,7 @@ class SQLConnector(_base.ConnectorBase):
 
     @property
     @_check_types.do
-    def lastrowid(self) -> _Optional[int]:
+    def lastrowid(self) -> int | None:
 
         """
         Return the last inserted MySQL row identifier.
@@ -322,7 +315,7 @@ class SQLConnector(_base.ConnectorBase):
         return self._cursor.lastrowid
 
     @_check_types.do
-    def fetchone(self) -> _Optional[_RowType]:
+    def fetchone(self) -> _RowType | None:
         """
         Fetch a single row from the MySQL cursor.
 
@@ -333,12 +326,12 @@ class SQLConnector(_base.ConnectorBase):
         return self._cursor.fetchone()
 
     @_check_types.do
-    def fetchmany(self, size: _Optional[int] = None) -> list[_RowType]:
+    def fetchmany(self, size: int | None = None) -> list[_RowType]:
         """
         Fetch multiple rows from the MySQL cursor.
 
         :param size: Maximum number of rows to fetch.
-        :type size: _Optional[int]
+        :type size: int | None
 
         :returns: A list of fetched rows.
         :rtype: list[_RowType]
@@ -358,7 +351,7 @@ class SQLConnector(_base.ConnectorBase):
         return self._cursor.fetchall()
 
     @_check_types.do
-    def commit(self):
+    def commit(self) -> None:
         """
         Commit the active MySQL transaction.
 
@@ -369,7 +362,7 @@ class SQLConnector(_base.ConnectorBase):
         self._connection.commit()
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """
         Close the MySQL connector and stop related monitors.
 

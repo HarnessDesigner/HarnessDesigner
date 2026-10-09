@@ -3,6 +3,7 @@
 from typing import TYPE_CHECKING
 
 import numpy as np
+
 from ... import check_types as _check_types
 
 
@@ -18,7 +19,7 @@ class SceneLight:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
         """
         Initialise the :class:`SceneLight` instance.
 
@@ -30,7 +31,7 @@ class SceneLight:
         self.config = self.canvas.config.lighting
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):  # NOQA
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:  # NOQA
         """
         Set the light uniforms in the shader.
         """

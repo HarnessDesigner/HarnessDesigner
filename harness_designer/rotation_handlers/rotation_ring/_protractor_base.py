@@ -27,6 +27,8 @@ entirely to the two subclasses -- this class only builds and draws the
 shared geometry.
 """
 
+from typing import TYPE_CHECKING
+
 import math
 import build123d
 import numpy as np
@@ -44,6 +46,12 @@ from .. import rotation_mesh as _rotation_mesh
 from ... import color as _color
 from ...gl import shaders as _shaders
 from ...gl.canvas_base import camera_base as _camera_base
+
+
+if TYPE_CHECKING:
+    from ...gl import context as _gl_context
+    from ...gl.materials import material as _material
+    from ...gl.shaders import program as _shader_program
 
 
 # One minor (unlabeled) tick every degree; every 10th is a longer, labeled
@@ -103,7 +111,7 @@ class _Tick:
     __slots__ = ('degrees', 'is_major', 'tick_len', 'scale',
                  'position', 'mesh_rotation', 'label', 'label_position')
 
-    def __init__(self, degrees: float, is_major: bool, label: _text.Text | None):
+    def __init__(self, degrees: float, is_major: bool, label: _text.Text | None) -> None:
         self.degrees = degrees
         self.is_major = is_major
         self.tick_len = 0.0
@@ -170,8 +178,8 @@ class ProtractorRingBase:
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
                  outer_radius: float, depth: float, material: _materials.GLMaterial,
-                 label_size: float, context, camera: _camera_base.CameraBase | None = None,
-                 labels_outward: bool = True, local_tilt: _angle.Angle | None = None):
+                 label_size: float, context: "_gl_context.GLContext", camera: _camera_base.CameraBase | None = None,
+                 labels_outward: bool = True, local_tilt: _angle.Angle | None = None) -> None:
 
         self.axis = axis
         self.center = center
@@ -295,7 +303,7 @@ class ProtractorRingBase:
 
     @_check_types.do
     def set_radii(self, inner_radius: float, outer_radius: float,
-                  depth: float, context) -> None:
+                  depth: float, context: "_gl_context.GLContext") -> None:
 
         """
         Update this ring's ID/OD/depth -- called whenever the tracked
@@ -334,7 +342,7 @@ class ProtractorRingBase:
         self._last_ring_angle_quat = None
 
     @_check_types.do
-    def delete(self, context) -> None:
+    def delete(self, context: "_gl_context.GLContext") -> None:
         # Not strictly required (Point.bind() only ever holds a
         # WeakMethod, so this callback goes inert on its own once this
         # ring is collected) but explicit is cheap and avoids a stale
@@ -724,12 +732,12 @@ class ProtractorRingBase:
 
         raise NotImplementedError
 
-    def _get_label_color(self):
+    def _get_label_color(self) -> tuple[float, float, float, float]:
         raise NotImplementedError
 
     @staticmethod
     @_check_types.do
-    def _set_solid_color(faces_program,
+    def _set_solid_color(faces_program: "_shader_program.FacesProgram",
                          color: tuple[float, float, float]) -> None:
 
         faces_program.material_diffuse = [color[0], color[1], color[2], 1.0]

@@ -44,10 +44,10 @@ are real rows (``reroute.add_waypoint``) from the moment they are clicked, so
 what is on screen is what will be saved.
 """
 
-import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6.QtWidgets import QMessageBox
+import math
+from PySide6 import QtWidgets
 
 from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
@@ -67,6 +67,9 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_schematic import canvas as _canvas
     from ... import objects as _objects
+    from ...database.global_db import wire as _glb_wire
+    from ...database.project_db import pjt_point2d as _pjt_point2d
+    from ...objects.objects_schematic import base_schematic as _base_schematic
 
 
 Config = _config.Config.colors
@@ -83,9 +86,9 @@ class Wire(_base.AddHandlerBase):
 
     @_check_types.do
     def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part,
-        stop_point2d, start_obj
-    ):
+        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part: "_glb_wire.Wire",
+        stop_point2d: "_pjt_point2d.PJTPoint2D", start_obj: _terminal.Terminal | _splice.Splice
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -129,7 +132,7 @@ class Wire(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_schematic.BaseSchematic":
         return obj.objschematic
 
     # ------------------------------------------------------------------
@@ -154,15 +157,16 @@ class Wire(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -243,7 +247,7 @@ class Wire(_base.AddHandlerBase):
         return math.hypot(xz[0] - last[0], xz[1] - last[1]) < _routing._lane_spacing() / 2.0  # NOQA
 
     @_check_types.do
-    def _pick_end(self, mouse_pos: _point.Point):
+    def _pick_end(self, mouse_pos: _point.Point) -> _terminal.Terminal | _splice.Splice | None:
         """The terminal or splice under the cursor that this wire could end
         on, else ``None`` (its own start end doesn't count)."""
         picked = _object_picker.find_object(mouse_pos, self.camera, self.camera.canvas)
@@ -262,7 +266,7 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _set_hover(self, obj) -> None:
+    def _set_hover(self, obj: _terminal.Terminal | _splice.Splice | None) -> None:
         if obj is self._hover_obj:
             return
 
@@ -293,7 +297,7 @@ class Wire(_base.AddHandlerBase):
         self.mainframe.editor2d.Refresh(False)
 
     @staticmethod
-    def _snap_point(picked) -> tuple[float, float]:
+    def _snap_point(picked: _terminal.Terminal | _splice.Splice) -> tuple[float, float]:
         """Where a wire actually attaches on *picked* -- a terminal's own
         ``wire_position2d`` (the far end of its exit-stub cylinder; its name
         label, which is all that can be clicked to pick it, is elsewhere),
@@ -440,8 +444,8 @@ class Wire(_base.AddHandlerBase):
         """Take back the last waypoint the user placed; with none left to take
         back, cancel the wire."""
         if len(self._placed) <= self._locked:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return
 
         point = self._points.pop()
@@ -492,7 +496,7 @@ class Wire(_base.AddHandlerBase):
         _wire_reroute.on_wire_attached(self.mainframe.project, self.target)
 
     @_check_types.do
-    def _finish(self, picked) -> None:
+    def _finish(self, picked: _terminal.Terminal | _splice.Splice) -> None:
         """End the wire on *picked* (a terminal or splice): attach it, and let
         the router lay out everything after the last waypoint the user placed
         -- attaching is what triggers that route, see ``Wire.route_prefix``."""
@@ -503,8 +507,8 @@ class Wire(_base.AddHandlerBase):
 
         if not ok:
             block_msg += '\n\nDo you want to use this wire?'
-            button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
-            if button == QMessageBox.StandardButton.No:
+            button = QtWidgets.QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+            if button == QtWidgets.QMessageBox.StandardButton.No:
                 return
 
         project = self.mainframe.project
@@ -575,5 +579,5 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

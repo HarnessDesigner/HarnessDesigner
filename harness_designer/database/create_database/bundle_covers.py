@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -11,22 +13,24 @@ from . import materials as _materials
 from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
-# from . import adhesives as _adhesives
 from . import protections as _protections
 from . import temperatures as _temperatures
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_bundle_covers(con, data: tuple[dict] | list[dict]):
+def add_bundle_covers(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """
     Add a bundle covers.
 
@@ -42,7 +46,7 @@ def add_bundle_covers(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """
     Add a records.
 
@@ -103,11 +107,11 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_bundle_cover(con, part_number, description, mfg=None, family=None, series=None,
-                     color=None, material=None, image=None, datasheet=None, cad=None,
-                     shrink_temp=None, min_temp=None, max_temp=None, protection=None,
-                     rigidity='', shrink_ratio='', wall='', min_dia=0.0, max_dia=0.0,
-                     adhesive_ids=None, weight=0.0, commit=True):
+def add_bundle_cover(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+                     color: str | None = None, material: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None,
+                     shrink_temp: str | None = None, min_temp: str | None = None, max_temp: str | None = None, protection: str | None = None,
+                     rigidity: str = '', shrink_ratio: str = '', wall: str = '', min_dia: float = 0.0, max_dia: float = 0.0,
+                     adhesive_ids: list[bytes] | None = None, weight: float = 0.0, commit: bool = True) -> bytes:
     """
     Add a bundle cover.
 

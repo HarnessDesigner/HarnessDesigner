@@ -29,7 +29,7 @@ class WireServiceLoop(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop", project_load=False):
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop", project_load: bool = False) -> None:
         """Initialise the :class:`WireServiceLoop` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -121,7 +121,7 @@ class WireServiceLoop(_ObjectBase):
             self._stop_sibling_ref = weakref.ref(new_wire)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Reconnect the two wires this loop sits between (undoing the
         fork handlers.wire_service_loop_handler made when it was placed)
         before actually deleting this loop -- see handlers.wire_topology.

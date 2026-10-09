@@ -17,11 +17,12 @@ the other with a plain equality lookup, in either direction, without a
 forward FK on either side.
 """
 
+from typing import Iterable as _Iterable, Union as _Union, TYPE_CHECKING
+
 import ast
 import weakref
-from typing import Iterable as _Iterable, Union, TYPE_CHECKING
 
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import PositionPegboardMixin, VisiblePegboardMixin
 from ...geometry import point as _point
 from ... import check_types as _check_types
@@ -33,8 +34,8 @@ if TYPE_CHECKING:
     from . import pjt_transition as _pjt_transition
     from ...objects import pegboard_table as _pegboard_table_obj
 
-    _Anchor = Union["_pjt_housing.PJTHousing", "_pjt_bundle.PJTBundle",
-                    "_pjt_transition.PJTTransition"]
+    _Anchor = _Union["_pjt_housing.PJTHousing", "_pjt_bundle.PJTBundle",
+                     "_pjt_transition.PJTTransition"]
 
 
 # On the peg board, X/Z are the screen's own two axes (top-down camera) --
@@ -80,14 +81,14 @@ class PJTPegboardTablesTable(PJTTableBase):
         return pegboard_tables.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Create the ``pjt_pegboard_tables`` table in the database."""
         from ..create_database import pegboard_tables
 
         pegboard_tables.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Add any missing fields to the ``pjt_pegboard_tables`` table."""
         from ..create_database import pegboard_tables
 
@@ -104,7 +105,7 @@ class PJTPegboardTablesTable(PJTTableBase):
             yield PJTPegboardTable(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTPegboardTable":
+    def __getitem__(self, item: int | bytes | str) -> "PJTPegboardTable":
         """Return the data-table overlay row for the given database id.
 
         :param item: Row id to look up.
@@ -167,12 +168,13 @@ class PJTPegboardTablesTable(PJTTableBase):
             point_row.point.z = position.z
 
         db_id = PJTTableBase.insert(
-            self, point_pegboard_id=point_id, size=str((width, height)))
+            self, point_pegboard_id=point_id, size=str((width, height)),
+            is_visible_pegboard=1, visible_columns='')
 
         return PJTPegboardTable(self, db_id)
 
     @_check_types.do
-    def get_from_point_pegboard_id(self, point_id: bytes) -> Union["PJTPegboardTable", None]:
+    def get_from_point_pegboard_id(self, point_id: bytes) -> _Union["PJTPegboardTable", None]:
         """Reverse lookup: the overlay row whose own ``point_pegboard_id``
         matches *point_id* -- the SHARED point convention described in
         this module's own docstring. Used by
@@ -211,7 +213,7 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         return self._table
 
     @_check_types.do
-    def get_object(self) -> "_pegboard_table_obj.PegboardTable | None":
+    def get_object(self) -> _Union["_pegboard_table_obj.PegboardTable", None]:
         """Return the live facade object for this row, if one has been
         constructed -- same weakref-backed pattern as every other
         ``PJTEntryBase`` subclass (e.g. ``PJTBundle.get_object``); this
@@ -230,11 +232,11 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_pegboard_table_obj.PegboardTable | None"):
+    def set_object(self, obj: _Union["_pegboard_table_obj.PegboardTable", None]) -> None:
         """Register the live facade object for this row -- see
         :meth:`get_object`.
 
@@ -247,11 +249,9 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         else:
             self._obj = obj
 
-    _stored_anchor: "_Anchor | None | DefaultStoredValueType" = DefaultStoredValue
-
     @property
     @_check_types.do
-    def anchor(self) -> "_Anchor | None":
+    def anchor(self) -> _Union["_Anchor", None]:
         """Return the owning anchor row -- a housing, bundle,
         or transition, found by matching this
         table's own :attr:`position_pegboard_id` against each anchor
@@ -273,22 +273,14 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
             normally happen for a live table row).
         :rtype: :class:`PJTHousing` | :class:`PJTBundle` | :class:`PJTTransition` | None
         """
-        if self._stored_anchor is DefaultStoredValue:
-            point_id = self.position_pegboard_id
-            db = self._table.db
+        point_id = self.position_pegboard_id
+        db = self._table.db
 
-            self._stored_anchor = None
-
-            for table in (db.pjt_housings_table, db.pjt_bundles_table,
-                         db.pjt_transitions_table):
-                rows = table.select('id', table_point_peg_id=point_id)
-                if rows:
-                    self._stored_anchor = table[rows[0][0]]
-                    break
-
-        return self._stored_anchor
-
-    _stored_size: tuple[float, float] | DefaultStoredValueType = DefaultStoredValue
+        for table in (db.pjt_housings_table, db.pjt_bundles_table,
+                     db.pjt_transitions_table):
+            rows = table.select('id', table_point_peg_id=point_id)
+            if rows:
+                return table[rows[0][0]]
 
     @property
     @_check_types.do
@@ -298,25 +290,19 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         :returns: The table's size.
         :rtype: tuple[float, float]
         """
-        if self._stored_size is DefaultStoredValue:
-            raw = self._table.select('size', id=self._db_id)[0][0]
-            self._stored_size = ast.literal_eval(raw)
-
-        return self._stored_size
+        raw = self._table.select('size', id=self._db_id)[0][0]
+        return ast.literal_eval(raw)
 
     @size.setter
     @_check_types.do
-    def size(self, value: tuple[float, float]):
+    def size(self, value: tuple[float, float]) -> None:
         """Set the table's ``(width, height)``, in world units.
 
         :param value: New size.
         :type value: tuple[float, float]
         """
-        self._stored_size = value
         self._table.update(self._db_id, size=str(value))
         self._populate('size')
-
-    _stored_visible_columns: list[int] | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -332,25 +318,20 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         :returns: Column indices, in display order.
         :rtype: list[int]
         """
-        if self._stored_visible_columns is DefaultStoredValue:
-            raw = self._table.select('visible_columns', id=self._db_id)[0][0]
-            if raw:
-                self._stored_visible_columns = [int(v) for v in raw[1:-1].split(', ')]
-            else:
-                self._stored_visible_columns = []
+        raw = self._table.select('visible_columns', id=self._db_id)[0][0]
+        if raw:
+            return [int(v) for v in raw[1:-1].split(', ')]
 
-        return list(self._stored_visible_columns)
+        return []
 
     @visible_columns.setter
     @_check_types.do
-    def visible_columns(self, value: list[int]):
+    def visible_columns(self, value: list[int]) -> None:
         """Set which columns are shown, and in what order.
 
         :param value: Column indices, in display order.
         :type value: list[int]
         """
-        self._stored_visible_columns = value
-
         db_value = f'[{", ".join(str(v) for v in value)}]'
         self._table.update(self._db_id, visible_columns=db_value)
         self._populate('visible_columns')

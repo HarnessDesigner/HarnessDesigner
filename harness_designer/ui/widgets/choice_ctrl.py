@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from PySide6 import QtCore
 from ... import check_types as _check_types
 
@@ -19,7 +19,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     valueChanged: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent=None, label: str = '', choices=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', choices: list[str] | None = None) -> None:
         """Initialise the :class:`ChoiceCtrl` instance.
 
         :param parent: Parent widget.
@@ -51,7 +51,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _on_index_changed(self):
+    def _on_index_changed(self) -> None:
         """Emit :attr:`valueChanged` with the text of the newly selected item."""
         self.valueChanged.emit(self.ctrl.currentText())
 
@@ -60,7 +60,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """Enable or disable both the label and the dropdown.
 
         :param flag: ``True`` to enable; ``False`` to disable.
@@ -70,7 +70,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         self.st.setEnabled(flag)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """Set the tooltip on both the label and the dropdown.
 
         :param text: Tooltip text.
@@ -82,7 +82,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     @_check_types.do
-    def SetSelection(self, n: int):
+    def SetSelection(self, n: int) -> None:
         """Select the item at zero-based index *n*.
 
         :param n: Index of the item to select.
@@ -100,7 +100,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         return self.ctrl.currentIndex()
 
     @_check_types.do
-    def SetStringSelection(self, value: str):
+    def SetStringSelection(self, value: str) -> None:
         """Select the first item whose text exactly matches *value*.
 
         Has no effect if *value* is not present in the list.
@@ -131,12 +131,12 @@ class ChoiceCtrl(QtWidgets.QWidget):
         return self.ctrl.count()
 
     @_check_types.do
-    def Clear(self):
+    def Clear(self) -> None:
         """Remove all items from the dropdown."""
         self.ctrl.clear()
 
     @_check_types.do
-    def Delete(self, n: int):
+    def Delete(self, n: int) -> None:
         """Remove the item at zero-based index *n*.
 
         :param n: Index of the item to remove.
@@ -145,7 +145,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         self.ctrl.removeItem(n)
 
     @_check_types.do
-    def Insert(self, item: str, pos: int):
+    def Insert(self, item: str, pos: int) -> None:
         """Insert *item* before the item currently at index *pos*.
 
         :param item: Text of the new item.
@@ -168,7 +168,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         return self.ctrl.count() - 1
 
     @_check_types.do
-    def AppendItems(self, items):
+    def AppendItems(self, items: list[str]) -> None:
         """Append multiple items to the end of the dropdown.
 
         :param items: Items to append.
@@ -177,7 +177,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         self.ctrl.addItems(list(items))
 
     @_check_types.do
-    def Set(self, items):
+    def Set(self, items: list[str]) -> None:
         """Replace all existing items with *items*.
 
         :param items: New list of item strings.
@@ -197,7 +197,7 @@ class ChoiceCtrl(QtWidgets.QWidget):
         return [self.ctrl.itemText(i) for i in range(self.ctrl.count())]
 
     @_check_types.do
-    def SetItems(self, items: list[str]):
+    def SetItems(self, items: list[str]) -> None:
         """Replace all existing items with *items* (alias for :meth:`Set`).
 
         :param items: New list of item strings.

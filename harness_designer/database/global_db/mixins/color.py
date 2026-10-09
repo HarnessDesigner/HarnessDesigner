@@ -1,17 +1,19 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtGui
 
-from PySide6.QtGui import QColor
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .... import color as _color
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class ColorMixin(BaseMixin):
@@ -56,7 +58,7 @@ class ColorMixin(BaseMixin):
 
     @color_id.setter
     @_check_types.do
-    def color_id(self, value: bytes):
+    def color_id(self, value: bytes) -> None:
         """Set the color ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -71,6 +73,14 @@ class ColorMixin(BaseMixin):
         self._populate('color_id')
 
 
+def _color_of(db_obj: "ColorMixin") -> _Union["_color.Color", None]:
+    return db_obj.color
+
+
+def _set_color_id(db_obj: "ColorMixin", db_id: bytes) -> None:
+    db_obj.color_id = db_id
+
+
 class ColorControl(_prop_ctrls.ColorProperty):
     """Represent a color control in :mod:`harness_designer.database.global_db.mixins.color`.
 
@@ -78,7 +88,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`ColorControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -88,25 +98,26 @@ class ColorControl(_prop_ctrls.ColorProperty):
         """
         self.choices: list[list[str, int]] = None
         self.db_obj: ColorMixin | None = None
-        self.attribute_name = 'color'
+        self._get_target: Callable[[ColorMixin], _Union["_color.Color", None]] = _color_of
+        self._set_target_id: Callable[[ColorMixin, bytes], None] = _set_color_id
 
         super().__init__(parent, 'Color')
 
         self.propertyChanged.connect(self._on_color)
 
     @_check_types.do
-    def SetAttributeName(self, name):
-        """Execute the set attribute name operation.
+    def SetTarget(self, get_target: Callable[[ColorMixin], _Union["_color.Color", None]],
+                  set_target_id: Callable[[ColorMixin, bytes], None]) -> None:
+        """Choose which color of the db object this control edits.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param name: Name value.
-        :type name: UNKNOWN
+        :param get_target: Returns the color object on the db object.
+        :param set_target_id: Stores the id of a color on the db object.
         """
-        self.attribute_name = name
+        self._get_target = get_target
+        self._set_target_id = set_target_id
 
     @_check_types.do
-    def set_obj(self, db_obj: ColorMixin | None):
+    def set_obj(self, db_obj: ColorMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -120,10 +131,10 @@ class ColorControl(_prop_ctrls.ColorProperty):
             self.choices = []
 
             self.SetItems(self.choices)
-            self.SetValue(['', QColor(0, 0, 0)])
+            self.SetValue(['', QtGui.QColor(0, 0, 0)])
             self.setEnabled(False)
         else:
-            color = getattr(db_obj, self.attribute_name)
+            color = self._get_target(db_obj)
 
             db_obj.table.execute('SELECT name, rgb from colors;')
             rows = db_obj.table.fetchall()
@@ -134,7 +145,7 @@ class ColorControl(_prop_ctrls.ColorProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_color(self, evt):
+    def _on_color(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the color event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -158,8 +169,8 @@ class ColorControl(_prop_ctrls.ColorProperty):
             db_id, stored_rgba = rows[0]
 
             if rgba != stored_rgba:
-                setattr(self.db_obj, self.attribute_name + '_id', db_id)
-                getattr(self.db_obj, self.attribute_name).rgb = rgba
+                self._set_target_id(self.db_obj, db_id)
+                self._get_target(self.db_obj).rgb = rgba
         else:
             db_obj = self.db_obj.table.db.colors_table.insert(name, rgba)
             db_id = db_obj.db_id
@@ -168,5 +179,5 @@ class ColorControl(_prop_ctrls.ColorProperty):
             self.SetItems(self.choices)
             self.SetValue([name, color])
 
-        setattr(self.db_obj, self.attribute_name + '_id', db_id)
+        self._set_target_id(self.db_obj, db_id)
         self.db_obj.table.db.mainframe.editor3d.Refresh()

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from ... import check_types as _check_types
 
@@ -31,10 +31,10 @@ class TextCtrl(QtWidgets.QWidget):
     text_changed: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent=None, label: str = '', size=None,
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', size: tuple[int, int] | None = None,
                  style: int = 0, apply_button: bool = True, # NOQA
                  hslider: bool = True, readonly: bool = False,
-                 multiline: bool = False):
+                 multiline: bool = False) -> None:
         """Initialise the :class:`TextCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -122,7 +122,7 @@ class TextCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     @_check_types.do
-    def _on_text_changed(self, text: str):
+    def _on_text_changed(self, text: str) -> None:
         """Handle the text changed event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -134,7 +134,7 @@ class TextCtrl(QtWidgets.QWidget):
             0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
     @_check_types.do
-    def _on_text_changed_multi(self):
+    def _on_text_changed_multi(self) -> None:
         """Handle the text changed multi event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,7 +146,7 @@ class TextCtrl(QtWidgets.QWidget):
                 0, lambda: self.apply_button.setEnabled(text != self._original_text))
 
     @_check_types.do
-    def _on_enter(self):
+    def _on_enter(self) -> None:
         """Handle the enter event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -159,7 +159,7 @@ class TextCtrl(QtWidgets.QWidget):
             self.text_committed.emit()
 
     @_check_types.do
-    def _on_apply(self):
+    def _on_apply(self) -> None:
         """Handle the apply event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -170,7 +170,7 @@ class TextCtrl(QtWidgets.QWidget):
     # wx-compatible public API
     # ------------------------------------------------------------------
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """Execute the enable operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -189,7 +189,7 @@ class TextCtrl(QtWidgets.QWidget):
                 self.apply_button.setEnabled(False)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -203,7 +203,7 @@ class TextCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -243,17 +243,17 @@ class TextCtrl(QtWidgets.QWidget):
     # without reaching into the private .ctrl attribute directly
     # ------------------------------------------------------------------
     @_check_types.do
-    def setCompleter(self, completer):
+    def setCompleter(self, completer: QtWidgets.QCompleter) -> None:
         """Forward to the inner QLineEdit (single-line only)."""
         if not self._multiline:
             self.ctrl.setCompleter(completer)
 
     @_check_types.do
-    def inputPalette(self):
+    def inputPalette(self) -> QtGui.QPalette:
         """Return the palette of the inner input control."""
         return self.ctrl.palette()
 
     @_check_types.do
-    def setInputPalette(self, palette):
+    def setInputPalette(self, palette: QtGui.QPalette) -> None:
         """Apply *palette* to the inner input control."""
         self.ctrl.setPalette(palette)

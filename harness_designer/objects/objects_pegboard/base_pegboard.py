@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union, Any
 
 import numpy as np
 
@@ -21,6 +21,9 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...database.project_db import pjt_housing as _pjt_housing
+    from ...database.project_db import pjt_transition as _pjt_transition
+    from ...database.project_db import pjt_bundle as _pjt_bundle
     from .. import ObjectBase as _ObjectBase
     from ...ui import editor_pegboard as _editor_pegboard
     from ...database import project_db as _project_db
@@ -33,7 +36,7 @@ Config = _config.Config.editor_pegboard
 
 
 @_check_types.do
-def notify_table_wires_changed(anchor_db_obj) -> None:
+def notify_table_wires_changed(anchor_db_obj: _Union["_pjt_housing.PJTHousing", "_pjt_transition.PJTTransition", "_pjt_bundle.PJTBundle"]) -> None:
     """Tell *anchor_db_obj*'s own peg-board wire table (if it currently
     has a live one) that its wire membership just changed, so its
     ``WireTable`` requeries instead of showing a stale row set.
@@ -49,15 +52,13 @@ def notify_table_wires_changed(anchor_db_obj) -> None:
     call site that just changed membership actually knows which
     anchor(s) were affected.
 
-    No-op if *anchor_db_obj* isn't a table-owning anchor type at all
-    (no ``table_position_peg_id_raw`` attribute -- everything except
-    housing/bundle/transition), has no table row yet,
+    No-op if *anchor_db_obj* has no table row yet,
     or has a row but no live view built for it this session (its table
     has never actually been shown).
 
     :param anchor_db_obj: The anchor row whose wires just changed.
     """
-    point_id = getattr(anchor_db_obj, 'table_position_peg_id_raw', None)
+    point_id = anchor_db_obj.table_position_peg_id_raw
     if point_id is None:
         return
 
@@ -129,7 +130,7 @@ class BasePegboard(_objectsvar.BaseVar):
         position: _point.Point | None = None,
         scale: _point.Point | None = None,
         material: _materials.GLMaterial | None = None
-    ):
+    ) -> None:
         """
         Initialise the :class:`BasePegboard` instance.
 
@@ -231,8 +232,6 @@ class BasePegboard(_objectsvar.BaseVar):
         if self.point3d_id is None:
             return []
 
-        from . import chain_edges as _chain_edges
-
         project = self.parent.mainframe.project
         budgets = []
 
@@ -245,18 +244,21 @@ class BasePegboard(_objectsvar.BaseVar):
         return budgets
 
     @_check_types.do
-    def _table_row(self) -> "_pjt_pegboard_table.PJTPegboardTable | None":
+    def _table_row(self) -> _Union["_pjt_pegboard_table.PJTPegboardTable", None]:
         """This anchor's own ``pjt_pegboard_tables`` row, or ``None``.
 
         Only meaningful for anchor types mixing in ``mixins.
         table_position_peg.TablePositionPegMixin`` (housing/bundle/
-        transition) -- every other peg-board object
-        type has no ``table_position_peg_id_raw`` attribute at all, so
-        this returns ``None`` for those too, via the ``getattr``
-        default. Used by both :meth:`has_visible_table` and
+        transition/splice) -- every other peg-board object type returns
+        ``None`` here, decided by its own ``is_*`` flags rather than a
+        ``getattr`` probe. Used by both :meth:`has_visible_table` and
         :meth:`show_table`.
         """
-        point_id = getattr(self.db_obj, 'table_position_peg_id_raw', None)
+        if not (self.parent.is_housing or self.parent.is_bundle
+                or self.parent.is_transition or self.parent.is_splice):
+            return None
+
+        point_id = self.db_obj.table_position_peg_id_raw
         if point_id is None:
             return None
 
@@ -317,7 +319,7 @@ class BasePegboard(_objectsvar.BaseVar):
                              _pjt_pegboard_table.DEFAULT_TABLE_HEIGHT)
 
             obstacles = _table_placement.obstacle_rects_from_objects(
-                self.pegboard.camera.objects_in_view)
+                self._aabb_manager.visible_objects())
             free_pos = _table_placement.find_free_position(
                 self.position, width, height, obstacles)
 
@@ -332,11 +334,11 @@ class BasePegboard(_objectsvar.BaseVar):
 
     @property
     @_check_types.do
-    def editor(self):
+    def editor(self) -> "_editor_pegboard.EditorPegboard":
         return self.pegboard
 
     @_check_types.do
-    def __is_visible_callback(self, *_, **__):
+    def __is_visible_callback(self, *_: tuple[Any], **__: dict[str, Any]) -> None:
         self._is_visible = self.db_obj.is_visible_pegboard  # NOQA
 
     @property
@@ -352,7 +354,7 @@ class BasePegboard(_objectsvar.BaseVar):
 
     @is_visible.setter
     @_check_types.do
-    def is_visible(self, value: bool):
+    def is_visible(self, value: bool) -> None:
         """
         Set object visibility.
 
@@ -365,6 +367,19 @@ class BasePegboard(_objectsvar.BaseVar):
         except AttributeError:
             pass
 
+    @_check_types.do
+    def set_visible_cache(self, value: bool) -> None:
+        """Set object visibility on this peg-board object only, without
+        writing the database row (the ``is_visible`` setter does write it).
+
+        Used while a drag hides or restores a waypoint layout, so no
+        database write happens per frame.
+
+        :param value: Visibility to apply.
+        """
+        self._is_visible = value
+
+
     @property
     @_check_types.do
     def _selected_color(self) -> _color.Color:
@@ -372,7 +387,7 @@ class BasePegboard(_objectsvar.BaseVar):
 
     @_debug.logfunc
     @_check_types.do
-    def _set_model(self, model: "_model3d.Model3D"):
+    def _set_model(self, model: "_model3d.Model3D") -> None:
         with self.pegboard.context:
             uuid = model.uuid
 
@@ -478,7 +493,7 @@ class BasePegboard(_objectsvar.BaseVar):
             table_row.delete()
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         self._delete_table_overlay()
 
         if self._active_handler is not None:
@@ -491,7 +506,7 @@ class BasePegboard(_objectsvar.BaseVar):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Generic locked-X/Z drag arming/dispatch, plus rotation-gizmo
         arming/dispatch (see rotation_handlers.rotation_rings.
@@ -551,7 +566,7 @@ class BasePegboard(_objectsvar.BaseVar):
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
         interaction_type: _interaction.MouseInteraction,
-        clicked_object
+        clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo --
         see objects_3d.base_3d.Base3D._handle_rotation_interaction (same

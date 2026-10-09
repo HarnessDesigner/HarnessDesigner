@@ -18,7 +18,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`RenderSettingsDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -149,7 +149,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
         self.button_box.accepted.connect(self.on_apply)
 
     @_check_types.do
-    def on_load_envmap(self):
+    def on_load_envmap(self) -> None:
         """Handle the load envmap event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -164,7 +164,7 @@ class RenderSettingsDialog(_dialog_base.BaseDialog):
             self.envmap_check.setChecked(True)
 
     @_check_types.do
-    def on_apply(self):
+    def on_apply(self) -> None:
         """Handle the apply event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -190,7 +190,7 @@ class LightingPanel(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`LightingPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -221,7 +221,7 @@ class LightingPanel(QtWidgets.QWidget):
         lay.addLayout(btn_row)
 
     @_check_types.do
-    def on_add(self):
+    def on_add(self) -> None:
         """Handle the add event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -229,7 +229,7 @@ class LightingPanel(QtWidgets.QWidget):
         self.lights_panel.add_light()
 
     @_check_types.do
-    def on_remove(self):
+    def on_remove(self) -> None:
         """Handle the remove event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -237,7 +237,7 @@ class LightingPanel(QtWidgets.QWidget):
         self.lights_panel.remove_item()
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> list[dict[str, list[float] | float]]:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -255,7 +255,7 @@ class LightsPanel(QtWidgets.QScrollArea):
     """
 
     @_check_types.do
-    def __init__(self, parent, lights):
+    def __init__(self, parent: QtWidgets.QWidget, lights: list[dict[str, list[float] | float]]) -> None:
         """Initialise the :class:`LightsPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -284,7 +284,7 @@ class LightsPanel(QtWidgets.QScrollArea):
             self.main_sizer.addWidget(item)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> list[dict[str, list[float] | float]]:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -295,7 +295,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         return [light.GetValue() for light in self.items]
 
     @_check_types.do
-    def add_light(self):
+    def add_light(self) -> None:
         """Add a light.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -310,7 +310,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         self.main_sizer.addWidget(light)
 
     @_check_types.do
-    def remove_item(self):
+    def remove_item(self) -> None:
         """Remove the item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -325,7 +325,7 @@ class LightsPanel(QtWidgets.QScrollArea):
         self.selected = None
 
     @_check_types.do
-    def _set_selected(self, light):
+    def _set_selected(self, light: "LightItem") -> None:
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -340,7 +340,7 @@ class LightsPanel(QtWidgets.QScrollArea):
 
 
 @_check_types.do
-def _item_row(parent, label_text, ctrl):
+def _item_row(parent: QtWidgets.QWidget, label_text: str, ctrl: QtWidgets.QWidget) -> QtWidgets.QHBoxLayout:
     """Execute the item row operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -368,7 +368,7 @@ class LightItem(QtWidgets.QWidget):
     clicked_signal: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent, position, intensity, color):
+    def __init__(self, parent: QtWidgets.QWidget, position: list[float], intensity: float, color: list[float]) -> None:
         """Initialise the :class:`LightItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -428,7 +428,7 @@ class LightItem(QtWidgets.QWidget):
         row.addWidget(self.color_btn)
 
     @_check_types.do
-    def _pick_color(self):
+    def _pick_color(self) -> None:
         """Execute the pick color operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -447,7 +447,7 @@ class LightItem(QtWidgets.QWidget):
                 f'background-color: {chosen.name()}; min-width:40px;')
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> dict[str, list[float] | float]:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -464,7 +464,7 @@ class LightItem(QtWidgets.QWidget):
         )
 
     @_check_types.do
-    def select(self):
+    def select(self) -> None:
         """Execute the select operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -472,7 +472,7 @@ class LightItem(QtWidgets.QWidget):
         self.setStyleSheet('background-color: palette(highlight);')
 
     @_check_types.do
-    def unselect(self):
+    def unselect(self) -> None:
         """Execute the unselect operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -480,7 +480,7 @@ class LightItem(QtWidgets.QWidget):
         self.setStyleSheet('')
 
     @_check_types.do
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse press event operation.
 
         UNKNOWN details are inferred from the callable name and signature.

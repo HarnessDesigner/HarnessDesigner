@@ -18,7 +18,7 @@ class Model3DProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`Model3DProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +100,7 @@ class Model3DProperty(QtWidgets.QWidget):
         self._ctrl.SetValue(value)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

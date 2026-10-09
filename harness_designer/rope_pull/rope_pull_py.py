@@ -70,33 +70,31 @@ older, simpler ``objects_pegboard.chain_edges`` budget model already
 used, and keeps the two spans' shares in a sensible ratio to their own
 size.
 
-**One span's own zigzag (``BUNDLE_PLACEMENT.md``'s "induced slack
-shape").** Given a span's two fixed endpoints and the total path length
-it must reach, :func:`_solve_span` lays out the minimum number of evenly
-spaced, equal-height, alternating-side bow waypoints whose zigzag length
-exactly equals that target -- adding one more bow whenever the existing
-ones would need to exceed the configured height cap to store the needed
-slack, and removing all of them once the span is within *tolerance* of
-simply being straight. The height cap is a *fraction of the span's own
-straight length* (``height_cap_fraction``), floored at *min_height_mm* so
-two coincident/near-coincident fixed points (a zero-or-near-zero straight
-length) don't force an unbounded bow count. This directly generalizes the
-single-bow ``geometry.line.Line.bow_midpoint`` already used by
-``handlers.wire_slack`` -- the ``m=1`` case here is that same isosceles
-construction, just reached through a height-driven bow count instead of
-an externally supplied target length.
+**One span's own zigzag (user spec, 2026-10-05).** Given a span's two fixed
+endpoints, its straight length ``s``, the total path length ``t`` it must
+reach, and the bundle diameter ``D``, :func:`_solve_span` works out the
+zig-zag count in two steps:
 
-**Closed-form bow count/height.** For a span of straight length ``s`` and
-target length ``t > s``, splitting the baseline into ``m`` equal bows
-(each with half-base ``s / (2m)`` and apex height ``h``) gives a total
-zigzag length of ``m * 2 * sqrt((s / (2m)) ** 2 + h ** 2)``. Setting that
-equal to ``t`` and solving for ``h`` gives
-``h(m) = sqrt(t**2 - s**2) / (2 * m)`` -- independent of ``s`` once
-``excess = sqrt(t**2 - s**2)`` is known, and strictly decreasing in
-``m``. The smallest ``m`` with ``h(m) <= height_cap`` is therefore
-``ceil(excess / (2 * height_cap))``, and that same monotonicity is what
-makes bows disappear smoothly as the needed excess shrinks back toward
-zero (the collinear/removal case).
+- ``max_count = max(1, floor(s / (zigzag_length_factor * D)))`` -- the most
+  zig-zags the span may hold (default factor 3: one per three diameters of
+  straight length), clamped to at least 1.
+- ``threshold = threshold_factor * D`` -- the height every existing zig-zag
+  must reach before another one is created.
+
+The count is ``clamp(floor(excess / (2 * threshold)), 1, max_count)`` with
+``excess = sqrt(t**2 - s**2)``. A zig-zag is therefore only added once the
+existing ones could all stand at least *threshold* tall. Once the count is
+at ``max_count``, the amplitude keeps growing and shrinking with the slack.
+When the slack drops back below a threshold the count falls by exactly one
+and the slack comes out of one zig-zag at a time -- the floor makes each
+change a discrete step, never a reshuffle of the whole chain.
+
+**Closed-form bow height.** For ``count`` equal bows across the span, each
+with half-base ``s / (2 * count)`` and apex height ``h``, the total zig-zag
+length is ``count * 2 * sqrt((s / (2 * count)) ** 2 + h ** 2)``. Setting that
+to ``t`` gives ``h = excess / (2 * count)`` exactly, independent of ``s``.
+``count == 1`` reduces to :func:`geometry.line.Line.bow_midpoint`'s own
+single-bow construction.
 """
 
 import enum
@@ -105,6 +103,10 @@ from typing import NamedTuple
 
 
 _EPS = 1e-9
+
+# Floor on the bundle/wire diameter fed into the zig-zag rules, so a zero or
+# missing diameter can never divide by zero.
+_MIN_DIAMETER_MM = 1.0
 
 
 class DragEnd(enum.Enum):
@@ -142,8 +144,9 @@ def solve_chain(
     required_length: float,
     drag_end: DragEnd,
     target: tuple[float, float],
-    height_cap_fraction: float,
-    min_height_mm: float,
+    diameter_mm: float,
+    zigzag_length_factor: float,
+    threshold_factor: float,
     tolerance: float = 1e-6,
 ) -> ChainResult:
     """Recompute a wire or bundle's whole peg-board chain after one
@@ -158,11 +161,12 @@ def solve_chain(
         match exactly.
     :param drag_end: Which point is being dragged -- see :class:`DragEnd`.
     :param target: Where that point is being dragged to.
-    :param height_cap_fraction: Maximum bow height for one span, as a
-        fraction of that span's own straight-line length.
-    :param min_height_mm: Absolute floor under *height_cap_fraction*'s
-        own result, for a span whose fixed endpoints are at (or very
-        near) the same position.
+    :param diameter_mm: The bundle's (or wire's) diameter -- drives both
+        the zig-zag count cap and the zig-zag threshold height.
+    :param zigzag_length_factor: Diameters of straight start-to-stop length
+        per allowed zig-zag (see :func:`_solve_span`).
+    :param threshold_factor: Height, in diameters, every zig-zag must reach
+        before another is created (see :func:`_solve_span`).
     :param tolerance: How close total length may come to *required_length*
         before a span counts as "straight" (no bow needed) and how much
         slack is treated as the geometry allows before refusing a move.
@@ -182,6 +186,8 @@ def solve_chain(
 
     needed_slack = required_length - base_length
 
+    diameter = max(diameter_mm, _MIN_DIAMETER_MM)
+
     points: list[tuple[float, float]] = [skeleton[0]]
     span_count = len(skeleton) - 1
 
@@ -195,7 +201,8 @@ def solve_chain(
         else:
             share = needed_slack * (straight / base_length)
 
-        points.extend(_solve_span(a, b, straight + share, height_cap_fraction, min_height_mm, tolerance))
+        points.extend(_solve_span(
+            a, b, straight + share, diameter, zigzag_length_factor, threshold_factor, tolerance))
         points.append(b)
 
     return ChainResult(True, points)
@@ -217,14 +224,15 @@ def _solve_span(
     a: tuple[float, float],
     b: tuple[float, float],
     target_length: float,
-    height_cap_fraction: float,
-    min_height_mm: float,
+    diameter: float,
+    zigzag_length_factor: float,
+    threshold_factor: float,
     tolerance: float,
 ) -> list[tuple[float, float]]:
     """The interior zigzag waypoints (excluding *a*/*b* themselves)
     needed so the polyline ``a -> waypoints -> b`` totals exactly
-    *target_length* -- see the module docstring's "closed-form bow
-    count/height" section for the math.
+    *target_length* -- see the module docstring's zig-zag section for the
+    count and threshold rules.
 
     :returns: An empty list if *target_length* is already within
         *tolerance* of ``a``-to-``b``'s own straight distance.
@@ -238,10 +246,19 @@ def _solve_span(
     if target_length <= straight + tolerance:
         return []
 
-    height_cap = max(height_cap_fraction * straight, min_height_mm)
+    # Count cap: one zig-zag per zigzag_length_factor diameters of this
+    # span's own straight length, never fewer than one.
+    spacing = max(zigzag_length_factor * diameter, _EPS)
+    max_count = max(1, math.floor(straight / spacing))
+
+    # Threshold: the height every zig-zag must reach before another is
+    # created. Floor of excess / (2 * threshold) means each existing bow
+    # stands at least that tall, so amplitude only grows past the
+    # threshold once the count is pinned at max_count.
+    threshold = max(threshold_factor * diameter, _EPS)
 
     excess = math.sqrt(max(target_length * target_length - straight * straight, 0.0))
-    count = max(1, math.ceil(excess / (2.0 * height_cap)))
+    count = min(max(1, math.floor(excess / (2.0 * threshold))), max_count)
     height = excess / (2.0 * count)
 
     if straight < _EPS:
@@ -255,21 +272,12 @@ def _solve_span(
     # exactly (dz, -dx) here).
     px, pz = uz, -ux
 
-    # count independent diamond-shaped bumps, each occupying an equal
-    # 1/count share of the baseline with its own apex at the midpoint of
-    # that share -- this is what the module docstring's closed-form
-    # count/height derivation actually describes (each bump is its own
-    # isosceles triangle, half-base straight / (2 * count), apex height
-    # `height`, matching bow_midpoint's own construction exactly for
-    # count == 1). Consecutive bumps share a height-0 vertex at their
-    # boundary -- a real corner of the polyline, not collinear with
-    # either neighboring segment, so it must be emitted explicitly.
+    # One waypoint per bump apex. The height-0 boundary between two
+    # neighbouring bumps lies exactly on the straight line joining their
+    # apexes, so it is not a bend and is not emitted -- emitting it doubled
+    # the waypoint count for no change in shape.
     waypoints = []
     for i in range(count):
-        if i > 0:
-            t_zero = i / count
-            waypoints.append((ax + t_zero * dx, az + t_zero * dz))
-
         t_apex = (i + 0.5) / count
 
         if i % 2 == 0:

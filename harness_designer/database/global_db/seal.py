@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
+from PySide6 import QtWidgets
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -30,6 +30,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import seal_type as _seal_type
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class SealsTable(TableBase):
@@ -57,7 +59,7 @@ class SealsTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +86,7 @@ class SealsTable(TableBase):
         return seals.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +102,7 @@ class SealsTable(TableBase):
         seals.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -122,7 +124,7 @@ class SealsTable(TableBase):
             yield Seal(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Seal":
+    def __getitem__(self, item: int | bytes | str) -> "Seal":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -147,7 +149,7 @@ class SealsTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_compat(self, terminal: str = None, housing: str = None):
+    def get_compat(self, terminal: str = None, housing: str = None) -> list[bytes]:
         """Return the compat.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -352,7 +354,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _scale_id: bytes | None = None
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """Update the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -450,7 +452,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @o_dia.setter
     @_check_types.do
-    def o_dia(self, value: float):
+    def o_dia(self, value: float) -> None:
         """Set the o dia.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -481,7 +483,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @i_dia.setter
     @_check_types.do
-    def i_dia(self, value: float):
+    def i_dia(self, value: float) -> None:
         """Set the i dia.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -493,7 +495,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._table.update(self._db_id, i_dia=self._stored_i_dia)
         self._populate('i_dia')
 
-    _stored_type: Union[DefaultStoredValueType, "_seal_type.SealType"] = DefaultStoredValue
+    _stored_type: _Union[DefaultStoredValueType, "_seal_type.SealType"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -529,7 +531,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @type_id.setter
     @_check_types.do
-    def type_id(self, value: bytes):
+    def type_id(self, value: bytes) -> None:
         """Set the type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -562,7 +564,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @hardness.setter
     @_check_types.do
-    def hardness(self, value: int):
+    def hardness(self, value: int) -> None:
         """Set the hardness.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -593,7 +595,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @lubricant.setter
     @_check_types.do
-    def lubricant(self, value: str):
+    def lubricant(self, value: str) -> None:
         """Set the lubricant.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -624,7 +626,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @wire_dia_min.setter
     @_check_types.do
-    def wire_dia_min(self, value: float):
+    def wire_dia_min(self, value: float) -> None:
         """Set the wire dia min.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -655,7 +657,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @wire_dia_max.setter
     @_check_types.do
-    def wire_dia_max(self, value: float):
+    def wire_dia_max(self, value: float) -> None:
         """Set the wire dia max.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -668,7 +670,7 @@ class Seal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('wire_dia_max')
 
 
-class SealControl(QTabWidget, LazyTabMixin):
+class SealControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a seal control in :mod:`harness_designer.database.global_db.seal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -677,7 +679,7 @@ class SealControl(QTabWidget, LazyTabMixin):
     # TODO: Add seal type
 
     @_check_types.do
-    def set_obj(self, db_obj: Seal):
+    def set_obj(self, db_obj: Seal) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -688,7 +690,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
@@ -735,7 +737,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_hardness(self, evt):
+    def _on_hardness(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the hardness event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -747,7 +749,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         self.db_obj.hardness = value
 
     @_check_types.do
-    def _on_lubricant(self, evt):
+    def _on_lubricant(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the lubricant event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -759,7 +761,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         self.db_obj.lubricant = value
 
     @_check_types.do
-    def _on_o_dia(self, evt):
+    def _on_o_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the o dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -771,7 +773,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         self.db_obj.o_dia = value
 
     @_check_types.do
-    def _on_i_dia(self, evt):
+    def _on_i_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the i dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -783,7 +785,7 @@ class SealControl(QTabWidget, LazyTabMixin):
         self.db_obj.i_dia = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`SealControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -793,8 +795,8 @@ class SealControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: Seal = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

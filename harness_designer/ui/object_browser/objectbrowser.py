@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 from PySide6 import QtCore
+from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 import re
@@ -27,10 +28,17 @@ from ...objects import wire_service_loop as _wire_service_loop
 
 from .. import dock_base as _dock_base
 from ... import check_types as _check_types
+from ...objects import object_base as _object_base
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
-    from ...objects import object_base as _object_base
+    from ...database.project_db import pjt_bases as _pjt_bases
+    from ...database.project_db import pjt_bundle as _pjt_bundle
+    from ...database.project_db import pjt_cavity as _pjt_cavity
+    from ...database.project_db import pjt_splice as _pjt_splice
+    from ...database.project_db import pjt_terminal as _pjt_terminal
+    from ...database.project_db import pjt_transition as _pjt_transition
+    from ...database.project_db import pjt_wire as _pjt_wire
 
 
 # Matches a ':' or '.' used as a search path level marker -- only when it
@@ -46,7 +54,7 @@ class ObjectBrowser(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`ObjectBrowser` instance.
 
@@ -59,7 +67,7 @@ class ObjectBrowser(_dock_base.DockBase):
                          QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @_check_types.do
-    def add_boot(self, obj: _boot.Boot):
+    def add_boot(self, obj: _boot.Boot) -> None:
         """
         Add a boot.
 
@@ -70,7 +78,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_boot(obj)
 
     @_check_types.do
-    def add_bundle(self, obj: _bundle.Bundle):
+    def add_bundle(self, obj: _bundle.Bundle) -> None:
         """
         Add a bundle.
 
@@ -81,7 +89,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_bundle(obj)
 
     @_check_types.do
-    def add_cavity(self, obj: _cavity.Cavity):
+    def add_cavity(self, obj: _cavity.Cavity) -> None:
         """
         Add a cavity.
 
@@ -92,7 +100,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_cavity(obj)
 
     @_check_types.do
-    def add_circuit(self, obj: _circuit.Circuit):
+    def add_circuit(self, obj: _circuit.Circuit) -> None:
         """
         Add a circuit.
 
@@ -103,7 +111,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_circuit(obj)
 
     @_check_types.do
-    def add_cover(self, obj: _cover.Cover):
+    def add_cover(self, obj: _cover.Cover) -> None:
         """
         Add a cover.
 
@@ -114,7 +122,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_cover(obj)
 
     @_check_types.do
-    def add_cpa_lock(self, obj: _cpa_lock.CPALock):
+    def add_cpa_lock(self, obj: _cpa_lock.CPALock) -> None:
         """
         Add a CPA lock.
 
@@ -125,7 +133,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_cpa_lock(obj)
 
     @_check_types.do
-    def add_housing(self, obj: _housing.Housing):
+    def add_housing(self, obj: _housing.Housing) -> None:
         """
         Add a housing.
 
@@ -136,7 +144,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_housing(obj)
 
     @_check_types.do
-    def add_note(self, obj: _note.Note):
+    def add_note(self, obj: _note.Note) -> None:
         """
         Add a note.
 
@@ -147,7 +155,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_note(obj)
 
     @_check_types.do
-    def add_seal(self, obj: _seal.Seal):
+    def add_seal(self, obj: _seal.Seal) -> None:
         """
         Add a seal.
 
@@ -158,7 +166,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_seal(obj)
 
     @_check_types.do
-    def add_splice(self, obj: _splice.Splice):
+    def add_splice(self, obj: _splice.Splice) -> None:
         """
         Add a splice.
 
@@ -169,7 +177,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_splice(obj)
 
     @_check_types.do
-    def add_terminal(self, obj: _terminal.Terminal):
+    def add_terminal(self, obj: _terminal.Terminal) -> None:
         """
         Add a terminal.
 
@@ -180,7 +188,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_terminal(obj)
 
     @_check_types.do
-    def add_tpa_lock(self, obj: _tpa_lock.TPALock):
+    def add_tpa_lock(self, obj: _tpa_lock.TPALock) -> None:
         """
         Add a TPA lock.
 
@@ -191,7 +199,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_tpa_lock(obj)
 
     @_check_types.do
-    def add_transition(self, obj: _transition.Transition):
+    def add_transition(self, obj: _transition.Transition) -> None:
         """
         Add a transition.
 
@@ -202,7 +210,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_transition(obj)
 
     @_check_types.do
-    def add_wire(self, obj: _wire.Wire):
+    def add_wire(self, obj: _wire.Wire) -> None:
         """
         Add a wire.
 
@@ -213,7 +221,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_wire(obj)
 
     @_check_types.do
-    def add_wire_marker(self, obj: _wire_marker.WireMarker):
+    def add_wire_marker(self, obj: _wire_marker.WireMarker) -> None:
         """
         Add a wire marker.
 
@@ -224,7 +232,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_wire_marker(obj)
 
     @_check_types.do
-    def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop):
+    def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop) -> None:
         """
         Add a wire service loop.
 
@@ -235,7 +243,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_wire_service_loop(obj)
 
     @_check_types.do
-    def reset(self):
+    def reset(self) -> None:
         """
         Execute the reset operation.
         """
@@ -243,7 +251,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.reset()
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_object_base.ObjectBase", None]) -> None:
         """
         Set the selected.
 
@@ -254,7 +262,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.set_selected(obj)
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_object_base.ObjectBase") -> None:
         """
         Add an object.
 
@@ -265,7 +273,7 @@ class ObjectBrowser(_dock_base.DockBase):
         self._ui_obj.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_object_base.ObjectBase") -> None:
         """
         Remove the object.
 
@@ -309,7 +317,7 @@ class _BrowserTree(QtWidgets.QTreeWidget):
     _SELECT_MIN_MS = 150
 
     @_check_types.do
-    def __init__(self, panel: "ObjectBrowserPanel"):
+    def __init__(self, panel: "ObjectBrowserPanel") -> None:
         """
         Initialise the :class:`_BrowserTree` instance.
 
@@ -329,7 +337,7 @@ class _BrowserTree(QtWidgets.QTreeWidget):
         self.currentItemChanged.connect(self._on_current_item_changed)  # NOQA
 
     @_check_types.do
-    def set_current_item_silently(self, item) -> None:
+    def set_current_item_silently(self, item: QtWidgets.QTreeWidgetItem) -> None:
         """
         Move the tree's current item without arming the deferred
         cross-editor select. Qt's ``currentItemChanged`` fires for a
@@ -358,7 +366,7 @@ class _BrowserTree(QtWidgets.QTreeWidget):
             self._suspend_current_changed = False
 
     @_check_types.do
-    def _on_current_item_changed(self, current, _previous):
+    def _on_current_item_changed(self, current: QtWidgets.QTreeWidgetItem | None, _previous: QtWidgets.QTreeWidgetItem | None) -> None:
         """
         Schedule (or cancel) the deferred cross-editor select whenever the
         current item changes, from a click or from keyboard navigation.
@@ -386,7 +394,7 @@ class _BrowserTree(QtWidgets.QTreeWidget):
         self._select_timer.start(self._select_wait_ms())
 
     @_check_types.do
-    def mouseDoubleClickEvent(self, event):
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
         """
         Handle double clicks: cancel the pending select and open the
         properties dialog for the double-clicked object instead.
@@ -412,7 +420,7 @@ class _BrowserTree(QtWidgets.QTreeWidget):
             self._panel.open_properties(obj)
 
     @_check_types.do
-    def _fire_pending_select(self):
+    def _fire_pending_select(self) -> None:
         """
         Run the deferred select once the double-click window has passed.
         """
@@ -453,28 +461,28 @@ class _BrowserTree(QtWidgets.QTreeWidget):
 class TreeItem:
 
     def __init__(self, browser: "ObjectBrowserPanel",
-                 treeitem, obj: "_object_base.ObjectBase"):
+                 treeitem: QtWidgets.QTreeWidgetItem, obj: "_object_base.ObjectBase") -> None:
 
         self._treeitem = treeitem
         self._obj = obj
         self._browser = browser
         self._treeitems = []
 
-    def add_treeitem(self, treeitem):
+    def add_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
         self._treeitems.append(treeitem)
 
     @property
-    def treeitem(self):
+    def treeitem(self) -> QtWidgets.QTreeWidgetItem:
         return self._treeitem
 
     @property
-    def obj(self):
+    def obj(self) -> "_object_base.ObjectBase":
         return self._obj
 
-    def set_selected(self):
+    def set_selected(self) -> None:
         self._browser.set_selected(self._obj)
 
-    def delete(self):
+    def delete(self) -> None:
         self._browser.remove_object(self._obj)
 
         for treeitem in self._treeitems:
@@ -495,9 +503,8 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
     # Boot). Search only matches canonical entries; see _mark_canonical.
     _CANONICAL_ROLE = QtCore.Qt.ItemDataRole.UserRole + 1
 
-    # (label shown in the search category dropdown, attribute holding the
-    # live category root item) -- built once in reset(), re-read fresh by
-    # _category_roots() every search since reset() rebuilds the items.
+    # Labels shown in the search category dropdown. _category_roots() maps
+    # each label to its live category root item, which reset() rebuilds.
     _CATEGORY_ATTRS = (
         ('Boots', '_boots'),
         ('Bundles', '_bundles'),
@@ -517,7 +524,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
     )
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame"):
+    def __init__(self, parent: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`ObjectBrowserPanel` instance.
 
@@ -546,7 +553,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         self._search_category = QtWidgets.QComboBox(self)
         self._search_category.addItem('All Categories')
-        for label, _attr in self._CATEGORY_ATTRS:
+        for label, attr in self._CATEGORY_ATTRS:
             self._search_category.addItem(label)
         self._search_category.currentIndexChanged.connect(self._reset_search)  # NOQA
 
@@ -689,9 +696,9 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
         self._weakrefs = []
 
-    def remove_treeitem(self, treeitem):
+    def remove_treeitem(self, treeitem: QtWidgets.QTreeWidgetItem) -> None:
 
-        def iter_tree(parent: QtWidgets.QTreeWidgetItem):
+        def iter_tree(parent: QtWidgets.QTreeWidgetItem) -> None:
             """
             Iterate over the tree.
 
@@ -711,13 +718,13 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         iter_tree(self._tree_root)
 
     @_check_types.do
-    def __remove_refs(self, ref):
+    def __remove_refs(self, ref: weakref.ref) -> None:
         """
         Remove a weakref.
         """
 
         @_check_types.do
-        def iter_tree(parent: QtWidgets.QTreeWidgetItem):
+        def iter_tree(parent: QtWidgets.QTreeWidgetItem) -> None:
             """
             Iterate over the tree.
 
@@ -747,7 +754,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             pass
 
     @_check_types.do
-    def _set_data(self, item: QtWidgets.QTreeWidgetItem, ref):  # NOQA
+    def _set_data(self, item: QtWidgets.QTreeWidgetItem, ref: weakref.ref) -> None:  # NOQA
         """
         Set the data.
 
@@ -775,11 +782,11 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         item.setData(0, self._CANONICAL_ROLE, True)
 
     @staticmethod
-    def _set_treeitem(db_obj, treeitem):
+    def _set_treeitem(db_obj: "_pjt_bases.PJTEntryBase", treeitem: QtWidgets.QTreeWidgetItem) -> None:
         obj = db_obj.get_object()
 
         if obj is None:
-            def _set_treeitem(obj_):
+            def _set_treeitem(obj_: "_object_base.ObjectBase") -> None:
                 obj_.get_treeitem().add_treeitem(treeitem)
 
             db_obj.bind_object(_set_treeitem)
@@ -787,7 +794,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
             obj_treeitem = obj.get_treeitem()
 
             if obj_treeitem is None:
-                def _set_treeitem(treeitem_):
+                def _set_treeitem(treeitem_: "TreeItem") -> None:
                     treeitem_.add_treeitem(treeitem)
 
                 obj.bind_for_treeitem(_set_treeitem)
@@ -804,7 +811,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
     # tree (add_*, not a hot path), so an O(n) scan per lookup is fine.
 
     @_check_types.do
-    def _bundles_containing_wire(self, wire_db_obj) -> list:
+    def _bundles_containing_wire(self, wire_db_obj: "_pjt_wire.PJTWire") -> list["_pjt_bundle.PJTBundle"]:
         """Every bundle (as its ``pjt_bundles`` row) this wire is a
         member of."""
         wire_id = wire_db_obj.db_id
@@ -819,7 +826,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         return results
 
     @_check_types.do
-    def _splices_containing_wire(self, wire_db_obj) -> list:
+    def _splices_containing_wire(self, wire_db_obj: "_pjt_wire.PJTWire") -> list["_pjt_splice.PJTSplice"]:
         """Every splice (as its ``pjt_splices`` row) this wire is
         attached to."""
         wire_id = wire_db_obj.db_id
@@ -834,7 +841,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         return results
 
     @_check_types.do
-    def _wires_for_terminal(self, terminal_db_obj) -> list:
+    def _wires_for_terminal(self, terminal_db_obj: "_pjt_terminal.PJTTerminal") -> list["_pjt_wire.PJTWire"]:
         """Every wire (as its ``pjt_wires`` row) attached to this
         terminal."""
         terminal_id = terminal_db_obj.db_id
@@ -849,7 +856,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         return results
 
     @_check_types.do
-    def _transitions_for_bundle(self, bundle_db_obj) -> list:
+    def _transitions_for_bundle(self, bundle_db_obj: "_pjt_bundle.PJTBundle") -> list[tuple["_pjt_transition.PJTTransition", int]]:
         """Every ``(transition db row, branch number)`` this bundle
         occupies -- a bundle can occupy more than one branch of the same
         transition, so a transition may appear more than once here."""
@@ -871,7 +878,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         return results
 
     @_check_types.do
-    def _transitions_for_wire(self, wire_db_obj) -> dict:
+    def _transitions_for_wire(self, wire_db_obj: "_pjt_wire.PJTWire") -> dict[bytes, list[Any]]:
         """Map transition db-row-id -> ``[transition db row, [branch
         numbers]]``, merged across every bundle this wire belongs to --
         a wire whose bundle passes through the same transition on more
@@ -893,7 +900,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
     @_check_types.do
     def _build_cavity_children(self, parent_item: QtWidgets.QTreeWidgetItem,
-                               cavity_db_obj) -> None:
+                               cavity_db_obj: "_pjt_cavity.PJTCavity") -> None:
         """Append *cavity_db_obj*'s own seal, then its seated terminal
         (itself expanded via :meth:`_build_terminal_children`), under
         *parent_item*.
@@ -925,7 +932,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
 
     @_check_types.do
     def _build_terminal_children(self, parent_item: QtWidgets.QTreeWidgetItem,
-                                 terminal_db_obj) -> None:
+                                 terminal_db_obj: "_pjt_terminal.PJTTerminal") -> None:
         """Append *terminal_db_obj*'s own seal, then every wire attached
         to it, under *parent_item*.
 
@@ -955,7 +962,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
                 self._set_treeitem(wire, child)
 
     @_check_types.do
-    def add_boot(self, obj: _boot.Boot):
+    def add_boot(self, obj: _boot.Boot) -> None:
         """
         Add a boot.
 
@@ -985,7 +992,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_bundle(self, obj: _bundle.Bundle):
+    def add_bundle(self, obj: _bundle.Bundle) -> None:
         """
         Add a bundle.
 
@@ -1026,7 +1033,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_cavity(self, obj: _cavity.Cavity):
+    def add_cavity(self, obj: _cavity.Cavity) -> None:
         """
         Add a cavity.
 
@@ -1065,7 +1072,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_circuit(self, obj: _circuit.Circuit):
+    def add_circuit(self, obj: _circuit.Circuit) -> None:
         """
         Add a circuit.
 
@@ -1139,7 +1146,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_cover(self, obj: _cover.Cover):
+    def add_cover(self, obj: _cover.Cover) -> None:
         """
         Add a cover.
 
@@ -1172,7 +1179,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_cpa_lock(self, obj: _cpa_lock.CPALock):
+    def add_cpa_lock(self, obj: _cpa_lock.CPALock) -> None:
         """
         Add a CPA lock.
 
@@ -1205,7 +1212,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_housing(self, obj: _housing.Housing):
+    def add_housing(self, obj: _housing.Housing) -> None:
         """
         Add a housing.
 
@@ -1304,7 +1311,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_note(self, obj: _note.Note):
+    def add_note(self, obj: _note.Note) -> None:
         """
         Add a note.
 
@@ -1324,7 +1331,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_seal(self, obj: _seal.Seal):
+    def add_seal(self, obj: _seal.Seal) -> None:
         """
         Add a seal.
 
@@ -1378,7 +1385,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_splice(self, obj: _splice.Splice):
+    def add_splice(self, obj: _splice.Splice) -> None:
         """
         Add a splice.
 
@@ -1408,7 +1415,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_terminal(self, obj: _terminal.Terminal):
+    def add_terminal(self, obj: _terminal.Terminal) -> None:
         """
         Add a terminal.
 
@@ -1451,7 +1458,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_tpa_lock(self, obj: _tpa_lock.TPALock):
+    def add_tpa_lock(self, obj: _tpa_lock.TPALock) -> None:
         """
         Add a TPA lock.
 
@@ -1481,7 +1488,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_transition(self, obj: _transition.Transition):
+    def add_transition(self, obj: _transition.Transition) -> None:
         """
         Add a transition.
 
@@ -1537,7 +1544,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_wire(self, obj: _wire.Wire):
+    def add_wire(self, obj: _wire.Wire) -> None:
         """
         Add a wire.
 
@@ -1638,7 +1645,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_wire_marker(self, obj: _wire_marker.WireMarker):
+    def add_wire_marker(self, obj: _wire_marker.WireMarker) -> None:
         """
         Add a wire marker.
 
@@ -1668,7 +1675,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop):
+    def add_wire_service_loop(self, obj: _wire_service_loop.WireServiceLoop) -> None:
         """
         Add a wire service loop as a child of the wire it's attached to.
 
@@ -1731,7 +1738,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         obj.set_treeitem(ti)
 
     @_check_types.do
-    def set_selected(self, obj: "_object_base.ObjectBase"):
+    def set_selected(self, obj: "_object_base.ObjectBase") -> None:
         """
         Reflect a selection made in one of the editors: expand the tree
         down to the object's item, highlight it, and scroll it into view.
@@ -1797,7 +1804,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._treectrl.scrollToItem(item)
 
     @_check_types.do
-    def _resolve_object(self, obj):
+    def _resolve_object(self, obj: _Union["_pjt_bases.PJTEntryBase", "_object_base.ObjectBase", None]) -> _Union["_object_base.ObjectBase", None]:
         """
         Resolve a value pulled from a tree item's stored weakref to the
         :class:`_object_base.ObjectBase` wrapper the rest of this method
@@ -1816,11 +1823,13 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         :rtype: _object_base.ObjectBase | None
         """
 
-        get_object = getattr(obj, 'get_object', None)
-        if get_object is None:
+        if obj is None:
+            return None
+
+        if isinstance(obj, _object_base.ObjectBase):
             return obj
 
-        return get_object()
+        return obj.get_object()
 
     @_check_types.do
     def select_object(self, obj: "_object_base.ObjectBase") -> None:
@@ -1893,10 +1902,25 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         :rtype: dict[str, :class:`QtWidgets.QTreeWidgetItem`]
         """
 
-        return {label: getattr(self, attr) for label, attr in self._CATEGORY_ATTRS}
+        return {
+            'Boots': self._boots,
+            'Bundles': self._bundles,
+            'Cavities': self._cavities,
+            'Circuits': self._circuits,
+            'Covers': self._covers,
+            'CPA Locks': self._cpa_locks,
+            'Housings': self._housings,
+            'Notes': self._notes,
+            'Seals': self._seals,
+            'Splices': self._splices,
+            'Terminals': self._terminals,
+            'TPA Locks': self._tpa_locks,
+            'Transitions': self._transitions,
+            'Wires': self._wires,
+        }
 
     @_check_types.do
-    def _ancestor_category(self, item: QtWidgets.QTreeWidgetItem):
+    def _ancestor_category(self, item: QtWidgets.QTreeWidgetItem) -> QtWidgets.QTreeWidgetItem | None:
         """
         Return the category root ``item`` lives under, or ``None``.
 
@@ -1943,7 +1967,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         :param keyword: Lowercased search text.
         :type keyword: str
         :param category_label: Combo box selection; ``'All Categories'``
-            (or anything not in :attr:`_CATEGORY_ATTRS`) searches everything.
+            (or anything not in :attr:`_CATEGORY_LABELS`) searches everything.
         :type category_label: str
         :rtype: list[:class:`QtWidgets.QTreeWidgetItem`]
         """
@@ -2038,7 +2062,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         found = []
 
         @_check_types.do
-        def _walk(parent):
+        def _walk(parent: QtWidgets.QTreeWidgetItem) -> None:
             for i in range(parent.childCount()):
                 child = parent.child(i)
                 if needle in child.text(0).lower():
@@ -2063,7 +2087,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         :param keyword: Lowercased search text.
         :type keyword: str
         :param category_label: Combo box selection; ``'All Categories'``
-            (or anything not in :attr:`_CATEGORY_ATTRS`) searches everything.
+            (or anything not in :attr:`_CATEGORY_LABELS`) searches everything.
         :type category_label: str
         :rtype: list[:class:`QtWidgets.QTreeWidgetItem`]
         """
@@ -2072,7 +2096,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         matches = []
 
         @_check_types.do
-        def _walk(parent):
+        def _walk(parent: QtWidgets.QTreeWidgetItem) -> None:
             for i in range(parent.childCount()):
                 child = parent.child(i)
 
@@ -2145,7 +2169,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
                 self.select_object(obj)
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_object_base.ObjectBase") -> None:
         """
         Add an object.
 
@@ -2156,7 +2180,7 @@ class ObjectBrowserPanel(QtWidgets.QWidget):
         self._objects.append(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_object_base.ObjectBase") -> None:
         """
         Remove the object.
 

@@ -1,6 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from collections.abc import Callable, Iterable, Iterator
+from typing import Any, Union as _Union
+from typing import Union as _Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 from math import inf
@@ -12,10 +15,14 @@ from .. import check_types as _check_types
 if TYPE_CHECKING:
     from .canvas_3d import camera as _camera3d
     from .canvas_schematic import camera as _camera2d
+    from .canvas_base import canvas_base as _canvas_base
+    from .. import objects as _objects
+    from ..bounds import array_pool as _array_pool
+    from ...objects.objectsvar import base_var as _base_var
 
 
 @_check_types.do
-def _unproject_from_ndc(ndc, inv_mvp):
+def _unproject_from_ndc(ndc: np.ndarray, inv_mvp: np.ndarray) -> np.ndarray | None:
     """
     ndc: (x,y,z) in [-1,1]
     inv_mvp: inverse of P*MV (row-major)
@@ -33,7 +40,7 @@ def _unproject_from_ndc(ndc, inv_mvp):
 
 
 @_check_types.do
-def build_ray(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
+def build_ray(mouse_pos: "_point.Point", camera: _Union["_camera3d.Camera", "_camera2d.Camera"]) -> tuple[np.ndarray | None, np.ndarray | None]:
     """Unproject *mouse_pos* into a world-space ray (*origin*, *direc*,
     *direc* already normalized), or ``(None, None)`` if the camera's
     current matrices can't be inverted (degenerate view -- callers treat
@@ -81,15 +88,15 @@ def build_ray(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
 _DEBUG_PICK = False
 
 
-def _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, hits, picked) -> None:
+def _debug_pick_report(origin: np.ndarray, direc: np.ndarray, canvas: "_canvas_base.CanvasBase", obb_hits: list[tuple[int, float]], aabb_hits: list[tuple[int, float]], hits: list[tuple[Any, float]], picked: _Union["_objects.ObjectBase", None]) -> None:
     """Print one block describing a pick -- see ``_DEBUG_PICK``."""
-    def describe(pool, index, t):
+    def describe(pool: "_array_pool.ArrayPool", index: int, t: float) -> str:
         obj = pool.resolve(index)
         if obj is None:
             return f'    slot {index:5d} t={t:9.3f}  <no object>'
 
         row = np.asarray(pool.read(index), dtype=np.float64)
-        kind = f'{type(obj).__name__}/{type(getattr(obj, "parent", None)).__name__}'
+        kind = f'{type(obj).__name__}/{type(obj.parent).__name__}'
 
         if row.shape[0] == 8:
             c0 = row[0]
@@ -101,7 +108,7 @@ def _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, hits, picked)
         else:
             box = f'aabb x[{row[0][0]:8.2f},{row[1][0]:8.2f}] z[{row[0][2]:8.2f},{row[1][2]:8.2f}]'
 
-        return f'    slot {index:5d} t={t:9.3f}  {kind:34s} prio={getattr(obj, "_pick_priority", "?")}  {box}'
+        return f'    slot {index:5d} t={t:9.3f}  {kind:34s} prio={obj._pick_priority}  {box}'
 
     lines = [f'---- pick: ray origin=({origin[0]:.2f},{origin[1]:.2f},{origin[2]:.2f}) '
              f'dir=({direc[0]:.4f},{direc[1]:.4f},{direc[2]:.4f})']
@@ -120,7 +127,7 @@ def _debug_pick_report(origin, direc, canvas, obb_hits, aabb_hits, hits, picked)
 
 
 @_check_types.do
-def _render_id_of(wrapped) -> int:
+def _render_id_of(wrapped: "_base_var.BaseVar") -> int:
     """*wrapped*'s own ``render_id`` (see ``objects_pegboard.table.
     Table._render_id_counter``) if it's a peg-board Table, else 0 for
     every other object type -- an ``isinstance``-backed type check via
@@ -140,8 +147,8 @@ def _render_id_of(wrapped) -> int:
 
 @_debug.logfunc
 @_check_types.do
-def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"],
-                canvas, current_selection=None):
+def find_object(mouse_pos: "_point.Point", camera: _Union["_camera3d.Camera", "_camera2d.Camera"],
+                canvas: "_canvas_base.CanvasBase", current_selection: _Union["_objects.ObjectBase", None] = None) -> _Union["_objects.ObjectBase", None]:
     """Ray-cast from *mouse_pos* against every object registered with
     *canvas*'s own :class:`~harness_designer.bounds.Manager` view (see
     ``canvas.bounds_manager.aabb``/``canvas.bounds_manager.obb`` --
@@ -257,7 +264,7 @@ def find_object(mouse_pos, camera: Union["_camera3d.Camera", "_camera2d.Camera"]
 
 # Ray vs AABB (slab method)
 @_check_types.do
-def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
+def _ray_intersect_aabb(orig: np.ndarray, direc: np.ndarray, aabb_min: np.ndarray, aabb_max: np.ndarray, t0: float = 0.0, t1: float = inf) -> tuple[bool, float | None]:
     """Execute the ray intersect AABB operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -309,7 +316,7 @@ def _ray_intersect_aabb(orig, direc, aabb_min, aabb_max, t0=0.0, t1=inf):
 # rotation + per-axis local scale preserves that edge structure, so this
 # holds for any BaseVar.obb regardless of orientation.
 @_check_types.do
-def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
+def _ray_intersect_obb(orig: np.ndarray, direc: np.ndarray, obb: np.ndarray, t0: float = 0.0, t1: float = inf) -> tuple[bool, float | None]:
     """Test a ray against an oriented bounding box.
 
     Needed because :func:`_ray_intersect_aabb` against the axis-aligned
@@ -359,7 +366,7 @@ def _ray_intersect_obb(orig, direc, obb, t0=0.0, t1=inf):
 
 
 @_check_types.do
-def _aabb_screen_bbox_and_depth(bboxes, camera: Union["_camera3d.Camera", "_camera2d.Camera"]):
+def _aabb_screen_bbox_and_depth(bboxes: np.ndarray, camera: _Union["_camera3d.Camera", "_camera2d.Camera"]) -> Iterator[tuple[tuple[float, float, float, float], float]]:
     """
     Build a 2D screen bbox from projecting ALL 8 AABB corners.
     This is necessary for stability across camera yaw/pitch.
@@ -416,9 +423,9 @@ def _aabb_screen_bbox_and_depth(bboxes, camera: Union["_camera3d.Camera", "_came
 
 @_debug.logfunc
 @_check_types.do
-def _pick_candidates_at_mouse(mx, my, scene_objects,
-                              camera: Union["_camera3d.Camera", "_camera2d.Camera"],
-                              get_view, tol_pixels=3.0):  # NOQA
+def _pick_candidates_at_mouse(mx: float, my: float, scene_objects: Iterable["_objects.ObjectBase"],
+                              camera: _Union["_camera3d.Camera", "_camera2d.Camera"],
+                              get_view: Callable[["_objects.ObjectBase"], "_base_var.BaseVar"], tol_pixels: float = 3.0) -> list[tuple[float, "_objects.ObjectBase"]]:  # NOQA
     """
     scene_objects: iterable of objects exposing a wrapper view object,
         collected via *get_view* -- e.g. ``lambda obj: obj.obj3d`` for the
@@ -460,9 +467,9 @@ def _pick_candidates_at_mouse(mx, my, scene_objects,
 
 @_debug.logfunc
 @_check_types.do
-def find_object_in_list(mouse_pos, scene_objects,
-                        camera: Union["_camera3d.Camera", "_camera2d.Camera"],
-                        get_view, current_selection=None):
+def find_object_in_list(mouse_pos: "_point.Point", scene_objects: Iterable["_objects.ObjectBase"],
+                        camera: _Union["_camera3d.Camera", "_camera2d.Camera"],
+                        get_view: Callable[["_objects.ObjectBase"], "_base_var.BaseVar"], current_selection: _Union["_objects.ObjectBase", None] = None) -> _Union["_objects.ObjectBase", None]:
     """Ray-cast from *mouse_pos* against every object in *scene_objects*
     and return the closest hit (or the next-closest, if the closest is
     *current_selection* -- lets repeated clicks cycle through a stack of

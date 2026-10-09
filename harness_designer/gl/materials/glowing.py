@@ -23,7 +23,7 @@ class GlowingMaterial(_material.GLMaterial):
     _specular_weight = 0.25
 
     @_check_types.do
-    def __init__(self, color: _color.Color):
+    def __init__(self, color: _color.Color) -> None:
         """Initialise the :class:`GlowingMaterial` instance.
 
         :param color: The glow's own color, used as-is for the

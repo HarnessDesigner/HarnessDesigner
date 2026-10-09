@@ -27,7 +27,7 @@ class Table(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: "_pegboard_table.PegboardTable",
-                 db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
+                 db_obj: "_pjt_pegboard_table.PJTPegboardTable") -> None:
         """Initialise the :class:`Table` instance.
 
         :param parent: Parent object.

@@ -46,6 +46,8 @@ to any of it, so it's eligible for GC the moment the caller is done with
 the single matched entry it actually wanted.
 """
 
+from typing import Any
+
 import json
 import os
 
@@ -61,7 +63,7 @@ _MANUFACTURER_DISPLAY = {'AMD': 'AMD', 'NVIDIA': 'NVIDIA', 'INTEL': 'Intel'}
 
 
 @_check_types.do
-def lookup(renderer_string: str, manufacturer: str = None):
+def lookup(renderer_string: str, manufacturer: str | None = None) -> dict[str, Any] | None:
     """Best-guess GPU spec dict, matched from a GL_RENDERER string.
 
     :param renderer_string: The raw string returned by

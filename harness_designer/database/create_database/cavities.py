@@ -1,12 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from . import housings as _housings
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 
 

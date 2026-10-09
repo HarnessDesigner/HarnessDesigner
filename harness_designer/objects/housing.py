@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from . import ObjectBase as _ObjectBase
 from .objects_schematic import housing as _housing_schematic
@@ -13,6 +13,7 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ..database.project_db import pjt_bases as _pjt_bases
     from .. import ui as _ui
     from ..database.project_db import pjt_housing as _pjt_housing
 
@@ -30,7 +31,7 @@ class Housing(_ObjectBase):
     @_debug.logfunc
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_housing.PJTHousing", project_load=False):
+                 db_obj: "_pjt_housing.PJTHousing", project_load: bool = False) -> None:
         """Initialise the :class:`Housing` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -119,7 +120,7 @@ class Housing(_ObjectBase):
         return res
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Cascade-delete every part attached to this housing.
 
         Nothing else walks this ownership graph -- cavities (and any
@@ -137,7 +138,7 @@ class Housing(_ObjectBase):
         #       cleaner approach to performing a proper taredown.
 
         @_check_types.do
-        def _delete_child(db_row: object | None) -> None:
+        def _delete_child(db_row: _Union["_pjt_bases.PJTEntryBase", None]) -> None:
             if db_row is None:
                 return
 

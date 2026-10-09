@@ -1022,22 +1022,22 @@ class Config(metaclass=ConfigDB):
             mode = ''
 
         class rope_pull(metaclass=ConfigDB):
-            # Maximum bow height for one slack-absorbing span, as a
-            # fraction of that span's own straight-line length -- see
-            # rope_pull.rope_pull_py.solve_chain's own docstring for the
-            # closed-form bow count/height this feeds. A smaller fraction
-            # means shallower, more numerous bows for the same amount of
-            # slack; placeholder value, not yet tuned against a real
-            # project (BUNDLE_PLACEMENT.md section 6/6b flagged this as
-            # still open).
-            height_cap_fraction = 0.3
+            # Master switch for the peg-board rope-pull solver. Off, a drag
+            # is limited only by each touching chain's own 3D length
+            # (the older per-edge budget clamp) -- nothing else is pulled
+            # and no waypoints are added, removed or re-solved.
+            enabled = True
 
-            # Absolute floor under height_cap_fraction's own result, for
-            # a span whose two fixed endpoints are at (or very near) the
-            # same position -- without this, a near-zero straight length
-            # would force an unbounded bow count. Placeholder value, same
-            # caveat as height_cap_fraction above.
-            min_height_mm = 5.0
+            # Zig-zag count cap: a span gets at most one zig-zag per this
+            # many bundle/wire diameters of its own straight start-to-stop
+            # length (never fewer than one). Placeholder, not tuned.
+            zigzag_length_factor = 3.0
+
+            # Height, in bundle/wire diameters, that every existing zig-zag
+            # must reach before another one is created. Once the count is
+            # capped, extra slack grows the amplitude instead. Placeholder,
+            # not tuned.
+            threshold_factor = 1.0
 
         class rotation_handler(metaclass=ConfigDB):
             # Ring diameter as a multiple of the object's AABB space diagonal
@@ -1510,6 +1510,14 @@ class Config(metaclass=ConfigDB):
             cavity_highlight = [0.0, 0.8, 1.0, 0.6]
 
             splice_highlight = [0.0, 0.8, 1.0, 0.6]
+
+            # Ambient tier shown on EVERY wire-compatible terminal/splice for
+            # the whole duration of a wire placement/drag session -- dimmer
+            # than terminal_highlight/splice_highlight (the "snap actually
+            # engaged, right here" tier, still shown only on whichever one
+            # target is currently closest to the cursor), so the two tiers
+            # read as distinct at a glance.
+            snap_capable_highlight = [1.0, 1.0, 0.6, 0.3]
 
             # A candidate terminal whose seal opening doesn't fit the
             # wire actually seated in it -- still snappable, just

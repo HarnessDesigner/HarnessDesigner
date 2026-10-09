@@ -1,19 +1,24 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import collections
 import gc
 import sys
 import threading
 import traceback
-
 import numpy as np
 from PySide6 import QtWidgets
-
 from OCP.TopAbs import TopAbs_REVERSED
 from OCP.BRep import BRep_Tool
 from OCP.BRepMesh import BRepMesh_IncrementalMesh
 from OCP.TopLoc import TopLoc_Location
+
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    import build123d
 
 
 @_check_types.do
@@ -57,7 +62,8 @@ def compute_edges(faces: np.ndarray) -> np.ndarray:
 
 
 @_check_types.do
-def convert_model_to_mesh(model, lin_deflection=0.001, ang_deflection=0.5, is_relative=True):
+def convert_model_to_mesh(model: "build123d.Shape", lin_deflection: float = 0.001,
+                          ang_deflection: float = 0.5, is_relative: bool = True) -> tuple[np.ndarray, np.ndarray]:
     """
     Triangulate a CAD model into vertex and face arrays.
 

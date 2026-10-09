@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
 
-from PySide6.QtWidgets import QApplication
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 
@@ -13,6 +13,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
+    from ... import objects as _objects
+    from ...gl import context as _gl_context
     from ...gl.canvas_3d import camera as _camera
 
 
@@ -25,7 +27,7 @@ class Editor3D(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`Editor3D` instance.
 
@@ -42,7 +44,7 @@ class Editor3D(_dock_base.DockBase):
 
     @property
     @_check_types.do
-    def context(self):
+    def context(self) -> "_gl_context.GLContext":
         """
         Return the context.
 
@@ -77,7 +79,7 @@ class Editor3D(_dock_base.DockBase):
         return self._ui_obj.config
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the selected.
 
@@ -88,7 +90,7 @@ class Editor3D(_dock_base.DockBase):
         self._ui_obj.set_selected(obj)
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Add an object.
 
@@ -99,7 +101,7 @@ class Editor3D(_dock_base.DockBase):
         self._ui_obj.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Remove the object.
 
@@ -120,7 +122,7 @@ class Editor3D(_dock_base.DockBase):
         self._ui_obj.clear()
 
     @_check_types.do
-    def bind(self, signal_name, handler):
+    def bind(self, signal_name: str, handler: Callable[..., None]) -> None:
         """
         Execute the bind operation.
 
@@ -134,7 +136,7 @@ class Editor3D(_dock_base.DockBase):
         self._ui_obj.bind(signal_name, handler)
 
     @_check_types.do
-    def set_clone_obj(self, obj):
+    def set_clone_obj(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the clone obj.
 
@@ -157,7 +159,7 @@ class Editor3DPanel(_canvas3d.Canvas3D):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame"):
+    def __init__(self, parent: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`Editor3DPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -171,7 +173,7 @@ class Editor3DPanel(_canvas3d.Canvas3D):
             max_y = 0
             min_x = 0
             min_y = 0
-            for screen in QApplication.screens():
+            for screen in QtWidgets.QApplication.screens():
                 geo = screen.geometry()
                 x, y, w, h = geo.x(), geo.y(), geo.width(), geo.height()
                 max_x = max(x + w, max_x)
@@ -191,7 +193,7 @@ class Editor3DPanel(_canvas3d.Canvas3D):
         super().__init__(parent, Config, size, True)
 
     @_check_types.do
-    def center_on_object(self, obj) -> None:
+    def center_on_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Pan the 3D camera to bring *obj* into view, then zoom out (never
         in) just enough to fit it if it wouldn't otherwise fit in the

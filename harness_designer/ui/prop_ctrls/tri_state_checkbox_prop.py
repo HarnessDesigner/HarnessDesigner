@@ -17,7 +17,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`BoolProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -44,7 +44,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
         self._ctrl.checkStateChanged.connect(self._on_change)
 
     @_check_types.do
-    def _on_change(self, value: bool | None):
+    def _on_change(self, value: bool | None) -> None:
         """
         Handle the change event.
 
@@ -63,7 +63,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetValue(self, value: bool | None):
+    def SetValue(self, value: bool | None) -> None:
         """
         Execute the set value operation.
 
@@ -85,7 +85,7 @@ class TriStateCheckboxProperty(QtWidgets.QWidget):
         return self._ctrl.GetValue()
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._ctrl.SetLabel(value)
 

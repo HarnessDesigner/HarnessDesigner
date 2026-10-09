@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import json
 import os
 
@@ -9,8 +11,13 @@ from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def inspect_mfg_fam_series(mfg_name, family_name, series_name):
+def inspect_mfg_fam_series(mfg_name: str, family_name: str | None, series_name: str | None) -> tuple[str, str | None, str | None]:
     """
     Execute the inspect mfg fam series operation.
 
@@ -63,7 +70,7 @@ def inspect_mfg_fam_series(mfg_name, family_name, series_name):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """
     Add a records.
 
@@ -114,8 +121,8 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_manufacturer(con, name, description='', address='', contact_person='', phone='',
-                     ext='', email='', website='', commit=True):  # NOQA
+def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, description: str = '', address: str = '', contact_person: str = '', phone: str = '',
+                     ext: str = '', email: str = '', website: str = '', commit: bool = True) -> bytes:  # NOQA
     """
     Add a manufacturer.
 
@@ -169,7 +176,7 @@ def add_manufacturer(con, name, description='', address='', contact_person='', p
 
 
 @_check_types.do
-def get_mfg_id(con, name):
+def get_mfg_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     """
     Return the mfg ID.
 

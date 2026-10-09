@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from . import handler_base as _handler_base
 from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import bundle_layout as _bundle_layout

@@ -2,9 +2,17 @@
 
 """SQLite-backed configuration database helpers for :mod:`harness_designer.database`."""
 
+from typing import Any
+from typing import TYPE_CHECKING
+
 import os
 import sqlite3
+
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .db_connectors import base as _connector_base
 
 
 class ConfigTable:
@@ -16,7 +24,7 @@ class ConfigTable:
     """
 
     @_check_types.do
-    def __init__(self, con, name):
+    def __init__(self, con: "_connector_base.ConnectorBase", name: str) -> None:
         """Initialize the configuration table wrapper.
 
         :param con: SQLite connection used for all table operations.
@@ -28,7 +36,7 @@ class ConfigTable:
         self.name = name
 
     @_check_types.do
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """Return whether a configuration key exists in the table.
 
         :param item: Key or table name being queried.
@@ -49,7 +57,7 @@ class ConfigTable:
         return False
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> Any:
         """Return the stored value for a configuration key.
 
         :param item: Key or table name being queried.
@@ -70,7 +78,7 @@ class ConfigTable:
             return value
 
     @_check_types.do
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: Any) -> None:
         """Store or update a configuration value in the table.
 
         :param key: Mapping key to store or remove.
@@ -98,7 +106,7 @@ class ConfigTable:
                 cur.close()
 
     @_check_types.do
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         """Delete a configuration value from the table.
 
         :param key: Mapping key to store or remove.
@@ -125,7 +133,7 @@ class ConfigDB:
     """
 
     @_check_types.do
-    def __init__(self, app_data):
+    def __init__(self, app_data: str) -> None:
 
         """Open the SQLite configuration database connection.
 
@@ -141,7 +149,7 @@ class ConfigDB:
         self._con = sqlite3.connect(config_db_file, check_same_thread=False)
 
     @_check_types.do
-    def __contains__(self, item):
+    def __contains__(self, item: str) -> bool:
         """Return whether a table exists in the configuration database.
 
         :param item: Key or table name being queried.
@@ -159,7 +167,7 @@ class ConfigDB:
         return item in tables
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: str) -> "ConfigTable":
         """Return a :class:`ConfigTable` for the requested table name.
 
         :param item: Key or table name being queried.
@@ -182,7 +190,7 @@ class ConfigDB:
         return ConfigTable(self._con, item)
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """Close the configuration database connection.
 
         :returns: ``None``.

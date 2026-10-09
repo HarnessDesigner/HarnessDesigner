@@ -269,7 +269,7 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
         world_pos = self.canvas.camera.screen_to_world(mouse_pos)
         target_x, target_z = float(world_pos.x), float(world_pos.z)
 

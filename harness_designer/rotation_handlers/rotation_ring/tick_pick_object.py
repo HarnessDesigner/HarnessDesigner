@@ -52,7 +52,7 @@ class TickPickObject(_object_base.ObjectBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         _object_base.ObjectBase.__init__(self, mainframe, None)
 
     @_check_types.do
@@ -84,5 +84,5 @@ class TickPickObject(_object_base.ObjectBase):
 
     @is_selected.setter
     @_check_types.do
-    def is_selected(self, value: bool):
+    def is_selected(self, value: bool) -> None:
         pass

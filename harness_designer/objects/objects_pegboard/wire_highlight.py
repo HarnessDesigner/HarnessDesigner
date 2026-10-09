@@ -58,12 +58,12 @@ class WireHighlight:
         :type editor: :class:`_editor_pegboard.EditorPegboard`
         """
         self._editor = editor
-        self._owner: object | None = None
+        self._owner: _Union["_base_pegboard.BasePegboard", None] = None
         self._objects: list["_base_pegboard.BasePegboard"] = []
         self._transitions: list["_transition.Transition"] = []
 
     @_check_types.do
-    def show(self, owner: object, ptables: "_project_db.PJTTables", wire_id: bytes) -> None:
+    def show(self, owner: "_base_pegboard.BasePegboard", ptables: "_project_db.PJTTables", wire_id: bytes) -> None:
         """Highlight everything *wire_id* touches, replacing any
         highlight already showing.
 
@@ -87,7 +87,7 @@ class WireHighlight:
         self._editor.Refresh()
 
     @_check_types.do
-    def clear(self, owner: object) -> None:
+    def clear(self, owner: "_base_pegboard.BasePegboard") -> None:
         """Remove the highlight, if *owner* is the one that made it.
 
         :param owner: Whoever is asking to clear.

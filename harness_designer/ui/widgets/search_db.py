@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union as _Union
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 from ... import check_types as _check_types
@@ -33,7 +33,7 @@ class _ItemRow(QtWidgets.QWidget):
     """A label + checkbox row inside _ItemsPanel."""
 
     @_check_types.do
-    def __init__(self, parent, label: str):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`_ItemRow` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -78,7 +78,7 @@ class _ItemsPanel(QtWidgets.QScrollArea):
     """Scrollable list of label + checkbox rows."""
 
     @_check_types.do
-    def __init__(self, parent, choices: list[str]):
+    def __init__(self, parent: QtWidgets.QWidget, choices: list[str]) -> None:
         """Initialise the :class:`_ItemsPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +108,7 @@ class _ItemsPanel(QtWidgets.QScrollArea):
         self._layout.addStretch()
 
     @_check_types.do
-    def Reset(self):
+    def Reset(self) -> None:
         """Execute the reset operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -134,7 +134,8 @@ class _SearchPanelField(QtWidgets.QFrame):
     changed: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent, label: str, params, types):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, params: list[str],
+                 types: list[type]) -> None:
         """Initialise the :class:`_SearchPanelField` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -179,7 +180,7 @@ class _SearchPanelField(QtWidgets.QFrame):
             row.ctrl.stateChanged.connect(lambda _: self.changed.emit())
 
     @_check_types.do
-    def _on_reset(self):
+    def _on_reset(self) -> None:
         """Handle the reset event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -219,8 +220,8 @@ class _SearchPanel(QtWidgets.QScrollArea):
     """Horizontal row of _SearchPanelField columns."""
 
     @_check_types.do
-    def __init__(self, parent,
-                 db_table: Union["_global_db.TableBase", "_project_db.PJTTableBase"]):
+    def __init__(self, parent: QtWidgets.QWidget,
+                 db_table: _Union["_global_db.TableBase", "_project_db.PJTTableBase"]) -> None:
         """Initialise the :class:`_SearchPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -264,7 +265,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
                 field.changed.connect(self.on_update)
 
     @_check_types.do
-    def SetSearchAllParts(self, flag: bool):
+    def SetSearchAllParts(self, flag: bool) -> None:
         """Execute the set search all parts operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -275,7 +276,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
         self._search_all_parts = flag
 
     @_check_types.do
-    def SetCompatParts(self, *compat_parts):
+    def SetCompatParts(self, *compat_parts) -> None:
         """Execute the set compat parts operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -286,7 +287,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
         self._compat_parts = compat_parts
 
     @_check_types.do
-    def load(self):
+    def load(self) -> None:
         """Execute the load operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -294,7 +295,7 @@ class _SearchPanel(QtWidgets.QScrollArea):
         self.on_update()
 
     @_check_types.do
-    def on_update(self):
+    def on_update(self) -> None:
         """Handle the update event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -316,7 +317,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
     """Virtual list control for lazily-fetched search results."""
 
     @_check_types.do
-    def __init__(self, parent, columns: list[str]):
+    def __init__(self, parent: QtWidgets.QWidget, columns: list[str]) -> None:
         """Initialise the :class:`_ResultCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -347,7 +348,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         self.itemActivated.connect(self._on_activated)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> bytes | None:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -358,7 +359,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         return self._selected_db_id
 
     @_check_types.do
-    def _on_selection_changed(self):
+    def _on_selection_changed(self) -> None:
         """Handle the selection changed event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -376,7 +377,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         self.parent_panel.set_image(obj.image)
 
     @_check_types.do
-    def _on_activated(self, item, _column):
+    def _on_activated(self, item: QtWidgets.QTreeWidgetItem, _column: int) -> None:
         """Handle the activated event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -393,11 +394,11 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         db_id = row[0]
         self._selected_db_id = db_id
         top = self.window()
-        if hasattr(top, 'accept'):
+        if isinstance(top, QtWidgets.QDialog):
             top.accept()
 
     @_check_types.do
-    def SetValues(self, con, results):
+    def SetValues(self, con: _Union["_global_db.TableBase", "_project_db.PJTTableBase"], results: tuple[int | str | bytes | float | None, ...]) -> None:
         """Execute the set values operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -422,7 +423,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         self._load_remaining(count)
 
     @_check_types.do
-    def _append_row(self, row):
+    def _append_row(self, row: tuple[int | str | bytes | float | None, ...]) -> None:
         """Execute the append row operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -436,7 +437,7 @@ class _ResultCtrl(QtWidgets.QTreeWidget):
         self._loaded_results.append(row)
 
     @_check_types.do
-    def _load_remaining(self, count: int):
+    def _load_remaining(self, count: int) -> None:
         """Load the remaining.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -462,7 +463,9 @@ class SearchPanel(QtWidgets.QWidget):
     search_changed: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent=None, table=None, *compat_parts):
+    def __init__(self, parent: QtWidgets.QWidget | None = None,
+                 table: _Union["_global_db.TableBase", "_project_db.PJTTableBase", None] = None,
+                 *compat_parts: tuple[Any]) -> None:
         """Initialise the :class:`SearchPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -512,7 +515,7 @@ class SearchPanel(QtWidgets.QWidget):
         self.search_panel.load()
 
     @_check_types.do
-    def _on_search_all_parts(self, state: int):
+    def _on_search_all_parts(self, state: int) -> None:
         """Handle the search all parts event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -524,7 +527,7 @@ class SearchPanel(QtWidgets.QWidget):
         self.search_panel.load()
 
     @_check_types.do
-    def set_image(self, image):
+    def set_image(self, image) -> None:
         """Set the image.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -542,7 +545,7 @@ class SearchPanel(QtWidgets.QWidget):
                           QtCore.Qt.TransformationMode.SmoothTransformation))
 
     @_check_types.do
-    def SetResults(self, con, results):
+    def SetResults(self, con: _Union["_global_db.TableBase", "_project_db.PJTTableBase"], results: tuple[int | str | bytes | float | None, ...]) -> None:
         """Execute the set results operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -555,7 +558,7 @@ class SearchPanel(QtWidgets.QWidget):
         self.result_ctrl.SetValues(con, results)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> bytes | None:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

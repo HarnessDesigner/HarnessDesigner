@@ -63,7 +63,7 @@ class DragHandler3D(_base.DragHandlerBase):
         self._settle_events = 0
 
     @_check_types.do
-    def _delta3d(self, anchor: _point.Point, last_pos: _point.Point, delta: object) -> _point.Point:
+    def _delta3d(self, anchor: _point.Point, last_pos: _point.Point, delta: _point.Point) -> _point.Point:
         """Project *anchor* to screen space, add the raw mouse *delta*,
         unproject back to world space, and return the resulting raw
         (un-locked) world-space delta this frame implies.
@@ -94,7 +94,7 @@ class DragHandler3D(_base.DragHandlerBase):
 
     @_check_types.do
     def _axis_locked_delta3d(self, anchor: _point.Point, last_pos: _point.Point,
-                              delta: object, aabb: np.ndarray) -> _point.Point | None:
+                              delta: _point.Point, aabb: np.ndarray) -> _point.Point | None:
         """Return :meth:`_delta3d`'s raw world-space delta, locked to
         whichever axis dominated once the first few events have settled
         past initial click jitter -- or ``None`` while still settling, in
@@ -113,7 +113,12 @@ class DragHandler3D(_base.DragHandlerBase):
 
             axis_values = {'x': abs(delta3d.x), 'y': abs(delta3d.y), 'z': abs(delta3d.z)}
             dominant_axis = max(axis_values, key=axis_values.get)
-            setattr(self.axis_lock, dominant_axis, 1.0)
+            if dominant_axis == 'x':
+                self.axis_lock.x = 1.0
+            elif dominant_axis == 'y':
+                self.axis_lock.y = 1.0
+            else:
+                self.axis_lock.z = 1.0
 
             self.move_arrows = _move_arrows.MoveArrows(
                 anchor, dominant_axis, self.canvas.mainframe, aabb)

@@ -8,7 +8,7 @@ cached :class:`~PySide6.QtGui.QPixmap`.
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QBrush, Qt
+from PySide6 import QtCore, QtGui
 
 from ..geometry import point as _point
 from ..geometry import line as _line
@@ -30,7 +30,7 @@ class Line:
 
     @_check_types.do
     def __init__(self, p1: _point.Point, p2: _point.Point, width: _decimal,
-                 color: _color.Color, stripe_color: _color.Color | None):
+                 color: _color.Color, stripe_color: _color.Color | None) -> None:
         """Initialize the drawable line.
 
         :param p1: Start point of the line.
@@ -49,7 +49,7 @@ class Line:
         self._width = width
         self._color = color
         self._stripe_color = stripe_color
-        self._pixmap: QPixmap | None = None
+        self._pixmap: QtGui.QPixmap | None = None
         self.artist = None
 
         p1.bind(self._update_artist)
@@ -67,7 +67,7 @@ class Line:
 
     @width.setter
     @_check_types.do
-    def width(self, value: _decimal):
+    def width(self, value: _decimal) -> None:
         """Set the line width and refresh the artist.
 
         :param value: Replacement line width.
@@ -91,7 +91,7 @@ class Line:
 
     @color.setter
     @_check_types.do
-    def color(self, value: _color.Color):
+    def color(self, value: _color.Color) -> None:
         """Set the primary line color.
 
         :param value: Replacement wire color.
@@ -115,7 +115,7 @@ class Line:
 
     @stripe_color.setter
     @_check_types.do
-    def stripe_color(self, value: _color.Color):
+    def stripe_color(self, value: _color.Color) -> None:
         """Set the optional stripe color.
 
         :param value: Replacement stripe color.
@@ -139,7 +139,7 @@ class Line:
 
     @p1.setter
     @_check_types.do
-    def p1(self, value: _point.Point):
+    def p1(self, value: _point.Point) -> None:
         """Replace the start point and refresh callbacks.
 
         :param value: New start point.
@@ -166,7 +166,7 @@ class Line:
 
     @p2.setter
     @_check_types.do
-    def p2(self, value: _point.Point):
+    def p2(self, value: _point.Point) -> None:
         """Replace the end point and refresh callbacks.
 
         :param value: New end point.
@@ -183,19 +183,19 @@ class Line:
 
     @staticmethod
     @_check_types.do
-    def _make_qcolor(c: _color.Color) -> QColor:
-        """Convert an internal color value into :class:`QColor`.
+    def _make_qcolor(c: _color.Color) -> QtGui.QColor:
+        """Convert an internal color value into :class:`QtGui.QColor`.
 
         :param c: RGBA color tuple-like value.
         :type c: :class:`harness_designer.color.Color`
-        :returns: Qt color instance for painting.
+        :returns: QtCore.Qt color instance for painting.
         :rtype: :class:`~PySide6.QtGui.QColor`
         """
         r, g, b, a = c
-        return QColor(int(r * 255), int(g * 255), int(b * 255), int(a * 255))
+        return QtGui.QColor(int(r * 255), int(g * 255), int(b * 255), int(a * 255))
 
     @_check_types.do
-    def _get_pixmap(self):
+    def _get_pixmap(self) -> "QtGui.QPixmap":
         """Build or return the cached pixmap for the line.
 
         The pixmap includes the base line and any stripe markings.
@@ -213,12 +213,12 @@ class Line:
             p2[1] += 5
             p1 = [5, 5]
 
-            pixmap = QPixmap(int(width), int(height))
-            pixmap.fill(Qt.transparent)
+            pixmap = QtGui.QPixmap(int(width), int(height))
+            pixmap.fill(QtCore.Qt.transparent)
 
-            painter = QPainter(pixmap)
-            painter.setRenderHint(QPainter.Antialiasing)
-            painter.setBrush(QBrush(Qt.NoBrush))
+            painter = QtGui.QPainter(pixmap)
+            painter.setRenderHint(QtGui.QPainter.Antialiasing)
+            painter.setBrush(QtGui.QBrush(QtCore.Qt.NoBrush))
 
             line = _line.Line(self._p1, self._p2)
             line_angle = line.get_z_angle()
@@ -234,8 +234,8 @@ class Line:
 
             wire_size = self._width
 
-            pen = QPen(self._make_qcolor(self._color), float(self._width))
-            pen.setCapStyle(Qt.FlatCap)
+            pen = QtGui.QPen(self._make_qcolor(self._color), float(self._width))
+            pen.setCapStyle(QtCore.Qt.FlatCap)
             painter.setPen(pen)
 
             p1f = line.p1.as_float[:-1]
@@ -245,8 +245,8 @@ class Line:
             if self._stripe_color is not None:
                 curr_dist = 3
 
-                stripe_pen = QPen(self._make_qcolor(self._stripe_color), 3)
-                stripe_pen.setCapStyle(Qt.FlatCap)
+                stripe_pen = QtGui.QPen(self._make_qcolor(self._stripe_color), 3)
+                stripe_pen.setCapStyle(QtCore.Qt.FlatCap)
                 painter.setPen(stripe_pen)
 
                 while curr_dist < line_len - step - 10:
@@ -271,7 +271,7 @@ class Line:
 
     @property
     @_check_types.do
-    def is_added(self):
+    def is_added(self) -> bool:
         """Return whether the line currently has an attached artist.
 
         :returns: ``True`` when the line has been added to a plot.
@@ -280,7 +280,7 @@ class Line:
         return self.artist is not None
 
     @_check_types.do
-    def _update_artist(self, p: _point.Point | None = None):
+    def _update_artist(self, p: _point.Point | None = None) -> None:
         """Refresh the backing artist if one exists.
 
         :param p: Updated point supplied by a bound point callback, if any.

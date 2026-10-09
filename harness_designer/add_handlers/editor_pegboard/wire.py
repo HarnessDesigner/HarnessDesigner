@@ -32,9 +32,9 @@ anything else -- see MEMORY.md) -- so nothing here ever has to touch Y
 at all, on either kind of endpoint.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6.QtWidgets import QMessageBox
+from PySide6 import QtWidgets
 
 from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
@@ -55,6 +55,8 @@ if TYPE_CHECKING:
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import objects as _objects
     from ... import ui as _ui
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
+    from ...database.global_db import wire as _glb_wire
 
 
 Config = _config.Config.colors
@@ -67,7 +69,7 @@ class Wire(_base.AddHandlerBase):
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part_id: bytes,
         phase: int = 0, growing_end: str = 'stop', preexisting_wire: bool = False,
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe: "_ui.MainFrame" = canvas.mainframe
@@ -95,7 +97,7 @@ class Wire(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_pegboard.BasePegboard":
         return obj.objpegboard
 
     # ------------------------------------------------------------------
@@ -104,15 +106,16 @@ class Wire(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -133,7 +136,9 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _pick(self, mouse_pos: _point.Point):
+    def _pick(
+        self, mouse_pos: _point.Point
+    ) -> tuple[str | None, _terminal.Terminal | _splice.Splice | None, _point.Point]:
         """Return ``(kind, target, world_pos)`` for whatever's under the
         cursor -- ``kind`` is ``'terminal'``/``'splice'``/``None`` (free
         space), ``target`` the resolved ``Terminal``/``Splice`` facade or
@@ -162,7 +167,9 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _set_hover_obj(self, obj, material) -> None:
+    def _set_hover_obj(
+        self, obj: _terminal.Terminal | _splice.Splice | None, material: _materials.GLMaterial
+    ) -> None:
         if obj is not self._hover_obj:
             if self._hover_obj is not None:
                 self._hover_obj.identify(None)
@@ -249,7 +256,9 @@ class Wire(_base.AddHandlerBase):
         self._finalized = True
 
     @_check_types.do
-    def _attach_end(self, end: str, kind: str | None, obj) -> None:
+    def _attach_end(
+        self, end: str, kind: str | None, obj: _terminal.Terminal | _splice.Splice | None
+    ) -> None:
         """Make the real connection for one end of :attr:`target`, once
         both ends are known -- a terminal/splice attachment writes the
         wire's real 3D *and* peg-board points together (see
@@ -263,8 +272,8 @@ class Wire(_base.AddHandlerBase):
                 ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(obj, wire_part)
                 if not ok:
                     block_msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
-                    if button == QMessageBox.StandardButton.No:
+                    button = QtWidgets.QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                    if button == QtWidgets.QMessageBox.StandardButton.No:
                         return
 
             obj.add_wire(self.target, end)
@@ -275,8 +284,8 @@ class Wire(_base.AddHandlerBase):
                 ok, block_msg, _warning_msg = _wire_snap.check_splice_compat(obj, wire_part)
                 if not ok:
                     block_msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
-                    if button == QMessageBox.StandardButton.No:
+                    button = QtWidgets.QMessageBox.question(self.mainframe, 'Incompatible Wire', block_msg)
+                    if button == QtWidgets.QMessageBox.StandardButton.No:
                         return
 
             branch_pegboard = obj.db_obj.branch_position_pegboard
@@ -307,7 +316,7 @@ class Wire(_base.AddHandlerBase):
         # nothing further to attach.
 
     @_check_types.do
-    def _get_wire_part(self):
+    def _get_wire_part(self) -> _Union["_glb_wire.Wire", None]:
         if self.part_id is None:
             return None
 
@@ -325,8 +334,8 @@ class Wire(_base.AddHandlerBase):
         """Right-click: no mid-route waypoints exist to fall back to
         here (see the module docstring) -- same as an outright cancel.
         """
-        self.cancel()
         self._finalized = True
+        self.cancel()
 
     @_check_types.do
     def cancel(self) -> None:
@@ -338,5 +347,5 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -17,6 +17,8 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
     from .. import wire as _wire_facade
@@ -24,6 +26,14 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor_3d
+
+# A snap probe's own wire part diameter is often too thin to feel like it's
+# snapping at all (a 1-2mm wire gives a 1-2mm catch sphere) -- floor it to
+# this, matching the generous, fixed catch radius the transition-branch/
+# bundle snap already uses (handlers.transition_handler/bundle_layout_handler's
+# own _SNAP_THRESHOLD). Never applied to a real (non-probe) wire-bend marker,
+# which must stay sized to the actual wire for a correct visual.
+_SNAP_PROBE_MIN_DIAMETER = 10.0
 
 
 class WireLayout(_base_3d.Base3D):
@@ -62,6 +72,14 @@ class WireLayout(_base_3d.Base3D):
             else:
                 diameter = 3.0
                 color = _color.Color(0.5, 0.5, 0.5, 1.0)
+
+            try:
+                is_snap_probe = db_obj.is_snap_probe  # NOQA
+            except AttributeError:
+                is_snap_probe = False
+
+            if is_snap_probe:
+                diameter = max(diameter, _SNAP_PROBE_MIN_DIAMETER)
 
             material = _materials.Plastic(color)
 
@@ -347,7 +365,7 @@ class WireLayout(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -391,7 +409,7 @@ class WireLayoutMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "WireLayout") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireLayout") -> None:
         """Initialise the :class:`WireLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -422,7 +440,6 @@ class WireLayoutMenu(QtWidgets.QMenu):
     @_check_types.do
     def on_add_splice(self) -> None:
         """Start the interactive splice placement flow."""
-        from PySide6 import QtCore
         from . import splice as _splice_3d
 
         mainframe = self.selected.mainframe

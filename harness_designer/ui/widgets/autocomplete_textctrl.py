@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from PySide6 import QtCore
 from ... import check_types as _check_types
 
@@ -13,7 +13,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent=None, choices=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, choices: list[str] | None = None) -> None:
         """Initialise the :class:`AutoCompleteTextCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -38,7 +38,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     # Internal helper
     # ------------------------------------------------------------------
     @_check_types.do
-    def _rebuild_completer(self):
+    def _rebuild_completer(self) -> None:
         """Execute the rebuild completer operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -50,7 +50,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     # wx-compatible choice management
     # ------------------------------------------------------------------
     @_check_types.do
-    def Clear(self):
+    def Clear(self) -> None:
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -59,7 +59,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._rebuild_completer()
 
     @_check_types.do
-    def Delete(self, n: int):
+    def Delete(self, n: int) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -71,7 +71,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._rebuild_completer()
 
     @_check_types.do
-    def Insert(self, item: str, pos: int):
+    def Insert(self, item: str, pos: int) -> None:
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -85,7 +85,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._rebuild_completer()
 
     @_check_types.do
-    def Set(self, items):
+    def Set(self, items: list[str]) -> None:
         """Execute the set operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -97,7 +97,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self._rebuild_completer()
 
     @_check_types.do
-    def SetItems(self, items):
+    def SetItems(self, items: list[str]) -> None:
         """Execute the set items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +108,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
         self.Set(items)
 
     @_check_types.do
-    def Append(self, item):
+    def Append(self, item: str) -> None:
         """Execute the append operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -126,7 +126,7 @@ class AutoCompleteTextCtrl(QtWidgets.QLineEdit):
     # Value access (QLineEdit already provides text()/setText())
     # ------------------------------------------------------------------
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

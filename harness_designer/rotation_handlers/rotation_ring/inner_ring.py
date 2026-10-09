@@ -15,6 +15,8 @@ about this axis, replacing the old fixed-handle drag in
 ``rotation_handlers/rotation_rings.py``'s retired ``DragRotate``.
 """
 
+from typing import TYPE_CHECKING
+
 import math
 import numpy as np
 
@@ -23,8 +25,14 @@ from ._protractor_base import ProtractorRingBase
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from .. import rotation_mesh as _rotation_mesh
+from .. import _axis as _axis
 from ... import check_types as _check_types
 from ...gl.canvas_base import camera_base as _camera_base
+
+
+if TYPE_CHECKING:
+    from ...gl import context as _gl_context
+    from ...gl.materials import material as _material
 
 
 # Fixed, light label color -- same reasoning as _TICK_COLOR above, but
@@ -53,9 +61,9 @@ class InnerRing(ProtractorRingBase):
 
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
-                 outer_radius: float, depth: float, material, label_size: float,
-                 obj_angle: _angle.Angle, context, camera=None,
-                 local_tilt: _angle.Angle | None = None):
+                 outer_radius: float, depth: float, material: "_material.GLMaterial", label_size: float,
+                 obj_angle: _angle.Angle, context: "_gl_context.GLContext", camera: "_camera_base.CameraBase" = None,
+                 local_tilt: _angle.Angle | None = None) -> None:
 
         self._obj_angle = obj_angle
 
@@ -77,7 +85,7 @@ class InnerRing(ProtractorRingBase):
         self.reposition_all(self._disc_rotation())
         self.start_camera_tracking()
 
-    def _get_label_color(self):
+    def _get_label_color(self) -> tuple[float, float, float, float]:
         return _LABEL_COLORS[self.axis]
 
     @_check_types.do
@@ -137,7 +145,7 @@ class InnerRing(ProtractorRingBase):
         """
 
         self._dragging = True
-        self._drag_start_value = float(getattr(self._obj_angle, self.axis))
+        self._drag_start_value = float(_axis.get_axis(self._obj_angle, self.axis))
 
         center_screen = camera.ProjectPoint(self.center)
         if center_screen is None:
@@ -299,5 +307,5 @@ class InnerRing(ProtractorRingBase):
         return False
 
     @_check_types.do
-    def delete(self, context) -> None:
+    def delete(self, context: "_gl_context.GLContext") -> None:
         super().delete(context)

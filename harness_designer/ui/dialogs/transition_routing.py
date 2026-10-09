@@ -3,14 +3,21 @@
 """Dialog for re-routing wires between transition output branches via drag-and-drop."""
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtWidgets, QtCore, QtGui
 
 from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
 
+
 if TYPE_CHECKING:
+    from ... import ui as _ui
+    from ...database.global_db import color as _global_color
+    from ...database.global_db import transition_branch as _global_transition_branch
+    from ...database.project_db import pjt_concentric_wire as _pjt_concentric_wire
+    from ...database.project_db import pjt_transition as _pjt_transition
+    from ...database.project_db import pjt_transition_branch as _pjt_transition_branch
     from ...objects.objects_3d import transition as _transition_3d
 
 
@@ -19,7 +26,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 @_check_types.do
-def _color_name(color_obj) -> str:
+def _color_name(color_obj: _Union["_global_color.Color", None]) -> str:
     if color_obj is None:
         return 'None'
 
@@ -27,7 +34,7 @@ def _color_name(color_obj) -> str:
 
 
 @_check_types.do
-def _wire_label(conc_wire) -> str:
+def _wire_label(conc_wire: "_pjt_concentric_wire.PJTConcentricWire") -> str:
     pjt_wire = conc_wire.wire
     part = pjt_wire.part
 
@@ -46,7 +53,24 @@ def _wire_label(conc_wire) -> str:
 
 
 @_check_types.do
-def _effective_diameter(conc_wires, g_branch) -> float:
+def _branch_db(transition_db: "_pjt_transition.PJTTransition", branch_id: int) -> _Union["_pjt_transition_branch.PJTTransitionBranch", None]:
+    # Explicit per-branch access (no string-built attribute lookup); each
+    # branchN property is the same lazy, cached row lookup as before.
+    if branch_id == 2:
+        return transition_db.branch2
+    if branch_id == 3:
+        return transition_db.branch3
+    if branch_id == 4:
+        return transition_db.branch4
+    if branch_id == 5:
+        return transition_db.branch5
+    if branch_id == 6:
+        return transition_db.branch6
+    return None
+
+
+@_check_types.do
+def _effective_diameter(conc_wires: list["_pjt_concentric_wire.PJTConcentricWire"], g_branch: "_global_transition_branch.TransitionBranch") -> float:
     total_area = 0.0
     for cw in conc_wires:
         od = cw.wire.part.od_mm if cw.wire.part else 0.0
@@ -69,7 +93,7 @@ class _WireList(QtWidgets.QListWidget):
     wire_moved = QtCore.Signal(object, object, object)  # (conc_wire, src_list, dst_list)
 
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
         self.setDragEnabled(True)
         self.setAcceptDrops(True)
@@ -78,7 +102,7 @@ class _WireList(QtWidgets.QListWidget):
         self.setDefaultDropAction(QtCore.Qt.DropAction.MoveAction)
 
     @_check_types.do
-    def startDrag(self, supported_actions):
+    def startDrag(self, supported_actions: QtCore.Qt.DropActions) -> None:
         item = self.currentItem()
         if item is None:
             return
@@ -89,21 +113,21 @@ class _WireList(QtWidgets.QListWidget):
         drag.exec(QtCore.Qt.DropAction.MoveAction)
 
     @_check_types.do
-    def dragEnterEvent(self, event: QtGui.QDragEnterEvent):
+    def dragEnterEvent(self, event: QtGui.QDragEnterEvent) -> None:
         if event.source() is not self and event.mimeData().hasFormat(_MIME_TYPE):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     @_check_types.do
-    def dragMoveEvent(self, event: QtGui.QDragMoveEvent):
+    def dragMoveEvent(self, event: QtGui.QDragMoveEvent) -> None:
         if event.source() is not self and event.mimeData().hasFormat(_MIME_TYPE):
             event.acceptProposedAction()
         else:
             event.ignore()
 
     @_check_types.do
-    def dropEvent(self, event: QtGui.QDropEvent):
+    def dropEvent(self, event: QtGui.QDropEvent) -> None:
         src = event.source()
         if src is self or not isinstance(src, _WireList):
             event.ignore()
@@ -128,7 +152,7 @@ class _WireList(QtWidgets.QListWidget):
 class _BranchGroup(QtWidgets.QGroupBox):
 
     @_check_types.do
-    def __init__(self, branch_idx: int, branch_db, g_branch, parent=None):
+    def __init__(self, branch_idx: int, branch_db: "_pjt_transition_branch.PJTTransitionBranch", g_branch: "_global_transition_branch.TransitionBranch", parent: QtWidgets.QWidget | None = None) -> None:
         label = f'Branch {branch_idx}'
         super().__init__(label, parent)
         self.branch_db = branch_db
@@ -164,7 +188,7 @@ class _BranchGroup(QtWidgets.QGroupBox):
         return wires
 
     @_check_types.do
-    def _update_capacity_label(self):
+    def _update_capacity_label(self) -> None:
         cw = self._conc_wires()
         used = _effective_diameter(cw, self.g_branch)
         max_d = float(self.g_branch.max_dia)
@@ -177,7 +201,7 @@ class _BranchGroup(QtWidgets.QGroupBox):
             self._cap_label.setStyleSheet('color: #40c040;')
 
     @_check_types.do
-    def rebuild_list(self):
+    def rebuild_list(self) -> None:
         self.list_widget.clear()
         for cw in self._conc_wires():
             item = QtWidgets.QListWidgetItem(_wire_label(cw))
@@ -195,14 +219,14 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
     """Show one list per output branch; allow drag-and-drop wire reassignment."""
 
     @_check_types.do
-    def __init__(self, parent, transition_3d: "_transition_3d.Transition"):
+    def __init__(self, parent: "_ui.MainFrame", transition_3d: "_transition_3d.Transition") -> None:
         super().__init__(parent, 'Route Wires', size=(780, 520))
         self._transition_3d = transition_3d
         self._branch_groups: list[_BranchGroup] = []
         self._build_ui(transition_3d)
 
     @_check_types.do
-    def _build_ui(self, transition_3d: "_transition_3d.Transition"):
+    def _build_ui(self, transition_3d: "_transition_3d.Transition") -> None:
         transition_db = transition_3d.db_obj
         g_transition = transition_db.part
         g_branches = g_transition.branches  # list, index 0 = trunk (branch_id 1)
@@ -225,11 +249,11 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
             # g_branches is 0-indexed; branch_id 2 → index 1, etc.
             g_branch = g_branches[branch_id - 1]
 
-            branch_db_attr = getattr(transition_db, f'branch{branch_id}', None)
-            if branch_db_attr is None:
+            branch_db = _branch_db(transition_db, branch_id)
+            if branch_db is None:
                 continue
 
-            grp = _BranchGroup(branch_id, branch_db_attr, g_branch, container)
+            grp = _BranchGroup(branch_id, branch_db, g_branch, container)
             grp.list_widget.wire_moved.connect(self._on_wire_moved)
             grp.rebuild_list()
             row.addWidget(grp)
@@ -244,7 +268,7 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _on_wire_moved(self, conc_wire, src_list: _WireList, dst_list: _WireList):
+    def _on_wire_moved(self, conc_wire: "_pjt_concentric_wire.PJTConcentricWire", src_list: _WireList, dst_list: _WireList) -> None:
         # Find destination branch group
         dst_grp = self._group_for_list(dst_list)
         if dst_grp is None:
@@ -314,5 +338,5 @@ class TransitionRoutingDialog(_dialog_base.BaseDialog):
         self._transition_3d.build()
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> None:
         return None

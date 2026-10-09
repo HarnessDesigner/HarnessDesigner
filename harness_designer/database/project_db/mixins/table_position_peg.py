@@ -47,8 +47,6 @@ class TablePositionPegMixin(BaseMixin):
 
         return point
 
-    _stored_table_position_peg_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
-
     @property
     @_check_types.do
     def table_position_peg_id(self) -> bytes:
@@ -57,27 +55,25 @@ class TablePositionPegMixin(BaseMixin):
         :returns: Property value.
         :rtype: bytes
         """
-        if self._stored_table_position_peg_id is DefaultStoredValue:
-            rows = self._table.select('table_point_peg_id', id=self._db_id)
-            point_id = rows[0][0] if rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, table_point_peg_id=point_id)
+        rows = self._table.select('table_point_peg_id', id=self._db_id)
+        point_id = rows[0][0] if rows else None
 
-            self._stored_table_position_peg_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points_pegboard_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, table_point_peg_id=point_id)
+            self._populate('table_position_peg_id')
 
-        return self._stored_table_position_peg_id
+        return point_id
 
     @table_position_peg_id.setter
     @_check_types.do
-    def table_position_peg_id(self, value: bytes):
+    def table_position_peg_id(self, value: bytes) -> None:
         """Set the data-table overlay's peg-board position row id.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_table_position_peg_id = value
         self._stored_table_position_peg = DefaultStoredValue
 
         self._table.update(self._db_id, table_point_peg_id=value)
@@ -96,9 +92,6 @@ class TablePositionPegMixin(BaseMixin):
         look up a table-overlay row keyed by it would always find
         nothing, for no reason).
         """
-        if self._stored_table_position_peg_id is not DefaultStoredValue:
-            return self._stored_table_position_peg_id
-
         # Same defensive shape as every other single-row-by-id lookup in
         # this codebase that turned out to need it this session
         # (PJTTransitionBranch.concentric/.bundle): an empty result used

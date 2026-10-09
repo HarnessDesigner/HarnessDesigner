@@ -1,15 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import cavity_lock as _cavity_lock  # NOQA
+    from PySide6 import QtWidgets
 
 
 class CavityLockMixin(BaseMixin):
@@ -18,11 +18,11 @@ class CavityLockMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_cavity_lock: Union[DefaultStoredValueType, "_cavity_lock.CavityLock"] = DefaultStoredValue
+    _stored_cavity_lock: _Union[DefaultStoredValueType, "_cavity_lock.CavityLock"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def cavity_lock(self) -> Union["_cavity_lock.CavityLock", None]:
+    def cavity_lock(self) -> _Union["_cavity_lock.CavityLock", None]:
         """Return the cavity lock.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -61,7 +61,7 @@ class CavityLockMixin(BaseMixin):
 
     @cavity_lock_id.setter
     @_check_types.do
-    def cavity_lock_id(self, value: bytes):
+    def cavity_lock_id(self, value: bytes) -> None:
         """Set the cavity lock ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -82,7 +82,7 @@ class CavityLockControl(_prop_ctrls.Property):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`CavityLockControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -103,7 +103,7 @@ class CavityLockControl(_prop_ctrls.Property):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: CavityLockMixin | None):
+    def set_obj(self, db_obj: CavityLockMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -139,7 +139,7 @@ class CavityLockControl(_prop_ctrls.Property):
             self.desc_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_name(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_name(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the name event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -169,7 +169,7 @@ class CavityLockControl(_prop_ctrls.Property):
         self.desc_ctrl.SetValue(desc)
 
     @_check_types.do
-    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the desc event.
 
         UNKNOWN details are inferred from the callable name and signature.

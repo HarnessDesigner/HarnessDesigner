@@ -7,7 +7,7 @@ import weakref
 from collections.abc import Iterator
 
 import numpy as np
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import line as _line
@@ -26,7 +26,10 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_bundle as _pjt_bundle
+    from ...database.global_db import bundle_cover as _bundle_cover
     from .. import bundle as _bundle
     from .. import transition as _transition_obj
     from ...gl import shaders as _shaders
@@ -115,7 +118,9 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
 
     @staticmethod
     @_check_types.do
-    def _new_placeholder_bundle_db(mainframe: "_ui.MainFrame", part_id: bytes, part):
+    def _new_placeholder_bundle_db(
+            mainframe: "_ui.MainFrame", part_id: bytes, part: "_bundle_cover.BundleCover",
+    ) -> "_pjt_bundle.PJTBundle":
         """Insert a fresh ``pjt_bundles`` row spanning two degenerate
         (0, 0, 0) placeholder points -- shared by every :meth:`start_add`/
         :meth:`start_add_from_branch` entry point so they can't drift
@@ -288,7 +293,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Add-session check first (see start_add), then falls through
         to this class's own existing rigid whole-path drag handling
@@ -464,6 +469,10 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
         :type angle: :class:`_angle.Angle`
         """
         self._update_position(None)
+
+    @_check_types.do
+    def _endpoint_diameter(self) -> float:
+        return self.db_obj.diameter
 
     @_check_types.do
     def _recalculate_geometry(self) -> None:
@@ -761,7 +770,7 @@ class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
             if branch_id is None:
                 continue
 
-            branch = getattr(transition.db_obj, f'branch{branch_id}')
+            branch = transition.db_obj.branch_in_slot(branch_id)
             if branch is not None:
                 branch.diameter = value
 
@@ -882,7 +891,7 @@ class BundleMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "Bundle") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Bundle") -> None:
         """Initialise the :class:`BundleMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -928,7 +937,6 @@ class BundleMenu(QtWidgets.QMenu):
         start/stop when close enough) until the next click commits it --
         mirroring objects.objects_3d.wire.WireMenu.on_add_handle.
         """
-        from PySide6 import QtCore
         from . import bundle_layout as _bundle_layout_3d
 
         mainframe = self.selected.mainframe
@@ -953,7 +961,6 @@ class BundleMenu(QtWidgets.QMenu):
     @_check_types.do
     def on_add_transition(self) -> None:
         """Start the interactive transition placement flow."""
-        from PySide6 import QtCore
         from . import transition as _transition_3d
 
         mainframe = self.selected.mainframe
@@ -961,7 +968,7 @@ class BundleMenu(QtWidgets.QMenu):
         @_check_types.do
         def _do() -> None:
             part_id = _menu_ops.get_part_id(
-                mainframe, 'transitions',
+                mainframe, mainframe.editor_db.editor.transitions,
                 mainframe.global_db.transitions_table, 'Add Transition')
 
             if part_id is None:

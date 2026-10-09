@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from collections.abc import Callable
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import os
 from PySide6 import QtGui
@@ -15,6 +16,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
+    from ... import splash as _splash
 
 
 class DatasheetsTable(TableBase):
@@ -36,7 +38,7 @@ class DatasheetsTable(TableBase):
         return _datasheets.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -47,7 +49,7 @@ class DatasheetsTable(TableBase):
         _datasheets.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -67,7 +69,7 @@ class DatasheetsTable(TableBase):
             yield Datasheet(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Datasheet":
+    def __getitem__(self, item: int | bytes | str) -> "Datasheet":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +120,7 @@ class Datasheet(EntryBase):
     _table: DatasheetsTable = None
 
     @_check_types.do
-    def load(self, mfg, part_number, callback) -> QtGui.QPixmap:
+    def load(self, mfg: str, part_number: str, callback: Callable[..., None]) -> QtGui.QPixmap:
         """
         Load a datacheet.
 
@@ -158,7 +160,7 @@ class Datasheet(EntryBase):
                     resource_state.progress = 0
 
                 @_check_types.do
-                def _do():
+                def _do() -> None:
                     # ensures the callbacks only get called a simgle time
                     if self.db_id not in self._callbacks:
                         return
@@ -269,7 +271,7 @@ class Datasheet(EntryBase):
 
         return self._stored_uuid
 
-    _stored_file_type: Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
+    _stored_file_type: _Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -309,7 +311,7 @@ class Datasheet(EntryBase):
 
     @file_type_id.setter
     @_check_types.do
-    def file_type_id(self, value: bytes):
+    def file_type_id(self, value: bytes) -> None:
         """Set the file type ID.
 
         UNKNOWN details are inferred from the callable name and signature.

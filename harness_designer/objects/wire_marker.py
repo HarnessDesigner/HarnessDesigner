@@ -26,7 +26,7 @@ class WireMarker(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
-                 db_obj: "_wire_marker.PJTWireMarker", project_load=False):
+                 db_obj: "_wire_marker.PJTWireMarker", project_load: bool = False) -> None:
         """Initialise the :class:`WireMarker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,7 +49,7 @@ class WireMarker(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def select2d(self, evt):
+    def select2d(self, evt) -> None:
         """Execute the select 2D operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -60,7 +60,7 @@ class WireMarker(_ObjectBase):
         pass
 
     @_check_types.do
-    def select3d(self, evt):
+    def select3d(self, evt) -> None:
         """Execute the select 3D operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -71,7 +71,7 @@ class WireMarker(_ObjectBase):
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         super().delete()
         self.mainframe.project.delete_wire_marker(self.db_obj.db_id)
         self.db_obj.delete()

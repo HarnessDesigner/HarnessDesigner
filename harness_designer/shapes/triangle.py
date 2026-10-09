@@ -24,7 +24,7 @@ _vbo: _vbo_handler.PooledVBOHandler = None
 
 @_check_types.do
 def create_vbo(
-    uuid,
+    uuid: str,
     *,
     side_a: int | float | None = None,
     side_b: int | float | None = None,

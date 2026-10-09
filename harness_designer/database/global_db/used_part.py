@@ -8,11 +8,16 @@ previously been used together with a given housing. Intended to back a
 :mod:`harness_designer.database.create_database.used_parts` for the schema.
 """
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ..create_database import used_parts as _used_parts
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class UsedPartsTable(TableBase):
@@ -25,11 +30,11 @@ class UsedPartsTable(TableBase):
         return _used_parts.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         _used_parts.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         _used_parts.table.update_fields(self)
 
     @_check_types.do

@@ -1,8 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
-import build123d
 import numpy as np
 
 from . import base_schematic as _base_schematic
@@ -18,8 +17,10 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_cavity as _pjt_cavity
     from .. import cavity as _cavity
+    from . import housing as _housing_schematic
 
 
 Config = _config.Config.editor_schematic
@@ -97,7 +98,7 @@ class Cavity(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
-                 db_obj: "_pjt_cavity.PJTCavity"):
+                 db_obj: "_pjt_cavity.PJTCavity") -> None:
         """Initialise the :class:`Cavity` instance.
 
         :param parent: Parent object.
@@ -139,7 +140,7 @@ class Cavity(_base_schematic.BaseSchematic):
 
     @property
     @_check_types.do
-    def housing(self):
+    def housing(self) -> _Union["_housing_schematic.Housing", None]:
         """This cavity's owning ``Housing2D``, or ``None``.
 
         Resolved on demand via ``self.parent.housing`` (see
@@ -157,7 +158,7 @@ class Cavity(_base_schematic.BaseSchematic):
         return housing_obj.objschematic
 
     @_check_types.do
-    def _on_name_changed(self, _entry=None):
+    def _on_name_changed(self, _entry: _Union["_pjt_cavity.PJTCavity", None] = None) -> None:
         """Rebuild this cavity's own name mesh (see :meth:`_rebuild`).
         ``objects_schematic/housing.py``'s ``Housing`` no longer binds
         to this tag or does any relayout of its own -- see this class's
@@ -166,7 +167,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._rebuild()
 
     @_check_types.do
-    def _on_terminal_changed(self, _entry=None):
+    def _on_terminal_changed(self, _entry: _Union["_pjt_cavity.PJTCavity", None] = None) -> None:
         """No-op -- see this class's own docstring: repositioning a
         seated terminal after this fires is not currently handled
         anywhere (``objects_schematic/housing.py``'s ``Housing`` used to
@@ -193,7 +194,7 @@ class Cavity(_base_schematic.BaseSchematic):
             housing.position.z + float(wz))
 
     @_check_types.do
-    def _rebuild_geometry(self):
+    def _rebuild_geometry(self) -> None:
         """Fetch this cavity's own precomputed schematic geometry
         straight from ``PJTHousing.cavity_geometry`` (see that
         property's own docstring for why this is precomputed there
@@ -241,7 +242,7 @@ class Cavity(_base_schematic.BaseSchematic):
 
         return self._aabb
 
-    def _label_angle(self, housing) -> _angle.Angle:
+    def _label_angle(self, housing: "_housing_schematic.Housing") -> _angle.Angle:
         """The angle this cavity's name is drawn at -- the same one
         :meth:`render` uses: the housing's, except at exactly 180 degrees where
         the glyph is drawn upright instead."""
@@ -251,7 +252,7 @@ class Cavity(_base_schematic.BaseSchematic):
         return housing.angle
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """The label's own OBB (``Text.local_obb``) turned and moved to where
         the label is drawn. Nothing to do until the housing is known."""
         housing = self.housing
@@ -269,7 +270,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._obb[:] = obb
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """The label's own AABB (``Text.local_aabb``) turned and moved to where
         the label is drawn, then ``utils.adjust_aabb`` so every min is in the
         min row and every max in the max row. Nothing to do until the housing
@@ -288,19 +289,19 @@ class Cavity(_base_schematic.BaseSchematic):
         self._aabb[:] = _utils.adjust_aabb(corners)
 
     @_check_types.do
-    def hit_test_step2(self, ray_origin, ray_direction):
+    def hit_test_step2(self, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
         """Only the box is tested (see :meth:`hit_test_step3`)."""
         return _base_schematic.box_hit_test(self._obb, ray_origin, ray_direction)
 
     @_check_types.do
-    def hit_test_step3(self, ray_origin, ray_dir):
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
         """A cavity is picked by its name label's box -- the OBB -- not by
         the label's glyph triangles: the pool's own OBB test already said the
         ray is inside it, and nothing finer is wanted."""
         return _base_schematic.box_hit_test(self._obb, ray_origin, ray_dir)
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Re-run :meth:`_rebuild_geometry` -- not just
         :meth:`_compute_obb`/:meth:`_compute_aabb` on the already-cached
         :attr:`_geometry` -- for two reasons:
@@ -330,7 +331,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._rebuild_geometry()
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """See :meth:`_update_position` -- same reason. Never actually
         fires in practice (this cavity's own ``angle2d`` is never
         touched by anything in this pipeline) but overridden
@@ -341,7 +342,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._rebuild_geometry()
 
     @_check_types.do
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """The first draw of this cavity: work out its box, then hand every
         later draw straight to :meth:`_render_label`.
 
@@ -366,7 +367,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._render_label(shaders)
 
     @_check_types.do
-    def _render_label(self, shaders):
+    def _render_label(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render this cavity's own name label -- swapping ``self._angle``
         (never this cavity's own, always-identity ``db_obj.angle2d`` --
         see the class docstring) for the owning housing's own CURRENT
@@ -409,7 +410,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._angle = real_angle
 
     @_check_types.do
-    def _rebuild(self, _entry=None):
+    def _rebuild(self, _entry: _Union["_pjt_cavity.PJTCavity", None] = None) -> None:
         """Rebuild this cavity's name label from its current name and
         re-derive its own geometry/OBB/AABB. Bound to fire whenever
         this cavity's own name changes.
@@ -421,7 +422,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self.editor2d.Refresh()
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         self._name_cb.unbind()
         self._terminal_cb.unbind()
         super()._delete()

@@ -57,6 +57,6 @@ class WireRoute(_wire.Wire, _wire_routing_drag.WireRouteMixin):
         _wire.Wire.delete(self)
 
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
         _wire.Wire.__call__(self, delta, mouse_pos)
         self._update_hover(mouse_pos)

@@ -30,7 +30,7 @@ class DatabaseMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`DatabaseMenu` instance.
 
@@ -49,23 +49,22 @@ class DatabaseMenu(QtWidgets.QMenu):
         self.addSeparator()
 
     @_check_types.do
-    def on_sqlite_settings(self):
+    def on_sqlite_settings(self) -> None:
         """
         Handle the sqlite settings event.
         """
 
-        from ...database.db_connectors.sqlite_connector import settings_dialog as _sqlite_settings
 
         pass
 
     if mysql is None:
         @_check_types.do
-        def on_mysql_settings(self):
+        def on_mysql_settings(self) -> None:
             pass
 
     else:
         @_check_types.do
-        def on_mysql_settings(self):
+        def on_mysql_settings(self) -> None:
             """
             Handle the mysql settings event.
             """

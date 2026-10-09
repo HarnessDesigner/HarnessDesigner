@@ -26,7 +26,7 @@ class BundleLayout(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout", project_load=False):
+                 db_obj: "_pjt_bundle_layout.PJTBundleLayout", project_load: bool = False) -> None:
         """Initialise the :class:`BundleLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -48,7 +48,7 @@ class BundleLayout(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         # TODO: handle deleting a layout
         #       if the layout has 2 bundles attached to it that means the
         #       deletion of the layout was started by the user and the bundle

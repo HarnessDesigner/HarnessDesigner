@@ -16,7 +16,7 @@ class Header(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent, label, size):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, size: tuple[int, int]) -> None:
         """Initialise the :class:`Header` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +94,7 @@ class Header(QtWidgets.QWidget):
         self.update()
 
     @_check_types.do
-    def _render_bitmap(self, base_pixmap):
+    def _render_bitmap(self, base_pixmap: QtGui.QPixmap) -> QtGui.QPixmap:
         """Render the bitmap.
 
         UNKNOWN details are inferred from the callable name and signature.

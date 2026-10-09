@@ -1,7 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
-
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
@@ -10,6 +9,7 @@ from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import series as _series  # NOQA
+    from PySide6 import QtWidgets
 
 
 class SeriesMixin(BaseMixin):
@@ -18,11 +18,11 @@ class SeriesMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_series: Union[DefaultStoredValueType, "_series.Series"] = DefaultStoredValue
+    _stored_series: _Union[DefaultStoredValueType, "_series.Series"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def series(self) -> Union["_series.Series", None]:
+    def series(self) -> _Union["_series.Series", None]:
         """Return the series.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -61,7 +61,7 @@ class SeriesMixin(BaseMixin):
 
     @series_id.setter
     @_check_types.do
-    def series_id(self, value: bytes):
+    def series_id(self, value: bytes) -> None:
         """Set the series ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -83,7 +83,7 @@ class SeriesControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`SeriesControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +108,7 @@ class SeriesControl(_prop_ctrls.Category):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: SeriesMixin | None):
+    def set_obj(self, db_obj: SeriesMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -168,7 +168,7 @@ class SeriesControl(_prop_ctrls.Category):
             self.desc_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_name(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_name(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the name event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -201,7 +201,7 @@ class SeriesControl(_prop_ctrls.Category):
         self.db_obj.series_id = db_id
 
     @_check_types.do
-    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the desc event.
 
         UNKNOWN details are inferred from the callable name and signature.

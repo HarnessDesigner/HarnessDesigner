@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtWidgets
 
 from . import base_schematic as _base_schematic
 from ...geometry import angle as _angle
@@ -17,6 +18,8 @@ from ... import bounds as _bounds
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_splice as _pjt_splice
     from .. import splice as _splice
     from .. import wire as _wire_facade
@@ -43,7 +46,7 @@ class Splice(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_splice.Splice",
-                 db_obj: "_pjt_splice.PJTSplice"):
+                 db_obj: "_pjt_splice.PJTSplice") -> None:
         """Initialise the :class:`Splice` instance.
 
         :param parent: Parent object.
@@ -81,7 +84,7 @@ class Splice(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -92,8 +95,8 @@ class Splice(_base_schematic.BaseSchematic):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", wire: Union["_wire_facade.Wire", None] = None
-    ) -> Union["_splice.Splice", None]:
+        cls, mainframe: "_ui.MainFrame", wire: _Union["_wire_facade.Wire", None] = None
+    ) -> _Union["_splice.Splice", None]:
         """Wire-snapping splice placement, schematic-native -- see
         add_handlers.editor_schematic.splice's own module docstring for
         how the cut position is derived. Mirrors
@@ -106,7 +109,6 @@ class Splice(_base_schematic.BaseSchematic):
         from ...ui import editor_db as _editor_db
         from ...add_handlers.editor_schematic import splice as _add_splice
         from .. import splice as _splice_facade
-        from PySide6.QtWidgets import QDialog
 
         canvas = mainframe.editor2d.editor
 
@@ -117,7 +119,7 @@ class Splice(_base_schematic.BaseSchematic):
                 mainframe, _editor_db.SplicesPage, mainframe.global_db.splices_table,
                 'Add Splice')
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -170,7 +172,7 @@ class Splice(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to BaseSchematic's own generic drag handling otherwise.
@@ -196,14 +198,14 @@ class Splice(_base_schematic.BaseSchematic):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
 
-class SpliceMenu(QMenu):
+class SpliceMenu(QtWidgets.QMenu):
     """Represent a splice menu in :mod:`harness_designer.objects.objects_schematic.splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Splice") -> None:
         """Initialise the :class:`SpliceMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -213,7 +215,7 @@ class SpliceMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -239,7 +241,7 @@ class SpliceMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_wire(self):
+    def on_add_wire(self) -> None:
         """Handle the add wire event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -247,7 +249,7 @@ class SpliceMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """Handle the trace circuit event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -255,7 +257,7 @@ class SpliceMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Handle the select event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -263,7 +265,7 @@ class SpliceMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Handle the clone event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -271,7 +273,7 @@ class SpliceMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Handle the delete event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -279,7 +281,7 @@ class SpliceMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Handle the properties event.
 
         UNKNOWN details are inferred from the callable name and signature.

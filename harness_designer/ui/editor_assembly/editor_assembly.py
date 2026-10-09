@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt
+
+from PySide6 import QtCore, QtWidgets
 
 from .. import dock_base as _dock_base
 from ... import check_types as _check_types
@@ -18,7 +18,7 @@ class EditorAssembly(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`EditorAssembly` instance.
 
@@ -29,7 +29,7 @@ class EditorAssembly(_dock_base.DockBase):
         self._ui_obj = EditorAssemblyPanel(mainframe)
 
         super().__init__(mainframe, 'Assembly Editor', 'editor_assembly',
-                         Qt.DockWidgetArea.LeftDockWidgetArea)
+                         QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @property
     @_check_types.do
@@ -37,13 +37,13 @@ class EditorAssembly(_dock_base.DockBase):
         return self._ui_obj
 
 
-class EditorAssemblyPanel(QWidget):
+class EditorAssemblyPanel(QtWidgets.QWidget):
     """
     Represent an editor assembly panel in :mod:`harness_designer.ui.editor_assembly.editor_assembly`.
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame"):
+    def __init__(self, parent: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`EditorAssemblyPanel` instance.
 
@@ -51,5 +51,5 @@ class EditorAssemblyPanel(QWidget):
         :type parent: :class:`_mainframe.MainFrame`
         """
 
-        QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
         self.mainframe = parent

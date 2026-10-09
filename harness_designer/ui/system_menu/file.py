@@ -16,7 +16,7 @@ class FileMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`FileMenu` instance.
 
@@ -30,7 +30,7 @@ class FileMenu(QtWidgets.QMenu):
         self.addAction('Load Project...').triggered.connect(self.on_load_project)
 
     @_check_types.do
-    def on_load_project(self):
+    def on_load_project(self) -> None:
         """
         Handle the load project action.
         """

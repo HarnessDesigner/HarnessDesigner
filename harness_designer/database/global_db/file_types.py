@@ -1,10 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import NameMixin
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class FileTypesTable(TableBase):
@@ -28,7 +33,7 @@ class FileTypesTable(TableBase):
         return file_types.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -43,7 +48,7 @@ class FileTypesTable(TableBase):
         file_types.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -65,7 +70,7 @@ class FileTypesTable(TableBase):
             yield FileType(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "FileType":
+    def __getitem__(self, item: int | bytes | str) -> "FileType":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,7 +151,7 @@ class FileType(EntryBase, NameMixin):
 
     @extension.setter
     @_check_types.do
-    def extension(self, value: str):
+    def extension(self, value: str) -> None:
         """Set the extension.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -177,7 +182,7 @@ class FileType(EntryBase, NameMixin):
 
     @mimetype.setter
     @_check_types.do
-    def mimetype(self, value: str):
+    def mimetype(self, value: str) -> None:
         """Set the mimetype.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -208,7 +213,7 @@ class FileType(EntryBase, NameMixin):
 
     @is_model.setter
     @_check_types.do
-    def is_model(self, value: bool):
+    def is_model(self, value: bool) -> None:
         """Set the is model.
 
         UNKNOWN details are inferred from the callable name and signature.

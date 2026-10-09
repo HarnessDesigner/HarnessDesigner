@@ -1,13 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import ast
 import math
-
 import numpy as np
 import weakref
-from PySide6.QtWidgets import QTabWidget, QWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -25,7 +24,6 @@ from . import pjt_cavity as _pjt_cavity
 from . import pjt_point2d as _pjt_point2d
 from . import pjt_point3d as _pjt_point3d
 from . import pjt_point_pegboard as _pjt_point_pegboard
-
 from ..global_db import housing as _housing
 from .mixins import (
     NameMixin, NameControl,
@@ -55,6 +53,7 @@ if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
     from ..global_db import housing as _housing
     from ...objects import housing as _housing_obj
+    from ... import ui as _ui
 
 
 @_check_types.do
@@ -131,7 +130,7 @@ class PJTHousingsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -156,7 +155,7 @@ class PJTHousingsTable(PJTTableBase):
         return housings.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -166,7 +165,7 @@ class PJTHousingsTable(PJTTableBase):
         housings.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -188,7 +187,7 @@ class PJTHousingsTable(PJTTableBase):
             yield PJTHousing(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTHousing":
+    def __getitem__(self, item: int | bytes | str) -> "PJTHousing":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -253,9 +252,17 @@ class PJTHousingsTable(PJTTableBase):
         else:
             position_pegboard = self.db.pjt_points_pegboard_table[position_pegboard_id]
 
-        db_id = PJTTableBase.insert(self, name=name, point3d_id=position3d_id,
-                                    point2d_id=position2d_id, point_pegboard_id=position_pegboard_id,
-                                    part_id=part_id)
+        db_id = PJTTableBase.insert(
+            self, name=name, point3d_id=position3d_id, point2d_id=position2d_id,
+            point_pegboard_id=position_pegboard_id, part_id=part_id,
+            cover_point3d_id=None, seal_point3d_id=None, seal_point_pegboard_id=None,
+            boot_point3d_id=None, tpa_lock_1_point3d_id=None, tpa_lock_2_point3d_id=None,
+            cpa_lock_point3d_id=None, table_point_peg_id=None, table_hidden=0,
+            quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
+            scale3d_id=None, scale_pegboard_id=None, notes='',
+            quat2d='[1.0, 0.0, 0.0, 0.0]', angle2d='[0.0, 0.0, 0.0]',
+            quat3d='[1.0, 0.0, 0.0, 0.0]', angle3d='[0.0, 0.0, 0.0]',
+            is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None)
 
         db_obj = PJTHousing(self, db_id)
 
@@ -395,27 +402,71 @@ class PJTHousingsTable(PJTTableBase):
                  float(position3d_arr[i, 1]), float(position3d_arr[i, 2]))
                 for i in range(n)]
 
-            self.db.pjt_points3d_table._con.executemany(  # NOQA
+            points3d_table = self.db.pjt_points3d_table
+            points3d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
-            self.db.pjt_points3d_table._con.commit()  # NOQA
+            points3d_table._con.commit()  # NOQA
+
+            # The row-level cache (TableData) has no way to know about rows
+            # written straight through the connector like this -- mirror
+            # each one in directly, same as PJTTableBase.insert() does for
+            # a normal single-row insert. Read every row back rather than
+            # assembling it from id/x/y/z -- the live table can carry
+            # columns beyond what this INSERT's own column list covers
+            # (e.g. one left over from an earlier schema revision that
+            # hasn't been dropped from the actual database file yet),
+            # and TableData's cache needs a value for every column the
+            # live table actually has, same reasoning as the cavity
+            # table below.
+            points3d_fields = points3d_table.field_names
+            points3d_placeholders = ', '.join(['?'] * len(new_point3d_ids))
+            points3d_table._con.execute(
+                f'SELECT {", ".join(points3d_fields)} FROM pjt_points3d '
+                f'WHERE id IN ({points3d_placeholders});',
+                new_point3d_ids)
+            points3d_cache = points3d_table._require_cache()
+            for row in points3d_table._con.fetchall():
+                points3d_cache.mirror_insert(**dict(zip(points3d_fields, row)))
 
             point2d_rows = [
                 (new_point2d_ids[i], float(position2d_arr[i, 0]),
                  float(position2d_arr[i, 1]), float(position2d_arr[i, 2]))
                 for i in range(n)]
 
-            self.db.pjt_points2d_table._con.executemany(  # NOQA
+            points2d_table = self.db.pjt_points2d_table
+            points2d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
-            self.db.pjt_points2d_table._con.commit()  # NOQA
+            points2d_table._con.commit()  # NOQA
+
+            points2d_fields = points2d_table.field_names
+            points2d_placeholders = ', '.join(['?'] * len(new_point2d_ids))
+            points2d_table._con.execute(
+                f'SELECT {", ".join(points2d_fields)} FROM pjt_points2d '
+                f'WHERE id IN ({points2d_placeholders});',
+                new_point2d_ids)
+            points2d_cache = points2d_table._require_cache()
+            for row in points2d_table._con.fetchall():
+                points2d_cache.mirror_insert(**dict(zip(points2d_fields, row)))
 
             peg_rows = [
                 (new_peg_ids[i], float(position_pegboard_arr[i, 0]),
                  float(position_pegboard_arr[i, 1]), float(position_pegboard_arr[i, 2]))
                 for i in range(n)]
 
-            self.db.pjt_points_pegboard_table._con.executemany(  # NOQA
+            points_pegboard_table = self.db.pjt_points_pegboard_table
+            points_pegboard_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
-            self.db.pjt_points_pegboard_table._con.commit()  # NOQA
+            points_pegboard_table._con.commit()  # NOQA
+
+            points_pegboard_fields = points_pegboard_table.field_names
+            points_pegboard_placeholders = ', '.join(['?'] * len(new_peg_ids))
+            points_pegboard_table._con.execute(
+                f'SELECT {", ".join(points_pegboard_fields)} FROM pjt_points_pegboard '
+                f'WHERE id IN ({points_pegboard_placeholders});',
+                new_peg_ids)
+            points_pegboard_cache = points_pegboard_table._require_cache()
+            for row in points_pegboard_table._con.fetchall():
+                points_pegboard_cache.mirror_insert(**dict(zip(points_pegboard_fields, row)))
 
             aabb_str = [str([[float(str(item)) for item in items] for items in aabb_arr[i].tolist()]) for i in range(n)]
             obb_str = [str([[float(str(item)) for item in items] for items in obb_arr[i].tolist()]) for i in range(n)]
@@ -425,13 +476,28 @@ class PJTHousingsTable(PJTTableBase):
             data = list(zip(new_cavity_ids, g_ids, g_names, new_point2d_ids,
                             new_point3d_ids, new_peg_ids, housing_ids, aabb_str, obb_str))
 
-            self.db.pjt_cavities_table._con.executemany(  # NOQA
+            cavities_table = self.db.pjt_cavities_table
+            cavities_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_cavities '
                 '(id, part_id, name, point2d_id, point3d_id, point_pegboard_id, housing_id, aabb, obb) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 data)
 
-            self.db.pjt_cavities_table._con.commit()  # NOQA
+            cavities_table._con.commit()  # NOQA
+
+            # Unlike the three point tables above, this INSERT's own column
+            # list omits some of pjt_cavities' columns (e.g. notes), which
+            # get the database's own default -- read the rows back rather
+            # than guess those defaults, same reasoning as
+            # PJTTableBase.insert()'s own read-back.
+            cavity_fields = cavities_table.field_names
+            placeholders = ', '.join(['?'] * len(new_cavity_ids))
+            cavities_table._con.execute(
+                f'SELECT {", ".join(cavity_fields)} FROM pjt_cavities WHERE id IN ({placeholders});',
+                new_cavity_ids)
+            cavities_cache = cavities_table._require_cache()
+            for row in cavities_table._con.fetchall():
+                cavities_cache.mirror_insert(**dict(zip(cavity_fields, row)))
 
             # Set the geometry cache directly -- see PJTHousing.
             # cavity_geometry's own docstring for why: everything needed
@@ -530,7 +596,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         super().delete()
 
     @_check_types.do
-    def update_cavities(self):
+    def update_cavities(self) -> None:
         for cavity in self.cavities:
             if cavity is not None:
                 return
@@ -663,27 +729,71 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                  float(position3d_arr[i, 1]), float(position3d_arr[i, 2]))
                 for i in range(n)]
 
-            self.table.db.pjt_points3d_table._con.executemany(  # NOQA
+            points3d_table = self.table.db.pjt_points3d_table
+            points3d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
-            self.table.db.pjt_points3d_table._con.commit()  # NOQA
+            points3d_table._con.commit()  # NOQA
+
+            # The row-level cache (TableData) has no way to know about rows
+            # written straight through the connector like this -- mirror
+            # each one in directly, same as PJTTableBase.insert() does for
+            # a normal single-row insert. Read every row back rather than
+            # assembling it from id/x/y/z -- the live table can carry
+            # columns beyond what this INSERT's own column list covers
+            # (e.g. one left over from an earlier schema revision that
+            # hasn't been dropped from the actual database file yet),
+            # and TableData's cache needs a value for every column the
+            # live table actually has, same reasoning as the cavity
+            # table below.
+            points3d_fields = points3d_table.field_names
+            points3d_placeholders = ', '.join(['?'] * len(new_point3d_ids))
+            points3d_table._con.execute(
+                f'SELECT {", ".join(points3d_fields)} FROM pjt_points3d '
+                f'WHERE id IN ({points3d_placeholders});',
+                new_point3d_ids)
+            points3d_cache = points3d_table._require_cache()
+            for row in points3d_table._con.fetchall():
+                points3d_cache.mirror_insert(**dict(zip(points3d_fields, row)))
 
             point2d_rows = [
                 (new_point2d_ids[i], float(position2d_arr[i, 0]),
                  float(position2d_arr[i, 1]), float(position2d_arr[i, 2]))
                 for i in range(n)]
 
-            self.table.db.pjt_points2d_table._con.executemany(  # NOQA
+            points2d_table = self.table.db.pjt_points2d_table
+            points2d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
-            self.table.db.pjt_points2d_table._con.commit()  # NOQA
+            points2d_table._con.commit()  # NOQA
+
+            points2d_fields = points2d_table.field_names
+            points2d_placeholders = ', '.join(['?'] * len(new_point2d_ids))
+            points2d_table._con.execute(
+                f'SELECT {", ".join(points2d_fields)} FROM pjt_points2d '
+                f'WHERE id IN ({points2d_placeholders});',
+                new_point2d_ids)
+            points2d_cache = points2d_table._require_cache()
+            for row in points2d_table._con.fetchall():
+                points2d_cache.mirror_insert(**dict(zip(points2d_fields, row)))
 
             peg_rows = [
                 (new_peg_ids[i], float(position_pegboard_arr[i, 0]),
                  float(position_pegboard_arr[i, 1]), float(position_pegboard_arr[i, 2]))
                 for i in range(n)]
 
-            self.table.db.pjt_points_pegboard_table._con.executemany(  # NOQA
+            points_pegboard_table = self.table.db.pjt_points_pegboard_table
+            points_pegboard_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
-            self.table.db.pjt_points_pegboard_table._con.commit()  # NOQA
+            points_pegboard_table._con.commit()  # NOQA
+
+            points_pegboard_fields = points_pegboard_table.field_names
+            points_pegboard_placeholders = ', '.join(['?'] * len(new_peg_ids))
+            points_pegboard_table._con.execute(
+                f'SELECT {", ".join(points_pegboard_fields)} FROM pjt_points_pegboard '
+                f'WHERE id IN ({points_pegboard_placeholders});',
+                new_peg_ids)
+            points_pegboard_cache = points_pegboard_table._require_cache()
+            for row in points_pegboard_table._con.fetchall():
+                points_pegboard_cache.mirror_insert(**dict(zip(points_pegboard_fields, row)))
 
             aabb_str = [str([
                 [float(str(item)) for item in items]
@@ -698,13 +808,28 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             data = list(zip(new_cavity_ids, g_ids, g_names, new_point2d_ids,
                             new_point3d_ids, new_peg_ids, housing_ids, aabb_str, obb_str))
 
-            self.table.db.pjt_cavities_table._con.executemany(  # NOQA
+            cavities_table = self.table.db.pjt_cavities_table
+            cavities_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_cavities '
                 '(id, part_id, name, point2d_id, point3d_id, point_pegboard_id, housing_id, aabb, obb) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 data)
 
-            self.table.db.pjt_cavities_table._con.commit()  # NOQA
+            cavities_table._con.commit()  # NOQA
+
+            # Unlike the three point tables above, this INSERT's own column
+            # list omits some of pjt_cavities' columns (e.g. notes), which
+            # get the database's own default -- read the rows back rather
+            # than guess those defaults, same reasoning as
+            # PJTTableBase.insert()'s own read-back.
+            cavity_fields = cavities_table.field_names
+            placeholders = ', '.join(['?'] * len(new_cavity_ids))
+            cavities_table._con.execute(
+                f'SELECT {", ".join(cavity_fields)} FROM pjt_cavities WHERE id IN ({placeholders});',
+                new_cavity_ids)
+            cavities_cache = cavities_table._require_cache()
+            for row in cavities_table._con.fetchall():
+                cavities_cache.mirror_insert(**dict(zip(cavity_fields, row)))
 
             # Set the geometry cache directly -- see PJTHousing.
             # cavity_geometry's own docstring for why: everything needed
@@ -744,12 +869,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             for i in range(n):
                 cavity = _pjt_cavity.PJTCavity(cavities_table, new_cavity_ids[i])
-                cavity._stored_name = g_names[i]  # NOQA
-                cavity._stored_notes = ''  # NOQA
-                cavity._stored_part_id = g_ids[i]  # NOQA
-                cavity._stored_housing_id = self.db_id  # NOQA
-                cavity._stored_housing = self  # NOQA
-                cavity._stored_terminal = None  # NOQA
+                # name/notes/part_id/housing_id/housing/terminal have no
+                # local cache of their own any more (NameMixin/NotesMixin/
+                # PartMixin/HousingMixin, and PJTCavity.terminal, all read
+                # straight through) -- only aabb/obb and the position
+                # object caches below are still worth pre-seeding.
                 cavity._stored_aabb = aabb_arr[i].astype(np.float32)  # NOQA
                 cavity._stored_obb = obb_arr[i].astype(np.float32)  # NOQA
 
@@ -757,21 +881,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 point2d._stored_x = float(position2d_arr[i, 0])  # NOQA
                 point2d._stored_y = float(position2d_arr[i, 1])  # NOQA
                 point2d._stored_z = float(position2d_arr[i, 2])  # NOQA
-                cavity._stored_position2d_id = new_point2d_ids[i]  # NOQA
                 cavity._stored_position2d = point2d  # NOQA
 
                 point3d = _pjt_point3d.PJTPoint3D(point3d_table, new_point3d_ids[i])
                 point3d._stored_x = float(position3d_arr[i, 0])  # NOQA
                 point3d._stored_y = float(position3d_arr[i, 1])  # NOQA
                 point3d._stored_z = float(position3d_arr[i, 2])  # NOQA
-                cavity._stored_position3d_id = new_point3d_ids[i]  # NOQA
                 cavity._stored_position3d = point3d  # NOQA
 
                 point_pegboard = _pjt_point_pegboard.PJTPointPegboard(peg_table, new_peg_ids[i])
                 point_pegboard._stored_x = float(position_pegboard_arr[i, 0])  # NOQA
                 point_pegboard._stored_y = float(position_pegboard_arr[i, 1])  # NOQA
                 point_pegboard._stored_z = float(position_pegboard_arr[i, 2])  # NOQA
-                cavity._stored_position_pegboard_id = new_peg_ids[i]  # NOQA
                 cavity._stored_position_pegboard = point_pegboard  # NOQA
 
                 new_db_objs.append(cavity)
@@ -798,7 +919,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -809,7 +930,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_housing_obj.Housing"):
+    def set_object(self, obj: "_housing_obj.Housing") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1024,25 +1145,25 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
     @_check_types.do
     def cache_names(self) -> None:
-        """Batch-fetch every cavity's own name/position2d and seated
-        terminal's own name under this housing, in a single query, and
-        pre-seed the result straight into the real (singleton)
-        ``PJTCavity``/``PJTPoint2D``/``PJTTerminal`` instances' own
-        caches -- ``NameMixin._stored_name`` and
-        ``Position2DMixin._stored_position2d_id``/
-        ``_stored_position2d`` (with the ``PJTPoint2D``'s own
-        ``_stored_x``/``_stored_y`` pre-seeded too) for each cavity,
-        plus the ``PJTCavity.terminal``/``PJTTerminal.cavity``
-        cross-reference caches -- so that later reading any of those
-        never fires its own query.
+        """Batch-fetch every cavity's own position2d and seated terminal
+        under this housing, in a single query, and pre-seed the result
+        straight into the real (singleton) ``PJTCavity``/``PJTPoint2D``/
+        ``PJTTerminal`` instances' own caches -- ``Position2DMixin.
+        _stored_position2d`` (with the ``PJTPoint2D``'s own
+        ``_stored_x``/``_stored_y`` pre-seeded too) for each cavity, plus
+        ``PJTTerminal.cavity``'s cross-reference cache -- so that later
+        reading any of those never fires its own query. ``name`` has no
+        local cache of its own any more (``NameMixin`` always reads
+        straight through), and neither does ``PJTCavity.terminal`` --
+        both are cheap anyway once this join's own rows are sitting in
+        the row-level cache from project load.
 
         A housing can have several hundred cavities; the naive path
         (this housing's own ``cavities`` property, then each cavity's
-        ``.name``, ``.position2d``, ``.terminal``, and that terminal's
-        own ``.name``) is several queries per cavity -- ``position2d``
-        alone is two (one for ``point2d_id``, one to construct the
-        ``PJTPoint2D`` row), before even reading ``.x``/``.y`` off it.
-        Constructs each ``PJTCavity``/``PJTPoint2D``/``PJTTerminal`` by
+        ``.position2d``, ``.terminal``) is several queries per cavity --
+        ``position2d`` alone is two (one for ``point2d_id``, one to
+        construct the ``PJTPoint2D`` row), before even reading ``.x``/
+        ``.y`` off it. Constructs each ``PJTCavity``/``PJTPoint2D``/``PJTTerminal`` by
         calling the class directly (``PJTCavity(table, id)``/etc.)
         rather than going through ``table[id]`` -- the entry-singleton
         metaclass (see ``database/global_db/bases.py``'s
@@ -1064,9 +1185,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         point2d_table = self._table.db.pjt_points2d_table
         terminal_table = self._table.db.pjt_terminals_table
 
+        # cavity.name/terminal.name are no longer selected -- NameMixin has
+        # no local cache left to prime (it always reads straight through,
+        # and this join's own rows are already in the row-level cache from
+        # project load, so that read is cheap anyway).
         self._table.db.connector.execute(
-            'SELECT cavity.id, cavity.name, cavity.point2d_id, point2d.x, point2d.y, point2d.z, '
-            'terminal.id, terminal.name '
+            'SELECT cavity.id, cavity.point2d_id, point2d.x, point2d.y, point2d.z, '
+            'terminal.id '
             'FROM pjt_cavities AS cavity '
             'LEFT JOIN pjt_points2d AS point2d ON point2d.id = cavity.point2d_id '
             'LEFT JOIN pjt_terminals AS terminal ON terminal.cavity_id = cavity.id '
@@ -1078,26 +1203,19 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         cavities = []
         terminals = []
 
-        for (cavity_id, cavity_name, point2d_id, point2d_x, point2d_y, point2d_z,
-             terminal_id, terminal_name) in rows:
+        for (cavity_id, point2d_id, point2d_x, point2d_y, point2d_z, terminal_id) in rows:
             cavity = _pjt_cavity.PJTCavity(cavity_table, cavity_id)
-            cavity._stored_name = cavity_name  # NOQA
 
             if point2d_id is not None:
                 point2d = _pjt_point2d.PJTPoint2D(point2d_table, point2d_id)
                 point2d._stored_x = point2d_x  # NOQA
                 point2d._stored_y = point2d_y  # NOQA
                 point2d._stored_z = point2d_z  # NOQA
-                cavity._stored_position2d_id = point2d_id  # NOQA
                 cavity._stored_position2d = point2d  # NOQA
 
-            if terminal_id is None:
-                cavity._stored_terminal = None  # NOQA
-            else:
+            if terminal_id is not None:
                 terminal = _pjt_terminal.PJTTerminal(terminal_table, terminal_id)
-                terminal._stored_name = terminal_name  # NOQA
                 terminal._stored_cavity = cavity  # NOQA
-                cavity._stored_terminal = terminal  # NOQA
                 terminals.append(terminal)
 
             cavities.append(cavity)
@@ -1105,7 +1223,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._stored_cavities = cavities
         self._stored_terminals = terminals
 
-    _stored_cover_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_cover_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1134,8 +1252,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_cover_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-    
     @property
     @_check_types.do
     def cover_position3d_id(self) -> bytes:
@@ -1146,22 +1262,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_cover_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('cover_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.cover_position3d_id = point_id
-            
-            self._stored_cover_position3d_id = point_id
+            self.cover_position3d_id = point_id
 
-        return self._stored_cover_position3d_id
+        return point_id
 
     @cover_position3d_id.setter
     @_check_types.do
-    def cover_position3d_id(self, value: bytes):
+    def cover_position3d_id(self, value: bytes) -> None:
         """Set the cover position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1169,13 +1281,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_cover_position3d_id = value
         self._stored_cover_position3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, cover_point3d_id=value)
         self._populate('cover_position3d_id')
 
-    _stored_seal_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_seal_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1204,8 +1315,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_seal_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-    
     @property
     @_check_types.do
     def seal_position3d_id(self) -> bytes:
@@ -1216,22 +1325,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_seal_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('seal_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.seal_position3d_id = point_id
-            
-            self._stored_seal_position3d_id = point_id
+            self.seal_position3d_id = point_id
 
-        return self._stored_seal_position3d_id
+        return point_id
 
     @seal_position3d_id.setter
     @_check_types.do
-    def seal_position3d_id(self, value: bytes):
+    def seal_position3d_id(self, value: bytes) -> None:
         """Set the seal position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1239,9 +1344,8 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_seal_position3d_id = value
         self._stored_seal_position3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, seal_point3d_id=value)
         self._populate('seal_position3d_id')
 
@@ -1273,8 +1377,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         return point
 
-    _stored_seal_position_pegboard_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-
     @property
     @_check_types.do
     def seal_position_pegboard_id(self) -> bytes:
@@ -1285,33 +1387,29 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value.
         :rtype: bytes
         """
-        if self._stored_seal_position_pegboard_id is DefaultStoredValue:
-            point_id = self._table.select('seal_point_pegboard_id', id=self._db_id)[0][0]
+        point_id = self._table.select('seal_point_pegboard_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points_pegboard_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points_pegboard_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.seal_position_pegboard_id = point_id
+            self.seal_position_pegboard_id = point_id
 
-            self._stored_seal_position_pegboard_id = point_id
-
-        return self._stored_seal_position_pegboard_id
+        return point_id
 
     @seal_position_pegboard_id.setter
     @_check_types.do
-    def seal_position_pegboard_id(self, value: bytes):
+    def seal_position_pegboard_id(self, value: bytes) -> None:
         """Set the peg-board mirror of :attr:`seal_position3d_id`.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_seal_position_pegboard_id = value
         self._stored_seal_position_pegboard = DefaultStoredValue
 
         self._table.update(self._db_id, seal_point_pegboard_id=value)
         self._populate('seal_position_pegboard_id')
 
-    _stored_boot_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_boot_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1340,8 +1438,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_boot_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-    
     @property
     @_check_types.do
     def boot_position3d_id(self) -> bytes:
@@ -1352,22 +1448,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_boot_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('boot_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.boot_position3d_id = point_id
-            
-            self._stored_boot_position3d_id = point_id
+            self.boot_position3d_id = point_id
 
-        return self._stored_boot_position3d_id
+        return point_id
 
     @boot_position3d_id.setter
     @_check_types.do
-    def boot_position3d_id(self, value: bytes):
+    def boot_position3d_id(self, value: bytes) -> None:
         """Set the boot position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1375,13 +1467,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_boot_position3d_id = value
         self._stored_boot_position3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, boot_point3d_id=value)
         self._populate('boot_position3d_id')
 
-    _stored_tpa_lock_1_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_tpa_lock_1_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1410,8 +1501,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_tpa_lock_1_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-    
     @property
     @_check_types.do
     def tpa_lock_1_position3d_id(self) -> bytes:
@@ -1422,22 +1511,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_tpa_lock_1_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('tpa_lock_1_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.tpa_lock_1_position3d_id = point_id
-            
-            self._stored_tpa_lock_1_position3d_id = point_id
+            self.tpa_lock_1_position3d_id = point_id
 
-        return self._stored_tpa_lock_1_position3d_id
+        return point_id
 
     @tpa_lock_1_position3d_id.setter
     @_check_types.do
-    def tpa_lock_1_position3d_id(self, value: bytes):
+    def tpa_lock_1_position3d_id(self, value: bytes) -> None:
         """Set the tpa_lock_1 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1445,13 +1530,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_tpa_lock_1_position3d_id = value
         self._stored_tpa_lock_1_position3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, tpa_lock_1_point3d_id=value)
         self._populate('tpa_lock_1_position3d_id')
 
-    _stored_tpa_lock_2_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_tpa_lock_2_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1480,8 +1564,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_tpa_lock_2_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-    
     @property
     @_check_types.do
     def tpa_lock_2_position3d_id(self) -> bytes:
@@ -1492,22 +1574,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_tpa_lock_2_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('tpa_lock_2_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.tpa_lock_2_position3d_id = point_id
-            
-            self._stored_tpa_lock_2_position3d_id = point_id
+            self.tpa_lock_2_position3d_id = point_id
 
-        return self._stored_tpa_lock_2_position3d_id
+        return point_id
 
     @tpa_lock_2_position3d_id.setter
     @_check_types.do
-    def tpa_lock_2_position3d_id(self, value: bytes):
+    def tpa_lock_2_position3d_id(self, value: bytes) -> None:
         """Set the tpa_lock_2 position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1515,13 +1593,12 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_tpa_lock_2_position3d_id = value
         self._stored_tpa_lock_2_position3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, tpa_lock_2_point3d_id=value)
         self._populate('tpa_lock_2_position3d_id')
 
-    _stored_cpa_lock_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_cpa_lock_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1550,8 +1627,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         
         return point
     
-    _stored_cpa_lock_position3d_id: bytes | None | DefaultStoredValue = DefaultStoredValue
-    
     @property
     @_check_types.do
     def cpa_lock_position3d_id(self) -> bytes:
@@ -1562,22 +1637,18 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_cpa_lock_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('cpa_lock_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
+        if point_id is None:
+            point_id = self._table.db.pjt_points3d_table.insert(0.0, 0.0, 0.0).db_id
 
-                self.cpa_lock_position3d_id = point_id
-            
-            self._stored_cpa_lock_position3d_id = point_id
+            self.cpa_lock_position3d_id = point_id
 
-        return self._stored_cpa_lock_position3d_id
+        return point_id
 
     @cpa_lock_position3d_id.setter
     @_check_types.do
-    def cpa_lock_position3d_id(self, value: bytes):
+    def cpa_lock_position3d_id(self, value: bytes) -> None:
         """Set the cpa_lock position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1585,14 +1656,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_cpa_lock_position3d_id = value
         self._stored_cpa_lock_position3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, cpa_lock_point3d_id=value)
         self._populate('cpa_lock_position3d_id')
 
     @_check_types.do
-    def add_cavity(self, index, name):
+    def add_cavity(self, index: int, name: str) -> "_pjt_cavity.PJTCavity":
         """Add a cavity.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1770,7 +1840,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     #         res.append(accessory)
     #     return res
 
-    _stored_part: Union["_housing.Housing", None, DefaultStoredValue] = DefaultStoredValue
+    _stored_part: _Union["_housing.Housing", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -1855,7 +1925,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return [table[row[0]].point for row in table.fetchall()]
 
     @_check_types.do
-    def _update_position_pegboard(self, point: _point.Point):
+    def _update_position_pegboard(self, point: _point.Point) -> None:
         """Update the peg-board position.
 
         Batch-cascades to every cavity's/terminal's ``position_pegboard``
@@ -2009,7 +2079,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return point
 
     @_check_types.do
-    def _update_position3d(self, point: _point.Point):
+    def _update_position3d(self, point: _point.Point) -> None:
         """Update the position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -2185,7 +2255,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return point
 
     @_check_types.do
-    def _update_position2d(self, point: _point.Point):
+    def _update_position2d(self, point: _point.Point) -> None:
         """Update the position 2D.
 
         Batch-cascades to every cavity's own ``position2d`` and (for a
@@ -2320,7 +2390,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _o_euler3d: list = None
 
     @_check_types.do
-    def _update_angle3d(self, angle: _angle.Angle):
+    def _update_angle3d(self, angle: _angle.Angle) -> None:
         """Update the angle 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -2636,7 +2706,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _o_euler_pegboard: list = None
 
     @_check_types.do
-    def _update_angle_pegboard(self, angle: _angle.Angle):
+    def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
         """Update the peg-board angle.
 
         Mirrors :meth:`_update_angle3d`'s vectorized batch rotation of
@@ -2872,7 +2942,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _o_euler2d: list = None
 
     @_check_types.do
-    def _update_angle2d(self, angle: _angle.Angle):
+    def _update_angle2d(self, angle: _angle.Angle) -> None:
         """Update the angle 2D.
 
         Batch-cascades to every cavity's own ``position2d`` and (for a
@@ -3010,14 +3080,14 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         self._populate('angle2d')
 
 
-class PJTHousingControl(QTabWidget, LazyTabMixin):
+class PJTHousingControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT housing control in :mod:`harness_designer.database.project_db.pjt_housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTHousing | None):
+    def set_obj(self, db_obj: PJTHousing | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -3028,7 +3098,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -3070,7 +3140,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
                     if cavity is None:
                         continue
 
-                    placeholder = QWidget()
+                    placeholder = QtWidgets.QWidget()
                     index = self.cavities_notebook.addTab(placeholder, cavity.name)
 
                     self.cavity_pages[index] = cavity
@@ -3093,7 +3163,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_cavity_tab_changed(self, index: int):
+    def _on_cavity_tab_changed(self, index: int) -> None:
         if index in self.cavity_pages_loaded or index not in self.cavity_pages:
             return
 
@@ -3108,7 +3178,7 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         self.cavities_notebook.setCurrentIndex(index)
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTHousingControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -3118,8 +3188,8 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTHousing | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')
@@ -3158,8 +3228,8 @@ class PJTHousingControl(QTabWidget, LazyTabMixin):
         position_page.addWidget(self.position_pegboard_ctrl)
 
         self._cavities_page = cavities_page = _prop_ctrls.Category(self, 'Cavities')
-        self.cavities_notebook = QTabWidget(cavities_page)
-        self.cavities_notebook.setTabPosition(QTabWidget.TabPosition.North)
+        self.cavities_notebook = QtWidgets.QTabWidget(cavities_page)
+        self.cavities_notebook.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.cavities_notebook.setUsesScrollButtons(True)
         self.cavity_pages = {}
         self.cavity_pages_loaded = set()

@@ -1,7 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
-import weakref
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from collections.abc import Callable
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
+import weakref
 import os
 import uuid
 import numpy as np
@@ -17,6 +18,7 @@ from .. import id_generator as _id_generator
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
+    from ... import splash as _splash
 
 
 class Models3DTable(TableBase):
@@ -38,7 +40,7 @@ class Models3DTable(TableBase):
         return _models3d.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         """
         Add a table to database.
 
@@ -49,7 +51,7 @@ class Models3DTable(TableBase):
         _models3d.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """
         Update the table in database.
         """
@@ -69,7 +71,7 @@ class Models3DTable(TableBase):
             yield Model3D(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Model3D":
+    def __getitem__(self, item: int | bytes | str) -> "Model3D":
         """
         Return the requested item.
 
@@ -233,7 +235,7 @@ class Model3D(EntryBase):
 
     @vertex_count.setter
     @_check_types.do
-    def vertex_count(self, value: int):
+    def vertex_count(self, value: int) -> None:
         """
         Set the cached mesh vertex count.
 
@@ -268,7 +270,7 @@ class Model3D(EntryBase):
 
     @aabb.setter
     @_check_types.do
-    def aabb(self, value):
+    def aabb(self, value: np.ndarray | list[list[float]]) -> None:
         """
         Set the mesh axis-aligned bounding box.
 
@@ -304,7 +306,7 @@ class Model3D(EntryBase):
 
     @obb.setter
     @_check_types.do
-    def obb(self, value):
+    def obb(self, value: np.ndarray | list[list[float]]) -> None:
         """
         Set the mesh bounding-box corner coordinates.
 
@@ -317,7 +319,7 @@ class Model3D(EntryBase):
         self._stored_size = DefaultStoredValue
         self._table.update(self._db_id, obb=str(value))
 
-    _stored_file_type: Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
+    _stored_file_type: _Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -357,7 +359,7 @@ class Model3D(EntryBase):
 
     @file_type_id.setter
     @_check_types.do
-    def file_type_id(self, value: bytes):
+    def file_type_id(self, value: bytes) -> None:
         """
         Set the file type ID.
 
@@ -371,7 +373,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, file_type_id=value)
 
     @_check_types.do
-    def __update_angle3d(self, angle: _angle.Angle):
+    def __update_angle3d(self, angle: _angle.Angle) -> None:
         """
         Update the angle 3D.
 
@@ -421,7 +423,7 @@ class Model3D(EntryBase):
 
     @angle3d.setter
     @_check_types.do
-    def angle3d(self, value: list[float, float, float] | None):
+    def angle3d(self, value: list[float, float, float] | None) -> None:
         if value is None:
             quat = None
             euler = None
@@ -437,7 +439,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, angle3d=euler, quat3d=quat)
 
     @_check_types.do
-    def __update_position3d(self, offset: _point.Point):
+    def __update_position3d(self, offset: _point.Point) -> None:
         """
         Update the position 3D.
 
@@ -485,7 +487,7 @@ class Model3D(EntryBase):
 
     @position3d.setter
     @_check_types.do
-    def position3d(self, value: list[float, float, float] | None):
+    def position3d(self, value: list[float, float, float] | None) -> None:
         real_value: str | None = None
 
         if value is not None:
@@ -496,7 +498,7 @@ class Model3D(EntryBase):
         self._table.update(self._db_id, point3d=real_value)
 
     @_check_types.do
-    def __update_scale(self, scale: _point.Point):
+    def __update_scale(self, scale: _point.Point) -> None:
         """
         Update the scale.
 
@@ -533,7 +535,7 @@ class Model3D(EntryBase):
 
     @scale.setter
     @_check_types.do
-    def scale(self, value: list[float, float, float] | None):
+    def scale(self, value: list[float, float, float] | None) -> None:
         real_value: str | None = None
 
         if value is not None:
@@ -562,7 +564,7 @@ class Model3D(EntryBase):
 
     @forward_up.setter
     @_check_types.do
-    def forward_up(self, value: list[int, int]):
+    def forward_up(self, value: list[int, int]) -> None:
         """
         Set the forward and up side indexes.
 
@@ -592,7 +594,7 @@ class Model3D(EntryBase):
 
     @target_count.setter
     @_check_types.do
-    def target_count(self, value: int):
+    def target_count(self, value: int) -> None:
         """
         Set the target count.
 
@@ -622,7 +624,7 @@ class Model3D(EntryBase):
 
     @aggressiveness.setter
     @_check_types.do
-    def aggressiveness(self, value: float):
+    def aggressiveness(self, value: float) -> None:
         """
         Set the aggressiveness.
 
@@ -652,7 +654,7 @@ class Model3D(EntryBase):
 
     @update_rate.setter
     @_check_types.do
-    def update_rate(self, value: int):
+    def update_rate(self, value: int) -> None:
         """
         Set the update rate.
 
@@ -682,7 +684,7 @@ class Model3D(EntryBase):
 
     @simplify.setter
     @_check_types.do
-    def simplify(self, value: bool):
+    def simplify(self, value: bool) -> None:
         """
         Set the simplify.
 
@@ -712,7 +714,7 @@ class Model3D(EntryBase):
 
     @iterations.setter
     @_check_types.do
-    def iterations(self, value: int):
+    def iterations(self, value: int) -> None:
         """
         Set the iterations.
 
@@ -751,7 +753,7 @@ class Model3D(EntryBase):
         return self._stored_size
 
     @_check_types.do
-    def download_complete(self):
+    def download_complete(self) -> None:
         if self.db_id not in self._download_callbacks:
             return
 
@@ -798,7 +800,7 @@ class Model3D(EntryBase):
             del self._download_callbacks[self.db_id]
 
     @_check_types.do
-    def load(self, mfg, part_number, callback) -> None:
+    def load(self, mfg: str, part_number: str, callback: Callable[..., None]) -> None:
         """
         Load a 3d model.
 

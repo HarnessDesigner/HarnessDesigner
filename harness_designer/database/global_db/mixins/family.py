@@ -1,7 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
-
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
@@ -10,6 +9,7 @@ from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import family as _family  # NOQA
+    from PySide6 import QtWidgets
 
 
 class FamilyMixin(BaseMixin):
@@ -18,11 +18,11 @@ class FamilyMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_family: Union[DefaultStoredValueType, "_family.Family"] = DefaultStoredValue
+    _stored_family: _Union[DefaultStoredValueType, "_family.Family"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def family(self) -> Union["_family.Family", None]:
+    def family(self) -> _Union["_family.Family", None]:
         """Return the family.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -61,7 +61,7 @@ class FamilyMixin(BaseMixin):
 
     @family_id.setter
     @_check_types.do
-    def family_id(self, value: bytes):
+    def family_id(self, value: bytes) -> None:
         """Set the family ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -83,7 +83,7 @@ class FamilyControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`FamilyControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +108,7 @@ class FamilyControl(_prop_ctrls.Category):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: FamilyMixin | None):
+    def set_obj(self, db_obj: FamilyMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -167,7 +167,7 @@ class FamilyControl(_prop_ctrls.Category):
             self.desc_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_name(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_name(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the name event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -200,7 +200,7 @@ class FamilyControl(_prop_ctrls.Category):
         self.db_obj.family_id = db_id
 
     @_check_types.do
-    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the desc event.
 
         UNKNOWN details are inferred from the callable name and signature.

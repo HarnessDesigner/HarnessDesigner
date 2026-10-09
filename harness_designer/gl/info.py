@@ -16,13 +16,22 @@ The public API is identical: call get(parent) once to collect and cache,
 then call get() (no argument) to retrieve cached info.
 """
 
+from typing import Union as _Union
+from typing import TYPE_CHECKING
+
+import numpy as np
 from OpenGL import GL
-from PySide6.QtGui import QOffscreenSurface, QOpenGLContext, QSurfaceFormat
+from PySide6 import QtGui
+
 from .. import check_types as _check_types
 
 
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
+
+
 @_check_types.do
-def _safe_gl_get_string(param) -> str:
+def _safe_gl_get_string(param: int) -> str:
     """Execute the safe GL get string operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -42,7 +51,7 @@ def _safe_gl_get_string(param) -> str:
 
 
 @_check_types.do
-def _safe_gl_get_integer(param):
+def _safe_gl_get_integer(param: int) -> int | None:
     """Execute the safe GL get integer operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -59,7 +68,7 @@ def _safe_gl_get_integer(param):
 
 
 @_check_types.do
-def _safe_gl_get_integerv(param):
+def _safe_gl_get_integerv(param: int) -> np.ndarray | None:
     """Execute the safe GL get integerv operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -79,7 +88,7 @@ _info = None
 
 
 @_check_types.do
-def get(parent=None):
+def get(parent: _Union["QtWidgets.QWidget", None] = None) -> None:
     """
     Get or collect OpenGL information.
 
@@ -100,13 +109,13 @@ def get(parent=None):
 
     # Use the default format that was set in app.py
     # This ensures the info context is compatible with widget contexts
-    fmt = QSurfaceFormat.defaultFormat()
+    fmt = QtGui.QSurfaceFormat.defaultFormat()
 
-    surface = QOffscreenSurface()
+    surface = QtGui.QOffscreenSurface()
     surface.setFormat(fmt)
     surface.create()
 
-    context = QOpenGLContext()
+    context = QtGui.QOpenGLContext()
     context.setFormat(fmt)
     context.create()
     context.makeCurrent(surface)

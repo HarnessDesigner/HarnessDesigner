@@ -36,7 +36,6 @@ import math
 import numpy as np
 
 from . import handler_base as _handler_base
-from . import wire_handler as _wire_handler
 from ..geometry import point as _point
 from ..gl import object_picker as _object_picker
 from ..objects import bundle as _bundle
@@ -51,6 +50,13 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ..database.project_db import pjt_bases as _pjt_bases
+    from ..database.project_db import pjt_wire as _pjt_wire
+    from ..database.project_db import pjt_bundle as _pjt_bundle
+    from ..database.project_db import pjt_transition as _pjt_transition
+    from ..database.project_db import pjt_transition_branch as _pjt_transition_branch
+    from ..database.global_db import transition_branch as _global_transition_branch
+    from ..objects import transition as _transition_obj
     from ..gl.canvas_3d import camera as _camera
     from .. import ui as _ui
     from ..objects import project as _project
@@ -75,7 +81,7 @@ BRANCH_NO_FIT = _materials.Plastic(_color.Color(1.0, 0.4, 0.0, 1.0))
 
 @_check_types.do
 def _repoint_all_references(
-    ptables: object,
+    ptables: "_pjt_bases.PJTTables",
     old_point_id: int,
     new_point_id: int
 ) -> None:
@@ -96,7 +102,7 @@ def _repoint_all_references(
 
 
 @_check_types.do
-def _delete_point_if_orphaned(ptables: object, point_id: int) -> None:
+def _delete_point_if_orphaned(ptables: "_pjt_bases.PJTTables", point_id: int) -> None:
     """
     Delete *point_id* from pjt_points3d if nothing references it.
     """
@@ -118,14 +124,14 @@ def _delete_point_if_orphaned(ptables: object, point_id: int) -> None:
 
 @_check_types.do
 def _insert_wire(
-    ptables: object,
+    ptables: "_pjt_bases.PJTTables",
     part_id: bytes,
     name: str,
-    circuit_id: object,
-    start_id: object,
-    stop_id: object,
+    circuit_id: bytes | None,
+    start_id: bytes | None,
+    stop_id: bytes | None,
     visible: bool
-) -> object:
+) -> "_pjt_wire.PJTWire":
     return ptables.pjt_wires_table.insert(
         part_id, name, circuit_id, start_id, stop_id,
         None, None, visible, False, None, None, False)
@@ -133,13 +139,13 @@ def _insert_wire(
 
 @_check_types.do
 def _insert_bundle(
-    ptables: object, part_id: bytes, name: str, start_id: object, stop_id: object
-) -> object:
+    ptables: "_pjt_bases.PJTTables", part_id: bytes, name: str, start_id: bytes, stop_id: bytes
+) -> "_pjt_bundle.PJTBundle":
     return ptables.pjt_bundles_table.insert(part_id, name, start_id, stop_id)
 
 
 @_check_types.do
-def _walk_bundle_chain(bundle_db_obj: object, ptables: object) -> list:
+def _walk_bundle_chain(bundle_db_obj: "_pjt_bundle.PJTBundle", ptables: "_pjt_bases.PJTTables") -> list[bytes]:
     """
     Walk the full bundle chain from one free end to the other.
 
@@ -147,11 +153,11 @@ def _walk_bundle_chain(bundle_db_obj: object, ptables: object) -> list:
         [end_A_id, layout_id, ..., end_B_id]
     """
 
-    def _has_layout(point_id: object) -> bool:
+    def _has_layout(point_id: bytes) -> bool:
         return bool(ptables.pjt_bundle_layouts_table.select(
             'id', position3d_id=point_id))
 
-    def _next_section(current_id: object, from_point_id: object, visited: set) -> object | None:
+    def _next_section(current_id: bytes, from_point_id: bytes, visited: set[bytes]) -> bytes | None:
         rows = (ptables.pjt_bundles_table.select(
             'id', start_point3d_id=from_point_id) +
                 ptables.pjt_bundles_table.select(
@@ -164,7 +170,7 @@ def _walk_bundle_chain(bundle_db_obj: object, ptables: object) -> list:
 
         return None
 
-    def _walk_direction(start_section_id: object, leaving_point_id: object) -> list:
+    def _walk_direction(start_section_id: bytes, leaving_point_id: bytes) -> list[bytes]:
         pts, current_id, current_pt = [], start_section_id, leaving_point_id
         visited = {start_section_id}
         while True:
@@ -195,14 +201,14 @@ def _walk_bundle_chain(bundle_db_obj: object, ptables: object) -> list:
 
 
 @_check_types.do
-def _wire_area(conc_wire: object) -> float:
+def _wire_area(conc_wire: "_pjt_wire.PJTWire") -> float:
     od = conc_wire.wire.part.od_mm
 
     return math.pi * (od / 2.0) ** 2 if od else 0.0
 
 
 @_check_types.do
-def effective_diameter(conc_wires: list, global_branch: object) -> float:
+def effective_diameter(conc_wires: list["_pjt_wire.PJTWire"], global_branch: "_global_transition_branch.TransitionBranch") -> float:
     """
     Effective packed diameter with 15% air gap; never below min_dia.
     """
@@ -239,7 +245,7 @@ def assign_wires_to_branches(conc_wires: list, global_output_branches: list) -> 
 
 @_check_types.do
 def _set_angle_from_bundle(
-    transition_db_obj: object,  # NOQA
+    transition_db_obj: "_pjt_transition.PJTTransition",  # NOQA
     bundle: _bundle.Bundle
 ) -> None:
     """
@@ -315,7 +321,7 @@ def _set_angle_from_bundle(
 
 
 @_check_types.do
-def _create_branch_concentric(ptables: object, branch_db: object, conc_wires: list, diameter: float) -> None:
+def _create_branch_concentric(ptables: "_pjt_bases.PJTTables", branch_db: "_pjt_transition_branch.PJTTransitionBranch", conc_wires: list["_pjt_wire.PJTWire"], diameter: float) -> None:
     """
     Create concentric → single layer → wires for one transition branch.
     """
@@ -328,8 +334,9 @@ def _create_branch_concentric(ptables: object, branch_db: object, conc_wires: li
         0, len(conc_wires), 0, conc_db.db_id, diameter)
 
     for idx, cw in enumerate(conc_wires):
+        point2d = ptables.pjt_points2d_table.insert(0.0, 0.0, 0.0)
         ptables.pjt_concentric_wires_table.insert(
-            layer_db.db_id, idx, cw.wire_id, False)
+            layer_db.db_id, idx, cw.wire_id, point2d.db_id, False)
 
     # The transition's one table lists every branch's wires
     # (PJTTransition.wires is the union of its branches' own).
@@ -367,7 +374,7 @@ def _find_bundle(mouse_pos: _point.Point, camera: "_camera.Camera",
 
 
 @_check_types.do
-def is_bundle_end_free(ptables: object, bundle: _bundle.Bundle, endpoint: str) -> bool:
+def is_bundle_end_free(ptables: "_pjt_bases.PJTTables", bundle: _bundle.Bundle, endpoint: str) -> bool:
     """Whether *bundle*'s *endpoint* ('start'/'stop') has nothing already
     attached to it -- BUNDLE_PLACEMENT.md section 5/8: "free-end/free-
     branch helpers" needed by placement, "which one is the source of
@@ -425,8 +432,8 @@ def _find_free_bundle_end(
 @_check_types.do
 def _find_free_branch_ray(
     origin: np.ndarray, direc: np.ndarray, project: "_project.Project",
-    exclude_transition: object | None = None
-) -> tuple[object, "_transition_3d.Branch"] | None:
+    exclude_transition: _Union["_transition_obj.Transition", None] = None
+) -> tuple["_transition_obj.Transition", "_transition_3d.Branch"] | None:
     """The first FREE branch (no bundle already attached), across every
     transition in the project, that world-space ray (*origin*, *direc* --
     from ``gl.object_picker.build_ray``) actually intersects -- the
@@ -502,7 +509,7 @@ def _rotation_matrix_between(v_from: np.ndarray, v_to: np.ndarray) -> np.ndarray
 
 
 @_check_types.do
-def _apply_rotation(transition_db_obj: object, rot_mat: np.ndarray) -> None:
+def _apply_rotation(transition_db_obj: "_pjt_transition.PJTTransition", rot_mat: np.ndarray) -> None:
     """Set *transition_db_obj*'s ``angle3d`` to match rotation matrix
     *rot_mat*, continuously (no jump relative to its current value) --
     the same Shepperd-stable-quaternion-plus-``euler_from_matrix_
@@ -559,7 +566,7 @@ def _apply_rotation(transition_db_obj: object, rot_mat: np.ndarray) -> None:
 
 
 @_check_types.do
-def _branch_local_direction(branch: object) -> np.ndarray:
+def _branch_local_direction(branch: "_global_transition_branch.TransitionBranch") -> np.ndarray:
     """A catalog branch's own trunk direction in the transition's local
     space -- local +X rotated by the branch's own 3-axis euler angle.
     Same definition ``objects_3d.transition._branch_direction`` (and its
@@ -578,7 +585,7 @@ def _branch_local_direction(branch: object) -> np.ndarray:
 
 @_check_types.do
 def _align_branch_to_bundle(
-    transition_db_obj: object, branch_local_direction: np.ndarray, bundle: _bundle.Bundle,
+    transition_db_obj: "_pjt_transition.PJTTransition", branch_local_direction: np.ndarray, bundle: _bundle.Bundle,
     endpoint: str
 ) -> None:
     """Rotate *transition_db_obj* so the branch whose own local direction

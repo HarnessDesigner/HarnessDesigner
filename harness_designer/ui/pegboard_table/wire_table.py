@@ -40,22 +40,21 @@ What this subclass adds on top:
 
 import weakref
 from typing import TYPE_CHECKING
+from collections.abc import Callable
 
-from PySide6 import QtCore
-from PySide6.QtCore import Qt, QPoint, QRect
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QCheckBox, QScrollArea,
-                               QHeaderView, QAbstractItemView, QApplication, QFrame)
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from ..editor_db import base as _base
 from . import column_defs as _column_defs
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
+    from .. import mainframe as _mainframe
     from ...database.project_db.pjt_wire import PJTWiresTable
     from ...database.project_db.pjt_pegboard_table import PJTPegboardTable
 
 
-class _ColumnPickerPopup(QFrame):
+class _ColumnPickerPopup(QtWidgets.QFrame):
     """Right-click-header checklist of every optional column, checked
     state mirroring what's currently shown. Toggling one applies
     immediately (no OK/Cancel) -- same instant-apply feel as a normal
@@ -71,8 +70,8 @@ class _ColumnPickerPopup(QFrame):
     """
 
     @_check_types.do
-    def __init__(self, parent: QWidget, visible_indices: list[int],
-                 available_indices: list[int], on_toggle):
+    def __init__(self, parent: QtWidgets.QWidget, visible_indices: list[int],
+                 available_indices: list[int], on_toggle: Callable[[int, bool], None]) -> None:
         """Initialise the popup.
 
         :param parent: The table this popup lives inside.
@@ -91,18 +90,18 @@ class _ColumnPickerPopup(QFrame):
 
         # The hosted widget tree is translucent (see mdi_host) -- without
         # its own opaque fill this would render see-through.
-        self.setFrameShape(QFrame.Shape.Box)
+        self.setFrameShape(QtWidgets.QFrame.Shape.Box)
         self.setAutoFillBackground(True)
 
-        outer = QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
         outer.setContentsMargins(4, 4, 4, 4)
 
-        self._scroll = QScrollArea(self)
+        self._scroll = QtWidgets.QScrollArea(self)
         self._scroll.setWidgetResizable(True)
         outer.addWidget(self._scroll)
 
-        body = QWidget(self._scroll)
-        layout = QVBoxLayout(body)
+        body = QtWidgets.QWidget(self._scroll)
+        layout = QtWidgets.QVBoxLayout(body)
         layout.setContentsMargins(4, 4, 4, 4)
         self._scroll.setWidget(body)
 
@@ -111,7 +110,7 @@ class _ColumnPickerPopup(QFrame):
             if def_index not in available_indices:
                 continue
 
-            box = QCheckBox(label, body)
+            box = QtWidgets.QCheckBox(label, body)
             box.setChecked(def_index in visible_set)
             box.toggled.connect(
                 lambda checked, i=def_index: self._on_toggle(i, checked))
@@ -120,14 +119,14 @@ class _ColumnPickerPopup(QFrame):
         self._body_size_hint = body.sizeHint()
 
     @_check_types.do
-    def scroll_viewport(self) -> QWidget:
+    def scroll_viewport(self) -> QtWidgets.QWidget:
         """The checklist's scroll-area viewport (see
         :meth:`WireTable.picker_scroll_viewport`).
         """
         return self._scroll.viewport()
 
     @_check_types.do
-    def place_within(self, bounds: QRect, near: QPoint) -> None:
+    def place_within(self, bounds: QtCore.QRect, near: QtCore.QPoint) -> None:
         """Size and position this popup to sit fully inside *bounds*
         (the table's own rect), as close to *near* as fits.
 
@@ -165,7 +164,7 @@ class _HeaderLiveMoveFilter(QtCore.QObject):
 
     _EDGE_PX = 4
 
-    def __init__(self, table: "WireTable"):
+    def __init__(self, table: "WireTable") -> None:
         super().__init__(table)
         self._table = table
         self._logical: int | None = None
@@ -185,7 +184,7 @@ class _HeaderLiveMoveFilter(QtCore.QObject):
             self._dragging = False
             self._table._suppress_header_click = False  # NOQA
 
-            if event.button() == Qt.MouseButton.LeftButton:
+            if event.button() == QtCore.Qt.MouseButton.LeftButton:
                 header = self._table.horizontalHeader()
                 x = int(event.position().x())
                 logical = header.logicalIndexAt(x)
@@ -198,11 +197,11 @@ class _HeaderLiveMoveFilter(QtCore.QObject):
                         self._grab_offset = x - start
 
         elif event_type == QtCore.QEvent.Type.MouseMove:
-            if self._logical is not None and event.buttons() & Qt.MouseButton.LeftButton:
+            if self._logical is not None and event.buttons() & QtCore.Qt.MouseButton.LeftButton:
                 x = int(event.position().x())
 
                 if not self._dragging:
-                    if abs(x - self._press_x) >= QApplication.startDragDistance():
+                    if abs(x - self._press_x) >= QtWidgets.QApplication.startDragDistance():
                         self._dragging = True
 
                 if self._dragging:
@@ -256,8 +255,8 @@ class WireTable(_base.EditorList):
     wire_deselected = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent, mainframe, label, table,
-                 pegboard_table: "PJTPegboardTable"):
+    def __init__(self, parent: QtWidgets.QWidget | None, mainframe: "_mainframe.MainFrame", label: str, table: "PJTWiresTable",
+                 pegboard_table: "PJTPegboardTable") -> None:
         """Initialise the :class:`WireTable` instance.
 
         :param parent: Parent widget.
@@ -463,7 +462,7 @@ class WireTable(_base.EditorList):
         self._model.reset_all()
 
     @_check_types.do
-    def _get_cell_text(self, row_id, col_id):
+    def _get_cell_text(self, row_id: int, col_id: int) -> str:
         """Return the cell text, overriding the 7 computed circuit
         columns with a real value looked up from :class:`PJTCircuit`
         (walking terminals/splices/wire-service-loops in Python) instead
@@ -606,7 +605,7 @@ class WireTable(_base.EditorList):
         return ' / '.join(name for name in names if name)
 
     @_check_types.do
-    def _get_icon(self, row_id):
+    def _get_icon(self, row_id: int) -> QtGui.QIcon | None:
         """Return the wire-insulation swatch icon for *row_id*, same
         technique as :meth:`WiresPage._get_icon` but starting from this
         row's joined ``part_id`` (a ``pjt_wires`` row has no color/
@@ -620,7 +619,6 @@ class WireTable(_base.EditorList):
         """
         from ... import image as _image
         from ...database import id_generator as _id_generator
-        from PySide6.QtGui import QIcon
 
         if row_id < 0:
             return None
@@ -686,7 +684,7 @@ class WireTable(_base.EditorList):
         image = _image.images.build_wire(primary_color, stripe_color, conductor_color)
         image = image.resize_keep_aspect(64, 64)
 
-        icon = QIcon(image.pixmap)
+        icon = QtGui.QIcon(image.pixmap)
         self.bitmap_indexes[db_id] = icon
 
         return icon
@@ -719,7 +717,7 @@ class WireTable(_base.EditorList):
         return visible
 
     @_check_types.do
-    def show_column_picker(self, pos: QPoint) -> None:
+    def show_column_picker(self, pos: QtCore.QPoint) -> None:
         """Show the add/remove-column checklist inside this table, as
         close to *pos* as fits (see :class:`_ColumnPickerPopup` for why
         it's a plain child widget rather than a ``Qt.Popup`` window).
@@ -756,7 +754,7 @@ class WireTable(_base.EditorList):
         self.appearance_changed.emit()
 
     @_check_types.do
-    def picker_scroll_viewport(self) -> QWidget | None:
+    def picker_scroll_viewport(self) -> QtWidgets.QWidget | None:
         """The open column checklist's scroll-area viewport, or ``None``
         if it isn't open.
 
@@ -772,7 +770,7 @@ class WireTable(_base.EditorList):
         return self._picker.scroll_viewport()
 
     @_check_types.do
-    def picker_contains(self, widget: QWidget | None) -> bool:
+    def picker_contains(self, widget: QtWidgets.QWidget | None) -> bool:
         """Whether *widget* is the open column checklist or inside it.
 
         :param widget: A widget, or ``None``.
@@ -786,7 +784,7 @@ class WireTable(_base.EditorList):
         return widget is self._picker or self._picker.isAncestorOf(widget)
 
     @_check_types.do
-    def _on_header_context_menu(self, pos: QPoint) -> None:
+    def _on_header_context_menu(self, pos: QtCore.QPoint) -> None:
         """Show the add/remove-column checklist. Replaces (does not
         extend) the inherited per-column search popup for this table --
         see the module docstring for why the two features couldn't share
@@ -873,7 +871,7 @@ class WireTable(_base.EditorList):
 
             logical = key + 1
             label_text = self.column_mapping[key][0]
-            header.setSectionResizeMode(logical, QHeaderView.ResizeMode.Interactive)
+            header.setSectionResizeMode(logical, QtWidgets.QHeaderView.ResizeMode.Interactive)
             offset = 100 if label_text == 'Description' else 25
             self.setColumnWidth(logical, fm.horizontalAdvance(label_text) + offset)
 
@@ -1074,7 +1072,7 @@ class WireTable(_base.EditorList):
         try:
             self.selectRow(row)
             self.scrollTo(self.model().index(row, 0),
-                          QAbstractItemView.ScrollHint.EnsureVisible)
+                          QtWidgets.QAbstractItemView.ScrollHint.EnsureVisible)
         finally:
             self._syncing_selection = False
 

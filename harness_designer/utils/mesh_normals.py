@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 import numpy as np
+
 from .. import check_types as _check_types
 
 
@@ -195,7 +196,7 @@ def compute_normals(
 
 
 @_check_types.do
-def compute_face_indexes(vertices):
+def compute_face_indexes(vertices: np.ndarray) -> np.ndarray:
     indices_array = np.arange(len(vertices), dtype=np.uint32)
 
     return indices_array

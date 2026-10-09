@@ -1,7 +1,18 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtCore import Signal
+from typing import TYPE_CHECKING, Union as _Union
+
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ... import color as _color
+    from . import prop_base as _prop_base
+    from PySide6 import QtGui
+
+    # Every value a property control emits: scalars, the array lists, and the
+    # colour control's [name, Color] pair.
+    PropertyValue = (str | int | float | bool | None | list[float] | list[int]
+                     | list[str] | list[str | _color.Color | QtGui.QColor])
 
 
 class PropertyEvent:
@@ -11,7 +22,7 @@ class PropertyEvent:
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise the :class:`PropertyEvent` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,7 +44,7 @@ class PropertyEvent:
         return self._name
 
     @_check_types.do
-    def SetName(self, value: str):
+    def SetName(self, value: str) -> None:
         """Execute the set name operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -44,7 +55,7 @@ class PropertyEvent:
         self._name = value
 
     @_check_types.do
-    def SetProperty(self, value):
+    def SetProperty(self, value: "_prop_base.Property") -> None:
         """Execute the set property operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -55,7 +66,7 @@ class PropertyEvent:
         self._property = value
 
     @_check_types.do
-    def Getproperty(self):
+    def Getproperty(self) -> _Union["_prop_base.Property", None]:
         """Execute the getproperty operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +77,7 @@ class PropertyEvent:
         return self._property
 
     @_check_types.do
-    def SetPropertyType(self, value):
+    def SetPropertyType(self, value: type) -> None:
         """Execute the set property type operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -77,7 +88,7 @@ class PropertyEvent:
         self._property_type = value
 
     @_check_types.do
-    def GetPropertyType(self):
+    def GetPropertyType(self) -> type:
         """Execute the get property type operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -88,7 +99,7 @@ class PropertyEvent:
         return self._property_type
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> "PropertyValue":
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -99,7 +110,7 @@ class PropertyEvent:
         return self._value
 
     @_check_types.do
-    def SetValue(self, value):
+    def SetValue(self, value: "PropertyValue") -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

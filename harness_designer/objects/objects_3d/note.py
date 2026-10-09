@@ -18,6 +18,8 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_note as _pjt_note
     from .. import note as _note
     from ... import ui as _ui
@@ -309,7 +311,6 @@ class Note(_base_3d.Base3D):
         from ...ui.dialogs import add_note as _add_note
         from ...gl import materials as _materials_local
         from ... import color as _color
-        from ... import config as _config
 
         dlg = _add_note.AddNoteDialog(mainframe)
         dlg.exec()
@@ -347,7 +348,7 @@ class Note(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -400,7 +401,7 @@ class NoteMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "Note") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Note") -> None:
         """Initialise the :class:`NoteMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

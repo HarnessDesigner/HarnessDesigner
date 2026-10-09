@@ -16,7 +16,7 @@ class EnumProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """
         Initialise the :class:`EnumProperty` instance.
 
@@ -198,7 +198,7 @@ class EnumProperty(QtWidgets.QWidget):
         return self._choices
 
     @_check_types.do
-    def SetItems(self, items: list[int]):
+    def SetItems(self, items: list[int]) -> None:
         """
         Execute the set items operation.
 
@@ -211,7 +211,7 @@ class EnumProperty(QtWidgets.QWidget):
         self._choices = items
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         if self._radio_box is not None:
             self._radio_box.setTitle(value)

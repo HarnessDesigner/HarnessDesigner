@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
 import weakref
@@ -17,6 +17,8 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ..database.project_db import pjt_point3d as _pjt_point3d
+    from ..database.project_db import pjt_point_pegboard as _pjt_point_pegboard
     from .. import ui as _ui
     from ..database.project_db import pjt_terminal as _pjt_terminal
     from . import wire as _wire_obj
@@ -25,6 +27,61 @@ if TYPE_CHECKING:
 # The editors (``CanvasBase._editor_name``) in which selecting a terminal selects
 # the cavity it sits in instead -- see Terminal.set_selected.
 _CAVITY_SELECTING_EDITORS = ('editor3d', 'editor_pegboard')
+
+
+def _wire_end_id(wire_db, end: str, view: str) -> bytes | None:
+    """The point id a wire's *end* ('start' or 'stop') uses in *view*.
+
+    Explicit branches rather than a column name built from strings, so a
+    misspelled column fails at the line that reads it.
+    """
+    if end == 'start':
+        if view == '3d':
+            return wire_db.start_position3d_id
+        if view == 'pegboard':
+            return wire_db.start_position_pegboard_id
+        return wire_db.start_position2d_id
+
+    if view == '3d':
+        return wire_db.stop_position3d_id
+    if view == 'pegboard':
+        return wire_db.stop_position_pegboard_id
+    return wire_db.stop_position2d_id
+
+
+def _set_wire_end_id(wire_db, end: str, view: str, value: bytes) -> None:
+    """Point a wire's *end* at *value* in *view* (see :func:`_wire_end_id`)."""
+    if end == 'start':
+        if view == '3d':
+            wire_db.start_position3d_id = value
+        elif view == 'pegboard':
+            wire_db.start_position_pegboard_id = value
+        else:
+            wire_db.start_position2d_id = value
+        return
+
+    if view == '3d':
+        wire_db.stop_position3d_id = value
+    elif view == 'pegboard':
+        wire_db.stop_position_pegboard_id = value
+    else:
+        wire_db.stop_position2d_id = value
+
+
+def _wire_end_point(wire_db, end: str, view: str):
+    """The point object a wire's *end* resolves to in *view* (or ``None``)."""
+    if end == 'start':
+        if view == '3d':
+            return wire_db.start_position3d
+        if view == 'pegboard':
+            return wire_db.start_position_pegboard
+        return wire_db.start_position2d
+
+    if view == '3d':
+        return wire_db.stop_position3d
+    if view == 'pegboard':
+        return wire_db.stop_position_pegboard
+    return wire_db.stop_position2d
 
 
 class Terminal(_ObjectBase):
@@ -39,7 +96,7 @@ class Terminal(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_terminal.PJTTerminal", project_load=False, free: bool = False):
+                 db_obj: "_pjt_terminal.PJTTerminal", project_load: bool = False, free: bool = False) -> None:
         """Initialise the :class:`Terminal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -321,7 +378,6 @@ class Terminal(_ObjectBase):
             layout_column = 'point3d_id'
             waypoints = wire_db.waypoints3d
             view_obj = wire.obj3d
-            end_attr = f'{end}_position3d_id'
             back_id = db_obj.wire_position3d_id_raw
 
             if cavity is not None:
@@ -333,7 +389,6 @@ class Terminal(_ObjectBase):
             layout_column = 'point_pegboard_id'
             waypoints = wire_db.waypoints_pegboard
             view_obj = wire.objpegboard
-            end_attr = f'{end}_position_pegboard_id'
             back_id = db_obj.wire_position_pegboard_id_raw
 
             if cavity is not None:
@@ -356,7 +411,7 @@ class Terminal(_ObjectBase):
             outer_id = back_id
 
         new_point = points_table.insert(*points_table[outer_id].point.as_float)
-        setattr(wire_db, end_attr, new_point.db_id)
+        _set_wire_end_id(wire_db, end, view, new_point.db_id)
 
         if end == 'start':
             view_obj.set_start_position(new_point.point)
@@ -467,10 +522,10 @@ class Terminal(_ObjectBase):
                     continue
 
                 ends = [
-                    (target3d, getattr(wire_db, f'{end}_position3d')),
-                    (target_pegboard, getattr(wire_db, f'{end}_position_pegboard'))]
+                    (target3d, _wire_end_point(wire_db, end, '3d')),
+                    (target_pegboard, _wire_end_point(wire_db, end, 'pegboard'))]
 
-                end2d = getattr(wire_db, f'{end}_position2d')
+                end2d = _wire_end_point(wire_db, end, '2d')
                 ends.extend((target2d, end2d) for target2d in targets2d)
 
                 for target, end_point in ends:
@@ -487,9 +542,9 @@ class Terminal(_ObjectBase):
             wire_db = wire.db_obj
 
             stale_ends = (
-                (ptables.pjt_points3d_table, getattr(wire_db, f'{end}_position3d_id')),
-                (ptables.pjt_points_pegboard_table, getattr(wire_db, f'{end}_position_pegboard_id')),
-                (ptables.pjt_points2d_table, getattr(wire_db, f'{end}_position2d_id')))
+                (ptables.pjt_points3d_table, _wire_end_id(wire_db, end, '3d')),
+                (ptables.pjt_points_pegboard_table, _wire_end_id(wire_db, end, 'pegboard')),
+                (ptables.pjt_points2d_table, _wire_end_id(wire_db, end, '2d')))
 
             self.add_wire(wire, end)
 
@@ -664,7 +719,8 @@ class Terminal(_ObjectBase):
 
     @staticmethod
     @_check_types.do
-    def _own_or_cloned_point_id(points_table: object, shared_point_id: bytes, is_first_wire: bool) -> bytes:
+    def _own_or_cloned_point_id(points_table: _Union["_pjt_point3d.PJTPoints3DTable", "_pjt_point_pegboard.PJTPointsPegboardTable"],
+                            shared_point_id: bytes, is_first_wire: bool) -> bytes:
         """The first wire on a terminal reuses its shared back/cavity
         point row directly (so it keeps tracking the terminal/cavity if
         the housing moves); every subsequent wire gets its own fresh point
@@ -726,7 +782,7 @@ class Terminal(_ObjectBase):
         return self.db_obj.wire_position3d
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         seal = self.db_obj.seal
         if seal is not None:
             seal_obj = seal.get_object()

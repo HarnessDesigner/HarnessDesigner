@@ -13,3 +13,7 @@ wire editing. `CODEBASE_MAP.md`/git history mark this pooled design as
 freshly finished (2026-09), so this may already be within acceptable
 bounds -- flagging for a benchmark against a project with many wires/
 waypoints before assuming it needs a cache.
+
+## Added in the folder review: `register` and `release`
+`register` runs only when a wire's point list changes shape. A plain waypoint move needs no call, because the vertices reference the live Point buffers, so this is already the cheap design. `release` drops vertex references on wire deletion and is not a concern.
+

@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -9,8 +11,13 @@ from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -59,7 +66,7 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_temperature(con, name, commit=True):  # NOQA
+def add_temperature(con: "_connector_base.ConnectorBase", name: str, commit: bool = True) -> bytes:  # NOQA
     """Add a temperature.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -89,7 +96,7 @@ def add_temperature(con, name, commit=True):  # NOQA
 
 
 @_check_types.do
-def get_temperature_id(con, name):
+def get_temperature_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     """Return the temperature ID.
 
     UNKNOWN details are inferred from the callable name and signature.

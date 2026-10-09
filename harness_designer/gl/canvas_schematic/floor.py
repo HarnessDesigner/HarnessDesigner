@@ -50,12 +50,12 @@ def _build_quad(left: float | _d, right: float | _d, bottom: float, top: float |
 class Floor(_floor_base.FloorBase):
     """Procedural top-down dot grid."""
 
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: "_canvas.Canvas") -> None:
         super().__init__(canvas)
 
         self.grid_spacing = 1.0
 
-    def _initialize_grid(self):
+    def _initialize_grid(self) -> tuple[int, int]:
         # placeholder bounds, updated every render()
         verts = _build_quad(-1.0, 1.0, -1.0, 1.0)
 
@@ -74,7 +74,7 @@ class Floor(_floor_base.FloorBase):
 
         return vao, vbo
 
-    def set(self, flag):
+    def set(self, flag: bool) -> None:
         """
         Enable or disable the floor, rebuilding GPU resources as needed.
         """
@@ -123,7 +123,7 @@ class Floor(_floor_base.FloorBase):
         n = math.floor(math.log2(raw))
         return float(2.0 ** n)
 
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw the procedural floor in a single pass."""
 
         if not self.config.enable or self._vao is None:

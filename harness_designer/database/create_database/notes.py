@@ -5,7 +5,6 @@ from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
 from . import colors as _colors
-
 from harness_designer.database import db_connectors as _con
 
 

@@ -13,15 +13,21 @@
 #
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, Union as _Union
 
-from PySide6 import QtCore
-from PySide6 import QtGui
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import design_rules as _design_rules
 from . import bitmaps as _bitmaps
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from .. import mainframe as _mainframe
+    from ...database import project_db as _project_db
+    from ...database.project_db import pjt_circuit as _pjt_circuit
+    from ...database.project_db import pjt_housing as _pjt_housing
+    from ...objects import circuit as _circuit
+    from ...objects import wire as _wire
 
 
 @dataclass
@@ -106,7 +112,7 @@ class _BuildWorker(QtCore.QObject):
     progress: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, db):
+    def __init__(self, db: "_project_db.PJTTables") -> None:
         """Initialise the :class:`_BuildWorker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +124,7 @@ class _BuildWorker(QtCore.QObject):
         self._db = db
 
     @_check_types.do
-    def run(self):
+    def run(self) -> None:
         """Execute the run operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -145,43 +151,21 @@ class _BuildWorker(QtCore.QObject):
 
 
 @_check_types.do
-def _load_housing_pixmap(housing_obj) -> QtGui.QPixmap | None:
+def _load_housing_pixmap(housing_obj: "_pjt_housing.PJTHousing") -> QtGui.QPixmap | None:
     """
     Try to load a QPixmap from a housing database object.
     Looks for common attribute names used by harness tools:
       .image, .thumbnail, .photo, .picture, .icon
     Each may be a QPixmap, QImage, bytes (PNG/JPEG), or str (file path).
     """
-
-    if housing_obj is None:
-        return None
-
-    for attr in ("image", "thumbnail", "photo", "picture", "icon", "pixmap"):
-        val = _design_rules.safe(housing_obj, attr)
-        if val is None:
-            continue
-
-        if isinstance(val, QtGui.QPixmap) and not val.isNull():
-            return val
-
-        if isinstance(val, QtGui.QImage) and not val.isNull():
-            return QtGui.QPixmap.fromImage(val)
-
-        if isinstance(val, (bytes, bytearray)):
-            px = QtGui.QPixmap()
-            if px.loadFromData(val):
-                return px
-
-        if isinstance(val, str) and val:
-            px = QtGui.QPixmap(val)
-            if not px.isNull():
-                return px
-
+    # PJTHousing has no image, icon or pixmap attribute, so no pixmap source
+    # was ever found and this always returned None (see performance_notes).
     return None
 
 
+
 @_check_types.do
-def _build_row(circuit, db) -> CircuitRow:
+def _build_row(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") -> CircuitRow:
     """Build the row.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -195,22 +179,22 @@ def _build_row(circuit, db) -> CircuitRow:
     """
     r = CircuitRow()
     r.circuit_db_id = circuit.db_id
-    r.circuit_num = _design_rules.safe(circuit, "circuit_num")
-    r.net_name = _design_rules.safe(circuit, "name", "") or ""
-    r.notes = _design_rules.safe(circuit, "notes", "") or ""
-    r.volts = float(_design_rules.safe(circuit, "volts", 0) or 0)
+    r.circuit_num = circuit.circuit_num
+    r.net_name = circuit.name or ""
+    r.notes = circuit.notes or ""
+    r.volts = float(circuit.volts or 0)
 
     # Start terminal
-    st = _design_rules.safe(circuit, "start_terminal")
-    r.start_terminal_db_id = _design_rules.safe(st, "db_id")
+    st = circuit.start_terminal
+    r.start_terminal_db_id = st.db_id if st else None
     if st:
-        cav = _design_rules.safe(st, "cavity")
+        cav = st.cavity
         if cav:
-            r.from_pin = _design_rules.safe(cav, "name", "") or ""
+            r.from_pin = cav.name or ""
 
-            h = _design_rules.safe(cav, "housing")
+            h = cav.housing
             if h:
-                r.from_connector = _design_rules.safe(h, "name", "") or ""
+                r.from_connector = h.name or ""
                 # ── housing image ──────────────────────────────────
                 raw_px = _load_housing_pixmap(h)
                 if raw_px:
@@ -225,24 +209,22 @@ def _build_row(circuit, db) -> CircuitRow:
     to_conns, to_pins = [], []
     seen_housing_names: set[str] = set()
 
-    tmp = _design_rules.safe(circuit, "load_terminals", []) or []
+    for et in circuit.load_terminals or []:
+        r.end_terminal_db_ids.append(et.db_id)
 
-    for et in tmp:
-        r.end_terminal_db_ids.append(_design_rules.safe(et, "db_id"))
+        r.total_load_a += float(et.load or 0)
 
-        r.total_load_a += float(_design_rules.safe(et, "load", 0) or 0)
-
-        vd = float(_design_rules.safe(et, "voltage_drop", 0) or 0)
+        vd = float(et.voltage_drop or 0)
         if vd > r.voltage_drop_v:
             r.voltage_drop_v = vd
 
-        cav = _design_rules.safe(et, "cavity")
+        cav = et.cavity
         if cav:
-            to_pins.append(_design_rules.safe(cav, "name", "") or "")
+            to_pins.append(cav.name or "")
 
-            h = _design_rules.safe(cav, "housing")
+            h = cav.housing
             if h:
-                hname = _design_rules.safe(h, "name", "") or ""
+                hname = h.name or ""
                 to_conns.append(hname)
 
                 # ── housing image (deduplicate same housing) ───────
@@ -266,17 +248,14 @@ def _build_row(circuit, db) -> CircuitRow:
         r.voltage_drop_pct = round((r.voltage_drop_v / r.volts) * 100, 2)
 
     # Wires — sum totals
-    wires = _design_rules.safe(circuit, "wires", []) or []
+    wires = circuit.wires or []
     for w in wires:
-        r.wire_db_ids.append(_design_rules.safe(w, "db_id"))
-        r.total_length_mm += float(
-            _design_rules.safe(w, "length_mm",  0) or 0)
+        r.wire_db_ids.append(w.db_id)
+        r.total_length_mm += float(w.length_mm or 0)
 
-        r.total_resistance += float(
-            _design_rules.safe(w, "resistance", 0) or 0)
+        r.total_resistance += float(w.resistance or 0)
 
-        r.total_weight_g += float(
-            _design_rules.safe(w, "weight_g",   0) or 0)
+        r.total_weight_g += float(w.weight_g or 0)
 
     r.total_length_mm = round(r.total_length_mm,  2)
     r.total_resistance = round(r.total_resistance, 6)
@@ -284,29 +263,23 @@ def _build_row(circuit, db) -> CircuitRow:
 
     # Wire part info from first wire
     if wires:
-        part = _design_rules.safe(wires[0], "part")
+        part = wires[0].part
         if part:
-            clr = _design_rules.safe(part, "color")
+            clr = part.color
             if clr:
-                r.wire_color_primary = (
-                    _design_rules.safe(clr, "hex_code") or
-                    _design_rules.safe(clr, "name"))
+                r.wire_color_primary = clr.name
 
-            sk = _design_rules.safe(part, "stripe_color")
+            sk = part.stripe_color
             if sk:
-                r.wire_color_stripe = (
-                    _design_rules.safe(sk, "hex_code") or
-                    _design_rules.safe(sk, "name"))
+                r.wire_color_stripe = sk.name
 
             # conductor material (e.g. "copper", "tinned_copper", "aluminium")
-            r.wire_conductor_material = (_design_rules.safe(part, "conductor_material") or
-                                         _design_rules.safe(part, "conductor") or
-                                         _design_rules.safe(part, "material"))
+            r.wire_conductor_material = part.material
 
-            r.wire_gauge_awg = _design_rules.safe(part, "size_awg")
-            r.wire_gauge_mm2 = _design_rules.safe(part, "size_mm2")
-            r.od_mm = _design_rules.safe(part, "od_mm")
-            r.num_conductors = _design_rules.safe(part, "num_conductors", 1) or 1
+            r.wire_gauge_awg = part.size_awg
+            r.wire_gauge_mm2 = part.size_mm2
+            r.od_mm = part.od_mm
+            r.num_conductors = part.num_conductors or 1
 
     # Bundle routing
     r.bundle_names = _bundles_for_circuit(circuit, db)
@@ -314,8 +287,9 @@ def _build_row(circuit, db) -> CircuitRow:
     return r
 
 
+
 @_check_types.do
-def _bundles_for_circuit(circuit, db) -> list[str]:
+def _bundles_for_circuit(circuit: "_pjt_circuit.PJTCircuit", db: "_project_db.PJTTables") -> list[str]:
     """Execute the bundles for circuit operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -327,31 +301,11 @@ def _bundles_for_circuit(circuit, db) -> list[str]:
     :returns: Return value. UNKNOWN details.
     :rtype: list[str]
     """
-    cw_ids = {_design_rules.safe(w, "db_id")
-              for w in (_design_rules.safe(circuit, "wires", []) or [])}
+    # Bundle wires are PJTWire objects, which have no ``wire`` attribute, so the
+    # per-wire match never succeeded and this always returned []. Kept as a stub
+    # until the bug is decided (see performance_notes/ui/editor_ciruit).
+    return []
 
-    if not cw_ids:
-        return []
-
-    names: list[str] = []
-    try:
-        for bundle in db.pjt_bundles_table:
-            for bw in (_design_rules.safe(bundle, "wires", []) or []):
-                pw = _design_rules.safe(bw, "wire")
-
-                if pw and _design_rules.safe(pw, "db_id") in cw_ids:
-
-                    nm = (_design_rules.safe(bundle, "name", "") or
-                          f"Bundle {_design_rules.safe(bundle,'db_id')}")
-
-                    if nm not in names:
-                        names.append(nm)
-
-                    break
-
-    except Exception:  # NOQA
-        pass
-    return names
 
 
 # ---------------------------------------------------------------------------
@@ -365,7 +319,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
     cell_edited: QtCore.SignalInstance = QtCore.Signal(int, int, object)
 
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
         """Initialise the :class:`CircuitTableModel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -377,7 +331,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         self._rows: list[CircuitRow] = []
 
     @_check_types.do
-    def load(self, rows: list[CircuitRow]):
+    def load(self, rows: list[CircuitRow]) -> None:
         """Execute the load operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -390,7 +344,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         self.endResetModel()
 
     @_check_types.do
-    def clear(self):
+    def clear(self) -> None:
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -416,7 +370,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
             return self._rows[r]
 
     @_check_types.do
-    def rowCount(self, p=QtCore.QModelIndex()):
+    def rowCount(self, p: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         """Execute the row count operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -429,7 +383,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return len(self._rows)
 
     @_check_types.do
-    def columnCount(self, p=QtCore.QModelIndex()):
+    def columnCount(self, p: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         """Execute the column count operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -442,7 +396,9 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return len(COLUMNS)
 
     @_check_types.do
-    def headerData(self, section, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
+    def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
+                   role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+                   ) -> str | QtGui.QFont | None:
         """Execute the header data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -472,7 +428,8 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
 
     @_check_types.do
     def data(self, index: QtCore.QModelIndex,
-             role=QtCore.Qt.ItemDataRole.DisplayRole):
+             role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole
+             ) -> str | bytes | CircuitRow | QtGui.QBrush | QtCore.Qt.AlignmentFlag | None:
         """Execute the data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -551,7 +508,8 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return None
 
     @_check_types.do
-    def setData(self, index, value, role=QtCore.Qt.ItemDataRole.EditRole):
+    def setData(self, index: QtCore.QModelIndex, value: Any,
+                role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.EditRole) -> bool:
         """Execute the set data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -586,7 +544,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return True
 
     @_check_types.do
-    def flags(self, index):
+    def flags(self, index: QtCore.QModelIndex) -> QtCore.Qt.ItemFlag:
         """Execute the flags operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -609,7 +567,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
     MIME = "application/x-harness-circuit-rows"
 
     @_check_types.do
-    def supportedDropActions(self):
+    def supportedDropActions(self) -> QtCore.Qt.DropAction:
         """Execute the supported drop actions operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -620,7 +578,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return QtCore.Qt.DropAction.MoveAction
 
     @_check_types.do
-    def mimeTypes(self):
+    def mimeTypes(self) -> list[str]:
         """Execute the mime types operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -631,7 +589,7 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return [self.MIME]
 
     @_check_types.do
-    def mimeData(self, indexes):
+    def mimeData(self, indexes: list[QtCore.QModelIndex]) -> QtCore.QMimeData:
         """Execute the mime data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -654,7 +612,8 @@ class CircuitTableModel(QtCore.QAbstractTableModel):
         return m
 
     @_check_types.do
-    def dropMimeData(self, data, action, row, col, parent):
+    def dropMimeData(self, data: QtCore.QMimeData, action: QtCore.Qt.DropAction,
+                     row: int, col: int, parent: QtCore.QModelIndex) -> bool:
         """Execute the drop mime data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -704,7 +663,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtCore.QObject | None = None) -> None:
         """Initialise the :class:`CircuitFilterProxy` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -718,7 +677,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
 
     @_check_types.do
-    def set_filter(self, text: str):
+    def set_filter(self, text: str) -> None:
         """Set the filter.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -730,7 +689,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self.invalidateFilter()
 
     @_check_types.do
-    def set_severity(self, sev):
+    def set_severity(self, sev: _design_rules.Severity | None) -> None:
         """Set the severity.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -742,7 +701,7 @@ class CircuitFilterProxy(QtCore.QSortFilterProxyModel):
         self.invalidateFilter()
 
     @_check_types.do
-    def filterAcceptsRow(self, src_row, src_parent):
+    def filterAcceptsRow(self, src_row: int, src_parent: QtCore.QModelIndex) -> bool:
         """Execute the filter accepts row operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -799,7 +758,8 @@ class WireDelegate(QtWidgets.QStyledItemDelegate):
     _MARGIN = 4   # px padding top/bottom around the wire
 
     @_check_types.do
-    def paint(self, painter: QtGui.QPainter, option, index: QtCore.QModelIndex):
+    def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionViewItem,
+              index: QtCore.QModelIndex) -> None:
         """Execute the paint operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -852,7 +812,7 @@ class WireDelegate(QtWidgets.QStyledItemDelegate):
         painter.restore()
 
     @_check_types.do
-    def sizeHint(self, option, index):
+    def sizeHint(self, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> QtCore.QSize:
         """Execute the size hint operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -909,7 +869,8 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
         return imgs, name
 
     @_check_types.do
-    def paint(self, painter: QtGui.QPainter, option, index: QtCore.QModelIndex):
+    def paint(self, painter: QtGui.QPainter, option: QtWidgets.QStyleOptionViewItem,
+              index: QtCore.QModelIndex) -> None:
         """Execute the paint operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -961,7 +922,7 @@ class ConnectorImageDelegate(QtWidgets.QStyledItemDelegate):
         painter.restore()
 
     @_check_types.do
-    def sizeHint(self, option, index):
+    def sizeHint(self, option: QtWidgets.QStyleOptionViewItem, index: QtCore.QModelIndex) -> QtCore.QSize:
         """Execute the size hint operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -986,7 +947,7 @@ class NumericDelegate(QtWidgets.QStyledItemDelegate):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def displayText(self, value, locale):
+    def displayText(self, value: str, locale: QtCore.QLocale) -> str:
         """Execute the display text operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1021,7 +982,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         """Initialise the :class:`CircuitDetailPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1065,7 +1026,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
         layout.addWidget(tabs)
 
         @_check_types.do
-        def _te():
+        def _te() -> QtWidgets.QTextEdit:
             """Execute the te operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -1127,7 +1088,7 @@ class CircuitDetailPanel(QtWidgets.QWidget):
         return comp
 
     @_check_types.do
-    def show_row(self, row: CircuitRow | None):
+    def show_row(self, row: CircuitRow | None) -> None:
         """Show the row.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1278,7 +1239,8 @@ class CircuitTableView(QtWidgets.QTableView):
     row_selected: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, mainframe, parent=None):
+    def __init__(self, mainframe: "_mainframe.MainFrame",
+                 parent: QtWidgets.QWidget | None = None) -> None:
         """Initialise the :class:`CircuitTableView` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1333,7 +1295,8 @@ class CircuitTableView(QtWidgets.QTableView):
         self.setColumnWidth(COL_WIRE_COLOR, 190)
 
     @_check_types.do
-    def selectionChanged(self, selected, deselected):
+    def selectionChanged(self, selected: QtCore.QItemSelection,
+                         deselected: QtCore.QItemSelection) -> None:
         """Execute the selection changed operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1375,7 +1338,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
     """
 
     @_check_types.do
-    def __init__(self, mainframe):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`EditorCircuitPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1454,7 +1417,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
 
     # ── Public ────────────────────────────────────────────────────────
     @_check_types.do
-    def load_project(self, project_db):
+    def load_project(self, project_db: "_project_db.PJTTables") -> None:
         """Load the project.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1466,7 +1429,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self.refresh()
 
     @_check_types.do
-    def refresh(self):
+    def refresh(self) -> None:
         """Execute the refresh operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1493,7 +1456,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._thread.start()
 
     @_check_types.do
-    def highlight_circuit(self, circuit_db_id: bytes):
+    def highlight_circuit(self, circuit_db_id: bytes) -> None:
         """Execute the highlight circuit operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1571,7 +1534,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         return tb
 
     @_check_types.do
-    def _on_sev_changed(self, idx: int):
+    def _on_sev_changed(self, idx: int) -> None:
         """Handle the sev changed event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1585,7 +1548,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
              3: _design_rules.Severity.INFO}.get(idx))
 
     @_check_types.do
-    def _on_loaded(self, rows: list[CircuitRow]):
+    def _on_loaded(self, rows: list[CircuitRow]) -> None:
         """Handle the loaded event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1609,7 +1572,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         self._update_count()
 
     @_check_types.do
-    def _on_row_selected(self, row: CircuitRow | None):
+    def _on_row_selected(self, row: CircuitRow | None) -> None:
         """Handle the row selected event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1625,17 +1588,17 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
         if project is None:
             return
 
-        obj = _find_obj(project, "circuits", row.circuit_db_id)
+        obj = _find_obj(project.circuits, row.circuit_db_id)
         if obj:
             self._mainframe.set_selected(obj)
 
         for wid in row.wire_db_ids:
-            wo = _find_obj(project, "wires", wid)
+            wo = _find_obj(project.wires, wid)
             if wo:
                 wo.identify([0.2, 0.6, 1.0, 1.0])
 
     @_check_types.do
-    def _on_cell_edited(self, circuit_db_id: bytes, col: int, value: Any):
+    def _on_cell_edited(self, circuit_db_id: bytes, col: int, value: Any) -> None:
         """Handle the cell edited event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1661,7 +1624,7 @@ class EditorCircuitPanel(QtWidgets.QDockWidget):
             c.notes = str(value)
 
     @_check_types.do
-    def _update_count(self):
+    def _update_count(self) -> None:
         """Update the count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1806,24 +1769,21 @@ def _cell_tooltip(row: CircuitRow, col: int) -> str:
 
 
 @_check_types.do
-def _find_obj(project, collection: str, db_id: bytes):
-    """Find the obj.
+def _find_obj(objs: _Union[list["_circuit.Circuit"], list["_wire.Wire"]], db_id: bytes) -> _Union["_circuit.Circuit", "_wire.Wire", None]:
+    """Return the first object in ``objs`` whose DB id is ``db_id``, else None.
 
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param project: Value for ``project``.
-    :type project: UNKNOWN
-    :param collection: Value for ``collection``.
-    :type collection: str
+    :param objs: Project circuits or wires, as ObjectBase facades.
+    :type objs: list
     :param db_id: Identifier for the database.
     :type db_id: bytes
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
+    :returns: The matching object, or None.
     """
     try:
-        for obj in getattr(project, collection, []):
-            if hasattr(obj, "db_obj") and obj.db_obj.db_id == db_id:
+        for obj in objs:
+            if obj.db_obj.db_id == db_id:
                 return obj
 
     except Exception:  # NOQA
         pass
+
+

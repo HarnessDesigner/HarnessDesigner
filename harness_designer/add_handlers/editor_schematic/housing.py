@@ -9,7 +9,7 @@ the schematic's own flat (Y=0) plane instead of the 3D camera's focal
 plane.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -26,7 +26,7 @@ class Housing(_base.AddHandlerBase):
     """Single-click housing placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -40,15 +40,16 @@ class Housing(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -80,5 +81,5 @@ class Housing(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

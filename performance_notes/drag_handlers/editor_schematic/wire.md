@@ -24,3 +24,7 @@ partial-jog, and reroute-fallback logic) has no equivalent. If the push/
 jog path is ever suspected slow in a real large project, porting that same
 instrumentation here would answer it directly rather than needing to
 reason about it from the source.
+
+## Added in the folder review: per-move path
+Each move calls `_maybe_reroute_past`, which only compares a distance until a push has failed. The full auto-router (`reroute_wire`) runs at most once per drag, guarded by `_rerouted`, so the expensive call is bounded to one per drag. `_find_layout` scans the wire layouts linearly, which is fine while a wire carries only a few layouts.
+

@@ -28,7 +28,7 @@ class PJTPoints2DTable(PJTTableBase):
         return points2d.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -38,7 +38,7 @@ class PJTPoints2DTable(PJTTableBase):
         points2d.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -73,7 +73,7 @@ class PJTPoints2DTable(PJTTableBase):
             yield point
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTPoint2D":
+    def __getitem__(self, item: int | bytes | str) -> "PJTPoint2D":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -106,7 +106,7 @@ class PJTPoints2DTable(PJTTableBase):
         :param z: Z-coordinate value.
         :returns: The new point row.
         """
-        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z))
+        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z), parent_point_id=None)
         return PJTPoint2D(self, db_id)
 
 
@@ -148,7 +148,7 @@ class PJTPoint2D(PJTEntryBase):
 
     @x.setter
     @_check_types.do
-    def x(self, value: float):
+    def x(self, value: float) -> None:
         """Set the x.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -178,7 +178,7 @@ class PJTPoint2D(PJTEntryBase):
 
     @y.setter
     @_check_types.do
-    def y(self, value: float):
+    def y(self, value: float) -> None:
         """Set the y.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -206,7 +206,7 @@ class PJTPoint2D(PJTEntryBase):
 
     @z.setter
     @_check_types.do
-    def z(self, value: float):
+    def z(self, value: float) -> None:
         """Set the z.
 
         :param value: Value to store or process.
@@ -240,7 +240,7 @@ class PJTPoint2D(PJTEntryBase):
         return self._stored_point2d
 
     @_check_types.do
-    def _update_point(self, point: _point.Point):
+    def _update_point(self, point: _point.Point) -> None:
         """Update the point.
 
         UNKNOWN details are inferred from the callable name and signature.

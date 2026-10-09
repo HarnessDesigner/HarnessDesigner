@@ -1,20 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 """SQLite connector implementation and cursor helpers."""
-import io
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
+import io
 import re
 import threading
 import traceback
 import sqlite3
-from typing import (Optional as _Optional,
-                    Union as _Union)
 from datetime import (date as _date,
                       datetime as _datetime,
                       time as _time,
                       timedelta as _timedelta)
-
 from decimal import Decimal as _Decimal
 from time import struct_time as _struct_time
 import os
@@ -31,16 +28,15 @@ from .... import __version__ as _version
 
 if TYPE_CHECKING:
     from .... import ui as _ui
+    from .... import splash as _splash
 
 
 _NORMALIZE_LITERAL_RE = re.compile(r"'[^']*'|\b\d+\b")
 
 
 _StrOrBytes = _Union[str, bytes]
-_ToMysqlInputTypes = _Optional[_Union[int, float, _Decimal, _StrOrBytes, bool,
-                                      _datetime, _date, _time, _struct_time, _timedelta]]
-_ToPythonOutputTypes = _Optional[_Union[float, int, _Decimal, _StrOrBytes, _date,
-                                        _timedelta, _datetime, set[str]]]
+_ToMysqlInputTypes = _Union[int, float, _Decimal, _StrOrBytes, bool, _datetime, _date, _time, _struct_time, _timedelta] | None
+_ToPythonOutputTypes = _Union[float, int, _Decimal, _StrOrBytes, _date, _timedelta, _datetime, set[str]] | None
 _ParamsSequenceType = list[_ToMysqlInputTypes] | tuple[_ToMysqlInputTypes]
 _ParamsDictType = dict[str, _ToMysqlInputTypes]
 _ParamsSequenceOrDictType = _Union[_ParamsDictType, _ParamsSequenceType]
@@ -95,7 +91,7 @@ class SQLConnector(_base.ConnectorBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialize the SQLite connector state.
 
@@ -189,7 +185,7 @@ class SQLConnector(_base.ConnectorBase):
         return column_names
 
     @_check_types.do
-    def connect(self, splash) -> bool:
+    def connect(self, splash: "_splash.Splash") -> bool:
         """
         Open the configured SQLite database and start update monitoring.
 
@@ -198,7 +194,7 @@ class SQLConnector(_base.ConnectorBase):
         """
 
         @_check_types.do
-        def _download_data(url, label, dst):
+        def _download_data(url: str, label: str, dst: str) -> None:
             response = requests.get(url, stream=True)
 
             block_size = 1048576
@@ -231,7 +227,7 @@ class SQLConnector(_base.ConnectorBase):
             buf.close()
 
         @_check_types.do
-        def _find_release_asset_url():
+        def _find_release_asset_url() -> str | None:
             """Return the harness_designer_database.zip download URL from the
             newest database release whose major.minor matches this app's own
             (MAJOR.MINOR) -- micro-version differences are data-only fixes and
@@ -370,8 +366,8 @@ class SQLConnector(_base.ConnectorBase):
 
     @_check_types.do
     def execute(self, operation: str,
-                params: _Optional[_ParamsSequenceOrDictType] = None,
-                _=None) -> sqlite3.Cursor | None:
+                params: _ParamsSequenceOrDictType | None = None,
+                _: None = None) -> sqlite3.Cursor | None:
 
         """
         Execute a SQLite operation using the active cursor.
@@ -379,7 +375,7 @@ class SQLConnector(_base.ConnectorBase):
         :param operation: SQL statement to execute.
         :type operation: str
         :param params: Parameters supplied for the SQL operation.
-        :type params: _Optional[_ParamsSequenceOrDictType]
+        :type params: _ParamsSequenceOrDictType | None
         :param _: Unused compatibility argument.
         :type _: None
 
@@ -407,7 +403,7 @@ class SQLConnector(_base.ConnectorBase):
             self._report_sql_error(err, operation, params, call_stack)
 
     @_check_types.do
-    def _report_sql_error(self, err: Exception, operation: str, params,
+    def _report_sql_error(self, err: Exception, operation: str, params: _ParamsSequenceOrDictType | None,
                           call_stack: list = None) -> None:
         """Log a failed SQL statement's traceback and pop an error dialog.
 
@@ -443,7 +439,7 @@ class SQLConnector(_base.ConnectorBase):
         from .... import app as _app
 
         @_check_types.do
-        def _do(e=err, op=operation, p=params, stack=stack_text):
+        def _do(e: Exception = err, op: str = operation, p: _ParamsSequenceOrDictType | None = params, stack: str | None = stack_text) -> None:
             from .... import critical_error_dialog as _ced
 
             context = f'SQL: {op}\nPARAMS: {p}'
@@ -485,7 +481,7 @@ class SQLConnector(_base.ConnectorBase):
 
     @property
     @_check_types.do
-    def lastrowid(self) -> _Optional[int]:
+    def lastrowid(self) -> int | None:
         """
         Return the last inserted SQLite row identifier.
 
@@ -496,7 +492,7 @@ class SQLConnector(_base.ConnectorBase):
         return self._cursor.lastrowid
 
     @_check_types.do
-    def fetchone(self) -> _Optional[_RowType]:
+    def fetchone(self) -> _RowType | None:
         """
         Fetch a single row from the SQLite cursor.
 
@@ -507,7 +503,7 @@ class SQLConnector(_base.ConnectorBase):
         return self._cursor.fetchone()
 
     @_check_types.do
-    def fetchmany(self, size: _Optional[int] = None) -> list[_RowType]:
+    def fetchmany(self, size: int | None = None) -> list[_RowType]:
         """
         Fetch multiple rows from the SQLite cursor.
 
@@ -532,7 +528,7 @@ class SQLConnector(_base.ConnectorBase):
         return self._cursor.fetchall()
 
     @_check_types.do
-    def commit(self):
+    def commit(self) -> None:
         """
         Commit the active SQLite transaction.
 
@@ -543,7 +539,7 @@ class SQLConnector(_base.ConnectorBase):
         self._connection.commit()
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """
         Close the SQLite connector and stop related monitors.
 

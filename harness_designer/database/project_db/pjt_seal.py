@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from . import pjt_cavity as _pjt_cavity
     from . import pjt_terminal as _pjt_terminal
     from ...objects import seal as _seal_obj
+    from ... import ui as _ui
 
 
 class PJTSealsTable(PJTTableBase):
@@ -60,7 +61,7 @@ class PJTSealsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -85,7 +86,7 @@ class PJTSealsTable(PJTTableBase):
         return seals.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +96,7 @@ class PJTSealsTable(PJTTableBase):
         seals.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -117,7 +118,7 @@ class PJTSealsTable(PJTTableBase):
             yield PJTSeal(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTSeal":
+    def __getitem__(self, item: int | bytes | str) -> "PJTSeal":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -158,18 +159,15 @@ class PJTSealsTable(PJTTableBase):
         :rtype: :class:`PJTSeal`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, point3d_id=position3d_id,
-                                    housing_id=housing_id, terminal_id=terminal_id,
-                                    cavity_id=cavity_id)
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, point3d_id=position3d_id,
+            housing_id=housing_id, terminal_id=terminal_id, cavity_id=cavity_id,
+            scale3d_id=None, scale_pegboard_id=None, point_pegboard_id=None, notes='',
+            quat3d='[1.0, 0.0, 0.0, 0.0]', angle3d='[0.0, 0.0, 0.0]',
+            quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]',
+            is_visible3d=1, is_visible_pegboard=1, smooth=None)
 
         seal = PJTSeal(self, db_id)
-
-        # PJTCavity.seal caches the reverse lookup (DefaultStoredValue
-        # sentinel) — it has no way to know a new row now points at it, so
-        # the cache is primed here directly instead of left to go stale.
-        # See the cavity_id setter below for the move/reassign case.
-        if cavity_id is not None:
-            self.db.pjt_cavities_table[cavity_id]._stored_seal = seal  # NOQA
 
         return seal
 
@@ -187,16 +185,13 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
 
     @_check_types.do
     def delete(self) -> None:
-        """Delete this seal, clearing its cavity's cached back-reference
-        first (see the cavity_id setter/PJTSealsTable.insert) so
-        PJTCavity.seal doesn't keep pointing at a now-deleted row.
+        """Delete this seal.
+
+        ``PJTCavity.seal`` has no local cache to clear any more -- it
+        always reads straight through -- so nothing further is needed
+        once the row itself is gone.
         """
-        cavity_id = self.cavity_id
-
         PJTEntryBase.delete(self)
-
-        if cavity_id is not None:
-            self._table.db.pjt_cavities_table[cavity_id]._stored_seal = None  # NOQA
 
     @_check_types.do
     def get_object(self) -> "_seal_obj.Seal":
@@ -213,7 +208,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -224,7 +219,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_seal_obj.Seal"):
+    def set_object(self, obj: "_seal_obj.Seal") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -276,8 +271,6 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
                 
         return self._stored_part
 
-    _stored_terminal: Union["_pjt_terminal.PJTTerminal", None, DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
@@ -288,21 +281,9 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
-        if self._stored_terminal is DefaultStoredValue:
-            terminal_id = self.terminal_id
-
-            if terminal_id is None:
-                self._stored_terminal = None
-            else:
-                self._stored_terminal = self._table.db.pjt_terminals_table[terminal_id]
-            
-        if self._stored_terminal is not None:
-            if self._obj is not None:
-                self._stored_terminal.add_object(self._obj())
-                
-        return self._stored_terminal
-
-    # TODO: Finish adding cache
+        terminal_id = self.terminal_id
+        if terminal_id is not None:
+            return self._table.db.pjt_terminals_table[terminal_id]
 
     @property
     @_check_types.do
@@ -318,7 +299,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
 
     @terminal_id.setter
     @_check_types.do
-    def terminal_id(self, value: bytes):
+    def terminal_id(self, value: bytes) -> None:
         """Set the terminal ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -366,7 +347,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
 
     @cavity_id.setter
     @_check_types.do
-    def cavity_id(self, value: bytes):
+    def cavity_id(self, value: bytes) -> None:
         """Set the cavity ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -374,29 +355,18 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
         :param value: Value to store or process.
         :type value: bytes
         """
-        old_cavity_id = self.cavity_id
-
         self._table.update(self._db_id, cavity_id=value)
         self._populate('cavity_id')
 
-        # Keep PJTCavity.seal's cache (a reverse lookup PJTCavity has no
-        # way to invalidate on its own) in sync with this row's new home —
-        # see PJTSealsTable.insert for the initial-placement case.
-        if old_cavity_id is not None and old_cavity_id != value:
-            self._table.db.pjt_cavities_table[old_cavity_id]._stored_seal = None  # NOQA
 
-        if value is not None:
-            self._table.db.pjt_cavities_table[value]._stored_seal = self  # NOQA
-
-
-class PJTSealControl(QTabWidget, LazyTabMixin):
+class PJTSealControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT seal control in :mod:`harness_designer.database.project_db.pjt_seal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTSeal | None):
+    def set_obj(self, db_obj: PJTSeal | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -407,7 +377,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -426,7 +396,7 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTSealControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -436,8 +406,8 @@ class PJTSealControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTSeal | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

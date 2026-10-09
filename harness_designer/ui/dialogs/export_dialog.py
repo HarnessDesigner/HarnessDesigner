@@ -10,16 +10,14 @@ from ..widgets import choice_ctrl as _choice_ctrl
 from ...exporter import exporter as _exporter
 from ... import check_types as _check_types
 
+
 if TYPE_CHECKING:
+    from ... import objects as _objects
     from ... import ui as _ui
+    from ...objects import project as _project
 
 
 # Object collections on project that may carry 3D models.
-_OBJECT_COLLECTIONS = [
-    'boots', 'covers', 'housings', 'seals',
-    'splices', 'terminals', 'transitions',
-]
-
 # Ordered list displayed in the format dropdown.
 _FORMAT_LIST = [
     (_exporter.EXPORT_TYPE_BREP,    _exporter.FORMAT_NAMES[_exporter.EXPORT_TYPE_BREP]),
@@ -57,7 +55,7 @@ def _wx_to_qt_filter(wx_wildcard: str) -> str:
 
 
 @_check_types.do
-def _obj_label(obj) -> str:
+def _obj_label(obj: "_objects.ObjectBase") -> str:
     try:
         return f'{type(obj).__name__} [{obj.db_obj.part.part_number}]'
     except AttributeError:
@@ -74,7 +72,7 @@ def _obj_label(obj) -> str:
 class _FilePickerRow(QtWidgets.QWidget):
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         super().__init__(parent)
 
         self._qt_filter = 'All Files (*)'
@@ -96,11 +94,11 @@ class _FilePickerRow(QtWidgets.QWidget):
         row.addWidget(self._browse_btn)
 
     @_check_types.do
-    def set_filter(self, qt_filter: str):
+    def set_filter(self, qt_filter: str) -> None:
         self._qt_filter = qt_filter
 
     @_check_types.do
-    def _on_browse(self):
+    def _on_browse(self) -> None:
         start = self._edit.text().strip() or ''
         path, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, 'Save Export', start, self._qt_filter)
@@ -124,7 +122,7 @@ class _ExportWorker(QtCore.QThread):
 
     @_check_types.do
     def __init__(self, verts: np.ndarray, normals: np.ndarray,
-                 path: str, export_type: int):
+                 path: str, export_type: int) -> None:
         super().__init__()
         self._verts = verts
         self._normals = normals
@@ -133,7 +131,7 @@ class _ExportWorker(QtCore.QThread):
         self._current_total = 0
 
     @_check_types.do
-    def _progress_cb(self, current: int, total: int, phase: str):
+    def _progress_cb(self, current: int, total: int, phase: str) -> None:
         if total < 0:
             # File-write phase — log only, bar stays at max
             self.log_appended.emit(f'  {phase}...')
@@ -144,7 +142,7 @@ class _ExportWorker(QtCore.QThread):
         self.step_progressed.emit(current)
 
     @_check_types.do
-    def run(self):
+    def run(self) -> None:
         try:
             n_verts = len(self._verts)
             n_tris = n_verts // 3
@@ -188,7 +186,7 @@ class ExportDialog(_dialog_base.BaseDialog):
     """Non-modal dialog for exporting all visible 3-D model data."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         super().__init__(
             parent, 'Export Models', size=(720, 560),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Close)
@@ -250,7 +248,7 @@ class ExportDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _log_line(self, text: str):
+    def _log_line(self, text: str) -> None:
         self._log.appendPlainText(text)
         self._log.verticalScrollBar().setValue(
             self._log.verticalScrollBar().maximum())
@@ -264,14 +262,14 @@ class ExportDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _on_format_changed(self, _display_name: str):
+    def _on_format_changed(self, _display_name: str) -> None:
         export_type = self._selected_export_type()
         wx_wildcard = _exporter.FILE_WILDCARDS.get(export_type, 'All Files (*.*)')
         qt_filter = _wx_to_qt_filter(wx_wildcard)
         self._file_picker.set_filter(qt_filter)
 
     @_check_types.do
-    def _on_export(self):
+    def _on_export(self) -> None:
         if self._worker and self._worker.isRunning():
             return
 
@@ -331,17 +329,17 @@ class ExportDialog(_dialog_base.BaseDialog):
         self._worker.start()
 
     @_check_types.do
-    def _on_step_started(self, description: str, total: int):
+    def _on_step_started(self, description: str, total: int) -> None:
         self._phase_label.setText(description)
         self._progress.setRange(0, max(total, 1))
         self._progress.setValue(0)
 
     @_check_types.do
-    def _on_step_progressed(self, current: int):
+    def _on_step_progressed(self, current: int) -> None:
         self._progress.setValue(current)
 
     @_check_types.do
-    def _on_export_finished(self, success: bool, error_msg: str):
+    def _on_export_finished(self, success: bool, error_msg: str) -> None:
         if success:
             self._phase_label.setText('Done')
             self._progress.setValue(self._progress.maximum())
@@ -356,7 +354,7 @@ class ExportDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _collect_mesh_data(self, project):
+    def _collect_mesh_data(self, project: "_project.Project") -> tuple[np.ndarray | None, np.ndarray | None, int, int, int]:
         """
         Walk all visible 3D objects, apply their world transforms, and
         concatenate all vertices and normals into two (N,3) float32 arrays.
@@ -370,15 +368,16 @@ class ExportDialog(_dialog_base.BaseDialog):
         total_verts = 0
         total_tris = 0
 
-        for collection_name in _OBJECT_COLLECTIONS:
-            collection = getattr(project, collection_name, [])
+        for collection in (project.boots, project.covers, project.housings,
+                           project.seals, project.splices, project.terminals,
+                           project.transitions):
             for obj in collection:
                 obj3d = obj.obj3d
                 if obj3d is None or obj3d.vbo is None:
                     continue
 
                 is_visible = obj3d.is_visible
-                is_smooth = getattr(obj3d, 'smooth', False)
+                is_smooth = obj3d.smooth
                 vertex_count = obj3d.vbo.vertex_count
                 triangle_count = vertex_count // 3
                 label = _obj_label(obj)
@@ -432,11 +431,11 @@ class ExportDialog(_dialog_base.BaseDialog):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> None:
         return None
 
     @_check_types.do
-    def closeEvent(self, event: QtGui.QCloseEvent):
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self._worker and self._worker.isRunning():
             self._worker.wait(2000)
         super().closeEvent(event)

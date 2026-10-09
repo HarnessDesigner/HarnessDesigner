@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from ...objects import project as _project
     from ...objects import wire as _wire_object
+    from ...objects.objects_3d import base_3d as _base_3d
 
 
 class SnapProbeSet(_snap_probe_set.SnapProbeSet):
@@ -31,10 +32,10 @@ class SnapProbeSet(_snap_probe_set.SnapProbeSet):
         return dict(position3d=db_obj.wire_position3d)
 
     @staticmethod
-    def _get_view_object(obj: "_wire_object.Wire"):
+    def _get_view_object(obj: "_wire_object.Wire") -> "_base_3d.Base3D":
         return obj.obj3d
 
     @staticmethod
-    def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire"):
+    def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
         from . import wire as _wire_3d  # NOQA -- avoid a cycle at import time
         return _wire_3d.Wire.wire_end_anchors(project, wire_obj)

@@ -29,7 +29,7 @@ class Transition(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_transition.PJTTransition", project_load=False):
+                 db_obj: "_pjt_transition.PJTTransition", project_load: bool = False) -> None:
         """Initialise the :class:`Transition` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -116,7 +116,7 @@ class Transition(_ObjectBase):
                 self._bundle_refs[branch_id] = weakref.ref(new)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         # TODO: Branches should be left dangling. layouts at each branch should
         #       be removed. Wires should be left alone.
         super().delete()

@@ -21,7 +21,6 @@ separately ``IDXGIObject`` -> ``IDXGIFactory`` -> ``IDXGIFactory1``.
 
 import ctypes
 from ctypes import wintypes
-
 import comtypes
 from comtypes import GUID, IUnknown, COMMETHOD, HRESULT
 
@@ -205,7 +204,7 @@ _dxgi_dll.CreateDXGIFactory1.argtypes = [ctypes.POINTER(GUID), ctypes.POINTER(ct
 
 
 @_check_types.do
-def query_current_usage(adapter_index: int = 0):
+def query_current_usage(adapter_index: int = 0) -> int:
     """Current (dedicated/local) VRAM usage, in bytes, attributed to *this
     process* on one adapter -- confirmed live: reads 0 with no GL/D3D
     context yet created in the calling process, and jumps by (very close

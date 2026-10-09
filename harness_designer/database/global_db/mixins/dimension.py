@@ -1,11 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-import uuid
-from ....ui import prop_ctrls as _prop_ctrls
+from typing import TYPE_CHECKING
 
+import uuid
+
+from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class DimensionMixin(BaseMixin):
@@ -17,7 +23,7 @@ class DimensionMixin(BaseMixin):
     _stored_scale3d: _point.Point | None | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """Update the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +101,7 @@ class DimensionMixin(BaseMixin):
 
     @length.setter
     @_check_types.do
-    def length(self, value: float):
+    def length(self, value: float) -> None:
         """Set the length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -133,7 +139,7 @@ class DimensionMixin(BaseMixin):
 
     @width.setter
     @_check_types.do
-    def width(self, value: float):
+    def width(self, value: float) -> None:
         """Set the width.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -171,7 +177,7 @@ class DimensionMixin(BaseMixin):
 
     @height.setter
     @_check_types.do
-    def height(self, value: float):
+    def height(self, value: float) -> None:
         """Set the height.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -202,7 +208,7 @@ class DimensionMixin(BaseMixin):
 
     @size.setter
     @_check_types.do
-    def size(self, value: tuple[float, float, float]):
+    def size(self, value: tuple[float, float, float]) -> None:
         self._stored_size = value
         self._stored_width = value[0]
         self._stored_height = value[1]
@@ -218,7 +224,7 @@ class DimensionControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`DimensionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -248,7 +254,7 @@ class DimensionControl(_prop_ctrls.Category):
         self.height_ctrl.propertyChanged.connect(self._on_height)
 
     @_check_types.do
-    def set_obj(self, db_obj: DimensionMixin | None):
+    def set_obj(self, db_obj: DimensionMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -274,7 +280,7 @@ class DimensionControl(_prop_ctrls.Category):
             self.height_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_length(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_length(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the length event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -285,7 +291,7 @@ class DimensionControl(_prop_ctrls.Category):
         self.db_obj.length = evt.GetValue()
 
     @_check_types.do
-    def _on_width(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_width(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the width event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -296,7 +302,7 @@ class DimensionControl(_prop_ctrls.Category):
         self.db_obj.width = evt.GetValue()
 
     @_check_types.do
-    def _on_height(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_height(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the height event.
 
         UNKNOWN details are inferred from the callable name and signature.

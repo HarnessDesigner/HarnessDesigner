@@ -1,17 +1,18 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QScrollArea, QWidget, QVBoxLayout, QTabWidget, QHBoxLayout
+from PySide6 import QtWidgets
+
 from ... import check_types as _check_types
 
 
-class Category(QScrollArea):
+class Category(QtWidgets.QScrollArea):
     """Represent a category in :mod:`harness_designer.ui.prop_ctrls.category`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`Category` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -21,11 +22,11 @@ class Category(QScrollArea):
         :param label: Value for ``label``.
         :type label: UNKNOWN
         """
-        QScrollArea.__init__(self, parent)
+        QtWidgets.QScrollArea.__init__(self, parent)
         self._label = label
 
-        self._container = QWidget()
-        self._sizer = QVBoxLayout()
+        self._container = QtWidgets.QWidget()
+        self._sizer = QtWidgets.QVBoxLayout()
         self._sizer.setContentsMargins(3, 3, 3, 3)
         self._sizer.addStretch(1)
         self._container.setLayout(self._sizer)
@@ -34,7 +35,7 @@ class Category(QScrollArea):
         self.setWidgetResizable(True)
 
     @_check_types.do
-    def GetLabel(self):
+    def GetLabel(self) -> str:
         """Execute the get label operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -45,7 +46,7 @@ class Category(QScrollArea):
         return self._label
 
     @_check_types.do
-    def SetLabel(self, value):
+    def SetLabel(self, value: str) -> None:
         """Execute the set label operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -56,7 +57,7 @@ class Category(QScrollArea):
         self._label = value
 
     @_check_types.do
-    def addWidget(self, widget):
+    def addWidget(self, widget: QtWidgets.QWidget) -> None:
         """Add a property widget to this category."""
         pos = self._sizer.count() - 1
         self._sizer.insertWidget(pos, widget)

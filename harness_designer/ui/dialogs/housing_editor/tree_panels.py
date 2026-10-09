@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from PySide6 import QtCore
 from PySide6 import QtGui
@@ -8,6 +8,10 @@ from PySide6 import QtWidgets
 
 from . import analysis_panel as _analysis_panel
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....utils import mesh_surface as _mesh_surface
 
 
 # Relative tolerance for the "group by size" tree view: two surfaces with
@@ -106,10 +110,10 @@ class _TreeControlBase(QtWidgets.QWidget):
     removeRequested: QtCore.SignalInstance = QtCore.Signal(list)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, caption: str):
+    def __init__(self, parent: QtWidgets.QWidget, caption: str) -> None:
         super().__init__(parent)
 
-        self._pending_reselect_index: Optional[int] = None
+        self._pending_reselect_index: int | None = None
 
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
@@ -159,17 +163,17 @@ class _TreeControlBase(QtWidgets.QWidget):
         raise NotImplementedError
 
     @_check_types.do
-    def _flatten_item(self, item: QtWidgets.QTreeWidgetItem) -> list:
+    def _flatten_item(self, item: QtWidgets.QTreeWidgetItem) -> list[int]:
         raise NotImplementedError
 
     @_check_types.do
-    def _perform_removal(self, units: list) -> None:
+    def _perform_removal(self, units: list[int]) -> None:
         raise NotImplementedError
 
     # ── shared selection / remove / reselect mechanics ──────────────────────
 
     @_check_types.do
-    def _flattened_items(self) -> list:
+    def _flattened_items(self) -> list[QtWidgets.QTreeWidgetItem]:
         items: list[QtWidgets.QTreeWidgetItem] = []
 
         for i in range(self._tree.topLevelItemCount()):
@@ -182,7 +186,7 @@ class _TreeControlBase(QtWidgets.QWidget):
         return items
 
     @_check_types.do
-    def _selected_units(self) -> list:
+    def _selected_units(self) -> list[int]:
         result: list[int] = []
         seen: set[int] = set()
 
@@ -267,14 +271,14 @@ class PlaneTreePanel(_TreeControlBase):
     addTerminalToggled: QtCore.SignalInstance = QtCore.Signal(bool)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, is_terminal: bool, caption: str):
+    def __init__(self, parent: QtWidgets.QWidget, is_terminal: bool, caption: str) -> None:
         self._is_terminal = is_terminal
         self._view_mode: str = 'plane'  # 'plane' | 'size'
 
         # Cached from the last load() call, so switching view modes can
         # rebuild the tree locally without asking the dialog again.
         self._groups: list[list[int]] = []
-        self._surfaces: list = []
+        self._surfaces: list["_mesh_surface.Surface"] = []
         self._areas: dict[int, float] = {}
         # group index -> number of holes selected in place of that plane's
         # surface(s); a group appears here only while it is inverted.
@@ -282,13 +286,13 @@ class PlaneTreePanel(_TreeControlBase):
 
         # Populated by _build_toolbar(); terminal-only widgets stay None on
         # the wire instance.
-        self._btn_by_plane: Optional[QtWidgets.QPushButton] = None
-        self._btn_by_size: Optional[QtWidgets.QPushButton] = None
-        self._btn_remove_all: Optional[QtWidgets.QPushButton] = None
-        self._btn_add_circle: Optional[QtWidgets.QPushButton] = None
-        self._btn_add_rect: Optional[QtWidgets.QPushButton] = None
-        self._btn_terminal: Optional[QtWidgets.QPushButton] = None
-        self._btn_clear_terminals: Optional[QtWidgets.QPushButton] = None
+        self._btn_by_plane: QtWidgets.QPushButton | None = None
+        self._btn_by_size: QtWidgets.QPushButton | None = None
+        self._btn_remove_all: QtWidgets.QPushButton | None = None
+        self._btn_add_circle: QtWidgets.QPushButton | None = None
+        self._btn_add_rect: QtWidgets.QPushButton | None = None
+        self._btn_terminal: QtWidgets.QPushButton | None = None
+        self._btn_clear_terminals: QtWidgets.QPushButton | None = None
 
         super().__init__(parent, caption)
 
@@ -382,7 +386,7 @@ class PlaneTreePanel(_TreeControlBase):
             self.addManualRequested.emit(g, kind)
 
     @_check_types.do
-    def _single_selected_plane_group(self) -> Optional[int]:
+    def _single_selected_plane_group(self) -> int | None:
         """The lone selected top-level plane_group node's index, in Plane
         view, or None -- used both for the Add Circle/Rectangle toolbar
         buttons' enabled state and their click handlers."""
@@ -406,7 +410,7 @@ class PlaneTreePanel(_TreeControlBase):
     def load(
         self,
         groups: list[list[int]],
-        surfaces: list,
+        surfaces: list["_mesh_surface.Surface"],
         areas: dict[int, float],
         group_holes: dict[int, int] | None = None,
     ) -> None:
@@ -555,7 +559,7 @@ class PlaneTreePanel(_TreeControlBase):
     # ── base-class hooks ─────────────────────────────────────────────────────
 
     @_check_types.do
-    def _flatten_item(self, item: QtWidgets.QTreeWidgetItem) -> list:
+    def _flatten_item(self, item: QtWidgets.QTreeWidgetItem) -> list[int]:
         kind, payload = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
 
         if kind == 'surface':
@@ -568,7 +572,7 @@ class PlaneTreePanel(_TreeControlBase):
         return []
 
     @_check_types.do
-    def _perform_removal(self, units: list) -> None:
+    def _perform_removal(self, units: list[int]) -> None:
         self.removeRequested.emit(units)
 
     # ── misc handlers ────────────────────────────────────────────────────────
@@ -666,7 +670,7 @@ class CavityTreePanel(_TreeControlBase):
     removeAllRequested: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, caption: str):
+    def __init__(self, parent: QtWidgets.QWidget, caption: str) -> None:
         self._items: list[_analysis_panel.AnalysisItem] = []
 
         super().__init__(parent, caption)
@@ -738,12 +742,12 @@ class CavityTreePanel(_TreeControlBase):
     # ── base-class hooks ─────────────────────────────────────────────────────
 
     @_check_types.do
-    def _flatten_item(self, item: QtWidgets.QTreeWidgetItem) -> list:
+    def _flatten_item(self, item: QtWidgets.QTreeWidgetItem) -> list[int]:
         _kind, payload = item.data(0, QtCore.Qt.ItemDataRole.UserRole)
         return [payload]
 
     @_check_types.do
-    def _perform_removal(self, units: list) -> None:
+    def _perform_removal(self, units: list[int]) -> None:
         for i in sorted(set(units), reverse=True):
             if 0 <= i < len(self._items):
                 self._items.pop(i)

@@ -1,11 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class StartStopPosition3DMixin(BaseMixin):
@@ -45,8 +51,6 @@ class StartStopPosition3DMixin(BaseMixin):
 
         return point
 
-    _stored_start_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
-
     @property
     @_check_types.do
     def start_position3d_id(self) -> bytes:
@@ -57,21 +61,20 @@ class StartStopPosition3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
+        _rows = self._table.select('start_point3d_id', id=self._db_id)
+        point_id = _rows[0][0] if _rows else None
 
-        if self._stored_start_position3d_id is DefaultStoredValue:
-            _rows = self._table.select('start_point3d_id', id=self._db_id)
-            point_id = _rows[0][0] if _rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, start_point3d_id=point_id)
-            self._stored_start_position3d_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, start_point3d_id=point_id)
+            self._populate('start_position3d_id')
 
-        return self._stored_start_position3d_id
+        return point_id
 
     @start_position3d_id.setter
     @_check_types.do
-    def start_position3d_id(self, value: bytes):
+    def start_position3d_id(self, value: bytes) -> None:
         """Set the start position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -79,8 +82,6 @@ class StartStopPosition3DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-
-        self._stored_start_position3d_id = value
         self._stored_start_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, start_point3d_id=value)
@@ -117,8 +118,6 @@ class StartStopPosition3DMixin(BaseMixin):
 
         return point
 
-    _stored_stop_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
-
     @property
     @_check_types.do
     def stop_position3d_id(self) -> bytes:
@@ -129,22 +128,20 @@ class StartStopPosition3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
+        _rows = self._table.select('stop_point3d_id', id=self._db_id)
+        point_id = _rows[0][0] if _rows else None
 
-        if self._stored_stop_position3d_id is DefaultStoredValue:
-            _rows = self._table.select('stop_point3d_id', id=self._db_id)
-            point_id = _rows[0][0] if _rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, stop_point3d_id=point_id)
+        if point_id is None:
+            point = self._table.db.pjt_points3d_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, stop_point3d_id=point_id)
+            self._populate('stop_position3d_id')
 
-            self._stored_stop_position3d_id = point_id
-
-        return self._stored_stop_position3d_id
+        return point_id
 
     @stop_position3d_id.setter
     @_check_types.do
-    def stop_position3d_id(self, value: bytes):
+    def stop_position3d_id(self, value: bytes) -> None:
         """Set the stop position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -152,8 +149,6 @@ class StartStopPosition3DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-
-        self._stored_stop_position3d_id = value
         self._stored_stop_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, stop_point3d_id=value)
@@ -167,7 +162,7 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`StartStopPosition3DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -186,7 +181,7 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
         self.addWidget(self.stop_ctrl)
 
     @_check_types.do
-    def set_obj(self, db_obj: StartStopPosition3DMixin | None):
+    def set_obj(self, db_obj: StartStopPosition3DMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -203,4 +198,3 @@ class StartStopPosition3DControl(_prop_ctrls.Property):
 
             self.start_ctrl.SetValue(db_obj.start_position3d)
             self.stop_ctrl.SetValue(db_obj.stop_position3d)
-

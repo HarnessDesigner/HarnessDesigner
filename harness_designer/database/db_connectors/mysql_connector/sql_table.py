@@ -2,8 +2,14 @@
 
 """MySQL-flavored SQL table and field definition helpers."""
 
+from typing import TYPE_CHECKING
+
 from ....import logger as _logger
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .. import base as _connector_base
 
 FIELD_TYPE_REAL = 'DOUBLE'
 FIELD_TYPE_TEXT = 'LONGTEXT'
@@ -38,7 +44,7 @@ _EXPRESSION_DEFAULT_TYPES = ('LONGTEXT', 'TEXT', 'LONGBLOB', 'BLOB')
 
 
 @_check_types.do
-def _get_column_names(db_cursor, table_name: str) -> list:
+def _get_column_names(db_cursor: "_connector_base.ConnectorBase", table_name: str) -> list:
     db_cursor._con.execute(
         f"SELECT COLUMN_NAME FROM information_schema.COLUMNS "
         f"WHERE TABLE_SCHEMA = '{db_cursor._con.db_name}' AND TABLE_NAME = '{table_name}';"
@@ -51,7 +57,7 @@ class SQLTable:
     """Describe a SQL table definition for the MySQL connector.
     """
     @_check_types.do
-    def __init__(self, name: str, *fields: "SQLField"):
+    def __init__(self, name: str, *fields: "SQLField") -> None:
         """Initialize the table definition.
 
         :param name: Table name to represent.
@@ -63,7 +69,7 @@ class SQLTable:
         self.fields = fields
 
     @_check_types.do
-    def is_in_db(self, db_cursor) -> bool:
+    def is_in_db(self, db_cursor: "_connector_base.ConnectorBase") -> bool:
         """Return whether the table already exists in the database.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -81,7 +87,7 @@ class SQLTable:
         return self.name in table_names
 
     @_check_types.do
-    def is_ok(self, db_cursor) -> bool:
+    def is_ok(self, db_cursor: "_connector_base.ConnectorBase") -> bool:
         """Return whether the existing table still needs field updates.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -99,7 +105,7 @@ class SQLTable:
         return False
 
     @_check_types.do
-    def update_fields(self, db_cursor):
+    def update_fields(self, db_cursor: "_connector_base.ConnectorBase") -> None:
         """Add any missing fields to an existing table.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -115,7 +121,7 @@ class SQLTable:
                 field.add_to_table(db_cursor, self.name)
 
     @_check_types.do
-    def add_to_db(self, db_cursor):
+    def add_to_db(self, db_cursor: "_connector_base.ConnectorBase") -> None:
         """Create the table in the database.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -145,7 +151,7 @@ class SQLFieldReference:
     """Represent a foreign-key reference for a SQL field.
     """
     @_check_types.do
-    def __init__(self, table: SQLTable, field: "SQLField", on_delete=REFERENCE_DEFAULT, on_update=REFERENCE_DEFAULT):
+    def __init__(self, table: SQLTable, field: "SQLField", on_delete: str = REFERENCE_DEFAULT, on_update: str = REFERENCE_DEFAULT) -> None:
         """Initialize the foreign-key reference metadata.
 
         :param table: Referenced parent table.
@@ -163,7 +169,7 @@ class SQLFieldReference:
         self.on_update = on_update
 
     @_check_types.do
-    def format(self, field_name):
+    def format(self, field_name: str) -> str:
         """Return the SQL fragment for the foreign-key constraint.
 
         :param field_name: Name of the field being formatted for SQL output.
@@ -186,7 +192,7 @@ class SQLField:
     def __init__(self, name: str, data_type: str, no_null: bool = False,
                  is_unique: bool = False, default: str | None = None,
                  references: SQLFieldReference | None = None, is_primary: bool = False,
-                 autoincrement: bool = True):
+                 autoincrement: bool = True) -> None:
 
         """Initialize the SQL field metadata.
 
@@ -222,7 +228,7 @@ class SQLField:
         self.parent: SQLTable = None
 
     @_check_types.do
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the SQL definition fragment for the field.
 
         :returns: The SQL fragment describing the field.
@@ -264,7 +270,7 @@ class SQLField:
         return ', '.join(res)
 
     @_check_types.do
-    def is_field_in_table(self, db_cursor, table_name: str):
+    def is_field_in_table(self, db_cursor: "_connector_base.ConnectorBase", table_name: str) -> bool:
         """Return whether this field exists in the named table.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -278,7 +284,7 @@ class SQLField:
         return self.name in _get_column_names(db_cursor, table_name)
 
     @_check_types.do
-    def add_to_table(self, db_cursor, table_name: str):
+    def add_to_table(self, db_cursor: "_connector_base.ConnectorBase", table_name: str) -> None:
         """Add this field definition to an existing table.
 
         :param db_cursor: Database cursor or connector wrapper used to execute SQL.
@@ -313,7 +319,7 @@ class PrimaryKeyField(SQLField):
     """Represent an auto-incrementing integer primary-key field.
     """
     @_check_types.do
-    def __init__(self, name: str):
+    def __init__(self, name: str) -> None:
 
         """Initialize the primary-key field definition.
 
@@ -342,7 +348,7 @@ class UUIDField(SQLField):
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
                  default: str | None = None,
-                 references: SQLFieldReference | None = None, is_primary: bool = False):
+                 references: SQLFieldReference | None = None, is_primary: bool = False) -> None:
 
         """Initialize the UUID field definition.
 
@@ -370,7 +376,7 @@ class TextField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None):
+                 default: str | None = None, references: SQLField | None = None) -> None:
 
         """Initialize the text field definition.
 
@@ -395,7 +401,7 @@ class FloatField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None):
+                 default: str | None = None, references: SQLField | None = None) -> None:
 
         """Initialize the floating-point field definition.
 
@@ -420,7 +426,7 @@ class BytesField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None):
+                 default: str | None = None, references: SQLField | None = None) -> None:
 
         """Initialize the bytes field definition.
 
@@ -445,7 +451,7 @@ class IntField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None):
+                 default: str | None = None, references: SQLField | None = None) -> None:
 
         """Initialize the integer field definition.
 
@@ -470,7 +476,7 @@ class BlobField(SQLField):
     """
     @_check_types.do
     def __init__(self, name: str, no_null: bool = False, is_unique: bool = False,
-                 default: str | None = None, references: SQLField | None = None):
+                 default: str | None = None, references: SQLField | None = None) -> None:
 
         """Initialize the blob field definition.
 

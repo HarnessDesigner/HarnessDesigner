@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtWidgets
 
 from . import base_schematic as _base_schematic
 from ...geometry import angle as _angle
@@ -15,6 +16,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
 
@@ -47,7 +49,7 @@ class WireLayout(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
-                 db_obj: "_pjt_wire_layout.PJTWireLayout"):
+                 db_obj: "_pjt_wire_layout.PJTWireLayout") -> None:
         """Initialise the :class:`WireLayout` instance.
 
         :param parent: Parent object.
@@ -93,7 +95,7 @@ class WireLayout(_base_schematic.BaseSchematic):
         return False
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """Clean up this layout's own schematic bend before deleting --
         see ``objects_3d.wire_layout.WireLayout._delete``/
         ``objects_pegboard.wire_layout.WireLayout._delete`` (same
@@ -105,7 +107,7 @@ class WireLayout(_base_schematic.BaseSchematic):
         super()._delete()
 
     @_check_types.do
-    def _reconnect_wires(self):
+    def _reconnect_wires(self) -> None:
         """Remove this layout's own bend from whatever wire it sits on,
         schematic side -- see
         ``objects_3d.wire_layout.WireLayout._reconnect_wires``'s own
@@ -163,7 +165,7 @@ class WireLayout(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -172,14 +174,14 @@ class WireLayout(_base_schematic.BaseSchematic):
             pass
 
 
-class WireLayoutMenu(QMenu):
+class WireLayoutMenu(QtWidgets.QMenu):
     """Represent a wire layout menu in :mod:`harness_designer.objects.objects_schematic.wire_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "WireLayout") -> None:
         """Initialise the :class:`WireLayoutMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -189,7 +191,7 @@ class WireLayoutMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -208,7 +210,7 @@ class WireLayoutMenu(QMenu):
         action.triggered.connect(self.on_delete)
 
     @_check_types.do
-    def on_add_splice(self):
+    def on_add_splice(self) -> None:
         """Handle the add splice event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -216,7 +218,7 @@ class WireLayoutMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """Handle the trace circuit event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -224,7 +226,7 @@ class WireLayoutMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Handle the select event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -232,7 +234,7 @@ class WireLayoutMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Handle the delete event.
 
         UNKNOWN details are inferred from the callable name and signature.

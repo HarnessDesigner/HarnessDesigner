@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Union as _Union
 import numpy as np
 import build123d
 import math
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets, QtGui
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -22,9 +22,12 @@ from ... import config as _config
 from ... import color as _color
 from ... import logger as _logger
 from ... import check_types as _check_types
+from ...database.project_db import pjt_transition as _pjt_transition
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.global_db import transition as _g_transition
     from ...database.global_db import transition_branch as _g_transition_branch
     from ...database.project_db import pjt_transition as _pjt_transition
@@ -146,7 +149,7 @@ class Branch:
 
     @_check_types.do
     def __init__(self, catalog_branch: "_g_transition_branch.TransitionBranch",
-                 db_obj: "_pjt_transition_branch.PJTTransitionBranch | None" = None) -> None:
+                 db_obj: _Union["_pjt_transition_branch.PJTTransitionBranch", None] = None) -> None:
         """Store this branch's own identity, PERMANENT catalog-defined
         shape data, AND its own render-ready cache, computed immediately
         -- all of it comes from this branch's own catalog row alone
@@ -228,9 +231,9 @@ class Branch:
         # Diameter-dependent scales have no local/world distinction at all
         # (a tube's own thickness doesn't care where the transition sits).
         self.diameter: float | None = None
-        self.branch_scale: "_point.Point | None" = None
-        self.bulb_scale: "_point.Point | None" = None
-        self.bulb_sphere_scale: "_point.Point | None" = None
+        self.branch_scale: _point.Point | None = None
+        self.bulb_scale: _point.Point | None = None
+        self.bulb_sphere_scale: _point.Point | None = None
 
         # Render-ready position/orientation cache -- see docstring above:
         # computed immediately below (via update_diameter()'s own call to
@@ -238,13 +241,13 @@ class Branch:
         # kept current by update_position()/update_angle()/use_body_model().
         self._position: "_point.Point" = _point.Point(0.0, 0.0, 0.0)
         self._angle: "_angle.Angle" = _angle.Angle.from_euler(0.0, 0.0, 0.0)
-        self.branch_start: "_point.Point | None" = None
-        self.branch_angle: "_angle.Angle | None" = None
-        self.tip_point: "_point.Point | None" = None
-        self.bulb_start: "_point.Point | None" = None
-        self.bulb_angle: "_angle.Angle | None" = None
-        self.bulb_end: "_point.Point | None" = None
-        self.bulb_start_sphere: "_point.Point | None" = None
+        self.branch_start: _point.Point | None = None
+        self.branch_angle: _angle.Angle | None = None
+        self.tip_point: _point.Point | None = None
+        self.bulb_start: _point.Point | None = None
+        self.bulb_angle: _angle.Angle | None = None
+        self.bulb_end: _point.Point | None = None
+        self.bulb_start_sphere: _point.Point | None = None
 
         if db_obj is not None and db_obj.diameter is not None:
             seed_diameter = db_obj.diameter
@@ -796,9 +799,7 @@ class _Body:
 
     @property
     def ctx(self):
-        from PySide6.QtGui import QOpenGLContext
-
-        ctx = QOpenGLContext.currentContext()
+        ctx = QtGui.QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
 
@@ -876,7 +877,7 @@ class _Body:
         return self._build_mesh()[1]
 
     @property
-    def faces(self):
+    def faces(self) -> None:
         return None
 
     def _compute_local_bounds(self) -> None:
@@ -892,7 +893,7 @@ class _Body:
     @_check_types.do
     def render(self, shaders: "_shader_program.FacesProgram", position: "_point.Point",
                angle: "_angle.Angle", scale: "_point.Point", smooth: bool | None = True,
-               material: "_materials.GLMaterial | None" = None,
+               material: _materials.GLMaterial | None = None,
                branch_materials: dict | None = None) -> None:
         """Draw every branch at its already-computed WORLD position (see
         ``apply_transform`` -- *position*/*angle*/*scale* are used for
@@ -1171,7 +1172,7 @@ class Transition(_base_3d.Base3D):
         # subclass (ui/dialogs/transition_editor/preview.py) sets db_obj
         # to a catalog Transition, which has no `smooth` column/property
         # at all (only a placed PJTTransition does).
-        smooth = getattr(self.db_obj, 'smooth', None)
+        smooth = self.db_obj.smooth if isinstance(self.db_obj, _pjt_transition.PJTTransition) else None
         if smooth is None:
             smooth = Config.renderer.smooth_transitions
 
@@ -1333,7 +1334,7 @@ class Transition(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -1394,7 +1395,7 @@ class TransitionMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "Transition") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Transition") -> None:
         """Initialise the :class:`TransitionMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1444,7 +1445,7 @@ class BranchMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, transition: "Transition", branch: "Branch") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", transition: "Transition", branch: "Branch") -> None:
         QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.transition = transition
@@ -1459,7 +1460,6 @@ class BranchMenu(QtWidgets.QMenu):
         """Start a new bundle whose start point attaches to this branch --
         see ``objects.objects_3d.bundle.Bundle.start_add_from_branch``.
         """
-        from PySide6 import QtCore
         from . import bundle as _bundle_3d
 
         mainframe = self.transition.mainframe

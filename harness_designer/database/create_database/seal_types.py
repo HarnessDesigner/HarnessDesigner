@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import json
 import os
 
@@ -7,6 +9,11 @@ from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
 
 
 # Seal category codes -- what a placement session actually branches on
@@ -32,7 +39,7 @@ _DEFAULT_CATEGORY = CATEGORY_ACC
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -81,7 +88,7 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_seal_type(con, name: str, category: str, commit: bool = True) -> bytes | None:
+def add_seal_type(con: "_connector_base.ConnectorBase", name: str, category: str, commit: bool = True) -> bytes | None:
     """Add a new row to ``seal_types``.
 
     :param con: Database connection wrapper.
@@ -108,7 +115,7 @@ def add_seal_type(con, name: str, category: str, commit: bool = True) -> bytes |
 
 
 @_check_types.do
-def get_seal_type_id(con, name: str | None, category: str | None = None) -> bytes | None:
+def get_seal_type_id(con: "_connector_base.ConnectorBase", name: str | None, category: str | None = None) -> bytes | None:
     """Resolve *name* to its ``seal_types`` row id, auto-creating the row
     if this is the first time *name* has been seen.
 

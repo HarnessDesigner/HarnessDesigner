@@ -36,10 +36,16 @@ endpoint repointed to a different ``Point``); a plain waypoint *move*
 needs nothing.
 """
 
+from typing import TYPE_CHECKING
+
 import weakref
 import numpy as np
 
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ..objects.objectsvar import base_var as _base_var
 
 
 class SegmentPool:
@@ -109,7 +115,7 @@ class SegmentPool:
             self._drop(pairs)
 
     @_check_types.do
-    def register(self, obj: object, buffers: list[np.ndarray]) -> None:
+    def register(self, obj: "_base_var.BaseVar", buffers: list[np.ndarray]) -> None:
         """Set *obj*'s path to the chain of *buffers* (each a ``Point``'s
         ``as_numpy``, in path order, start to stop), replacing whatever
         it registered before. Acquires the new vertex references before
@@ -142,7 +148,7 @@ class SegmentPool:
         self._entries[ref] = np.stack((indices[:-1], indices[1:]), axis=1)
 
     @_check_types.do
-    def release(self, obj: object) -> None:
+    def release(self, obj: "_base_var.BaseVar") -> None:
         """Drop *obj*'s path -- call once when it's deleted. Harmless if
         it was never registered or is already released."""
         pairs = self._entries.pop(weakref.ref(obj), None)

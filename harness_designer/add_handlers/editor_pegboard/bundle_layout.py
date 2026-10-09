@@ -9,7 +9,7 @@ menu action (``objects_pegboard.bundle.BundleMenu.on_add_waypoint``),
 pinned to that one bundle for the whole session.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -23,11 +23,12 @@ if TYPE_CHECKING:
     from ... import objects as _objects
     from ...objects import bundle as _bundle
     from ...objects import bundle_layout as _bundle_layout_facade
+    from ...objects import project as _project
 
 
 @_check_types.do
 def create_bundle_layout_on_bundle_pegboard(
-    project, bundle: "_bundle.Bundle", position: _point.Point, insert_idx: int
+    project: "_project.Project", bundle: "_bundle.Bundle", position: _point.Point, insert_idx: int
 ) -> "_bundle_layout_facade.BundleLayout":
     """Insert a new interior peg-board waypoint into *bundle*'s own
     peg-board path at *position* and mark it with a BundleLayout --
@@ -67,7 +68,7 @@ class BundleLayout(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", bundle: "_bundle.Bundle"
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -82,15 +83,16 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -116,6 +118,11 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def _finalize(self, mouse_pos: _point.Point) -> None:
+        # Set before the self.target.delete() below (the not-at-endpoint
+        # branch), not after -- see editor_3d.bundle_layout.BundleLayout.
+        # _finalize's own comment for why.
+        self._finalized = True
+
         world_pos = self.camera.screen_to_world(mouse_pos)
         raw_pos, is_at_endpoint, endpoint = _wire_layout_pegboard.closest_point_on_chain(
             self._bundle, world_pos.as_numpy)
@@ -148,8 +155,6 @@ class BundleLayout(_base.AddHandlerBase):
 
             self.target = new_obj
 
-        self._finalized = True
-
     @_check_types.do
     def cancel(self) -> None:
         if self.target is not None:
@@ -159,5 +164,5 @@ class BundleLayout(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

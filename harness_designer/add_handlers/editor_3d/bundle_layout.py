@@ -13,7 +13,7 @@ the bundle's own true start/stop instead of an interior point) is
 reused as-is via ``bundle.obj3d.get_closest_endpoint``.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -38,7 +38,7 @@ class BundleLayout(_base.AddHandlerBase):
         canvas: "_canvas.Canvas",
         target: "_objects.ObjectBase",
         bundle: "_bundle.Bundle"
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -52,16 +52,16 @@ class BundleLayout(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -94,6 +94,15 @@ class BundleLayout(_base.AddHandlerBase):
     def _finalize(self, mouse_pos: _point.Point) -> None:
         from ...handlers import bundle_layout_handler as _bundle_layout_handler
 
+        # Set before the self.target.delete() below (the not-at-endpoint
+        # branch), not after -- that delete tears down self.target.obj3d,
+        # which finds its own _active_handler is still this same handler
+        # and calls this object's delete() again, re-entrantly, while
+        # we're still inside this call. That delete() only cancels
+        # (deleting self.target a second time) when _finalized is still
+        # False, so it has to already be True before the delete ever runs.
+        self._finalized = True
+
         raw_pos, is_at_endpoint, endpoint = (
             self._bundle.obj3d.get_closest_endpoint(mouse_pos))
 
@@ -119,8 +128,6 @@ class BundleLayout(_base.AddHandlerBase):
 
             self.target.obj3d.is_visible = True
 
-        self._finalized = True
-
     @_check_types.do
     def cancel(self) -> None:
         if self.target is not None:
@@ -130,5 +137,5 @@ class BundleLayout(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

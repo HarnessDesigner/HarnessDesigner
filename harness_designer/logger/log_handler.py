@@ -2,8 +2,9 @@
 
 """CSV-backed logging helpers for :mod:`harness_designer.logger`."""
 
+from collections.abc import Callable
+
 import platform
-from .. import config as _config
 import datetime
 import io
 import re
@@ -15,6 +16,7 @@ import os
 import traceback
 import pandas as pd
 
+from .. import config as _config
 from .. import __version__
 from . import redirect
 
@@ -30,7 +32,7 @@ class RotationEvent(typing.NamedTuple):
     `closed_path` no longer exists on its own, only as a member of it.
     """
     closed_path: str
-    archive_path: typing.Optional[str]
+    archive_path: str | None
 
 
 INFO = 0
@@ -56,7 +58,7 @@ _message_mapping = {
 }
 
 
-def build_message(msg_type, msg):
+def build_message(msg_type: int, msg: str) -> dict[str, typing.Any]:
     """Build a single log entry dict for a DataFrame row.
 
     `timestamp` is kept as a real datetime, not a string, so DataFrames
@@ -92,7 +94,7 @@ _ARCHIVE_RE = re.compile(
     rf'^({_TS_PATTERN}) - ({_TS_PATTERN})(?:-\d+)?\.archive$')
 
 
-def _parse_ts(text):
+def _parse_ts(text: str) -> datetime.datetime:
     """Parse a filename timestamp field back into a ``datetime``.
 
     :param text: Timestamp field matched from a log/archive file name.
@@ -103,7 +105,7 @@ def _parse_ts(text):
     return datetime.datetime.strptime(text, _TS_FMT)
 
 
-def _unique_path(name):
+def _unique_path(name: str) -> str:
     """Return ``name`` under ``Config.save_path``, disambiguated on collision."""
     path = os.path.join(Config.save_path, name)
     if not os.path.exists(path):
@@ -129,7 +131,7 @@ class LogHandler(threading.Thread):
     to lock between one call to write() and another.
     """
 
-    def _fake_callback(self, _=None):
+    def _fake_callback(self, _: pd.DataFrame | RotationEvent | None = None) -> None:
         """Placeholder callback invoked when no external callback is bound.
 
         :param _: A DataFrame for a new entry, or a RotationEvent for a
@@ -140,7 +142,7 @@ class LogHandler(threading.Thread):
         """
         pass
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize log file rotation state and open the current CSV file."""
         super().__init__(daemon=True)
 
@@ -193,7 +195,7 @@ class LogHandler(threading.Thread):
         self._current_size = os.path.getsize(active)
 
     @staticmethod
-    def _scan(*patterns):
+    def _scan(*patterns: re.Pattern) -> list[str]:
         """Enumerate ``Config.save_path`` for names matching ``patterns``.
 
         :param patterns: Compiled regexes to match against file names.
@@ -214,7 +216,7 @@ class LogHandler(threading.Thread):
         return [os.path.join(Config.save_path, name) for _, name in entries]
 
     @staticmethod
-    def _create_logfile():
+    def _create_logfile() -> str:
         """Create a fresh, empty CSV log file named for the current time.
 
         :returns: Path to the newly created file.
@@ -227,7 +229,7 @@ class LogHandler(threading.Thread):
         df.to_csv(path, index=False, encoding='utf-8', lineterminator='\n')
         return path
 
-    def bind(self, callback):
+    def bind(self, callback: Callable[..., None]) -> None:
         """Bind a callback invoked (via CallAfter, on the main thread) after
         writes and file rotation events.
 
@@ -239,11 +241,11 @@ class LogHandler(threading.Thread):
         """
         self._callback = callback
 
-    def get_current_log_path(self):
+    def get_current_log_path(self) -> str:
         """Return the path to the current log file"""
         return self._logfile_path
 
-    def list_logfiles(self):
+    def list_logfiles(self) -> list[str]:
         """Return current (non-archived) log file paths, oldest first.
 
         :returns: Snapshot of the registered, un-archived log file paths.
@@ -251,7 +253,7 @@ class LogHandler(threading.Thread):
         """
         return list(self._logfiles)
 
-    def list_archives(self):
+    def list_archives(self) -> list[str]:
         """Return archive file paths, oldest first.
 
         :returns: Snapshot of the registered archive file paths.
@@ -260,7 +262,7 @@ class LogHandler(threading.Thread):
         return list(self._archives)
 
     @staticmethod
-    def list_archive_contents(archive_path):
+    def list_archive_contents(archive_path: str) -> list[str]:
         """Return the log file names bundled inside an archive.
 
         :param archive_path: Path to an archive returned by :meth:`list_archives`.
@@ -272,7 +274,7 @@ class LogHandler(threading.Thread):
             return zf.namelist()
 
     @staticmethod
-    def read_log(path):
+    def read_log(path: str) -> pd.DataFrame:
         """Read a log file into a DataFrame with ``timestamp`` parsed.
 
         :param path: Path to a log file returned by :meth:`list_logfiles`.
@@ -292,7 +294,7 @@ class LogHandler(threading.Thread):
                            parse_dates=['timestamp'], date_format='ISO8601')
 
     @staticmethod
-    def read_archived_log(archive_path, member_name):
+    def read_archived_log(archive_path: str, member_name: str) -> pd.DataFrame:
         """Read one bundled log file out of an archive into a DataFrame.
 
         :param archive_path: Path to an archive returned by :meth:`list_archives`.
@@ -310,7 +312,7 @@ class LogHandler(threading.Thread):
         return pd.read_csv(io.BytesIO(data), encoding='utf-8',
                            parse_dates=['timestamp'], date_format='ISO8601')
 
-    def _open_next_file(self):
+    def _open_next_file(self) -> None:
         """Create, open, and register the next CSV log file.
 
         :returns: ``None``.
@@ -323,7 +325,7 @@ class LogHandler(threading.Thread):
         self._current_size = os.path.getsize(path)
         self._logfile = open(path, 'a', encoding='utf-8', newline='')
 
-    def _close_current_file(self):
+    def _close_current_file(self) -> str:
         """Close the active log file and rename it with its end timestamp.
 
         :returns: The path the active file was renamed to.
@@ -340,7 +342,7 @@ class LogHandler(threading.Thread):
         self._logfiles[-1] = closed_path
         return closed_path
 
-    def _compact_logfiles(self):
+    def _compact_logfiles(self) -> str:
         """Bundle the registered log files into a single ZIP archive.
 
         :returns: Path to the new archive.
@@ -368,7 +370,7 @@ class LogHandler(threading.Thread):
         self._archives.append(archive_path)
         return archive_path
 
-    def write(self, log_entry: dict):
+    def write(self, log_entry: dict) -> None:
         """Queue a log entry for the worker thread to write. Never blocks."""
         if not log_entry or not log_entry.get('message', '').strip():
             return
@@ -376,7 +378,7 @@ class LogHandler(threading.Thread):
         self._queue.append(log_entry)
         self._signal.release()
 
-    def run(self):
+    def run(self) -> None:
         """Worker thread body: the only code that writes/rotates log files."""
         while not self._exit_event.is_set():
             self._signal.acquire()
@@ -396,11 +398,11 @@ class LogHandler(threading.Thread):
             # batched through in this pass, instead of one per entry.
             self._flush_file()
 
-    def _flush_file(self):
+    def _flush_file(self) -> None:
         if self._logfile is not None:
             self._logfile.flush()
 
-    def _process_entry(self, log_entry: dict):
+    def _process_entry(self, log_entry: dict) -> None:
         """Write one entry to the CSV file and rotate if it's now too big."""
         try:
             df = pd.DataFrame([log_entry])
@@ -449,7 +451,7 @@ class LogHandler(threading.Thread):
                 except Exception:  # NOQA
                     pass
 
-    def stop(self):
+    def stop(self) -> None:
         """Drain the queue, stop the worker thread, and close the file.
 
         Blocks until every entry queued before this call is written.
@@ -462,11 +464,11 @@ class LogHandler(threading.Thread):
         if self._logfile is not None:
             self._logfile.close()
 
-    def close(self):
+    def close(self) -> None:
         """Stop the worker thread, writing everything already queued first."""
         self.stop()
 
-    def flush(self):
+    def flush(self) -> None:
         """Block until every entry queued before this call has been
         written *and* flushed to disk.
 
@@ -487,7 +489,7 @@ class LogHandler(threading.Thread):
 class Log(object):
     """Application logger that routes messages to CSV logs and stream wrappers."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize logging, stream redirection, and startup environment logging."""
         self.log_handler = LogHandler()
         self.log_handler.start()
@@ -499,7 +501,7 @@ class Log(object):
         self._stdout = redirect.StdOut(self)
         self._stderr = redirect.StdErr(self)
 
-    def startup(self):
+    def startup(self) -> None:
         from ..gl import info as _gl_info
 
         startup_block = [
@@ -558,19 +560,19 @@ class Log(object):
         self.info_block('\n'.join(startup_block))
 
     @staticmethod
-    def _join(args):
+    def _join(args: tuple[typing.Any, ...]) -> str:
         return ' '.join(str(arg) for arg in args).rstrip()
 
-    def _write_lines(self, msg_type, *args):
+    def _write_lines(self, msg_type: int, *args: typing.Any) -> None:
         """Write each line of the joined args as its own log entry."""
         for line in self._join(args).split('\n'):
             self.log_handler.write(build_message(msg_type, line))
 
-    def _write_block(self, msg_type, *args):
+    def _write_block(self, msg_type: int, *args: typing.Any) -> None:
         """Write the joined args as a single, possibly multiline, log entry."""
         self.log_handler.write(build_message(msg_type, self._join(args)))
 
-    def flush(self):
+    def flush(self) -> None:
         """Flush the underlying :class:`LogHandler`.
 
         :returns: ``None``.
@@ -578,53 +580,53 @@ class Log(object):
         """
         self.log_handler.flush()
 
-    def print(self, *args, msg_type=INFO):
+    def print(self, *args: typing.Any, msg_type: int = INFO) -> None:
         self._write_lines(msg_type, *args)
 
-    def print_block(self, *args, msg_type=INFO):
+    def print_block(self, *args: typing.Any, msg_type: int = INFO) -> None:
         self._write_block(msg_type, *args)
 
-    def info(self, *args):
+    def info(self, *args: typing.Any) -> None:
         self._write_lines(INFO, *args)
 
-    def info_block(self, *args):
+    def info_block(self, *args: typing.Any) -> None:
         self._write_block(INFO, *args)
 
-    def debug(self, *args):
+    def debug(self, *args: typing.Any) -> None:
         if Config.log_debug:
             self._write_lines(DEBUG, *args)
 
-    def debug_block(self, *args):
+    def debug_block(self, *args: typing.Any) -> None:
         if Config.log_debug:
             self._write_block(DEBUG, *args)
 
-    def notice(self, *args):
+    def notice(self, *args: typing.Any) -> None:
         if Config.log_notice:
             self._write_lines(NOTICE, *args)
 
-    def notice_block(self, *args):
+    def notice_block(self, *args: typing.Any) -> None:
         if Config.log_notice:
             self._write_block(NOTICE, *args)
 
-    def warning(self, *args):
+    def warning(self, *args: typing.Any) -> None:
         if Config.log_warning:
             self._write_lines(WARNING, *args)
 
-    def warning_block(self, *args):
+    def warning_block(self, *args: typing.Any) -> None:
         if Config.log_warning:
             self._write_block(WARNING, *args)
 
-    def error(self, *args):
+    def error(self, *args: typing.Any) -> None:
         if Config.log_error:
             self._write_lines(ERROR, *args)
             self.log_handler.flush()
 
-    def error_block(self, *args):
+    def error_block(self, *args: typing.Any) -> None:
         if Config.log_error:
             self._write_block(ERROR, *args)
             self.log_handler.flush()
 
-    def traceback(self, exception, msg=None):
+    def traceback(self, exception: BaseException, msg: str | None = None) -> None:
         """Write an exception traceback and optional message.
 
         :param exception: Exception instance to format.
@@ -643,12 +645,12 @@ class Log(object):
                 self._write_block(TRACEBACK, block)
                 self.log_handler.flush()
 
-    def database(self, *args):
+    def database(self, *args: typing.Any) -> None:
         if Config.log_database:
             self._write_lines(DATABASE, *args)
             self.log_handler.flush()
 
-    def database_block(self, *args):
+    def database_block(self, *args: typing.Any) -> None:
         if Config.log_database:
             self._write_block(DATABASE, *args)
             self.log_handler.flush()

@@ -23,7 +23,7 @@ class EditorCircuit(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`EditorCircuit` instance.
 
@@ -48,7 +48,7 @@ class EditorCircuitPanel(_editor_widget.EditorCircuitPanel):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`EditorCircuitPanel` instance.
 
@@ -59,7 +59,7 @@ class EditorCircuitPanel(_editor_widget.EditorCircuitPanel):
         super().__init__(parent)
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """
         Execute the refresh operation.
 

@@ -19,6 +19,7 @@ from ...geometry import angle as _angle
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
+from .. import _axis as _axis
 from .. import rotation_mesh as _rotation_mesh
 
 
@@ -36,6 +37,9 @@ if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import objects as _objects
     from ...gl import shaders as _shaders
+    from ...gl.canvas_base import camera_base as _camera_base
+    from ...gl import context as _gl_context
+    from .. import rotation_rings as _rotation_rings
 
 
 class Rings3D(_base_3d.Base3D):
@@ -45,9 +49,11 @@ class Rings3D(_base_3d.Base3D):
 
     _pick_priority = -1
 
+    _rings: dict | None = None
+
     @_check_types.do
-    def __init__(self, parent, selected: "_objects.ObjectBase",
-                 mainframe: "_ui.MainFrame"):
+    def __init__(self, parent: "_rotation_rings.RotationRings", selected: "_objects.ObjectBase",
+                 mainframe: "_ui.MainFrame") -> None:
         """Initialise the :class:`Rings3D` instance.
 
         :param parent: Parent :class:`~..rotation_rings.RotationRings` wrapper.
@@ -118,11 +124,11 @@ class Rings3D(_base_3d.Base3D):
         self._compute_aabb()
 
     @_check_types.do
-    def _build_colors(self):
+    def _build_colors(self) -> None:
         """(Re)build the per-axis colors from config."""
         ring_config = Config.rotation_handler
         self._colors = {
-            axis: _color.Color(*getattr(ring_config, f'{axis}_color'))
+            axis: _color.Color(*_axis.axis_color(ring_config, axis))
             for axis in self._axes
         }
         self._outer_color = _color.Color(*ring_config.outer_ring_color)
@@ -142,7 +148,7 @@ class Rings3D(_base_3d.Base3D):
         )
 
     @_check_types.do
-    def _refresh_from_config(self):
+    def _refresh_from_config(self) -> None:
         """Re-apply config-driven properties after a config change."""
         old_sig = self._config_sig
         self._config_sig = self._current_config_sig()
@@ -157,11 +163,11 @@ class Rings3D(_base_3d.Base3D):
 
     @property
     @_check_types.do
-    def _context(self):
+    def _context(self) -> "_gl_context.GLContext":
         return self.editor3d.context
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Track gizmo position changes WITHOUT Base3D's world-space logic.
 
         The base implementation re-applies the floor lock (which would bump
@@ -178,7 +184,7 @@ class Rings3D(_base_3d.Base3D):
         self._compute_aabb()
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """Mirror the tracked object's AABB.
 
         The culling rows hold live views of ``self._aabb``, so keeping it
@@ -200,12 +206,12 @@ class Rings3D(_base_3d.Base3D):
                 self._aabb[0][1] = ground
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """Mirror the tracked object's OBB (culling linked to the object)."""
         self._obb = np.array(self._obj3d.obb, dtype=np.float32, copy=True)
 
     @_check_types.do
-    def detach(self):
+    def detach(self) -> None:
         """Unbind from the tracked object and free the GL buffers."""
         # the position is the object's own Point instance — Base3D bound our
         # _update_position to it, so it must be released explicitly
@@ -290,7 +296,7 @@ class Rings3D(_base_3d.Base3D):
         return radius, object_radius
 
     @_check_types.do
-    def _compute_size(self):
+    def _compute_size(self) -> None:
         """Recompute size and propagate it to every already-built ring --
         call whenever the tracked object's own scale/AABB changes.
         """
@@ -299,13 +305,13 @@ class Rings3D(_base_3d.Base3D):
         # Guard: nothing to propagate to yet the first time this ever
         # runs (this is __init__ itself, before self._rings exists --
         # see __init__, which no longer calls this method at all).
-        rings = getattr(self, '_rings', None)
+        rings = self._rings
         if rings is not None:
             for ring in rings.values():
                 ring.on_object_scale_changed(self._radius, self._object_radius)
 
     @_check_types.do
-    def apply_drag_angle(self, axis: str, value: float):
+    def apply_drag_angle(self, axis: str, value: float) -> None:
         """Write a drag-driven Euler value without re-triggering ourselves.
 
         The angle callback is unbound around the write (the same pattern the
@@ -317,14 +323,14 @@ class Rings3D(_base_3d.Base3D):
         """
         self._obj_angle.unbind(self._on_obj_angle)
         try:
-            setattr(self._obj_angle, axis, value)
+            _axis.set_axis(self._obj_angle, axis, value)
         finally:
             self._obj_angle.bind(self._on_obj_angle)
 
         self._on_obj_angle(None)
 
     @_check_types.do
-    def pick(self, mouse_pos: _point.Point, camera) -> str | None:
+    def pick(self, mouse_pos: _point.Point, camera: "_camera_base.CameraBase") -> str | None:
         """Return the axis whose torus ring is under the mouse, if any.
 
         Only currently-pickable torus rings are considered — a dimmed
@@ -344,7 +350,7 @@ class Rings3D(_base_3d.Base3D):
         return None
 
     @_check_types.do
-    def activate(self, axis: str):
+    def activate(self, axis: str) -> None:
         """Show *axis*'s protractor and dim the other two torus rings.
 
         Switching directly from one axis's protractor to another's (a
@@ -369,7 +375,7 @@ class Rings3D(_base_3d.Base3D):
         self._active_axis = axis
 
     @_check_types.do
-    def deactivate(self):
+    def deactivate(self) -> None:
         """Hide any active protractor and restore normal torus picking."""
         for ring in self._rings.values():
             ring.deactivate()
@@ -397,7 +403,7 @@ class Rings3D(_base_3d.Base3D):
         return self._rings[self._active_axis].inner.is_dragging
 
     @_check_types.do
-    def begin_inner_drag(self, mouse_pos: _point.Point, camera) -> bool:
+    def begin_inner_drag(self, mouse_pos: _point.Point, camera: "_camera_base.CameraBase") -> bool:
         """Start a free-rotation drag if *mouse_pos* is on the active
         axis's inner (object-space) protractor band.
 
@@ -414,7 +420,7 @@ class Rings3D(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def update_inner_drag(self, mouse_pos: _point.Point):
+    def update_inner_drag(self, mouse_pos: _point.Point) -> None:
         """Advance the active axis's free-rotation drag, if any."""
         if self._active_axis is None:
             return
@@ -424,14 +430,14 @@ class Rings3D(_base_3d.Base3D):
             self.apply_drag_angle(self._active_axis, value)
 
     @_check_types.do
-    def end_inner_drag(self):
+    def end_inner_drag(self) -> None:
         if self._active_axis is None:
             return
 
         self._rings[self._active_axis].inner.end_drag()
 
     @_check_types.do
-    def update_outer_hover(self, mouse_pos: _point.Point, camera):
+    def update_outer_hover(self, mouse_pos: _point.Point, camera: "_camera_base.CameraBase") -> None:
         """Update the active axis's nearest-tick hover highlight."""
         if self._active_axis is None:
             return
@@ -458,7 +464,7 @@ class Rings3D(_base_3d.Base3D):
         return True
 
     @_check_types.do
-    def _on_obj_angle(self, _):
+    def _on_obj_angle(self, _: "_angle.Angle") -> None:
         """Update every ring's orientation when the tracked object rotates.
 
         The rings' own sizes/offsets are fixed for this gizmo's whole
@@ -475,7 +481,7 @@ class Rings3D(_base_3d.Base3D):
         self._compute_aabb()
 
     @_check_types.do
-    def _on_obj_scale(self, _):
+    def _on_obj_scale(self, _: "_point.Point") -> None:
         """Resize the gizmo when the tracked object's scale changes.
 
         Base3D's own scale callback was bound first, so the object's AABB
@@ -484,7 +490,7 @@ class Rings3D(_base_3d.Base3D):
         self._compute_size()
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render all three axis gizmos."""
         # Live config tracking: rebuild sizing/mesh/colors when any of the
         # gizmo settings changed since the last frame

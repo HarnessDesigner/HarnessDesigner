@@ -54,7 +54,7 @@ DXF notes
 
 from typing import Any
 
-from PySide6 import QtCore
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtGui
 
 from PySide6 import QtPdf
@@ -257,7 +257,7 @@ class _ImageView(QtWidgets.QGraphicsView):
         self._zoom = 1.0
 
     @_check_types.do
-    def wheelEvent(self, event) -> None:
+    def wheelEvent(self, event: QtGui.QWheelEvent) -> None:
         if event.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
             delta = event.angleDelta().y()
             if delta:
@@ -291,7 +291,7 @@ class _PDFPanFilter(QtCore.QObject):
         vp.installEventFilter(self)
 
     @_check_types.do
-    def eventFilter(self, obj, event: QtGui.QMouseEvent | QtGui.QWheelEvent) -> bool:
+    def eventFilter(self, obj: QtCore.QObject, event: QtGui.QMouseEvent | QtGui.QWheelEvent) -> bool:
         t = event.type()
 
         if t == QtCore.QEvent.Type.MouseButtonPress:
@@ -926,7 +926,7 @@ class CADDatasheetPreviewCtrl(QtWidgets.QWidget):
     # ── painting ──────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def paintEvent(self, event) -> None:
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         if not self._pixmap or self._pixmap.isNull():
             return
 
@@ -944,31 +944,31 @@ class CADDatasheetPreviewCtrl(QtWidgets.QWidget):
     # ── block all interaction ─────────────────────────────────────────────────
 
     @_check_types.do
-    def mousePressEvent(self, e) -> None:
+    def mousePressEvent(self, e: QtGui.QMouseEvent) -> None:
         e.accept()
 
     @_check_types.do
-    def mouseMoveEvent(self, e) -> None:
+    def mouseMoveEvent(self, e: QtGui.QMouseEvent) -> None:
         e.accept()
 
     @_check_types.do
-    def mouseReleaseEvent(self, e) -> None:
+    def mouseReleaseEvent(self, e: QtGui.QMouseEvent) -> None:
         e.accept()
 
     @_check_types.do
-    def mouseDoubleClickEvent(self, e) -> None:
+    def mouseDoubleClickEvent(self, e: QtGui.QMouseEvent) -> None:
         e.accept()
 
     @_check_types.do
-    def wheelEvent(self, e) -> None:
+    def wheelEvent(self, e: QtGui.QWheelEvent) -> None:
         e.accept()
 
     @_check_types.do
-    def contextMenuEvent(self, e) -> None:
+    def contextMenuEvent(self, e: QtGui.QContextMenuEvent) -> None:
         e.accept()
 
     @_check_types.do
-    def keyPressEvent(self, e) -> None:
+    def keyPressEvent(self, e: QtGui.QKeyEvent) -> None:
         e.accept()
 
     # ── private ───────────────────────────────────────────────────────────────

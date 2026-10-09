@@ -28,6 +28,7 @@ from ... import debug as _debug
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_housing as _pjt_housing
     from ...database.global_db import model3d as _model3d
     from . import cavity as _cavity3d
@@ -47,7 +48,7 @@ class _CavityMarker:
     all vectors are in the housing's local mesh space (same frame
     ``MeshSurfacePicker.vertices`` uses).
     """
-    cavity_3d: object
+    cavity_3d: "_cavity3d.Cavity"
     kind: str                # 'circle' | 'rect'
     normal: np.ndarray
     u: np.ndarray
@@ -1009,7 +1010,7 @@ class Housing(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add) the same way
         every migrated object type does -- falls back to Base3D's own
@@ -1114,7 +1115,7 @@ class HousingMenu(QtWidgets.QMenu):
         UNKNOWN details are inferred from the callable name and signature.
         """
         @_check_types.do
-        def _do(housing: object) -> None:
+        def _do(housing) -> None:
             """Execute the do operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -1216,7 +1217,7 @@ class HousingMenu(QtWidgets.QMenu):
                 compat_boots = []
 
             part_id = _menu_ops.get_part_id(
-                self.mainframe, 'boots',
+                self.mainframe, self.mainframe.editor_db.editor.boots,
                 self.mainframe.global_db.boots_table, 'Add Boot',
                 initial_params=_part_search.SearchParameters.from_part_numbers(compat_boots))
 

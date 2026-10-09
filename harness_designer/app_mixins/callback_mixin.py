@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from collections.abc import Callable
+
 import types
 import weakref
-from collections.abc import Callable
 
 from .. import check_types as _check_types
 

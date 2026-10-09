@@ -25,7 +25,7 @@ from .. import compiler as _compiler
 BASE_PATH = os.path.abspath(os.path.dirname(__file__))
 
 
-def compile_program():
+def compile_program() -> int:
     """
     Compile and link the texture shader program.
     """

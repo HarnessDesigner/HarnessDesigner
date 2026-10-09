@@ -1,22 +1,23 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Callable
+
 import time
 from collections import deque
 
-from PySide6.QtCore import (Qt, QAbstractTableModel, QModelIndex, QPoint,
-                            QTimer, QSize, Signal)
-from PySide6.QtGui import QPixmap, QIcon
-from PySide6.QtWidgets import (QTableView, QAbstractItemView, QHeaderView,
-                               QApplication, QWidget, QLabel, QLineEdit,
-                               QPushButton, QHBoxLayout)
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import edit_dialog as _edit_dialog
 from ... import config as _config
 from ... import image as _image
 from ... import check_types as _check_types
 
+if TYPE_CHECKING:
+    from .. import mainframe as _mainframe
+    from ...database.global_db import image as _global_image
 
-class _HeaderSearchPopup(QWidget):
+
+class _HeaderSearchPopup(QtWidgets.QWidget):
     """Small popup shown on right-clicking a column header, letting the
     user type a per-column search value.
 
@@ -26,7 +27,8 @@ class _HeaderSearchPopup(QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent, initial_text: str, on_ok):
+    def __init__(self, parent: QtWidgets.QWidget, initial_text: str,
+                 on_ok: Callable[[str], None]) -> None:
         """Initialise the :class:`_HeaderSearchPopup` instance.
 
         :param parent: Parent widget the popup is anchored near.
@@ -37,28 +39,28 @@ class _HeaderSearchPopup(QWidget):
             (Enter in the field, or the button).
         :type on_ok: Callable[[str], None]
         """
-        super().__init__(parent, Qt.WindowType.Popup)
+        super().__init__(parent, QtCore.Qt.WindowType.Popup)
         self._on_ok = on_ok
 
-        lay = QHBoxLayout(self)
+        lay = QtWidgets.QHBoxLayout(self)
         lay.setContentsMargins(6, 6, 6, 6)
 
-        lay.addWidget(QLabel('Search:', self))
+        lay.addWidget(QtWidgets.QLabel('Search:', self))
 
-        self._edit = QLineEdit(self)
+        self._edit = QtWidgets.QLineEdit(self)
         self._edit.setText(initial_text)
         self._edit.setMinimumWidth(160)
         self._edit.returnPressed.connect(self._accept)  # NOQA
         lay.addWidget(self._edit)
 
-        ok_btn = QPushButton('OK', self)
+        ok_btn = QtWidgets.QPushButton('OK', self)
         ok_btn.clicked.connect(self._accept)  # NOQA
         lay.addWidget(ok_btn)
 
         self._edit.selectAll()
 
     @_check_types.do
-    def showEvent(self, event):
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
         """Grab focus into the text field once the popup is actually shown.
 
         :param event: Show event.
@@ -68,7 +70,7 @@ class _HeaderSearchPopup(QWidget):
         self._edit.setFocus()
 
     @_check_types.do
-    def _accept(self):
+    def _accept(self) -> None:
         """Report the entered text and close the popup."""
         self._on_ok(self._edit.text())
         self.close()
@@ -94,7 +96,7 @@ class ScrollTracker:
     max_buffer = 500
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise the :class:`ScrollTracker` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -105,7 +107,7 @@ class ScrollTracker:
         self._query_elapsed = 0
 
     @_check_types.do
-    def start_query(self):
+    def start_query(self) -> None:
         """Start the query.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -113,7 +115,7 @@ class ScrollTracker:
         self._start_query = time.monotonic_ns()
 
     @_check_types.do
-    def stop_query(self):
+    def stop_query(self) -> None:
         """Stop the query.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -122,7 +124,7 @@ class ScrollTracker:
         self._query_elapsed += (now - self._start_query) * 1e-9
 
     @_check_types.do
-    def get_buffer_size(self, current_row):
+    def get_buffer_size(self, current_row: int) -> int:
         """Return the buffer size.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -151,7 +153,7 @@ class ScrollTracker:
         return res
 
 
-class _EditorModel(QAbstractTableModel):
+class _EditorModel(QtCore.QAbstractTableModel):
     """
     Qt model backing EditorList
 
@@ -161,7 +163,7 @@ class _EditorModel(QAbstractTableModel):
     """
 
     @_check_types.do
-    def __init__(self, editor_list):
+    def __init__(self, editor_list: "EditorList") -> None:
         """Initialise the :class:`_EditorModel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -173,7 +175,7 @@ class _EditorModel(QAbstractTableModel):
         self._list = editor_list
 
     @_check_types.do
-    def rowCount(self, parent=QModelIndex()):
+    def rowCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         """Execute the row count operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -189,7 +191,7 @@ class _EditorModel(QAbstractTableModel):
         return self._list._row_count  # NOQA
 
     @_check_types.do
-    def columnCount(self, parent=QModelIndex()):
+    def columnCount(self, parent: QtCore.QModelIndex = QtCore.QModelIndex()) -> int:
         """Execute the column count operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -206,7 +208,8 @@ class _EditorModel(QAbstractTableModel):
         return len(self._list.column_mapping) + 1
 
     @_check_types.do
-    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+    def headerData(self, section: int, orientation: QtCore.Qt.Orientation,
+                   role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole) -> str | None:
         """Execute the header data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -221,8 +224,8 @@ class _EditorModel(QAbstractTableModel):
         :rtype: UNKNOWN
         """
         if (
-            orientation != Qt.Orientation.Horizontal or
-            role != Qt.ItemDataRole.DisplayRole
+            orientation != QtCore.Qt.Orientation.Horizontal or
+            role != QtCore.Qt.ItemDataRole.DisplayRole
         ):
             return
 
@@ -256,7 +259,8 @@ class _EditorModel(QAbstractTableModel):
         return label
 
     @_check_types.do
-    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
+    def data(self, index: QtCore.QModelIndex,
+             role: QtCore.Qt.ItemDataRole = QtCore.Qt.ItemDataRole.DisplayRole) -> QtGui.QIcon | str | QtCore.Qt.AlignmentFlag | None:
         """Execute the data operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -276,30 +280,30 @@ class _EditorModel(QAbstractTableModel):
             row_id = index.row()
             col_id = index.column()
 
-            if role == Qt.ItemDataRole.DecorationRole and col_id == 0:
+            if role == QtCore.Qt.ItemDataRole.DecorationRole and col_id == 0:
                 return self._list._get_icon(row_id)  # NOQA
 
-            if role == Qt.ItemDataRole.DisplayRole:
+            if role == QtCore.Qt.ItemDataRole.DisplayRole:
                 if col_id == 0:
                     return
 
                 return self._list._get_cell_text(row_id, col_id)  # NOQA
 
-            if role == Qt.ItemDataRole.TextAlignmentRole:
+            if role == QtCore.Qt.ItemDataRole.TextAlignmentRole:
                 col_key = col_id - 1
                 if col_key in self._list.column_mapping:
                     col_name = self._list.column_mapping[col_key][1]['alias']
                     if col_name == 'model3d_id':
-                        return Qt.AlignmentFlag.AlignCenter
+                        return QtCore.Qt.AlignmentFlag.AlignCenter
 
-                return Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                return QtCore.Qt.AlignmentFlag.AlignLeft | QtCore.Qt.AlignmentFlag.AlignVCenter
         except:  # NOQA
             import traceback
             traceback.print_exc()
             raise
 
     @_check_types.do
-    def invalidate_row(self, row_id):
+    def invalidate_row(self, row_id: int) -> None:
         """Execute the invalidate row operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -311,12 +315,12 @@ class _EditorModel(QAbstractTableModel):
                               self.index(row_id, self.columnCount() - 1))
 
     @_check_types.do
-    def invalidate_icon(self, row_id):
+    def invalidate_icon(self, row_id: int) -> None:
         idx = self.index(row_id, 0)
-        self.dataChanged.emit(idx, idx, [Qt.ItemDataRole.DecorationRole])
+        self.dataChanged.emit(idx, idx, [QtCore.Qt.ItemDataRole.DecorationRole])
 
     @_check_types.do
-    def reset_all(self):
+    def reset_all(self) -> None:
         """Execute the reset all operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -325,7 +329,7 @@ class _EditorModel(QAbstractTableModel):
         self.endResetModel()
 
 
-class EditorList(QTableView):
+class EditorList(QtWidgets.QTableView):
     """Represent an editor list in :mod:`harness_designer.ui.editor_db.base`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -333,11 +337,11 @@ class EditorList(QTableView):
 
     # Emitted with the visible row index whenever a row becomes selected,
     # including when the selection moves from one row to another.
-    itemSelected = Signal(int)
+    itemSelected = QtCore.Signal(int)
 
     # Emitted only when the state changes from a row being selected to
     # nothing being selected.
-    itemUnselected = Signal()
+    itemUnselected = QtCore.Signal()
 
     # Rolling sample of measured double-click gaps (ms), shared by every
     # list so all pages contribute to the same learned average.
@@ -349,13 +353,13 @@ class EditorList(QTableView):
     _DESELECT_MARGIN = 1.5
     _DESELECT_MIN_MS = 150
 
-    _no_image: QIcon = None
-    _download_0: QIcon = None
-    _download_1: QIcon = None
-    _download_2: QIcon = None
-    _download_3: QIcon = None
-    _download_4: QIcon = None
-    _download_5: QIcon = None
+    _no_image: QtGui.QIcon | None = None
+    _download_0: QtGui.QIcon | None = None
+    _download_1: QtGui.QIcon | None = None
+    _download_2: QtGui.QIcon | None = None
+    _download_3: QtGui.QIcon | None = None
+    _download_4: QtGui.QIcon | None = None
+    _download_5: QtGui.QIcon | None = None
     _has_image = True
     _has_model_3d = True
     __table_name__ = ''
@@ -370,7 +374,7 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def GetLabel(self):
+    def GetLabel(self) -> str:
         """Execute the get label operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -381,7 +385,7 @@ class EditorList(QTableView):
         return self._label
 
     @_check_types.do
-    def GetSelection(self):
+    def GetSelection(self) -> int | None:
         """Execute the get selection operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -406,7 +410,8 @@ class EditorList(QTableView):
         return row[1]
 
     @_check_types.do
-    def set_filter(self, where_clause: str = '', where_params=None):
+    def set_filter(self, where_clause: str = '',
+                   where_params: list | None = None) -> None:
         """Replace the active WHERE clause and refresh the list."""
 
         self._where_clause = where_clause or ''
@@ -477,7 +482,7 @@ class EditorList(QTableView):
         return " AND ".join(clauses), params
 
     @_check_types.do
-    def _on_header_context_menu(self, pos: QPoint) -> None:
+    def _on_header_context_menu(self, pos: QtCore.QPoint) -> None:
         """Show the per-column search popup for the header section that
         was right-clicked.
 
@@ -498,7 +503,7 @@ class EditorList(QTableView):
             lambda text, col=col_name: self._apply_header_search(col, text))
 
         section_pos = header.sectionViewportPosition(logical)
-        anchor = header.mapToGlobal(QPoint(section_pos, header.height()))
+        anchor = header.mapToGlobal(QtCore.QPoint(section_pos, header.height()))
         popup.move(anchor)
         popup.show()
 
@@ -570,7 +575,7 @@ class EditorList(QTableView):
 
     @property
     @_check_types.do
-    def record_count(self):
+    def record_count(self) -> int:
         """Return the record count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -658,7 +663,7 @@ class EditorList(QTableView):
         return None
 
     @_check_types.do
-    def _rebuild_sort_indicators(self):
+    def _rebuild_sort_indicators(self) -> None:
         """
         Trigger a header repaint so every section re-fetches its label
         from ``_EditorModel.headerData``, which now embeds the arrow and
@@ -669,7 +674,7 @@ class EditorList(QTableView):
         the label string itself, e.g. ``"Part Number ↓2"``.
         """
 
-        self._model.headerDataChanged.emit(Qt.Orientation.Horizontal, 0,
+        self._model.headerDataChanged.emit(QtCore.Qt.Orientation.Horizontal, 0,
                                            self._model.columnCount() - 1)
 
     # ------------------------------------------------------------------
@@ -677,7 +682,7 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def get_obj_id(self, row):
+    def get_obj_id(self, row: int) -> int | None:
         """Return the obj ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -706,7 +711,7 @@ class EditorList(QTableView):
             return rows[0][1]
 
     @_check_types.do
-    def get_row(self, row):
+    def get_row(self, row: int) -> tuple | None:
         """Return the row.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -727,7 +732,7 @@ class EditorList(QTableView):
         return self.rows.get(row, None)
 
     @_check_types.do
-    def get_rows(self, start, stop):
+    def get_rows(self, start: int, stop: int) -> None:
         """Return the rows.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -759,7 +764,7 @@ class EditorList(QTableView):
         self.scroll_tracker.stop_query()
 
     @_check_types.do
-    def prune_cache(self, current_row, buffer_size):
+    def prune_cache(self, current_row: int, buffer_size: int) -> None:
         """Execute the prune cache operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -781,7 +786,7 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _get_cell_text(self, row_id, col_id):
+    def _get_cell_text(self, row_id: int, col_id: int) -> str:
         """Return the cell text.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -817,7 +822,7 @@ class EditorList(QTableView):
         return str(value)
 
     @_check_types.do
-    def _update_progress(self, image, step):
+    def _update_progress(self, image: "_global_image.Image", step: int) -> None:
         db_id = image.db_id
         if db_id not in self.downloading_images:
             return
@@ -827,27 +832,29 @@ class EditorList(QTableView):
         if step == -1:
             self.downloading_images[db_id][0] = EditorList._no_image
         else:
-            self.downloading_images[db_id][0] = getattr(self, f'_download_{step}')
+            self.downloading_images[db_id][0] = (
+            self._download_0, self._download_1, self._download_2,
+            self._download_3, self._download_4, self._download_5)[step]
 
-        QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
+        QtCore.QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
 
     @_check_types.do
-    def _load_icon(self, image, pixmap: QPixmap):
+    def _load_icon(self, image: "_global_image.Image", pixmap: QtGui.QPixmap) -> None:
         db_id = image.db_id
-        pixmap = pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio,
-                               Qt.TransformationMode.SmoothTransformation)
+        pixmap = pixmap.scaled(64, 64, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                               QtCore.Qt.TransformationMode.SmoothTransformation)
 
-        self.bitmap_indexes[db_id] = QIcon(pixmap)
+        self.bitmap_indexes[db_id] = QtGui.QIcon(pixmap)
         row_id = self.downloading_images[db_id][1]
         del self.downloading_images[db_id]
 
-        QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
+        QtCore.QTimer.singleShot(0, lambda row=row_id: self._model.invalidate_icon(row))
 
         # from ... import app
         # app.CallAfter(self._model.invalidate_row, row_id)
 
     @_check_types.do
-    def _get_icon(self, row_id):
+    def _get_icon(self, row_id: int) -> QtGui.QIcon | None:
         """Return the icon.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -899,7 +906,7 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Execute the resize event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -910,7 +917,7 @@ class EditorList(QTableView):
         super().resizeEvent(event)
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             """Execute the do operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -920,10 +927,10 @@ class EditorList(QTableView):
                 ScrollTracker.min_buffer = (count + 1) * 2
                 ScrollTracker.max_buffer = (count + 1) * 2 * 60
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def rowsPerPage(self):
+    def rowsPerPage(self) -> int:
         """Execute the rows per page operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -939,7 +946,7 @@ class EditorList(QTableView):
         return max(1, self.viewport().height() // row_h)
 
     @_check_types.do
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event: QtGui.QContextMenuEvent) -> None:
         """Execute the context menu event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -951,7 +958,7 @@ class EditorList(QTableView):
         pass
 
     @_check_types.do
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         """Handle mouse presses, adding deselect behaviour.
 
         A left click on the row that is already selected, or on the empty
@@ -966,7 +973,7 @@ class EditorList(QTableView):
         :param event: Mouse event.
         :type event: :class:`QtGui.QMouseEvent`
         """
-        if event.button() == Qt.MouseButton.LeftButton:
+        if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._deselect_timer.stop()
             self._pending_deselect_row = None
             self._last_press_ns = time.monotonic_ns()
@@ -987,7 +994,7 @@ class EditorList(QTableView):
         super().mousePressEvent(event)
 
     @_check_types.do
-    def mouseDoubleClickEvent(self, event):
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
         """Handle double clicks, cancelling any pending deselect.
 
         Double-clicking an already-selected row keeps it selected and lets
@@ -998,11 +1005,11 @@ class EditorList(QTableView):
         :type event: :class:`QtGui.QMouseEvent`
         """
         if (
-            event.button() == Qt.MouseButton.LeftButton and
+            event.button() == QtCore.Qt.MouseButton.LeftButton and
             self._last_press_ns is not None
         ):
             gap_ms = (time.monotonic_ns() - self._last_press_ns) * 1e-6
-            if 0 < gap_ms <= QApplication.doubleClickInterval():
+            if 0 < gap_ms <= QtWidgets.QApplication.doubleClickInterval():
                 self._record_double_click_gap(gap_ms)
 
         self._deselect_timer.stop()
@@ -1012,7 +1019,7 @@ class EditorList(QTableView):
 
     @classmethod
     @_check_types.do
-    def _record_double_click_gap(cls, gap_ms):
+    def _record_double_click_gap(cls, gap_ms: float) -> None:
         """Fold a measured double-click gap into the learned average.
 
         The newest gap joins a rolling window of 5 samples. The highest
@@ -1048,7 +1055,7 @@ class EditorList(QTableView):
         :returns: Wait time in milliseconds.
         :rtype: int
         """
-        os_interval = QApplication.doubleClickInterval()
+        os_interval = QtWidgets.QApplication.doubleClickInterval()
         avg = EditorDBConfig.double_click_average
 
         if not avg:
@@ -1059,7 +1066,7 @@ class EditorList(QTableView):
                            avg * self._DESELECT_MARGIN)))
 
     @_check_types.do
-    def _on_deselect_timeout(self):
+    def _on_deselect_timeout(self) -> None:
         """Carry out a deselect scheduled by :meth:`mousePressEvent` once
         the double-click interval has passed with no second click.
         """
@@ -1070,14 +1077,14 @@ class EditorList(QTableView):
             self.clearSelection()
 
     @_check_types.do
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         """Handle key presses, clearing the selection on Escape.
 
         :param event: Key event.
         :type event: :class:`QtGui.QKeyEvent`
         """
         if (
-            event.key() == Qt.Key.Key_Escape and
+            event.key() == QtCore.Qt.Key.Key_Escape and
             self.selectionModel().hasSelection()
         ):
             self.clearSelection()
@@ -1091,7 +1098,8 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _on_selection_changed(self, selected, deselected):
+    def _on_selection_changed(self, selected: QtCore.QItemSelection,
+                              deselected: QtCore.QItemSelection) -> None:
         """Handle the selection changed event.
 
         Keeps :attr:`selected` in sync with the selection model and emits
@@ -1114,7 +1122,7 @@ class EditorList(QTableView):
                 self.itemUnselected.emit()
 
     @_check_types.do
-    def _clear_selection_state(self):
+    def _clear_selection_state(self) -> None:
         """Clear :attr:`selected`, emitting ``itemUnselected`` when a row
         was selected beforehand. Used by programmatic resets that bypass
         the selection model (filter changes, sort changes).
@@ -1124,7 +1132,7 @@ class EditorList(QTableView):
             self.itemUnselected.emit()
 
     @_check_types.do
-    def _on_activated(self, index):
+    def _on_activated(self, index: QtCore.QModelIndex) -> None:
         """Handle the activated event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1148,7 +1156,7 @@ class EditorList(QTableView):
         self._model.invalidate_row(row_id)
 
     @_check_types.do
-    def _on_header_clicked(self, logical_index):
+    def _on_header_clicked(self, logical_index: int) -> None:
         """Handle the header clicked event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1191,7 +1199,7 @@ class EditorList(QTableView):
         self._model.reset_all()
 
     @_check_types.do
-    def _on_idle(self):
+    def _on_idle(self) -> None:
         """Handle the idle event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1205,7 +1213,8 @@ class EditorList(QTableView):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __init__(self, parent, mainframe, label, table):
+    def __init__(self, parent: QtWidgets.QWidget, mainframe: "_mainframe.MainFrame",
+                 label: str, table) -> None:
         """Initialise the :class:`EditorList` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1248,16 +1257,16 @@ class EditorList(QTableView):
         self._model = _EditorModel(self)
         self.setModel(self._model)
 
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.setShowGrid(True)
         self.setAlternatingRowColors(True)
-        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
 
         # manual sort via header click
         self.setSortingEnabled(False)
 
-        self.setIconSize(QSize(64, 64))
+        self.setIconSize(QtCore.QSize(64, 64))
         self.verticalHeader().setDefaultSectionSize(68)
         self.verticalHeader().hide()
 
@@ -1268,14 +1277,14 @@ class EditorList(QTableView):
         header.setSortIndicatorShown(False)
 
         # Right-click a header section for a per-column search popup.
-        header.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        header.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         header.customContextMenuRequested.connect(self._on_header_context_menu)  # NOQA
 
         self.column_lookup = {}
 
         # icon column
         self.setColumnWidth(0, 72)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeMode.Fixed)
 
         fm = self.fontMetrics()
         for i in sorted(self.column_mapping.keys()):
@@ -1287,9 +1296,9 @@ class EditorList(QTableView):
             self.column_lookup[logical] = column_name
 
             if column_name == 'model3d_id':
-                header.setSectionResizeMode(logical, QHeaderView.ResizeMode.Fixed)
+                header.setSectionResizeMode(logical, QtWidgets.QHeaderView.ResizeMode.Fixed)
             else:
-                header.setSectionResizeMode(logical, QHeaderView.ResizeMode.Interactive)
+                header.setSectionResizeMode(logical, QtWidgets.QHeaderView.ResizeMode.Interactive)
 
             offset = 100 if label_text == 'Description' else 25
             self.setColumnWidth(
@@ -1302,7 +1311,7 @@ class EditorList(QTableView):
         self.activated.connect(self._on_activated)
         header.sectionClicked.connect(self._on_header_clicked)
 
-        self._idle_timer = QTimer(self)
+        self._idle_timer = QtCore.QTimer(self)
         self._idle_timer.setInterval(200)
         self._idle_timer.timeout.connect(self._on_idle)
         self._idle_timer.start()
@@ -1310,38 +1319,38 @@ class EditorList(QTableView):
         # Deferred click-to-deselect; see mousePressEvent.
         self._pending_deselect_row = None
         self._last_press_ns = None
-        self._deselect_timer = QTimer(self)
+        self._deselect_timer = QtCore.QTimer(self)
         self._deselect_timer.setSingleShot(True)
         self._deselect_timer.timeout.connect(self._on_deselect_timeout)
 
         if EditorList._no_image is None:
             img = _image.images.no_image.resize(64, 64)
-            EditorList._no_image = QIcon(img.pixmap)
+            EditorList._no_image = QtGui.QIcon(img.pixmap)
 
             img = _image.images.download_0.resize(64, 64)
-            EditorList._download_0 = QIcon(img.pixmap)
+            EditorList._download_0 = QtGui.QIcon(img.pixmap)
 
             img = _image.images.download_1.resize(64, 64)
-            EditorList._download_1 = QIcon(img.pixmap)
+            EditorList._download_1 = QtGui.QIcon(img.pixmap)
 
             img = _image.images.download_2.resize(64, 64)
-            EditorList._download_2 = QIcon(img.pixmap)
+            EditorList._download_2 = QtGui.QIcon(img.pixmap)
 
             img = _image.images.download_3.resize(64, 64)
-            EditorList._download_3 = QIcon(img.pixmap)
+            EditorList._download_3 = QtGui.QIcon(img.pixmap)
 
             img = _image.images.download_4.resize(64, 64)
-            EditorList._download_4 = QIcon(img.pixmap)
+            EditorList._download_4 = QtGui.QIcon(img.pixmap)
 
             img = _image.images.download_5.resize(64, 64)
-            EditorList._download_5 = QIcon(img.pixmap)
+            EditorList._download_5 = QtGui.QIcon(img.pixmap)
 
     # ------------------------------------------------------------------
     # Compatibility shims
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """Execute the refresh operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1355,7 +1364,7 @@ class EditorList(QTableView):
         self.viewport().update()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """Execute the destroy operation.
 
         UNKNOWN details are inferred from the callable name and signature.

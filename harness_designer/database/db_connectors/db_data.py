@@ -2,12 +2,19 @@
 
 """Helpers for downloading and unpacking bundled database seed data."""
 
+from typing import TYPE_CHECKING
+
 import requests
 import tempfile
 import os
 import zipfile
 import shutil
+
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class DBData:
@@ -15,14 +22,14 @@ class DBData:
     """Download and expose external database seed data.
     """
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the data download helper.
         """
         self._data_dir = None
         self._alt_path = None
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """Remove any downloaded data directory managed by this helper.
 
         :returns: ``None``.
@@ -33,7 +40,7 @@ class DBData:
                 shutil.rmtree(self._data_dir)
 
     @_check_types.do
-    def open(self, splash):
+    def open(self, splash: "_splash.Splash") -> str:
         """Download, unpack, and return the database data directory.
 
         :param splash: Splash-screen-like object used to report progress.

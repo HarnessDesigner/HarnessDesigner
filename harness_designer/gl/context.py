@@ -1,14 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from collections.abc import Callable
+
+import types
 import threading
-from typing import TYPE_CHECKING
+from PySide6 import QtGui, QtOpenGLWidgets
 
-from PySide6.QtGui import QOpenGLContext
-from PySide6 import QtOpenGLWidgets
 from .. import check_types as _check_types
-
-if TYPE_CHECKING:
-    from PySide6.QtOpenGLWidgets import QOpenGLWidget
 
 
 class GLContext:
@@ -41,7 +39,7 @@ class GLContext:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "QOpenGLWidget"):
+    def __init__(self, canvas: "QtOpenGLWidgets.QOpenGLWidget") -> None:
         """Initialise the :class:`GLContext` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -67,7 +65,7 @@ class GLContext:
         return self.ref != 0
 
     @_check_types.do
-    def _acquire(self):
+    def _acquire(self) -> None:
         """Internal: called only by __enter__. Not public -- see the
         class docstring for why acquire()/release() were removed."""
         self._lock.acquire()
@@ -86,7 +84,7 @@ class GLContext:
         # acquire re-establishing current-ness here never takes over
         # responsibility for the eventual doneCurrent() from whichever
         # call actually owns it.
-        current_ctx = QOpenGLContext.currentContext()
+        current_ctx = QtGui.QOpenGLContext.currentContext()
         widget_ctx = QtOpenGLWidgets.QOpenGLWidget.context(self.canvas)
 
         # current_ctx is None whenever nothing is current on this thread
@@ -108,7 +106,7 @@ class GLContext:
         self.ref += 1
 
     @_check_types.do
-    def _release(self):
+    def _release(self) -> None:
         """Internal: called only by __exit__. Not public -- see the
         class docstring for why acquire()/release() were removed."""
         self.ref -= 1
@@ -127,7 +125,7 @@ class GLContext:
         return self
 
     @_check_types.do
-    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:
         """Exit the managed context.
 
         Always runs -- exception or not -- which is the entire point;

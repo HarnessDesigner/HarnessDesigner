@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from collections.abc import Callable
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import os
 from PySide6 import QtGui
@@ -14,6 +15,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import file_types as _file_types
+    from ... import splash as _splash
 
 
 class ImagesTable(TableBase):
@@ -35,7 +37,7 @@ class ImagesTable(TableBase):
         return _images.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +48,7 @@ class ImagesTable(TableBase):
         _images.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +68,7 @@ class ImagesTable(TableBase):
             yield Image(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Image":
+    def __getitem__(self, item: int | bytes | str) -> "Image":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +120,7 @@ class Image(EntryBase):
     _download_callbacks = {}
 
     @_check_types.do
-    def download_complete(self):
+    def download_complete(self) -> None:
         if self.db_id not in self._download_callbacks:
             return
 
@@ -145,7 +147,7 @@ class Image(EntryBase):
             del self._download_callbacks[self.db_id]
 
     @_check_types.do
-    def set_progress(self, step):
+    def set_progress(self, step: int) -> None:
 
         if self.db_id not in self._download_callbacks:
             return
@@ -158,7 +160,7 @@ class Image(EntryBase):
             cb_(self, step)
 
     @_check_types.do
-    def load(self, mfg, part_number, done_callback, progress_callback):
+    def load(self, mfg: str, part_number: str, done_callback: Callable[..., None], progress_callback: Callable[..., None]) -> None:
         """
         Load an image.
 
@@ -279,7 +281,7 @@ class Image(EntryBase):
 
         return self._stored_uuid
 
-    _stored_file_type: Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
+    _stored_file_type: _Union[DefaultStoredValueType, "_file_types.FileType", None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -319,7 +321,7 @@ class Image(EntryBase):
 
     @file_type_id.setter
     @_check_types.do
-    def file_type_id(self, value: bytes):
+    def file_type_id(self, value: bytes) -> None:
         """Set the file type ID.
 
         UNKNOWN details are inferred from the callable name and signature.

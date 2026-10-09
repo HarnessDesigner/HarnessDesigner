@@ -2,6 +2,7 @@
 
 """Quaternion math used by :mod:`harness_designer.geometry.angle`."""
 
+from typing import TYPE_CHECKING
 from typing import Self, Any, Union as _Union
 from collections.abc import Iterable
 
@@ -14,6 +15,11 @@ from .. import point as _point
 from ... import check_types as _check_types
 
 
+if TYPE_CHECKING:
+    from .. import line as _line
+    from . import angle as _angle
+
+
 ONE = _d(1.0)
 TWO = _d(2.0)
 
@@ -22,8 +28,8 @@ class Quaternion:
     """Represent a normalized quaternion used for 3D rotations."""
 
     @_check_types.do
-    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: object,
-                        instance: object, out: tuple[np.ndarray, ...] | None = None,
+    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: _Union["_point.Point", "_angle.Angle", "_line.Line", "Quaternion", np.ndarray, tuple, list, float, int, None],
+                        instance: _Union["_point.Point", "_angle.Angle", "_line.Line", "Quaternion", np.ndarray, tuple, list, float, int, None], out: tuple[np.ndarray, ...] | None = None,
                         **__: dict[str, Any]) -> _Union[np.ndarray, "Quaternion"]:
         """
         Handle selected NumPy ufuncs for quaternion operations.

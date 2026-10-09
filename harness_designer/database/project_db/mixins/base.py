@@ -21,7 +21,7 @@ class BaseMixin:
 
     @property
     @_check_types.do
-    def table(self):
+    def table(self) -> PJTTableBase:
         """Return the table.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -32,7 +32,7 @@ class BaseMixin:
         return self._table
 
     @_check_types.do
-    def _populate(self, tag):
+    def _populate(self, tag: str) -> None:
         """Execute the populate operation.
 
         UNKNOWN details are inferred from the callable name and signature.

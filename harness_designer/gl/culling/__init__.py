@@ -9,7 +9,7 @@ from . import culling as _culling
 
 class __CullingLoader:
 
-    def __init__(self):
+    def __init__(self) -> None:
         import sys
 
         mod = sys.modules[__name__]
@@ -40,14 +40,14 @@ class __CullingLoader:
         frustum_normals: np.ndarray,
         frustum_distances: np.ndarray,
         camera_pos: np.ndarray
-    ):
+    ) -> list[list[list[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]], list[list[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]], list[list[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]], list[list[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]]]:
         if self.__culling__ is None:
             return []
 
         return self.__culling__.cull(object_data_lists, frustum_normals,
                                      frustum_distances, camera_pos)
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         if self.__culling__ is not None:
             self.__culling__.shutdown()
             self.__culling__ = None
@@ -67,11 +67,11 @@ if TYPE_CHECKING:
         frustum_normals: np.ndarray,   # NOQA
         frustum_distances: np.ndarray,   # NOQA
         camera_pos: np.ndarray   # NOQA
-    ):
+    ) -> None:
         pass
 
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         pass
 
 

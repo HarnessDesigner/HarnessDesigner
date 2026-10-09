@@ -11,7 +11,7 @@ identical reasoning (no toolbar mode exists for this, so there's no
 "which wire" ambiguity to resolve via picking).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -31,7 +31,7 @@ class WireLayout(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", wire: "_wire.Wire"
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -46,15 +46,16 @@ class WireLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -82,6 +83,11 @@ class WireLayout(_base.AddHandlerBase):
     def _finalize(self, mouse_pos: _point.Point) -> None:
         from ...handlers import wire_layout_handler as _wire_layout_handler
 
+        # Set before the self.target.delete() below (the not-at-endpoint
+        # branch), not after -- see editor_3d.bundle_layout.BundleLayout.
+        # _finalize's own comment for why.
+        self._finalized = True
+
         raw_pos, is_at_endpoint, endpoint = self._wire.obj3d.get_closest_endpoint(mouse_pos)
 
         if is_at_endpoint:
@@ -100,8 +106,6 @@ class WireLayout(_base.AddHandlerBase):
                 self.mainframe.project, self._wire, preview_position)
             self.target.obj3d.is_visible = True
 
-        self._finalized = True
-
     @_check_types.do
     def cancel(self) -> None:
         if self.target is not None:
@@ -111,5 +115,5 @@ class WireLayout(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

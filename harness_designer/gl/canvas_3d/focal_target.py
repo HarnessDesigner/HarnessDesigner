@@ -6,7 +6,6 @@ from ...objects.objects_3d import generic as _generic_3d
 from ...objects.objects_schematic import generic as _generic_schematic
 from ...objects.objects_pegboard import generic as _generic_pegboard
 from ...objects import ObjectBase as _ObjectBase
-
 from ...gl import materials as _materials
 from ...geometry import angle as _angle
 from ...geometry import point as _point
@@ -29,7 +28,7 @@ class FocalTarget(_ObjectBase):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: "_canvas.Canvas") -> None:
         """Initialise the :class:`FocalPoint` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -69,7 +68,7 @@ class FocalTarget3D(_generic_3d.Generic):
     _pick_priority = -1
 
     @_check_types.do
-    def __init__(self, parent: FocalTarget):
+    def __init__(self, parent: FocalTarget) -> None:
         """Initialise the :class:`FocalPoint3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

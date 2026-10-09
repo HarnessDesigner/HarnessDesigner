@@ -34,8 +34,8 @@ IDs that survive all table checks are confirmed orphans and are deleted.
 
 No hardcoded column lists are needed — ``find_unreferenced_ids`` discovers
 relevant columns at runtime from the cached ``field_names`` on each table,
-filtered by the naming convention suffix (``'_point3d_id'`` /
-``'_point2d_id'``).  New tables added to the schema are covered automatically.
+filtered by the naming convention suffix (``'point3d_id'`` /
+``'point2d_id'``).  New tables added to the schema are covered automatically.
 
 CURSOR DESIGN (chunked idle pass)
 ----------------------------------
@@ -94,7 +94,7 @@ class ProjectCleanup:
     """
 
     @_check_types.do
-    def __init__(self, project: "_project.Project"):
+    def __init__(self, project: "_project.Project") -> None:
         """Initialise the :class:`ProjectCleanup` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +108,7 @@ class ProjectCleanup:
         self._phase = '3d'
 
         self._tables_3d = [table for table in project.ptables.tables if table.has_points3d]
-        self._tables_2d = [table for table in project.ptables.tables if table.has_points3d]
+        self._tables_2d = [table for table in project.ptables.tables if table.has_points2d]
 
     @_check_types.do
     def process_chunk(self) -> bool:
@@ -201,7 +201,7 @@ class ProjectCleanup:
         return new_cursor
 
     @_check_types.do
-    def _delete_batch(self, table_name: str, orphan_ids: list[int]):
+    def _delete_batch(self, table_name: str, orphan_ids: list[int]) -> None:
         """
         Delete a set of orphaned point IDs from *table_name* in one query.
 

@@ -1,8 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import Any
+from typing import TYPE_CHECKING
+
 from .bases import TableBase
 from ... import utils as _utils
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class SettingsTable(TableBase):
@@ -26,7 +33,7 @@ class SettingsTable(TableBase):
         return settings.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -40,7 +47,7 @@ class SettingsTable(TableBase):
         settings.add_records(self._con, splash, _utils.get_appdata())
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -50,7 +57,7 @@ class SettingsTable(TableBase):
         settings.table.update_fields(self)
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: int | bytes | str) -> Any:
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.

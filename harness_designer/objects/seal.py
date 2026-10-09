@@ -26,7 +26,7 @@ class Seal(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_seal.PJTSeal", project_load=False):
+                 db_obj: "_pjt_seal.PJTSeal", project_load: bool = False) -> None:
         """Initialise the :class:`Seal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,7 +49,7 @@ class Seal(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         """Selecting a seal selects its owner instead (the cavity holding
         its terminal, the cavity it plugs, or the housing for a MAT seal).
 
@@ -73,7 +73,7 @@ class Seal(_ObjectBase):
         super().set_selected(flag)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         super().delete()
         self.mainframe.project.delete_seal(self.db_obj.db_id)
         self.db_obj.delete()

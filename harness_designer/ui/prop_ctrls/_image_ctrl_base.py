@@ -8,10 +8,7 @@ import zipfile
 
 from PIL import Image
 
-from PySide6 import QtWidgets
-from PySide6 import QtCore
-from PySide6 import QtPdf
-from PySide6 import QtGui
+from PySide6 import QtCore, QtGui, QtPdf, QtWidgets
 
 from ... import image as _image
 from ... import resources as _resources
@@ -19,7 +16,7 @@ from ... import check_types as _check_types
 
 
 @_check_types.do
-def _pil_to_pixmap(pil_img) -> QtGui.QPixmap:
+def _pil_to_pixmap(pil_img: Image.Image) -> QtGui.QPixmap:
     """Convert a PIL RGBA image to QPixmap."""
     pil_img = pil_img.convert('RGBA')
     data = pil_img.tobytes('raw', 'RGBA')
@@ -46,8 +43,9 @@ class ImageCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent, file_types, original_path, saved_path,
-                 support_pdf=False):
+    def __init__(self, parent: QtWidgets.QWidget, file_types: dict[str, str],
+                 original_path: str | None, saved_path: str | None,
+                 support_pdf: bool = False) -> None:
         """Initialise the :class:`ImageCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -89,7 +87,7 @@ class ImageCtrl(QtWidgets.QWidget):
             self.get_image(original_path)
 
     @_check_types.do
-    def SetFileTypes(self, file_types):
+    def SetFileTypes(self, file_types: dict[str, str]) -> None:
         """Execute the set file types operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +98,7 @@ class ImageCtrl(QtWidgets.QWidget):
         self.file_types = file_types
 
     @_check_types.do
-    def _set_pixmap(self, pixmap: QtGui.QPixmap):
+    def _set_pixmap(self, pixmap: QtGui.QPixmap) -> None:
         """Set the pixmap.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -113,7 +111,7 @@ class ImageCtrl(QtWidgets.QWidget):
                           QtCore.Qt.TransformationMode.SmoothTransformation))
 
     @_check_types.do
-    def _set_pdf(self, path):
+    def _set_pdf(self, path: str) -> None:
         """Render the first page of a PDF as a thumbnail in the image label."""
         rendered = False
 
@@ -141,7 +139,7 @@ class ImageCtrl(QtWidgets.QWidget):
             self._image_label.setText(f'PDF\n{os.path.basename(path)}')
 
     @_check_types.do
-    def _load_pil(self, path):
+    def _load_pil(self, path: str) -> None:
         """Load the pil.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -158,7 +156,7 @@ class ImageCtrl(QtWidgets.QWidget):
             self._set_pixmap(_no_image_pixmap())
 
     @_check_types.do
-    def get_image(self, path) -> bool:
+    def get_image(self, path: str) -> bool:
         """Return the image.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -246,7 +244,7 @@ class ImageCtrl(QtWidgets.QWidget):
         return True
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> str:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -257,7 +255,7 @@ class ImageCtrl(QtWidgets.QWidget):
         return self._path
 
     @_check_types.do
-    def SetValue(self, value) -> bool:
+    def SetValue(self, value: str) -> bool:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

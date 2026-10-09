@@ -146,16 +146,22 @@ only deleting an existing layout's live facade object (via its own
 from typing import TYPE_CHECKING, Union as _Union
 
 import math
+import uuid
+
+import numpy as np
 
 from .. import rope_pull as _rope_pull
+from ..rope_pull import offline_store as _offline_store
 from .. import config as _config
 from ..geometry import point as _point
+from ..geometry.angle import angle as _angle
 from ..objects import bundle_layout as _bundle_layout
 from ..objects import wire_layout as _wire_layout
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ..database.project_db.pjt_bases import ProjectTables as _ProjectTables
     from .. import ui as _ui
     from ..database.project_db import pjt_bundle as _pjt_bundle
     from ..database.project_db import pjt_wire as _pjt_wire
@@ -166,6 +172,29 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor_pegboard.rope_pull
+
+
+@_check_types.do
+def is_enabled() -> bool:
+    """Whether the rope-pull solver is on (``Config.editor_pegboard.rope_pull.enabled``,
+    toggled from the Peg Board toolbar). Off, drag handlers fall back to the
+    per-edge length clamp and the 3D side does not re-solve the peg-board."""
+    return bool(Config.enabled)
+
+
+@_check_types.do
+def _chain_diameter(
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
+) -> float:
+    """The diameter the zig-zag rules scale by: a bundle's own effective
+    diameter (``PJTBundle.diameter``, see ``handlers.bundle_diameter``), or a
+    wire's own conductor OD (``part.od_mm``)."""
+    from ..database.project_db import pjt_bundle as _pjt_bundle_runtime
+
+    if isinstance(chain_db_obj, _pjt_bundle_runtime.PJTBundle):
+        return float(chain_db_obj.diameter)
+
+    return float(chain_db_obj.part.od_mm)
 
 
 @_check_types.do
@@ -186,7 +215,7 @@ def _anchors_and_length(
 @_check_types.do
 def _drag_end_for(
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"], point_id: bytes
-) -> "_rope_pull.DragEnd | None":
+) -> _rope_pull.DragEnd | None:
     """Whether *point_id* is *chain_db_obj*'s own start or stop anchor,
     or neither.
     """
@@ -310,7 +339,7 @@ def _reconcile_interior(
 
 
 @_check_types.do
-def _chains_for_point(ptables, point_id: bytes) -> list[tuple]:
+def _chains_for_point(ptables: "_ProjectTables", point_id: bytes) -> list[tuple]:
     """Every chain (bundle or wire) that *point_id* is part of, each as
     ``(chain_db_obj, path_table, layouts_table, layout_facade_cls,
     drag_end)`` -- ``drag_end`` is :attr:`rope_pull.DragEnd.WAYPOINT` if
@@ -386,7 +415,7 @@ def _pulled_far_position(
 
 
 @_check_types.do
-def _node_for_point(ptables, point_id: bytes) -> tuple[str, list[bytes]] | None:
+def _node_for_point(ptables: "_ProjectTables", point_id: bytes) -> tuple[str, list[bytes]] | None:
     """The rigid structural object that owns *point_id*, as
     ``(kind, points)`` -- *points* is every peg-board point that moves
     together with it as one object (a Transition's own centre PLUS
@@ -527,102 +556,10 @@ def _fixed_count_span(
 
 
 @_check_types.do
-def _fixed_count_interior(
-    start_xz: tuple[float, float], stop_xz: tuple[float, float], required_length: float,
-    drag_end: "_rope_pull.DragEnd", target_xz: tuple[float, float], point_count: int
-) -> list[tuple[float, float]]:
-    """Same overall shape as ``rope_pull.solve_chain``'s own interior
-    output (the same skeleton/proportional-slack-split construction),
-    but every span's own bump count is held FIXED so the total interior
-    point count always equals *point_count* -- used only to reposition
-    an existing set of waypoints smoothly, frame to frame, during an
-    in-progress drag, without ever inserting or deleting a single DB
-    row (see :func:`_commit_points`'s own ``in_progress`` flag, and the
-    user's own explicit spec, 2026-10-02: "any addition and subtraction
-    of waypoints should only be committed to the database when the
-    drag operation stops"). The true, height-cap-derived shape (which
-    CAN change the count) runs exactly once more, the moment the drag
-    actually ends -- see ``drag_handlers.editor_pegboard.generic.
-    Generic.delete``.
-
-    Exact total length is NOT guaranteed when *point_count* can't
-    support however much slack is actually needed (e.g. zero existing
-    waypoints but real slack is now required) -- the chain renders
-    visibly taut/straight until enough points exist again, which only
-    happens at the next full (mouse-up) reconcile. A deliberate,
-    transient approximation, not a bug: the alternative is inserting or
-    deleting a row on every single drag frame, which is exactly what
-    this exists to avoid.
-
-    :returns: The full point list, start through stop inclusive, same
-        slicing convention as ``rope_pull.ChainResult.points`` (callers
-        take ``[1:-1]`` for the interior alone).
-    """
-    if drag_end is _rope_pull.DragEnd.WAYPOINT:
-        skeleton = [start_xz, target_xz, stop_xz]
-    elif drag_end is _rope_pull.DragEnd.START:
-        skeleton = [target_xz, stop_xz]
-    else:
-        skeleton = [start_xz, target_xz]
-
-    span_count = len(skeleton) - 1
-    straights = [
-        math.hypot(skeleton[i + 1][0] - skeleton[i][0], skeleton[i + 1][1] - skeleton[i][1])
-        for i in range(span_count)]
-    base_length = sum(straights)
-    needed_slack = max(required_length - base_length, 0.0)
-
-    if span_count == 1:
-        counts = [max(0, (point_count + 1) // 2)]
-    elif point_count <= 1:
-        # Just the pin (or a degenerate non-positive input, which
-        # shouldn't occur -- the pin itself always makes point_count
-        # at least 1 for a WAYPOINT drag): no bumps on either side.
-        counts = [0, 0]
-    elif point_count % 2 == 0:
-        # A span's own achievable output is always 2*count-1 (odd) or
-        # 0 -- an EVEN point_count (excluding the pin, which itself
-        # contributes the "+1" that makes a two-bumped total odd) can
-        # only ever be hit by putting every bump on ONE side and
-        # leaving the other at a flat 0, never split between both.
-        k = point_count // 2
-        counts = [k, 0] if straights[0] >= straights[1] else [0, k]
-    else:
-        m = (point_count + 1) // 2
-        total_straight = straights[0] + straights[1]
-        count0 = m // 2 if total_straight < 1e-9 else round(m * straights[0] / total_straight)
-        count0 = max(1, min(m - 1, count0))
-        counts = [count0, m - count0]
-
-    # Slack can only ever go to a span that actually has a bump to
-    # carry it (a count of 0 can only ever produce its own bare
-    # straight length, never more) -- splitting it proportionally by
-    # straight length across EVERY span regardless, the way the real
-    # solver does (every span there always has room to grow), silently
-    # lost whatever share landed on a zero-count span here instead,
-    # undershooting required_length even though the span(s) that
-    # actually HAD a bump could have carried the rest. Route it only
-    # to spans with counts[i] > 0.
-    capable_straight = sum(straights[i] for i in range(span_count) if counts[i] > 0)
-
-    points = [skeleton[0]]
-    for i in range(span_count):
-        a, b = skeleton[i], skeleton[i + 1]
-        if counts[i] <= 0 or capable_straight < 1e-9:
-            share = 0.0
-        else:
-            share = needed_slack * (straights[i] / capable_straight)
-
-        points.extend(_fixed_count_span(a, b, straights[i] + share, counts[i]))
-        points.append(b)
-
-    return points
-
-
-@_check_types.do
 def _evaluate_points(
-    ptables, point_targets: list[tuple[bytes, tuple[float, float]]]
-) -> tuple[list[tuple], dict[bytes, tuple[float, float]]] | None:
+    ptables: "_ProjectTables", point_targets: list[tuple[bytes, tuple[float, float]]],
+    cascade: bool = True,
+) -> tuple[list[tuple], dict[bytes, tuple[float, float]], dict[bytes, float]] | None:
     """Pure solve, no DB writes -- every ``(point_id, target_xz)`` pair
     in *point_targets* moving AT ONCE, cascading through whatever else
     needs to move as a result (see the module docstring's own "The
@@ -679,6 +616,7 @@ def _evaluate_points(
 
     fixed: dict[bytes, tuple[float, float]] = dict(point_targets)
     write_points: dict[bytes, tuple[float, float]] = {}
+    write_yaws: dict[bytes, float] = {}
     pending: list[bytes] = [point_id for point_id, _ in point_targets]
     seen_chains: set[bytes] = set()
     entries = []
@@ -689,6 +627,9 @@ def _evaluate_points(
     ) -> tuple[float, float]:
         if far_point_id in fixed:
             return fixed[far_point_id]
+
+        if not cascade:
+            return far_xz
 
         pulled_xz = _pulled_far_position(far_xz, near_target_xz, required_length)
         if pulled_xz == far_xz:
@@ -721,6 +662,8 @@ def _evaluate_points(
                 phi = 0.0
             else:
                 phi = math.atan2(vz, vx) - math.atan2(-dz, -dx)
+
+            write_yaws[center_id] = phi
 
             for p in node_points:
                 p_point = points_table[p].point
@@ -765,7 +708,7 @@ def _evaluate_points(
 
             result = _rope_pull.solve_chain(
                 start_xz, stop_xz, required_length, drag_end, target_xz,
-                Config.height_cap_fraction, Config.min_height_mm)
+                _chain_diameter(chain_db_obj), Config.zigzag_length_factor, Config.threshold_factor)
 
             if not result.accepted:
                 return None
@@ -774,13 +717,13 @@ def _evaluate_points(
                 chain_db_obj, path_table, layouts_table, layout_facade_cls,
                 drag_end, point_id, target_xz, result, start_xz, stop_xz, required_length))
 
-    return entries, write_points
+    return entries, write_points, write_yaws
 
 
 @_check_types.do
 def _commit_points(
     mainframe: "_ui.MainFrame", entries: list[tuple], write_points: dict[bytes, tuple[float, float]],
-    in_progress: bool = False
+    write_yaws: dict[bytes, float], in_progress: bool = False
 ) -> None:
     """Reconcile every entry :func:`_evaluate_points` already found
     acceptable, and write every point its cascade decided to pull --
@@ -804,33 +747,505 @@ def _commit_points(
     last frame) uses the solver's real, height-cap-derived shape as
     before, letting the count catch up to whatever it actually needs.
     """
-    points_table = mainframe.project.ptables.pjt_points_pegboard_table
+    ptables = mainframe.project.ptables
+    points_table = ptables.pjt_points_pegboard_table
 
+    # Yaw first, then points: the transition's own angle callback rebuilds
+    # its branch tips from whatever position/angle it holds at that moment,
+    # so the point writes below must run last to leave the cached Points
+    # and the DB rows agreeing with the new pose.
+    for center_id, phi in write_yaws.items():
+        transition_rows = ptables.pjt_transitions_table.select('id', point_pegboard_id=center_id)
+        transition = ptables.pjt_transitions_table[transition_rows[0][0]]
+        angle = transition.angle_pegboard
+        angle += _angle.Angle.from_axis_angle(np.array([0.0, 1.0, 0.0]), phi)
+
+    # Apply each move as a delta with += on the cached Point: plain x/z
+    # assignment never fires the bound callbacks that write the row back
+    # to the DB and refresh every live view holding this Point.
     for point_id, (x, z) in write_points.items():
         point = points_table[point_id].point
-        point.x = x
-        point.z = z
+        point += _point.Point(x - float(point.x), 0.0, z - float(point.z))
 
     for (
         chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
         result, start_xz, stop_xz, required_length
     ) in entries:
-        if in_progress:
-            old_count = len(path_table.point_ids(chain_db_obj.db_id, 'pegboard'))
-            full_points = _fixed_count_interior(
-                start_xz, stop_xz, required_length, drag_end, target_xz, old_count)
-        else:
-            full_points = result.points
+        interior = result.points[1:-1]
+        pin_point_id = point_id if drag_end is _rope_pull.DragEnd.WAYPOINT else None
+        pin_xz = target_xz if drag_end is _rope_pull.DragEnd.WAYPOINT else None
 
-        interior = full_points[1:-1]
-        if drag_end is _rope_pull.DragEnd.WAYPOINT:
-            _reconcile_interior(
-                mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                interior, point_id, target_xz)
+        if in_progress or _offline_store.overlay(chain_db_obj.db_id) is not None:
+            _apply_mid_drag(
+                mainframe, chain_db_obj, path_table, layouts_table,
+                drag_end, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+
+            if not in_progress:
+                _commit_overlay(mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls)
         else:
             _reconcile_interior(
                 mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                interior, None, None)
+                interior, pin_point_id, pin_xz)
+
+
+class _Waypoint:
+    """One entry in a drag's working waypoint list: a database-backed point
+    (``point_id`` set), or an in-memory point created mid-drag with a pseudo
+    layout (``point_id`` None until the drag releases and the row is written).
+    """
+
+    __slots__ = ('point_id', 'point', 'pseudo_layout')
+
+    def __init__(
+        self, point_id: bytes | None, point: "_point.Point", pseudo_layout: object | None
+    ) -> None:
+        self.point_id = point_id
+        self.point = point
+        self.pseudo_layout = pseudo_layout
+
+
+def _make_pseudo_layout(chain_db_obj: object, position: "_point.Point") -> object:
+    """A pseudo layout (never a database row) carrying *position* for a new
+    in-memory waypoint, built on the same template as the wire probe layout."""
+    from ..database.project_db import pjt_bundle as _pjt_bundle_runtime
+    from ..database.project_db import pseudo_bundle_layout as _pseudo_bundle_layout
+    from ..database.project_db import pseudo_wire_layout as _pseudo_wire_layout
+
+    db_id = uuid.uuid4().bytes
+
+    if isinstance(chain_db_obj, _pjt_bundle_runtime.PJTBundle):
+        layout = _pseudo_bundle_layout.PseudoPJTBundleLayout(None, db_id)
+        layout.configure(
+            bundle_part=chain_db_obj.part,
+            bundle_diameter=float(chain_db_obj.diameter),
+            position_pegboard=position)
+    else:
+        layout = _pseudo_wire_layout.PseudoPJTWireLayout(None, db_id)
+        layout.configure(wire_part=chain_db_obj.part, position_pegboard=position)
+
+    return layout
+
+
+def _move_point(point: "_point.Point", x: float, z: float) -> None:
+    """Move a cached peg-board ``Point`` to (x, z) by a delta (``+=``), so its
+    bound callbacks fire -- plain assignment would not."""
+    point += _point.Point(x - float(point.x), 0.0, z - float(point.z))
+
+
+def _overlay_for(
+    points_table: object,
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
+    path_table: _Union["_pjt_bundle_path.PJTBundlePathsTable", "_pjt_wire_path.PJTWirePathsTable"],
+) -> list[_Waypoint]:
+    """The chain's drag overlay, created from its database waypoints the first
+    time a drag touches it."""
+    chain_id = chain_db_obj.db_id
+    existing = _offline_store.overlay(chain_id)
+    if existing is not None:
+        return existing
+
+    entries = [
+        _Waypoint(point_id, points_table[point_id].point, None)
+        for point_id in path_table.point_ids(chain_id, 'pegboard')]
+    _offline_store.set_overlay(chain_id, entries)
+    return entries
+
+
+@_check_types.do
+def _set_layout_visible(
+    layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
+    point_id: bytes, visible: bool
+) -> None:
+    """Show or hide the layout marker sitting on *point_id* on the peg-board
+    object itself (no database write -- see ``BasePegboard.set_visible_cache``)."""
+    layout_db = layouts_table.for_point_pegboard_id(point_id)
+    if layout_db is None:
+        return
+
+    layout_obj = layout_db.get_object()
+    if layout_obj is not None:
+        layout_obj.objpegboard.set_visible_cache(visible)
+
+
+@_check_types.do
+def _apply_mid_drag(
+    mainframe: "_ui.MainFrame",
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
+    path_table: _Union["_pjt_bundle_path.PJTBundlePathsTable", "_pjt_wire_path.PJTWirePathsTable"],
+    layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
+    drag_end: "_rope_pull.DragEnd",
+    interior: list[tuple[float, float]],
+    start_xz: tuple[float, float],
+    stop_xz: tuple[float, float],
+    pin_point_id: bytes | None,
+    pin_xz: tuple[float, float] | None
+) -> None:
+    """One mid-drag frame for one chain. No database row is inserted or
+    deleted here.
+
+    The solver's waypoint count decides the overlay's size. A surplus is given
+    up from the anchor end (the end not being moved) into the store. A shortfall
+    takes the store's most recent entries back first, and only creates new
+    in-memory points when the store is empty. The overlay is then placed on the
+    solver's shape (see :func:`_place_active`).
+    """
+    chain_id = chain_db_obj.db_id
+    points_table = mainframe.project.ptables.pjt_points_pegboard_table
+    overlay = _overlay_for(points_table, chain_db_obj, path_table)
+    store = _offline_store.for_chain(chain_id)
+    from_tail = drag_end is not _rope_pull.DragEnd.STOP
+    wanted = len(interior)
+
+    if wanted < len(overlay):
+        for _ in range(len(overlay) - wanted):
+            if from_tail:
+                entry = overlay[-1]
+            else:
+                entry = overlay[0]
+
+            if pin_point_id is not None and entry.point_id == pin_point_id:
+                break
+
+            if from_tail:
+                overlay.pop()
+            else:
+                overlay.pop(0)
+
+            _offline_store.push(chain_id, entry)
+            if entry.point_id is not None:
+                _set_layout_visible(layouts_table, entry.point_id, False)
+
+    elif wanted > len(overlay):
+        for _ in range(wanted - len(overlay)):
+            if store:
+                entry = _offline_store.pop_front(chain_id)
+                if entry.point_id is not None:
+                    _set_layout_visible(layouts_table, entry.point_id, True)
+            else:
+                position = _point.Point(0.0, 0.0, 0.0)
+                entry = _Waypoint(None, position, _make_pseudo_layout(chain_db_obj, position))
+
+            if from_tail:
+                overlay.append(entry)
+            else:
+                overlay.insert(0, entry)
+
+    _place_active(overlay, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+
+    chain_obj = chain_db_obj.get_object()
+    if chain_obj is not None:
+        chain_obj.objpegboard.refresh_waypoints()
+
+
+@_check_types.do
+def _place_active(
+    overlay: list[_Waypoint],
+    interior: list[tuple[float, float]],
+    start_xz: tuple[float, float],
+    stop_xz: tuple[float, float],
+    pin_point_id: bytes | None,
+    pin_xz: tuple[float, float] | None
+) -> None:
+    """Move the overlay's points onto the solver's shape, keeping the pinned
+    (dragged) point on its own target. When the counts disagree, the others are
+    spread evenly on the straight line between the anchors (a transient state
+    that only lasts until the drag releases)."""
+    pinned = [entry for entry in overlay if pin_point_id is not None and entry.point_id == pin_point_id]
+    others = [entry for entry in overlay if not (pin_point_id is not None and entry.point_id == pin_point_id)]
+
+    other_xz = list(interior)
+    if pin_xz is not None and pin_xz in other_xz:
+        other_xz.remove(pin_xz)
+
+    if len(others) == len(other_xz):
+        targets = list(zip(others, other_xz))
+    else:
+        count = len(others)
+        targets = []
+        for i, entry in enumerate(others):
+            fraction = (i + 1) / (count + 1)
+            x = start_xz[0] + (stop_xz[0] - start_xz[0]) * fraction
+            z = start_xz[1] + (stop_xz[1] - start_xz[1]) * fraction
+            targets.append((entry, (x, z)))
+
+    if pinned and pin_xz is not None:
+        targets.append((pinned[0], pin_xz))
+
+    for entry, (x, z) in targets:
+        _move_point(entry.point, x, z)
+
+
+@_check_types.do
+def _commit_overlay(
+    mainframe: "_ui.MainFrame",
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
+    path_table: _Union["_pjt_bundle_path.PJTBundlePathsTable", "_pjt_wire_path.PJTWirePathsTable"],
+    layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
+    layout_facade_cls: _Union[type["_bundle_layout.BundleLayout"], type["_wire_layout.WireLayout"]],
+) -> None:
+    """Drag released: write the overlay to the database in one pass.
+
+    New in-memory points get real rows, the route is set in the overlay's
+    order (database-backed points keep their rows), new layouts are created
+    after the route is set (see :func:`_reconcile_interior`'s ordering note),
+    and every layout that is no longer in the route is deleted. The store is
+    discarded, so nothing given up mid-drag survives unless it is in the route.
+    """
+    project = mainframe.project
+    points_table = project.ptables.pjt_points_pegboard_table
+    chain_id = chain_db_obj.db_id
+
+    overlay = _offline_store.release_overlay(chain_id) or []
+    _offline_store.release(chain_id)
+
+    final_ids: list[bytes] = []
+    created: list[_Waypoint] = []
+    for entry in overlay:
+        if entry.point_id is None:
+            point_db = points_table.insert(float(entry.point.x), 0.0, float(entry.point.z))
+            entry.point_id = point_db.db_id
+            created.append(entry)
+
+        final_ids.append(entry.point_id)
+
+    old_ids = list(path_table.point_ids(chain_id, 'pegboard'))
+    path_table.set_route(chain_id, 'pegboard', final_ids)
+
+    for entry in created:
+        layout_db = layouts_table.insert(point_pegboard_id=entry.point_id)
+        layout_obj = layout_facade_cls(mainframe, layout_db)
+        if layout_facade_cls is _bundle_layout.BundleLayout:
+            project.add_bundle_layout(layout_obj)
+        else:
+            project.add_wire_layout(layout_obj)
+
+    for point_id in old_ids:
+        if point_id in final_ids:
+            continue
+
+        layout_db = layouts_table.for_point_pegboard_id(point_id)
+        if layout_db is not None:
+            layout_obj = layout_db.get_object()
+            if layout_obj is not None:
+                layout_obj.delete()
+
+    chain_obj = chain_db_obj.get_object()
+    if chain_obj is not None:
+        chain_obj.objpegboard.refresh_waypoints()
+
+
+@_check_types.do
+def clamp_to_length_from_anchor(
+    anchor_xz: tuple[float, float], target_xz: tuple[float, float], length: float
+) -> tuple[float, float]:
+    """*target_xz*, pulled back onto the circle of radius *length* around
+    *anchor_xz* when it is farther away than that. The clamped point is the
+    one on the line from the anchor through the target. Unchanged when the
+    target is already within reach."""
+    dx = target_xz[0] - anchor_xz[0]
+    dz = target_xz[1] - anchor_xz[1]
+    dist = math.hypot(dx, dz)
+
+    if dist <= length or dist < 1e-9:
+        return target_xz
+
+    scale = length / dist
+    return anchor_xz[0] + dx * scale, anchor_xz[1] + dz * scale
+
+
+@_check_types.do
+def _pinned_chain(
+    ptables: "_ProjectTables", point_starts: list[tuple[bytes, _point.Point]]
+) -> _Union[tuple[_Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"], _point.Point,
+                  tuple[float, float], float], None]:
+    """The one chain a drag group is pinned to, as
+    ``(chain_db_obj, anchor_start, far_xz, length)``: a start/stop anchor
+    belonging to exactly one chain, whose other end is not part of this
+    drag. ``None`` when no point is pinned or several are (a transition
+    with two bundles, say) -- the general solve handles those.
+    """
+    pinned = []
+
+    for point_id, start in point_starts:
+        chains = _chains_for_point(ptables, point_id)
+        if len(chains) != 1:
+            continue
+
+        chain_db_obj, _path_table, _layouts_table, _layout_facade_cls, drag_end = chains[0]
+        if drag_end is _rope_pull.DragEnd.WAYPOINT:
+            continue
+
+        start_xz, stop_xz, length = _anchors_and_length(chain_db_obj)
+        far_xz = stop_xz if drag_end is _rope_pull.DragEnd.START else start_xz
+        pinned.append((chain_db_obj, start, far_xz, length))
+
+    if len(pinned) != 1:
+        return None
+
+    return pinned[0]
+
+
+@_check_types.do
+def _chain_is_tight(chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]) -> bool:
+    """The chain's own live ``is_tight`` (see objects_pegboard.bundle/wire).
+    A chain with no loaded view object counts as tight, so the move takes
+    the cast path, which always respects the chain's length.
+    """
+    chain_obj = chain_db_obj.get_object()
+    if chain_obj is None:
+        return True
+
+    return bool(chain_obj.objpegboard.is_tight)
+
+
+@_check_types.do
+def _resolve_pinned_move(
+    mainframe: "_ui.MainFrame",
+    point_starts: list[tuple[bytes, _point.Point]],
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
+    anchor_start: _point.Point,
+    far_xz: tuple[float, float],
+    length: float,
+    full_delta: tuple[float, float],
+    iterations: int,
+    in_progress: bool,
+) -> tuple[float, float]:
+    """Rope pull OFF, one chain pinned: the dragged group's own center
+    (``point_starts[0]``) is placed by the cursor while the chain is slack,
+    and by a cast once it is tight.
+
+    The chain's anchor sits at a fixed offset from the center (``off``).
+    Slack: the center goes straight under the cursor, provided the anchor
+    still fits within the chain length. Tight: the anchor is projected onto
+    the chain-length circle around the far anchor, along the line from the
+    far anchor through where the anchor would be if the center were under
+    the cursor, and the center is then placed ``off`` back from that point.
+    The anchor therefore always lands exactly ``length`` from the far
+    anchor, so the bundle is limited at its own length. The slack check is
+    attempted first with the cursor's own position.
+    """
+    ptables = mainframe.project.ptables
+    _center_id, center_start = point_starts[0]
+    center_x = float(center_start.x)
+    center_z = float(center_start.z)
+    off_x = float(anchor_start.x) - center_x
+    off_z = float(anchor_start.z) - center_z
+    dx, dz = full_delta
+
+    def center_at(s: float, cast: bool) -> tuple[float, float]:
+        cursor_x = center_x + dx * s
+        cursor_z = center_z + dz * s
+        if not cast:
+            return cursor_x, cursor_z
+
+        anchor_desired = (cursor_x + off_x, cursor_z + off_z)
+        anchor_x, anchor_z = clamp_to_length_from_anchor(far_xz, anchor_desired, length)
+        return anchor_x - off_x, anchor_z - off_z
+
+    def candidate(s: float, cast: bool) -> list[tuple[bytes, tuple[float, float]]]:
+        # Every point of the group moves rigidly with the center.
+        center_placed_x, center_placed_z = center_at(s, cast)
+        ddx = center_placed_x - center_x
+        ddz = center_placed_z - center_z
+        return [
+            (point_id, (float(start.x) + ddx, float(start.z) + ddz))
+            for point_id, start in point_starts]
+
+    def displacement_at(s: float, cast: bool) -> tuple[float, float]:
+        center_placed_x, center_placed_z = center_at(s, cast)
+        return center_placed_x - center_x, center_placed_z - center_z
+
+    if not _chain_is_tight(chain_db_obj):
+        free_result = _evaluate_points(ptables, candidate(1.0, False), cascade=False)
+        if free_result is not None:
+            _commit_points(mainframe, *free_result, in_progress=in_progress)
+            return displacement_at(1.0, False)
+
+    full_result = _evaluate_points(ptables, candidate(1.0, True), cascade=False)
+    if full_result is not None:
+        _commit_points(mainframe, *full_result, in_progress=in_progress)
+        return displacement_at(1.0, True)
+
+    lo, hi = 0.0, 1.0
+    best_s = 0.0
+    best_result = _evaluate_points(ptables, candidate(0.0, True), cascade=False)
+
+    for _ in range(iterations):
+        mid = (lo + hi) / 2.0
+        mid_result = _evaluate_points(ptables, candidate(mid, True), cascade=False)
+
+        if mid_result is not None:
+            lo = mid
+            best_s = mid
+            best_result = mid_result
+        else:
+            hi = mid
+
+    if best_result is not None:
+        _commit_points(mainframe, *best_result, in_progress=in_progress)
+
+    return displacement_at(best_s, True)
+
+
+@_check_types.do
+def resolve_local_move(
+    mainframe: "_ui.MainFrame",
+    point_starts: list[tuple[bytes, _point.Point]],
+    full_delta: tuple[float, float],
+    iterations: int = 32,
+    in_progress: bool = True
+) -> tuple[float, float]:
+    """Rope pull OFF: move the dragged point(s) without pulling anything else.
+
+    When the drag is pinned to one chain (see :func:`_pinned_chain`), the
+    center is placed by :func:`_resolve_pinned_move` so the chain's own
+    length is respected. Otherwise the largest fraction of the drag line
+    every touching chain accepts is taken. Either way the touching chains'
+    own slack is re-solved locally (no far end is pulled).
+
+    :returns: The ``(dx, dz)`` actually applied to the point(s), measured
+        from each point's own position when the drag began.
+    """
+    ptables = mainframe.project.ptables
+
+    pinned = _pinned_chain(ptables, point_starts)
+    if pinned is not None:
+        chain_db_obj, anchor_start, far_xz, length = pinned
+        return _resolve_pinned_move(
+            mainframe, point_starts, chain_db_obj, anchor_start, far_xz, length,
+            full_delta, iterations, in_progress)
+
+    dx, dz = full_delta
+
+    def candidate(t: float) -> list[tuple[bytes, tuple[float, float]]]:
+        return [
+            (point_id, (float(start.x) + dx * t, float(start.z) + dz * t))
+            for point_id, start in point_starts]
+
+    full_result = _evaluate_points(ptables, candidate(1.0), cascade=False)
+    if full_result is not None:
+        _commit_points(mainframe, *full_result, in_progress=in_progress)
+        return dx, dz
+
+    lo, hi = 0.0, 1.0
+    best_t = 0.0
+    best_result = _evaluate_points(ptables, candidate(0.0), cascade=False)
+
+    for _ in range(iterations):
+        mid = (lo + hi) / 2.0
+        mid_result = _evaluate_points(ptables, candidate(mid), cascade=False)
+
+        if mid_result is not None:
+            lo = mid
+            best_t = mid
+            best_result = mid_result
+        else:
+            hi = mid
+
+    if best_result is not None:
+        _commit_points(mainframe, *best_result, in_progress=in_progress)
+
+    return dx * best_t, dz * best_t
 
 
 @_check_types.do
@@ -968,7 +1383,8 @@ def realize_length_change(
     ptables = mainframe.project.ptables
     start_xz, _stop_xz, _required_length = _anchors_and_length(chain_db_obj)
 
-    result = _evaluate_points(ptables, [(chain_db_obj.start_position_pegboard_id, start_xz)])
+    result = _evaluate_points(
+        ptables, [(chain_db_obj.start_position_pegboard_id, start_xz)], cascade=is_enabled())
     if result is None:
         return False
 

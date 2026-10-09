@@ -88,7 +88,7 @@ class Generic(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, part of the shared contract
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, part of the shared contract
         position = self.target.obj3d.position
 
         delta3d = self._axis_locked_delta3d(

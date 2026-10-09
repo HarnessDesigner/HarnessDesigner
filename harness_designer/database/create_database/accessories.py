@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from . import manufacturers as _manufacturers
 from . import families as _families
 from . import series as _series
@@ -9,15 +11,19 @@ from . import models3d as _models3d
 from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_records(con, splash, _):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
     """
     Add a records.
 
@@ -70,10 +76,10 @@ def add_records(con, splash, _):
 
 
 @_check_types.do
-def add_accessory(con, part_number, mfg, description=None, series=None,
-                  family=None, color=None, material=None, image=None,
-                  datasheet=None, cad=None, model3d=None, length=0.0,
-                  width=0.0, height=0.0, weight=0.0, commit=True):
+def add_accessory(con: "_connector_base.ConnectorBase", part_number: str, mfg: str, description: str = None, series: str | None = None,
+                  family: str | None = None, color: str | None = None, material: str | None = None, image: str | None = None,
+                  datasheet: str | None = None, cad: str | None = None, model3d: str | None = None, length: float = 0.0,
+                  width: float = 0.0, height: float = 0.0, weight: float = 0.0, commit: bool = True) -> bytes:
     """
     Add an accessory.
 

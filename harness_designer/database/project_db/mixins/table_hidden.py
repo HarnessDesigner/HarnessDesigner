@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin
 from .... import check_types as _check_types
 
 
@@ -11,8 +11,6 @@ class TableHiddenMixin(BaseMixin):
     currently shown on the peg board.
     """
 
-    _stored_is_table_hidden: bool | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def is_table_hidden(self) -> bool:
@@ -21,21 +19,16 @@ class TableHiddenMixin(BaseMixin):
         :returns: Property value.
         :rtype: bool
         """
-        if self._stored_is_table_hidden is DefaultStoredValue:
-            _rows = self._table.select('table_hidden', id=self._db_id)
-            self._stored_is_table_hidden = bool(_rows[0][0]) if _rows else None
-
-        return self._stored_is_table_hidden
+        _rows = self._table.select('table_hidden', id=self._db_id)
+        return bool(_rows[0][0]) if _rows else None
 
     @is_table_hidden.setter
     @_check_types.do
-    def is_table_hidden(self, value: bool):
+    def is_table_hidden(self, value: bool) -> None:
         """Set whether the data-table overlay is hidden.
 
         :param value: Value to store or process.
         :type value: bool
         """
-        self._stored_is_table_hidden = value
-
         self._table.update(self._db_id, table_hidden=int(value))
         self._populate('is_table_hidden')

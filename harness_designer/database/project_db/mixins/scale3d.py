@@ -1,10 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point3d as _pjt_point3d
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class Scale3DMixin(BaseMixin):
@@ -29,23 +35,21 @@ class Scale3DMixin(BaseMixin):
         """
         if self._stored_scale3d is DefaultStoredValue:
             point_id = self.scale3d_id
+
             if point_id is None:
                 self._stored_scale3d = None
             else:
-
                 self._stored_scale3d = self._table.db.pjt_points3d_table[point_id]
 
         if self._stored_scale3d is not None:
             if self._obj is not None:
                 self._stored_scale3d.add_object(self._obj())
-                
+
             point = self._stored_scale3d.point
         else:
             point = None
 
         return point
-
-    _stored_scale3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -58,21 +62,20 @@ class Scale3DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_scale3d_id is DefaultStoredValue:
-            _rows = self._table.select('scale3d_id', id=self._db_id)
-            point_id = _rows[0][0] if _rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points3d_table.insert(x=1.0, y=1.0, z=1.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, scale3d_id=point_id)
+        _rows = self._table.select('scale3d_id', id=self._db_id)
+        point_id = _rows[0][0] if _rows else None
 
-            self._stored_scale3d_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points3d_table.insert(x=1.0, y=1.0, z=1.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, scale3d_id=point_id)
+            self._populate('scale3d_id')
 
-        return self._stored_scale3d_id
+        return point_id
 
     @scale3d_id.setter
     @_check_types.do
-    def scale3d_id(self, value: bytes):
+    def scale3d_id(self, value: bytes) -> None:
         """Set the position 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -80,9 +83,8 @@ class Scale3DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_scale3d_id = value
         self._stored_scale3d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, scale3d_id=value)
         self._populate('scale3d_id')
 
@@ -95,7 +97,7 @@ class Scale3DControl(_prop_ctrls.ScaleProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """
         Initialise the :class:`Scale3DControl` instance.
 
@@ -109,7 +111,7 @@ class Scale3DControl(_prop_ctrls.ScaleProperty):
         super().__init__(parent, '3D Scale', axes='xyz')
 
     @_check_types.do
-    def set_obj(self, db_obj: Scale3DMixin | None):
+    def set_obj(self, db_obj: Scale3DMixin | None) -> None:
         """
         Set the obj.
 

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
 
@@ -36,6 +36,9 @@ from ... import utils as _utils
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from ...gl import shaders as _shaders
+    from .. import ObjectBase as _ObjectBase
     from .. import terminal as _terminal
     from .. import wire as _wire_obj
     from ...database.project_db import pjt_terminal as _pjt_terminal
@@ -155,7 +158,7 @@ class Terminal(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",
-                 db_obj: "_pjt_terminal.PJTTerminal", free: bool = False):
+                 db_obj: "_pjt_terminal.PJTTerminal", free: bool = False) -> None:
         """
         Initialise the :class:`Terminal` instance.
 
@@ -510,7 +513,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -577,7 +580,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return -float(vbo.local_aabb[0][1])
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """
         Re-derive the "(" bracket's own world position and the
         wire-stub cylinder's own world start/angle/scale from this
@@ -660,7 +663,7 @@ class Terminal(_base_schematic.BaseSchematic):
         self._compute_aabb()
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """
         Same reason/logic as :meth:`_update_position` -- a housing
         rotation pushes a new ``position2d`` for a seated terminal (see
@@ -778,7 +781,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return live_angle
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """The label's own OBB (``Text.local_obb``) turned and moved to where
         the label is drawn. Nothing to do until the housing is known."""
         if self._is_free:
@@ -800,7 +803,7 @@ class Terminal(_base_schematic.BaseSchematic):
         self._obb[:] = obb
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """The label's own AABB (``Text.local_aabb``) turned and moved to where
         the label is drawn, then ``utils.adjust_aabb`` so every min is in the
         min row and every max in the max row. Nothing to do until the housing
@@ -823,7 +826,7 @@ class Terminal(_base_schematic.BaseSchematic):
         self._aabb[:] = _utils.adjust_aabb(corners)
 
     @_check_types.do
-    def hit_test_step2(self, ray_origin, ray_direction):
+    def hit_test_step2(self, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
         """Only the box is tested (see :meth:`hit_test_step3`)."""
         if self._is_free:
             return super().hit_test_step2(ray_origin, ray_direction)
@@ -831,7 +834,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return _base_schematic.box_hit_test(self._obb, ray_origin, ray_direction)
 
     @_check_types.do
-    def hit_test_step3(self, ray_origin, ray_dir):
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
         """A terminal is picked by its name's box -- the OBB -- not by the
         glyph triangles: the pool's own OBB test already said the ray is inside
         it, and nothing finer is wanted."""
@@ -841,7 +844,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return _base_schematic.box_hit_test(self._obb, ray_origin, ray_dir)
 
     @_check_types.do
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """
         Render the name line(s), the "(" bracket, and the wire-stub
         cylinder -- swapping ``self._vbo``/``self._angle``/
@@ -954,7 +957,7 @@ class Terminal(_base_schematic.BaseSchematic):
         self._position = real_position
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         # self._name_cb.unbind()
         self._detach_extra_wires_at_wire_position2d()
         super()._delete()
@@ -964,7 +967,7 @@ class Terminal(_base_schematic.BaseSchematic):
     def start_add(
         cls, mainframe: "_ui.MainFrame",
         housing: _housing.Housing | None = None
-    ) -> Union["_terminal.Terminal", None]:
+    ) -> _Union["_terminal.Terminal", None]:
 
         """
         Cavity-pick placement, schematic-native -- see
@@ -1039,7 +1042,7 @@ class Terminal(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
 
         """
@@ -1069,7 +1072,7 @@ class Terminal(_base_schematic.BaseSchematic):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "TerminalMenu":
         """
         Return this terminal's own right-click context menu (see
         ``ui/mainframe.py``'s ``_on_obj_right_click_2d``, which calls
@@ -1081,7 +1084,7 @@ class Terminal(_base_schematic.BaseSchematic):
         return TerminalMenu(self.editor2d.editor, self)
 
     @_check_types.do
-    def _detach_extra_wires_at_wire_position2d(self):
+    def _detach_extra_wires_at_wire_position2d(self) -> None:
         """
         Give every wire but the first one attached at this terminal's own
         ``wire_position2d`` its own new point at the same coordinates.
@@ -1117,8 +1120,10 @@ class Terminal(_base_schematic.BaseSchematic):
                     continue
 
                 new_point = ptables.pjt_points2d_table.insert(x, y, z)
-                attr = column.replace('_point2d_id', '_position2d_id')
-                setattr(wire_db, attr, new_point.db_id)
+                if column == 'start_point2d_id':
+                    wire_db.start_position2d_id = new_point.db_id
+                else:
+                    wire_db.stop_position2d_id = new_point.db_id
 
 
 class TerminalMenu(QtWidgets.QMenu):
@@ -1127,7 +1132,7 @@ class TerminalMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Terminal") -> None:
         """
         Initialise the :class:`TerminalMenu` instance.
 
@@ -1178,7 +1183,7 @@ class TerminalMenu(QtWidgets.QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_wire(self):
+    def on_add_wire(self) -> None:
         """
         Start the interactive 2D wire-drawing flow (see
         add_handlers.editor_schematic.wire), pinned to this terminal as
@@ -1189,13 +1194,13 @@ class TerminalMenu(QtWidgets.QMenu):
         terminal_obj = self.selected.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _wire_schematic.Wire.start_add(mainframe, terminal=terminal_obj)
 
         QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_wire_service_loop(self):
+    def on_add_wire_service_loop(self) -> None:
         """
         Handle the add wire service loop event.
         """
@@ -1203,7 +1208,7 @@ class TerminalMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_add_seal(self):
+    def on_add_seal(self) -> None:
         """
         Handle the add seal event.
         """
@@ -1211,7 +1216,7 @@ class TerminalMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """
         Handle the trace circuit event.
         """
@@ -1219,7 +1224,7 @@ class TerminalMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """
         Handle the select event.
         """
@@ -1227,7 +1232,7 @@ class TerminalMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """
         Handle the clone event.
         """
@@ -1235,7 +1240,7 @@ class TerminalMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """
         Handle the delete event.
         """
@@ -1243,7 +1248,7 @@ class TerminalMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """
         Handle the properties event.
         """

@@ -17,7 +17,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`BitmapComboBoxProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -59,7 +59,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
             self._st.setToolTip(self._tooltip)
 
     @_check_types.do
-    def _on_change(self, value=None):
+    def _on_change(self, value: str | None = None) -> None:
         """Handle the change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -82,7 +82,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -113,7 +113,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         return self._ctrl.currentText()
 
     @_check_types.do
-    def Clear(self):  # NOQA
+    def Clear(self) -> None:  # NOQA
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -132,7 +132,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         return [self._ctrl.itemText(i) for i in range(self._ctrl.count())]
 
     @_check_types.do
-    def SetItems(self, items: list):
+    def SetItems(self, items: list[str]) -> None:
         """Execute the set items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -148,7 +148,7 @@ class BitmapComboBoxProperty(QtWidgets.QWidget):
         self._ctrl.blockSignals(False)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

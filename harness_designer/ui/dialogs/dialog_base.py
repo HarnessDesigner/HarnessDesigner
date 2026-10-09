@@ -20,8 +20,8 @@ class BaseDialog(QtWidgets.QDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", title: str, size=(-1, -1),
-                 style=None, button_ids=None):
+    def __init__(self, parent: "_ui.MainFrame", title: str, size: tuple[int, int] = (-1, -1),
+                 style: QtCore.Qt.WindowType | None = None, button_ids: QtWidgets.QDialogButtonBox.StandardButton | None = None) -> None:
         """Initialise the :class:`BaseDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -91,7 +91,7 @@ class BaseDialog(QtWidgets.QDialog):
         self._center_on_parent()
 
     @_check_types.do
-    def _center_on_parent(self):
+    def _center_on_parent(self) -> None:
         """Center this dialog on its parent window.
 
         Multi-monitor-safe: if centering on the parent would push any
@@ -187,7 +187,7 @@ class BaseDialog(QtWidgets.QDialog):
         super().mouseReleaseEvent(event)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> None:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

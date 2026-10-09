@@ -1,11 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
+from collections.abc import Iterator
 import math
 
 import numpy as np
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtWidgets
 
 from . import base_schematic as _base_schematic
 from ...geometry import angle as _angle
@@ -20,6 +22,8 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_wire as _pjt_wire
     from .. import wire as _wire
     from ...gl import shaders as _shaders
@@ -138,7 +142,7 @@ class Wire(_base_schematic.BaseSchematic):
     _chord_yaw: float = float('inf')
 
     @_check_types.do
-    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire"):
+    def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire") -> None:
         """Initialise the :class:`Wire` instance.
 
         :param parent: Parent object.
@@ -205,7 +209,7 @@ class Wire(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -253,7 +257,7 @@ class Wire(_base_schematic.BaseSchematic):
         return math.sqrt(dx * dx + dz * dz)
 
     @_check_types.do
-    def _segment_transforms(self):
+    def _segment_transforms(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, float]]:
         """Yield (position, angle, scale, length) for every sub-segment
         of this wire's current 2D path."""
         diameter = self._scale.x
@@ -272,7 +276,7 @@ class Wire(_base_schematic.BaseSchematic):
             yield seg_position, seg_angle, seg_scale, seg_len
 
     @_check_types.do
-    def _recalculate_geometry(self):
+    def _recalculate_geometry(self) -> None:
         """Recompute this wire's total length and OBB/AABB from its
         current path -- called (via :meth:`_update_position`) whenever
         any endpoint or interior waypoint moves.
@@ -321,14 +325,14 @@ class Wire(_base_schematic.BaseSchematic):
 
         self._compute_bounds()
 
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """Nothing to do: the wire's own angle isn't drawn with or hit-tested
         with (each segment has its own, and picking uses the pooled bounds),
         and :meth:`_recalculate_geometry` -- the only thing that sets it --
         recomputes the bounds itself. The inherited version recomputed them
         AGAIN, and copied and negated the angle in Decimal."""
 
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """See :meth:`_update_angle` -- same for the scale
         :meth:`_recalculate_geometry` sets."""
 
@@ -343,7 +347,7 @@ class Wire(_base_schematic.BaseSchematic):
         self._aabb[:] = _utils.adjust_aabb(corners)
 
     @_check_types.do
-    def _segment_world_corners(self):
+    def _segment_world_corners(self) -> np.ndarray:
         """World-space AABB corners (8 per segment) for every sub-segment,
         stacked into one array -- mirrors objects_3d/wire.py's Wire of
         the same name, the shared building block for _compute_obb/
@@ -384,7 +388,7 @@ class Wire(_base_schematic.BaseSchematic):
         return np.concatenate(all_corners, axis=0)
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """Union AABB across every sub-segment -- see objects_3d/wire.py's
         Wire._compute_obb for why this degenerates to the same envelope
         as _compute_aabb rather than a single tight rotated box."""
@@ -422,7 +426,7 @@ class Wire(_base_schematic.BaseSchematic):
             self._obb[:] = obb
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """See _compute_obb -- same union-of-segments envelope."""
         if self._vbo is None:
             return
@@ -436,7 +440,7 @@ class Wire(_base_schematic.BaseSchematic):
         self._aabb[:] = aabb
 
     @_check_types.do
-    def hit_test_step3(self, ray_origin, ray_dir):
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
         """Precise per-segment mesh hit test (see ``BaseVar.hit_test_step3``):
         tests every sub-segment's own transformed triangles individually,
         instead of the inherited single-transform version -- which tests
@@ -488,7 +492,7 @@ class Wire(_base_schematic.BaseSchematic):
         return False
 
     @_check_types.do
-    def _update_position(self, _position: _point.Point):
+    def _update_position(self, _position: _point.Point) -> None:
         """Recompute geometry immediately whenever any endpoint or
         interior waypoint moves -- mirrors
         ``objects_3d/wire.py``'s ``Wire._update_position`` exactly (this
@@ -527,7 +531,7 @@ class Wire(_base_schematic.BaseSchematic):
         self._recalculate_geometry()
 
     @_check_types.do
-    def _bind_waypoints(self):
+    def _bind_waypoints(self) -> None:
         """(Re)bind every current interior 2D waypoint's own Point to
         :meth:`_update_position`, so dragging one recomputes this wire's
         geometry live -- mirrors ``objects_3d/wire.py``'s
@@ -575,7 +579,7 @@ class Wire(_base_schematic.BaseSchematic):
         self.editor2d.Refresh(False)
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         self._segment_pool.release(self)
         super()._delete()
 
@@ -641,7 +645,7 @@ class Wire(_base_schematic.BaseSchematic):
         return new_wp.point
 
     @_check_types.do
-    def begin_segment_drag(self, world_pos: _point.Point):
+    def begin_segment_drag(self, world_pos: _point.Point) -> tuple[_point.Point, _point.Point, bool] | None:
         """Start dragging whichever of this wire's current segments is
         nearest *world_pos* -- promoting either bounding end to a real,
         independent waypoint first if it's currently this wire's own
@@ -685,7 +689,7 @@ class Wire(_base_schematic.BaseSchematic):
 
     @staticmethod
     @_check_types.do
-    def update_segment_drag(session, world_pos: _point.Point) -> None:
+    def update_segment_drag(session: tuple[_point.Point, _point.Point, bool], world_pos: _point.Point) -> None:
         """Move the dragged segment's shared perpendicular coordinate
         (both of *session*'s points, together) to *world_pos* -- motion
         parallel to the segment is ignored, since a jog has exactly one
@@ -708,7 +712,7 @@ class Wire(_base_schematic.BaseSchematic):
                 b_point.x = world_pos.x
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render every sub-segment of the wire's current 2D path,
         mirroring ``objects_3d/wire.py``'s ``Wire.render`` -- temporarily
         points this object at each segment's own position/angle/scale
@@ -771,9 +775,9 @@ class Wire(_base_schematic.BaseSchematic):
     @classmethod
     @_check_types.do
     def start_add(
-        cls, mainframe: "_ui.MainFrame", terminal: Union["_terminal_facade.Terminal", None] = None,
-        splice: Union["_splice_facade.Splice", None] = None
-    ) -> Union["_wire.Wire", None]:
+        cls, mainframe: "_ui.MainFrame", terminal: _Union["_terminal_facade.Terminal", None] = None,
+        splice: _Union["_splice_facade.Splice", None] = None
+    ) -> _Union["_wire.Wire", None]:
         """Terminal/splice-pinned wire placement, ported from
         handlers.wire_handler_2d.AddWireHandler2D. Always pinned to a start
         terminal/splice (no free-space start, unlike the 3D editor's
@@ -787,7 +791,6 @@ class Wire(_base_schematic.BaseSchematic):
         from ...ui import editor_db as _editor_db
         from ...add_handlers.editor_schematic import wire as _add_wire
         from .. import wire as _wire_facade
-        from PySide6.QtWidgets import QDialog, QMessageBox
 
         canvas = mainframe.editor2d.editor
 
@@ -804,7 +807,7 @@ class Wire(_base_schematic.BaseSchematic):
             mainframe, _editor_db.WiresPage, mainframe.global_db.wires_table, 'Add Wire',
             initial_params=initial_params)
 
-        if dlg.exec() == QDialog.DialogCode.Accepted:
+        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
             part_id = dlg.GetValue()
         else:
             part_id = None
@@ -822,8 +825,8 @@ class Wire(_base_schematic.BaseSchematic):
             ok, block_msg, _warning_msg = _wire_snap.check_terminal_compat(terminal, part)
             if not ok:
                 block_msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
-                if button == QMessageBox.StandardButton.No:
+                button = QtWidgets.QMessageBox.question(mainframe, 'Incompatible Wire', block_msg)
+                if button == QtWidgets.QMessageBox.StandardButton.No:
                     return None
 
             start_circuit_id = terminal.db_obj.circuit_id
@@ -882,7 +885,7 @@ class Wire(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Add-session check first (see start_add), then falls through
         to this class's own existing interior-segment drag handling
@@ -944,14 +947,14 @@ class Wire(_base_schematic.BaseSchematic):
         return True
 
 
-class WireMenu(QMenu):
+class WireMenu(QtWidgets.QMenu):
     """Represent a wire menu in :mod:`harness_designer.objects.objects_schematic.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Wire") -> None:
         """Initialise the :class:`WireMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -961,7 +964,7 @@ class WireMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -1000,7 +1003,7 @@ class WireMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_handle(self):
+    def on_add_handle(self) -> None:
         """Handle the add handle event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1008,7 +1011,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_add_marker(self):
+    def on_add_marker(self) -> None:
         """Handle the add marker event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1016,7 +1019,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_add_splice(self):
+    def on_add_splice(self) -> None:
         """Handle the add splice event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1024,7 +1027,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_add_wire(self):
+    def on_add_wire(self) -> None:
         """Handle the add wire event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1032,7 +1035,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_add_wire_service_loop(self):
+    def on_add_wire_service_loop(self) -> None:
         """Handle the add wire service loop event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1040,7 +1043,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_add_to_bundle(self):
+    def on_add_to_bundle(self) -> None:
         """Handle the add to bundle event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1048,7 +1051,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_trace_circuit(self):
+    def on_trace_circuit(self) -> None:
         """Handle the trace circuit event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1056,7 +1059,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Handle the select event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1064,7 +1067,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Handle the delete event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1072,7 +1075,7 @@ class WireMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Handle the properties event.
 
         UNKNOWN details are inferred from the callable name and signature.

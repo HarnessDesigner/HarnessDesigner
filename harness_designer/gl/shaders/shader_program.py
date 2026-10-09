@@ -15,7 +15,7 @@ class ShaderProgram:
     exactly the cross-context GL_INVALID_OPERATION bug this replaced.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.grid = _program.GridProgram()
         self.faces = _program.FacesProgram()
         self.edges = _program.EdgesProgram()

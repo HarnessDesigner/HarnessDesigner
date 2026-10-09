@@ -19,7 +19,7 @@ through the object's own API instead of a free function private to
 that module.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
 
@@ -31,6 +31,9 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...database.project_db import pjt_wire as _pjt_wire
+    from ...database.project_db import pjt_bundle as _pjt_bundle
+    from ...database.project_db import pjt_point_pegboard as _pjt_point_pegboard
     from ...ui import editor_pegboard as _editor_pegboard
 
 
@@ -46,12 +49,12 @@ class WireTypeMixin(_wire_type_base.WireTypeMixin):
 
     @staticmethod
     @_check_types.do
-    def _waypoints(db_obj):
-        return getattr(db_obj, 'waypoints_pegboard', ())
+    def _waypoints(db_obj: _Union["_pjt_wire.PJTWire", "_pjt_bundle.PJTBundle"]) -> list["_pjt_point_pegboard.PJTPointPegboard"]:
+        return db_obj.waypoints_pegboard
 
     @staticmethod
     @_check_types.do
-    def _closest_point_on_segment_xz(seg_p1, seg_p2, click_x: float, click_z: float):
+    def _closest_point_on_segment_xz(seg_p1: np.ndarray, seg_p2: np.ndarray, click_x: float, click_z: float) -> tuple[float, float]:
         """Closest point on segment (seg_p1, seg_p2) -- X/Z plane only,
         Y ignored entirely (always 0.0 on the peg board) -- to
         (click_x, click_z), clamped to the segment itself.

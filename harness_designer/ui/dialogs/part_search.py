@@ -19,7 +19,8 @@ The module is organized bottom-up:
        "Searching..." popup, help dialog).
     5. ``SearchDialog`` itself, which owns all of the above.
 """
-from typing import Any, Callable, Iterator, TYPE_CHECKING, Union
+from typing import Any, TYPE_CHECKING, Union as _Union
+from collections.abc import Callable, Iterator
 
 import re
 import difflib
@@ -159,7 +160,7 @@ class SearchParameters:
 
     @classmethod
     @_check_types.do
-    def from_part_numbers(cls, part_numbers: list[str] | None) -> Union["SearchParameters", None]:
+    def from_part_numbers(cls, part_numbers: list[str] | None) -> _Union["SearchParameters", None]:
         """
         Convenience for the common "Add X" case: a caller has only a
         flat compat part-number list (a catalog's manually-curated
@@ -908,7 +909,7 @@ class _QueryWorker(QtCore.QObject):
     resultReady: QtCore.SignalInstance = QtCore.Signal(int, object, object)
 
     @_check_types.do
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str) -> None:
         super().__init__()
         self._db_path = db_path
         self._conn: sqlite3.Connection | None = None
@@ -944,7 +945,7 @@ class QueryScope(QtCore.QObject):
     _queryRequested: QtCore.SignalInstance = QtCore.Signal(int, str, list)
 
     @_check_types.do
-    def __init__(self, db_path: str, parent: QtCore.QObject | None = None):
+    def __init__(self, db_path: str, parent: QtCore.QObject | None = None) -> None:
         super().__init__(parent)
         self._next_id = 0
         self._pending: dict[int, tuple[int, Callable]] = {}
@@ -1020,7 +1021,7 @@ class _HistoryPopup(QtWidgets.QFrame):
     entrySelected: QtCore.SignalInstance = QtCore.Signal(str)
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent, QtCore.Qt.WindowType.Popup)
         self.setFrameShape(QtWidgets.QFrame.Shape.StyledPanel)
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
@@ -1114,7 +1115,7 @@ class SearchTextEdit(QtWidgets.QPlainTextEdit):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
-                 schema: TableSchema, table_name: str):
+                 schema: TableSchema, table_name: str) -> None:
 
         self._init = 2
 
@@ -1657,7 +1658,7 @@ class _FilterPanelBase(QtWidgets.QWidget):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
-                 search_edit: SearchTextEdit, col: ColumnInfo):
+                 search_edit: SearchTextEdit, col: ColumnInfo) -> None:
 
         super().__init__(parent)
         self.search_edit = search_edit
@@ -1682,7 +1683,7 @@ class FKFilterPanel(_FilterPanelBase):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
                  search_edit: SearchTextEdit,
-                 col: ColumnInfo, values: list[str]):
+                 col: ColumnInfo, values: list[str]) -> None:
 
         super().__init__(parent, search_edit, col)
 
@@ -1776,7 +1777,7 @@ class RangeFilterPanel(_FilterPanelBase):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget,
                  search_edit: SearchTextEdit, col: ColumnInfo,
-                 lo: float, hi: float):
+                 lo: float, hi: float) -> None:
 
         super().__init__(parent, search_edit, col)
         self._lo_default, self._hi_default = lo, hi
@@ -1916,7 +1917,7 @@ class HelpDialog(QtWidgets.QDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget, schema: TableSchema):
+    def __init__(self, parent: QtWidgets.QWidget, schema: TableSchema) -> None:
         super().__init__(parent)
         self.setWindowTitle('How to Search')
         self.setModal(False)
@@ -2060,7 +2061,7 @@ class SearchDialog(_dialog_base.BaseDialog):
     def __init__(self, parent: "_ui.MainFrame",
                  page_class: type["_editor_db_base.EditorList"],
                  table: "_glb_bases.TableBase", title: str,
-                 initial_params: SearchParameters | None = None):
+                 initial_params: SearchParameters | None = None) -> None:
 
         super().__init__(parent, title=title, size=(1180, 780))
 
@@ -2418,7 +2419,7 @@ class SearchDialog(_dialog_base.BaseDialog):
 
     @_check_types.do
     def GetValue(self) -> int | None:
-        sel = getattr(self.results, 'selected', None)
+        sel = self.results.selected
         if sel is None:
             return None
 

@@ -7,6 +7,7 @@ used by :mod:`harness_designer.ray_tracing.renderer`.
 """
 
 import numpy as np
+
 from .. import check_types as _check_types
 
 
@@ -14,7 +15,7 @@ class Light:
     """Light source"""
 
     @_check_types.do
-    def __init__(self, position=(0, 0, 0), intensity=1.0, color=(1, 1, 1)):
+    def __init__(self, position: tuple[float, float, float] = (0, 0, 0), intensity: float = 1.0, color: tuple[float, float, float] = (1, 1, 1)) -> None:
         """Initialize a light definition.
 
         :param position: Light position in world space.
@@ -29,7 +30,7 @@ class Light:
         self.color = np.array(color, dtype=np.float32)
 
     @_check_types.do
-    def to_array(self):
+    def to_array(self) -> np.ndarray:
         """Flatten the light into a GPU-friendly array.
 
         :returns: Array containing position, intensity, and color values.

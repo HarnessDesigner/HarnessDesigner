@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import build123d
 from PySide6 import QtWidgets
@@ -21,6 +21,9 @@ from ...gl.canvas_base import interaction as _interaction
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from ...gl import shaders as _shaders
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
     from ... import ui as _ui
@@ -100,7 +103,7 @@ class Housing(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
-                 db_obj: "_pjt_housing.PJTHousing"):
+                 db_obj: "_pjt_housing.PJTHousing") -> None:
         """
         Initialise the :class:`Housing` instance.
 
@@ -156,7 +159,7 @@ class Housing(_base_schematic.BaseSchematic):
 
             self.db_obj.bind(self._update_name, 'name')
 
-    def _update_name(self, *_):
+    def _update_name(self, *_: tuple[Any]) -> None:
 
         with self.parent.mainframe.editor2d.editor.context:
             self._text_vbo = self._build_corner_label(self.db_obj, self.angle.y)
@@ -182,11 +185,11 @@ class Housing(_base_schematic.BaseSchematic):
         return False
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         pass
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         super()._compute_obb()
 
         if self._obb is not None:
@@ -197,13 +200,13 @@ class Housing(_base_schematic.BaseSchematic):
             self._obb[[0, 1, 4, 5], 1] = self._obb[[2, 3, 6, 7], 1] - HOUSING_DEPTH
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         super()._compute_aabb()
 
         self._aabb[0, 1] = self._aabb[1, 1] - HOUSING_DEPTH
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """
         Update this housing's own OBB/AABB only -- nothing else
         needed here: ``PJTHousing._update_position2d`` is bound to this
@@ -229,7 +232,7 @@ class Housing(_base_schematic.BaseSchematic):
         super()._update_position(position)
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """
         See :meth:`_update_position` -- same reason, for rotation:
         ``PJTHousing._update_angle2d`` already batch-rotates every
@@ -259,7 +262,7 @@ class Housing(_base_schematic.BaseSchematic):
         super()._update_angle(angle)
 
     @_check_types.do
-    def _build_corner_label(self, db_obj, degrees: float):
+    def _build_corner_label(self, db_obj: "_pjt_housing.PJTHousing", degrees: float) -> _text.Text:
         text = f'{db_obj.name}\n{self._part.part_number}\n{self._part.manufacturer.name}'
 
         # RIGHT-justified normally (0/90/270, following the housing's
@@ -282,7 +285,7 @@ class Housing(_base_schematic.BaseSchematic):
         return vbo
 
     @_check_types.do
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """
         Render the housing rectangle body, then swap this object's
         own ``_vbo``/``_material``/``_angle``/``_scale``/``_position``
@@ -340,7 +343,7 @@ class Housing(_base_schematic.BaseSchematic):
             real_angle, real_scale, real_position)
 
     @_check_types.do
-    def move_to(self, world_x: float, world_y: float):
+    def move_to(self, world_x: float, world_y: float) -> None:
         """
         Move housing to new position. Cavity/terminal positions cascade
         automatically via ``PJTHousing._update_position2d`` (see
@@ -359,7 +362,7 @@ class Housing(_base_schematic.BaseSchematic):
     @_check_types.do
     def start_add(
         cls, mainframe: "_ui.MainFrame", mouse_pos: _point.Point | None = None
-    ) -> Union["_housing.Housing", None]:
+    ) -> _Union["_housing.Housing", None]:
         """
         Single-click free placement, schematic-native -- mirrors
         objects_3d.housing.Housing.start_add. This housing's own
@@ -377,14 +380,13 @@ class Housing(_base_schematic.BaseSchematic):
         if part_id is None:
             from ...ui.dialogs import part_search as _part_search
             from ...ui import editor_db as _editor_db
-            from PySide6.QtWidgets import QDialog
 
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.HousingsPage,
                 mainframe.global_db.housings_table,
                 'Add Housing')
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -423,7 +425,7 @@ class Housing(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """
         Forwards to an active add-session (see start_add); falls back
@@ -452,7 +454,7 @@ class Housing(_base_schematic.BaseSchematic):
             last_pos, current_pos, had_motion, interaction_type, clicked_object)
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "HousingMenu":
         """
         Return this housing's own right-click context menu (see
         ``ui/mainframe.py``'s ``_on_obj_right_click_2d``, which calls
@@ -468,7 +470,7 @@ class HousingMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Housing") -> None:
         """
         Initialise the :class:`HousingMenu` instance.
 
@@ -525,7 +527,7 @@ class HousingMenu(QtWidgets.QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_seal(self):
+    def on_add_seal(self) -> None:
         """
         Handle the add seal event.
         """
@@ -533,7 +535,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_add_terminal(self):
+    def on_add_terminal(self) -> None:
         """
         Add terminals to this housing's cavities -- pick an empty
         cavity in the schematic view to seat one (see
@@ -546,13 +548,13 @@ class HousingMenu(QtWidgets.QMenu):
         housing = self.selected.parent
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _terminal_2d.Terminal.start_add(mainframe, housing=housing)
 
         QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_add_cpa_lock(self):
+    def on_add_cpa_lock(self) -> None:
         """
         Handle the add CPA lock event.
         """
@@ -560,7 +562,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_add_tpa_lock(self):
+    def on_add_tpa_lock(self) -> None:
         """
         Handle the add TPA lock event.
         """
@@ -568,7 +570,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_add_cover(self):
+    def on_add_cover(self) -> None:
         """
         Handle the add cover event.
         """
@@ -576,7 +578,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_add_boot(self):
+    def on_add_boot(self) -> None:
         """
         Handle the add boot event.
         """
@@ -584,7 +586,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """
         Handle the select event.
         """
@@ -592,7 +594,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """
         Handle the clone event.
         """
@@ -600,7 +602,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """
         Handle the delete event.
         """
@@ -608,7 +610,7 @@ class HousingMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """
         Handle the properties event.
         """

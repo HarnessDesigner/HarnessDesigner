@@ -9,6 +9,7 @@ cadquery: IGES BREP VRML
 
 """
 
+from typing import Any
 from collections.abc import Callable
 
 import ctypes
@@ -129,7 +130,7 @@ def _export_ocp(
 # ---------------------------------------------------------------------------
 
 @_check_types.do
-def _build_assimp_scene(verts: np.ndarray, normals: np.ndarray) -> tuple[structs.Scene, list[object]]:
+def _build_assimp_scene(verts: np.ndarray, normals: np.ndarray) -> tuple[structs.Scene, list[Any]]:
     """
     Construct a minimal aiScene ctypes structure pointing at the mesh data.
 
@@ -285,7 +286,7 @@ def _build_ocp_face_with_progress(verts: np.ndarray, normals: np.ndarray,
 @_check_types.do
 def _build_assimp_scene_with_progress(verts: np.ndarray, normals: np.ndarray,
                                        progress_cb: Callable[[int, int, str], None] | None = None
-                                       ) -> tuple[structs.Scene, list[object]]:
+                                       ) -> tuple[structs.Scene, list[Any]]:
     n_verts = len(verts)
     n_tris = n_verts // 3
     total = n_verts * 2 + n_tris

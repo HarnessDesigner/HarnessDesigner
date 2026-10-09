@@ -21,7 +21,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     """
 
     @_check_types.do
-    def __init__(self, parent=None, choices=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, choices: list[tuple[str, QtGui.QPixmap | None, str | None]] | None = None) -> None:
         """Initialise the :class:`BitmapAutoCompleteComboBox` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -57,7 +57,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     # Internal helpers
     # ------------------------------------------------------------------
     @_check_types.do
-    def _rebuild_completer(self):
+    def _rebuild_completer(self) -> None:
         """Execute the rebuild completer operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +66,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
             QtCore.QStringListModel(self._ac_labels, self._completer))
 
     @_check_types.do
-    def _on_index_changed(self, index: int):
+    def _on_index_changed(self, index: int) -> None:
         """Handle the index changed event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -80,7 +80,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
                 self.setToolTip(tooltip)
 
     @_check_types.do
-    def _on_enter(self):
+    def _on_enter(self) -> None:
         """Handle the enter event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +95,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
     # wx-compatible item management
     # ------------------------------------------------------------------
     @_check_types.do
-    def Clear(self):
+    def Clear(self) -> None:
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -106,7 +106,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._rebuild_completer()
 
     @_check_types.do
-    def Delete(self, n: int):
+    def Delete(self, n: int) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -120,7 +120,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._rebuild_completer()
 
     @_check_types.do
-    def Insert(self, item: str, bitmap=None, pos: int = 0, clientData=None):
+    def Insert(self, item: str, bitmap: QtGui.QPixmap | None = None, pos: int = 0, clientData: str | None = None) -> None:
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -142,7 +142,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self._rebuild_completer()
 
     @_check_types.do
-    def Set(self, items):
+    def Set(self, items: list[tuple[str, QtGui.QPixmap | None, str | None]]) -> None:
         """Execute the set operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -155,7 +155,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
             self.Append(*entry)
 
     @_check_types.do
-    def SetItems(self, items):
+    def SetItems(self, items: list[tuple[str, QtGui.QPixmap | None, str | None]]) -> None:
         """Execute the set items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -166,7 +166,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         self.Set(items)
 
     @_check_types.do
-    def Append(self, item: str, bitmap=None, clientData=None):
+    def Append(self, item: str, bitmap: QtGui.QPixmap | None = None, clientData: str | None = None) -> int:
         """Execute the append operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -203,7 +203,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         return self.currentText()
 
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -229,7 +229,7 @@ class BitmapAutoCompleteComboBox(QtWidgets.QComboBox):
         return self._ac_labels[:]
 
     @_check_types.do
-    def GetClientData(self, n: int):
+    def GetClientData(self, n: int) -> str | None:
         """Return the tooltip/clientData stored with item n."""
         if 0 <= n < len(self._choices):
             return self._choices[n][2]

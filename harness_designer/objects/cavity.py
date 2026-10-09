@@ -29,7 +29,7 @@ class Cavity(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_cavity.PJTCavity", project_load=False):
+                 db_obj: "_pjt_cavity.PJTCavity", project_load: bool = False) -> None:
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -93,7 +93,7 @@ class Cavity(_ObjectBase):
         return seal.get_object()
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         super().delete()
 
         terminal = self.terminal

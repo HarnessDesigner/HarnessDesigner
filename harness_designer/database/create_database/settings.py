@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 
 from .. import db_connectors as _con
@@ -8,8 +10,13 @@ from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def get_setting(con, name):  # NOQA
+def get_setting(con: "_connector_base.ConnectorBase", name: str) -> str:  # NOQA
     """Return the setting.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -27,7 +34,7 @@ def get_setting(con, name):  # NOQA
 
 
 @_check_types.do
-def add_records(con, splash, appdata):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", appdata: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -102,7 +109,7 @@ def add_records(con, splash, appdata):
 
 
 @_check_types.do
-def add_setting(con, key, value, commit=True):
+def add_setting(con: "_connector_base.ConnectorBase", key: str, value: str, commit: bool = True) -> bytes:
     """Add a setting.
 
     UNKNOWN details are inferred from the callable name and signature.

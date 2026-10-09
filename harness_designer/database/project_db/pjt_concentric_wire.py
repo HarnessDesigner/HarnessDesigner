@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin, Position2DMixin
 from ... import check_types as _check_types
 
@@ -36,7 +36,7 @@ class PJTConcentricWiresTable(PJTTableBase):
         return concentric_wires.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +46,7 @@ class PJTConcentricWiresTable(PJTTableBase):
         concentric_wires.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +68,7 @@ class PJTConcentricWiresTable(PJTTableBase):
             yield PJTConcentricWire(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTConcentricWire":
+    def __getitem__(self, item: int | bytes | str) -> "PJTConcentricWire":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -88,7 +88,8 @@ class PJTConcentricWiresTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def insert(self, layer_id: bytes, idx: int, wire_id: bytes, is_filler: bool) -> "PJTConcentricWire":
+    def insert(self, layer_id: bytes, idx: int, wire_id: bytes, point2d_id: bytes,
+               is_filler: bool) -> "PJTConcentricWire":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -101,11 +102,14 @@ class PJTConcentricWiresTable(PJTTableBase):
         :type wire_id: bytes
         :param is_filler: Boolean flag for whether filler.
         :type is_filler: bool
+        :param point2d_id: Identifier for the point 2D.
+        :type point2d_id: bytes
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTConcentricWire`
         """
-        db_id = PJTTableBase.insert(self, layer_id=layer_id, idx=idx,
-                                    wire_id=wire_id, is_filler=int(is_filler))
+        db_id = PJTTableBase.insert(self, layer_id=layer_id, idx=idx, wire_id=wire_id,
+                                    point2d_id=point2d_id, is_filler=int(is_filler),
+                                    notes='')
 
         return PJTConcentricWire(self, db_id)
 
@@ -151,8 +155,6 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         """
         return self._table
 
-    _stored_layer: Union["_pjt_concentric_layer.PJTConcentricLayer", DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def layer(self) -> "_pjt_concentric_layer.PJTConcentricLayer":
@@ -163,13 +165,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric_layer.PJTConcentricLayer`
         """
-        if self._stored_layer is DefaultStoredValue:
-            layer_id = self.layer_id
-            self._stored_layer = self._table.db.pjt_concentric_layers_table[layer_id]
-
-        return self._stored_layer
-
-    _stored_layer_id: bytes | DefaultStoredValueType = DefaultStoredValue
+        return self._table.db.pjt_concentric_layers_table[self.layer_id]
 
     @property
     @_check_types.do
@@ -181,14 +177,11 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_layer_id is DefaultStoredValue:
-            self._stored_layer_id = self._table.select('layer_id', id=self._db_id)[0][0]
-
-        return self._stored_layer_id
+        return self._table.select('layer_id', id=self._db_id)[0][0]
 
     @layer_id.setter
     @_check_types.do
-    def layer_id(self, value: bytes):
+    def layer_id(self, value: bytes) -> None:
         """Set the layer ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -196,13 +189,8 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_layer_id = value
-        self._stored_layer = DefaultStoredValue
-
         self._table.update(self._db_id, layer_id=value)
         self._populate('layer_id')
-
-    _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -214,14 +202,11 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        if self._stored_idx is DefaultStoredValue:
-            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
-
-        return self._stored_idx
+        return self._table.select('idx', id=self._db_id)[0][0]
 
     @idx.setter
     @_check_types.do
-    def idx(self, value: int):
+    def idx(self, value: int) -> None:
         """Set the idx.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -229,11 +214,8 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_idx = value
         self._table.update(self._db_id, idx=value)
         self._populate('idx')
-
-    _stored_is_filler: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -245,14 +227,11 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        if self._stored_is_filler is DefaultStoredValue:
-            self._stored_is_filler = bool(self._table.select('is_filler', id=self._db_id)[0][0])
-
-        return self._stored_is_filler
+        return bool(self._table.select('is_filler', id=self._db_id)[0][0])
 
     @is_filler.setter
     @_check_types.do
-    def is_filler(self, value: bool):
+    def is_filler(self, value: bool) -> None:
         """Set the is filler.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -260,11 +239,8 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: bool
         """
-        self._stored_is_filler = value
         self._table.update(self._db_id, is_filler=int(value))
         self._populate('is_filler')
-
-    _stored_wire: Union["_pjt_wire.PJTWire", DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -276,13 +252,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_wire.PJTWire`
         """
-        if self._stored_wire is DefaultStoredValue:
-            wire_id = self.wire_id
-            self._stored_wire = self.table.db.pjt_wires_table[wire_id]
-
-        return self._stored_wire
-
-    _stored_wire_id: bytes | DefaultStoredValueType = DefaultStoredValue
+        return self.table.db.pjt_wires_table[self.wire_id]
 
     @property
     @_check_types.do
@@ -294,14 +264,11 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_wire_id is DefaultStoredValue:
-            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
-
-        return self._stored_wire_id
+        return self._table.select('wire_id', id=self._db_id)[0][0]
 
     @wire_id.setter
     @_check_types.do
-    def wire_id(self, value: bytes):
+    def wire_id(self, value: bytes) -> None:
         """Set the wire ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -309,9 +276,6 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_wire_id = value
-        self._stored_wire = DefaultStoredValue
-
         self._table.update(self._db_id, wire_id=value)
         self._populate('wire_id')
 

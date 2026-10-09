@@ -29,7 +29,7 @@ class AMDBackend(GPUBackend):
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         import pyamd_adl
 
         adapter = None

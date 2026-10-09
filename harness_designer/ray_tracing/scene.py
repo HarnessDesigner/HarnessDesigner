@@ -3,7 +3,7 @@
 """Scene assembly helpers for preparing geometry and lighting for ray tracing.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 import os
 from PIL import Image
@@ -16,10 +16,24 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..gl.canvas3d import camera as _camera
+    from ..gl.canvas_3d import camera as _camera
+    from ..geometry import angle as _angle
+    from ..geometry import point as _point
+    from ..gl.materials import material as _gl_materials
 
 
 Config = _config.Config.ray_trace
+
+
+class SceneObject(Protocol):
+    """What :meth:`Scene.build` reads from each object added to a scene."""
+
+    vertices: np.ndarray
+    faces: np.ndarray
+    normals: np.ndarray
+    position: "_point.Point"
+    angle: "_angle.Angle"
+    material: "_gl_materials.GLMaterial"
 
 
 class Scene:
@@ -27,7 +41,7 @@ class Scene:
     """Collect camera state, scene objects, materials, and lighting for the ray-tracing renderer.
     """
     @_check_types.do
-    def __init__(self, width, height, camera: "_camera.Camera"):
+    def __init__(self, width: int, height: int, camera: "_camera.Camera") -> None:
         """Initialize the object and capture the state required for later interaction.
 
         :param width: Target render width in pixels.
@@ -47,7 +61,7 @@ class Scene:
         self.fov = camera.field_of_view
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "SceneObject") -> None:
         """Add an object to the scene so it can be included in later rendering work.
 
         :param obj: Object to inspect or add to the current operation.
@@ -56,7 +70,7 @@ class Scene:
         self.objects.append(obj)
 
     @_check_types.do
-    def load_environment_map(self, image_path):
+    def load_environment_map(self, image_path: str) -> None:
         """Load an environment map image and enable environment-map rendering.
 
         :param image_path: Path to the image file that should be loaded.
@@ -66,7 +80,7 @@ class Scene:
         Config.environment_map.enable = True
 
     @_check_types.do
-    def generate_environment(self, size):
+    def generate_environment(self, size: tuple[int, int]) -> None:
         """Generate a simple gradient environment image for the scene.
 
         :param size: Requested image size as ``(width, height)``.
@@ -86,7 +100,7 @@ class Scene:
         self.environment_map = img
 
     @_check_types.do
-    def build(self):
+    def build(self) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Build flattened geometry, BVH, material, and lighting arrays for GPU rendering.
 
         :returns: The vertex, face, BVH, object-id, material, and light arrays required by the renderer.

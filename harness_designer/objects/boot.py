@@ -26,7 +26,7 @@ class Boot(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_boot.PJTBoot", project_load=False):
+                 db_obj: "_pjt_boot.PJTBoot", project_load: bool = False) -> None:
         """Initialise the :class:`Boot` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,7 +49,7 @@ class Boot(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         super().delete()
         self.mainframe.project.delete_boot(self.db_obj.db_id)
         self.db_obj.delete()

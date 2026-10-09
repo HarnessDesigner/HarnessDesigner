@@ -4,6 +4,9 @@ This class is the callback backbone for `Point`/`Angle` (see MEMORY.md) --
 `_process_callbacks` fires on every position/angle mutation across the
 whole app, so it is about as hot a path as this codebase has.
 
+## Added in the folder review: class-level mutable defaults (correctness, not performance)
+`__callbacks__` and `__unbound_callbacks__` are class-level mutable defaults (`[]`). A child class that forgets to set them in its `__init__` shares one list with every other instance. The class comment says the children must set them. Worth checking in the review of each class that mixes this in, but it is a correctness question and nothing here changes it.
+
 ## Line 144-173 (`_process_callbacks`) — several O(n) list-membership checks per call, needs investigation before changing
 Three separate places do `x in some_list`/`some_list.remove(x)` against
 plain lists while iterating the callback set:

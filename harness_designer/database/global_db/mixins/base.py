@@ -1,10 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from ..bases import (TableBase, EntryBase,
                      DefaultStoredValue as _DefaultStoredValue,
                      DefaultStoredValueType as _DefaultStoredValueType)
 from .... import check_types as _check_types
 from ... import id_generator as _id_generator
+
+
+if TYPE_CHECKING:
+    from .. import bases as _glb_bases
 
 
 DefaultStoredValue = _DefaultStoredValue
@@ -27,7 +33,7 @@ class BaseMixin:
 
     @property
     @_check_types.do
-    def table(self):
+    def table(self) -> "_glb_bases.TableBase":
         """Return the table.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -38,7 +44,7 @@ class BaseMixin:
         return self._table
 
     @_check_types.do
-    def _populate(self, tag):
+    def _populate(self, tag: str) -> None:
         """Execute the populate operation.
 
         UNKNOWN details are inferred from the callable name and signature.

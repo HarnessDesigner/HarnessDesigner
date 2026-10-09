@@ -13,9 +13,10 @@ See TRANSITION_EDITOR_DIALOG.md for the full design and decision log.
 """
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtCore
+from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 from .. import dialog_base as _dialog_base
@@ -28,8 +29,11 @@ from ....gl import canvas_3d as _canvas3d
 from .... import check_types as _check_types
 
 if TYPE_CHECKING:
+    from .... import objects as _objects
     from .... import ui as _ui
     from ....database.global_db import transition as _g_transition
+    from ....gl import context as _gl_context
+    from ...prop_ctrls import events as _events
 
 
 #: A brand-new/duplicated row's not-yet-assigned foreign keys -- every
@@ -114,8 +118,8 @@ class TransitionEditorDialog(_dialog_base.BaseDialog):
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Close)
 
         self._mainframe = parent
-        self._transition: "_g_transition.Transition | None" = None
-        self._preview: "_preview.PreviewTransition | None" = None
+        self._transition: _Union["_g_transition.Transition", None] = None
+        self._preview: _preview.PreviewTransition | None = None
 
         # Self-contained scene, exactly like part_orientation.py's own --
         # must not share the real mainframe's pooled AABB/OBB arrays.
@@ -295,7 +299,7 @@ class TransitionEditorDialog(_dialog_base.BaseDialog):
             self._last_branch_tab_index = index
 
     @_check_types.do
-    def _on_branch_count_changed(self, _evt) -> None:
+    def _on_branch_count_changed(self, _evt: "_events.PropertyEvent") -> None:
         self._preview_timer.start()
 
     @_check_types.do
@@ -316,43 +320,43 @@ class TransitionEditorDialog(_dialog_base.BaseDialog):
     # -- BaseDialog/canvas plumbing (mirrors part_orientation.py exactly) --
 
     @_check_types.do
-    def add_object(self, obj) -> None:
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         self.canvas.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj) -> None:
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         self.canvas.remove_object(obj)
 
     @property
     @_check_types.do
-    def editor2d(self):
+    def editor2d(self) -> None:
         return None
 
     @property
     @_check_types.do
-    def editor3d(self):
+    def editor3d(self) -> "TransitionEditorDialog":
         return self
 
     @property
     @_check_types.do
-    def editor_pegboard(self):
+    def editor_pegboard(self) -> None:
         return None
 
     @property
     @_check_types.do
-    def bounds_manager(self):
+    def bounds_manager(self) -> _bounds.Manager:
         return self._bounds_manager
 
     @_check_types.do
-    def _set_selected(self, obj) -> None:
+    def _set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         pass
 
     @_check_types.do
-    def set_selected(self, obj) -> None:
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         pass
 
     @_check_types.do
-    def get_selected(self):
+    def get_selected(self) -> None:
         return None
 
     @_check_types.do
@@ -361,7 +365,7 @@ class TransitionEditorDialog(_dialog_base.BaseDialog):
 
     @property
     @_check_types.do
-    def context(self):
+    def context(self) -> "_gl_context.GLContext":
         return self.canvas.context
 
     @_check_types.do
@@ -391,7 +395,7 @@ class TransitionEditorDialog(_dialog_base.BaseDialog):
         super().reject()
 
     @_check_types.do
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: "QtGui.QCloseEvent") -> None:
         self._release_control()
         self.canvas.cleanup()
         super().closeEvent(event)

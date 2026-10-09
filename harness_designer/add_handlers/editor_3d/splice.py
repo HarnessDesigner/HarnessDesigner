@@ -21,7 +21,7 @@ over a compatible wire replaces it with a real one anyway, via
 :meth:`Splice._recreate_preview`.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -38,6 +38,9 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ...gl import materials as _materials
+    from ...database.global_db import splice as _splice_part
+    from ...objects.objects_3d import base_3d as _base_3d
 
 
 class Splice(_base.AddHandlerBase):
@@ -51,11 +54,11 @@ class Splice(_base.AddHandlerBase):
         canvas: "_canvas.Canvas",
         target: "_objects.ObjectBase",
         part_id: bytes,
-        part,
-        preview_material,
-        compat_material,
-        snapped_wire=None
-    ):
+        part: "_splice_part.Splice",
+        preview_material: "_materials.GLMaterial",
+        compat_material: "_materials.GLMaterial",
+        snapped_wire: _wire.Wire | None = None
+    ) -> None:
 
         super().__init__(canvas, target)
 
@@ -75,20 +78,20 @@ class Splice(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_3d.Base3D":
         return obj.obj3d
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -155,8 +158,16 @@ class Splice(_base.AddHandlerBase):
         from ...objects import splice as _splice
 
         if self.target is not None:
-            self.target.delete()
+            # Null self.target before deleting it, not after -- that
+            # delete tears down the old target's own view object, which
+            # finds its _active_handler is still this same handler and
+            # calls this object's delete() again, re-entrantly, while
+            # we're still inside this call. delete()'s own cancel() path
+            # only re-deletes self.target when it is not yet None, so it
+            # has to already be None before the delete below ever runs.
+            old_target = self.target
             self.target = None
+            old_target.delete()
 
         p1 = wire.obj3d.start_position.as_numpy
         p2 = wire.obj3d.stop_position.as_numpy
@@ -208,9 +219,11 @@ class Splice(_base.AddHandlerBase):
         position, wire_angle, _idx = wire.obj3d.get_closest_point(mouse_pos)
 
         if position is None or wire_angle is None:
+            # Set before self.target.delete(), not after -- see
+            # _recreate_preview's own comment above for why.
+            self._finalized = True
             self.target.delete()
             self.target = None
-            self._finalized = True
 
             return
 
@@ -271,5 +284,5 @@ class Splice(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

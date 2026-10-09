@@ -185,14 +185,11 @@ understand what is happening with the camera.
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QTimer
-
-
 import math
-
 import numpy as np
-from harness_designer import app as _app
+from PySide6 import QtGui
 
+from harness_designer import app as _app
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...geometry import line as _line
@@ -229,10 +226,15 @@ _UP = np.array([0.0, 0.0, 1.0], dtype=np.float32)
 
 class CameraBase:
 
+    is_top_down: bool = False
+
+    def zoom_at_point(self, screen_pos: _point.Point, delta: float) -> None:
+        raise NotImplementedError
+
     __doc__ = __doc__
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
         """
         Initialise the :class:`Camera` instance.
 
@@ -434,14 +436,6 @@ class CameraBase:
 
     @property
     @_check_types.do
-    def objects_in_view(self):
-        """
-        Return the objects in view.
-        """
-        return self.canvas.objects_in_view
-
-    @property
-    @_check_types.do
     def orthonormalized_axes(self) -> tuple[
         np.ndarray, np.ndarray, np.ndarray]:  # NOQA
         """
@@ -456,13 +450,13 @@ class CameraBase:
         return self._forward, self._right, self._up
 
     @_check_types.do
-    def _send_event(self, type_):
+    def _send_event(self, type_: str) -> None:
         event = _events.GLCameraEvent.from_canvas(type_, self.canvas)
 
         if event is None:
             return
 
-        getattr(self.canvas, event.GetType()).emit(event)
+        self.canvas.event_signal(event.GetType()).emit(event)
 
         self._refresh_active_hover()
 
@@ -508,9 +502,8 @@ class CameraBase:
 
         self.set()
 
-        from PySide6.QtGui import QCursor
 
-        local_pos = self.canvas.mapFromGlobal(QCursor.pos())
+        local_pos = self.canvas.mapFromGlobal(QtGui.QCursor.pos())
         mouse_pos = _point.Point(float(local_pos.x()), float(local_pos.y()))
 
         mouse_handler._dispatch_to_active_handler(  # NOQA
@@ -530,7 +523,7 @@ class CameraBase:
         return float(self._viewport[2]) / float(self._viewport[3])
 
     @_check_types.do
-    def Reset(self):
+    def Reset(self) -> None:
         """
         Reset the camera back to its home position -- directly above the
         origin, looking straight down (this camera is permanently locked
@@ -549,7 +542,7 @@ class CameraBase:
         self._send_event(_events.EVT_GL_CAMERA_RESET)
 
     @_check_types.do
-    def _update_camera(self, _=None):
+    def _update_camera(self, _: None = None) -> None:
         """
         Update the camera.
 
@@ -646,7 +639,7 @@ class CameraBase:
         return planes
 
     @_check_types.do
-    def set(self):
+    def set(self) -> None:
         """
         Refresh the camera's own basis vectors (forward/right/up) from its
         current position/focal_position, but only when something actually
@@ -666,7 +659,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def _calculate_camera(self):
+    def _calculate_camera(self) -> None:
         """
         Calculate the camera.
         """
@@ -802,7 +795,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def Rotate(self, dx: int | float, dy: int | float):
+    def Rotate(self, dx: int | float, dy: int | float) -> None:
         """
         Moves the camera position keeping the focused point locked.
 
@@ -847,7 +840,7 @@ class CameraBase:
         up = _WORLD_UP.copy()
 
         @_check_types.do
-        def _rodrigues(v, k, angle_rad):
+        def _rodrigues(v: np.ndarray, k: np.ndarray, angle_rad: float) -> np.ndarray:
             """
             Execute the rodrigues operation.
 
@@ -910,7 +903,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def PanTilt(self, dx: int | float, dy: int | float):
+    def PanTilt(self, dx: int | float, dy: int | float) -> None:
         """
         Pan and Tilt camera movements.
 
@@ -932,7 +925,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def Zoom(self, delta, *_):
+    def Zoom(self, delta: float, *_) -> None:
         """
         This has a similiar movement appearance as Dolly except there are hard
         limits as to how far it is able to move where as Dolly does not.
@@ -973,7 +966,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def Walk(self, dx: int | float, dy: int | float, speed: float):
+    def Walk(self, dx: int | float, dy: int | float, speed: float) -> None:
         """
         This movement is a bit tricky to explain in terms of camera movement.
         If you think about what you do as a person when you walk this will
@@ -1028,7 +1021,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def Dolly(self, distance: int | float):
+    def Dolly(self, distance: int | float) -> None:
         """
         Rigid forward/back translation of the whole camera rig -- both
         position and focal_position move together by the same amount
@@ -1062,7 +1055,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def TruckPedestal(self, dx: int | float, dy: int | float, speed: float):
+    def TruckPedestal(self, dx: int | float, dy: int | float, speed: float) -> None:
         """
         Truck (left right) and Pedestal (up down).
 
@@ -1132,7 +1125,7 @@ class CameraBase:
 
     @_debug.logfunc
     @_check_types.do
-    def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point:
+    def ProjectPoint(self, point: _point.Point | np.ndarray) -> _point.Point | None:
         """
         Projects a 3D world coordinate to a 2D screen coordinate.
 
@@ -1197,7 +1190,7 @@ class CameraBase:
         return _point.Point(*(clip_point[:3] / clip_point[3]))
 
     @_check_types.do
-    def unproject_from_ndc(self, x, y, z):
+    def unproject_from_ndc(self, x: float, y: float, z: float) -> np.ndarray | None:
         """
         ndc: (x,y,z) in [-1,1]
         """
@@ -1268,7 +1261,7 @@ class CameraBase:
         return _point.Point(*(origin + t * direction))
 
     @_check_types.do
-    def closest_point(self, points) -> tuple[int, np.ndarray] | tuple[None, None]:
+    def closest_point(self, points: np.ndarray | list["_point.Point"]) -> tuple[int, np.ndarray] | tuple[None, None]:
         """Return (index, point) of whichever of *points* is nearest this
         camera's own eye position -- i.e. whichever one the camera would
         actually see first if the others were occluding candidates at the

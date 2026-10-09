@@ -6,7 +6,8 @@ Shape helper modules used to build reusable geometry and 2D overlays.
 This subpackage collects small generators and painter-backed helpers used by
 other parts of :mod:`harness_designer`.
 """
-from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import time
 
@@ -31,7 +32,7 @@ _sphere_vbo = None
 
 
 @_check_types.do
-def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash", None] = None):
+def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash", None] = None) -> dict[str, Any]:
     """Build every non-pooled primitive VBO (arrow/box/cylinder/sphere/etc.)
     plus the full text-glyph set, using *mainframe*'s already-current GL
     context. Called once, right after the mainframe first becomes visible
@@ -46,8 +47,7 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash"
     :type splash: _splash.Splash | None
     """
 
-    from PySide6.QtCore import Qt
-    from PySide6.QtWidgets import QApplication
+    from PySide6 import QtCore, QtWidgets
 
     from . import arrow
     from . import box
@@ -93,13 +93,13 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash"
     timings: list[tuple[str, float]] = []
 
     @_check_types.do
-    def _timed(label: str, fn):
+    def _timed(label: str, fn: Callable[..., Any]) -> Any:
         t0 = time.perf_counter()
         result = fn()
         timings.append((label, time.perf_counter() - t0))
         return result
 
-    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.CursorShape.WaitCursor)
     try:
         with mainframe.editor3d.context:
             overall_start = time.perf_counter()
@@ -140,4 +140,4 @@ def cache_primitives(mainframe: "_ui.MainFrame", splash: _Union["_splash.Splash"
                 f'primitive shapes: {overall_total:.3f}s total '
                 f'(text glyphs timed separately, see above) -- {breakdown}')
     finally:
-        QApplication.restoreOverrideCursor()
+        QtWidgets.QApplication.restoreOverrideCursor()

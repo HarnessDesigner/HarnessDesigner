@@ -33,7 +33,7 @@ class WireTypeMixin(_wire_type_base.WireTypeMixin):
         assumed present; a bundle simply has zero interior waypoints
         today, same as it always has.
         """
-        return getattr(db_obj, 'waypoints3d', ())
+        return db_obj.waypoints3d
 
     @staticmethod
     @_check_types.do

@@ -52,15 +52,15 @@ class PreviewTransition(_ObjectBase):
         dialog.add_object(self)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         pass
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         pass
 
 
@@ -108,11 +108,11 @@ class PreviewTransition3D(_transition_3d.Transition):
         self._is_visible = True
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         pass
 
     @_check_types.do

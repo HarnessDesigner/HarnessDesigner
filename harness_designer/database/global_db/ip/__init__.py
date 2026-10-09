@@ -1,14 +1,19 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
-from PySide6.QtGui import QPixmap
-from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
+from PySide6 import QtGui
 
+from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from . import solid as _solid
 from . import fluid as _fluid
 from . import supp as _supp
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .... import splash as _splash
 
 
 class IPRatingsTable(TableBase):
@@ -32,7 +37,7 @@ class IPRatingsTable(TableBase):
         return ip_ratings.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +51,7 @@ class IPRatingsTable(TableBase):
         ip_ratings.add_records(self._con, splash)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +73,7 @@ class IPRatingsTable(TableBase):
             yield IPRating(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "IPRating":
+    def __getitem__(self, item: int | bytes | str) -> "IPRating":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -124,7 +129,7 @@ class IPRating(EntryBase):
 
     @property
     @_check_types.do
-    def name(self):
+    def name(self) -> str:
         """Return the name.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -157,7 +162,7 @@ class IPRating(EntryBase):
 
     @ip_solid.setter
     @_check_types.do
-    def ip_solid(self, value: _solid.IPSolid):
+    def ip_solid(self, value: _solid.IPSolid) -> None:
         """Set the ip solid.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -190,7 +195,7 @@ class IPRating(EntryBase):
 
     @ip_solid_id.setter
     @_check_types.do
-    def ip_solid_id(self, value: bytes):
+    def ip_solid_id(self, value: bytes) -> None:
         """Set the ip solid ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -224,7 +229,7 @@ class IPRating(EntryBase):
 
     @ip_fluid.setter
     @_check_types.do
-    def ip_fluid(self, value: _fluid.IPFluid):
+    def ip_fluid(self, value: _fluid.IPFluid) -> None:
         """Set the ip fluid.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -257,7 +262,7 @@ class IPRating(EntryBase):
 
     @ip_fluid_id.setter
     @_check_types.do
-    def ip_fluid_id(self, value: bytes):
+    def ip_fluid_id(self, value: bytes) -> None:
         """Set the ip fluid ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -294,7 +299,7 @@ class IPRating(EntryBase):
 
     @ip_supp.setter
     @_check_types.do
-    def ip_supp(self, value: _supp.IPSupp | None):
+    def ip_supp(self, value: _supp.IPSupp | None) -> None:
         """Set the ip supp.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -330,7 +335,7 @@ class IPRating(EntryBase):
 
     @ip_supp_id.setter
     @_check_types.do
-    def ip_supp_id(self, value: bytes | None):
+    def ip_supp_id(self, value: bytes | None) -> None:
         """Set the ip supp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -375,11 +380,11 @@ class IPRating(EntryBase):
 
         return f'{self.ip_solid.description}\n\n{self.ip_fluid.description}\n\n{supp.description}'
 
-    _stored_pixmap: DefaultStoredValueType | QPixmap = DefaultStoredValue
+    _stored_pixmap: DefaultStoredValueType | QtGui.QPixmap = DefaultStoredValue
 
     @property
     @_check_types.do
-    def pixmap(self) -> QPixmap:
+    def pixmap(self) -> QtGui.QPixmap:
         """Return the pixmap.
 
         UNKNOWN details are inferred from the callable name and signature.

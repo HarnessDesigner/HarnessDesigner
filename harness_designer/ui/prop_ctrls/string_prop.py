@@ -1,8 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QLineEdit, QLabel, QHBoxLayout, QVBoxLayout
 
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 from PySide6 import QtWidgets
 from . import events as _events
 from ... import check_types as _check_types
@@ -17,8 +16,8 @@ class StringProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str, style: int = 0,
-                 units: str | None = None, read_only: bool = False):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0,
+                 units: str | None = None, read_only: bool = False) -> None:
         """
         Initialise the :class:`StringProperty` instance.
 
@@ -39,8 +38,8 @@ class StringProperty(QtWidgets.QWidget):
         self._value = ''
         self._label = label
 
-        self._st = QLabel(label + ':', self)
-        self._ctrl = QLineEdit(self)
+        self._st = QtWidgets.QLabel(label + ':', self)
+        self._ctrl = QtWidgets.QLineEdit(self)
 
         # Apply read-only state: either via explicit read_only=True or legacy
         # style=wx.TE_READONLY (integer 16) passed from unconverted call sites.
@@ -49,13 +48,13 @@ class StringProperty(QtWidgets.QWidget):
 
         self._units_st = None
         if units is not None:
-            self._units_st = QLabel(units, self)
+            self._units_st = QtWidgets.QLabel(units, self)
 
-        sizer = QHBoxLayout()
+        sizer = QtWidgets.QHBoxLayout()
         sizer.setContentsMargins(5, 2, 5, 2)
         sizer.addWidget(self._st)
 
-        inner = QVBoxLayout()
+        inner = QtWidgets.QVBoxLayout()
         inner.setContentsMargins(0, 0, 0, 0)
         inner.addWidget(self._ctrl)
         sizer.addLayout(inner, stretch=1)
@@ -112,7 +111,7 @@ class StringProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

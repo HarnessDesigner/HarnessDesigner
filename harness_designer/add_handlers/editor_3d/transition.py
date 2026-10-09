@@ -61,7 +61,7 @@ Known simplifications, not yet resolved by this pass (see
   open; the user can rotate it afterward with the existing gizmo.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -75,6 +75,9 @@ from ...gl import object_picker as _object_picker
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ...gl import materials as _materials
+    from ...database.global_db import transition as _glb_transition
+    from ...objects.objects_3d import transition as _transition_3d
 
 
 class Transition(_base.AddHandlerBase):
@@ -89,9 +92,9 @@ class Transition(_base.AddHandlerBase):
         canvas: "_canvas.Canvas",
         target: "_objects.ObjectBase",
         part_id: bytes,
-        part,
-        highlight_material
-    ):
+        part: "_glb_transition.Transition",
+        highlight_material: "_materials.GLMaterial"
+    ) -> None:
 
         super().__init__(canvas, target)
 
@@ -112,16 +115,16 @@ class Transition(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -263,6 +266,16 @@ class Transition(_base.AddHandlerBase):
         current_angle = self.target.obj3d.angle
         ax, ay, az = current_angle.as_euler_float
 
+        # Set before self.target.delete(), not after -- that delete tears
+        # down self.target.obj3d, which (Base3D._delete) finds its own
+        # _active_handler is still this same handler and calls THIS
+        # object's delete() again, re-entrantly, while we're still inside
+        # this call. That delete() only cancels (deleting self.target a
+        # second time, onto rows this method's own insert()s below haven't
+        # even created yet) when _finalized is still False, so it has to
+        # already be True before the delete below ever runs.
+        self._finalized = True
+
         self.target.delete()
         self.target = None
 
@@ -289,13 +302,12 @@ class Transition(_base.AddHandlerBase):
         transition_obj = _transition.Transition(self.mainframe, transition_db)
         project.add_transition(transition_obj)
 
-        self._finalized = True
-
     @_check_types.do
     def _commit_attached(
         self,
         bundle: _bundle.Bundle,
-        endpoint: str, branch
+        endpoint: str,
+        branch: "_transition_3d.Branch"
     ) -> None:
 
         """
@@ -332,6 +344,11 @@ class Transition(_base.AddHandlerBase):
 
         bundle.identify(None)
         self._clear_branch_hover()
+
+        # See _commit_free's own comment -- same re-entrancy, same reason
+        # this has to be set before self.target.delete(), not after.
+        self._finalized = True
+
         self.target.delete()
         self.target = None
 
@@ -365,8 +382,6 @@ class Transition(_base.AddHandlerBase):
         transition_obj.add_bundle(bundle, endpoint, branch_id)
         project.add_transition(transition_obj)
 
-        self._finalized = True
-
     @_check_types.do
     def cancel(self) -> None:
         self._clear_bundle_hover()
@@ -378,5 +393,5 @@ class Transition(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

@@ -1,16 +1,23 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .. import db_connectors as _con
-from ... import logger as _logger
+from typing import TYPE_CHECKING
 
 import os
 import json
+
+from .. import db_connectors as _con
+from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """
     Add a records.
 
@@ -52,9 +59,9 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_file_type(con, name, extension, is_model: bool | int = 0,
+def add_file_type(con: "_connector_base.ConnectorBase", name: str, extension: str, is_model: bool | int = 0,
                   is_image: bool | int = 0, is_datasheet: bool | int = 0,
-                  is_cad: bool | int = 0, mimetype: str = '', commit: bool = True):
+                  is_cad: bool | int = 0, mimetype: str = '', commit: bool = True) -> bytes:
     """
     Add a file type.
 
@@ -102,7 +109,7 @@ def add_file_type(con, name, extension, is_model: bool | int = 0,
 
 
 @_check_types.do
-def get_file_type(con, extension=None, mimetype=None):
+def get_file_type(con: "_connector_base.ConnectorBase", extension: str | None = None, mimetype: str | None = None) -> bytes | None:
     """
     Return the file type.
 

@@ -58,21 +58,10 @@ _NVX_CURRENT_AVAILABLE_VIDMEM = 0x9049
 
 _ATI_VBO_FREE_MEMORY = 0x87FB
 
-# Every GPUBackend field a spec table entry might supply -- deliberately
-# excludes vram_size/vram_use, which the VRAM-specific logic in __init__
-# already handles with its own (extension-vs-table) precedence.
-_STATIC_SPEC_FIELDS = (
-    'gpu_model', 'gpu_manufacturer', 'architecture', 'generation', 'foundry',
-    'memory_type', 'vram_width', 'memory_bandwidth',
-    'soc_clock', 'boost_clock', 'memory_clock', 'gpu_cores',
-    'pcie_version', 'pcie_max_width',
-)
-
-
 @_check_types.do
 def _has_extension(name: str) -> bool:
     try:
-        count = GL.glGetIntegerv(GL.GL_NUM_EXTENSIONS)
+        count = int(GL.glGetIntegerv(GL.GL_NUM_EXTENSIONS))
         for i in range(count):
             if GL.glGetStringi(GL.GL_EXTENSIONS, i) == name.encode('ascii'):
                 return True
@@ -83,7 +72,7 @@ def _has_extension(name: str) -> bool:
 
 
 @_check_types.do
-def _get_renderer():
+def _get_renderer() -> str | None:
     try:
         renderer = GL.glGetString(GL.GL_RENDERER)
         if isinstance(renderer, bytes):
@@ -103,17 +92,15 @@ class GLMemInfoBackend(GPUBackend):
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         renderer = _get_renderer()
         spec = _gpu_specs_lookup.lookup(renderer) if renderer else None
 
         if _has_extension('GL_NVX_gpu_memory_info'):
             try:
-                # PyOpenGL's glGetIntegerv returns a fixed-width numpy
-                # int32 -- int() first, or "* 1024" silently overflows
-                # (wraps to garbage, e.g. 0) for any card above ~2TB... no,
-                # above ~2M KB, i.e. any card with more than ~2GB VRAM.
-                # Python's arbitrary-precision int has no such ceiling.
+                # PyOpenGL's glGetIntegerv returns a fixed-width numpy int32.
+                # Converting with int() first matters: multiplying by 1024
+                # in int32 overflows for any card above about 2 GiB.
                 total_kb = int(GL.glGetIntegerv(_NVX_DEDICATED_VIDMEM))
                 current_kb = int(GL.glGetIntegerv(_NVX_CURRENT_AVAILABLE_VIDMEM))
                 self.vram_size = total_kb * 1024
@@ -141,7 +128,18 @@ class GLMemInfoBackend(GPUBackend):
                 self.vram_use = _os_vram_usage.get_current_usage_bytes()
 
         if spec is not None:
-            for name in _STATIC_SPEC_FIELDS:
-                value = spec.get(name)
-                if value is not None:
-                    setattr(self, name, value)
+            # A field the table has no entry for keeps its current value.
+            self.gpu_model = spec.get('gpu_model', self.gpu_model)
+            self.gpu_manufacturer = spec.get('gpu_manufacturer', self.gpu_manufacturer)
+            self.architecture = spec.get('architecture', self.architecture)
+            self.generation = spec.get('generation', self.generation)
+            self.foundry = spec.get('foundry', self.foundry)
+            self.memory_type = spec.get('memory_type', self.memory_type)
+            self.vram_width = spec.get('vram_width', self.vram_width)
+            self.memory_bandwidth = spec.get('memory_bandwidth', self.memory_bandwidth)
+            self.soc_clock = spec.get('soc_clock', self.soc_clock)
+            self.boost_clock = spec.get('boost_clock', self.boost_clock)
+            self.memory_clock = spec.get('memory_clock', self.memory_clock)
+            self.gpu_cores = spec.get('gpu_cores', self.gpu_cores)
+            self.pcie_version = spec.get('pcie_version', self.pcie_version)
+            self.pcie_max_width = spec.get('pcie_max_width', self.pcie_max_width)

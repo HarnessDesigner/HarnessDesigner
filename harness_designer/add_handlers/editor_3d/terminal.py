@@ -20,7 +20,7 @@ download completes), independent of which placement flow created the
 terminal.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
@@ -34,6 +34,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import cavity as _cavity
+    from ...database.global_db import terminal as _glb_terminal
 
 
 class Terminal(_base.AddHandlerBase):
@@ -46,10 +48,10 @@ class Terminal(_base.AddHandlerBase):
         self,
         canvas: "_canvas.Canvas",
         target: "_objects.ObjectBase",
-        part,
-        project_cavities: list,
+        part: "_glb_terminal.Terminal",
+        project_cavities: list["_cavity.Cavity"],
         is_male: bool
-    ):
+    ) -> None:
 
         super().__init__(canvas, target)
 
@@ -68,16 +70,16 @@ class Terminal(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -95,7 +97,7 @@ class Terminal(_base.AddHandlerBase):
 
     @property
     @_check_types.do
-    def snap_pool(self):
+    def snap_pool(self) -> _utils.SnapPool:
         objects = []
         positions = []
 
@@ -206,5 +208,5 @@ class Terminal(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

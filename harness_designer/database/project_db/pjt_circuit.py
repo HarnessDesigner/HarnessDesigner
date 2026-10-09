@@ -1,12 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from collections.abc import Iterable, Iterator
+from typing import Any, Union as _Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType, _project_id_bounds
+from .pjt_bases import PJTEntryBase, PJTTableBase, _project_id_bounds
 from ...geometry import point as _point
 from ...geometry.decimal import Decimal as _d
 from ... import logger as _logger
@@ -19,6 +21,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects import circuit as _circuit_obj
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class PJTCircuitsTable(PJTTableBase):
@@ -42,7 +45,7 @@ class PJTCircuitsTable(PJTTableBase):
         return circuits.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -52,7 +55,7 @@ class PJTCircuitsTable(PJTTableBase):
         circuits.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -75,7 +78,7 @@ class PJTCircuitsTable(PJTTableBase):
             yield PJTCircuit(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTCircuit":
+    def __getitem__(self, item: int | bytes | str) -> "PJTCircuit":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -106,7 +109,8 @@ class PJTCircuitsTable(PJTTableBase):
         :returns: Return value. UNKNOWN details.
         :rtype: :class:`PJTCircuit`
         """
-        db_id = PJTTableBase.insert(self, circuit_num=circuit_num)
+        db_id = PJTTableBase.insert(
+            self, circuit_num=circuit_num, name='', notes='', description='')
 
         return PJTCircuit(self, db_id)
 
@@ -118,7 +122,7 @@ class _Set:
     """
 
     @_check_types.do
-    def __init__(self, args: list):
+    def __init__(self, args: list) -> None:
         """Initialise the :class:`_Set` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -136,7 +140,7 @@ class _Set:
         self.items = args
 
     @_check_types.do
-    def intersection(self, args: list):
+    def intersection(self, args: list) -> "_Set":
         """Execute the intersection operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -155,7 +159,7 @@ class _Set:
         return _Set(new_args)
 
     @_check_types.do
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Any]:
         """Iterate over the available items.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -166,7 +170,7 @@ class _Set:
         return iter(self.items)
 
     @_check_types.do
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the string representation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -175,7 +179,7 @@ class _Set:
         :rtype: UNKNOWN
         """
         @_check_types.do
-        def _iter(ls, indent=''):
+        def _iter(ls: list[Any], indent: str = '') -> str:
             """Execute the iter operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -222,7 +226,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -233,7 +237,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_circuit_obj.Circuit"):
+    def set_object(self, obj: "_circuit_obj.Circuit") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -339,7 +343,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @property
     @_check_types.do
-    def circuit_map(self):
+    def circuit_map(self) -> list[Any]:
         """Return the circuit map.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -350,7 +354,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
 
         @_check_types.do
-        def iter_objs(obj, point: _point.Point):
+        def iter_objs(obj: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_wire_service_loop.PJTWireServiceLoop"], point: _point.Point) -> list[Any]:
             """Iterate over the objs.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -516,7 +520,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
 
     @_check_types.do
     def get_circuit_end_terminals(
-        self, target: Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list["_pjt_terminal.PJTTerminal"]:
+        self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list["_pjt_terminal.PJTTerminal"]:
         """Return the circuit end terminals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -531,7 +535,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         circuit_map = self.circuit_map
 
         @_check_types.do
-        def _iter_list(f_list):
+        def _iter_list(f_list: list[Any]) -> list[_pjt_terminal.PJTTerminal]:
             """Iterate over the list.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -552,7 +556,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             return terms
 
         @_check_types.do
-        def _iter_map(objs, obj_found=False):
+        def _iter_map(objs: list[Any], obj_found: bool = False) -> tuple[list[Any], bool]:
             """Iterate over the map.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -590,7 +594,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return terminals
 
     @_check_types.do
-    def get_circuit(self, target: Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list:
+    def get_circuit(self, target: _Union["_pjt_terminal.PJTTerminal", "_pjt_wire.PJTWire", "_pjt_splice.PJTSplice", "_pjt_wire_service_loop.PJTWireServiceLoop"]) -> list:
         """Return the circuit.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -605,7 +609,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         circuit_map = self.circuit_map
 
         @_check_types.do
-        def _iter_map(objs):
+        def _iter_map(objs: list[Any]) -> list[Any]:
             """Iterate over the map.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -647,8 +651,6 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         """
         return self._table
 
-    _stored_circuit_num: int | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def circuit_num(self) -> int:
@@ -659,14 +661,11 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        if self._stored_circuit_num is DefaultStoredValue:
-            self._stored_circuit_num = self._table.select('circuit_num', id=self._db_id)[0][0]
-
-        return self._stored_circuit_num
+        return self._table.select('circuit_num', id=self._db_id)[0][0]
 
     @circuit_num.setter
     @_check_types.do
-    def circuit_num(self, value: int):
+    def circuit_num(self, value: int) -> None:
         """Set the circuit num.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -674,13 +673,8 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :param value: Value to store or process.
         :type value: int
         """
-
-        self._stored_circuit_num = value
-
         self._table.update(self._db_id, circuit_num=value)
         self._populate('circuit_num')
-
-    _stored_description: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -692,14 +686,11 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        if self._stored_description is DefaultStoredValue:
-            self._stored_description = self._table.select('description', id=self._db_id)[0][0]
-
-        return self._stored_description
+        return self._table.select('description', id=self._db_id)[0][0]
 
     @description.setter
     @_check_types.do
-    def description(self, value: str):
+    def description(self, value: str) -> None:
         """Set the description.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -707,8 +698,6 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         :param value: Value to store or process.
         :type value: str
         """
-        self._stored_description = value
-
         self._table.update(self._db_id, description=value)
         self._populate('description')
 
@@ -951,14 +940,14 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return res
 
 
-class PJTCircuitControl(QTabWidget):
+class PJTCircuitControl(QtWidgets.QTabWidget):
     """Represent a PJT circuit control in :mod:`harness_designer.database.project_db.pjt_circuit`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def _on_circuit_num(self, evt):
+    def _on_circuit_num(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the circuit num event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1010,7 +999,7 @@ class PJTCircuitControl(QTabWidget):
         self._parent.set_circuit(db_id)
 
     @_check_types.do
-    def _on_description(self, evt):
+    def _on_description(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the description event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1022,7 +1011,7 @@ class PJTCircuitControl(QTabWidget):
         self.db_obj.description = value
 
     @_check_types.do
-    def _on_name(self, evt):
+    def _on_name(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the name event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1073,7 +1062,7 @@ class PJTCircuitControl(QTabWidget):
         self._parent.set_circuit(db_id)
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTCircuit | None):
+    def set_obj(self, db_obj: PJTCircuit | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1132,7 +1121,7 @@ class PJTCircuitControl(QTabWidget):
             self.splice_weight_lb_ctrl.SetValue(str(db_obj.splice_weight_lb))
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTCircuitControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1145,8 +1134,8 @@ class PJTCircuitControl(QTabWidget):
         self.name_choices: list[str] = []
         self.circuit_choices: list[str] = []
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')

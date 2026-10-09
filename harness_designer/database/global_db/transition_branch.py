@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import ast
 
@@ -15,6 +15,9 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import transition as _transition
     from . import bundle_cover as _bundle_cover
+    from ...ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
+    from ... import splash as _splash
 
 
 class TransitionBranchesTable(TableBase):
@@ -38,7 +41,7 @@ class TransitionBranchesTable(TableBase):
         return transition_branches.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -51,7 +54,7 @@ class TransitionBranchesTable(TableBase):
         transition_branches.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -73,7 +76,7 @@ class TransitionBranchesTable(TableBase):
             yield TransitionBranch(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "TransitionBranch":
+    def __getitem__(self, item: int | bytes | str) -> "TransitionBranch":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -147,7 +150,7 @@ class TransitionBranch(EntryBase, NameMixin):
     """
     _table: TransitionBranchesTable = None
 
-    _stored_transition: Union[DefaultStoredValueType, "_transition.Transition"] = DefaultStoredValue
+    _stored_transition: _Union[DefaultStoredValueType, "_transition.Transition"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -204,7 +207,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @idx.setter
     @_check_types.do
-    def idx(self, value: int):
+    def idx(self, value: int) -> None:
         """Set the idx.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -243,7 +246,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @bulb_offset.setter
     @_check_types.do
-    def bulb_offset(self, value: _point.Point | None):
+    def bulb_offset(self, value: _point.Point | None) -> None:
         """Set the bulb offset.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -282,7 +285,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @bulb_length.setter
     @_check_types.do
-    def bulb_length(self, value: float):
+    def bulb_length(self, value: float) -> None:
         """Set the bulb length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -334,7 +337,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @min_dia.setter
     @_check_types.do
-    def min_dia(self, value: float):
+    def min_dia(self, value: float) -> None:
         """Set the min dia.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -365,7 +368,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @max_dia.setter
     @_check_types.do
-    def max_dia(self, value: float):
+    def max_dia(self, value: float) -> None:
         """Set the max dia.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -396,7 +399,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @length.setter
     @_check_types.do
-    def length(self, value: float):
+    def length(self, value: float) -> None:
         """Set the length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -434,7 +437,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @angle.setter
     @_check_types.do
-    def angle(self, value: _angle.Angle):
+    def angle(self, value: _angle.Angle) -> None:
         self.angle.unbind(self._update_angle)
 
         value.bind(self._update_angle)
@@ -467,7 +470,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @offset.setter
     @_check_types.do
-    def offset(self, value: _point.Point):
+    def offset(self, value: _point.Point) -> None:
         self.offset.unbind(self._update_offset)
 
         value.bind(self._update_offset)
@@ -493,7 +496,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @flange_height.setter
     @_check_types.do
-    def flange_height(self, value: float):
+    def flange_height(self, value: float) -> None:
         """Set the flange height.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -524,7 +527,7 @@ class TransitionBranch(EntryBase, NameMixin):
 
     @flange_width.setter
     @_check_types.do
-    def flange_width(self, value: float):
+    def flange_width(self, value: float) -> None:
         """Set the flange width.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -544,7 +547,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: TransitionBranch | None):
+    def set_obj(self, db_obj: TransitionBranch | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -598,7 +601,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
             self.flange_width_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_length(self, evt):
+    def _on_length(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the length event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -610,7 +613,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.db_obj.length = value
 
     @_check_types.do
-    def _on_bulb_length(self, evt):
+    def _on_bulb_length(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the bulb length event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -622,7 +625,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.db_obj.bulb_length = value
 
     @_check_types.do
-    def _on_min_dia(self, evt):
+    def _on_min_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the min dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -634,7 +637,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.db_obj.min_dia = value
 
     @_check_types.do
-    def _on_max_dia(self, evt):
+    def _on_max_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the max dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -646,7 +649,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.db_obj.max_dia = value
 
     @_check_types.do
-    def _on_flange_height(self, evt):
+    def _on_flange_height(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the flange height event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -658,7 +661,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.db_obj.flange_height = value
 
     @_check_types.do
-    def _on_flange_width(self, evt):
+    def _on_flange_width(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the flange width event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -670,7 +673,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.db_obj.flange_width = value
 
     @_check_types.do
-    def SetIndex(self, index):
+    def SetIndex(self, index: int) -> None:
         """Execute the set index operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -681,7 +684,7 @@ class TransitionBranchControl(_prop_ctrls.Category):
         self.SetLabel(f'Branch {index}')
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`TransitionBranchControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

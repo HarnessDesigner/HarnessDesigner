@@ -20,7 +20,7 @@ Features:
     - Input validated against item_type before OK is enabled
 """
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 from ... import check_types as _check_types
@@ -46,7 +46,7 @@ class ListCtrl(QtWidgets.QWidget):
         items: list[str | float | int] | None = None,
         unique: bool = False,
         item_type: type[str | int | float] = str,
-    ):
+    ) -> None:
         """Initialise the :class:`ListCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -152,7 +152,7 @@ class ListCtrl(QtWidgets.QWidget):
             self._list.addItem(str(item))
 
     @_check_types.do
-    def _validate(self, value):
+    def _validate(self, value: str) -> tuple[bool, float | str | None]:
         """Execute the validate operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -414,7 +414,7 @@ class ListCtrl(QtWidgets.QWidget):
             self.itemRemoved.emit(row, typed_value)
 
     @_check_types.do
-    def _show_context_menu(self, pos) -> None:
+    def _show_context_menu(self, pos: QtCore.QPoint) -> None:
         """Show the context menu.
 
         UNKNOWN details are inferred from the callable name and signature.

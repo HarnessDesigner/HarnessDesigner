@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtWidgets
 
 from ... import utils as _utils
 from ...ui import prop_ctrls as _prop_ctrls
@@ -26,6 +26,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import color as _color
     from . import plating as _plating
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class WiresTable(TableBase):
@@ -53,7 +55,7 @@ class WiresTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -80,7 +82,7 @@ class WiresTable(TableBase):
         return wires.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -96,7 +98,7 @@ class WiresTable(TableBase):
         wires.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -119,7 +121,7 @@ class WiresTable(TableBase):
             yield Wire(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Wire":
+    def __getitem__(self, item: int | bytes | str) -> "Wire":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -351,7 +353,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @resistance_1km.setter
     @_check_types.do
-    def resistance_1km(self, value: float):
+    def resistance_1km(self, value: float) -> None:
         """Set the resistance 1km.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -377,7 +379,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @resistance_1kft.setter
     @_check_types.do
-    def resistance_1kft(self, value: float):
+    def resistance_1kft(self, value: float) -> None:
         """Set the resistance 1kft.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -402,7 +404,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @resistance_m.setter
     @_check_types.do
-    def resistance_m(self, value: float):
+    def resistance_m(self, value: float) -> None:
         """Set the resistance m.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -428,7 +430,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @resistance_ft.setter
     @_check_types.do
-    def resistance_ft(self, value: float):
+    def resistance_ft(self, value: float) -> None:
         """Set the resistance ft.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -458,7 +460,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @weight_1km.setter
     @_check_types.do
-    def weight_1km(self, value: float):
+    def weight_1km(self, value: float) -> None:
         """Set the weight 1km.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -484,7 +486,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @weight_1kft.setter
     @_check_types.do
-    def weight_1kft(self, value: float):
+    def weight_1kft(self, value: float) -> None:
         """Set the weight 1kft.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -509,7 +511,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @weight_g_m.setter
     @_check_types.do
-    def weight_g_m(self, value: float):
+    def weight_g_m(self, value: float) -> None:
         """Set the weight g m.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -535,7 +537,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @weight_g_ft.setter
     @_check_types.do
-    def weight_g_ft(self, value: float):
+    def weight_g_ft(self, value: float) -> None:
         """Set the weight g ft.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -561,7 +563,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @weight_lb_ft.setter
     @_check_types.do
-    def weight_lb_ft(self, value: float):
+    def weight_lb_ft(self, value: float) -> None:
         """Set the weight lb ft.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -591,7 +593,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @volts.setter
     @_check_types.do
-    def volts(self, value: float):
+    def volts(self, value: float) -> None:
         """Set the volts.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -622,7 +624,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @od_mm.setter
     @_check_types.do
-    def od_mm(self, value: float):
+    def od_mm(self, value: float) -> None:
         """Set the od mm.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -653,7 +655,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @shielded.setter
     @_check_types.do
-    def shielded(self, value: bool):
+    def shielded(self, value: bool) -> None:
         """Set the shielded.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -684,7 +686,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @strands.setter
     @_check_types.do
-    def strands(self, value: int):
+    def strands(self, value: int) -> None:
         """Set the strands.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -723,7 +725,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @tpi.setter
     @_check_types.do
-    def tpi(self, value: int):
+    def tpi(self, value: int) -> None:
         """Set the tpi.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -754,7 +756,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @num_conductors.setter
     @_check_types.do
-    def num_conductors(self, value: int):
+    def num_conductors(self, value: int) -> None:
         """Set the num conductors.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -802,7 +804,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @core_material_id.setter
     @_check_types.do
-    def core_material_id(self, value: bytes):
+    def core_material_id(self, value: bytes) -> None:
         """Set the core material ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -840,7 +842,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @conductor_dia_mm.setter
     @_check_types.do
-    def conductor_dia_mm(self, value: float):
+    def conductor_dia_mm(self, value: float) -> None:
         """Set the conductor dia mm.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -872,7 +874,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @conductor_dia_in.setter
     @_check_types.do
-    def conductor_dia_in(self, value: float):
+    def conductor_dia_in(self, value: float) -> None:
         """Set the conductor dia in.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -917,7 +919,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @size_mm2.setter
     @_check_types.do
-    def size_mm2(self, value: float):
+    def size_mm2(self, value: float) -> None:
         """Set the size mm 2.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -969,7 +971,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @size_awg.setter
     @_check_types.do
-    def size_awg(self, value: int):
+    def size_awg(self, value: int) -> None:
         """Set the size awg.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1000,7 +1002,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @size_in2.setter
     @_check_types.do
-    def size_in2(self, value: float):
+    def size_in2(self, value: float) -> None:
         """Set the size in 2.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1075,7 +1077,7 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @stripe_color_id.setter
     @_check_types.do
-    def stripe_color_id(self, value: bytes | None):
+    def stripe_color_id(self, value: bytes | None) -> None:
         """Set the stripe color ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1090,14 +1092,30 @@ class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         self._populate('stripe_color_id')
 
 
-class WireControl(QTabWidget, LazyTabMixin):
+def _stripe_color_of(db_obj: "Wire") -> _Union["_color.Color", None]:
+    return db_obj.stripe_color
+
+
+def _set_stripe_color_id(db_obj: "Wire", db_id: bytes | None) -> None:
+    db_obj.stripe_color_id = db_id
+
+
+def _core_material_of(db_obj: "Wire") -> "_plating.Plating":
+    return db_obj.core_material
+
+
+def _set_core_material_id(db_obj: "Wire", db_id: bytes) -> None:
+    db_obj.core_material_id = db_id
+
+
+class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a wire control in :mod:`harness_designer.database.global_db.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Wire | None):
+    def set_obj(self, db_obj: Wire | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1108,7 +1126,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
@@ -1177,7 +1195,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_tpi(self, evt):
+    def _on_tpi(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the tpi event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1189,7 +1207,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.tpi = value
 
     @_check_types.do
-    def _on_weight_1km(self, evt):
+    def _on_weight_1km(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the weight 1km event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1201,7 +1219,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.weight_1km = value
 
     @_check_types.do
-    def _on_volts(self, evt):
+    def _on_volts(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the volts event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1213,7 +1231,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.volts = value
 
     @_check_types.do
-    def _on_resistance_1km(self, evt):
+    def _on_resistance_1km(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the resistance 1km event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1225,7 +1243,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.resistance_1km = value
 
     @_check_types.do
-    def _on_num_conductors(self, evt):
+    def _on_num_conductors(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the num conductors event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1237,7 +1255,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.num_conductors = value
 
     @_check_types.do
-    def _on_strands(self, evt):
+    def _on_strands(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the strands event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1254,7 +1272,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.conductor_dia_mm_ctrl.SetValue(self.db_obj.conductor_dia_mm)
 
     @_check_types.do
-    def _on_shielded(self, evt):
+    def _on_shielded(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the shielded event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1266,7 +1284,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.shielded = value
 
     @_check_types.do
-    def _on_conductor_dia_mm(self, evt):
+    def _on_conductor_dia_mm(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the conductor dia mm event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1280,7 +1298,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
 
     @_check_types.do
-    def _on_size_mm2(self, evt):
+    def _on_size_mm2(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the size mm 2 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1295,7 +1313,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.size_awg_ctrl.SetValue(self.db_obj.size_awg)
 
     @_check_types.do
-    def _on_size_awg(self, evt):
+    def _on_size_awg(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the size awg event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1309,7 +1327,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.size_mm2_ctrl.SetValue(self.db_obj.size_mm2)
 
     @_check_types.do
-    def _on_od_mm(self, evt):
+    def _on_od_mm(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the od mm event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1321,7 +1339,7 @@ class WireControl(QTabWidget, LazyTabMixin):
         self.db_obj.od_mm = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`WireControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1331,8 +1349,8 @@ class WireControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: Wire | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')
@@ -1381,7 +1399,7 @@ class WireControl(QTabWidget, LazyTabMixin):
 
         self.stripe_color_ctrl = ColorControl(color_page)
         self.stripe_color_ctrl.SetLabel('Stripe')
-        self.stripe_color_ctrl.SetAttributeName('stripe_color')
+        self.stripe_color_ctrl.SetTarget(_stripe_color_of, _set_stripe_color_id)
 
         color_page.addWidget(self.color_ctrl)
         color_page.addWidget(self.stripe_color_ctrl)
@@ -1399,7 +1417,7 @@ class WireControl(QTabWidget, LazyTabMixin):
 
         self.core_material_ctrl = PlatingControl(materials_page)
         self.core_material_ctrl.SetLabel('Core')
-        self.core_material_ctrl.SetAttributeName('core_material')
+        self.core_material_ctrl.SetTarget(_core_material_of, _set_core_material_id)
 
         materials_page.addWidget(self.material_ctrl)
         materials_page.addWidget(self.core_material_ctrl)

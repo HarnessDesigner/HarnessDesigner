@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -20,6 +21,11 @@ from .mixins import (
     WireSizeMixin, WireSizeControl
 )
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class WireMarkersTable(TableBase):
@@ -60,7 +66,7 @@ class WireMarkersTable(TableBase):
         return wire_markers.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -76,7 +82,7 @@ class WireMarkersTable(TableBase):
         wire_markers.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -99,7 +105,7 @@ class WireMarkersTable(TableBase):
             yield WireMarker(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "WireMarker":
+    def __getitem__(self, item: int | bytes | str) -> "WireMarker":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -261,7 +267,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     @weight.setter
     @_check_types.do
-    def weight(self, value: float):
+    def weight(self, value: float) -> None:
         """Set the weight.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -292,7 +298,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     @has_label.setter
     @_check_types.do
-    def has_label(self, value: bool):
+    def has_label(self, value: bool) -> None:
         """Set the has label.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -323,7 +329,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     @min_diameter.setter
     @_check_types.do
-    def min_diameter(self, value: float):
+    def min_diameter(self, value: float) -> None:
         """Set the min diameter.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -354,7 +360,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     @max_diameter.setter
     @_check_types.do
-    def max_diameter(self, value: float):
+    def max_diameter(self, value: float) -> None:
         """Set the max diameter.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -385,7 +391,7 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
 
     @length.setter
     @_check_types.do
-    def length(self, value: float):
+    def length(self, value: float) -> None:
         """Set the length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -398,14 +404,14 @@ class WireMarker(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin
         self._populate('length')
 
 
-class WireMarkerControl(QTabWidget, LazyTabMixin):
+class WireMarkerControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a wire marker control in :mod:`harness_designer.database.global_db.wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: WireMarker | None):
+    def set_obj(self, db_obj: WireMarker | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -416,7 +422,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
@@ -459,7 +465,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_min_diameter(self, evt):
+    def _on_min_diameter(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the min diameter event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -471,7 +477,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         self.db_obj.min_diameter = value
 
     @_check_types.do
-    def _on_max_diameter(self, evt):
+    def _on_max_diameter(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the max diameter event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -483,7 +489,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         self.db_obj.max_diameter = value
 
     @_check_types.do
-    def _on_length(self, evt):
+    def _on_length(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the length event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -495,7 +501,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         self.db_obj.length = value
 
     @_check_types.do
-    def _on_label(self, evt):
+    def _on_label(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the label event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -507,7 +513,7 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         self.db_obj.has_label = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`WireMarkerControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -517,8 +523,8 @@ class WireMarkerControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: WireMarker | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

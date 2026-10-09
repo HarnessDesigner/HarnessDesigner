@@ -1,7 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import Union as _Union
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
+import types
 import numpy as np
 from PySide6 import QtCore, QtGui, QtWidgets
 
@@ -12,6 +15,12 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...ui.prop_ctrls import events as _prop_events
+    from .. import context as _gl_context
+    from . import camera_base as _camera_base
+    from ... import objects as _objects
+    from ...objects.objectsvar import base_var as _base_var
+    from ...bounds import manager as _bounds_manager
 
 
 # Fit-to-project framing (see CanvasWindowBase.request_fit_all): padding
@@ -35,7 +44,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
     _canvas: _canvas_base.CanvasBase = None
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", config, size):
+    def __init__(self, parent: "_ui.MainFrame", config: type, size: tuple[int, int]) -> None:
         """
         Initialise the :class:`Canvas3D` instance.
 
@@ -290,7 +299,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def event(self, evt):
+    def event(self, evt: QtCore.QEvent) -> bool:
         """
         Execute the event operation.
 
@@ -305,7 +314,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
 
     @property
     @_check_types.do
-    def context(self):
+    def context(self) -> "_gl_context.GLContext":
         """
         Return the context.
 
@@ -317,7 +326,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
 
     @property
     @_check_types.do
-    def camera(self):
+    def camera(self) -> "_camera_base.CameraBase":
         """
         Return the camera.
 
@@ -329,7 +338,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
 
     @property
     @_check_types.do
-    def mainframe(self):
+    def mainframe(self) -> "_ui.MainFrame":
         """The owning MainFrame -- forwarded from the inner canvas (see
         ``CanvasBase.__init__``), needed by every drag/rotation/add
         handler constructed with *this* wrapper as their own ``canvas``
@@ -339,22 +348,13 @@ class CanvasWindowBase(QtWidgets.QWidget):
         """
         return self._canvas.mainframe
 
-    @property
     @_check_types.do
-    def objects_in_view(self) -> list:
-        """Forwarded from the inner canvas -- see :attr:`mainframe`'s own
-        docstring for why outward-facing code needs this on the wrapper
-        too, not just internally on the inner canvas.
-        """
-        return self._canvas.objects_in_view
+    def objects_in_window(self) -> list["_objects.ObjectBase"]:
+        """Objects drawn in the current pass (this canvas's bounds pool) that are
+        actually visible through this wrapper's on-screen window -- not just
+        anywhere in the camera's frustum.
 
-    @_check_types.do
-    def objects_in_window(self) -> list:
-        """Objects from :attr:`objects_in_view` that are actually visible
-        through this wrapper's on-screen window -- not just anywhere in
-        the camera's frustum.
-
-        ``objects_in_view`` is culled against the full, fixed-size
+        The pool is culled against the full, fixed-size
         *virtual* canvas (``self._virtual_size``) -- but the inner canvas
         is never resized to match this wrapper; it's recentered inside it
         via ``move()`` (see ``__init__``/``resizeEvent`` above) and
@@ -382,12 +382,10 @@ class CanvasWindowBase(QtWidgets.QWidget):
         bottom = top + h
 
         camera = self._canvas.camera
-        get_view_object = self._canvas._get_view_object  # NOQA
 
         result = []
-        for obj in self.objects_in_view:
-            view_obj = get_view_object(obj)
-            if view_obj is None or view_obj.position is None:
+        for view_obj in self._canvas.bounds_manager.aabb.visible_objects():
+            if view_obj.position is None:
                 continue
 
             screen = camera.ProjectPoint(view_obj.position)
@@ -395,12 +393,12 @@ class CanvasWindowBase(QtWidgets.QWidget):
                 continue
 
             if left <= screen.x <= right and top <= screen.y <= bottom:
-                result.append(obj)
+                result.append(view_obj.parent)
 
         return result
 
     @_check_types.do
-    def required_zoom_scale(self, aabb_min, aabb_max) -> float:
+    def required_zoom_scale(self, aabb_min: np.ndarray, aabb_max: np.ndarray) -> float:
         """Scale factor (>= 1.0) the current zoom needs to widen by so an
         object with this world-space AABB fits inside the actually-
         visible window (see :meth:`objects_in_window`'s own docstring on
@@ -445,7 +443,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         return max(scale, 1.0)
 
     @_check_types.do
-    def get_selected(self):
+    def get_selected(self) -> _Union["_objects.ObjectBase", None]:
         """Forwarded from the inner canvas -- see :attr:`mainframe`'s own
         docstring.
         """
@@ -453,7 +451,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
 
     @property
     @_check_types.do
-    def active_handler_obj(self):
+    def active_handler_obj(self) -> _Union["_base_var.BaseVar", None]:
         """Forwarded from the inner canvas -- see
         ``objectsvar.base_var.BaseVar.handle_interaction`` and
         :attr:`mainframe`'s own docstring on why outward-facing code
@@ -467,19 +465,19 @@ class CanvasWindowBase(QtWidgets.QWidget):
 
     @active_handler_obj.setter
     @_check_types.do
-    def active_handler_obj(self, value):
+    def active_handler_obj(self, value: _Union["_base_var.BaseVar", None]) -> None:
         self._canvas.active_handler_obj = value
 
     @property
     @_check_types.do
-    def bounds_manager(self):
+    def bounds_manager(self) -> "_bounds_manager.Manager":
         """Forwarded from the inner canvas. ``gl.object_picker.find_object``
         picks through it, and many handlers hand it this wrapper (their
         ``self.canvas``) rather than the inner canvas."""
         return self._canvas.bounds_manager
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the selected.
 
@@ -501,7 +499,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.set_mode(mode)
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Add an object.
 
@@ -512,7 +510,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Remove the object.
 
@@ -531,7 +529,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.clear()
 
     @_check_types.do
-    def __enter__(self):
+    def __enter__(self) -> "CanvasWindowBase":
         """
         Enter the managed context.
         """
@@ -540,7 +538,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         return self
 
     @_check_types.do
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:
         """
         Exit the managed context.
         """
@@ -548,15 +546,15 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._ref_count -= 1
 
     @_check_types.do
-    def bind(self, signal_name: str, handler) -> None:
+    def bind(self, signal_name: str, handler: Callable[..., None]) -> None:
         """
         Forward signal connections to the inner QOpenGLWidget canvas.
         """
 
-        getattr(self._canvas, signal_name).connect(handler)
+        self._canvas.event_signal(signal_name).connect(handler)
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """
         Execute the refresh operation.
         """
@@ -567,7 +565,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.update()
 
     @_check_types.do
-    def Truck(self, delta) -> None:
+    def Truck(self, delta: float) -> None:
         """
         Execute the truck operation.
 
@@ -578,7 +576,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.TruckPedestal(delta, 0.0)
 
     @_check_types.do
-    def Pedestal(self, delta) -> None:
+    def Pedestal(self, delta: float) -> None:
         """
         Execute the pedestal operation.
 
@@ -589,7 +587,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.TruckPedestal(0.0, delta)
 
     @_check_types.do
-    def TruckPedestal(self, truck_delta, pedestal_delta) -> None:
+    def TruckPedestal(self, truck_delta: float, pedestal_delta: float) -> None:
         """
         Execute the truck pedestal operation.
 
@@ -603,7 +601,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.TruckPedestal(truck_delta, pedestal_delta)
 
     @_check_types.do
-    def Zoom(self, delta):
+    def Zoom(self, delta: float) -> None:
         """
         Execute the zoom operation.
 
@@ -614,7 +612,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.Zoom(delta, None)
 
     @_check_types.do
-    def RotateAbout(self, delta_x, delta_y) -> None:
+    def RotateAbout(self, delta_x: float, delta_y: float) -> None:
         """
         Execute the rotate about operation.
 
@@ -628,7 +626,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.Rotate(delta_x, delta_y)
 
     @_check_types.do
-    def Dolly(self, delta):
+    def Dolly(self, delta: float) -> None:
         """
         Execute the dolly operation.
 
@@ -639,7 +637,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.Walk(delta, 0.0)
 
     @_check_types.do
-    def Walk(self, delta_z, delta_x) -> None:
+    def Walk(self, delta_z: float, delta_x: float) -> None:
         """
         Execute the walk operation.
 
@@ -653,7 +651,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.Walk(delta_z, delta_x)
 
     @_check_types.do
-    def Pan(self, delta):
+    def Pan(self, delta: float) -> None:
         """
         Execute the pan operation.
 
@@ -664,7 +662,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.PanTilt(delta, 0.0)
 
     @_check_types.do
-    def Tilt(self, delta) -> None:
+    def Tilt(self, delta: float) -> None:
         """
         Execute the tilt operation.
 
@@ -675,7 +673,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.PanTilt(0.0, delta)
 
     @_check_types.do
-    def PanTilt(self, pan_delta, tilt_delta):
+    def PanTilt(self, pan_delta: float, tilt_delta: float) -> None:
         """
         Execute the pan tilt operation.
 
@@ -689,7 +687,7 @@ class CanvasWindowBase(QtWidgets.QWidget):
         self._canvas.PanTilt(pan_delta, tilt_delta)
 
     @_check_types.do
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Clean up GL resources before widget destruction.
         """

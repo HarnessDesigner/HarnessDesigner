@@ -1,12 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import Union as _Union
 from typing import Self, TYPE_CHECKING
 
+import types
 from OpenGL import GL
 import ctypes
 import weakref
 import numpy as np
-
 from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtOpenGLWidgets
@@ -27,6 +28,8 @@ from . import mouse_handler_base as _mouse_handler_base
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ... import objects as _objects
+    from ...objects.objectsvar import base_var as _base_var
 
 MOUSE_REVERSE_Y_AXIS = _config.MOUSE_REVERSE_Y_AXIS
 MOUSE_REVERSE_X_AXIS = _config.MOUSE_REVERSE_X_AXIS
@@ -41,7 +44,7 @@ class CanvasEventFilter(QtCore.QObject):
     """
 
     @_check_types.do
-    def __init__(self, canvas: "CanvasBase"):
+    def __init__(self, canvas: "CanvasBase") -> None:
         """Initialise the :class:`CanvasEventFilter` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -55,7 +58,7 @@ class CanvasEventFilter(QtCore.QObject):
         canvas.installEventFilter(self)
 
     @_check_types.do
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent) -> bool:
         """Execute the event filter operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -356,7 +359,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     _debug_frame_end: bool = False
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", config, size: QtCore.QSize = None):
+    def __init__(self, mainframe: "_ui.MainFrame", config: type, size: QtCore.QSize = None) -> None:
         """
         Initialise the :class:`CanvasBase` instance.
 
@@ -370,6 +373,48 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         """
 
         super().__init__(None)
+
+        self._event_signals = {
+            'gl_object_selected': self.gl_object_selected,
+            'gl_object_unselected': self.gl_object_unselected,
+            'gl_object_activated': self.gl_object_activated,
+            'gl_object_right_click': self.gl_object_right_click,
+            'gl_empty_right_click': self.gl_empty_right_click,
+            'gl_object_right_dclick': self.gl_object_right_dclick,
+            'gl_object_middle_click': self.gl_object_middle_click,
+            'gl_object_middle_dclick': self.gl_object_middle_dclick,
+            'gl_object_aux1_click': self.gl_object_aux1_click,
+            'gl_object_aux1_dclick': self.gl_object_aux1_dclick,
+            'gl_object_aux2_click': self.gl_object_aux2_click,
+            'gl_object_aux2_dclick': self.gl_object_aux2_dclick,
+            'gl_object_drag': self.gl_object_drag,
+            'gl_key_down': self.gl_key_down,
+            'gl_key_up': self.gl_key_up,
+            'gl_mouse_move': self.gl_mouse_move,
+            'gl_left_down': self.gl_left_down,
+            'gl_left_up': self.gl_left_up,
+            'gl_left_dclick': self.gl_left_dclick,
+            'gl_right_down': self.gl_right_down,
+            'gl_right_up': self.gl_right_up,
+            'gl_right_dclick': self.gl_right_dclick,
+            'gl_middle_down': self.gl_middle_down,
+            'gl_middle_up': self.gl_middle_up,
+            'gl_middle_dclick': self.gl_middle_dclick,
+            'gl_aux1_down': self.gl_aux1_down,
+            'gl_aux1_up': self.gl_aux1_up,
+            'gl_aux1_dclick': self.gl_aux1_dclick,
+            'gl_aux2_down': self.gl_aux2_down,
+            'gl_aux2_up': self.gl_aux2_up,
+            'gl_aux2_dclick': self.gl_aux2_dclick,
+            'gl_capture_lost': self.gl_capture_lost,
+            'gl_camera_zoom': self.gl_camera_zoom,
+            'gl_camera_orbit': self.gl_camera_orbit,
+            'gl_camera_walk': self.gl_camera_walk,
+            'gl_camera_truckpedistal': self.gl_camera_truckpedistal,
+            'gl_camera_rotate': self.gl_camera_rotate,
+            'gl_camera_reset': self.gl_camera_reset,
+            'gl_camera_dolly': self.gl_camera_dolly,
+        }
 
         self.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
 
@@ -409,6 +454,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         self._selected = None
         self._objects = []
         self._ref_count = 0
+        self._virtual_w = None
+        self._virtual_h = None
 
         # The view object (obj.obj3d / .objschematic / .objpegboard)
         # currently armed with an add/drag/rotation handler on THIS canvas
@@ -495,17 +542,6 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         return self.camera.position.as_numpy
 
-    @property
-    @_check_types.do
-    def objects_in_view(self) -> list:
-        """
-        Return the objects in view.
-
-        :rtype: list
-        """
-
-        return self._objects_in_view
-
     @_check_types.do
     def set_mode(self, mode: int) -> None:
         """
@@ -522,7 +558,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the selected.
 
@@ -532,7 +568,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         self._selected = obj
 
     @_check_types.do
-    def get_selected(self):
+    def get_selected(self) -> _Union["_objects.ObjectBase", None]:
         """
         Return the selected.
         """
@@ -541,7 +577,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @property
     @_check_types.do
-    def active_handler_obj(self):
+    def active_handler_obj(self) -> _Union["_base_var.BaseVar", None]:
         """
         The view object currently armed with an add/drag/rotation
         handler on this canvas, or ``None`` if nothing is armed.
@@ -557,11 +593,10 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @active_handler_obj.setter
     @_check_types.do
-    def active_handler_obj(self, value):
+    def active_handler_obj(self, value: _Union["_base_var.BaseVar", None]) -> None:
         self._active_handler_obj = value
 
-    @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Add an object.
 
@@ -624,7 +659,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             self.Refresh()
 
     @_check_types.do
-    def __remove_obj_ref(self, ref):
+    def __remove_obj_ref(self, ref: weakref.ref) -> None:
         """
         Remove the obj ref.
         """
@@ -635,7 +670,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             pass
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Remove the object.
 
@@ -695,11 +730,11 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         return self
 
     @_check_types.do
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:
         self._ref_count -= 1
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         if self._ref_count:
             return
 
@@ -736,7 +771,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     @_check_types.do
-    def Zoom(self, dx: float, _=None):
+    def Zoom(self, dx: float, _: None = None) -> None:
         """
         Execute the zoom operation.
 
@@ -820,7 +855,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def initializeGL(self):
+    def initializeGL(self) -> None:
         """
         Called once by Qt after the GL context is created.
         Qt guarantees the context is already current here — no makeCurrent needed.
@@ -839,8 +874,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             # Use the virtual size recorded in resizeGL (first call), not the
             # current widget geometry, so the aspect ratio matches the virtual
             # canvas — not the (possibly different) container size.
-            vw = getattr(self, "_virtual_w", None) or self.width()
-            vh = getattr(self, "_virtual_h", None) or self.height()
+            vw = self._virtual_w or self.width()
+            vh = self._virtual_h or self.height()
             
             # Ensure we have valid dimensions (must be > 0)
             if vw <= 0 or vh <= 0:
@@ -890,7 +925,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         self.update()
 
     @_check_types.do
-    def resizeGL(self, width: int, height: int):
+    def resizeGL(self, width: int, height: int) -> None:
         """
         Called by Qt whenever the *widget geometry* changes.
 
@@ -916,15 +951,24 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             self.size = (self._virtual_w, self._virtual_h)
 
     @_check_types.do
-    def paintGL(self):
+    def paintGL(self) -> None:
         """
         Called by Qt to render a frame. Context is already current here.
         """
 
         self._on_draw()
 
+    def event_signal(self, event_type: str) -> QtCore.SignalInstance:
+        """Return the Qt signal that carries a GL event of *event_type*.
+
+        *event_type* is the event's own type name (its ``GetType()`` string,
+        the same as the matching ``EVT_GL_*`` constant), looked up in the
+        table built in ``__init__``. An unknown name raises ``KeyError``.
+        """
+        return self._event_signals[event_type]
+
     @_check_types.do
-    def set_draw_floor(self, flag: bool):
+    def set_draw_floor(self, flag: bool) -> None:
         """
         Set the draw grid.
 
@@ -937,7 +981,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
         except Exception as err:  # NOQA
             _logger.traceback(err, 'set floor error')
 
-    def _set_shader_programs(self):
+    def _set_shader_programs(self) -> None:
         # Camera's own locally-computed matrices (row-major, for
         # matrix @ column_vector) -- transpose=GL_TRUE converts them to
         # the column-major layout the shaders expect, instead of reading
@@ -983,7 +1027,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
     @_debug.logfunc
     @_check_types.do
-    def _draw_scene(self, obj_data):
+    def _draw_scene(self, obj_data: np.ndarray) -> None:
         removed_objects = []
         objects_in_view = []
 
@@ -1145,21 +1189,21 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                     err, 'object render removal error')
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         raise NotImplementedError
 
-    def _set_view(self):
+    def _set_view(self) -> None:
         raise NotImplementedError
 
-    def _render_floor_before(self):
+    def _render_floor_before(self) -> None:
         pass
 
-    def _render_floor_after(self):
+    def _render_floor_after(self) -> None:
         pass
 
     @_debug.logfunc
     @_check_types.do
-    def _on_draw(self):
+    def _on_draw(self) -> None:
         # Every real frame must clear both buffers unconditionally, not
         # just when _set_view() actually rebuilds the projection --
         # schematic/pegboard's own _set_view() is dirty-gated (skips on
@@ -1224,7 +1268,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             # print()  # DEBUG (temporary)
 
     @_check_types.do
-    def _render_selected_overlay(self):
+    def _render_selected_overlay(self) -> None:
         """
         Draw the selected object's AABB/OBB/floor-projection debug
         overlay -- deliberately the very last thing drawn each frame,
@@ -1283,7 +1327,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             QtGui.QImage.Format.Format_RGB888)
 
     @_check_types.do
-    def cleanup(self):
+    def cleanup(self) -> None:
         """
         Clean up GL resources before widget destruction.
         """

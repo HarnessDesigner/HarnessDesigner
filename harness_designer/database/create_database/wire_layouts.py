@@ -1,21 +1,26 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
+
+
+if TYPE_CHECKING:
+    from ..db_connectors import base as _connector_base
 
 
 pjt_id_field = _con.UUIDField('id', is_primary=True)
 
 
 @_check_types.do
-def add_pjt_wire_layout(con, project_id, point2d_id=None, point3d_id=None, notes='',
-                        is_visible2d=0, is_visible3d=0):
+def add_pjt_wire_layout(con: "_connector_base.ConnectorBase", project_id: bytes, point2d_id: bytes | None = None, point3d_id: bytes | None = None, notes: str = '',
+                        is_visible2d: int = 0, is_visible3d: int = 0) -> None:
     """Add a PJT wire layout.
 
     UNKNOWN details are inferred from the callable name and signature.

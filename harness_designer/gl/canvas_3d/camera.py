@@ -45,12 +45,12 @@ def build_lookat_matrix(position: np.ndarray, forward: np.ndarray,
 class Camera(_camera_base.CameraBase):
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: "_canvas.Canvas") -> None:
 
         super().__init__(canvas)
         self._position = _point.Point(0.0, self.canvas.config.floor.ground_height + 100.0, 75.0)
 
-    def Reset(self):
+    def Reset(self) -> None:
         super().Reset()
         self._position.z = 75.0
 

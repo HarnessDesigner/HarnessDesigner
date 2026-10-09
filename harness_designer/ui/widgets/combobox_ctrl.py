@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from PySide6 import QtCore
 
 from .autocomplete_combobox import AutoCompleteComboBox
@@ -18,8 +18,8 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent=None, label: str = '', choices=None,
-                 process_enter: bool = False):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '', choices: list[str] | None = None,
+                 process_enter: bool = False) -> None:
         """Initialise the :class:`ComboBoxCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -53,7 +53,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     @_check_types.do
-    def _on_enter(self):
+    def _on_enter(self) -> None:
         """Handle the enter event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -74,7 +74,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     # wx-compatible API
     # ------------------------------------------------------------------
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """Execute the enable operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -86,7 +86,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.st.setEnabled(flag)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +100,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -122,7 +122,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         return self.ctrl.GetValue()
 
     @_check_types.do
-    def Clear(self):
+    def Clear(self) -> None:
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -130,7 +130,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.ctrl.Clear()
 
     @_check_types.do
-    def Delete(self, n: int):
+    def Delete(self, n: int) -> None:
         """Execute the delete operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -141,7 +141,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.ctrl.Delete(n)
 
     @_check_types.do
-    def Insert(self, item: str, pos: int, clientData=None):
+    def Insert(self, item: str, pos: int, clientData=None) -> None:
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -156,7 +156,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.ctrl.Insert(item, pos, clientData)
 
     @_check_types.do
-    def Set(self, items):
+    def Set(self, items: list[str]) -> None:
         """Execute the set operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -178,7 +178,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         return self.ctrl.GetItems()
 
     @_check_types.do
-    def SetItems(self, items: list[str]):
+    def SetItems(self, items: list[str]) -> None:
         """Execute the set items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -189,7 +189,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.ctrl.SetItems(items)
 
     @_check_types.do
-    def AppendItems(self, items):
+    def AppendItems(self, items: list[str]) -> None:
         """Execute the append items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -200,7 +200,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
         self.ctrl.AppendItems(items)
 
     @_check_types.do
-    def Append(self, item):
+    def Append(self, item: str) -> None:
         """Execute the append operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -216,7 +216,7 @@ class ComboBoxCtrl(QtWidgets.QWidget):
     # combobox_ctrl.currentTextChanged.connect(handler)
     @property
     @_check_types.do
-    def currentTextChanged(self):
+    def currentTextChanged(self) -> QtCore.SignalInstance:
         """Return the current text changed.
 
         UNKNOWN details are inferred from the callable name and signature.

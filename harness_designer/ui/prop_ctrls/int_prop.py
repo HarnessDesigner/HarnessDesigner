@@ -16,7 +16,7 @@ class IntProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str, min_value: int, max_value: int, units: str | None = None):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, min_value: int, max_value: int, units: str | None = None) -> None:
         """Initialise the :class:`IntProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -154,7 +154,7 @@ class IntProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

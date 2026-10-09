@@ -65,7 +65,7 @@ class SnapAngleButton(QtWidgets.QToolButton):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str,
-                 checked_icon: QtGui.QIcon, unchecked_icon: QtGui.QIcon):
+                 checked_icon: QtGui.QIcon, unchecked_icon: QtGui.QIcon) -> None:
         super().__init__(parent)
 
         self._label = label
@@ -158,7 +158,7 @@ class SnapAngleButton(QtWidgets.QToolButton):
         self.snapEnabledChanged.emit(self._enabled_state)
 
     @_check_types.do
-    def _nearest_valid(self, value) -> float:
+    def _nearest_valid(self, value: float | int | str | None) -> float:
         """Coerce any input to the closest legal snap angle."""
         try:
             v = float(value)

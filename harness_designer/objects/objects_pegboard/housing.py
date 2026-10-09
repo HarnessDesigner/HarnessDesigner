@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtWidgets
 
 from . import base_pegboard as _base_pegboard
 # from ...gl.canvas_pegboard import flatten as _flatten
@@ -16,6 +17,8 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_pegboard import editor_pegboard as _editor_pegboard
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_housing as _pjt_housing
     from .. import housing as _housing
     from ... import ui as _ui
@@ -34,7 +37,7 @@ class Housing(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",
-                 db_obj: "_pjt_housing.PJTHousing"):
+                 db_obj: "_pjt_housing.PJTHousing") -> None:
         """Initialise the :class:`Housing` instance.
 
         :param parent: Parent object.
@@ -89,7 +92,7 @@ class Housing(_base_pegboard.BasePegboard):
     @_check_types.do
     def start_add(
         cls, mainframe: "_ui.MainFrame", mouse_pos: _point.Point | None = None
-    ) -> Union["_housing.Housing", None]:
+    ) -> _Union["_housing.Housing", None]:
         """Single-click free placement, pegboard-native -- mirrors
         objects_3d.housing.Housing.start_add/objects_schematic.housing.
         Housing.start_add. Unlike those two, this housing's own
@@ -105,13 +108,12 @@ class Housing(_base_pegboard.BasePegboard):
         if part_id is None:
             from ...ui.dialogs import part_search as _part_search
             from ...ui import editor_db as _editor_db
-            from PySide6.QtWidgets import QDialog
 
             dlg = _part_search.SearchDialog(
                 mainframe, _editor_db.HousingsPage, mainframe.global_db.housings_table,
                 'Add Housing')
 
-            if dlg.exec() == QDialog.DialogCode.Accepted:
+            if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
                 part_id = dlg.GetValue()
             else:
                 part_id = None
@@ -148,7 +150,7 @@ class Housing(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to BasePegboard's own generic drag handling otherwise.
@@ -183,7 +185,7 @@ class Housing(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -192,19 +194,19 @@ class Housing(_base_pegboard.BasePegboard):
             pass
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "HousingMenu":
         """Return this housing's own right-click context menu (see
         ``ui/mainframe.py``'s ``_on_obj_right_click_pegboard``).
         """
         return HousingMenu(self.pegboard.editor, self)
 
 
-class HousingMenu(QMenu):
+class HousingMenu(QtWidgets.QMenu):
     """Right-click menu for a pegboard Housing."""
 
     @_check_types.do
-    def __init__(self, canvas, selected: "Housing"):
-        QMenu.__init__(self)
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Housing") -> None:
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -225,7 +227,7 @@ class HousingMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_show_table(self):
+    def on_show_table(self) -> None:
         """Show this housing's own peg-board wire table -- creating it
         the first time, or just re-showing it (see
         ``BasePegboard.show_table``).
@@ -233,19 +235,19 @@ class HousingMenu(QMenu):
         self.selected.show_table()
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this housing the active selection."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.select_object_for_object(self.selected.parent.mainframe, self.selected.parent)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this housing from the project."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this housing's properties in the object editor."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.show_properties_for_object(self.selected.parent.mainframe, self.selected.parent)

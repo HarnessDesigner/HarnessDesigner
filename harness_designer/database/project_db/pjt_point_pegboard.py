@@ -28,7 +28,7 @@ class PJTPointsPegboardTable(PJTTableBase):
         return points_pegboard.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -38,7 +38,7 @@ class PJTPointsPegboardTable(PJTTableBase):
         points_pegboard.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -61,7 +61,7 @@ class PJTPointsPegboardTable(PJTTableBase):
             yield point
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTPointPegboard":
+    def __getitem__(self, item: int | bytes | str) -> "PJTPointPegboard":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +94,7 @@ class PJTPointsPegboardTable(PJTTableBase):
         :param z: Z-coordinate value.
         :returns: The new point row.
         """
-        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z))
+        db_id = PJTTableBase.insert(self, x=float(x), y=float(y), z=float(z), parent_point_id=None)
         return PJTPointPegboard(self, db_id)
 
 
@@ -144,7 +144,7 @@ class PJTPointPegboard(PJTEntryBase):
 
     @x.setter
     @_check_types.do
-    def x(self, value: float):
+    def x(self, value: float) -> None:
         """Set the x.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -174,7 +174,7 @@ class PJTPointPegboard(PJTEntryBase):
 
     @y.setter
     @_check_types.do
-    def y(self, value: float):
+    def y(self, value: float) -> None:
         """Set the y.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -204,7 +204,7 @@ class PJTPointPegboard(PJTEntryBase):
 
     @z.setter
     @_check_types.do
-    def z(self, value: float):
+    def z(self, value: float) -> None:
         """Set the z.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -220,7 +220,7 @@ class PJTPointPegboard(PJTEntryBase):
     _skip_db_write: bool = False
 
     @_check_types.do
-    def _update_point(self, point: _point.Point):
+    def _update_point(self, point: _point.Point) -> None:
         """Update the point.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -284,7 +284,7 @@ class PJTPointPegboard(PJTEntryBase):
 
     @parent_point_id.setter
     @_check_types.do
-    def parent_point_id(self, value: bytes | None):
+    def parent_point_id(self, value: bytes | None) -> None:
         self._stored_parent_point_id = value
         self._table.update(self._db_id, parent_point_id=value)
 

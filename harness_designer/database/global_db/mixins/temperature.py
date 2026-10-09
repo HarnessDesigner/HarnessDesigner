@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
@@ -9,6 +9,7 @@ from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import temperature as _temperature  # NOQA
+    from PySide6 import QtWidgets
 
 
 class TemperatureMixin(BaseMixin):
@@ -17,11 +18,11 @@ class TemperatureMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_min_temp: Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
+    _stored_min_temp: _Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def min_temp(self) -> Union["_temperature.Temperature", None]:
+    def min_temp(self) -> _Union["_temperature.Temperature", None]:
         """Return the min temp.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -61,7 +62,7 @@ class TemperatureMixin(BaseMixin):
 
     @min_temp_id.setter
     @_check_types.do
-    def min_temp_id(self, value: bytes):
+    def min_temp_id(self, value: bytes) -> None:
         """Set the min temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -75,11 +76,11 @@ class TemperatureMixin(BaseMixin):
         self._table.update(self._db_id, min_temp_id=value)
         self._populate('min_temp_id')
 
-    _stored_max_temp: Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
+    _stored_max_temp: _Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def max_temp(self) -> Union["_temperature.Temperature", None]:
+    def max_temp(self) -> _Union["_temperature.Temperature", None]:
         """Return the max temp.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -119,7 +120,7 @@ class TemperatureMixin(BaseMixin):
 
     @max_temp_id.setter
     @_check_types.do
-    def max_temp_id(self, value: bytes):
+    def max_temp_id(self, value: bytes) -> None:
         """Set the max temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -141,7 +142,7 @@ class TemperatureControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`TemperatureControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -164,7 +165,7 @@ class TemperatureControl(_prop_ctrls.Category):
         self.max_temp_ctrl.propertyChanged.connect(self._on_max_temp)
 
     @_check_types.do
-    def set_obj(self, db_obj: TemperatureMixin | None):
+    def set_obj(self, db_obj: TemperatureMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -208,7 +209,7 @@ class TemperatureControl(_prop_ctrls.Category):
             self.max_temp_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_min_temp(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_min_temp(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the min temp event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -240,7 +241,7 @@ class TemperatureControl(_prop_ctrls.Category):
         self.db_obj.min_temp_id = db_id
 
     @_check_types.do
-    def _on_max_temp(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_max_temp(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the max temp event.
 
         UNKNOWN details are inferred from the callable name and signature.

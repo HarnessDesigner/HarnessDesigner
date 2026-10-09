@@ -2,7 +2,6 @@
 
 from . import projects as _projects
 from . import concentrics as _concentrics
-
 from .. import db_connectors as _con
 
 

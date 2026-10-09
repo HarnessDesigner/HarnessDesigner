@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -22,6 +23,10 @@ from .mixins import (
     CompatHousingsMixin, CompatHousingsControl
 )
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class TPALocksTable(TableBase):
@@ -49,7 +54,7 @@ class TPALocksTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -76,7 +81,7 @@ class TPALocksTable(TableBase):
         return tpa_locks.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,7 +97,7 @@ class TPALocksTable(TableBase):
         tpa_locks.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -115,7 +120,7 @@ class TPALocksTable(TableBase):
             yield TPALock(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "TPALock":
+    def __getitem__(self, item: int | bytes | str) -> "TPALock":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -140,7 +145,7 @@ class TPALocksTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_compat(self, housing: str = None):
+    def get_compat(self, housing: str = None) -> list[bytes]:
         """Return the compat.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -332,7 +337,7 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @pins.setter
     @_check_types.do
-    def pins(self, value: str):
+    def pins(self, value: str) -> None:
         """Set the pins.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -363,7 +368,7 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @lock_type.setter
     @_check_types.do
-    def lock_type(self, value: str):
+    def lock_type(self, value: str) -> None:
         """Set the lock type.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -376,7 +381,7 @@ class TPALock(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         self._populate('lock_type')
 
 
-class TPALockControl(QTabWidget, LazyTabMixin):
+class TPALockControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a TPA lock control in :mod:`harness_designer.database.global_db.tpa_lock`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -385,7 +390,7 @@ class TPALockControl(QTabWidget, LazyTabMixin):
     # TODO: Add lock type and pins
 
     @_check_types.do
-    def set_obj(self, db_obj: TPALock | None):
+    def set_obj(self, db_obj: TPALock | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -396,7 +401,7 @@ class TPALockControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
@@ -422,7 +427,7 @@ class TPALockControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`TPALockControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -432,8 +437,8 @@ class TPALockControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: TPALock | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

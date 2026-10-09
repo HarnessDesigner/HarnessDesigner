@@ -1,13 +1,20 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_records(con, splash, _):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -34,7 +41,7 @@ def add_records(con, splash, _):
 
 
 @_check_types.do
-def add_protection(con, name, id=None, commit=True):  # NOQA
+def add_protection(con: "_connector_base.ConnectorBase", name: str, id: bytes | None = None, commit: bool = True) -> bytes | None:  # NOQA
     """Add a protection.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -67,7 +74,7 @@ def add_protection(con, name, id=None, commit=True):  # NOQA
 
 
 @_check_types.do
-def get_protection_id(con, name):
+def get_protection_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     """Return the protection ID.
 
     UNKNOWN details are inferred from the callable name and signature.

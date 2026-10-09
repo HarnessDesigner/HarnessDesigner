@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 from ... import check_types as _check_types
@@ -74,7 +74,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
     STATE_NAMES = {0: "x", 1: "checked", 2: "empty"}
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent)
 
         # 0=x, 1=check, 2=empty
@@ -104,7 +104,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
         return self._anim_progress
 
     @_check_types.do
-    def _set_anim_progress(self, v: float):
+    def _set_anim_progress(self, v: float) -> None:
         self._anim_progress = v
         self.update()
 
@@ -119,7 +119,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
         return self._state
 
     @_check_types.do
-    def setState(self, state: bool | int | None):
+    def setState(self, state: bool | int | None) -> None:
         """
         Set state (0=X, 1=checked, 2=empty) programmatically.
         """
@@ -152,7 +152,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
     # Size
     # ------------------------------------------------------------------
     @_check_types.do
-    def _update_size_hint(self):
+    def _update_size_hint(self) -> None:
         w = BOX_SIZE
         h = max(BOX_SIZE, self._label_font_height()) + 4
         self.setMinimumSize(w, h)
@@ -166,13 +166,13 @@ class _TriStateCheckBox(QtWidgets.QWidget):
     # Interaction
     # ------------------------------------------------------------------
     @_check_types.do
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._focus_from_mouse = True
             self._cycle()
 
     @_check_types.do
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         if event.key() in (
             QtCore.Qt.Key.Key_Space,
             QtCore.Qt.Key.Key_Return,
@@ -184,7 +184,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
             super().keyPressEvent(event)
 
     @_check_types.do
-    def focusInEvent(self, event):
+    def focusInEvent(self, event: QtGui.QFocusEvent) -> None:
         # Tab/Shift-Tab → show ring; mouse click → suppress ring
         if event.reason() == QtCore.Qt.FocusReason.MouseFocusReason:
             self._focus_from_mouse = True
@@ -195,24 +195,24 @@ class _TriStateCheckBox(QtWidgets.QWidget):
         self.update()
 
     @_check_types.do
-    def enterEvent(self, event):
+    def enterEvent(self, event: QtGui.QEnterEvent) -> None:
         self._hovered = True
         self.update()
 
     @_check_types.do
-    def leaveEvent(self, event):
+    def leaveEvent(self, event: QtCore.QEvent) -> None:
         self._hovered = False
         self.update()
 
     @_check_types.do
-    def _cycle(self):
+    def _cycle(self) -> None:
         self._state = (self._state + 1) % 3
         self._play_anim()
         self.stateChanged.emit(self.getState())
         self.update()
 
     @_check_types.do
-    def _play_anim(self):
+    def _play_anim(self) -> None:
         self._anim.stop()
         self._anim_progress = 0.0
         self._anim.setStartValue(0.0)
@@ -223,7 +223,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
     # Painting
     # ------------------------------------------------------------------
     @_check_types.do
-    def paintEvent(self, event):
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         pal = _palette()  # fresh from QApplication each paint
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
@@ -269,7 +269,7 @@ class _TriStateCheckBox(QtWidgets.QWidget):
             p.restore()
 
     @_check_types.do
-    def _draw_mark(self, p: QtGui.QPainter, rect: QtCore.QRect, pal: dict):
+    def _draw_mark(self, p: QtGui.QPainter, rect: QtCore.QRect, pal: dict) -> None:
         pen = QtGui.QPen(
             pal["mark_color"], 2.2,
             QtCore.Qt.PenStyle.SolidLine,
@@ -315,7 +315,7 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent=None, label: str = ''):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '') -> None:
         """Initialise the :class:`CheckboxCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -347,7 +347,7 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
     # wx-compatible API
     # ------------------------------------------------------------------
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """
         Execute the enable operation.
 
@@ -360,7 +360,7 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
         self.st.setEnabled(flag)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """
         Execute the set tool tip operation.
 
@@ -376,7 +376,7 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     @_check_types.do
-    def SetValue(self, value: bool | None):
+    def SetValue(self, value: bool | None) -> None:
         """
         Execute the set value operation.
 
@@ -405,7 +405,7 @@ class TriStateCheckboxCtrl(QtWidgets.QWidget):
     # convenience property below.
     @property
     @_check_types.do
-    def checkStateChanged(self):
+    def checkStateChanged(self) -> QtCore.SignalInstance:
         """Return the check state changed.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -16,6 +16,8 @@ per-axis assembly and the show/hide state machine between this ring
 and the protractor.
 """
 
+from typing import TYPE_CHECKING
+
 import math
 import numpy as np
 
@@ -28,6 +30,10 @@ from .. import rotation_mesh as _rotation_mesh
 from ... import check_types as _check_types
 from ...gl.canvas_base import camera_base as _camera_base
 from ...gl import shaders as _shaders
+
+
+if TYPE_CHECKING:
+    from ...gl import context as _gl_context
 
 
 class TorusRing:
@@ -52,7 +58,7 @@ class TorusRing:
     @_check_types.do
     def __init__(self, position: _point.Point, angle: _angle.Angle,
                  radius: float, tube_diameter_scale: float,
-                 material: _materials.GLMaterial, context):
+                 material: _materials.GLMaterial, context: "_gl_context.GLContext") -> None:
 
         self.position = position
         self.angle = angle
@@ -76,7 +82,7 @@ class TorusRing:
             self._vbo.acquire()
 
     @_check_types.do
-    def rebuild(self, tube_diameter_scale: float, context) -> None:
+    def rebuild(self, tube_diameter_scale: float, context: "_gl_context.GLContext") -> None:
         """
         Rebuild the mesh -- only needed when the tube-thickness config
         value changes (the mesh bakes it in; radius/position/angle are
@@ -178,7 +184,7 @@ class TorusRing:
         return False
 
     @_check_types.do
-    def delete(self, context) -> None:
+    def delete(self, context: "_gl_context.GLContext") -> None:
         try:
             with context:
                 self._vbo.release()

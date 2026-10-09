@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -15,29 +17,32 @@ from . import cavity_locks as _cavity_locks
 from . import temperatures as _temperatures
 from . import colors as _colors
 from . import models3d as _models3d
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
 from . import circuits as _circuits
 from . import cavities as _cavities
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_terminal(con, part_number, description, mfg=None, family=None, series=None,
-                 color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                 max_temp=None, model3d=None, plating=None, gender=None, cavity_lock=None,
-                 sealing=0, blade_size=0.0, resistance=0.0, mating_cycles=0, max_vibration_g=0,
-                 max_current_ma=0, wire_size_awg_min=None, wire_size_awg_max=None, wire_size_dia_min=None,
-                 wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
-                 width=0.0, height=0.0, weight=0.0, compat_housings=None, compat_seals=None,
-                 commit=True):
+def add_terminal(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+                 color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+                 max_temp: str | None = None, model3d: str | None = None, plating: str | None = None, gender: str | None = None, cavity_lock: str | None = None,
+                 sealing: int = 0, blade_size: float = 0.0, resistance: float = 0.0, mating_cycles: int = 0, max_vibration_g: int = 0,
+                 max_current_ma: int = 0, wire_size_awg_min: int | None = None, wire_size_awg_max: int | None = None, wire_size_dia_min: float | None = None,
+                 wire_size_dia_max: float | None = None, wire_size_cross_min: float | None = None, wire_size_cross_max: float | None = None, length: float = 0.0,
+                 width: float = 0.0, height: float = 0.0, weight: float = 0.0, compat_housings: list[str] | None = None, compat_seals: list[str] | None = None,
+                 commit: bool = True) -> bytes:
     """Add a terminal.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -200,11 +205,11 @@ def add_terminal(con, part_number, description, mfg=None, family=None, series=No
 
 
 @_check_types.do
-def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
-                     wire_point3d_id=None, point3d_id=None, point2d_id=None,
-                     wire_point2d_id=None, name='', notes='', quat3d=None,
-                     angle3d=None, quat2d=None, angle2d=None, is_start=0, volts=0.0,
-                     load=0.0, voltage_drop=0.0, is_visible3d=0, is_visible2d=0):
+def add_pjt_terminal(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, cavity_id: bytes | None = None, circuit_id: bytes = None,
+                     wire_point3d_id: bytes | None = None, point3d_id: bytes | None = None, point2d_id: bytes | None = None,
+                     wire_point2d_id: bytes | None = None, name: str = '', notes: str = '', quat3d: list[float] | None = None,
+                     angle3d: list[float] | None = None, quat2d: list[float] | None = None, angle2d: list[float] | None = None, is_start: int = 0, volts: float = 0.0,
+                     load: float = 0.0, voltage_drop: float = 0.0, is_visible3d: int = 0, is_visible2d: int = 0) -> None:
     """Add a PJT terminal.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -281,7 +286,7 @@ def add_pjt_terminal(con, project_id, part_id, cavity_id=None, circuit_id=None,
 
 
 @_check_types.do
-def add_terminals(con, data: tuple[dict] | list[dict]):
+def add_terminals(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """Add a terminals.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -297,7 +302,7 @@ def add_terminals(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.

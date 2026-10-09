@@ -30,11 +30,12 @@ siblings chase each other's stale path back and forth every frame
 instead of ever settling.
 """
 
+from typing import TYPE_CHECKING
+
 import cProfile
 import io
 import pstats
 import time
-from typing import TYPE_CHECKING
 
 from .. import editor_schematic as _editor_schematic
 from ...wire_routing import reroute as _wire_reroute
@@ -123,7 +124,7 @@ class Generic(_editor_schematic.DragHandlerSchematic):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
         objschematic = self.target.objschematic
 
         profiler = None

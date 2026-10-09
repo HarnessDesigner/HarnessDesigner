@@ -1,10 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase
 from .mixins import NameMixin
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class DirectionsTable(TableBase):
@@ -28,7 +33,7 @@ class DirectionsTable(TableBase):
         return directions.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -43,7 +48,7 @@ class DirectionsTable(TableBase):
         directions.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +71,7 @@ class DirectionsTable(TableBase):
             yield Direction(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Direction":
+    def __getitem__(self, item: int | bytes | str) -> "Direction":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.

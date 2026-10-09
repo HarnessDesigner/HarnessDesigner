@@ -3,19 +3,12 @@
 """Dialog helpers for configuring, running, and previewing ray-tracing renders.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import os
 import sys
-
 import numpy as np
-
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QWidget, QProgressBar, QFileDialog, QFrame
-)
-from PySide6.QtGui import QImage, QPixmap, QPainter, QColor
-from PySide6.QtCore import Qt, QTimer
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from .. import utils as _utils
 from ..ui.dialogs import render_setings as _render_settings
@@ -33,12 +26,12 @@ if TYPE_CHECKING:
 Config = _config.Config.ray_trace
 
 
-class RayTracingDialog(QDialog):
+class RayTracingDialog(QtWidgets.QDialog):
 
     """Display render progress, preview the current image, and expose save/settings actions for the ray tracer.
     """
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", title="Ray Tracing Progress"):
+    def __init__(self, parent: "_ui.MainFrame", title: str = "Ray Tracing Progress") -> None:
         """Initialize the object and capture the state required for later interaction.
 
         :param parent: Owning main window or parent widget.
@@ -47,7 +40,7 @@ class RayTracingDialog(QDialog):
         :type title: str
         """
         self._parent = parent
-        super().__init__(parent, Qt.Dialog | Qt.WindowCloseButtonHint)
+        super().__init__(parent, QtCore.Qt.Dialog | QtCore.Qt.WindowCloseButtonHint)
         self.setWindowTitle('')
         self.resize(1200, 650)
 
@@ -60,57 +53,57 @@ class RayTracingDialog(QDialog):
         self.last_saved_file = 'new_render.png'
 
         self.cancelled = False
-        self.current_image: QImage = None
+        self.current_image: QtGui.QImage = None
 
-        lay = QVBoxLayout(self)
+        lay = QtWidgets.QVBoxLayout(self)
 
         # Header widget (converted in Phase 2 dialogs)
         self.header_lbl = _header.Header(self, title)
         lay.addWidget(self.header_lbl)
 
-        self.status_text = QLabel("Initializing ray tracer...", self)
+        self.status_text = QtWidgets.QLabel("Initializing ray tracer...", self)
         font = self.status_text.font()
         font.setBold(True)
         self.status_text.setFont(font)
-        self.status_text.setAlignment(Qt.AlignCenter)
+        self.status_text.setAlignment(QtCore.Qt.AlignCenter)
         lay.addWidget(self.status_text)
 
-        self.image_label = QLabel(self)
+        self.image_label = QtWidgets.QLabel(self)
         self.image_label.setFixedSize(1180, 480)
-        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setAlignment(QtCore.Qt.AlignCenter)
         self.image_label.setStyleSheet('background-color: #2d3135;')
-        lay.addWidget(self.image_label, 0, Qt.AlignHCenter)
+        lay.addWidget(self.image_label, 0, QtCore.Qt.AlignHCenter)
 
-        prog_row = QHBoxLayout()
-        self.progress = QProgressBar(self)
+        prog_row = QtWidgets.QHBoxLayout()
+        self.progress = QtWidgets.QProgressBar(self)
         self.progress.setRange(0, 100)
         prog_row.addWidget(self.progress, 1)
-        self.progress_text = QLabel("0%", self)
+        self.progress_text = QtWidgets.QLabel("0%", self)
         prog_row.addWidget(self.progress_text)
         lay.addLayout(prog_row)
 
-        hline = QFrame(self)
-        hline.setFrameShape(QFrame.HLine)
-        hline.setFrameShadow(QFrame.Sunken)
+        hline = QtWidgets.QFrame(self)
+        hline.setFrameShape(QtWidgets.QFrame.HLine)
+        hline.setFrameShadow(QtWidgets.QFrame.Sunken)
         lay.addWidget(hline)
 
-        btn_row = QHBoxLayout()
+        btn_row = QtWidgets.QHBoxLayout()
         btn_row.addStretch(1)
 
-        self.settings_btn = QPushButton("Settings", self)
+        self.settings_btn = QtWidgets.QPushButton("Settings", self)
         self.settings_btn.clicked.connect(self.on_settings)
         btn_row.addWidget(self.settings_btn)
 
-        vline = QFrame(self)
-        vline.setFrameShape(QFrame.VLine)
-        vline.setFrameShadow(QFrame.Sunken)
+        vline = QtWidgets.QFrame(self)
+        vline.setFrameShape(QtWidgets.QFrame.VLine)
+        vline.setFrameShadow(QtWidgets.QFrame.Sunken)
         btn_row.addWidget(vline)
 
-        self.mfb1 = QPushButton("Close", self)
+        self.mfb1 = QtWidgets.QPushButton("Close", self)
         self.mfb1.clicked.connect(self.on_mfb1)
         btn_row.addWidget(self.mfb1)
 
-        self.mfb2 = QPushButton("Start", self)
+        self.mfb2 = QtWidgets.QPushButton("Start", self)
         self.mfb2.clicked.connect(self.on_mfb2)
         btn_row.addWidget(self.mfb2)
 
@@ -124,14 +117,14 @@ class RayTracingDialog(QDialog):
             )
 
     @_check_types.do
-    def on_settings(self):
+    def on_settings(self) -> None:
         """Open the render settings dialog for the current operation.
         """
         dlg = _render_settings.RenderSettingsDialog(self)
         dlg.exec()
 
     @_check_types.do
-    def on_mfb2(self):
+    def on_mfb2(self) -> None:
         """Handle the secondary action button. UNKNOWN button naming details.
         """
         label = self.mfb2.text()
@@ -150,8 +143,8 @@ class RayTracingDialog(QDialog):
             width = res['width']
             height = res['height']
 
-            self.current_image = QImage(width, height, QImage.Format_RGB888)
-            self.current_image.fill(QColor(0, 0, 0))
+            self.current_image = QtGui.QImage(width, height, QtGui.QImage.Format_RGB888)
+            self.current_image.fill(QtGui.QColor(0, 0, 0))
 
             scene = _scene.Scene(width, height, self._parent.editor3d.camera)
 
@@ -161,8 +154,8 @@ class RayTracingDialog(QDialog):
                 elif Config.environment_map.path:
                     scene.load_environment_map(Config.environment_map.path)
 
-            for obj in self._parent.editor3d.camera.objects_in_view:
-                scene.add_object(obj.obj3d)
+            for view in self._parent.editor3d.editor.bounds_manager.aabb.visible_objects():
+                scene.add_object(view)
 
             renderer = _renderer.Renderer(scene, self.update_progress)
             renderer.start()
@@ -176,7 +169,7 @@ class RayTracingDialog(QDialog):
             self.settings_btn.setEnabled(True)
 
     @_check_types.do
-    def on_mfb1(self):
+    def on_mfb1(self) -> None:
         """Handle the primary action button. UNKNOWN button naming details.
         """
         label = self.mfb1.text()
@@ -188,7 +181,7 @@ class RayTracingDialog(QDialog):
             self.mfb1.setText('Close')
             self.mfb2.setText('Start')
 
-            path, _ = QFileDialog.getSaveFileName(
+            path, _ = QtWidgets.QFileDialog.getSaveFileName(
                 self, 'Save Render',
                 os.path.join(self.last_saved_dir, self.last_saved_file),
                 "Images (*.png *.jpg *.bmp *.tiff)"
@@ -200,7 +193,7 @@ class RayTracingDialog(QDialog):
                     self.current_image.save(path)
 
     @_check_types.do
-    def update_progress(self, start_y, image_array, progress):
+    def update_progress(self, start_y: int, image_array: np.ndarray, progress: float) -> bool:
         """Update the render image with a newly completed chunk and schedule a UI refresh.
 
         :param start_y: Top row index of the rendered image chunk.
@@ -219,18 +212,18 @@ class RayTracingDialog(QDialog):
         # image_array is expected to be uint8 RGB
         rgb = np.ascontiguousarray(image_array[:, :, :3])
         row_bytes = width * 3
-        patch = QImage(rgb.data, width, height, row_bytes, QImage.Format_RGB888)
+        patch = QtGui.QImage(rgb.data, width, height, row_bytes, QtGui.QImage.Format_RGB888)
 
-        painter = QPainter(self.current_image)
+        painter = QtGui.QPainter(self.current_image)
         painter.drawImage(0, start_y, patch)
         painter.end()
 
-        QTimer.singleShot(0, lambda: self._update_ui(progress))
+        QtCore.QTimer.singleShot(0, lambda: self._update_ui(progress))
 
         return not self.cancelled
 
     @_check_types.do
-    def _update_ui(self, progress):
+    def _update_ui(self, progress: float) -> None:
         """Refresh the visible progress widgets and preview image for the current render.
 
         :param progress: Current completion percentage for the render operation.
@@ -242,9 +235,9 @@ class RayTracingDialog(QDialog):
 
         # Scale current_image to fit the label
         if self.current_image:
-            pm = QPixmap.fromImage(self.current_image)
+            pm = QtGui.QPixmap.fromImage(self.current_image)
             pm = pm.scaled(self.image_label.size(),
-                           Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                           QtCore.Qt.KeepAspectRatio, QtCore.Qt.SmoothTransformation)
             self.image_label.setPixmap(pm)
 
         if progress >= 100:
@@ -255,10 +248,10 @@ class RayTracingDialog(QDialog):
             self.settings_btn.setEnabled(True)
 
     @_check_types.do
-    def get_image(self):
+    def get_image(self) -> _Union["QtGui.QImage", None]:
         """Return the most recently rendered image stored by the dialog.
 
         :returns: The current :class:`~PySide6.QtGui.QImage` instance or :data:`None` when no render is available.
-        :rtype: QImage | None
+        :rtype: QtGui.QImage | None
         """
         return self.current_image

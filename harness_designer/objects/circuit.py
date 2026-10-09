@@ -642,7 +642,7 @@ class Circuit(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_circuit.PJTCircuit", project_load=False):
+                 db_obj: "_pjt_circuit.PJTCircuit", project_load: bool = False) -> None:
         """Initialise the :class:`Circuit` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

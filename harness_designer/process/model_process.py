@@ -1,7 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import types
 import multiprocessing
 import os
 import re
@@ -22,16 +23,16 @@ from OCP.IGESControl import IGESControl_Reader
 from OCP.TopExp import TopExp_Explorer
 from OCP.TopAbs import TopAbs_FACE
 from OCP.TopoDS import TopoDS
+import pyassimp  # NOQA
 
 from .. import utils as _utils
 from .. import resources as _resources
 from .. import config as _config
 
-import pyassimp  # NOQA
-
 
 if TYPE_CHECKING:
     from . import manager as _manager
+    from OCP.TopoDS import TopoDS_Shape
 
 
 class ModelException(Exception):
@@ -50,7 +51,7 @@ class ModelLoadError(ModelException):
     pass
 
 
-def _ocp_read_shape(shape, lin_deflection=0.001, is_relative=True, ang_deflection=0.1):
+def _ocp_read_shape(shape: "TopoDS_Shape", lin_deflection: float = 0.001, is_relative: bool = True, ang_deflection: float = 0.1) -> tuple[np.ndarray, np.ndarray]:
     BRepMesh_IncrementalMesh(
         theShape=shape, theLinDeflection=lin_deflection,
         isRelative=is_relative, theAngDeflection=ang_deflection, isInParallel=True
@@ -94,7 +95,7 @@ def _ocp_read_shape(shape, lin_deflection=0.001, is_relative=True, ang_deflectio
     return vertices, faces
 
 
-def _load_with_assimp(path):
+def _load_with_assimp(path: str) -> tuple[np.ndarray, np.ndarray]:
     """Load the with assimp.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -130,7 +131,7 @@ def _load_with_assimp(path):
     return vertices, faces
 
 
-def _load_vrml(file):
+def _load_vrml(file: str) -> tuple[np.ndarray, np.ndarray]:
     """Load the vrml.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -188,7 +189,7 @@ def _find_assembly_markers(file: str) -> list[str]:
             if re.search(rf'=\s*{marker}\s*\(', text)]
 
 
-def _load_step(file, use_loose_tessellation: bool = False):
+def _load_step(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Load the step.
 
     :param file: Path to the STEP file.
@@ -204,7 +205,7 @@ def _load_step(file, use_loose_tessellation: bool = False):
 
     cfg = _config.Config.model_processing
 
-    def _read_loose():
+    def _read_loose() -> tuple[np.ndarray, np.ndarray]:
         # A fresh STEPControl_Reader/shape, not a second
         # BRepMesh_IncrementalMesh call against the shape already meshed
         # below -- confirmed by direct test that re-meshing the same
@@ -244,7 +245,7 @@ def _load_step(file, use_loose_tessellation: bool = False):
     return vertices, faces
 
 
-def _load_iges(file):
+def _load_iges(file: str) -> tuple[np.ndarray, np.ndarray]:
     """Load the iges.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -291,7 +292,7 @@ def _load(file: str, use_loose_tessellation: bool = False) -> tuple[np.ndarray, 
     return vertices, faces
 
 
-def _center_model(vertices):
+def _center_model(vertices: np.ndarray) -> np.ndarray:
 
     # this code block makes sure the model has 0, 0 as the center of
     # the model. I have found that the models that are loaded from
@@ -382,7 +383,7 @@ def _reduce_triangles(
 
 class ThreadWorker(threading.Thread):
 
-    def __init__(self, db_broker, credentials, message, out_queue):
+    def __init__(self, db_broker: types.ModuleType, credentials: dict[str, Any], message: dict[str, Any], out_queue: multiprocessing.Queue) -> None:
         self.db_broker = db_broker
         self.credentials = credentials
         self.message = message
@@ -393,7 +394,7 @@ class ThreadWorker(threading.Thread):
         self.result = None
         self.exception = None
 
-    def run(self):
+    def run(self) -> None:
         connector = None
 
         try:
@@ -608,7 +609,7 @@ class ThreadWorker(threading.Thread):
 
 
 def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.Queue,
-                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock):
+                    exit_event: multiprocessing.Event, print_lock: multiprocessing.Lock) -> None:
 
     """
     Downloads and converts the models
@@ -750,7 +751,7 @@ def _process_worker(in_queue: multiprocessing.Queue, out_queue: multiprocessing.
 class ProcessWorker:
 
     def __init__(self, manager: "_manager.ProcessManager",
-                 print_lock: multiprocessing.Lock):
+                 print_lock: multiprocessing.Lock) -> None:
 
         self.manager = manager
         self.exit_event = multiprocessing.Event()
@@ -763,7 +764,7 @@ class ProcessWorker:
 
         self.process.daemon = True
 
-    def start(self, is_primary):
+    def start(self, is_primary: bool) -> None:
         """
         Start the model child process.
 
@@ -782,10 +783,10 @@ class ProcessWorker:
         self.out_queue.put(os.getpid())
         self.out_queue.put(is_primary)
 
-    def is_alive(self):
+    def is_alive(self) -> bool:
         return self.process.is_alive()
 
-    def send(self, message):
+    def send(self, message: dict[str, Any]) -> None:
         """Queue an image identifier for background resource collection.
 
         :param message: message to send.
@@ -796,7 +797,7 @@ class ProcessWorker:
         """
         self.out_queue.put(message)
 
-    def recv(self):  # NOQA
+    def recv(self) -> dict[str, Any] | None:  # NOQA
         if not self.in_queue.empty():
             message = self.in_queue.get_nowait()
 
@@ -809,10 +810,10 @@ class ProcessWorker:
 
             return message
 
-    def reset(self):
+    def reset(self) -> None:
         pass
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Signal the worker child processes to stop.
 

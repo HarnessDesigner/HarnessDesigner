@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import threading
-
 from PySide6 import QtCore
 from PySide6 import QtGui
 
@@ -16,6 +16,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import canvas_base as _canvas_base
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 KEY_MULTIPLES = {
@@ -72,7 +73,7 @@ KEY_MULTIPLES = {
 
 
 @_check_types.do
-def _process_key_event(keycode: int, *keys):
+def _process_key_event(keycode: int, *keys: int) -> int | None:
     """
     Execute the process key event operation.
 
@@ -104,7 +105,7 @@ def _process_key_event(keycode: int, *keys):
 class KeyHandler:
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
         """
         Initialise the :class:`KeyHandler` instance.
 
@@ -135,7 +136,7 @@ class KeyHandler:
             self._running_keycodes.clear()
 
     @_check_types.do
-    def handle_event(self, event):
+    def handle_event(self, event: QtGui.QKeyEvent) -> bool:
         """
         Handle the event.
 
@@ -156,7 +157,7 @@ class KeyHandler:
         return False
 
     @_check_types.do
-    def _key_loop(self):
+    def _key_loop(self) -> None:
         """Execute the key loop operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -191,7 +192,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def on_key_up(self, evt):
+    def on_key_up(self, evt: QtGui.QKeyEvent) -> None:
         """Handle the key up event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -205,7 +206,7 @@ class KeyHandler:
             return
 
         @_check_types.do
-        def remove_from_queue(func, k):
+        def remove_from_queue(func: Callable[[], None], k: int) -> None:
             """Remove the from queue.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -270,7 +271,7 @@ class KeyHandler:
             return
 
     @_check_types.do
-    def _send_event(self, event_type, qt_evt) -> bool:
+    def _send_event(self, event_type: str, qt_evt: QtGui.QKeyEvent) -> bool:
         """
         Execute the send event operation.
 
@@ -329,7 +330,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def on_key_down(self, evt):
+    def on_key_down(self, evt: QtGui.QKeyEvent) -> None:
         """Handle the key down event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -342,7 +343,7 @@ class KeyHandler:
         if not self._send_event(_events.EVT_GL_KEY_DOWN, evt):
             return
 
-        def add_to_queue(func, k):
+        def add_to_queue(func: Callable[[], None], k: int) -> None:
             with self._key_queue_lock:
                 if func not in self._running_keycodes:
                     self._running_keycodes[func] = dict(
@@ -400,7 +401,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_rotate_key(self, factor, *keys):
+    def _process_rotate_key(self, factor: float, *keys) -> None:
         """
         Execute the process rotate key operation.
 
@@ -428,7 +429,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_pan_tilt_key(self, factor, *keys):
+    def _process_pan_tilt_key(self, factor: float, *keys) -> None:
         """
         Execute the process pan tilt key operation.
 
@@ -456,7 +457,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_truck_pedestal_key(self, factor, *keys):
+    def _process_truck_pedestal_key(self, factor: float, *keys) -> None:
         """
         Execute the process truck pedestal key operation.
 
@@ -484,7 +485,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_walk_key(self, factor, *keys):
+    def _process_walk_key(self, factor: float, *keys) -> None:
         """
         Execute the process walk key operation.
 
@@ -512,7 +513,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_zoom_key(self, factor, *keys):
+    def _process_zoom_key(self, factor: float, *keys) -> None:
         """
         Execute the process zoom key operation.
 
@@ -535,7 +536,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_dolly_key(self, factor, *keys):
+    def _process_dolly_key(self, factor: float, *keys) -> None:
         """
         Execute the process dolly key operation.
 
@@ -558,7 +559,7 @@ class KeyHandler:
 
     @_debug.logfunc
     @_check_types.do
-    def _process_reset_key(self, *_):
+    def _process_reset_key(self, *_) -> None:
         """
         Execute the process reset key operation.
         """

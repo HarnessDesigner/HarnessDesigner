@@ -18,8 +18,8 @@ class FloatProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str, min_value: float, max_value: float,
-                 increment: float, units: str | None = None):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, min_value: float, max_value: float,
+                 increment: float, units: str | None = None) -> None:
         """Initialise the :class:`FloatProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -150,7 +150,7 @@ class FloatProperty(QtWidgets.QWidget):
         return self._value
 
     @_check_types.do
-    def _on_slider_scroll(self, _) -> None:
+    def _on_slider_scroll(self, _: int) -> None:
         """
         Handle the slider scroll event.
         """
@@ -202,7 +202,7 @@ class FloatProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

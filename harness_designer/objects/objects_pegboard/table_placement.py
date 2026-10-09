@@ -17,10 +17,17 @@ half-open overlap test), since that module already established the
 convention for this codebase.
 """
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import math
+from collections.abc import Iterable
 
 from ...geometry import point as _point
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from . import base_pegboard as _base_pegboard
 
 
 # Ring expansion step, and how many candidate angles are sampled per ring --
@@ -137,7 +144,10 @@ def find_free_position(
 
 
 @_check_types.do
-def obstacle_rects_from_objects(objects, exclude=None) -> list[tuple[float, float, float, float]]:
+def obstacle_rects_from_objects(
+    objects: Iterable["_base_pegboard.BasePegboard"],
+    exclude: _Union["_base_pegboard.BasePegboard", None] = None,
+) -> list[tuple[float, float, float, float]]:
     """Convenience gatherer: every object's own X/Z footprint from its
     :attr:`BaseVar.aabb` (Y dropped -- see module docstring), skipping
     any object with no computed AABB yet (``aabb`` is only populated once
@@ -148,12 +158,11 @@ def obstacle_rects_from_objects(objects, exclude=None) -> list[tuple[float, floa
     if it should be allowed to sit under its own table -- omit it, the
     default, to keep the table off the anchor's own footprint too).
 
-    :param objects: View objects to gather footprints from (e.g. a
-        canvas's own ``objects_in_view``, resolved to their peg-board
-        view objects).
-    :type objects: Iterable
+    :param objects: Peg-board view objects to gather footprints from
+        (e.g. a canvas's own ``objects_in_view``).
+    :type objects: Iterable[BasePegboard]
     :param exclude: One object to skip, or ``None``.
-    :type exclude: UNKNOWN
+    :type exclude: BasePegboard | None
     :returns: Obstacle rects, ready for :func:`find_free_position`.
     :rtype: list[tuple[float, float, float, float]]
     """
@@ -162,12 +171,11 @@ def obstacle_rects_from_objects(objects, exclude=None) -> list[tuple[float, floa
         if obj is exclude:
             continue
 
-        aabb = getattr(obj, 'aabb', None)
-        if aabb is None:
+        if obj.vbo is None:
             continue
 
-        min_x, _min_y, min_z = aabb[0]
-        max_x, _max_y, max_z = aabb[1]
+        min_x, _min_y, min_z = obj.aabb[0]
+        max_x, _max_y, max_z = obj.aabb[1]
         rects.append((float(min_x), float(min_z), float(max_x), float(max_z)))
 
     return rects

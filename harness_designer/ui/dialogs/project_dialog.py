@@ -1,10 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from PySide6 import QtWidgets
 
 from ..widgets import combobox_ctrl as _combobox_ctrl
 from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import ui as _ui
 
 
 class OpenProjectDialog(_dialog_base.BaseDialog):
@@ -14,7 +20,7 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent, last_project, project_names):
+    def __init__(self, parent: "_ui.MainFrame", last_project: str | None, project_names: list[str]) -> None:
         """Initialise the :class:`OpenProjectDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -54,7 +60,7 @@ class OpenProjectDialog(_dialog_base.BaseDialog):
         sizer.addLayout(h_sizer)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> str:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

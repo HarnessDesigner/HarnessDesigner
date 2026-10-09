@@ -2,16 +2,15 @@
 
 """Lazy image and cursor loading helpers for :mod:`harness_designer.image`."""
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import sys
 import os
 import numpy as np
 from PIL import Image as _Image
+from PySide6 import QtGui
 
 from . import utils
-
-from PySide6.QtGui import QPixmap, QCursor
 from .. import check_types as _check_types
 
 
@@ -34,7 +33,7 @@ class Image:
     """
 
     @_check_types.do
-    def __init__(self, name, path=None, png_data=None):
+    def __init__(self, name: str, path: str | None = None, png_data: bytes | None = None) -> None:
         """Initialize an image wrapper.
 
         :param name: Logical asset name.
@@ -50,7 +49,7 @@ class Image:
 
     @property
     @_check_types.do
-    def png_data(self):
+    def png_data(self) -> bytes:
         """Return the PNG bytes for the image.
 
         :returns: Cached PNG data or bytes read from :attr:`_path`.
@@ -86,7 +85,7 @@ class Image:
 
     @property
     @_check_types.do
-    def pixmap(self) -> QPixmap:
+    def pixmap(self) -> QtGui.QPixmap:
         """Return the image as a Qt pixmap.
 
         :returns: Pixmap created from :attr:`png_data`.
@@ -96,7 +95,7 @@ class Image:
 
     @property
     @_check_types.do
-    def disabled_pixmap(self) -> QPixmap:
+    def disabled_pixmap(self) -> QtGui.QPixmap:
         """Return a greyscale, lower-opacity pixmap for disabled UI states.
 
         :returns: Disabled-state pixmap.
@@ -116,7 +115,7 @@ class Image:
 
     @property
     @_check_types.do
-    def cursor(self) -> QCursor:
+    def cursor(self) -> QtGui.QCursor:
         """Return the image as a centered Qt cursor.
 
         :returns: Cursor created from :attr:`pil`.
@@ -125,7 +124,7 @@ class Image:
         return utils.pil_image_2_qcursor(self.pil)
 
     @_check_types.do
-    def crop(self, x1, y1, x2, y2):
+    def crop(self, x1: int, y1: int, x2: int, y2: int) -> "Image":
         """Return a cropped copy of the image.
 
         :param x1: Left crop coordinate.
@@ -211,7 +210,7 @@ class Image:
         return Image(self.name, png_data=utils.pil_image_2_png_bytes(pil))
 
     @_check_types.do
-    def recolor(self, r, g, b):
+    def recolor(self, r: int, g: int, b: int) -> "Image":
         """Return a copy of the image with RGB channels replaced.
 
         The alpha channel of each pixel is preserved.
@@ -240,7 +239,7 @@ class Image:
         return res
 
     @_check_types.do
-    def __or__(self, other: "Image"):
+    def __or__(self, other: "Image") -> "Image":
         """Combine two images using the current ``|`` composition logic.
 
         A new transparent canvas is created and both images are pasted using the
@@ -315,7 +314,7 @@ class ImageLoader:
     """
 
     @_check_types.do
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         """Initialize the lazy image loader.
 
         When ``path`` matches :data:`BASE_PATH`, the loader replaces the module
@@ -351,7 +350,7 @@ class ImageLoader:
     def __build_wire(
         self,
         primary_color: "_color.Color",
-        stripe_color: Union["_color.Color", None],
+        stripe_color: _Union["_color.Color", None],
         conductor_color: "_color.Color"
     ) -> Image:
         primary_name = primary_color.name
@@ -391,7 +390,7 @@ class ImageLoader:
         return wire
 
     @_check_types.do
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         """Load a sub-loader or :class:`Image` on first attribute access.
 
         :param item: Attribute name to resolve.
@@ -403,21 +402,22 @@ class ImageLoader:
         if item in self.__dict__:
             return self.__dict__[item]
 
-        if hasattr(self.__original_module__, item):
-            return getattr(self.__original_module__, item)
+        module_dict = self.__original_module__.__dict__
+        if item in module_dict:
+            return module_dict[item]
 
         path_ = os.path.join(self.__base_path__, item)
 
         if os.path.isdir(path_):
             attr = ImageLoader(path_)
-            setattr(self, item, attr)
+            self.__dict__[item] = attr
             return attr
 
         path_ += '.png'
 
         if os.path.exists(path_):
             attr = Image(item, path_)
-            setattr(self, item, attr)
+            self.__dict__[item] = attr
             return attr
 
         raise AttributeError(item)
@@ -563,7 +563,7 @@ if TYPE_CHECKING:
         @_check_types.do
         def build_wire(
             primary_color: "_color.Color",  # NOQA
-            stripe_color: Union["_color.Color", None],  # NOQA
+            stripe_color: _Union["_color.Color", None],  # NOQA
             conductor_color: "_color.Color"  # NOQA
         ) -> Image:
             pass

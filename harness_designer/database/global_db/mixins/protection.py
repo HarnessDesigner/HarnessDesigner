@@ -1,14 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import protection as _protection
+    from PySide6 import QtWidgets
 
 
 class ProtectionMixin(BaseMixin):
@@ -36,7 +36,7 @@ class ProtectionMixin(BaseMixin):
 
     @protection_id.setter
     @_check_types.do
-    def protection_id(self, value: bytes):
+    def protection_id(self, value: bytes) -> None:
         """Set the protection ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,7 +49,7 @@ class ProtectionMixin(BaseMixin):
         self._table.update(self._db_id, protection_id=value)
         self._populate('protection_id')
 
-    _stored_protections: Union[DefaultStoredValueType, "_protection.Protection"] = DefaultStoredValue
+    _stored_protections: _Union[DefaultStoredValueType, "_protection.Protection"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -74,7 +74,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`ProtectionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -90,7 +90,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
         self.propertyChanged.connect(self._on_protection)
 
     @_check_types.do
-    def set_obj(self, db_obj: ProtectionMixin | None):
+    def set_obj(self, db_obj: ProtectionMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -119,7 +119,7 @@ class ProtectionControl(_prop_ctrls.AutocompleteStringProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_protection(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_protection(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the protection event.
 
         UNKNOWN details are inferred from the callable name and signature.

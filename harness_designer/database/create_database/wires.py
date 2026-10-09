@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -13,7 +15,6 @@ from . import datasheets as _datasheets
 from . import cads as _cads
 from . import temperatures as _temperatures
 from . import platings as _platings
-
 from . import projects as _projects
 from . import points2d as _points2d
 from . import points3d as _points3d
@@ -22,16 +23,19 @@ from . import circuits as _circuits
 from . import bundle_covers as _bundle_covers
 from . import transitions as _transitions
 from . import concentric_layers as _concentric_layers
-
-
 from harness_designer.database import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_wires(con, data: tuple[dict] | list[dict]):
+def add_wires(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """Add a wires.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +50,7 @@ def add_wires(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -107,12 +111,12 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_wire(con, part_number, description, mfg=None, family=None, series=None,
-             color=None, image=None, datasheet=None, cad=None, min_temp=None,
-             max_temp=None, material=None, stripe_color=None, core_material=None,
-             num_conductors=1, shielded=0, tpi=0.0, wire_size_dia=None, wire_size_cross=None,
-             wire_size_awg=None, od_mm=0.0, weight_1km=0.0, resistance_1km=0.0, volts=0.0,
-             strands=1, commit=True):
+def add_wire(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+             color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+             max_temp: str | None = None, material: str | None = None, stripe_color: str | None = None, core_material: str | None = None,
+             num_conductors: int = 1, shielded: int = 0, tpi: float = 0.0, wire_size_dia: float | None = None, wire_size_cross: float | None = None,
+             wire_size_awg: int | None = None, od_mm: float = 0.0, weight_1km: float = 0.0, resistance_1km: float = 0.0, volts: float = 0.0,
+             strands: int = 1, commit: bool = True) -> bytes:
     """Add a wire.
 
     UNKNOWN details are inferred from the callable name and signature.

@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from . import pjt_point_pegboard as _pjt_point_pegboard
 
     from ...objects import bundle as _bundle_obj
+    from ... import ui as _ui
 
 
 class PJTBundlesTable(PJTTableBase):
@@ -63,7 +64,7 @@ class PJTBundlesTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -88,7 +89,7 @@ class PJTBundlesTable(PJTTableBase):
         return bundle_covers.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -98,7 +99,7 @@ class PJTBundlesTable(PJTTableBase):
         bundle_covers.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -120,7 +121,7 @@ class PJTBundlesTable(PJTTableBase):
             yield PJTBundle(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTBundle":
+    def __getitem__(self, item: int | bytes | str) -> "PJTBundle":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -168,7 +169,10 @@ class PJTBundlesTable(PJTTableBase):
         """
         db_id = PJTTableBase.insert(
             self, part_id=part_id, name=name,
-            start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id)
+            start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
+            start_point_pegboard_id=None, stop_point_pegboard_id=None,
+            notes='', is_visible3d=1, is_visible_pegboard=1, smooth=None,
+            table_point_peg_id=None, table_hidden=0)
 
         db_obj = PJTBundle(self, db_id)
 
@@ -248,7 +252,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -259,7 +263,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_bundle_obj.Bundle"):
+    def set_object(self, obj: "_bundle_obj.Bundle") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -448,11 +452,9 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
         return res
 
-    _stored_concentric: Union["_pjt_concentric.PJTConcentric", None, DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
-    def concentric(self) -> Union["_pjt_concentric.PJTConcentric", None]:
+    def concentric(self) -> _Union["_pjt_concentric.PJTConcentric", None]:
         """Return this bundle's own concentric-twisting row, or ``None``.
 
         A skeleton bundle no longer gets an empty placeholder concentric
@@ -462,18 +464,14 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         ``None`` is now the common case, not an edge case: every reader
         of this property must handle it.
         """
-        if self._stored_concentric is DefaultStoredValue:
-            rows = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)
-            concentric_id = rows[0][0] if rows else None
-            if concentric_id is None:
-                self._stored_concentric = None
-            else:
-                self._stored_concentric = self.table.db.pjt_concentrics_table[concentric_id]
-        return self._stored_concentric
+        rows = self.table.db.pjt_concentrics_table.select('id', bundle_id=self.db_id)
+        concentric_id = rows[0][0] if rows else None
+        if concentric_id is not None:
+            return self.table.db.pjt_concentrics_table[concentric_id]
         
     @property
     @_check_types.do
-    def start_layout(self) -> Union["_pjt_bundle_layout.PJTBundleLayout", None]:
+    def start_layout(self) -> _Union["_pjt_bundle_layout.PJTBundleLayout", None]:
         """Return the start layout.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -489,7 +487,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
 
     @property
     @_check_types.do
-    def stop_layout(self) -> Union["_pjt_bundle_layout.PJTBundleLayout", None]:
+    def stop_layout(self) -> _Union["_pjt_bundle_layout.PJTBundleLayout", None]:
         """Return the stop layout.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -525,14 +523,14 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._stored_part
 
 
-class PJTBundleControl(QTabWidget, LazyTabMixin):
+class PJTBundleControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT bundle control in :mod:`harness_designer.database.project_db.pjt_bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTBundle | None):
+    def set_obj(self, db_obj: PJTBundle | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -543,7 +541,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -559,7 +557,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTBundleControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -569,7 +567,7 @@ class PJTBundleControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTBundle | None = None
         super().__init__(parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

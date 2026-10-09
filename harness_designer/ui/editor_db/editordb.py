@@ -2,8 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QTabWidget
-from PySide6.QtCore import Qt
+
+from PySide6 import QtCore, QtWidgets
 
 from . import accessory as _accessory
 from . import boot as _boot
@@ -38,7 +38,7 @@ class EditorDB(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`EditorDB` instance.
 
@@ -48,7 +48,7 @@ class EditorDB(_dock_base.DockBase):
 
         self._ui_obj = EditorDBPanel(mainframe)
         super().__init__(mainframe, 'Database Editor', 'editor_db',
-                         Qt.DockWidgetArea.LeftDockWidgetArea)
+                         QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @property
     @_check_types.do
@@ -223,7 +223,7 @@ class EditorDB(_dock_base.DockBase):
         return self._ui_obj.wire_markers
 
 
-class EditorDBPanel(QTabWidget):
+class EditorDBPanel(QtWidgets.QTabWidget):
     """The notebook panel that contains one tab per component type.
 
     Replaces aui.AuiNotebook. QTabWidget provides the same tab strip,
@@ -232,7 +232,7 @@ class EditorDBPanel(QTabWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame"):
+    def __init__(self, parent: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`EditorDBPanel` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -264,7 +264,7 @@ class EditorDBPanel(QTabWidget):
         self.setMovable(True)  # matches AUI_NB_TAB_MOVE
 
     @_check_types.do
-    def load_db(self, g_db: "_global_db.GLBTables"):
+    def load_db(self, g_db: "_global_db.GLBTables") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -327,7 +327,7 @@ class EditorDBPanel(QTabWidget):
         self.addTab(self.wire_markers, 'Wire Markers')
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """Execute the refresh operation.
 
         UNKNOWN details are inferred from the callable name and signature.

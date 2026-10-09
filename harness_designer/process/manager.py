@@ -3,8 +3,7 @@
 """Keyring-backed credential management for database monitor processes."""
 
 
-from typing import TYPE_CHECKING
-
+from typing import TYPE_CHECKING, Any
 
 import os
 import sys
@@ -62,7 +61,7 @@ class CredManager:
 
     """Store and recover database credentials for monitor subprocesses.
     """
-    def __init__(self, print_lock, pid=None):
+    def __init__(self, print_lock: "multiprocessing.synchronize.Lock", pid: int | None = None) -> None:
         """Initialize the credential manager and derive the service identifier.
 
         :param print_lock: Lock optionally used for debug output.
@@ -116,7 +115,7 @@ class CredManager:
         #     print('secret_token:', self.secret_token)
         #     print('service_id:', self.service_id)
 
-    def _generate_service_id(self):
+    def _generate_service_id(self) -> str:
         """Generate the keyring service identifier for the current session.
 
         :returns: The generated keyring service identifier.
@@ -133,7 +132,7 @@ class CredManager:
 
         return f"session_{uuid_prefix}_{hmac_prefix}"
 
-    def get_app_uuid(self):
+    def get_app_uuid(self) -> str:
         """Return the application UUID used for this credential session.
 
         :returns: The application UUID associated with the current credential session.
@@ -141,7 +140,7 @@ class CredManager:
         """
         return self.app_uuid
 
-    def store_credentials(self, print_lock, db_type, **kwargs):
+    def store_credentials(self, print_lock: "multiprocessing.synchronize.Lock", db_type: int, **kwargs: Any) -> None:
         """Store connector credentials for the requested database type.
 
         :param print_lock: Lock optionally used for debug output.
@@ -162,7 +161,7 @@ class CredManager:
         elif db_type == _db_connectors.CONNECTOR_MYSQL:
             self.store_mysql_credentials(print_lock, **kwargs)
 
-    def store_sqlite_credentials(self, print_lock, database_path):
+    def store_sqlite_credentials(self, print_lock: "multiprocessing.synchronize.Lock", database_path: str) -> None:
         # with print_lock:
         #     print('database_path:', database_path)
 
@@ -179,7 +178,7 @@ class CredManager:
         keyring.set_password(self.service_id, "db_type", "sqlite")
         keyring.set_password(self.service_id, "sqlite_path", database_path)
 
-    def store_mysql_credentials(self, print_lock, host, port, user, password, database):
+    def store_mysql_credentials(self, print_lock: "multiprocessing.synchronize.Lock", host: str, port: int, user: str, password: str, database: str) -> None:
         # with print_lock:
         #     print('host:', host)
 
@@ -208,7 +207,7 @@ class CredManager:
         keyring.set_password(self.service_id, "mysql_password", password)
         keyring.set_password(self.service_id, "mysql_database", database)
 
-    def retrieve_credentials(self, print_lock):
+    def retrieve_credentials(self, print_lock: "multiprocessing.synchronize.Lock") -> dict[str, Any] | None:
         """Retrieve stored credentials for the current monitor session.
 
         :param print_lock: Lock optionally used for debug output.
@@ -248,7 +247,7 @@ class CredManager:
                         password=password,
                         database=keyring.get_password(self.service_id, "mysql_database"))
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Remove stored credentials and related environment variables.
 
         :returns: ``None``.
@@ -284,7 +283,7 @@ class ProcessManager(threading.Thread):
 
     """Coordinate background database monitoring for the main UI thread.
     """
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """Initialize monitor threads, queues, and subprocesses.
 
         :param mainframe: Main application frame that receives update notifications.
@@ -323,7 +322,7 @@ class ProcessManager(threading.Thread):
         threading.Thread.__init__(self, name='process_monitor_thread')
         self.daemon = True
 
-    def start(self):
+    def start(self) -> None:
         """Start the monitor subprocesses and worker thread.
 
         :returns: ``None``.
@@ -337,7 +336,7 @@ class ProcessManager(threading.Thread):
 
     def get_image(self, priority: int, image_db: "_image.Image",
                   resource_db: "_resource_state.ResourceState", mfg: str,
-                  part_number: str, path: str):
+                  part_number: str, path: str) -> None:
         """
         Queue an image identifier for background resource collection.
 
@@ -368,7 +367,7 @@ class ProcessManager(threading.Thread):
 
     def get_datasheet(self, priority: int, datasheet_db: "_datasheet.Datasheet",
                       resource_db: "_resource_state.ResourceState", mfg: str,
-                      part_number: str, path: str):
+                      part_number: str, path: str) -> None:
         """
         Queue an image identifier for background resource collection.
 
@@ -399,7 +398,7 @@ class ProcessManager(threading.Thread):
 
     def get_cad(self, priority: int, cad_db: "_cad.CAD",
                 resource_db: "_resource_state.ResourceState", mfg: str,
-                part_number: str, path: str):
+                part_number: str, path: str) -> None:
         """
         Queue an image identifier for background resource collection.
 
@@ -428,7 +427,7 @@ class ProcessManager(threading.Thread):
         self._image_process.add(priority, _resources.RESOURCE_TYPE_CAD,
                                 cad_db, resource_db, mfg, part_number, path)
 
-    def run(self):
+    def run(self) -> None:
         """Forward monitor subprocess messages back to the UI thread.
 
         :returns: ``None``.
@@ -492,7 +491,7 @@ class ProcessManager(threading.Thread):
                             # as before this retry existed.
                             from ..ui.dialogs import error as _error
 
-                            def _do(msg, rdb):
+                            def _do(msg: dict[str, Any], rdb: "_resource_state.ResourceState") -> None:
                                 rdb.set_error(**msg)
 
                                 dlg = _error.ErrorDialog(
@@ -516,7 +515,7 @@ class ProcessManager(threading.Thread):
                                 f'"{message["part_number"]}" -- retrying with '
                                 f'coarser tessellation settings.')
 
-                            def _do(mdb, rdb, mfg, pn, path):
+                            def _do(mdb: "_model3d.Model3D", rdb: "_resource_state.ResourceState", mfg: str, pn: str, path: str) -> None:
                                 self.get_model(
                                     mdb, rdb, mfg, pn, path,
                                     use_loose_tessellation=True)
@@ -539,7 +538,7 @@ class ProcessManager(threading.Thread):
                             curr_progresses.remove(job_id)
 
                         if not self._model_process_active:
-                            def _do():
+                            def _do() -> None:
                                 self.mainframe.end_progress_bar()
 
                             _app.CallAfter(_do)
@@ -571,7 +570,7 @@ class ProcessManager(threading.Thread):
 
                         from ..ui.dialogs import error as _error
 
-                        def _do(msg, rdb):
+                        def _do(msg: dict[str, Any], rdb: "_resource_state.ResourceState") -> None:
                             rdb.set_error(**msg)
 
                             dlg = _error.ErrorDialog(
@@ -597,7 +596,7 @@ class ProcessManager(threading.Thread):
                             curr_progresses.remove(job_id)
 
                         if not self._model_process_active:
-                            def _do():
+                            def _do() -> None:
                                 self.mainframe.end_progress_bar()
 
                             _app.CallAfter(_do)
@@ -610,7 +609,7 @@ class ProcessManager(threading.Thread):
                     job_id = resource_db.db_id
                     start_progress = False
 
-                    def _do(stp, mdb, rdb, pn, start):
+                    def _do(stp: int, mdb: "_model3d.Model3D", rdb: "_resource_state.ResourceState", pn: str, start: bool) -> None:
                         if start:
                             self.mainframe.start_progress('', 11)
 
@@ -659,7 +658,7 @@ class ProcessManager(threading.Thread):
                     job_id = curr_progresses[curr_progress_index]
                     part_number, step = self._model_progress[job_id]
 
-                    def _do(pn, stp):
+                    def _do(pn: str, stp: int) -> None:
                         self.mainframe.set_progress(stp, pn)
 
                     _app.CallAfter(_do, part_number, step)
@@ -671,7 +670,7 @@ class ProcessManager(threading.Thread):
 
     def get_model(self, model_db: "_model3d.Model3D", resource_db: "_resource_state.ResourceState",
                   mfg: str, part_number: str, path: str,
-                  use_loose_tessellation: bool = False):
+                  use_loose_tessellation: bool = False) -> None:
 
         message = {
             'id': model_db.db_id,
@@ -719,10 +718,10 @@ class ProcessManager(threading.Thread):
             self._wait_event.set()
 
     @property
-    def is_stopped(self):
+    def is_stopped(self) -> bool:
         return not self.is_alive()
 
-    def stop(self):
+    def stop(self) -> None:
         """Signal the worker thread and subprocesses to stop.
 
         :returns: ``None``.

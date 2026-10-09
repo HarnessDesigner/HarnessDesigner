@@ -16,7 +16,7 @@ class ViewMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`ViewMenu` instance.
 
@@ -69,42 +69,42 @@ class ViewMenu(QtWidgets.QMenu):
         self.settings3d_toolbar.triggered.connect(self.on_show_settings3d_toolbar)
 
     @_check_types.do
-    def on_show_general_toolbar(self):
+    def on_show_general_toolbar(self) -> None:
         self.mainframe.general_toolbar.show()
         self.mainframe.general_toolbar.raise_()
 
     @_check_types.do
-    def on_show_editor_toolbar(self):
+    def on_show_editor_toolbar(self) -> None:
         self.mainframe.editor_toolbar.show()
         self.mainframe.editor_toolbar.raise_()
 
     @_check_types.do
-    def on_show_note_toolbar(self):
+    def on_show_note_toolbar(self) -> None:
         self.mainframe.note_toolbar.show()
         self.mainframe.note_toolbar.raise_()
 
     @_check_types.do
-    def on_show_object_toolbar(self):
+    def on_show_object_toolbar(self) -> None:
         self.mainframe.object_toolbar.show()
         self.mainframe.object_toolbar.raise_()
 
     @_check_types.do
-    def on_show_settings3d_toolbar(self):
+    def on_show_settings3d_toolbar(self) -> None:
         self.mainframe.settings3d_toolbar.show()
         self.mainframe.settings3d_toolbar.raise_()
 
     @_check_types.do
-    def on_show_object_browser(self):
+    def on_show_object_browser(self) -> None:
         self.mainframe.object_browser.dock.show()
         self.mainframe.object_browser.dock.raise_()
 
     @_check_types.do
-    def on_show_editor_circuit(self):
+    def on_show_editor_circuit(self) -> None:
         self.mainframe.editor_circuit.dock.show()
         self.mainframe.editor_circuit.dock.raise_()
 
     @_check_types.do
-    def on_show_editor2d(self):
+    def on_show_editor2d(self) -> None:
         """
         Handle the show editor 2D event.
         """
@@ -113,7 +113,7 @@ class ViewMenu(QtWidgets.QMenu):
         self.mainframe.editor2d.dock.raise_()
 
     @_check_types.do
-    def on_show_editor_obj(self):
+    def on_show_editor_obj(self) -> None:
         """
         Handle the show editor obj event.
         """
@@ -122,7 +122,7 @@ class ViewMenu(QtWidgets.QMenu):
         self.mainframe.editor_obj.dock.raise_()
 
     @_check_types.do
-    def on_show_log_viewer(self):
+    def on_show_log_viewer(self) -> None:
         """
         Handle the show log viewer event.
         """
@@ -131,7 +131,7 @@ class ViewMenu(QtWidgets.QMenu):
         self.mainframe.log_viewer.dock.raise_()
 
     @_check_types.do
-    def on_show_editor_db(self):
+    def on_show_editor_db(self) -> None:
         """
         Handle the show editor database event.
         """
@@ -140,7 +140,7 @@ class ViewMenu(QtWidgets.QMenu):
         self.mainframe.editor_db.dock.raise_()
 
     @_check_types.do
-    def on_show_editor_assembly(self):
+    def on_show_editor_assembly(self) -> None:
         """
         Handle the show editor assembly event.
         """
@@ -149,7 +149,7 @@ class ViewMenu(QtWidgets.QMenu):
         self.mainframe.editor_assembly.dock.raise_()
 
     @_check_types.do
-    def on_show_editor_script(self):
+    def on_show_editor_script(self) -> None:
         """
         Handle the show editor script event.
         """

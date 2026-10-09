@@ -26,7 +26,7 @@ class WireLayout(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_wire_layout.PJTWireLayout", project_load=False):
+                 db_obj: "_pjt_wire_layout.PJTWireLayout", project_load: bool = False) -> None:
         """Initialise the :class:`WireLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,7 +49,7 @@ class WireLayout(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         # TODO: If a layout has 2 wires attached the wire should be reconnected.
         super().delete()
         self.mainframe.project.delete_wire_layout(self.db_obj.db_id)

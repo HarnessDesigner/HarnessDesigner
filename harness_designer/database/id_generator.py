@@ -38,6 +38,8 @@ lock -- a local branch file has exactly one writer, so no cross-process
 coordination is needed.
 """
 
+from typing import TYPE_CHECKING
+
 import threading
 import time
 import uuid
@@ -45,6 +47,10 @@ import uuid
 from . import db_connectors as _con
 from .. import config as _config
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .db_connectors import base as _connector_base
 
 Config = _config.Config.database
 
@@ -208,7 +214,7 @@ class _LocalMonotonicClock:
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = threading.Lock()
         self._last_issued = 0
 
@@ -231,7 +237,7 @@ _local_clock = _LocalMonotonicClock()
 
 
 @_check_types.do
-def generate_project_row_id(connector, project_id: int) -> uuid.UUID:
+def generate_project_row_id(connector: "_connector_base.ConnectorBase", project_id: int) -> uuid.UUID:
     """Generate a new row id for a project_db child-table row.
 
     :param connector: The active database connector.
@@ -251,7 +257,7 @@ def generate_project_row_id(connector, project_id: int) -> uuid.UUID:
 
 
 @_check_types.do
-def generate_global_row_id(connector) -> uuid.UUID:
+def generate_global_row_id(connector: "_connector_base.ConnectorBase") -> uuid.UUID:
     """Generate a new row id for a global_db table row (no project scoping).
 
     :param connector: The active database connector.

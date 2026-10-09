@@ -18,7 +18,6 @@ object type -- that happens at the object layer, not here).
 """
 
 from . import projects as _projects
-
 from .. import db_connectors as _con
 
 

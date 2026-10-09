@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QDialogButtonBox
+
+from PySide6 import QtWidgets
 
 from ..dialogs import dialog_base as _dialog_base
 from ... import check_types as _check_types
@@ -19,7 +20,7 @@ class EditDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", title, db_obj):
+    def __init__(self, parent: "_ui.MainFrame", title: str, db_obj) -> None:
         """Initialise the :class:`EditDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -31,13 +32,13 @@ class EditDialog(_dialog_base.BaseDialog):
         :param db_obj: Database-backed object.
         :type db_obj: UNKNOWN
         """
-        super().__init__(parent, title=title, button_ids=QDialogButtonBox.Ok)
+        super().__init__(parent, title=title, button_ids=QtWidgets.QDialogButtonBox.Ok)
 
         control = db_obj.table.control
         control.setParent(self.panel)
 
-        hsizer = QHBoxLayout()
-        vsizer = QVBoxLayout()
+        hsizer = QtWidgets.QHBoxLayout()
+        vsizer = QtWidgets.QVBoxLayout()
         hsizer.addWidget(control, 1)
         vsizer.addLayout(hsizer, 1)
 
@@ -49,7 +50,7 @@ class EditDialog(_dialog_base.BaseDialog):
         self.mainframe = parent
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """Execute the destroy operation.
 
         UNKNOWN details are inferred from the callable name and signature.

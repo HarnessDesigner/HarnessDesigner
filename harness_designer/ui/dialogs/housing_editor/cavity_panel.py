@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtCore
 from PySide6 import QtWidgets
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 class CavityGeneral(QtWidgets.QWidget):
 
     @_check_types.do
-    def __init__(self, parent: "CavityTab", cavity3d: _cavity_obj.Cavity3D):
+    def __init__(self, parent: "CavityTab", cavity3d: _cavity_obj.Cavity3D) -> None:
         self._cavity_tab = parent
         self.cavity3d = cavity3d
         super().__init__(parent)
@@ -112,7 +112,7 @@ class CavityGeneral(QtWidgets.QWidget):
     # ── compatible terminals ───────────────────────────────────────────────────
 
     @_check_types.do
-    def on_terminal_added(self, _, part_number):
+    def on_terminal_added(self, _: int, part_number: str) -> None:
         self.cavity3d.compat_terminals = self.compat_terminal_ctrl.GetValue()
 
         for terminal in self.cavity3d.compat_terminals:
@@ -126,7 +126,7 @@ class CavityGeneral(QtWidgets.QWidget):
                 return
 
     @_check_types.do
-    def on_terminal_edited(self, _, old_value, new_value):
+    def on_terminal_edited(self, _: int, old_value: str, new_value: str) -> None:
         if old_value == new_value:
             return
 
@@ -166,7 +166,7 @@ class CavityGeneral(QtWidgets.QWidget):
             self.terminal_size_ctrl.add_item(blade_size)
 
     @_check_types.do
-    def on_terminal_deleted(self, _, part_number):
+    def on_terminal_deleted(self, _: int, part_number: str) -> None:
         compat_terminals = self.cavity3d.compat_terminals
 
         blade_size = 0.0
@@ -198,22 +198,22 @@ class CavityGeneral(QtWidgets.QWidget):
                     self.terminal_size_ctrl.add_item(blade_size)
 
     @_check_types.do
-    def on_size_added(self, _, __):
+    def on_size_added(self, _: int, __: float) -> None:
         self.cavity3d.terminal_sizes = self.terminal_size_ctrl.GetValue()
 
     @_check_types.do
-    def on_size_edited(self, _, old_value, new_value):
+    def on_size_edited(self, _: int, old_value: float, new_value: float) -> None:
         if old_value == new_value:
             return
 
         self.cavity3d.terminal_sizes = self.terminal_size_ctrl.GetValue()
 
     @_check_types.do
-    def on_size_deleted(self, _, __):
+    def on_size_deleted(self, _: int, __: float) -> None:
         self.cavity3d.terminal_sizes = self.terminal_size_ctrl.GetValue()
 
     @_check_types.do
-    def on_is_round(self):
+    def on_is_round(self) -> None:
         value = self.is_round_ctrl.GetValue()
         self.cavity3d.is_round = value
 
@@ -221,7 +221,7 @@ class CavityGeneral(QtWidgets.QWidget):
 class CavityTab(QtWidgets.QTabWidget):
 
     @_check_types.do
-    def __init__(self, parent: "CavityPanel", cavity: "_cavity.Cavity"):
+    def __init__(self, parent: "CavityPanel", cavity: "_cavity.Cavity") -> None:
         super().__init__(parent)
 
         self._panel = parent   # direct reference to the owning CavityPanel
@@ -297,7 +297,7 @@ class CavityTab(QtWidgets.QTabWidget):
 
     @name.setter
     @_check_types.do
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         self.cavity.obj3d.name = value
 
     @property
@@ -307,11 +307,11 @@ class CavityTab(QtWidgets.QTabWidget):
 
     @index.setter
     @_check_types.do
-    def index(self, value: int):
+    def index(self, value: int) -> None:
         self.cavity.obj3d.idx = value
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         self.cavity.delete()
 
 
@@ -330,8 +330,9 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
     cavitySelected: QtCore.SignalInstance = QtCore.Signal(int, int)
 
     @_check_types.do
-    def __init__(self, dialog, panel: "_housing_editor.HousingEditorDialog",
-                 housing: "_housing_obj.Housing3D"):
+    def __init__(self, dialog: "_housing_editor.HousingEditorDialog",
+                 panel: QtWidgets.QTabWidget,
+                 housing: "_housing_obj.Housing3D") -> None:
         super().__init__(panel)
 
         self.__hold_change = False
@@ -357,11 +358,11 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
             self.on_add_cavity(cavity.idx, cavity)
 
     @_check_types.do
-    def set_cavity(self, cavity):
+    def set_cavity(self, cavity: _cavity_obj.Cavity3D | None) -> None:
         pass
 
     @_check_types.do
-    def on_cavity_remove(self, idx: int, _: str, cavity: CavityTab):
+    def on_cavity_remove(self, idx: int, _: str, cavity: CavityTab) -> None:
         self.cavities.pop(idx)
         self.removeTab(idx)
 
@@ -400,7 +401,7 @@ class CavityPanel(_editable_tab_ctrl.EditableTabCtrl):
             self.cavitySelected.emit(-1, -1)
 
     @_check_types.do
-    def on_add_cavity(self, idx, cavity=None):
+    def on_add_cavity(self, idx: int, cavity: _Union["_cavity.Cavity", None] = None) -> CavityTab | None:
         """Add a cavity tab.  ``idx`` is 0-based (matches db ``cavity.idx``).
         Returns the new :class:`CavityTab`, or ``None`` if the pin-count limit
         was reached.

@@ -29,7 +29,7 @@ class Splice(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_splice.PJTSplice", project_load=False):
+                 db_obj: "_pjt_splice.PJTSplice", project_load: bool = False) -> None:
         """Initialise the :class:`Splice` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -159,7 +159,7 @@ class Splice(_ObjectBase):
                 return
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Reconnect the through-pair back into a single wire (undoing
         the fork handlers.splice_handler made when this splice was
         placed), and give each branch wire its own fresh point at the

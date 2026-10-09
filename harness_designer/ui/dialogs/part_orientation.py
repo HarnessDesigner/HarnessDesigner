@@ -1,12 +1,12 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
+
 import numpy as np
 import build123d
-from typing import TYPE_CHECKING, Union
 
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import QSize
-from PySide6 import QtCore
+from PySide6 import QtCore, QtGui
 from PySide6 import QtWidgets
 
 from . import dialog_base as _dialog_base
@@ -26,8 +26,12 @@ from ... import utils as _utils
 from ... import image as _image
 from ... import check_types as _check_types
 
+
 if TYPE_CHECKING:
-    from ...database.global_db.model3d import Model3D as _Model3D
+    from ...database.global_db import model3d as _model3d
+    from ...gl import context as _gl_context
+    from ...gl import shaders as _shaders
+    from ... import bounds as _bounds
     from ... import ui as _ui
 
 
@@ -117,7 +121,7 @@ class PartModel(_ObjectBase):
     obj3d: "PartModel3D" = None
 
     @_check_types.do
-    def __init__(self, dialog, model_db):
+    def __init__(self, dialog: "PartOrientationDialog", model_db: "_model3d.Model3D") -> None:
         super().__init__(dialog, model_db)
         self.dialog = dialog
         self.obj3d = PartModel3D(self, model_db)
@@ -127,15 +131,15 @@ class PartModel(_ObjectBase):
         dialog.add_object(self)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         pass
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         pass
 
 
@@ -147,7 +151,7 @@ class PartModel3D(_base_3d.Base3D):
     """
 
     @_check_types.do
-    def __init__(self, parent: PartModel, model_db: "_Model3D"):
+    def __init__(self, parent: PartModel, model_db: "_model3d.Model3D") -> None:
         self.db_obj = model_db
 
         with parent.dialog.context:
@@ -191,35 +195,35 @@ class PartModel3D(_base_3d.Base3D):
             self._is_visible = True
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         pass
 
 
 class PartModelPegboard(_base_pegboard.BasePegboard):
 
-    def __init__(self, parent, db_obj):
+    def __init__(self, parent: PartModel, db_obj: "_model3d.Model3D") -> None:
         super().__init__(
             parent, db_obj, None, None,
             None, None, None
             )
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
 
 class PartModelSchematic(_base_schematic.BaseSchematic):
 
-    def __init__(self, parent, db_obj):
+    def __init__(self, parent: PartModel, db_obj: "_model3d.Model3D") -> None:
         super().__init__(
             parent, db_obj, None, None,
             None, None, None
             )
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
 
@@ -229,23 +233,23 @@ class AxisLabel(_ObjectBase):
     obj3d: "AxisLabel3D" = None
 
     @_check_types.do
-    def __init__(self, dialog, text: str,
-                 position: _point.Point, angle: _angle.Angle):
+    def __init__(self, dialog: "PartOrientationDialog", text: str,
+                 position: _point.Point, angle: _angle.Angle) -> None:
         super().__init__(dialog, None)
         self.dialog = dialog
         self.obj3d = AxisLabel3D(self, text, position, angle)
         dialog.add_object(self)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         pass
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         pass
 
 
@@ -254,7 +258,7 @@ class AxisLabel3D(_base_3d.Base3D):
 
     @_check_types.do
     def __init__(self, parent: AxisLabel, text: str,
-                 position: _point.Point, angle: _angle.Angle):
+                 position: _point.Point, angle: _angle.Angle) -> None:
         self.db_obj = None
 
         with parent.dialog.context:
@@ -274,11 +278,11 @@ class AxisLabel3D(_base_3d.Base3D):
             self._is_visible = True
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         pass
 
 
@@ -301,7 +305,7 @@ class MeshStatsOverlay(QtWidgets.QLabel):
     """
 
     @_check_types.do
-    def __init__(self, canvas_wrapper, vertex_count: int):
+    def __init__(self, canvas_wrapper: QtWidgets.QWidget, vertex_count: int) -> None:
         super().__init__(canvas_wrapper)
         triangle_count = vertex_count // 3
         self.setText(f'Vertices: {vertex_count}\nTriangles: {triangle_count}')
@@ -317,11 +321,11 @@ class MeshStatsOverlay(QtWidgets.QLabel):
         self.raise_()
 
     @_check_types.do
-    def _reposition(self, canvas_wrapper) -> None:
+    def _reposition(self, canvas_wrapper: QtWidgets.QWidget) -> None:
         self.move(canvas_wrapper.width() - self.width() - 10, 10)
 
     @_check_types.do
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QtWidgets.QWidget, event: QtCore.QEvent) -> bool:
         if event.type() == QtCore.QEvent.Type.Resize:
             self._reposition(obj)
 
@@ -339,12 +343,12 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
     config = _Config
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         _dialog_base.BaseDialog.__init__(
             self, parent, 'Part Orientation', size=(1100, 650),
             button_ids=QtWidgets.QDialogButtonBox.StandardButton.Ok)
 
-        self._model_db: Union["_Model3D", None] = None
+        self._model_db: _Union["_model3d.Model3D", None] = None
         self._part_model: PartModel | None = None
         self._mainframe = parent
         self._selected_obj = None
@@ -379,12 +383,12 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         orient_group = QtWidgets.QGroupBox('Orientation', self.panel)
         orient_layout = QtWidgets.QVBoxLayout(orient_group)
 
-        _icon_size = QSize(64, 64)
+        _icon_size = QtCore.QSize(64, 64)
 
         @_check_types.do
-        def _make_btn(icon_img, tooltip, slot):
+        def _make_btn(icon_img: "_image.Image", tooltip: str, slot: Callable[[], None]) -> QtWidgets.QPushButton:
             btn = QtWidgets.QPushButton()
-            btn.setIcon(QIcon(icon_img.resize(64, 64).pixmap))
+            btn.setIcon(QtGui.QIcon(icon_img.resize(64, 64).pixmap))
             btn.setIconSize(_icon_size)
             btn.setFixedSize(64, 64)
             btn.setToolTip(tooltip)
@@ -452,7 +456,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self.setLayout(h_layout)
 
     @_check_types.do
-    def SetValue(self, model_db: "_Model3D"):
+    def SetValue(self, model_db: "_model3d.Model3D") -> None:
         self.canvas.show()
         self.canvas.repaint()
         self.canvas.update()
@@ -509,11 +513,11 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _on_offset_changed(self, _offset: _point.Point):
+    def _on_offset_changed(self, _offset: _point.Point) -> None:
         self._recenter_model()
 
     @_check_types.do
-    def _recenter_model(self):
+    def _recenter_model(self) -> None:
         """Re-center the model on the origin, then reapply the user's offset.
 
         Runs after every rotation (and after every user offset edit): the
@@ -552,7 +556,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         position.z += delta.z
 
     @_check_types.do
-    def _on_rotate_left(self):
+    def _on_rotate_left(self) -> None:
         angle = self._part_model.obj3d.angle.y + 90.0
 
         if angle > 180.0:
@@ -565,7 +569,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _on_rotate_right(self):
+    def _on_rotate_right(self) -> None:
         angle = self._part_model.obj3d.angle.y - 90.0
 
         if angle < -180.0:
@@ -577,7 +581,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _on_flip_forward(self):
+    def _on_flip_forward(self) -> None:
         angle = self._part_model.obj3d.angle.x + 90.0
 
         if angle > 180.0:
@@ -590,7 +594,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _on_flip_backward(self):
+    def _on_flip_backward(self) -> None:
         angle = self._part_model.obj3d.angle.x - 90.0
 
         if angle < -180.0:
@@ -602,7 +606,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _on_roll_left(self):
+    def _on_roll_left(self) -> None:
         angle = self._part_model.obj3d.angle.z - 90.0
 
         if angle < -180.0:
@@ -614,7 +618,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _on_roll_right(self):
+    def _on_roll_right(self) -> None:
         angle = self._part_model.obj3d.angle.z + 90.0
 
         if angle > 180.0:
@@ -627,7 +631,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._update_forward_up()
 
     @_check_types.do
-    def _update_forward_up(self):
+    def _update_forward_up(self) -> None:
         if self._model_db is None or self._part_model is None:
             return
 
@@ -643,7 +647,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._model_db.forward_up = [fwd, up]
 
     @_check_types.do
-    def _flush_and_invalidate_vbo(self):
+    def _flush_and_invalidate_vbo(self) -> None:
         """Sync working state to DB and evict the stale VBO from the singleton.
 
         Must be called before exec() returns so the next user of this model's
@@ -671,7 +675,7 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
 
             vbo = self._part_model.obj3d.vbo
 
-            if vbo is not None and hasattr(vbo, 'id'):
+            if isinstance(vbo, _vbo.PooledVBOHandler):
                 uuid = vbo.id
                 with _vbo.VBOSingleton._instances_lock:  # NOQA
                     if uuid in _vbo.VBOSingleton._instances:  # NOQA
@@ -682,68 +686,68 @@ class PartOrientationDialog(_dialog_base.BaseDialog):
         self._part_model = None
 
     @_check_types.do
-    def accept(self):
+    def accept(self) -> None:
         self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().accept()
 
     @_check_types.do
-    def reject(self):
+    def reject(self) -> None:
         self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().reject()
 
     @_check_types.do
-    def closeEvent(self, event):
+    def closeEvent(self, event: "QtGui.QCloseEvent") -> None:
         self._flush_and_invalidate_vbo()
         self.canvas.cleanup()
         super().closeEvent(event)
 
     @property
     @_check_types.do
-    def editor2d(self):
+    def editor2d(self) -> None:
         return None
 
     @property
     @_check_types.do
-    def editor3d(self):
+    def editor3d(self) -> "PartOrientationDialog":
         return self
 
     @property
     @_check_types.do
-    def editor_pegboard(self):
+    def editor_pegboard(self) -> None:
         return None
 
     @property
     @_check_types.do
-    def bounds_manager(self):
+    def bounds_manager(self) -> "_bounds.Manager":
         return self._bounds_manager
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: _ObjectBase) -> None:
         self.canvas.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: _ObjectBase) -> None:
         self.canvas.remove_object(obj)
 
     @_check_types.do
-    def _set_selected(self, obj):
+    def _set_selected(self, obj: _ObjectBase | None) -> None:
         pass
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _ObjectBase | None) -> None:
         pass
 
     @_check_types.do
-    def get_selected(self):
+    def get_selected(self) -> None:
         return None
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         self.canvas.Refresh()
 
     @property
     @_check_types.do
-    def context(self):
+    def context(self) -> "_gl_context.GLContext":
         return self.canvas.context

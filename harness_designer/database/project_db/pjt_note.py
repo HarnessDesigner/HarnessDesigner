@@ -3,7 +3,7 @@
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 import build123d
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -30,6 +30,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ...objects import note as _note_obj
+    from ... import ui as _ui
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class PJTNotesTable(PJTTableBase):
@@ -59,7 +61,7 @@ class PJTNotesTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +86,7 @@ class PJTNotesTable(PJTTableBase):
         return notes.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +96,7 @@ class PJTNotesTable(PJTTableBase):
         notes.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -116,7 +118,7 @@ class PJTNotesTable(PJTTableBase):
             yield PJTNote(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTNote":
+    def __getitem__(self, item: int | bytes | str) -> "PJTNote":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -184,7 +186,11 @@ class PJTNotesTable(PJTTableBase):
             self, point2d_id=point2d_id, point3d_id=point3d_id,
             point_pegboard_id=point_pegboard_id, notes=notes,
             size=size, h_align=h_align, style=style,
-            color_id=color_id)
+            color_id=color_id, scale3d_id=None, scale2d_id=None, scale_pegboard_id=None,
+            is_visible2d=1, is_visible3d=1, is_visible_pegboard=1,
+            quat2d='[1.0, 0.0, 0.0, 0.0]', angle2d='[0.0, 0.0, 0.0]',
+            quat3d='[1.0, 0.0, 0.0, 0.0]', angle3d='[0.0, 0.0, 0.0]', angle3d_lock=0,
+            quat_pegboard='[1.0, 0.0, 0.0, 0.0]', angle_pegboard='[0.0, 0.0, 0.0]', smooth=None)
 
         return PJTNote(self, db_id)
 
@@ -229,7 +235,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -240,7 +246,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_note_obj.Note"):
+    def set_object(self, obj: "_note_obj.Note") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -266,8 +272,6 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         """
         return self._table
 
-    _stored_size: int | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def size(self) -> int:
@@ -277,25 +281,18 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         :returns: Property value.
         :rtype: int
         """
-        if self._stored_size is DefaultStoredValue:
-            self._stored_size = self._table.select('size', id=self._db_id)[0][0]
-
-        return self._stored_size
+        return self._table.select('size', id=self._db_id)[0][0]
 
     @size.setter
     @_check_types.do
-    def size(self, value: int):
+    def size(self, value: int) -> None:
         """Set this note's font size.
 
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_size = value
-
         self._table.update(self._db_id, size=value)
         self._populate('size')
-
-    _stored_h_align: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -307,25 +304,18 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         :returns: Property value.
         :rtype: int
         """
-        if self._stored_h_align is DefaultStoredValue:
-            self._stored_h_align = self._table.select('h_align', id=self._db_id)[0][0]
-
-        return self._stored_h_align
+        return self._table.select('h_align', id=self._db_id)[0][0]
 
     @h_align.setter
     @_check_types.do
-    def h_align(self, value: int):
+    def h_align(self, value: int) -> None:
         """Set this note's horizontal text alignment.
 
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_h_align = value
-
         self._table.update(self._db_id, h_align=value)
         self._populate('h_align')
-
-    _stored_style: int | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -336,25 +326,18 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         :returns: Property value.
         :rtype: int
         """
-        if self._stored_style is DefaultStoredValue:
-            self._stored_style = self._table.select('style', id=self._db_id)[0][0]
-
-        return self._stored_style
+        return self._table.select('style', id=self._db_id)[0][0]
 
     @style.setter
     @_check_types.do
-    def style(self, value: int):
+    def style(self, value: int) -> None:
         """Set this note's font style.
 
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_style = value
-
         self._table.update(self._db_id, style=value)
         self._populate('style')
-
-    _stored_position2d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -370,26 +353,20 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         :returns: Property value.
         :rtype: bytes | None
         """
-        if self._stored_position2d_id is DefaultStoredValue:
-            self._stored_position2d_id = self._table.select('point2d_id', id=self._db_id)[0][0]
-
-        return self._stored_position2d_id
+        return self._table.select('point2d_id', id=self._db_id)[0][0]
 
     @position2d_id.setter
     @_check_types.do
-    def position2d_id(self, value: bytes | None):
+    def position2d_id(self, value: bytes | None) -> None:
         """Set this note's own point2d_id -- see the getter's docstring.
 
         :param value: Value to store or process.
         :type value: bytes | None
         """
-        self._stored_position2d_id = value
         self._stored_position2d = DefaultStoredValue
 
         self._table.update(self._db_id, point2d_id=value)
         self._populate('position2d_id')
-
-    _stored_position3d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -401,26 +378,20 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         :returns: Property value.
         :rtype: bytes | None
         """
-        if self._stored_position3d_id is DefaultStoredValue:
-            self._stored_position3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-
-        return self._stored_position3d_id
+        return self._table.select('point3d_id', id=self._db_id)[0][0]
 
     @position3d_id.setter
     @_check_types.do
-    def position3d_id(self, value: bytes | None):
+    def position3d_id(self, value: bytes | None) -> None:
         """Set this note's own point3d_id -- see the getter's docstring.
 
         :param value: Value to store or process.
         :type value: bytes | None
         """
-        self._stored_position3d_id = value
         self._stored_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, point3d_id=value)
         self._populate('position3d_id')
-
-    _stored_position_pegboard_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -432,36 +403,31 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         :returns: Property value.
         :rtype: bytes | None
         """
-        if self._stored_position_pegboard_id is DefaultStoredValue:
-            self._stored_position_pegboard_id = self._table.select(
-                'point_pegboard_id', id=self._db_id)[0][0]
-
-        return self._stored_position_pegboard_id
+        return self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
     @position_pegboard_id.setter
     @_check_types.do
-    def position_pegboard_id(self, value: bytes | None):
+    def position_pegboard_id(self, value: bytes | None) -> None:
         """Set this note's own point_pegboard_id -- see the getter's
         docstring.
 
         :param value: Value to store or process.
         :type value: bytes | None
         """
-        self._stored_position_pegboard_id = value
         self._stored_position_pegboard = DefaultStoredValue
 
         self._table.update(self._db_id, point_pegboard_id=value)
         self._populate('position_pegboard_id')
 
 
-class PJTNoteControl(QTabWidget, LazyTabMixin):
+class PJTNoteControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT note control in :mod:`harness_designer.database.project_db.pjt_note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTNote | None):
+    def set_obj(self, db_obj: PJTNote | None) -> None:
         """Set the obj.
 
         :param db_obj: Database-backed object.
@@ -470,7 +436,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.note_ctrl.set_obj(self.db_obj)
@@ -512,7 +478,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_align(self, evt):
+    def _on_align(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the align event.
 
         :param evt: Event object.
@@ -522,7 +488,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self.db_obj.h_align = value
 
     @_check_types.do
-    def _on_style(self, evt):
+    def _on_style(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the style event.
 
         :param evt: Event object.
@@ -532,7 +498,7 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         self.db_obj.style = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTNoteControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -542,8 +508,8 @@ class PJTNoteControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTNote | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

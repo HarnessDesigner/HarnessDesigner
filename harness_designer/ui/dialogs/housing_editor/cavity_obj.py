@@ -7,7 +7,6 @@ import numpy as np
 
 from .... import objects as _objects
 from ....objects.objects_3d import base_3d as _base_3d
-from ....geometry import point as _point
 from ....shapes import box as _box
 from ....gl import materials as _materials
 from .... import color as _color
@@ -17,6 +16,7 @@ from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ....gl import vbo as _vbo
     from . import housing_editor as _housing_editor
     from ....database.global_db import cavity as _cavity
     from ....database.global_db import terminal as _terminal
@@ -30,7 +30,7 @@ class Cavity(_objects.ObjectBase):
     obj3d: "Cavity3D" = None
 
     @_check_types.do
-    def __init__(self, parent: "_housing_editor.HousingEditorDialog", cavity: "_cavity.Cavity"):
+    def __init__(self, parent: "_housing_editor.HousingEditorDialog", cavity: "_cavity.Cavity") -> None:
         """Initialise the :class:`Cavity` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -56,7 +56,7 @@ class Cavity3D(_base_3d.Base3D):
     db_obj: "_cavity.Cavity" = None
 
     @_check_types.do
-    def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity"):
+    def __init__(self, parent: Cavity, db_obj: "_cavity.Cavity") -> None:
         """Initialise the :class:`Cavity3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -91,7 +91,7 @@ class Cavity3D(_base_3d.Base3D):
             self.editor3d.Refresh(False)
 
     @_check_types.do
-    def set_selected(self, flag: bool):
+    def set_selected(self, flag: bool) -> None:
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -127,7 +127,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @compat_terminals.setter
     @_check_types.do
-    def compat_terminals(self, value: list[str]):
+    def compat_terminals(self, value: list[str]) -> None:
         """Set the compat terminals.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -151,7 +151,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @width.setter
     @_check_types.do
-    def width(self, value: float):
+    def width(self, value: float) -> None:
         """Set the width.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -176,7 +176,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @height.setter
     @_check_types.do
-    def height(self, value: float):
+    def height(self, value: float) -> None:
         """Set the height.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -201,7 +201,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @length.setter
     @_check_types.do
-    def length(self, value: float):
+    def length(self, value: float) -> None:
         """Set the length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -226,7 +226,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @is_round.setter
     @_check_types.do
-    def is_round(self, value: bool):
+    def is_round(self, value: bool) -> None:
         """Set the is round.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -251,7 +251,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @terminal_sizes.setter
     @_check_types.do
-    def terminal_sizes(self, value: list[float]):
+    def terminal_sizes(self, value: list[float]) -> None:
         """Set the terminal sizes.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -275,7 +275,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @name.setter
     @_check_types.do
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         """Set the name.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -299,7 +299,7 @@ class Cavity3D(_base_3d.Base3D):
 
     @idx.setter
     @_check_types.do
-    def idx(self, value: int):
+    def idx(self, value: int) -> None:
         """Set the idx.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -372,7 +372,7 @@ class Cavity3D(_base_3d.Base3D):
         self.is_round = is_round
 
     @_check_types.do
-    def build(self):
+    def build(self) -> "_vbo.PooledVBOHandler":
         """Execute the build operation.
 
         UNKNOWN details are inferred from the callable name and signature.

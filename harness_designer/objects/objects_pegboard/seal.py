@@ -85,7 +85,7 @@ class Seal(_base_pegboard.BasePegboard):
     db_obj: "_pjt_seal.PJTSeal"
 
     @_check_types.do
-    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal") -> None:
         """Initialise the :class:`Seal` instance.
 
         :param parent: Parent object.
@@ -172,7 +172,7 @@ class Seal(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:

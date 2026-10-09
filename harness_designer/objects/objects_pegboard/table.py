@@ -36,7 +36,7 @@ when either endpoint actually moves (see :meth:`_update_position`/
 :meth:`_update_connector`), not per-frame.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union, Any
 
 import numpy as np
 from OpenGL import GL
@@ -55,6 +55,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from .. import ObjectBase as _ObjectBase
     from .. import pegboard_table as _pegboard_table
     from ...database.project_db import pjt_pegboard_table as _pjt_pegboard_table
     from ...gl import shaders as _shaders
@@ -249,7 +250,7 @@ class Table(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_pegboard_table.PegboardTable",
-                 db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
+                 db_obj: "_pjt_pegboard_table.PJTPegboardTable") -> None:
         """Initialise the :class:`Table` instance.
 
         :param parent: Parent object.
@@ -403,7 +404,7 @@ class Table(_base_pegboard.BasePegboard):
         self.pegboard.wire_highlight.clear(self)
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         # A table deleted (closed with its anchor) while its wire is
         # still selected must not leave the highlight behind.
         self.pegboard.wire_highlight.clear(self)
@@ -472,7 +473,7 @@ class Table(_base_pegboard.BasePegboard):
         self.pegboard.Refresh()
 
     @_check_types.do
-    def _on_anchor_waypoints_changed(self, *_args, **_kwargs) -> None:
+    def _on_anchor_waypoints_changed(self, *_args: tuple[Any], **_kwargs: dict[str, Any]) -> None:
         """Bound to the anchor's own ``waypoints_pegboard`` tag (see the
         constructor's own comment, and ``PJTBundlePathsTable.
         _notify_waypoints_changed``) -- re-reads ``position_pegboard``
@@ -516,7 +517,7 @@ class Table(_base_pegboard.BasePegboard):
         self._recompute_connector()
 
     @_check_types.do
-    def _on_anchor_visibility_changed(self, *_args, **_kwargs) -> None:
+    def _on_anchor_visibility_changed(self, *_args: tuple[Any], **_kwargs: dict[str, Any]) -> None:
         """Bound to the owning anchor's own ``is_visible_pegboard``
         column -- mirrors it into :attr:`_anchor_is_visible` (re-read
         fresh from the anchor rather than trusting whatever *_args*
@@ -633,7 +634,7 @@ class Table(_base_pegboard.BasePegboard):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw the captured widget texture on this object's own quad,
         then the anchor-to-table connecting line.
 
@@ -1262,9 +1263,7 @@ class Table(_base_pegboard.BasePegboard):
             self._active_handler = None
             if self.pegboard.editor.active_handler_obj is self:
                 self.pegboard.editor.active_handler_obj = None
-            host = getattr(self, '_host', None)
-            if host is not None:
-                host.table.close_column_picker()
+            self._host.table.close_column_picker()
             self._reset_hover_cursor()
             self._clear_hover()
             self._set_resize_cursor(None)
@@ -1275,7 +1274,7 @@ class Table(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object,
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None],
     ) -> bool:
         """Forward mouse interaction into the hidden widget, only while
         this table is selected -- see module docstring and
@@ -1401,7 +1400,7 @@ class Table(_base_pegboard.BasePegboard):
         return False
 
     @_check_types.do
-    def handle_wheel(self, mouse_pos: _point.Point, qt_wheel_event, clicked_object) -> bool:
+    def handle_wheel(self, mouse_pos: _point.Point, qt_wheel_event: "QtGui.QWheelEvent", clicked_object: _Union["_ObjectBase", None]) -> bool:
         """Forward a wheel event into the hidden table's own viewport,
         only while this table is selected -- see module docstring.
         """

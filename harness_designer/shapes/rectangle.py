@@ -83,7 +83,7 @@ def create_vbo_based() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create_based(width, height):
+def create_based(width: float, height: float) -> tuple[np.ndarray, np.ndarray]:
     """Create vertex and face arrays for a flat rectangle based at the
     origin along X (``[0, width]``) instead of centered (see
     :func:`create`) -- otherwise identical (Y=0 plane, ``height`` along
@@ -112,7 +112,7 @@ def create_based(width, height):
 
 
 @_check_types.do
-def create(width, height):
+def create(width: float, height: float) -> tuple[np.ndarray, np.ndarray]:
     """Create vertex and face arrays for a flat, axis-aligned rectangle.
 
     The generated rectangle is centered on the origin, lies flat on the

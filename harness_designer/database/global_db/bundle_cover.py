@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -26,6 +26,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import temperature as _temperature
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class BundleCoversTable(TableBase):
@@ -53,7 +55,7 @@ class BundleCoversTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -80,7 +82,7 @@ class BundleCoversTable(TableBase):
         return bundle_covers.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -96,7 +98,7 @@ class BundleCoversTable(TableBase):
         bundle_covers.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +120,7 @@ class BundleCoversTable(TableBase):
             yield BundleCover(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "BundleCover":
+    def __getitem__(self, item: int | bytes | str) -> "BundleCover":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -336,7 +338,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @rigidity.setter
     @_check_types.do
-    def rigidity(self, value: str):
+    def rigidity(self, value: str) -> None:
         """Set the rigidity.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -348,7 +350,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._table.update(self._db_id, rigidity=value)
         self._populate('rigidity')
 
-    _stored_shrink_temp: Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
+    _stored_shrink_temp: _Union[DefaultStoredValueType, "_temperature.Temperature"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -387,7 +389,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @shrink_temp_id.setter
     @_check_types.do
-    def shrink_temp_id(self, value: bytes):
+    def shrink_temp_id(self, value: bytes) -> None:
         """Set the shrink temp ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -420,7 +422,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @shrink_ratio.setter
     @_check_types.do
-    def shrink_ratio(self, value: str):
+    def shrink_ratio(self, value: str) -> None:
         """Set the shrink ratio.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -451,7 +453,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @wall.setter
     @_check_types.do
-    def wall(self, value: str):
+    def wall(self, value: str) -> None:
         """Set the wall.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -482,7 +484,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @min_dia.setter
     @_check_types.do
-    def min_dia(self, value: float):
+    def min_dia(self, value: float) -> None:
         """Set the min dia.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -513,7 +515,7 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
 
     @max_dia.setter
     @_check_types.do
-    def max_dia(self, value: float):
+    def max_dia(self, value: float) -> None:
         """Set the max dia.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -526,14 +528,14 @@ class BundleCover(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixi
         self._populate('max_dia')
 
 
-class BundleCoverControl(QTabWidget, LazyTabMixin):
+class BundleCoverControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a bundle cover control in :mod:`harness_designer.database.global_db.bundle_cover`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: BundleCover | None):
+    def set_obj(self, db_obj: BundleCover | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -544,7 +546,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
@@ -601,7 +603,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_rigidity(self, evt):
+    def _on_rigidity(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the rigidity event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -613,7 +615,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self.db_obj.rigidity = value
 
     @_check_types.do
-    def _on_shrink_ratio(self, evt):
+    def _on_shrink_ratio(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the shrink ratio event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -625,7 +627,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self.db_obj.shrink_ratio = value
 
     @_check_types.do
-    def _on_wall(self, evt):
+    def _on_wall(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the wall event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -637,7 +639,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self.db_obj.wall = value
 
     @_check_types.do
-    def _on_min_dia(self, evt):
+    def _on_min_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the min dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -649,7 +651,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self.db_obj.min_dia = value
 
     @_check_types.do
-    def _on_max_dia(self, evt):
+    def _on_max_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the max dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -661,7 +663,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self.db_obj.max_dia = value
 
     @_check_types.do
-    def _on_shrink_temp(self, evt):
+    def _on_shrink_temp(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the shrink temp event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -692,7 +694,7 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         self.db_obj.shrink_temp_id = db_id
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`BundleCoverControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -702,8 +704,8 @@ class BundleCoverControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: BundleCover | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

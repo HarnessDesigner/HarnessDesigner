@@ -9,7 +9,7 @@ def remap(
     value: int | float | _d,
     old_min: int | float | _d, old_max: int | float | _d,
     new_min: int | float | _d, new_max: int | float | _d,
-    type_=_d
+    type_: type[int | float | _d] = _d
 ) -> int | float | _d:
 
     """

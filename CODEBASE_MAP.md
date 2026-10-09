@@ -113,7 +113,13 @@ Contents/structure of the `harness_designer/` package.
     - direction
     - protection
     - setting
-  - `bases.py` (~1300 lines): table base class
+  - `bases.py` (~1300 lines): table base class. `TableBase._row_cache` is a
+    per-row read/write-through cache (`db_id -> {column: value}`), not a
+    per-table bulk load (see WRITE_DESIGN.md section 4.9) — populated once in
+    `EntryBase.__init__` (every row is an `_EntrySingleton`, so this only runs
+    once per row) and evicted by `_EntrySingleton`'s existing weakref cleanup
+    once nothing references that row's wrapper. `select()`/`update()`/
+    `delete()`/`insert()` all read or write through it
   - `resource_state.py`: tracks resource sync state
   - `used_part.py`: `used_parts` table — tracks which accessory parts (tpa_lock/cpa_lock/cover/
     terminal, all nullable FKs, `ON DELETE CASCADE`) have previously been used with a given
@@ -230,6 +236,11 @@ Contents/structure of the `harness_designer/` package.
   - pjt_bases.py (~1100 lines): base class
   - `project.py`: project table
   - `cleanup.py`
+  - `table_data.py`: `TableData` -- one project table's cache (WRITE_DESIGN.md section 4). One load per project,
+    reads from memory, changes recorded per row and column, inserts and deletes cancelled or queued, and the
+    flush's `DELETE`/`INSERT`/`UPDATE` statements built from the cache. `RowDeletedError` is raised on a read
+    or change to a deleted row. `RAW_DELETE_IMMEDIATE` selects the immediate or deferred delete path. Project
+    tables only; not yet wired into `PJTTables`.
   - `mixins/`:
     - base
     - position2d/3d
@@ -641,6 +652,9 @@ Contents/structure of the `harness_designer/` package.
   - render_setings (typo)
   - debug_settings
   - closing_dialog.py
+  - database_error_dialog.py: `DatabaseErrorDialog(BaseDialog)` -- shows a database error with its context
+    (table, row id, SQL and params) and traceback; OK is the only way out (Escape ignored, no native close).
+    The caller logs the error; the dialog only displays it.
   - error
   - header
   - `housing_editor/`:

@@ -16,7 +16,9 @@ release-time overlap sweep that catches a wire elsewhere in the project
 left crossing an object that was just moved.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Iterable
+
 import math
 
 from . import routing as _wire_routing
@@ -29,6 +31,8 @@ from .. import check_types as _check_types
 Config = _config.Config.editor_schematic
 
 if TYPE_CHECKING:
+    from .. import objects as _objects
+    from ..geometry import point as _point
     from ..objects import project as _project
     from ..objects import wire as _wire_obj
     from ..objects import terminal as _terminal_obj
@@ -205,7 +209,7 @@ def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_rout
 
 
 def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
-                pack_with: list["_wire_obj.Wire"] = ()):
+                pack_with: list["_wire_obj.Wire"] = ()) -> "_wire_routing.RoutingFrame":
     """One shared routing grid for *wires* (see
     :class:`~.routing.RoutingFrame`), to pass to :func:`reroute_wire` as
     ``frame`` for each of them -- or ``None`` if it can't be built (nothing
@@ -223,7 +227,7 @@ def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
 
 
 def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int, tuple[float, float]]]
-                  ) -> list[tuple[object, float, float]]:
+                  ) -> list[tuple["_point.Point", float, float]]:
     """Turn a wire's *updates* -- ``(index into the wire's path with the
     moving end first, new (x, z))``, as :func:`~.routing.plan_shift` returns
     them -- into ``(waypoint Point, x, z)`` triples.
@@ -248,7 +252,7 @@ def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int
     return targets
 
 
-def apply_shifts(project: "_project.Project", targets: list[tuple[object, float, float]]) -> None:
+def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point", float, float]]) -> None:
     """Move every ``(waypoint Point, x, z)`` in *targets* -- across ALL the
     wires being shifted -- with a SINGLE database write.
 
@@ -281,7 +285,7 @@ def apply_shifts(project: "_project.Project", targets: list[tuple[object, float,
         _pjt_point2d.PJTPoint2D._skip_db_write = False
 
 
-def follow_moved(project: "_project.Project", obj, wires: list["_wire_obj.Wire"],
+def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires: list["_wire_obj.Wire"],
                  delta: tuple[float, float]) -> list["_wire_obj.Wire"]:
     """Let the wires of a housing that has just moved by *delta* follow it
     without a new route wherever their existing path can (see
@@ -362,7 +366,7 @@ def follow_moved(project: "_project.Project", obj, wires: list["_wire_obj.Wire"]
 
 
 @_check_types.do
-def _skipped_stub_segments(skip_wires) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+def _skipped_stub_segments(skip_wires: Iterable["_wire_obj.Wire"]) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     """The fixed terminal-exit stubs (true end -> stub point) of every wire
     in *skip_wires*, as ``((x1, z1), (x2, z2))`` segments.
 
@@ -385,7 +389,7 @@ def _skipped_stub_segments(skip_wires) -> list[tuple[tuple[float, float], tuple[
     return segments
 
 
-def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int):
+def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, z: float, idx: int) -> None:
     """Append a new interior 2D waypoint at ``(x, z)`` as index *idx* of
     *wire*'s path, with its own WireLayout handle -- every interior bend has
     one, so it is a real selectable/draggable object. Returns the new point
@@ -405,7 +409,7 @@ def add_waypoint(project: "_project.Project", wire: "_wire_obj.Wire", x: float, 
     return point
 
 
-def remove_waypoint(project: "_project.Project", point) -> None:
+def remove_waypoint(project: "_project.Project", point: "_pjt_point2d.PJTPoint2D") -> None:
     """Delete a waypoint row *point* (a ``PJTPoint2D``) and its WireLayout.
 
     The point has to come out of its wire's route first: a route row counts
@@ -496,7 +500,7 @@ def _axis_aligned(a: tuple[float, float], b: tuple[float, float]) -> bool:
 
 @_check_types.do
 def reroute_wire(project: "_project.Project", wire: "_wire_obj.Wire",
-                 skip_wires=frozenset(), frame=None, fixed_prefix=None) -> None:
+                 skip_wires: frozenset["_wire_obj.Wire"] = frozenset(), frame: _Union["_wire_routing.RoutingFrame", None] = None, fixed_prefix: list[tuple[float, float]] | None = None) -> None:
     """Recompute *wire*'s orthogonal 2D path and reconcile its interior
     waypoint rows against the result -- moves whatever old waypoints can
     be reused (one DB write per point moved, no delete/insert at all)
@@ -655,7 +659,7 @@ def crow_flies_distance(wire: "_wire_obj.Wire") -> float:
 
 
 @_check_types.do
-def wires_attached_to(obj) -> list["_wire_obj.Wire"]:
+def wires_attached_to(obj: "_objects.ObjectBase") -> list["_wire_obj.Wire"]:
     """Every wire directly attached to *obj* -- a ``Terminal``/``Splice``
     exposes ``.wires`` directly; a ``Housing`` has none of its own, so
     it's built from every seated terminal across its cavities (those
@@ -713,7 +717,7 @@ def _path_overlaps_rect(wire: "_wire_obj.Wire",
 
 
 @_check_types.do
-def sweep_for_overlaps(project: "_project.Project", moved_obj,
+def sweep_for_overlaps(project: "_project.Project", moved_obj: "_objects.ObjectBase",
                        already_rerouted: list["_wire_obj.Wire"]) -> None:
     """Run once, on drag/rotate release: for every connected wire *not*
     already live-rerouted this operation, reroute it if its current

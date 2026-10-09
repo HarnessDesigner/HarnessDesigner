@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtWidgets
 import uuid
 import numpy as np
 
@@ -18,6 +18,9 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import housing as _housing
     from . import terminal as _terminal
+    from ... import ui as _ui
+    from ...ui.prop_ctrls import events as _prop_events
+    from ... import splash as _splash
 
 
 class CavitiesTable(TableBase):
@@ -47,7 +50,7 @@ class CavitiesTable(TableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -67,7 +70,7 @@ class CavitiesTable(TableBase):
     _controls: list["CavityControl"] = []
 
     @_check_types.do
-    def get_control(self, index):
+    def get_control(self, index: int) -> "CavityControl":
         """Return the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -102,7 +105,7 @@ class CavitiesTable(TableBase):
         return cavities.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -115,7 +118,7 @@ class CavitiesTable(TableBase):
         cavities.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -125,7 +128,7 @@ class CavitiesTable(TableBase):
         cavities.table.update_fields(self)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Cavity":
+    def __getitem__(self, item: int | bytes | str) -> "Cavity":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -181,7 +184,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     """
     _table: CavitiesTable = None
 
-    _stored_housing: Union[DefaultStoredValueType, "_housing.Housing"] = DefaultStoredValue
+    _stored_housing: _Union[DefaultStoredValueType, "_housing.Housing"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -236,7 +239,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @idx.setter
     @_check_types.do
-    def idx(self, value: int):
+    def idx(self, value: int) -> None:
         """Set the idx.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -286,7 +289,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @terminal_sizes.setter
     @_check_types.do
-    def terminal_sizes(self, value: list[float]):
+    def terminal_sizes(self, value: list[float]) -> None:
         """Set the terminal sizes.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -305,7 +308,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_position3d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def __update_position3d(self, point: _point.Point):
+    def __update_position3d(self, point: _point.Point) -> None:
         """Update the position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -337,7 +340,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_position2d: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def __update_position2d(self, point: _point.Point):
+    def __update_position2d(self, point: _point.Point) -> None:
         """Update the position 2D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -370,7 +373,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_angle3d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def _update_angle3d(self, angle: _angle.Angle):
+    def _update_angle3d(self, angle: _angle.Angle) -> None:
         """Update the angle 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -410,7 +413,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_angle2d: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def _update_angle2d(self, angle: _angle.Angle):
+    def _update_angle2d(self, angle: _angle.Angle) -> None:
         """Update the angle 2D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -428,7 +431,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @property
     @_check_types.do
-    def angle2d(self):
+    def angle2d(self) -> _angle.Angle:
         """
         This is relitive to the housing angle
         """
@@ -476,7 +479,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @aabb.setter
     @_check_types.do
-    def aabb(self, value: np.ndarray):
+    def aabb(self, value: np.ndarray) -> None:
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
@@ -511,7 +514,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @obb.setter
     @_check_types.do
-    def obb(self, value: np.ndarray):
+    def obb(self, value: np.ndarray) -> None:
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
@@ -537,7 +540,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @round_terminal.setter
     @_check_types.do
-    def round_terminal(self, value: bool):
+    def round_terminal(self, value: bool) -> None:
         """Set the round terminal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -571,7 +574,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @render_terminal_marker.setter
     @_check_types.do
-    def render_terminal_marker(self, value: bool):
+    def render_terminal_marker(self, value: bool) -> None:
         """Set whether a synthetic terminal-plane marker should be rendered."""
         self._stored_render_terminal_marker = bool(value)
         self._table.update(self._db_id, render_terminal_marker=(1 if value else None))
@@ -601,7 +604,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @render_wire_marker.setter
     @_check_types.do
-    def render_wire_marker(self, value: bool):
+    def render_wire_marker(self, value: bool) -> None:
         """Set whether a synthetic wire-plane marker should be rendered."""
         self._stored_render_wire_marker = bool(value)
         self._table.update(self._db_id, render_wire_marker=(1 if value else None))
@@ -631,7 +634,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @terminal_surf_indices.setter
     @_check_types.do
-    def terminal_surf_indices(self, value: list[int]):
+    def terminal_surf_indices(self, value: list[int]) -> None:
         """Set the terminal-face mesh-surface indices."""
         self._stored_terminal_surf_indices = list(value)
         self._table.update(self._db_id, terminal_surf_indices=str(list(value)))
@@ -659,7 +662,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @wire_surf_indices.setter
     @_check_types.do
-    def wire_surf_indices(self, value: list[int]):
+    def wire_surf_indices(self, value: list[int]) -> None:
         """Set the wire-face mesh-surface indices."""
         self._stored_wire_surf_indices = list(value)
         self._table.update(self._db_id, wire_surf_indices=str(list(value)))
@@ -684,7 +687,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @length.setter
     @_check_types.do
-    def length(self, value: float):
+    def length(self, value: float) -> None:
         """Set the length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -724,7 +727,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @width.setter
     @_check_types.do
-    def width(self, value: float):
+    def width(self, value: float) -> None:
         """Set the width.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -770,7 +773,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
 
     @height.setter
     @_check_types.do
-    def height(self, value: float):
+    def height(self, value: float) -> None:
         """Set the height.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -792,7 +795,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
     _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """Update the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -899,7 +902,7 @@ class Cavity(EntryBase, NameMixin, DimensionMixin):
         return res
 
 
-class CavityControl(QTabWidget, LazyTabMixin):
+class CavityControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a cavity control in :mod:`harness_designer.database.global_db.cavity`.
 
     A housing loads all of its cavities as tabs in a notebook (see
@@ -921,7 +924,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self._label = value
 
     @_check_types.do
-    def SetIndex(self, index):
+    def SetIndex(self, index: int) -> None:
         """Execute the set index operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -932,7 +935,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.SetLabel(f'Cavity {index}')
 
     @_check_types.do
-    def set_obj(self, db_obj: Cavity | None):
+    def set_obj(self, db_obj: Cavity | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -943,7 +946,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         db_obj = self.db_obj
 
@@ -975,7 +978,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_round_terminal(self, evt):
+    def _on_round_terminal(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the round terminal event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -987,7 +990,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.db_obj.round_terminal = value
 
     @_check_types.do
-    def _on_terminal_sizes(self, evt):
+    def _on_terminal_sizes(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the terminal sizes event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -999,7 +1002,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.db_obj.terminal_sizes = value
 
     @_check_types.do
-    def _on_index(self, evt):
+    def _on_index(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the index event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1011,7 +1014,7 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.db_obj.idx = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`CavityControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1022,8 +1025,8 @@ class CavityControl(QTabWidget, LazyTabMixin):
         self.db_obj: Cavity | None = None
         self._label = 'Cavity'
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

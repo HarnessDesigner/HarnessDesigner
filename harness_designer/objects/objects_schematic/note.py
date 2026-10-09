@@ -1,10 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from PySide6.QtWidgets import QMenu
-from PySide6.QtCore import QTimer
 import build123d
+
+from PySide6 import QtCore, QtWidgets
 
 from ...geometry import point as _point
 from . import base_schematic as _base_schematic
@@ -17,6 +17,7 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
     from ...database.project_db import pjt_note as _pjt_note
     from .. import note as _note
 
@@ -48,7 +49,7 @@ class Note(_base_schematic.BaseSchematic):
     _vbo: _text.Text | None = None
 
     @_check_types.do
-    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote"):
+    def __init__(self, parent: "_note.Note", db_obj: "_pjt_note.PJTNote") -> None:
         """Initialise the :class:`Note` instance.
 
         :param parent: Parent object.
@@ -97,7 +98,7 @@ class Note(_base_schematic.BaseSchematic):
             db_obj.bind(self._on_label_changed, tag)
 
     @_check_types.do
-    def _on_label_changed(self, *_, **__):
+    def _on_label_changed(self, *_: tuple[Any], **__: dict[str, Any]) -> None:
         with self.editor2d.context:
             self._rebuild()
         self.editor2d.Refresh()
@@ -112,7 +113,7 @@ class Note(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -145,7 +146,7 @@ class Note(_base_schematic.BaseSchematic):
             local_tilt=_text.TOP_DOWN_TILT, center_anchor=True)
 
     @_check_types.do
-    def _rebuild(self):
+    def _rebuild(self) -> None:
         """Rebuild this note's label from its current db_obj fields and
         re-derive its OBB/AABB -- called by every ``set_*`` method below.
         """
@@ -154,7 +155,7 @@ class Note(_base_schematic.BaseSchematic):
         self._compute_aabb()
 
     @_check_types.do
-    def set_size(self, size):
+    def set_size(self, size: int) -> None:
         """Set this note's (shared) font size -- rebuild/refresh happens
         via the bound callback from __init__, for every view, not just
         this one.
@@ -162,30 +163,30 @@ class Note(_base_schematic.BaseSchematic):
         self.db_obj.size = size
 
     @_check_types.do
-    def set_style(self, style):
+    def set_style(self, style: int) -> None:
         """Set this note's (shared) font style -- see :meth:`set_size`."""
         self.db_obj.style = style
 
     @_check_types.do
-    def set_alignment(self, alignment):
+    def set_alignment(self, alignment: int) -> None:
         """Set this note's (shared) horizontal alignment -- see
         :meth:`set_size`."""
         self.db_obj.h_align = alignment
 
     @_check_types.do
-    def set_text(self, text: str):
+    def set_text(self, text: str) -> None:
         """Set this note's (shared) text -- see :meth:`set_size`."""
         self.db_obj.notes = text
 
 
-class NoteMenu(QMenu):
+class NoteMenu(QtWidgets.QMenu):
     """Represent a note menu in :mod:`harness_designer.objects.objects_schematic.note`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "Note") -> None:
         """Initialise the :class:`NoteMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -195,7 +196,7 @@ class NoteMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -222,16 +223,15 @@ class NoteMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_set_text(self):
+    def on_set_text(self) -> None:
         """Edit the note text."""
         @_check_types.do
-        def _do():
-            from PySide6.QtWidgets import QInputDialog
+        def _do() -> None:
 
             mainframe = self.selected.mainframe
             current = self.selected.db_obj.notes
 
-            text, ok = QInputDialog.getMultiLineText(
+            text, ok = QtWidgets.QInputDialog.getMultiLineText(
                 mainframe, 'Set Text', 'Note:', current)
 
             if not ok or not text or text == current:
@@ -239,10 +239,10 @@ class NoteMenu(QMenu):
 
             self.selected.set_text(text)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Handle the clone event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -250,7 +250,7 @@ class NoteMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Handle the delete event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -258,7 +258,7 @@ class NoteMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Handle the properties event.
 
         UNKNOWN details are inferred from the callable name and signature.

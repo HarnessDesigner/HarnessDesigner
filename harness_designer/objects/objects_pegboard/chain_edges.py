@@ -28,7 +28,7 @@ with the distance it's meant to be constraining), defeating the clamp.
 """
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ... import check_types as _check_types
 
@@ -36,11 +36,10 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from ...database.project_db import pjt_bundle as _pjt_bundle
-    from typing import Union as _Union
 
 
 @_check_types.do
-def touching_edges(db_obj, point_pegboard_id: bytes) -> list:
+def touching_edges(db_obj: _Union["_pjt_wire.PJTWire", "_pjt_bundle.PJTBundle"], point_pegboard_id: bytes) -> list:
     """Return every ``(neighbor_x, neighbor_z, max_length_mm)`` edge in
     *db_obj*'s peg-board chain that touches *point_pegboard_id*.
 

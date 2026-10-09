@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from PySide6 import QtCore
 from ... import check_types as _check_types
 
@@ -15,8 +15,8 @@ class IntCtrl(QtWidgets.QWidget):
     value_changed: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, parent, label: str, min_val: int,
-                 max_val: int, slider: bool = True):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, min_val: int,
+                 max_val: int, slider: bool = True) -> None:
         """Initialise the :class:`IntCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -70,7 +70,7 @@ class IntCtrl(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     @_check_types.do
-    def _on_slider(self, value: int):
+    def _on_slider(self, value: int) -> None:
         """Handle the slider event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +84,7 @@ class IntCtrl(QtWidgets.QWidget):
         self.value_changed.emit(value)
 
     @_check_types.do
-    def _on_spin(self, value: int):
+    def _on_spin(self, value: int) -> None:
         """Handle the spin event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -103,7 +103,7 @@ class IntCtrl(QtWidgets.QWidget):
     # wx-compatible public API
     # ------------------------------------------------------------------
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """Execute the enable operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +118,7 @@ class IntCtrl(QtWidgets.QWidget):
             self.slider.setEnabled(flag)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -135,7 +135,7 @@ class IntCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     @_check_types.do
-    def SetValue(self, value: int):
+    def SetValue(self, value: int) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -57,8 +57,8 @@ class ErrorDialog(QtWidgets.QDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent, message: str, title: str,
-                 *widgets: tuple[QtWidgets.QWidget]) -> None:
+    def __init__(self, parent: QtWidgets.QWidget | None, message: str, title: str,
+                 *widgets: QtWidgets.QWidget) -> None:
         """Initialise the :class:`ErrorDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

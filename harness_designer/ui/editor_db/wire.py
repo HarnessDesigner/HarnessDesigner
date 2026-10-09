@@ -2,7 +2,8 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtGui import QIcon
+
+from PySide6 import QtGui
 
 from . import base as _base
 from ... import image as _image
@@ -49,7 +50,7 @@ class WiresPage(_base.EditorList):
     table: "_wire.WiresTable" = None
 
     @_check_types.do
-    def _get_icon(self, row_id):
+    def _get_icon(self, row_id: int) -> QtGui.QIcon | None:
         """Return the wire-insulation swatch icon for *row_id*.
 
         Wires have no real stored photo (``_has_image`` is False), so this
@@ -110,7 +111,7 @@ class WiresPage(_base.EditorList):
         image = _image.images.build_wire(primary_color, stripe_color, conductor_color)
         image = image.resize_keep_aspect(64, 64)
 
-        icon = QIcon(image.pixmap)
+        icon = QtGui.QIcon(image.pixmap)
         self.bitmap_indexes[db_id] = icon
 
         return icon

@@ -1,10 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
 import numpy as np
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from . import pjt_transition_branch as _pjt_transition_branch
     from . import pjt_wire as _pjt_wire
     from ...objects import transition as _transition_obj
+    from ... import ui as _ui
 
 
 class PJTTransitionsTable(PJTTableBase):
@@ -63,7 +64,7 @@ class PJTTransitionsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -88,7 +89,7 @@ class PJTTransitionsTable(PJTTableBase):
         return transitions.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -98,7 +99,7 @@ class PJTTransitionsTable(PJTTableBase):
         transitions.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -120,7 +121,7 @@ class PJTTransitionsTable(PJTTableBase):
             yield PJTTransition(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTTransition":
+    def __getitem__(self, item: int | bytes | str) -> "PJTTransition":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -158,9 +159,12 @@ class PJTTransitionsTable(PJTTableBase):
         :rtype: :class:`PJTTransition`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, point3d_id=center_id,
-                                    quat3d=str(list(angle.as_quat_float)),
-                                    angle3d=str(list(angle.as_euler_float)))
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, point3d_id=center_id,
+            quat3d=str(list(angle.as_quat_float)), angle3d=str(list(angle.as_euler_float)),
+            point_pegboard_id=None, table_point_peg_id=None, notes='',
+            quat_pegboard='[0.7071067811865476, -0.7071067811865476, 0.0, 0.0]',
+            angle_pegboard='[-90.0, 0.0, 0.0]', is_visible3d=1, is_visible_pegboard=1, smooth=None)
 
         db_obj = PJTTransition(self, db_id)
 
@@ -229,7 +233,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -240,7 +244,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_transition_obj.Transition"):
+    def set_object(self, obj: "_transition_obj.Transition") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -265,6 +269,22 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :rtype: :class:`PJTTransitionsTable`
         """
         return self._table
+
+    def branch_in_slot(self, slot: int) -> "_pjt_transition_branch.PJTTransitionBranch | None":
+        """The branch in slot *slot* (1 to 6), or ``None`` if that slot is empty."""
+        if slot == 1:
+            return self.branch1
+        if slot == 2:
+            return self.branch2
+        if slot == 3:
+            return self.branch3
+        if slot == 4:
+            return self.branch4
+        if slot == 5:
+            return self.branch5
+        if slot == 6:
+            return self.branch6
+        raise ValueError(f'transition has branch slots 1 to 6, not {slot!r}')
 
     @property
     @_check_types.do
@@ -338,7 +358,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         return point
 
     @_check_types.do
-    def _update_position3d(self, point: _point.Point):
+    def _update_position3d(self, point: _point.Point) -> None:
         """Batch-cascade the transition's move to every branch's own
         ``position3d`` -- up to 6 branches (``branch1``..``branch6``).
 
@@ -448,7 +468,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         return point
 
     @_check_types.do
-    def _update_position_pegboard(self, point: _point.Point):
+    def _update_position_pegboard(self, point: _point.Point) -> None:
         """Peg-board equivalent of :meth:`_update_position3d` -- see its
         docstring for the full rationale (identical, minus the 3D/
         peg-board table swap).
@@ -489,7 +509,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
     _o_euler3d: list = None
 
     @_check_types.do
-    def _update_angle3d(self, angle: _angle.Angle):
+    def _update_angle3d(self, angle: _angle.Angle) -> None:
         """Batch-cascade the transition's rotation to every branch's
         ``position3d`` -- same row-sharing rationale as
         :meth:`_update_position3d`. Branches have no angle of their own
@@ -562,7 +582,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
     _o_euler_pegboard: list = None
 
     @_check_types.do
-    def _update_angle_pegboard(self, angle: _angle.Angle):
+    def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
         """Peg-board equivalent of :meth:`_update_angle3d` -- see its
         docstring for the full rationale (identical, minus the 3D/
         peg-board table swap).
@@ -623,8 +643,6 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         finally:
             _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
 
-    _stored_branch1: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def branch1(self) -> "_pjt_transition_branch.PJTTransitionBranch":
@@ -635,18 +653,11 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        if self._stored_branch1 is DefaultStoredValue:
-            db_ids = self.table.db.pjt_transition_branches_table.select(
-                'id', transition_id=self.db_id, branch_id=1)
+        db_ids = self.table.db.pjt_transition_branches_table.select(
+            'id', transition_id=self.db_id, branch_id=1)
 
-            if not db_ids:
-                self._stored_branch1 = None
-            else:
-                self._stored_branch1 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
-
-        return self._stored_branch1
-
-    _stored_branch2: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
+        if db_ids:
+            return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
     @property
     @_check_types.do
@@ -658,18 +669,11 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        if self._stored_branch2 is DefaultStoredValue:
-            db_ids = self.table.db.pjt_transition_branches_table.select(
-                'id', transition_id=self.db_id, branch_id=2)
+        db_ids = self.table.db.pjt_transition_branches_table.select(
+            'id', transition_id=self.db_id, branch_id=2)
 
-            if not db_ids:
-                self._stored_branch2 = None
-            else:
-                self._stored_branch2 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
-
-        return self._stored_branch2
-
-    _stored_branch3: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
+        if db_ids:
+            return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
     @property
     @_check_types.do
@@ -681,18 +685,11 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        if self._stored_branch3 is DefaultStoredValue:
-            db_ids = self.table.db.pjt_transition_branches_table.select(
-                'id', transition_id=self.db_id, branch_id=3)
+        db_ids = self.table.db.pjt_transition_branches_table.select(
+            'id', transition_id=self.db_id, branch_id=3)
 
-            if not db_ids:
-                self._stored_branch3 = None
-            else:
-                self._stored_branch3 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
-
-        return self._stored_branch3
-
-    _stored_branch4: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
+        if db_ids:
+            return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
     @property
     @_check_types.do
@@ -704,18 +701,11 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        if self._stored_branch4 is DefaultStoredValue:
-            db_ids = self.table.db.pjt_transition_branches_table.select(
-                'id', transition_id=self.db_id, branch_id=4)
+        db_ids = self.table.db.pjt_transition_branches_table.select(
+            'id', transition_id=self.db_id, branch_id=4)
 
-            if not db_ids:
-                self._stored_branch4 = None
-            else:
-                self._stored_branch4 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
-
-        return self._stored_branch4
-
-    _stored_branch5: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
+        if db_ids:
+            return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
     @property
     @_check_types.do
@@ -727,18 +717,11 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        if self._stored_branch5 is DefaultStoredValue:
-            db_ids = self.table.db.pjt_transition_branches_table.select(
-                'id', transition_id=self.db_id, branch_id=5)
+        db_ids = self.table.db.pjt_transition_branches_table.select(
+            'id', transition_id=self.db_id, branch_id=5)
 
-            if not db_ids:
-                self._stored_branch5 = None
-            else:
-                self._stored_branch5 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
-
-        return self._stored_branch5
-
-    _stored_branch6: Union["_pjt_transition_branch.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
+        if db_ids:
+            return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
     @property
     @_check_types.do
@@ -750,16 +733,11 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branch.PJTTransitionBranch`
         """
-        if self._stored_branch6 is DefaultStoredValue:
-            db_ids = self.table.db.pjt_transition_branches_table.select(
-                'id', transition_id=self.db_id, branch_id=6)
+        db_ids = self.table.db.pjt_transition_branches_table.select(
+            'id', transition_id=self.db_id, branch_id=6)
 
-            if not db_ids:
-                self._stored_branch6 = None
-            else:
-                self._stored_branch6 = self.table.db.pjt_transition_branches_table[db_ids[0][0]]
-
-        return self._stored_branch6
+        if db_ids:
+            return self.table.db.pjt_transition_branches_table[db_ids[0][0]]
 
     _stored_part: _transition.Transition | None | DefaultStoredValueType = DefaultStoredValue
 
@@ -788,14 +766,14 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         return self._stored_part
 
 
-class PJTTransitionControl(QTabWidget, LazyTabMixin):
+class PJTTransitionControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT transition control in :mod:`harness_designer.database.project_db.pjt_transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTTransition | None):
+    def set_obj(self, db_obj: PJTTransition | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -806,7 +784,7 @@ class PJTTransitionControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -825,7 +803,7 @@ class PJTTransitionControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTTransitionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -835,8 +813,8 @@ class PJTTransitionControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTTransition | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

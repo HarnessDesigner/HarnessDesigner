@@ -73,14 +73,16 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ... import ui as _ui
     from ...objects import transition as _transition_obj
     from ...objects.objects_3d import transition as _transition_3d
     from ...objects import bundle_layout as _bundle_layout_facade
+    from ...database.global_db import bundle_cover as _bundle_cover
 
 
 @_check_types.do
 def drop_joint_layout(
-    mainframe, branch: "_transition_3d.Branch"
+    mainframe: "_ui.MainFrame", branch: "_transition_3d.Branch"
 ) -> "_bundle_layout_facade.BundleLayout":
     """
     Create a ``BundleLayout`` marker exactly on *branch*'s own shared
@@ -115,14 +117,14 @@ class Bundle(_base.AddHandlerBase):
         self,
         canvas: "_canvas.Canvas",
         target: "_objects.ObjectBase",
-        part,
+        part: "_bundle_cover.BundleCover",
         phase: int,
         diameter_lo: float,
         diameter_hi: float,
-        start_branch: tuple | None = None,
+        start_branch: _Union[tuple["_transition_obj.Transition", "_transition_3d.Branch"], None] = None,
         start_branch_orig_diameter: float | None = None,
-        start_layout: "_bundle_layout_facade.BundleLayout | None" = None
-    ):
+        start_layout: _Union["_bundle_layout_facade.BundleLayout", None] = None
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -161,17 +163,18 @@ class Bundle(_base.AddHandlerBase):
     @_check_types.do
     def __call__(
         self,
-        last_pos,
-        current_pos,
+        last_pos: _point.Point,
+        current_pos: _point.Point,
         had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -221,7 +224,7 @@ class Bundle(_base.AddHandlerBase):
             self.target.obj3d.set_stop_position(point)
 
     @_check_types.do
-    def _move_growing_point(self, position) -> None:
+    def _move_growing_point(self, position: _point.Point) -> None:
         if not isinstance(position, _point.Point):
             position = _point.Point(*position)
 
@@ -452,8 +455,8 @@ class Bundle(_base.AddHandlerBase):
             return
 
         if not self._has_committed_waypoint:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return
 
         self._promote_last_committed()
@@ -515,8 +518,8 @@ class Bundle(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()
 
     # ------------------------------------------------------------------
     # Peg-board seeding

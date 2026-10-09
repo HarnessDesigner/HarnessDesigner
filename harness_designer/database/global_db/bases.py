@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, IO
+from typing import Any, Iterable as _Iterable, TYPE_CHECKING, IO, Union as _Union
+from collections.abc import Generator as _Generator
 
 import weakref
 import json
@@ -14,6 +15,7 @@ from .. import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
+    from PySide6 import QtWidgets
     from ... import ui as _ui
     from ... import splash as _splash
 
@@ -43,7 +45,7 @@ class _EntrySingleton(type):
     _instances_lock = threading.RLock()
 
     @_check_types.do
-    def __init__(cls, name, bases, dct):
+    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> None:
         """Initialise the :class:`_EntrySingleton` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -56,7 +58,6 @@ class _EntrySingleton(type):
         :type dct: UNKNOWN
         """
         super().__init__(name, bases, dct)
-        setattr(cls, '_instances', {})
         cls._instances = {}
         # _instances is read/written from __call__ (main thread and every
         # ProcessManager/worker-message thread that looks up or constructs
@@ -68,13 +69,12 @@ class _EntrySingleton(type):
         # dict's internal structure (see the crash investigation). RLock
         # (not Lock) in case anything indirectly re-enters __call__ for the
         # same class while the lock is already held.
-        setattr(cls, '_instances_lock', threading.RLock())
         cls._instances_lock = threading.RLock()
 
     @staticmethod
     @_check_types.do
-    def __remove_ref(cls, ref):
-        """Remove the ref.
+    def __remove_ref(cls, table: "TableBase", db_id: int | bytes, ref: weakref.ref) -> None:
+        """Remove the ref, and drop the row it was keeping alive from the table's row cache.
 
         A plain staticmethod, not a classmethod -- this is defined ON
         the metaclass, and a classmethod accessed via ``cls.method``
@@ -87,22 +87,31 @@ class _EntrySingleton(type):
         ``_instances_lock``/``_instances`` (those are only set on real
         entry classes, once each, by ``__init__`` above). A staticmethod
         never auto-binds, so ``functools.partial`` in ``__call__`` below
-        is what supplies the correct ``cls`` instead.
+        is what supplies the correct ``cls`` (and, now, ``table``/``db_id``)
+        instead.
+
+        The dying ref is only acted on if it is still the one registered
+        for ``db_id`` -- a newer instance may already have replaced it (its
+        own construction having already repopulated the row cache), in
+        which case this stale callback must not touch either dict.
 
         :param cls: The real entry class whose ``_instances`` this
             reference belongs to -- explicitly bound via
             ``functools.partial`` at registration time (see ``__call__``).
+        :param table: The table the dying row belongs to -- same bound-at-
+            registration mechanism, used to evict the row from its cache.
+        :type table: :class:`TableBase`
+        :param db_id: The row id the dying ref was registered under.
+        :type db_id: int | bytes
         :param ref: Value for ``ref``.
         :type ref: UNKNOWN
         """
         with cls._instances_lock:
-            for key, value in cls._instances.items():
-                if value == ref:
-                    break
-            else:
+            if cls._instances.get(db_id) is not ref:
                 return
 
-            del cls._instances[key]
+            del cls._instances[db_id]
+            table._evict_row(db_id)  # NOQA
 
     @_check_types.do
     def __contains__(cls, db_id: int | bytes) -> bool:
@@ -115,7 +124,7 @@ class _EntrySingleton(type):
         return db_id in cls._instances and cls._instances[db_id]() is not None
 
     @_check_types.do
-    def __call__(cls, table, db_id: int | bytes):
+    def __call__(cls, table: "TableBase", db_id: int | bytes) -> "EntryBase":
         """Call the instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -137,7 +146,7 @@ class _EntrySingleton(type):
             if instance is None:
                 instance = super().__call__(table, db_id)
                 cls._instances[db_id] = weakref.ref(
-                    instance, functools.partial(cls.__remove_ref, cls))
+                    instance, functools.partial(cls.__remove_ref, cls, table, db_id))
 
             return instance
 
@@ -149,7 +158,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
     """
 
     @_check_types.do
-    def __init__(self, table: "TableBase", db_id: int | bytes):
+    def __init__(self, table: "TableBase", db_id: int | bytes) -> None:
         """Initialise the :class:`EntryBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -164,8 +173,15 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
         self._objects = []
         _callback.CallbackMixin.__init__(self)
 
+        # The one and only construction of this row's wrapper -- see
+        # _EntrySingleton.__call__ -- so this is the one point where the row
+        # is loaded into the table's cache. It stays there for exactly as
+        # long as this instance does; _EntrySingleton's weakref cleanup
+        # evicts it when this instance is collected.
+        table._cache_row(db_id)  # NOQA
+
     @_check_types.do
-    def update_objects(self):
+    def update_objects(self) -> None:
         """Update the objects.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -178,7 +194,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
             obj.reload_from_db()
 
     @_check_types.do
-    def __remove_ref(self, ref):
+    def __remove_ref(self, ref: weakref.ref) -> None:
         """Remove the ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -192,7 +208,7 @@ class EntryBase(_callback.CallbackMixin, metaclass=_EntrySingleton):
             pass
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "EntryBase") -> None:
         """Add an object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -238,7 +254,7 @@ class TableBase:
     __uses_uuid_id__: bool = True
 
     @_check_types.do
-    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool):
+    def __init__(self, db: "GLBTables", table_names: list[str], splash: "_splash.Splash", load_database: bool) -> None:
         """Initialise the :class:`TableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -256,6 +272,13 @@ class TableBase:
         self.db = db
         self._con = db.connector
 
+        # One row per entry currently wrapped by a live EntryBase singleton --
+        # see EntryBase.__init__ (where a row is loaded in) and
+        # _EntrySingleton.__remove_ref (where it is dropped again). Not a
+        # bulk table-wide cache: global tables can be catalog-sized, so only
+        # rows actually in use are ever held here.
+        self._row_cache: dict[int | bytes, dict[str, Any]] = {}
+
         if self.__table_name__ not in table_names:
             splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
             splash.flush()
@@ -272,8 +295,21 @@ class TableBase:
         splash.flush()
 
     @property
+    @property
     @_check_types.do
-    def field_names(self):
+    def control(self) -> _Union["QtWidgets.QWidget", None]:
+        """Return the property editor control for this table's rows.
+
+        Tables whose rows have a property editor override this. Every other
+        table (lookup tables, and tables with no editor of their own) returns
+        ``None``, so callers can check for it instead of probing with getattr.
+
+        :returns: Property value.
+        """
+        return None
+
+    @_check_types.do
+    def field_names(self) -> list[str]:
         """Return the field names.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -294,7 +330,7 @@ class TableBase:
         return self.__field_names__
 
     @_check_types.do
-    def get_record(self, db_id):
+    def get_record(self, db_id: bytes) -> list[tuple]:
         """Return the record.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -317,7 +353,7 @@ class TableBase:
         return rows
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -340,7 +376,7 @@ class TableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def _add_table_to_db(self, splash) -> None:
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -362,7 +398,7 @@ class TableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: int | bytes | str) -> tuple | None:
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -459,6 +495,17 @@ class TableBase:
         self._con.commit()
 
         if self.__uses_uuid_id__:
+            # Read the row back rather than assembling it from kwargs, since
+            # kwargs can omit columns that the database fills with a default.
+            # The entry constructed right after this (every __uses_uuid_id__
+            # table's insert() override wraps the new id -- see e.g.
+            # ColorsTable.insert) finds the row already cached and skips
+            # its own load.
+            self._con.execute(
+                f'SELECT {", ".join(self.field_names())} FROM {self.__table_name__} WHERE id = ?;',
+                (new_id.bytes,))
+            row = self._con.fetchall()[0]
+            self._row_cache[new_id.bytes] = dict(zip(self.field_names(), row))
             return new_id.bytes
 
         return self._con.lastrowid
@@ -519,8 +566,47 @@ class TableBase:
         return count
 
     @_check_types.do
-    def select(self, *args, **kwargs):
+    def _cache_row(self, db_id: int | bytes) -> None:
+        """Load one row into the cache, unless it is already there.
+
+        Called once per row -- see ``EntryBase.__init__``, the only place
+        this is called from.
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        """
+        if db_id in self._row_cache:
+            return
+
+        self._con.execute(
+            f'SELECT {", ".join(self.field_names())} FROM {self.__table_name__} WHERE id = ?;',
+            (db_id,))
+        rows = self._con.fetchall()
+        if rows:
+            self._row_cache[db_id] = dict(zip(self.field_names(), rows[0]))
+
+    @_check_types.do
+    def _evict_row(self, db_id: int | bytes) -> None:
+        """Drop one row from the cache, if it is there.
+
+        Called once its wrapper is garbage-collected (see
+        ``_EntrySingleton.__remove_ref``) or the row is deleted.
+
+        :param db_id: The row id.
+        :type db_id: int | bytes
+        """
+        self._row_cache.pop(db_id, None)
+
+    @_check_types.do
+    def select(self, *args: str, **kwargs: Any) -> list[tuple]:
         """Execute the select operation.
+
+        A plain ``id`` lookup -- the shape every column mixin's lazy
+        property getter uses (``self._table.select('x', id=self._db_id)``)
+        -- is served from the row cache when the row is already cached.
+        Every other shape (a different column, a compound ``WHERE``, or an
+        id that was never cached, e.g. because nothing has constructed that
+        row's wrapper) still queries the database directly.
 
         UNKNOWN details are inferred from the callable name and signature.
 
@@ -531,6 +617,11 @@ class TableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if set(kwargs) == {'id'}:
+            cached = self._row_cache.get(kwargs['id'])
+            if cached is not None:
+                return [tuple(cached[field] for field in args)]
+
         args = ', '.join(args)
 
         if kwargs:
@@ -563,9 +654,10 @@ class TableBase:
         """
         self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;', (db_id,))
         self._con.commit()
+        self._evict_row(db_id)
 
     @_check_types.do
-    def update(self, db_id: int | bytes, **kwargs):
+    def update(self, db_id: int | bytes, **kwargs) -> None:
         """Execute the update operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -587,8 +679,12 @@ class TableBase:
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = ?;', values)
         self._con.commit()
 
+        cached = self._row_cache.get(db_id)
+        if cached is not None:
+            cached.update(kwargs)
+
     @_check_types.do
-    def execute(self, cmd, params=None):
+    def execute(self, cmd: str, params: tuple | None = None) -> _Generator | None:
         """Execute the execute operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -606,7 +702,7 @@ class TableBase:
             return self._con.execute(cmd, params)
 
     @_check_types.do
-    def commit(self):
+    def commit(self) -> None:
         """Execute the commit operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -615,7 +711,7 @@ class TableBase:
 
     @property
     @_check_types.do
-    def lastrowid(self):
+    def lastrowid(self) -> int | None:
         """Return the lastrowid.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -626,7 +722,7 @@ class TableBase:
         return self._con.lastrowid
 
     @_check_types.do
-    def fetchall(self):
+    def fetchall(self) -> list[tuple]:
         """Execute the fetchall operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -637,7 +733,7 @@ class TableBase:
         return self._con.fetchall()
 
     @_check_types.do
-    def fetchone(self):
+    def fetchone(self) -> list[tuple] | None:
         """Execute the fetchone operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -661,7 +757,8 @@ class TableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def get_unique(self, field_name, table_name=None, get_field_name='name'):
+    def get_unique(self, field_name: str, table_name: str | None = None,
+                   get_field_name: str = 'name') -> list[tuple]:
         """Return the unique.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -692,7 +789,8 @@ class TableBase:
         return res
 
     @_check_types.do
-    def search(self, search_items: dict, *compat_parts, **kwargs):
+    def search(self, search_items: dict[str, Any], *compat_parts: str,
+               **kwargs: Any) -> tuple["TableBase", list[tuple] | None]:
         """
         Search table.
 
@@ -848,7 +946,7 @@ class GLBTables:
     """
 
     @_check_types.do
-    def __init__(self, splash, mainframe: "_ui.MainFrame"):
+    def __init__(self, splash: "_splash.Splash", mainframe: "_ui.MainFrame") -> None:
         """Initialise the :class:`GLBTables` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

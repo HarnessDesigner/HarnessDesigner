@@ -22,7 +22,7 @@ so it receives the exact same arguments its owning view object's own
 and returns the same True/False "did I consume this" contract.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from ..gl.canvas_base import interaction as _interaction
 from .. import check_types as _check_types
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from ..gl.canvas_base import canvas_base as _canvas_base
     from .. import objects as _objects
     from ..gl import shaders as _shaders
+    from ..objectsvar import base_var as _base_var
 
 
 class AddHandlerBase:
@@ -42,7 +43,7 @@ class AddHandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase", target: "_objects.ObjectBase") -> None:
         """Initialise the :class:`AddHandlerBase` instance.
 
         :param canvas: The canvas this add session is happening on.
@@ -68,7 +69,12 @@ class AddHandlerBase:
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool, interaction_type, clicked_object
+        self,
+        last_pos: "_point.Point",
+        current_pos: "_point.Point",
+        had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None],
     ) -> bool:
         """Handle one mouse event for this session. Must be overridden --
         see :meth:`objectsvar.base_var.BaseVar.handle_interaction` for
@@ -102,7 +108,7 @@ class AddHandlerBase:
 
 
 @_check_types.do
-def click_at(canvas: "_canvas_base.CanvasBase", view_obj: object, mouse_pos: "_point.Point") -> None:
+def click_at(canvas: "_canvas_base.CanvasBase", view_obj: "_base_var.BaseVar", mouse_pos: "_point.Point") -> None:
     """Replay a mouse move + left click at *mouse_pos* into the add session
     just armed on *view_obj* (see each object's own ``start_add``), exactly
     as the canvas would have delivered them, then release the canvas's

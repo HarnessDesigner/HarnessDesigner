@@ -11,7 +11,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget | None) -> None:
         """Initialise the :class:`PropertyGrid` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -24,7 +24,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
         self.setUsesScrollButtons(True)
 
     @_check_types.do
-    def Clear(self):
+    def Clear(self) -> None:
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -32,7 +32,7 @@ class PropertyGrid(QtWidgets.QTabWidget):
         self.clear()
 
     @_check_types.do
-    def Append(self, item):
+    def Append(self, item: QtWidgets.QWidget) -> None:
         """Execute the append operation.
 
         UNKNOWN details are inferred from the callable name and signature.

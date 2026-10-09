@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -22,6 +22,8 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from .. import wire_marker as _wire_marker
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
     from ...database.project_db import pjt_wire as _pjt_wire
@@ -350,7 +352,7 @@ class WireMarker(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Along-the-wire drag -- overrides Base3D's generic single-
         position drag so the specific WireMarker handler (a rotated,
@@ -397,7 +399,7 @@ class WireMarkerMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "WireMarker") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireMarker") -> None:
         """Initialise the :class:`WireMarkerMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

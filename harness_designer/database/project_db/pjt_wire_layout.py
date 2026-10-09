@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from . import pjt_point2d as _pjt_point2d
     from . import pjt_point_pegboard as _pjt_point_pegboard
     from ...objects import wire_layout as _wire_layout_obj
+    from ... import ui as _ui
 
 
 class PJTWireLayoutsTable(PJTTableBase):
@@ -56,7 +57,7 @@ class PJTWireLayoutsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -81,7 +82,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         return wire_layouts.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -91,7 +92,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         wire_layouts.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -113,7 +114,7 @@ class PJTWireLayoutsTable(PJTTableBase):
             yield PJTWireLayout(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTWireLayout":
+    def __getitem__(self, item: int | bytes | str) -> "PJTWireLayout":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -160,11 +161,12 @@ class PJTWireLayoutsTable(PJTTableBase):
 
         db_id = PJTTableBase.insert(
             self, point3d_id=point3d_id, point2d_id=point2d_id,
-            point_pegboard_id=point_pegboard_id)
+            point_pegboard_id=point_pegboard_id, notes='',
+            is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None)
         return PJTWireLayout(self, db_id)
 
     @_check_types.do
-    def for_point2d_id(self, point2d_id: bytes) -> Union["PJTWireLayout", None]:
+    def for_point2d_id(self, point2d_id: bytes) -> _Union["PJTWireLayout", None]:
         """Return the wire-layout row whose schematic position is
         *point2d_id*, or ``None`` if no row references it -- mirrors
         :meth:`for_point_pegboard_id` exactly, schematic side.
@@ -181,7 +183,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         return self[rows[0][0]]
 
     @_check_types.do
-    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> Union["PJTWireLayout", None]:
+    def for_point_pegboard_id(self, point_pegboard_id: bytes) -> _Union["PJTWireLayout", None]:
         """Return the wire-layout row whose peg-board position is
         *point_pegboard_id*, or ``None`` if no row references it.
 
@@ -221,7 +223,12 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
 
     _table: PJTWireLayoutsTable = None
 
-    _stored_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
+    # True only for PseudoPJTWireLayout (see pseudo_wire_layout.py) -- an
+    # invisible snap probe that must still count as a pick candidate even
+    # though it never actually renders. A real row is always False.
+    is_snap_probe: bool = False
+
+    _stored_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -248,31 +255,23 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
 
         return point
 
-    _stored_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def position3d_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points3d`` row id, or ``None``.
         Never auto-creates -- see the class docstring.
         """
-        if self._stored_position3d_id is DefaultStoredValue:
-            self._stored_position3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-
-        return self._stored_position3d_id
+        return self._table.select('point3d_id', id=self._db_id)[0][0]
 
     @position3d_id.setter
     @_check_types.do
-    def position3d_id(self, value: bytes | None):
+    def position3d_id(self, value: bytes | None) -> None:
         """Set this waypoint's 3D point row id -- clears
         ``position2d_id``/``position_pegboard_id`` to ``NULL`` so exactly
         one view stays populated.
         """
-        self._stored_position3d_id = value
         self._stored_position3d = DefaultStoredValue
-        self._stored_position2d_id = None
         self._stored_position2d = None
-        self._stored_position_pegboard_id = None
         self._stored_position_pegboard = None
 
         self._table.update(self._db_id, point3d_id=value, point2d_id=None, point_pegboard_id=None)
@@ -280,7 +279,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         self._populate('position2d_id')
         self._populate('position_pegboard_id')
 
-    _stored_position2d: Union["_pjt_point2d.PJTPoint2D", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_position2d: _Union["_pjt_point2d.PJTPoint2D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -307,31 +306,23 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
 
         return point
 
-    _stored_position2d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def position2d_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points2d`` row id, or ``None``.
         Never auto-creates -- see the class docstring.
         """
-        if self._stored_position2d_id is DefaultStoredValue:
-            self._stored_position2d_id = self._table.select('point2d_id', id=self._db_id)[0][0]
-
-        return self._stored_position2d_id
+        return self._table.select('point2d_id', id=self._db_id)[0][0]
 
     @position2d_id.setter
     @_check_types.do
-    def position2d_id(self, value: bytes | None):
+    def position2d_id(self, value: bytes | None) -> None:
         """Set this waypoint's schematic point row id -- clears
         ``position3d_id``/``position_pegboard_id`` to ``NULL`` so exactly
         one view stays populated.
         """
-        self._stored_position2d_id = value
         self._stored_position2d = DefaultStoredValue
-        self._stored_position3d_id = None
         self._stored_position3d = None
-        self._stored_position_pegboard_id = None
         self._stored_position_pegboard = None
 
         self._table.update(self._db_id, point2d_id=value, point3d_id=None, point_pegboard_id=None)
@@ -339,7 +330,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         self._populate('position3d_id')
         self._populate('position_pegboard_id')
 
-    _stored_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_position_pegboard: _Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -366,31 +357,23 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
 
         return point
 
-    _stored_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points_pegboard`` row id, or
         ``None``. Never auto-creates -- see the class docstring.
         """
-        if self._stored_position_pegboard_id is DefaultStoredValue:
-            self._stored_position_pegboard_id = self._table.select('point_pegboard_id', id=self._db_id)[0][0]
-
-        return self._stored_position_pegboard_id
+        return self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
     @position_pegboard_id.setter
     @_check_types.do
-    def position_pegboard_id(self, value: bytes | None):
+    def position_pegboard_id(self, value: bytes | None) -> None:
         """Set this waypoint's peg-board point row id -- clears
         ``position3d_id``/``position2d_id`` to ``NULL`` so exactly one
         view stays populated.
         """
-        self._stored_position_pegboard_id = value
         self._stored_position_pegboard = DefaultStoredValue
-        self._stored_position3d_id = None
         self._stored_position3d = None
-        self._stored_position2d_id = None
         self._stored_position2d = None
 
         self._table.update(self._db_id, point_pegboard_id=value, point3d_id=None, point2d_id=None)
@@ -413,7 +396,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -424,7 +407,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_wire_layout_obj.WireLayout"):
+    def set_object(self, obj: "_wire_layout_obj.WireLayout") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -521,14 +504,14 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         return self._table
 
 
-class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
+class PJTWireLayoutControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT wire layout control in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTWireLayout | None):
+    def set_obj(self, db_obj: PJTWireLayout | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -539,7 +522,7 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.smooth_ctrl.set_obj(self.db_obj)
@@ -553,7 +536,7 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTWireLayoutControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -563,8 +546,8 @@ class PJTWireLayoutControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTWireLayout | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

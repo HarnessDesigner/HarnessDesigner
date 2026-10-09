@@ -13,6 +13,8 @@ from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ..objects.objectsvar import base_var as _base_var
+    from ..objects import ObjectBase as _ObjectBase
     from .. import ui as _ui
     from ..objects import housing as _housing
     from ..database.project_db import pjt_cavity as _pjt_cavity
@@ -24,7 +26,7 @@ class HandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None):
+    def __init__(self, mainframe: "_ui.MainFrame", part_id: bytes | None) -> None:
         """
         Initialize the object and capture the state required for later interaction.
 
@@ -44,7 +46,7 @@ class HandlerBase:
         self._finalized = False
 
     @staticmethod
-    def _get_view_object(obj: object) -> object:
+    def _get_view_object(obj: "_ObjectBase") -> "_base_var.BaseVar":
         return obj.obj3d
 
     @staticmethod
@@ -99,7 +101,7 @@ class HandlerBase:
 
     @classmethod
     @_check_types.do
-    def set_angle_from_housing(cls, acc_obj: object, housing_obj: "_housing.Housing") -> bool:
+    def set_angle_from_housing(cls, acc_obj: "_ObjectBase", housing_obj: "_housing.Housing") -> bool:
         """
         Align *acc_db_obj*'s angle3d to match the housing's current world-space rotation.
 
@@ -169,7 +171,7 @@ class HandlerBase:
 
     @classmethod
     @_check_types.do
-    def set_angle_from_cavity(cls, acc_obj: object, pjt_cavity: "_pjt_cavity.PJTCavity") -> bool:
+    def set_angle_from_cavity(cls, acc_obj: "_ObjectBase", pjt_cavity: "_pjt_cavity.PJTCavity") -> bool:
         """
         Align *acc_obj*'s angle3d to match *pjt_cavity*'s world-space rotation.
 
@@ -232,7 +234,7 @@ class HandlerBase:
 
     @staticmethod
     @_check_types.do
-    def reset_angle(acc_obj) -> None:
+    def reset_angle(acc_obj: "_ObjectBase") -> None:
         """
         Reset *acc_db_obj*'s angle3d to the identity rotation (0, 0, 0).
         """
@@ -274,14 +276,14 @@ class HandlerBase:
         raise NotImplementedError
 
     @_check_types.do
-    def ignore_next_input(self):
+    def ignore_next_input(self) -> None:
         """
         Removes a current mouse capture if any.
         """
         self._captured_position = None
 
     @_check_types.do
-    def hover(self, mouse_pos: _point.Point):
+    def hover(self, mouse_pos: _point.Point) -> None:
         """
         Update preview or highlight state for the supplied mouse position.
 
@@ -292,7 +294,7 @@ class HandlerBase:
         pass
 
     @_check_types.do
-    def cancel(self):
+    def cancel(self) -> None:
         """
         Cancel the active operation and clean up any preview objects.
         """

@@ -21,12 +21,12 @@ nothing to keep in sync between moves the way an explicit
 ``set_transform()`` call used to require.
 """
 
-from typing import Callable, TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Protocol, Union as _Union
 
 import os
 import time
 import weakref
-
 import build123d
 import numpy as np
 from PySide6 import QtWidgets
@@ -121,7 +121,7 @@ _FontMetrics = tuple  # (advance: dict[str, float], kern: dict[tuple[str, str], 
 _FONT_METRICS: dict = {}
 
 
-def _font_metrics(style: int):
+def _font_metrics(style: int) -> tuple[dict[str, float], dict[tuple[str, str], float]]:
     """
     Return (building it first if needed) *style*'s own
     ``(advance, kern)`` pair -- ``advance[char]`` is that character's
@@ -283,7 +283,7 @@ def _save_glyph_cache(entries: dict) -> None:
     os.replace(tmp_path, path)
 
 
-def _tessellate_char(char: str, depth: float, style: build123d.FontStyle):
+def _tessellate_char(char: str, depth: float, style: build123d.FontStyle) -> tuple[np.ndarray, int, np.ndarray, np.ndarray, float, float, float]:
     """Build *char*'s mesh via build123d/OCCT and tessellate it -- the
     slow, OCCT-bound half of building one glyph, split out from
     _build_char() so a disk-cached result (see _load_glyph_cache) can
@@ -375,7 +375,7 @@ def _word_id(word: str, style: int) -> str:
 
 
 def _build_char(char: str, depth: float, style: build123d.FontStyle,
-                tessellated: tuple | None = None):
+                tessellated: tuple | None = None) -> tuple["_vbo_handler.VBOHandlerBase", "_point.Point", float]:
     """Return this character's ``(vbo, dims, center_y)`` glyph entry.
 
     *tessellated* -- if given (a disk-cache hit, or already computed by
@@ -407,7 +407,7 @@ def _build_char(char: str, depth: float, style: build123d.FontStyle,
     return vbo, _point.Point(width, height, depth), center_y
 
 
-def build_chars(mainframe, on_progress: Callable[[int, int], None] | None = None) -> None:
+def build_chars(mainframe: "_ui.MainFrame", on_progress: Callable[[int, int], None] | None = None) -> None:
     """Eagerly build+cache every character in *chars* (the full keyboard
     set by default), in every FontStyle, at *depth* -- so every later
     :func:`get` call (via objects/text.py's Text) hits an already-
@@ -607,6 +607,16 @@ def _billboard_matrices(positions: np.ndarray, camera_pos: np.ndarray) -> tuple[
     return matrices, safe
 
 
+class CameraTrackedOwner(Protocol):
+    """What a camera-tracked text owner must expose (the 3D notes do)."""
+
+    _obb: np.ndarray
+    _aabb: np.ndarray
+    _vbo: Any
+
+    def refresh_canvas_registration(self) -> None: ...
+
+
 class _CameraTrackingArena:
     """Growable, view-backed storage for every currently camera-tracking
     :class:`Text`'s own world-space OBB/AABB.
@@ -670,7 +680,7 @@ class _CameraTrackingArena:
     _INITIAL_CAPACITY = 256
     _GROWTH_FACTOR = 2
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._capacity = 0
         self._obb: np.ndarray | None = None
         self._aabb: np.ndarray | None = None
@@ -711,15 +721,14 @@ class _CameraTrackingArena:
             owner._obb = self._obb[row]  # NOQA
             owner._aabb = self._aabb[row]  # NOQA
 
-            if hasattr(owner, 'refresh_canvas_registration'):
-                owner.refresh_canvas_registration()
+            owner.refresh_canvas_registration()
 
         self._owners.extend([None] * (capacity - old_capacity))
         self._has_bounds.extend([False] * (capacity - old_capacity))
         self._free.extend(range(old_capacity, capacity))
         self._capacity = capacity
 
-    def register(self, owner, local_obb: np.ndarray | None = None,
+    def register(self, owner: "CameraTrackedOwner", local_obb: np.ndarray | None = None,
                  local_aabb: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray] | None:
         """Claim a row for *owner* and start including it in every
         future :meth:`update`.
@@ -765,7 +774,7 @@ class _CameraTrackingArena:
 
         return self._obb[row], self._aabb[row]
 
-    def unregister(self, owner) -> bool:
+    def unregister(self, owner: "CameraTrackedOwner") -> bool:
         """Release *owner*'s row back to the free-list, returning
         whether that row was tracking real OBB/AABB (see
         :meth:`register`) -- callers use that to decide whether they
@@ -815,7 +824,7 @@ class _CameraTrackingArena:
                 continue
 
             owner = owner_ref()
-            if owner is None or getattr(owner, '_vbo', None) is None:
+            if owner is None or owner._vbo is None:
                 self._owners[row] = None
                 self._has_bounds[row] = False
                 self._free.append(row)
@@ -902,7 +911,7 @@ class Text:
                  h_align: build123d.TextAlign | int = build123d.TextAlign.LEFT,
                  local_tilt: _angle.Angle | None = None,
                  center_anchor: bool = False,
-                 measure_only: bool = False):
+                 measure_only: bool = False) -> None:
         """
         :param h_align: How each line is positioned relative to the
             others when *text* has more than one line (a single-line
@@ -1233,7 +1242,7 @@ class Text:
 
         return base + kern.get((char, next_char), 0.0)
 
-    def _entry(self, char: str):
+    def _entry(self, char: str) -> tuple["_vbo_handler.VBOHandlerBase", "_point.Point", float]:
         entry = _CHARS.get(char)
 
         if entry is None or entry[self._style] is None:
@@ -1369,7 +1378,7 @@ class Text:
 
         return angle
 
-    def enable_camera_tracking(self, owner, track_bounds: bool = True) -> None:
+    def enable_camera_tracking(self, owner: "CameraTrackedOwner", track_bounds: bool = True) -> None:
         """Start continuously re-facing the 3D camera instead of
         rendering at *owner*'s own real, stored angle.
 
@@ -1404,8 +1413,7 @@ class Text:
             result = _tracking_arena.register(owner, self.local_obb, self.local_aabb)
             owner._obb, owner._aabb = result  # NOQA
 
-            if hasattr(owner, 'refresh_canvas_registration'):
-                owner.refresh_canvas_registration()
+            owner.refresh_canvas_registration()
         else:
             _tracking_arena.register(owner)
 
@@ -1416,7 +1424,7 @@ class Text:
         # runs.
         self._tracking_angle = _angle.Angle()
 
-    def disable_camera_tracking(self, owner) -> None:
+    def disable_camera_tracking(self, owner: "CameraTrackedOwner") -> None:
         """Stop tracking the camera.
 
         If *owner* was tracking real OBB/AABB (see
@@ -1460,8 +1468,7 @@ class Text:
         owner._compute_obb()  # NOQA
         owner._compute_aabb()  # NOQA
 
-        if hasattr(owner, 'refresh_canvas_registration'):
-            owner.refresh_canvas_registration()
+        owner.refresh_canvas_registration()
 
     # The whole string as ONE mesh, packed like every VBO's data (vertices,
     # then smooth normals, then face normals) and in this Text's own local frame
@@ -1512,26 +1519,26 @@ class Text:
         return self._mesh
 
     @property
-    def data(self):
+    def data(self) -> np.ndarray:
         return self._build_mesh()[0]
 
     @property
-    def vertices(self):
+    def vertices(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[:count * 3]
 
     @property
-    def smooth_normals(self):
+    def smooth_normals(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[count * 3:count * 6]
 
     @property
-    def face_normals(self):
+    def face_normals(self) -> np.ndarray:
         packed, count = self._build_mesh()
         return packed[count * 6:]
 
     @property
-    def faces(self):
+    def faces(self) -> None:
         return None
 
     @property
@@ -1543,10 +1550,10 @@ class Text:
         return 1.0, 1.0, 1.0
 
     @property
-    def ctx(self):
-        from PySide6.QtGui import QOpenGLContext
+    def ctx(self) -> "QtGui.QOpenGLContext":
+        from PySide6 import QtGui
 
-        ctx = QOpenGLContext.currentContext()
+        ctx = QtGui.QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
 

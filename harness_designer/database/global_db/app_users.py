@@ -1,12 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
+from typing import TYPE_CHECKING
+from typing import Iterable as _Iterable
+
 import time
 import uuid
-
-from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from .. import id_generator as _id_generator
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class AppUsersTable(TableBase):
@@ -50,7 +55,7 @@ class AppUsersTable(TableBase):
         return app_users.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Create the ``app_users`` table.
 
         :param splash: Value for ``splash``.
@@ -61,7 +66,7 @@ class AppUsersTable(TableBase):
         app_users.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Add any missing fields to the existing ``app_users`` table.
         """
         from ..create_database import app_users
@@ -79,7 +84,7 @@ class AppUsersTable(TableBase):
             yield AppUser(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "AppUser":
+    def __getitem__(self, item: int | bytes | str) -> "AppUser":
         """Return the requested item.
 
         :param item: Item identifier or value.
@@ -177,7 +182,7 @@ class AppUser(EntryBase):
 
     @display_name.setter
     @_check_types.do
-    def display_name(self, value: str):
+    def display_name(self, value: str) -> None:
         """Set the display name.
 
         :param value: Value to store or process.

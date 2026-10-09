@@ -32,18 +32,22 @@ specifically so nothing that only needs these helpers is forced to import
 the abstract probe-building class too (confirmed 2026-09-13).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtWidgets
 from PySide6 import QtCore
 
 from ..objects import wire_layout as _wire_layout
+from ..database.project_db import pseudo_wire_layout as _pseudo_wire_layout
 from ..geometry import point as _point
 from ..wire_routing import reroute as _wire_reroute
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from .. import objects as _objects
+    from ..database.global_db import terminal as _global_terminal
+    from ..database.global_db import splice as _global_splice
     from .. import ui as _ui
     from ..objects import wire as _wire
     from ..objects import terminal as _terminal
@@ -96,7 +100,7 @@ class SnapOverlay(QtWidgets.QLabel):
 
 
 @_check_types.do
-def _awg_fits(part: object, wire_part: "_global_wire.Wire") -> bool:
+def _awg_fits(part: _Union["_global_terminal.Terminal", "_global_splice.Splice"], wire_part: "_global_wire.Wire") -> bool:
     """True when *wire_part*'s own AWG falls within *part*'s (a terminal's
     or splice's global part row) crimp range -- a genuine physical
     mismatch otherwise (the wire literally doesn't fit the crimp barrel),
@@ -124,7 +128,7 @@ def _awg_fits(part: object, wire_part: "_global_wire.Wire") -> bool:
 @_check_types.do
 def capacity_warning(
     attached_wires: list["_wire.Wire"],
-    part: object,
+    part: _Union["_global_terminal.Terminal", "_global_splice.Splice"],
     wire_part: "_global_wire.Wire",
     label: str
 ) -> str | None:
@@ -236,7 +240,7 @@ def check_splice_compat(splice: "_splice.Splice",
 
 
 @_check_types.do
-def resolve_picked(picked: object) -> object:
+def resolve_picked(picked: _Union["_objects.ObjectBase", None]) -> _Union["_objects.ObjectBase", None]:
     """Unwrap a snap-probe hit back to the real object it stands in for.
 
     A terminal or splice probe unwraps to the real ``Terminal``/``Splice``
@@ -247,20 +251,21 @@ def resolve_picked(picked: object) -> object:
     ``isinstance(picked, WireLayout)`` / ``_wire_layout_end_wire`` branch
     already treats it exactly like a hit on a real WireLayout marker.
     """
-    if isinstance(picked, _wire_layout.WireLayout):
-        terminal = getattr(picked.db_obj, 'snap_terminal', None)
-        if terminal is not None:
-            return terminal
+    if (
+        isinstance(picked, _wire_layout.WireLayout) and
+        isinstance(picked.db_obj, _pseudo_wire_layout.PseudoPJTWireLayout)
+    ):
+        if picked.db_obj.snap_terminal is not None:
+            return picked.db_obj.snap_terminal
 
-        splice = getattr(picked.db_obj, 'snap_splice', None)
-        if splice is not None:
-            return splice
+        if picked.db_obj.snap_splice is not None:
+            return picked.db_obj.snap_splice
 
     return picked
 
 
 @_check_types.do
-def get_snap_info(picked: object) -> tuple[str | None, object]:
+def get_snap_info(picked: _Union["_objects.ObjectBase", None]) -> tuple[str | None, _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", str], None]]:
     """Return ``(kind, target)`` describing a snap-probe hit, for callers
     (dragging.EndpointDragObject) that need to know exactly what a hit
     stands for rather than having it unwrapped/left in place the way
@@ -271,21 +276,24 @@ def get_snap_info(picked: object) -> tuple[str | None, object]:
     (``target`` the ``(Wire, end)`` pair), or ``None`` (``target`` also
     ``None``) when *picked* isn't one of this session's own probes at all.
     """
-    if not isinstance(picked, _wire_layout.WireLayout):
+    if not (
+        isinstance(picked, _wire_layout.WireLayout) and
+        isinstance(picked.db_obj, _pseudo_wire_layout.PseudoPJTWireLayout)
+    ):
         return None, None
 
     db_obj = picked.db_obj
 
-    terminal = getattr(db_obj, 'snap_terminal', None)
+    terminal = db_obj.snap_terminal
     if terminal is not None:
         return 'terminal', terminal
 
-    splice = getattr(db_obj, 'snap_splice', None)
+    splice = db_obj.snap_splice
     if splice is not None:
         return 'splice', splice
 
-    wire = getattr(db_obj, 'snap_wire', None)
-    end = getattr(db_obj, 'snap_end', None)
+    wire = db_obj.snap_wire
+    end = db_obj.snap_end
     if wire is not None and end is not None:
         return 'wire_end', (wire, end)
 
@@ -293,7 +301,7 @@ def get_snap_info(picked: object) -> tuple[str | None, object]:
 
 
 @_check_types.do
-def snap_point(kind: str, target: object) -> _point.Point | None:
+def snap_point(kind: str, target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", str]]) -> _point.Point | None:
     """Return the live world-space ``Point`` a resolved snap target sits
     at -- the exact position ``dragging.EndpointDragObject`` should move
     the dragged endpoint onto (never a copy: the caller must copy before
@@ -322,7 +330,7 @@ def snap_point(kind: str, target: object) -> _point.Point | None:
 
 @_check_types.do
 def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
-                 kind: str, target: object) -> None:
+                 kind: str, target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", str]]) -> None:
     """Commit a real connection for a resolved snap hit once the mouse
     releases on a snapped drag (dragging.EndpointDragObject) -- the
     two-click placement flow (wire_handler.py) already commits its own

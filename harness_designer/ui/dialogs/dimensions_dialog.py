@@ -13,19 +13,21 @@ placeholder. :func:`ensure_dimensions` is meant to be called from every
 before any project row gets created for it.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
-from PySide6 import QtWidgets, QtGui, QtCore
-from PySide6.QtWidgets import QDialog
+from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
+from ...database.global_db import terminal as _global_terminal
+from ...database.global_db.mixins import resource as _resource
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
-    from ...database.global_db.mixins.dimension import DimensionMixin
-    from ...database.global_db.mixins.resource import ResourceMixin
+    from ...database.global_db import cad as _global_cad
+    from ...database.global_db import datasheet as _global_datasheet
+    from ...database.global_db.mixins import dimension as _dimension
 
 
 @_check_types.do
@@ -34,16 +36,16 @@ def _open_local_path(path: str) -> None:
 
 
 @_check_types.do
-def _open_resource(part: "ResourceMixin", kind: str) -> None:
-    """Open *part*'s linked datasheet/CAD file (*kind* is ``'datasheet'``
-    or ``'cad'``) with the OS default handler, downloading it first if
-    it's linked in the catalog but not yet cached locally.
+def _open_resource(part: "_resource.ResourceMixin", resource_id: bytes | None,
+                   table: _Union["_global_datasheet.DatasheetsTable", "_global_cad.CADsTable"]) -> None:
+    """Open a linked datasheet/CAD file (*resource_id* in *table*) of *part*
+    with the OS default handler, downloading it first if it's linked in the
+    catalog but not yet cached locally.
     """
-    resource_id = getattr(part, f'{kind}_id')
     if resource_id is None:
         return
 
-    resource = getattr(part.table.db, f'{kind}s_table')[resource_id]
+    resource = table[resource_id]
 
     path = resource.data_path
     if path is not None:
@@ -51,7 +53,7 @@ def _open_resource(part: "ResourceMixin", kind: str) -> None:
         return
 
     @_check_types.do
-    def _on_loaded(*_args, **_kwargs):
+    def _on_loaded(*_args, **_kwargs) -> None:
         loaded_path = resource.data_path
         if loaded_path is not None:
             _open_local_path(loaded_path)
@@ -73,7 +75,7 @@ class _DimensionField(QtWidgets.QLineEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent)
         self.setValidator(QtGui.QDoubleValidator(0.0, 999999.0, 6, self))
 
@@ -117,9 +119,9 @@ class DimensionsDialog(_dialog_base.BaseDialog):
 
     @_check_types.do
     def __init__(
-        self, parent: "_ui.MainFrame", part: "DimensionMixin", part_number: str,
+        self, parent: "_ui.MainFrame", part: "_dimension.DimensionMixin", part_number: str,
         suggested: dict | None = None
-    ):
+    ) -> None:
         super().__init__(parent, title=f'Missing Dimensions -- {part_number}', size=(380, 260))
 
         suggested = suggested or {}
@@ -153,11 +155,11 @@ class DimensionsDialog(_dialog_base.BaseDialog):
         # ever constructed) shows that real, already-committed value;
         # one *suggested* (unconfirmed) instead shows it as a
         # placeholder only; one with neither starts genuinely empty.
-        for name, field in (
-            ('length', self.length_field), ('width', self.width_field),
-            ('height', self.height_field)
+        for name, field, current in (
+            ('length', self.length_field, part.length),
+            ('width', self.width_field, part.width),
+            ('height', self.height_field, part.height),
         ):
-            current = getattr(part, name)
             if current > 0.0:
                 field.setText(f'{current:g}')
             elif name in suggested:
@@ -177,14 +179,18 @@ class DimensionsDialog(_dialog_base.BaseDialog):
         # downloaded/cached to a local file yet.
         resource_row = QtWidgets.QHBoxLayout()
 
+        has_resources = isinstance(part, _resource.ResourceMixin)
+
         datasheet_btn = QtWidgets.QPushButton('Open Datasheet', self.panel)
-        datasheet_btn.setEnabled(getattr(part, 'datasheet_id', None) is not None)
-        datasheet_btn.clicked.connect(lambda: _open_resource(part, 'datasheet'))
+        datasheet_btn.setEnabled(has_resources and part.datasheet_id is not None)
+        datasheet_btn.clicked.connect(lambda: _open_resource(
+            part, part.datasheet_id, part.table.db.datasheets_table))
         resource_row.addWidget(datasheet_btn)
 
         cad_btn = QtWidgets.QPushButton('Open CAD', self.panel)
-        cad_btn.setEnabled(getattr(part, 'cad_id', None) is not None)
-        cad_btn.clicked.connect(lambda: _open_resource(part, 'cad'))
+        cad_btn.setEnabled(has_resources and part.cad_id is not None)
+        cad_btn.clicked.connect(lambda: _open_resource(
+            part, part.cad_id, part.table.db.cads_table))
         resource_row.addWidget(cad_btn)
 
         layout.addLayout(resource_row)
@@ -209,7 +215,7 @@ class DimensionsDialog(_dialog_base.BaseDialog):
 
 @_check_types.do
 def ensure_dimensions(
-    mainframe: "_ui.MainFrame", part: "DimensionMixin", part_number: str,
+    mainframe: "_ui.MainFrame", part: "_dimension.DimensionMixin", part_number: str,
     estimates: dict | None = None, suggested: dict | None = None
 ) -> bool:
     """Prompt for length/width/height if *part* has any at 0.0.
@@ -242,16 +248,19 @@ def ensure_dimensions(
     (3D/schematic/pegboard) that reads the same part.
     """
     if estimates:
-        for field, value in estimates.items():
-            if getattr(part, field) <= 0.0:
-                setattr(part, field, value)
+        if 'length' in estimates and part.length <= 0.0:
+            part.length = estimates['length']
+        if 'width' in estimates and part.width <= 0.0:
+            part.width = estimates['width']
+        if 'height' in estimates and part.height <= 0.0:
+            part.height = estimates['height']
 
     if not suggested and part.length > 0.0 and part.width > 0.0 and part.height > 0.0:
         return True
 
     dlg = DimensionsDialog(mainframe, part, part_number, suggested)
     try:
-        accepted = dlg.exec() == QDialog.DialogCode.Accepted
+        accepted = dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted
 
         if accepted:
             # The OK button only enables once every field holds a real
@@ -267,7 +276,8 @@ def ensure_dimensions(
             # if this part never had one recorded at all.
             if (
                 suggested and 'width' in suggested and
-                getattr(part, 'blade_size', 0.0) <= 0.0
+                isinstance(part, _global_terminal.Terminal) and
+                part.blade_size <= 0.0
             ):
                 part.blade_size = part.width
 

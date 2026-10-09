@@ -47,7 +47,7 @@ class DragHandlerBase:
         self.target = target
 
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
         """Apply one mouse-move event's worth of movement.
 
         *mouse_pos* is the real, absolute current screen-space cursor

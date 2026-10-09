@@ -4,6 +4,7 @@
 Line primitives built from :class:`harness_designer.geometry.point.Point`.
 """
 
+from typing import TYPE_CHECKING
 from typing import Any, Union as _Union
 from collections.abc import Iterable
 
@@ -15,6 +16,10 @@ from . import angle as _angle
 from .. import check_types as _check_types
 
 
+if TYPE_CHECKING:
+    from .angle import quaternion as _quaternion
+
+
 ZERO_5 = 0.5
 
 
@@ -24,7 +29,7 @@ class Line:
     """
 
     @_check_types.do
-    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: object, instance: object,
+    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: _Union["_point.Point", "_angle.Angle", "Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None], instance: _Union["_point.Point", "_angle.Angle", "Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None],
                          **__: dict[str, Any]) -> _Union["Line", np.ndarray]:
         """
         Handle selected NumPy ufuncs for line translation and rotation.

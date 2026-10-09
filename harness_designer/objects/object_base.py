@@ -28,7 +28,18 @@ class ObjectBase:
     db_obj: "_project_db.PJTEntryBase" = None
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase"):
+    @property
+    def is_angle_locked(self) -> bool:
+        """Whether this object's angle is locked. Plain objects never lock."""
+        return False
+
+    def lock_angle(self) -> None:
+        """Lock this object's angle. A no-op for objects without a lockable angle."""
+
+    def unlock_angle(self) -> None:
+        """Unlock this object's angle. A no-op for objects without a lockable angle."""
+
+    def __init__(self, mainframe: "_ui.MainFrame", db_obj: "_project_db.PJTEntryBase") -> None:
         """Initialise the :class:`ObjectBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -64,7 +75,7 @@ class ObjectBase:
         if self.objpegboard is not None:
             self.objpegboard.identify(material)
 
-    def bind_for_treeitem(self, callback):
+    def bind_for_treeitem(self, callback) -> None:
         if self._treeitem is None:
             self.__tree_item_callbacks.append(weakref.ref(callback))
         else:
@@ -182,7 +193,7 @@ class ObjectBase:
 
     @is_selected.setter
     @_check_types.do
-    def is_selected(self, value: bool):
+    def is_selected(self, value: bool) -> None:
         """Set the is selected.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -204,17 +215,17 @@ class ObjectBase:
     @property
     @_check_types.do
     def is_in_3dview(self) -> bool:
-        return self in self.mainframe.editor3d.camera.objects_in_view
+        return self.obj3d is not None and self.obj3d.is_in_view
 
     @property
     @_check_types.do
     def is_in_2dview(self) -> bool:
-        return self in self.mainframe.editor2d.editor.camera.objects_in_view
+        return self.objschematic is not None and self.objschematic.is_in_view
 
     @property
     @_check_types.do
     def is_in_pegboardview(self) -> bool:
-        return self in self.mainframe.editor_pegboard.editor.camera.objects_in_view
+        return self.objpegboard is not None and self.objpegboard.is_in_view
 
     @property
     @_check_types.do

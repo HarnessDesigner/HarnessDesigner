@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -27,6 +27,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import transition_branch as _transition_branch
     from . import shape as _shape
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class TransitionsTable(TableBase):
@@ -67,7 +69,7 @@ class TransitionsTable(TableBase):
         return transitions.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -83,7 +85,7 @@ class TransitionsTable(TableBase):
         transitions.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -105,7 +107,7 @@ class TransitionsTable(TableBase):
             yield Transition(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Transition":
+    def __getitem__(self, item: int | bytes | str) -> "Transition":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -291,7 +293,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
     @branch_count.setter
     @_check_types.do
-    def branch_count(self, value: int):
+    def branch_count(self, value: int) -> None:
         """Set the branch count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -355,7 +357,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         """
         self._stored_branches = DefaultStoredValue
 
-    _stored_shape: Union[DefaultStoredValueType, "_shape.Shape"] = DefaultStoredValue
+    _stored_shape: _Union[DefaultStoredValueType, "_shape.Shape"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -394,7 +396,7 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
 
     @shape_id.setter
     @_check_types.do
-    def shape_id(self, value: bytes):
+    def shape_id(self, value: bytes) -> None:
         """Set the shape ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -409,14 +411,14 @@ class Transition(EntryBase, PartNumberMixin, SeriesMixin, MaterialMixin, FamilyM
         self._populate('shape_id')
 
 
-class TransitionControl(QTabWidget, LazyTabMixin):
+class TransitionControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a transition control in :mod:`harness_designer.database.global_db.transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Transition | None):
+    def set_obj(self, db_obj: Transition | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -434,7 +436,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
@@ -471,7 +473,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_branch_count(self, evt):
+    def _on_branch_count(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the branch count event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -511,7 +513,7 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         self.db_obj.branch_count = new_value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`TransitionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -522,8 +524,8 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         self.db_obj: Transition | None = None
         self.branches = []
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')
@@ -549,8 +551,8 @@ class TransitionControl(QTabWidget, LazyTabMixin):
         self.branch_count_ctrl = _prop_ctrls.IntProperty(
             branch_page, 'Branch Count', min_value=1, max_value=6)
 
-        self.branch_page = QTabWidget(branch_page)
-        self.branch_page.setTabPosition(QTabWidget.TabPosition.North)
+        self.branch_page = QtWidgets.QTabWidget(branch_page)
+        self.branch_page.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.branch_page.setUsesScrollButtons(True)
 
         branch_page.addWidget(self.branch_count_ctrl)

@@ -17,7 +17,7 @@ class HelpMenu(QtWidgets.QMenu):
     Represent a help menu in :mod:`harness_designer.ui.system_menu.help`.
     """
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`HelpMenu` instance.
 
@@ -31,7 +31,7 @@ class HelpMenu(QtWidgets.QMenu):
         self.addAction('About Harness Designer').triggered.connect(self.on_about)
 
     @_check_types.do
-    def on_about(self):
+    def on_about(self) -> None:
         """Open the About dialog."""
 
         dlg = _about_dialog.AboutDialog(self.mainframe)

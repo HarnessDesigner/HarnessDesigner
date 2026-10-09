@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import ast
 import numpy as np
@@ -22,7 +22,7 @@ def _parse_bounds(text: str | None) -> list[list[float]] | None:
     return [[float(v) for v in corner] for corner in ast.literal_eval(text)]
 
 
-def _format_bounds(value: "list[list[float]] | np.ndarray | None") -> str | None:
+def _format_bounds(value: list[list[float]] | np.ndarray | None) -> str | None:
     """``[[min xyz], [max xyz]]`` (a list or a ``(2, 3)`` array) as the
     list string stored in the DB, or ``None`` for "no bounds"."""
     if value is None:
@@ -60,7 +60,7 @@ class ProjectsTable(PJTTableBase):
         return projects.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -70,7 +70,7 @@ class ProjectsTable(PJTTableBase):
         projects.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -93,7 +93,7 @@ class ProjectsTable(PJTTableBase):
             yield Project(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Project":
+    def __getitem__(self, item: int | bytes | str) -> "Project":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -114,7 +114,7 @@ class ProjectsTable(PJTTableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_object_count(self, project_id) -> int:
+    def get_object_count(self, project_id: bytes) -> int:
         """Return the object count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -127,7 +127,7 @@ class ProjectsTable(PJTTableBase):
         return self.select('object_count', id=project_id)[0][0]
 
     @_check_types.do
-    def set_object_count(self, project_id, value: int):
+    def set_object_count(self, project_id: bytes, value: int) -> None:
         """Set the object count.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -185,7 +185,7 @@ class Project(PJTEntryBase, ColorMixin):
         return self._obj
 
     @_check_types.do
-    def set_object(self, obj: "_project_obj.Project"):
+    def set_object(self, obj: "_project_obj.Project") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -207,6 +207,19 @@ class Project(PJTEntryBase, ColorMixin):
         """
         return self._table
 
+    @_check_types.do
+    def _read_column(self, column: str) -> int | float | str | bytes | None:
+        """Read one column of this project's row with a direct query.
+
+        :param column: The column to read.
+        :type column: str
+        :returns: The stored value, or ``None`` for a NULL column.
+        :rtype: int | float | str | bytes | None
+        """
+        self._table.execute(
+            f'SELECT {column} FROM {self._table.table_name} WHERE id = ?;', (self._db_id,))
+        return self._table.fetchall()[0][0]
+
     _stored_name: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
@@ -220,13 +233,13 @@ class Project(PJTEntryBase, ColorMixin):
         :rtype: str
         """
         if self._stored_name is DefaultStoredValue:
-            self._stored_name = self._table.select('name', id=self._db_id)[0][0]
+            self._stored_name = self._read_column('name')
 
         return self._stored_name
 
     @name.setter
     @_check_types.do
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         """Set the name.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -250,13 +263,13 @@ class Project(PJTEntryBase, ColorMixin):
         :rtype: str
         """
         if self._stored_description is DefaultStoredValue:
-            self._stored_description = self._table.select('description', id=self._db_id)[0][0]
+            self._stored_description = self._read_column('description')
 
         return self._stored_description
 
     @description.setter
     @_check_types.do
-    def description(self, value: str):
+    def description(self, value: str) -> None:
         """Set the description.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -280,13 +293,13 @@ class Project(PJTEntryBase, ColorMixin):
         :rtype: str
         """
         if self._stored_creator is DefaultStoredValue:
-            self._stored_creator = self._table.select('creator', id=self._db_id)[0][0]
+            self._stored_creator = self._read_column('creator')
 
         return self._stored_creator
 
     @creator.setter
     @_check_types.do
-    def creator(self, value: str):
+    def creator(self, value: str) -> None:
         """Set the creator.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -307,14 +320,13 @@ class Project(PJTEntryBase, ColorMixin):
         in this project -- see handlers.wire_handler / objects_3d.wire.
         """
         if self._stored_wire_stripe_max_length is DefaultStoredValue:
-            self._stored_wire_stripe_max_length = self._table.select(
-                'wire_stripe_max_length', id=self._db_id)[0][0]
+            self._stored_wire_stripe_max_length = self._read_column('wire_stripe_max_length')
 
         return self._stored_wire_stripe_max_length
 
     @wire_stripe_max_length.setter
     @_check_types.do
-    def wire_stripe_max_length(self, value: float):
+    def wire_stripe_max_length(self, value: float) -> None:
         self._stored_wire_stripe_max_length = value
         self._table.update(self._db_id, wire_stripe_max_length=value)
 
@@ -324,19 +336,19 @@ class Project(PJTEntryBase, ColorMixin):
     @_check_types.do
     def model_id(self) -> bytes | None:
         if self._stored_model_id is DefaultStoredValue:
-            self._stored_model_id = self._table.select('model_id', id=self._db_id)[0][0]
+            self._stored_model_id = self._read_column('model_id')
 
         return self._stored_model_id
 
     @model_id.setter
     @_check_types.do
-    def model_id(self, value: bytes | None):
+    def model_id(self, value: bytes | None) -> None:
         self._stored_model_id = value
         self._stored_model = DefaultStoredValue
 
         self._table.update(self._db_id, model_id=value)
 
-    _stored_model: Union["_model3d.Model3D", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_model: _Union["_model3d.Model3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -363,13 +375,13 @@ class Project(PJTEntryBase, ColorMixin):
     def bounds_3d(self) -> list[list[float]] | None:
         if self._stored_bounds_3d is DefaultStoredValue:
             self._stored_bounds_3d = _parse_bounds(
-                self._table.select('bounds_3d', id=self._db_id)[0][0])
+                self._read_column('bounds_3d'))
 
         return self._stored_bounds_3d
 
     @bounds_3d.setter
     @_check_types.do
-    def bounds_3d(self, value: "list[list[float]] | np.ndarray | None"):
+    def bounds_3d(self, value: list[list[float]] | np.ndarray | None) -> None:
         text = _format_bounds(value)
         self._stored_bounds_3d = _parse_bounds(text)
         self._table.update(self._db_id, bounds_3d=text)
@@ -381,13 +393,13 @@ class Project(PJTEntryBase, ColorMixin):
     def bounds_schematic(self) -> list[list[float]] | None:
         if self._stored_bounds_schematic is DefaultStoredValue:
             self._stored_bounds_schematic = _parse_bounds(
-                self._table.select('bounds_schematic', id=self._db_id)[0][0])
+                self._read_column('bounds_schematic'))
 
         return self._stored_bounds_schematic
 
     @bounds_schematic.setter
     @_check_types.do
-    def bounds_schematic(self, value: "list[list[float]] | np.ndarray | None"):
+    def bounds_schematic(self, value: list[list[float]] | np.ndarray | None) -> None:
         text = _format_bounds(value)
         self._stored_bounds_schematic = _parse_bounds(text)
         self._table.update(self._db_id, bounds_schematic=text)
@@ -399,13 +411,13 @@ class Project(PJTEntryBase, ColorMixin):
     def bounds_pegboard(self) -> list[list[float]] | None:
         if self._stored_bounds_pegboard is DefaultStoredValue:
             self._stored_bounds_pegboard = _parse_bounds(
-                self._table.select('bounds_pegboard', id=self._db_id)[0][0])
+                self._read_column('bounds_pegboard'))
 
         return self._stored_bounds_pegboard
 
     @bounds_pegboard.setter
     @_check_types.do
-    def bounds_pegboard(self, value: "list[list[float]] | np.ndarray | None"):
+    def bounds_pegboard(self, value: list[list[float]] | np.ndarray | None) -> None:
         text = _format_bounds(value)
         self._stored_bounds_pegboard = _parse_bounds(text)
         self._table.update(self._db_id, bounds_pegboard=text)

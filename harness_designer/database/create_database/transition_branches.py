@@ -1,15 +1,19 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from . import transitions as _transitions
+from typing import TYPE_CHECKING
 
+from . import transitions as _transitions
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
+
+
+if TYPE_CHECKING:
+    from ..db_connectors import base as _connector_base
 
 
 @_check_types.do
@@ -48,9 +52,9 @@ def _angle_to_text(angle: int | float | list | tuple | None) -> str:
 
 
 @_check_types.do
-def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length=None,
-                          min_dia=0.0, max_dia=0.0, length=0.0, offset=None, angle=None,
-                          flange_height=None, flange_width=None, commit=True):
+def add_transition_branch(con: "_connector_base.ConnectorBase", idx: int, transition_id: bytes, bulb_offset: list[float] | None = None, bulb_length: float | None = None,
+                          min_dia: float = 0.0, max_dia: float = 0.0, length: float = 0.0, offset: list[float] | tuple[float, ...] | None = None, angle: int | float | list[float] | tuple[float, ...] | None = None,
+                          flange_height: float | None = None, flange_width: float | None = None, commit: bool = True) -> bytes:
     """Add a transition branch.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -106,8 +110,8 @@ def add_transition_branch(con, idx, transition_id, bulb_offset=None, bulb_length
 
 
 @_check_types.do
-def add_pjt_transition_branch(con, project_id, part_id, transition_id,
-                              point3d_id=None, diameter=0.0, branch_id=0):
+def add_pjt_transition_branch(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, transition_id: bytes,
+                              point3d_id: bytes | None = None, diameter: float = 0.0, branch_id: bytes | None = 0) -> None:
     """Add a PJT transition branch.
 
     UNKNOWN details are inferred from the callable name and signature.

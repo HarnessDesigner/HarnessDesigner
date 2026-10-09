@@ -17,7 +17,8 @@ class ArrayStringDialog(_ArrayDialog):
     _char_filter = None  # all characters allowed
 
     @_check_types.do
-    def __init__(self, parent, values, title='Modify Array'):
+    def __init__(self, parent: QtWidgets.QWidget, values: list[str],
+                 title: str = 'Modify Array') -> None:
         """Initialise the :class:`ArrayStringDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -52,7 +53,7 @@ class ArrayStringProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`ArrayStringProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +96,7 @@ class ArrayStringProperty(QtWidgets.QWidget):
         return self._value
 
     @_check_types.do
-    def SetValue(self, value: list):
+    def SetValue(self, value: list) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -107,7 +108,7 @@ class ArrayStringProperty(QtWidgets.QWidget):
         self._ctrl.setText(', '.join(value))
 
     @_check_types.do
-    def SetDialogTitle(self, value: str):
+    def SetDialogTitle(self, value: str) -> None:
         """Execute the set dialog title operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +119,7 @@ class ArrayStringProperty(QtWidgets.QWidget):
         self._dialog_title = value
 
     @_check_types.do
-    def _on_dialog_button(self):
+    def _on_dialog_button(self) -> None:
         """Handle the dialog button event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -141,7 +142,7 @@ class ArrayStringProperty(QtWidgets.QWidget):
             self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

@@ -1,20 +1,18 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import (
-    QDialog, QLineEdit, QPushButton, QScrollArea, QWidget,
-    QVBoxLayout, QHBoxLayout, QDialogButtonBox, QFrame, QSizePolicy
-)
-from PySide6.QtCore import Qt
+from PySide6 import QtCore, QtGui, QtWidgets
 from ... import check_types as _check_types
 
 
-class _ArrayDialog(QDialog):
+class _ArrayDialog(QtWidgets.QDialog):
     """Shared base for ArrayFloat/Int/String dialogs."""
 
     _char_filter = None  # subclass sets to a callable(key_int) -> bool
 
     @_check_types.do
-    def __init__(self, parent, values, title='Modify Array'):
+    def __init__(self, parent: QtWidgets.QWidget,
+                 values: list[float] | list[int] | list[str],
+                 title: str = 'Modify Array') -> None:
         """Initialise the :class:`_ArrayDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -26,20 +24,20 @@ class _ArrayDialog(QDialog):
         :param title: Value for ``title``.
         :type title: UNKNOWN
         """
-        QDialog.__init__(
+        QtWidgets.QDialog.__init__(
             self, parent,
-            Qt.Dialog | Qt.WindowStaysOnTopHint |
-            Qt.WindowCloseButtonHint | Qt.WindowTitleHint
+            QtCore.Qt.Dialog | QtCore.Qt.WindowStaysOnTopHint |
+            QtCore.Qt.WindowCloseButtonHint | QtCore.Qt.WindowTitleHint
         )
         self.setWindowTitle(title)
         self.resize(300, 500)
         self.setSizeGripEnabled(True)
 
         # toolbar buttons
-        self.add_item_button = QPushButton('+', self)
-        self.remove_item_button = QPushButton('-', self)
-        self.move_item_up_button = QPushButton('\u25b2', self)
-        self.move_item_down_button = QPushButton('\u25bc', self)
+        self.add_item_button = QtWidgets.QPushButton('+', self)
+        self.remove_item_button = QtWidgets.QPushButton('-', self)
+        self.move_item_up_button = QtWidgets.QPushButton('\u25b2', self)
+        self.move_item_down_button = QtWidgets.QPushButton('\u25bc', self)
         for btn in (self.add_item_button, self.remove_item_button):
             f = btn.font()
             f.setPointSize(f.pointSize() + 4)
@@ -62,16 +60,16 @@ class _ArrayDialog(QDialog):
         self.move_item_down_button.clicked.connect(self._on_move_item_down)
 
         # scroll area
-        self._scroll_container = QWidget()
-        self._item_layout = QVBoxLayout(self._scroll_container)
+        self._scroll_container = QtWidgets.QWidget()
+        self._item_layout = QtWidgets.QVBoxLayout(self._scroll_container)
         self._item_layout.setContentsMargins(5, 5, 5, 5)
         self._item_layout.addStretch(1)
 
-        scroll = QScrollArea(self)
+        scroll = QtWidgets.QScrollArea(self)
         scroll.setWidget(self._scroll_container)
         scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Panel)
-        scroll.setFrameShadow(QFrame.Sunken)
+        scroll.setFrameShape(QtWidgets.QFrame.Panel)
+        scroll.setFrameShadow(QtWidgets.QFrame.Sunken)
 
         self.selected_item = None
         self._items = []
@@ -80,21 +78,21 @@ class _ArrayDialog(QDialog):
             self._add_ctrl(str(v))
 
         # button bar
-        btn_bar = QHBoxLayout()
+        btn_bar = QtWidgets.QHBoxLayout()
         btn_bar.addStretch(1)
         for b in (self.add_item_button, self.remove_item_button,
                   self.move_item_up_button, self.move_item_down_button):
             btn_bar.addWidget(b)
 
-        sep = QFrame(self)
-        sep.setFrameShape(QFrame.HLine)
+        sep = QtWidgets.QFrame(self)
+        sep.setFrameShape(QtWidgets.QFrame.HLine)
 
-        dialog_btns = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        dialog_btns = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
         dialog_btns.accepted.connect(self.accept)
         dialog_btns.rejected.connect(self.reject)
 
-        layout = QVBoxLayout(self)
+        layout = QtWidgets.QVBoxLayout(self)
         layout.addLayout(btn_bar)
         layout.addWidget(sep)
         layout.addWidget(scroll, stretch=1)
@@ -102,7 +100,7 @@ class _ArrayDialog(QDialog):
         self.setLayout(layout)
 
     @_check_types.do
-    def _add_ctrl(self, text=''):
+    def _add_ctrl(self, text: str = '') -> QtWidgets.QLineEdit:
         """Add a ctrl.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -112,7 +110,7 @@ class _ArrayDialog(QDialog):
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        ctrl = QLineEdit(text, self._scroll_container)
+        ctrl = QtWidgets.QLineEdit(text, self._scroll_container)
         if self._char_filter:
             ctrl.textEdited.connect(self._filter_input)
         ctrl.focusInEvent = lambda e, c=ctrl: self._on_item_focus(c, e)
@@ -124,7 +122,7 @@ class _ArrayDialog(QDialog):
         return ctrl
 
     @_check_types.do
-    def _filter_input(self, text):
+    def _filter_input(self, text: str) -> None:
         """Execute the filter input operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -140,7 +138,7 @@ class _ArrayDialog(QDialog):
             ctrl.blockSignals(False)
 
     @_check_types.do
-    def _on_item_focus(self, ctrl, event):
+    def _on_item_focus(self, ctrl: QtWidgets.QLineEdit, event: QtGui.QFocusEvent) -> None:
         """Handle the item focus event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -150,7 +148,7 @@ class _ArrayDialog(QDialog):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        QLineEdit.focusInEvent(ctrl, event)
+        QtWidgets.QLineEdit.focusInEvent(ctrl, event)
         self.selected_item = ctrl
         ctrl.selectAll()
         idx = self._items.index(ctrl)
@@ -160,7 +158,7 @@ class _ArrayDialog(QDialog):
         self.remove_item_button.setEnabled(True)
 
     @_check_types.do
-    def _on_item_kill_focus(self, ctrl, event):
+    def _on_item_kill_focus(self, ctrl: QtWidgets.QLineEdit, event: QtGui.QFocusEvent) -> None:
         """Handle the item kill focus event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -170,7 +168,7 @@ class _ArrayDialog(QDialog):
         :param event: Event object.
         :type event: UNKNOWN
         """
-        QLineEdit.focusOutEvent(ctrl, event)
+        QtWidgets.QLineEdit.focusOutEvent(ctrl, event)
         fw = self.focusWidget()
         if fw not in self._items and fw not in (
             self.add_item_button, self.remove_item_button,
@@ -182,7 +180,7 @@ class _ArrayDialog(QDialog):
             self.selected_item = None
 
     @_check_types.do
-    def _on_move_item_up(self):
+    def _on_move_item_up(self) -> None:
         """Handle the move item up event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -199,7 +197,7 @@ class _ArrayDialog(QDialog):
         self._items[idx - 1].setFocus()
 
     @_check_types.do
-    def _on_move_item_down(self):
+    def _on_move_item_down(self) -> None:
         """Handle the move item down event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -216,7 +214,7 @@ class _ArrayDialog(QDialog):
         self._items[idx + 1].setFocus()
 
     @_check_types.do
-    def _on_remove_item(self):
+    def _on_remove_item(self) -> None:
         """Handle the remove item event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -233,7 +231,7 @@ class _ArrayDialog(QDialog):
         self.remove_item_button.setEnabled(False)
 
     @_check_types.do
-    def _on_add_item(self):
+    def _on_add_item(self) -> None:
         """Handle the add item event.
 
         UNKNOWN details are inferred from the callable name and signature.

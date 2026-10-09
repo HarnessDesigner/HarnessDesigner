@@ -1,7 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from PySide6 import QtWidgets
+
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ..editor_3d import editor_3d as _editor_3d
+    from ..editor_schematic import editor_schematic as _editor_schematic
+    from ...objects import object_base as _object_base
 
 
 class Rotate2DMenu(QtWidgets.QMenu):
@@ -11,7 +19,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas, obj):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", obj: "_object_base.ObjectBase") -> None:
         """Initialise the :class:`Rotate2DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -36,7 +44,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
         act.triggered.connect(self.on_pos_180)
 
     @_check_types.do
-    def on_pos_90(self):
+    def on_pos_90(self) -> None:
         """Rotate clockwise 90 degrees -- see ``objects_schematic/housing.py``'s
         ``# TODO: Lock a housing to only be able to be rotated in 90°
         increments`` note; every write to a housing's ``angle2d.y`` stays
@@ -49,7 +57,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
         self.selected.angle.y = y
 
     @_check_types.do
-    def on_neg_90(self):
+    def on_neg_90(self) -> None:
         """Rotate counter-clockwise 90 degrees -- see :meth:`on_pos_90`."""
         y = self.selected.angle.y - 90.0
         if y < -180.0:
@@ -58,7 +66,7 @@ class Rotate2DMenu(QtWidgets.QMenu):
         self.selected.angle.y = y
 
     @_check_types.do
-    def on_pos_180(self):
+    def on_pos_180(self) -> None:
         """Rotate 180 degrees -- see :meth:`on_pos_90`."""
         y = self.selected.angle.y + 180.0
         if y > 180.0:
@@ -74,7 +82,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas, obj):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", obj: "_object_base.ObjectBase") -> None:
         """Initialise the :class:`Mirror2DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +103,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
         act.triggered.connect(self.on_y)
 
     @_check_types.do
-    def on_x(self):
+    def on_x(self) -> None:
         """Handle the x event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -103,7 +111,7 @@ class Mirror2DMenu(QtWidgets.QMenu):
         pass
 
     @_check_types.do
-    def on_y(self):
+    def on_y(self) -> None:
         """Handle the y event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +126,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "_object_base.ObjectBase") -> None:
         """Initialise the :class:`Rotate3DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -142,7 +150,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.addAction('Z -90\u00b0').triggered.connect(self.on_z_neg_90)
 
     @_check_types.do
-    def on_x_pos_90(self):
+    def on_x_pos_90(self) -> None:
         """Handle the x pos 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -155,7 +163,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.x = x
 
     @_check_types.do
-    def on_x_neg_90(self):
+    def on_x_neg_90(self) -> None:
         """Handle the x neg 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -168,7 +176,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.x = x
 
     @_check_types.do
-    def on_y_pos_90(self):
+    def on_y_pos_90(self) -> None:
         """Handle the y pos 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -181,7 +189,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.y = y
 
     @_check_types.do
-    def on_y_neg_90(self):
+    def on_y_neg_90(self) -> None:
         """Handle the y neg 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -194,7 +202,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.y = y
 
     @_check_types.do
-    def on_z_pos_90(self):
+    def on_z_pos_90(self) -> None:
         """Handle the z pos 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -207,7 +215,7 @@ class Rotate3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.z = z
 
     @_check_types.do
-    def on_z_neg_90(self):
+    def on_z_neg_90(self) -> None:
         """Handle the z neg 90 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -227,7 +235,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "_object_base.ObjectBase") -> None:
         """Initialise the :class:`Mirror3DMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -245,7 +253,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
         self.addAction('Z').triggered.connect(self.on_z)
 
     @_check_types.do
-    def on_x(self):
+    def on_x(self) -> None:
         """Handle the x event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -259,7 +267,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.x = x
 
     @_check_types.do
-    def on_y(self):
+    def on_y(self) -> None:
         """Handle the y event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -272,7 +280,7 @@ class Mirror3DMenu(QtWidgets.QMenu):
         self.selected.obj3d.angle.y = y
 
     @_check_types.do
-    def on_z(self):
+    def on_z(self) -> None:
         """Handle the z event.
 
         UNKNOWN details are inferred from the callable name and signature.

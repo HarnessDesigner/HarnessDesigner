@@ -31,10 +31,11 @@ other caller sees the same return shape regardless of which
 implementation actually ran.
 """
 
-from libc.math cimport hypot, sqrt, ceil
+from libc.math cimport hypot, sqrt, floor
 
 
 cdef double _EPS = 1e-9
+cdef double _MIN_DIAMETER_MM = 1.0
 
 cdef int _START = 0
 cdef int _STOP = 1
@@ -57,14 +58,15 @@ cdef double _polyline_length(list points):
 
 
 cdef list _solve_span(double ax, double az, double bx, double bz, double target_length,
-                      double height_cap_fraction, double min_height_mm, double tolerance):
-    """One skeleton segment's own independent diamond-bump zigzag -- see
-    ``rope_pull_py._solve_span`` for the derivation this follows exactly.
+                      double diameter, double zigzag_length_factor, double threshold_factor,
+                      double tolerance):
+    """One skeleton segment's own zig-zag -- see ``rope_pull_py._solve_span``
+    for the count and threshold rules this follows exactly.
     """
-    cdef double dx, dz, straight, height_cap, excess_sq, excess, height
+    cdef double dx, dz, straight, spacing, threshold, excess_sq, excess, height
     cdef double ux, uz, px, pz
     cdef double t_zero, t_apex, sign, apex_x, apex_z
-    cdef int count, i
+    cdef int count, i, max_count
     cdef list waypoints
 
     dx = bx - ax
@@ -74,18 +76,27 @@ cdef list _solve_span(double ax, double az, double bx, double bz, double target_
     if target_length <= straight + tolerance:
         return []
 
-    height_cap = height_cap_fraction * straight
-    if height_cap < min_height_mm:
-        height_cap = min_height_mm
+    spacing = zigzag_length_factor * diameter
+    if spacing < _EPS:
+        spacing = _EPS
+    max_count = <int> floor(straight / spacing)
+    if max_count < 1:
+        max_count = 1
+
+    threshold = threshold_factor * diameter
+    if threshold < _EPS:
+        threshold = _EPS
 
     excess_sq = target_length * target_length - straight * straight
     if excess_sq < 0.0:
         excess_sq = 0.0
     excess = sqrt(excess_sq)
 
-    count = <int> ceil(excess / (2.0 * height_cap))
+    count = <int> floor(excess / (2.0 * threshold))
     if count < 1:
         count = 1
+    if count > max_count:
+        count = max_count
 
     height = excess / (2.0 * count)
 
@@ -104,10 +115,6 @@ cdef list _solve_span(double ax, double az, double bx, double bz, double target_
 
     waypoints = []
     for i in range(count):
-        if i > 0:
-            t_zero = i / <double> count
-            waypoints.append((ax + t_zero * dx, az + t_zero * dz))
-
         t_apex = (i + 0.5) / <double> count
 
         if i % 2 == 0:
@@ -123,8 +130,8 @@ cdef list _solve_span(double ax, double az, double bx, double bz, double target_
 
 
 def solve_chain(tuple start, tuple stop, double required_length, int drag_end,
-                tuple target, double height_cap_fraction, double min_height_mm,
-                double tolerance=1e-6):
+                tuple target, double diameter_mm, double zigzag_length_factor,
+                double threshold_factor, double tolerance=1e-6):
     """See ``rope_pull.rope_pull_py.solve_chain`` -- identical behavior;
     *drag_end* is ``0``/``1``/``2`` (start/stop/waypoint) instead of a
     :class:`~rope_pull.rope_pull_py.DragEnd`.
@@ -136,7 +143,7 @@ def solve_chain(tuple start, tuple stop, double required_length, int drag_end,
         ``True``.
     """
     cdef double sx, sz, ex, ez, tx, tz
-    cdef double base_length, needed_slack, straight, share, span_target
+    cdef double base_length, needed_slack, straight, share, span_target, diameter
     cdef double ax, az, bx, bz
     cdef list skeleton, points
     cdef int span_count, i
@@ -163,6 +170,10 @@ def solve_chain(tuple start, tuple stop, double required_length, int drag_end,
     needed_slack = required_length - base_length
     span_count = len(skeleton) - 1
 
+    diameter = diameter_mm
+    if diameter < _MIN_DIAMETER_MM:
+        diameter = _MIN_DIAMETER_MM
+
     points = [skeleton[0]]
 
     for i in range(span_count):
@@ -179,7 +190,8 @@ def solve_chain(tuple start, tuple stop, double required_length, int drag_end,
 
         span_target = straight + share
 
-        points.extend(_solve_span(ax, az, bx, bz, span_target, height_cap_fraction, min_height_mm, tolerance))
+        points.extend(_solve_span(ax, az, bx, bz, span_target, diameter,
+                                  zigzag_length_factor, threshold_factor, tolerance))
         points.append((bx, bz))
 
     return True, points

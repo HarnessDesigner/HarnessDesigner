@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
 
 import build123d
 from PySide6 import QtCore
@@ -32,6 +33,7 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
+    from ... import objects as _objects
     from ...geometry import point as _point
     from ...geometry import angle as _angle
 
@@ -93,7 +95,7 @@ VIEW_MODE_IDS = {
 
 
 @_check_types.do
-def _make_icon(img_attr, size: int = 32) -> QtGui.QIcon:
+def _make_icon(img_attr: "_image.Image", size: int = 32) -> QtGui.QIcon:
     """Convert a harness_designer image object to a QIcon."""
     return QtGui.QIcon(img_attr.resize(size, size).pixmap)
 
@@ -115,7 +117,7 @@ class EditorToolbar(QtWidgets.QToolBar):
     modeChanged: QtCore.SignalInstance = QtCore.Signal(int)
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`EditorToolbar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -205,7 +207,7 @@ class EditorToolbar(QtWidgets.QToolBar):
         return self._mode
 
     @_check_types.do
-    def _on_mode(self, id_: int):
+    def _on_mode(self, id_: int) -> None:
         """Handle the mode event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -218,7 +220,7 @@ class EditorToolbar(QtWidgets.QToolBar):
         self.modeChanged.emit(id_)
 
     @_check_types.do
-    def _apply_selection_filter(self, obj) -> None:
+    def _apply_selection_filter(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """Selection-driven fine-tuning of which "Add X" buttons make
         sense given *obj* -- only ever meaningful in the 3D view (the
         events driving this are only bound to editor3d; see __init__).
@@ -264,7 +266,7 @@ class EditorToolbar(QtWidgets.QToolBar):
                 act.setEnabled(True)
 
     @_check_types.do
-    def _on_obj_selected(self, evt: _gl.GLObjectEvent):
+    def _on_obj_selected(self, evt: _gl.GLObjectEvent) -> None:
         """Handle the obj selected event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -291,7 +293,7 @@ class EditorToolbar(QtWidgets.QToolBar):
             self._apply_selection_filter(obj)
 
     @_check_types.do
-    def _on_obj_unselected(self, _: _gl.GLObjectEvent):
+    def _on_obj_unselected(self, _: _gl.GLObjectEvent) -> None:
         """Handle the obj unselected event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -329,13 +331,13 @@ class EditorToolbar(QtWidgets.QToolBar):
 
     @property
     @_check_types.do
-    def is_selected(self):
+    def is_selected(self) -> bool:
         return self._selected is not None
 
     # --- passthrough helpers used by mainframe ---
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """Execute the refresh operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -348,7 +350,7 @@ class EditorToolbar(QtWidgets.QToolBar):
         self.repaint()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """Execute the destroy operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -374,7 +376,7 @@ class NoteToolbar(QtWidgets.QToolBar):
     ID_ALIGN_VERT_BOTTOM = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`NoteToolbar` instance.
 
@@ -428,7 +430,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self.on_obj_unselected)
 
     @_check_types.do
-    def set_buttons(self, align):
+    def set_buttons(self, align: int) -> None:
         icons = _image.icons
         left_icn = self._get_icon(False, icons.align_left_edge)
         center_icn = self._get_icon(False, icons.align_horizontal_center)
@@ -454,23 +456,23 @@ class NoteToolbar(QtWidgets.QToolBar):
         self.align_right.setEnabled(state)
 
     @_check_types.do
-    def on_align_left(self):
+    def on_align_left(self) -> None:
         self._obj.set_alignment(build123d.TextAlign.LEFT.value)
         self.set_buttons(build123d.TextAlign.LEFT.value)
 
     @_check_types.do
-    def on_align_center(self):
+    def on_align_center(self) -> None:
         self._obj.set_alignment(build123d.TextAlign.CENTER.value)
         self.set_buttons(build123d.TextAlign.CENTER.value)
 
     @_check_types.do
-    def on_align_right(self):
+    def on_align_right(self) -> None:
         self._obj.set_alignment(build123d.TextAlign.RIGHT.value)
         self.set_buttons(build123d.TextAlign.RIGHT.value)
 
     @staticmethod
     @_check_types.do
-    def _get_icon(state, icon):
+    def _get_icon(state: bool, icon: "_image.Image") -> QtGui.QIcon:
         if state:
             icon = icon + _image.icons.checkbox
         else:
@@ -479,7 +481,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         return _make_icon(icon)
 
     @_check_types.do
-    def on_obj_selected(self, evt: _gl.GLObjectEvent):
+    def on_obj_selected(self, evt: _gl.GLObjectEvent) -> None:
         """
         Handle the obj selected event.
 
@@ -500,7 +502,7 @@ class NoteToolbar(QtWidgets.QToolBar):
             self.set_buttons(-1)
 
     @_check_types.do
-    def on_obj_unselected(self, _: _gl.GLObjectEvent):
+    def on_obj_unselected(self, _: _gl.GLObjectEvent) -> None:
         """
         Handle the obj unselected event.
 
@@ -511,7 +513,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         self.set_buttons(-1)
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """
         Execute the refresh operation.
         """
@@ -519,7 +521,7 @@ class NoteToolbar(QtWidgets.QToolBar):
         self.repaint()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """
         Execute the destroy operation.
         """
@@ -549,7 +551,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
     ID_MOVE_Z = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`EditorObjectToolbar` instance.
 
@@ -674,7 +676,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         mainframe.editor3d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_3d_unselected)
 
     @_check_types.do
-    def _on_obj_pegboard_selected(self, evt: _gl.GLObjectEvent):
+    def _on_obj_pegboard_selected(self, evt: _gl.GLObjectEvent) -> None:
         obj = evt.GetGLObject()
 
         if isinstance(obj, _project_model.ProjectModel):
@@ -742,7 +744,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self.rotate_z.SetValue(0.0)
 
     @_check_types.do
-    def _on_obj_pegboard_unselected(self, _):
+    def _on_obj_pegboard_unselected(self, _: "_gl.GLObjectEvent") -> None:
         if self._position is not None:
             self._position.unbind(self.on_position)
             self._position = None
@@ -766,7 +768,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             act.SetValue(0.0)
 
     @_check_types.do
-    def _on_obj_schematic_selected(self, evt: _gl.GLObjectEvent):
+    def _on_obj_schematic_selected(self, evt: _gl.GLObjectEvent) -> None:
         obj = evt.GetGLObject()
 
         if isinstance(obj, _project_model.ProjectModel):
@@ -824,7 +826,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self.rotate_z.SetValue(0.0)
 
     @_check_types.do
-    def _on_obj_schematic_unselected(self, _):
+    def _on_obj_schematic_unselected(self, _: "_gl.GLObjectEvent") -> None:
         if self._position is not None:
             self._position.unbind(self.on_position)
             self._position = None
@@ -848,7 +850,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             act.SetValue(0.0)
 
     @_check_types.do
-    def _on_obj_3d_selected(self, evt: _gl.GLObjectEvent):
+    def _on_obj_3d_selected(self, evt: _gl.GLObjectEvent) -> None:
         obj = evt.GetGLObject()
 
         if isinstance(obj, _project_model.ProjectModel):
@@ -941,7 +943,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self.scale_z.SetValue(z)
 
     @_check_types.do
-    def _on_obj_3d_unselected(self, _):
+    def _on_obj_3d_unselected(self, _: "_gl.GLObjectEvent") -> None:
         if self._position is not None:
             self._position.unbind(self.on_position)
             self._position = None
@@ -996,7 +998,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self._angle.bind(self.on_angle)
 
     @_check_types.do
-    def on_angle(self, angle: "_angle.Angle"):
+    def on_angle(self, angle: "_angle.Angle") -> None:
         self.rotate_x.SetValue(angle.x)
         self.rotate_y.SetValue(angle.y)
         self.rotate_z.SetValue(angle.z)
@@ -1023,7 +1025,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self._scale.bind(self.on_scale)
 
     @_check_types.do
-    def on_scale(self, scale: "_point.Point"):
+    def on_scale(self, scale: "_point.Point") -> None:
         self.scale_x.SetValue(scale.x)
         self.scale_y.SetValue(scale.y)
         self.scale_z.SetValue(scale.z)
@@ -1050,13 +1052,13 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
             self._position.bind(self.on_position)
 
     @_check_types.do
-    def on_position(self, position: "_point.Point"):
+    def on_position(self, position: "_point.Point") -> None:
         self.move_x.SetValue(position.x)
         self.move_y.SetValue(position.y)
         self.move_z.SetValue(position.z)
 
     @_check_types.do
-    def on_tools(self, id_: int):
+    def on_tools(self, id_: int) -> None:
         """
         Handle the tools event.
 
@@ -1067,7 +1069,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         pass  # future: notify handlers of transform mode change
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """
         Execute the refresh operation.
         """
@@ -1075,7 +1077,7 @@ class EditorObjectToolbar(QtWidgets.QToolBar):
         self.repaint()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """
         Execute the destroy operation.
         """
@@ -1097,7 +1099,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
     ID_SHOW_REFLECTIONS = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`Setting3DToolbar` instance.
 
         :param mainframe: Main application frame.
@@ -1195,7 +1197,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
     @staticmethod
     @_check_types.do
-    def _get_icon(state, icon):
+    def _get_icon(state: bool, icon: "_image.Image") -> QtGui.QIcon:
         if state:
             icon = icon + _image.icons.checkbox
         else:
@@ -1205,12 +1207,12 @@ class Setting3DToolbar(QtWidgets.QToolBar):
 
     @staticmethod
     @_check_types.do
-    def _get_lock_icon(enable):
+    def _get_lock_icon(enable: bool) -> QtGui.QIcon:
         icons = _image.icons
         return _make_icon(icons.camera + (icons.lock if enable else icons.unlock))
 
     @_check_types.do
-    def on_wireframe(self, *_: bool):
+    def on_wireframe(self, *_: bool) -> None:
         """
         Handle the show wireframe toggle.
         """
@@ -1225,7 +1227,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_reflections(self, *_: bool):
+    def on_reflections(self, *_: bool) -> None:
         """
         Handle the show reflections toggle.
         """
@@ -1240,7 +1242,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_spotlight(self, *_: bool):
+    def on_spotlight(self, *_: bool) -> None:
         """
         Handle the show spotlight toggle.
         """
@@ -1255,7 +1257,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_lock_top_view(self, *_: bool):
+    def on_lock_top_view(self, *_: bool) -> None:
         """
         Handle the locked top-down view toggle.
         """
@@ -1268,7 +1270,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_normals(self, *_: bool):
+    def on_normals(self, *_: bool) -> None:
         """
         Handle the show normals toggle.
         """
@@ -1284,7 +1286,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_vertices(self, *_: bool):
+    def on_vertices(self, *_: bool) -> None:
         """
         Handle the show vertices toggle.
         """
@@ -1299,7 +1301,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_aabb(self, *_: bool):
+    def on_aabb(self, *_: bool) -> None:
         """
         Handle the show aabb toggle.
         """
@@ -1315,7 +1317,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_faces(self, *_: bool):
+    def on_faces(self, *_: bool) -> None:
         """
         Handle the show faces toggle.
         """
@@ -1331,7 +1333,7 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def on_obb(self, *_: bool):
+    def on_obb(self, *_: bool) -> None:
         """
         Handle the show obb toggle.
         """
@@ -1347,12 +1349,12 @@ class Setting3DToolbar(QtWidgets.QToolBar):
         self.mainframe.editor3d.Refresh()
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """Repaint the toolbar."""
         self.repaint()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """Schedule the toolbar for deletion."""
         self.deleteLater()
 
@@ -1382,7 +1384,7 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`PegBoardToolbar` instance.
 
         :param mainframe: Main application frame.
@@ -1425,6 +1427,15 @@ class PegBoardToolbar(QtWidgets.QToolBar):
         self.pegboard_drag_mode.dragModeChanged.connect(self._on_drag_mode)
         self.addWidget(self.pegboard_drag_mode)
 
+        # Rope pull: checked = the peg-board rope-pull solver runs; unchecked =
+        # drags are limited only by each chain's own 3D length (the older
+        # per-edge clamp). Read by the drag handlers on every drag, so no
+        # restart is needed.
+        self.rope_pull = QtWidgets.QCheckBox('Rope Pull', self)
+        self.rope_pull.setChecked(bool(_config.Config.editor_pegboard.rope_pull.enabled))
+        self.rope_pull.toggled.connect(self._on_rope_pull)
+        self.addWidget(self.rope_pull)
+
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
     @staticmethod
@@ -1434,7 +1445,7 @@ class PegBoardToolbar(QtWidgets.QToolBar):
 
     @staticmethod
     @_check_types.do
-    def _on_manual_spacing(value) -> None:
+    def _on_manual_spacing(value: float | None) -> None:
         _config.Config.editor_pegboard.floor.manual_snap_spacing = (
             None if value is None else float(value))
 
@@ -1443,13 +1454,18 @@ class PegBoardToolbar(QtWidgets.QToolBar):
     def _on_drag_mode(mode: str) -> None:
         _config.Config.editor_pegboard.drag_handler.mode = mode
 
+    @staticmethod
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def _on_rope_pull(enabled: bool) -> None:
+        _config.Config.editor_pegboard.rope_pull.enabled = bool(enabled)
+
+    @_check_types.do
+    def Refresh(self, *_, **__) -> None:
         """Repaint the toolbar."""
         self.repaint()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """Schedule the toolbar for deletion."""
         self.deleteLater()
 
@@ -1468,7 +1484,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
     ID_BOM = _new_id()
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`GeneralToolbar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1485,7 +1501,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         self.setIconSize(QtCore.QSize(32, 32))
 
         @_check_types.do
-        def _push(id_: int, label: str, icon: QtGui.QIcon, slot) -> QtGui.QAction:
+        def _push(id_: int, label: str, icon: QtGui.QIcon, slot: Callable[[], None]) -> QtGui.QAction:
             """Execute the push operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -1518,7 +1534,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         mainframe.addToolBar(QtCore.Qt.ToolBarArea.TopToolBarArea, self)
 
     @_check_types.do
-    def on_browser(self, checked: bool = False):
+    def on_browser(self, checked: bool = False) -> None:
         """Handle the browser event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1529,7 +1545,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         pass
 
     @_check_types.do
-    def on_settings(self, checked: bool = False):
+    def on_settings(self, checked: bool = False) -> None:
         """Handle the settings event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1540,7 +1556,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         pass
 
     @_check_types.do
-    def on_tools(self, checked: bool = False):
+    def on_tools(self, checked: bool = False) -> None:
         """Handle the tools event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1551,7 +1567,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         pass
 
     @_check_types.do
-    def on_database(self, checked: bool = False):
+    def on_database(self, checked: bool = False) -> None:
         """Handle the database event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1562,7 +1578,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         pass
 
     @_check_types.do
-    def on_bom(self, checked: bool = False):
+    def on_bom(self, checked: bool = False) -> None:
         """Open the BOM Builder dialog against the current project.
 
         :param checked: Unused -- present to match the ``QAction.triggered`` signal.
@@ -1577,7 +1593,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
             dlg.deleteLater()
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         """Execute the refresh operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1590,7 +1606,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
         self.repaint()
 
     @_check_types.do
-    def Destroy(self):
+    def Destroy(self) -> None:
         """Execute the destroy operation.
 
         UNKNOWN details are inferred from the callable name and signature.

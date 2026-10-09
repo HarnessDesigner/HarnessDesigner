@@ -46,7 +46,7 @@ class GPUBackend:
 
     # One DisplayPortInfo per physical connector on the GPU. Always a list
     # (empty if nothing was collected), never None.
-    displays: list = ()
+    displays: tuple[DisplayPortInfo, ...] | list[DisplayPortInfo] = ()
 
     # Mirrors harness_designer.gpu.gpu.GPU's own attribute names one-to-one.
     ATTRIBUTE_NAMES = (

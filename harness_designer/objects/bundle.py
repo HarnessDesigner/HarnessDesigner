@@ -30,7 +30,7 @@ class Bundle(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_bundle.PJTBundle", project_load=False):
+                 db_obj: "_pjt_bundle.PJTBundle", project_load: bool = False) -> None:
         """Initialise the :class:`Bundle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +104,7 @@ class Bundle(_ObjectBase):
         _bundle_diameter.refresh_diameter(self)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         super().delete()
         self.mainframe.project.delete_bundle(self.db_obj.db_id)
         self.db_obj.delete()

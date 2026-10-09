@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
+from PySide6 import QtWidgets
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -16,10 +16,8 @@ from . import ip as _ip
 from . import cavity_lock as _cavity_lock
 from . import seal_type as _seal_type
 from . import cpa_lock_type as _cpa_lock_type
-
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-
 from .mixins import (
     PartNumberMixin, PartNumberControl,
     ManufacturerMixin, ManufacturerControl,
@@ -43,6 +41,8 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import cavity as _cavity
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 class HousingsTable(TableBase):
@@ -70,7 +70,7 @@ class HousingsTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -97,7 +97,7 @@ class HousingsTable(TableBase):
         return housings.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -112,7 +112,7 @@ class HousingsTable(TableBase):
         housings.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -135,7 +135,7 @@ class HousingsTable(TableBase):
             yield Housing(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Housing":
+    def __getitem__(self, item: int | bytes | str) -> "Housing":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -162,7 +162,7 @@ class HousingsTable(TableBase):
     @_check_types.do
     def get_compat(self, seal: str = None, terminal: str = None,
                    cpa_lock: str = None, tpa_lock: str = None,
-                   cover: str = None):
+                   cover: str = None) -> list[bytes]:
         """Return the compat.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -490,7 +490,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @compat_covers_array.setter
     @_check_types.do
-    def compat_covers_array(self, value: list[str]):
+    def compat_covers_array(self, value: list[str]) -> None:
         """Set the compat covers array.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -561,7 +561,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @compat_boots_array.setter
     @_check_types.do
-    def compat_boots_array(self, value: list[str]):
+    def compat_boots_array(self, value: list[str]) -> None:
         """Set the compat boots array.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -632,7 +632,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @compat_cpas_array.setter
     @_check_types.do
-    def compat_cpas_array(self, value: list[str]):
+    def compat_cpas_array(self, value: list[str]) -> None:
         """Set the compat cpas array.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -701,7 +701,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @compat_tpas_array.setter
     @_check_types.do
-    def compat_tpas_array(self, value: list[str]):
+    def compat_tpas_array(self, value: list[str]) -> None:
         """Set the compat tpas array.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -752,7 +752,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @ip_rating_id.setter
     @_check_types.do
-    def ip_rating_id(self, value: bytes):
+    def ip_rating_id(self, value: bytes) -> None:
         """Set the ip rating ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -802,7 +802,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @cavity_lock_id.setter
     @_check_types.do
-    def cavity_lock_id(self, value: bytes):
+    def cavity_lock_id(self, value: bytes) -> None:
         """Set the cavity lock ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -855,7 +855,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @seal_type_id.setter
     @_check_types.do
-    def seal_type_id(self, value: bytes | None):
+    def seal_type_id(self, value: bytes | None) -> None:
         """Set the seal type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -905,7 +905,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @cpa_lock_type_id.setter
     @_check_types.do
-    def cpa_lock_type_id(self, value: bytes):
+    def cpa_lock_type_id(self, value: bytes) -> None:
         """Set the CPA lock type ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -943,7 +943,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @terminal_sizes.setter
     @_check_types.do
-    def terminal_sizes(self, value: list[float]):
+    def terminal_sizes(self, value: list[float]) -> None:
         """Set the terminal sizes.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -979,7 +979,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @terminal_size_counts.setter
     @_check_types.do
-    def terminal_size_counts(self, value: list[int]):
+    def terminal_size_counts(self, value: list[int]) -> None:
         """Set the terminal size counts.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1010,7 +1010,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @sealing.setter
     @_check_types.do
-    def sealing(self, value: bool):
+    def sealing(self, value: bool) -> None:
         """Set the sealing.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1041,7 +1041,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @centerline.setter
     @_check_types.do
-    def centerline(self, value: float):
+    def centerline(self, value: float) -> None:
         """Set the centerline.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1072,7 +1072,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @rows.setter
     @_check_types.do
-    def rows(self, value: int):
+    def rows(self, value: int) -> None:
         """Set the rows.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1103,7 +1103,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
 
     @num_pins.setter
     @_check_types.do
-    def num_pins(self, value: int):
+    def num_pins(self, value: int) -> None:
         """Set the num pins.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1184,7 +1184,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cover_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
-    def __update_cover_position3d(self, point: _point.Point):
+    def __update_cover_position3d(self, point: _point.Point) -> None:
         """Update the cover position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1221,7 +1221,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_seal_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
-    def __update_seal_position3d(self, point: _point.Point):
+    def __update_seal_position3d(self, point: _point.Point) -> None:
         """Update the seal position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1258,7 +1258,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_boot_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
-    def __update_boot_position3d(self, point: _point.Point):
+    def __update_boot_position3d(self, point: _point.Point) -> None:
         """Update the boot position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1295,7 +1295,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_tpa_lock_1_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
-    def __update_tpa_lock_1_position3d(self, point: _point.Point):
+    def __update_tpa_lock_1_position3d(self, point: _point.Point) -> None:
         """Update the TPA lock 1 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1332,7 +1332,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_tpa_lock_2_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
-    def __update_tpa_lock_2_position3d(self, point: _point.Point):
+    def __update_tpa_lock_2_position3d(self, point: _point.Point) -> None:
         """Update the TPA lock 2 position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1369,7 +1369,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_cpa_lock_position3d: DefaultStoredValueType | _point.Point = DefaultStoredValue
 
     @_check_types.do
-    def __update_cpa_lock_position3d(self, point: _point.Point):
+    def __update_cpa_lock_position3d(self, point: _point.Point) -> None:
         """Update the CPA lock position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1406,7 +1406,7 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
     _stored_angle3d: DefaultStoredValueType | _angle.Angle = DefaultStoredValue
 
     @_check_types.do
-    def __update_angle3d(self, angle: _angle.Angle):
+    def __update_angle3d(self, angle: _angle.Angle) -> None:
         """Update the angle 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1449,14 +1449,14 @@ class Housing(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin, F
         return self._stored_angle3d
 
 
-class HousingControl(QTabWidget, LazyTabMixin):
+class HousingControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a housing control in :mod:`harness_designer.database.global_db.housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Housing | None):
+    def set_obj(self, db_obj: Housing | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1467,7 +1467,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.weight_ctrl.set_obj(self.db_obj)
@@ -1548,7 +1548,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def _on_seal_type(self, evt):
+    def _on_seal_type(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the seal type event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1586,7 +1586,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.seal_type_id = db_id
 
     @_check_types.do
-    def _on_sealing(self, evt):
+    def _on_sealing(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the sealing event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1598,7 +1598,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.sealing = value
 
     @_check_types.do
-    def _on_compat_tpas(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_compat_tpas(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the compat tpas event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1610,7 +1610,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.compat_tpas_array = compat_tpas
 
     @_check_types.do
-    def _on_compat_cpas(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_compat_cpas(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the compat cpas event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1622,7 +1622,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.compat_cpas_array = compat_cpas
 
     @_check_types.do
-    def _on_compat_boots(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_compat_boots(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the compat boots event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1634,7 +1634,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.compat_boots_array = compat_boots
 
     @_check_types.do
-    def _on_compat_covers(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_compat_covers(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the compat covers event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1646,7 +1646,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.compat_covers_array = compat_covers
 
     @_check_types.do
-    def _on_terminal_sizes(self, evt):
+    def _on_terminal_sizes(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the terminal sizes event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1657,7 +1657,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.terminal_sizes = evt.GetValue()
 
     @_check_types.do
-    def _on_terminal_size_count(self, evt):
+    def _on_terminal_size_count(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the terminal size count event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1668,7 +1668,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.terminal_size_counts = evt.GetValue()
 
     @_check_types.do
-    def _on_pitch(self, evt):
+    def _on_pitch(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the pitch event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1679,7 +1679,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.centerline = evt.GetValue()
 
     @_check_types.do
-    def _on_rows(self, evt):
+    def _on_rows(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the rows event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1690,7 +1690,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.rows = evt.GetValue()
 
     @_check_types.do
-    def _on_pin_count(self, evt):
+    def _on_pin_count(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the pin count event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1701,7 +1701,7 @@ class HousingControl(QTabWidget, LazyTabMixin):
         self.db_obj.num_pins = evt.GetValue()
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`HousingControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1711,8 +1711,8 @@ class HousingControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: Housing | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self.manufacturer_page = ManufacturerControl(self)
@@ -1861,8 +1861,8 @@ class HousingControl(QTabWidget, LazyTabMixin):
         covers_page.addWidget(self.cover_ctrl)
 
         self._cavities_page = cavities_page = _prop_ctrls.Category(self, 'Cavities')
-        self.cavities_notebook = QTabWidget(cavities_page)
-        self.cavities_notebook.setTabPosition(QTabWidget.TabPosition.North)
+        self.cavities_notebook = QtWidgets.QTabWidget(cavities_page)
+        self.cavities_notebook.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.cavities_notebook.setUsesScrollButtons(True)
         self.cavity_pages = []
 

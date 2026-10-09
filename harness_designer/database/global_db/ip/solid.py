@@ -1,12 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 from ..bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
 from ..mixins import (NameMixin, DescriptionMixin)
-
 from .... import image as _image
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .... import splash as _splash
 
 
 class IPSolidsTable(TableBase):
@@ -30,7 +34,7 @@ class IPSolidsTable(TableBase):
         return ip_solids.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -44,7 +48,7 @@ class IPSolidsTable(TableBase):
         ip_solids.add_records(self._con, splash)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -54,7 +58,7 @@ class IPSolidsTable(TableBase):
         ip_solids.table.update_fields(self)
 
     @_check_types.do
-    def __getitem__(self, item) -> "IPSolid":
+    def __getitem__(self, item: int | bytes | str) -> "IPSolid":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -137,7 +141,7 @@ class IPSolid(EntryBase, NameMixin, DescriptionMixin):
 
     @short_desc.setter
     @_check_types.do
-    def short_desc(self, value: str):
+    def short_desc(self, value: str) -> None:
         """Set the short desc.
 
         UNKNOWN details are inferred from the callable name and signature.

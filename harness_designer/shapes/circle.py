@@ -10,7 +10,6 @@ codebase (floor, grid, Peg Board strands). Used for cavity/pin markers.
 """
 
 import math
-
 import numpy as np
 
 from .. import utils as _utils
@@ -53,7 +52,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(diameter, height, segments=_SEGMENTS):
+def create(diameter: float, height: float, segments: int = _SEGMENTS) -> tuple[np.ndarray, np.ndarray]:
     """Create vertex and face arrays for a flat circle (N-gon fan).
 
     The generated circle is centered on the origin and lies flat on the

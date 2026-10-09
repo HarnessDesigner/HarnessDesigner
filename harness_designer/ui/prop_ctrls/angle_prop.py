@@ -1,10 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Union as _Union
+
 from PySide6 import QtWidgets
 
 
 from . import float_prop as _float_prop
+from . import events as _events
 from ... import check_types as _check_types
+
+if TYPE_CHECKING:
+    from ...geometry.angle import angle as _angle_geo
 
 
 class AngleProperty(QtWidgets.QGroupBox):
@@ -15,7 +21,7 @@ class AngleProperty(QtWidgets.QGroupBox):
     """
 
     @_check_types.do
-    def __init__(self, parent, label: str, axes: str = 'xyz'):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, axes: str = 'xyz') -> None:
         """Initialise the :class:`Angle3DProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -70,7 +76,7 @@ class AngleProperty(QtWidgets.QGroupBox):
         self.setLayout(sizer)
 
     @_check_types.do
-    def _on_angle(self, angle):
+    def _on_angle(self, angle: "_angle_geo.Angle") -> None:
         x, y, z = angle.as_euler_float
         if self.x_ctrl is not None:
             self.x_ctrl.SetValue(x)
@@ -82,7 +88,7 @@ class AngleProperty(QtWidgets.QGroupBox):
             self.z_ctrl.SetValue(z)
 
     @_check_types.do
-    def SetValue(self, angle):
+    def SetValue(self, angle: _Union["_angle_geo.Angle", None]) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +114,7 @@ class AngleProperty(QtWidgets.QGroupBox):
             angle.bind(self._on_angle)
 
     @_check_types.do
-    def _on_x(self, evt):
+    def _on_x(self, evt: _events.PropertyEvent) -> None:
         """Handle the x event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -121,7 +127,7 @@ class AngleProperty(QtWidgets.QGroupBox):
         self._angle.bind(self._on_angle)
 
     @_check_types.do
-    def _on_y(self, evt):
+    def _on_y(self, evt: _events.PropertyEvent) -> None:
         """Handle the y event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -134,7 +140,7 @@ class AngleProperty(QtWidgets.QGroupBox):
         self._angle.bind(self._on_angle)
 
     @_check_types.do
-    def _on_z(self, evt):
+    def _on_z(self, evt: _events.PropertyEvent) -> None:
         """Handle the z event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -147,7 +153,7 @@ class AngleProperty(QtWidgets.QGroupBox):
         self._angle.bind(self._on_angle)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self.setTitle(value)
 

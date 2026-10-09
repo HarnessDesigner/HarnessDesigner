@@ -1,15 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import plating as _plating
+    from PySide6 import QtWidgets
 
 
 class PlatingMixin(BaseMixin):
@@ -18,7 +19,7 @@ class PlatingMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_plating: Union[DefaultStoredValueType, "_plating.Plating"] = DefaultStoredValue
+    _stored_plating: _Union[DefaultStoredValueType, "_plating.Plating"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -54,7 +55,7 @@ class PlatingMixin(BaseMixin):
 
     @plating_id.setter
     @_check_types.do
-    def plating_id(self, value: bytes):
+    def plating_id(self, value: bytes) -> None:
         """Set the plating ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,6 +69,14 @@ class PlatingMixin(BaseMixin):
         self._populate('plating_id')
 
 
+def _plating_of(db_obj: "PlatingMixin") -> _Union["_plating.Plating", None]:
+    return db_obj.plating
+
+
+def _set_plating_id(db_obj: "PlatingMixin", db_id: bytes) -> None:
+    db_obj.plating_id = db_id
+
+
 class PlatingControl(_prop_ctrls.Category):
     """Represent a plating control in :mod:`harness_designer.database.global_db.mixins.plating`.
 
@@ -75,7 +84,7 @@ class PlatingControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`PlatingControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -85,7 +94,8 @@ class PlatingControl(_prop_ctrls.Category):
         """
         super().__init__(parent, 'Plating')
 
-        self.attribute_name = 'plating'
+        self._get_target: Callable[[PlatingMixin], _Union["_plating.Plating", None]] = _plating_of
+        self._set_target_id: Callable[[PlatingMixin, bytes], None] = _set_plating_id
 
         self.choices: list[str] = []
         self.db_obj: PlatingMixin | None = None
@@ -100,7 +110,7 @@ class PlatingControl(_prop_ctrls.Category):
         self.desc_ctrl.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: PlatingMixin | None):
+    def set_obj(self, db_obj: PlatingMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -120,7 +130,7 @@ class PlatingControl(_prop_ctrls.Category):
             self.symbol_ctrl.setEnabled(False)
             self.desc_ctrl.setEnabled(False)
         else:
-            plating = getattr(db_obj, self.attribute_name)
+            plating = self._get_target(db_obj)
 
             db_obj.table.execute(f'SELECT symbol FROM platings;')
 
@@ -136,7 +146,7 @@ class PlatingControl(_prop_ctrls.Category):
             self.desc_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_symbol(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_symbol(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the symbol event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -164,21 +174,21 @@ class PlatingControl(_prop_ctrls.Category):
 
         self.desc_ctrl.SetValue(desc)
 
-        setattr(self.db_obj, self.attribute_name + '_id', db_id)
+        self._set_target_id(self.db_obj, db_id)
 
     @_check_types.do
-    def SetAttributeName(self, name):
-        """Execute the set attribute name operation.
+    def SetTarget(self, get_target: Callable[[PlatingMixin], _Union["_plating.Plating", None]],
+                  set_target_id: Callable[[PlatingMixin, bytes], None]) -> None:
+        """Choose which plating of the db object this control edits.
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param name: Name value.
-        :type name: UNKNOWN
+        :param get_target: Returns the plating object on the db object.
+        :param set_target_id: Stores the id of a plating on the db object.
         """
-        self.attribute_name = name
+        self._get_target = get_target
+        self._set_target_id = set_target_id
 
     @_check_types.do
-    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the desc event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -187,4 +197,4 @@ class PlatingControl(_prop_ctrls.Category):
         :type evt: :class:`_prop_ctrls.PropertyEvent`
         """
         desc = evt.GetValue()
-        getattr(self.db_obj, self.attribute_name).description = desc
+        self._get_target(self.db_obj).description = desc

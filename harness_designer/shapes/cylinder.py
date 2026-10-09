@@ -53,7 +53,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(radius, length, resolution=None, split=None) -> tuple[np.ndarray, np.ndarray]:
+def create(radius: float, length: float, resolution: int | None = None, split: int | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Create vertices and faces for a cylindrical side wall.
 
     The current implementation generates only the curved surface; end caps are

@@ -1,15 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import material as _material
+    from PySide6 import QtWidgets
 
 
 class MaterialMixin(BaseMixin):
@@ -18,7 +18,7 @@ class MaterialMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_material: Union[DefaultStoredValueType, "_material.Material"] = DefaultStoredValue
+    _stored_material: _Union[DefaultStoredValueType, "_material.Material"] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -55,7 +55,7 @@ class MaterialMixin(BaseMixin):
 
     @material_id.setter
     @_check_types.do
-    def material_id(self, value: bytes):
+    def material_id(self, value: bytes) -> None:
         """Set the material ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -77,7 +77,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`MaterialControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,7 +92,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
         self.propertyChanged.connect(self._on_material)
 
     @_check_types.do
-    def set_obj(self, db_obj: MaterialMixin | None):
+    def set_obj(self, db_obj: MaterialMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -117,7 +117,7 @@ class MaterialControl(_prop_ctrls.ComboBoxProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_material(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_material(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the material event.
 
         UNKNOWN details are inferred from the callable name and signature.

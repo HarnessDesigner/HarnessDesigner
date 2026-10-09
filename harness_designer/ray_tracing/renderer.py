@@ -3,8 +3,10 @@
 """OpenCL-backed rendering helpers for the ray-tracing pipeline.
 """
 
-import os
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
+import os
 import pyopencl as cl
 import numpy as np
 import warnings
@@ -13,6 +15,10 @@ import threading
 from .. import config as _config
 from .. import gpu as _gpu
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from . import scene as _scene
 
 
 # Suppress OpenCL compiler warnings
@@ -26,7 +32,7 @@ class Renderer:
     """Compile the OpenCL kernel and execute chunked ray-tracing work for a prepared :class:`Scene`.
     """
     @_check_types.do
-    def __init__(self, scene, callback):
+    def __init__(self, scene: "_scene.Scene", callback: Callable[..., None]) -> None:
         """Initialize the object and capture the state required for later interaction.
 
         :param scene: Prepared scene description to render.
@@ -40,7 +46,7 @@ class Renderer:
         self.program, self.kernel = self.compile_kernel()
 
     @_check_types.do
-    def init_cl(self):  # NOQA
+    def init_cl(self) -> tuple["cl.Context", "cl.CommandQueue", int]:  # NOQA
         # Initialize OpenCL
         """Initialize the OpenCL platform, command queue, and chunk sizing used by the renderer.
 
@@ -81,7 +87,7 @@ class Renderer:
         return ctx, queue, chunk_size
 
     @_check_types.do
-    def compile_kernel(self):
+    def compile_kernel(self) -> tuple["cl.Program", "cl.Kernel"]:
         """Load and compile the OpenCL kernel used for ray tracing.
 
         :returns: A tuple containing the compiled program and kernel objects.
@@ -97,7 +103,7 @@ class Renderer:
         return program, kernel
 
     @_check_types.do
-    def start(self):
+    def start(self) -> None:
         """Start the handler operation for the supplied mouse position.
         """
         thread = threading.Thread(target=self._start)
@@ -105,7 +111,7 @@ class Renderer:
         thread.start()
 
     @_check_types.do
-    def _start(self):
+    def _start(self) -> None:
         """Execute the ray-tracing job on the worker thread and stream chunk results through the callback.
 
         :returns: The result of the operation. UNKNOWN exact semantics when not inferable from the current source.

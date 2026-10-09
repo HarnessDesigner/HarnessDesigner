@@ -7,6 +7,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_cavity as _pjt_cavity
     from .. import cavity as _cavity
 
@@ -21,7 +22,7 @@ class Cavity(_base_pegboard.BasePegboard):
     db_obj: "_pjt_cavity.PJTCavity"
 
     @_check_types.do
-    def __init__(self, parent: "_cavity.Cavity", db_obj: "_pjt_cavity.PJTCavity"):
+    def __init__(self, parent: "_cavity.Cavity", db_obj: "_pjt_cavity.PJTCavity") -> None:
         """Initialise the :class:`Cavity` instance.
 
         :param parent: Parent object.
@@ -53,5 +54,5 @@ class Cavity(_base_pegboard.BasePegboard):
         # can't tell apart from "never seeded" -- confirmed 2026-09-07,
         # Kevin, hence deleted).
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

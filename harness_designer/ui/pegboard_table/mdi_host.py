@@ -153,7 +153,7 @@ class PegboardTableHost(QtWidgets.QMdiArea):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", title: str,
-                 pegboard_table: "_pjt_pegboard_table.PJTPegboardTable"):
+                 pegboard_table: "_pjt_pegboard_table.PJTPegboardTable") -> None:
         """Initialise the :class:`PegboardTableHost` instance.
 
         :param mainframe: Main application frame.

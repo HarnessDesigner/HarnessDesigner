@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import json
 import os
 
@@ -11,21 +13,24 @@ from . import cads as _cads
 from . import series as _series
 from . import families as _families
 from . import temperatures as _temperatures
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
 from . import wires as _wires
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_wire_markers(con, data: tuple[dict] | list[dict]):
+def add_wire_markers(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """Add a wire markers.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -41,7 +46,7 @@ def add_wire_markers(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -101,12 +106,12 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_wire_marker(con, part_number, description, mfg=None, family=None, series=None,
-                    color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                    max_temp=None, min_diameter=0.0, max_diameter=0.0, wire_size_awg_min=None,
-                    wire_size_awg_max=None, wire_size_dia_min=None, wire_size_dia_max=None,
-                    wire_size_cross_min=None, wire_size_cross_max=None, length=0.0,
-                    weight=0.0, has_label=0, commit=True):
+def add_wire_marker(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+                    color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+                    max_temp: str | None = None, min_diameter: float = 0.0, max_diameter: float = 0.0, wire_size_awg_min: int | None = None,
+                    wire_size_awg_max: int | None = None, wire_size_dia_min: float | None = None, wire_size_dia_max: float | None = None,
+                    wire_size_cross_min: float | None = None, wire_size_cross_max: float | None = None, length: float = 0.0,
+                    weight: float = 0.0, has_label: int = 0, commit: bool = True) -> bytes:
     """Add a wire marker.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -196,9 +201,9 @@ def add_wire_marker(con, part_number, description, mfg=None, family=None, series
 
 
 @_check_types.do
-def add_pjt_wire_marker(con, project_id, part_id, point3d_id=None, point2d_id=None,
-                        wire_id=None, name='', notes='', label='', is_visible2d=1,
-                        is_visible3d=1):
+def add_pjt_wire_marker(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, point3d_id: bytes | None = None, point2d_id: bytes | None = None,
+                        wire_id: bytes | None = None, name: str = '', notes: str = '', label: str = '', is_visible2d: int = 1,
+                        is_visible3d: int = 1) -> None:
     """Add a PJT wire marker.
 
     UNKNOWN details are inferred from the callable name and signature.

@@ -40,7 +40,7 @@ class Wire(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_wire.PJTWire", project_load=False):
+                 db_obj: "_pjt_wire.PJTWire", project_load: bool = False) -> None:
         """Initialise the :class:`Wire` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -204,7 +204,7 @@ class Wire(_ObjectBase):
         return total_length, total_resistance
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         # TODO: If a wire segment is connected to other wire segments
         #       then the layouts at the ends that are attached shuld also be
         #       deleted.

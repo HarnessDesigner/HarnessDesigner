@@ -17,7 +17,7 @@ real ray-cast against each tick's own oriented box (see
 hand-rolled screen-space nearest-point search.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from . import tick_pick_object as _tick_pick_object
 from ._protractor_base import ProtractorRingBase
@@ -33,6 +33,8 @@ from ...gl.canvas_base import camera_base as _camera_base
 if TYPE_CHECKING:
     from ... import ui as _ui
     from ._protractor_base import _Tick
+    from ...gl import context as _gl_context
+    from ...gl.materials import material as _material
 
 
 # Nearest-tick highlight color -- bright red, per "if the user clicks
@@ -68,10 +70,10 @@ class OuterRing(ProtractorRingBase):
 
     @_check_types.do
     def __init__(self, axis: str, center: _point.Point, inner_radius: float,
-                 outer_radius: float, depth: float, material, label_size: float,
-                 obj_angle: _angle.Angle, context, mainframe: "_ui.MainFrame",
-                 base_cls: type[_base_var.BaseVar], camera=None,
-                 local_tilt: _angle.Angle | None = None):
+                 outer_radius: float, depth: float, material: "_material.GLMaterial", label_size: float,
+                 obj_angle: _angle.Angle, context: "_gl_context.GLContext", mainframe: "_ui.MainFrame",
+                 base_cls: type[_base_var.BaseVar], camera: "_camera_base.CameraBase" = None,
+                 local_tilt: _angle.Angle | None = None) -> None:
 
         self._obj_angle = obj_angle
         self._hovered_tick = None
@@ -127,7 +129,7 @@ class OuterRing(ProtractorRingBase):
         self.reposition_all(self._disc_rotation())
         self.start_camera_tracking()
 
-    def _get_label_color(self):
+    def _get_label_color(self) -> tuple[float, float, float, float]:
         return _LABEL_COLOR
 
     @_check_types.do
@@ -209,7 +211,7 @@ class OuterRing(ProtractorRingBase):
 
     @_check_types.do
     def pick_tick(self, mouse_pos: _point.Point,
-                  camera: _camera_base.CameraBase) -> Union["_Tick", None]:
+                  camera: _camera_base.CameraBase) -> _Union["_Tick", None]:
         """
         Ray-cast *mouse_pos* against every tick's own oriented box
         (see :mod:`~...gl.object_picker`) and return whichever ``_Tick``
@@ -292,5 +294,5 @@ class OuterRing(ProtractorRingBase):
         return None
 
     @_check_types.do
-    def delete(self, context) -> None:
+    def delete(self, context: "_gl_context.GLContext") -> None:
         super().delete(context)

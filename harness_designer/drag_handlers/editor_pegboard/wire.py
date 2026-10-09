@@ -31,6 +31,8 @@ terminal/splice snap on release does not yet.
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from ...handlers import wire_drag_base as _wire_drag_base
 from .. import editor_pegboard as _editor_pegboard
 from ... import check_types as _check_types
@@ -44,6 +46,8 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import ui as _ui
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
+    from ...database.project_db import pjt_point_pegboard as _pjt_point_pegboard
 
 
 class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
@@ -57,19 +61,19 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
     _SnapProbeSet = _wire_snap.SnapProbeSet
 
     @staticmethod
-    def _get_view_object(obj: "_wire_object.Wire"):
+    def _get_view_object(obj: "_wire_object.Wire") -> "_base_pegboard.BasePegboard":
         return obj.objpegboard
 
     @staticmethod
-    def _get_editor(mainframe: "_ui.MainFrame"):
+    def _get_editor(mainframe: "_ui.MainFrame") -> "_canvas.Canvas":
         return mainframe.editor_pegboard.editor._canvas  # NOQA
 
     @staticmethod
-    def _points_table(project: "_project.Project"):
+    def _points_table(project: "_project.Project") -> "_pjt_point_pegboard.PJTPointsPegboardTable":
         return project.ptables.pjt_points_pegboard_table
 
     @staticmethod
-    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire"):
+    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire") -> list["_pjt_point_pegboard.PJTPointPegboard"]:
         return wire_db_obj.waypoints_pegboard
 
     @staticmethod
@@ -97,7 +101,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         wire_db_obj.stop_position_pegboard_id = value
 
     @staticmethod
-    def _layout_position_id(layout_db_obj: object) -> bytes | None:
+    def _layout_position_id(layout_db_obj: "_pjt_wire_layout.PJTWireLayout") -> bytes | None:
         return layout_db_obj.position_pegboard_id
 
     @staticmethod
@@ -130,7 +134,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
         _editor_pegboard.DragHandlerPegboard.delete(self)
 
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: "_point.Point") -> None:
+    def __call__(self, delta: "_point.Point", mouse_pos: "_point.Point") -> None:
         # Explicit, never a bare inherited lookup -- DragHandlerPegboard's
         # own ancestor DragHandlerBase also defines __call__ (as an
         # unconditional NotImplementedError, meant to be overridden per
@@ -145,7 +149,7 @@ class Wire(_editor_pegboard.DragHandlerPegboard, _wire_drag_base.WireDragMixin):
 
     @_check_types.do
     def _move_delta(self, anchor: "_point.Point", last_pos: "_point.Point",
-                     delta: object, aabb: object) -> "_point.Point":
+                     delta: "_point.Point", aabb: np.ndarray) -> "_point.Point":
         """Hard-lock Y to exactly 0, every frame -- do NOT rely on the
         peg-board's locked top-down ortho camera to keep it there on its
         own via :meth:`WireDragMixin._raw_move_delta`'s round trip

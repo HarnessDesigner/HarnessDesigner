@@ -89,7 +89,7 @@ class GLMaterial:
     _cl_ior = 1.45
 
     @_check_types.do
-    def __init__(self, color: _color.Color):
+    def __init__(self, color: _color.Color) -> None:
         """Initialise the :class:`GLMaterial` instance.
 
         :param color: The material's true color -- every shading term
@@ -125,7 +125,7 @@ class GLMaterial:
 
     @property
     @_check_types.do
-    def cl_array(self):
+    def cl_array(self) -> np.ndarray:
         """Return this material packed for the offline ray tracer.
 
         Layout matches ``ray_tracing/kernel.cl``'s ``Material`` struct
@@ -145,7 +145,7 @@ class GLMaterial:
 
     @property
     @_check_types.do
-    def color_scalar(self):
+    def color_scalar(self) -> tuple[float, float, float, float]:
         """Return the material's true color, unmodified by lighting.
 
         :returns: RGBA scalar tuple in 0.0-1.0.
@@ -155,7 +155,7 @@ class GLMaterial:
 
     @property
     @_check_types.do
-    def is_opaque(self):
+    def is_opaque(self) -> bool:
         """Report whether this material's color is fully opaque.
 
         :returns: ``True`` when alpha is 1.0.
@@ -164,7 +164,7 @@ class GLMaterial:
         return self._is_opaque
 
     @_check_types.do
-    def set(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram"]):
+    def set(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram"]) -> None:
         """Push this material's uniforms onto the given (already-bound) program.
 
         :param program: The faces or edges program currently bound via
@@ -177,7 +177,7 @@ class GLMaterial:
         program.material_shininess = self.shininess
         program.material_emissive = self.emissive
 
-        if not hasattr(type(program), "emissive_rim_power"):
+        if not program.has_emissive_rim_power:
             return
 
         if (

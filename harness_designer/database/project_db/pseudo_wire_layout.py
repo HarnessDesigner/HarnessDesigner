@@ -45,8 +45,7 @@ below for why that has to be a real subclass) while never touching a
 real database row.
 """
 
-from typing import TYPE_CHECKING, Union
-
+from typing import TYPE_CHECKING, Union as _Union
 
 from .pjt_wire_layout import PJTWireLayout
 from ...geometry import point as _point
@@ -70,7 +69,7 @@ class _PseudoAttachedWire:
     """
     __slots__ = ('part', 'part_id')
 
-    def __init__(self, part: "_global_wire.Wire"):
+    def __init__(self, part: "_global_wire.Wire") -> None:
         self.part = part
         self.part_id = part.db_id
 
@@ -127,23 +126,24 @@ class PseudoPJTWireLayout(PJTWireLayout):
     """
 
     _table = None
+    is_snap_probe = True
 
-    snap_terminal: Union["_terminal.Terminal", None] = None
-    snap_wire: Union["_wire.Wire", None] = None
+    snap_terminal: _Union["_terminal.Terminal", None] = None
+    snap_wire: _Union["_wire.Wire", None] = None
     snap_end: str | None = None
-    snap_splice: Union["_splice.Splice", None] = None
+    snap_splice: _Union["_splice.Splice", None] = None
 
     _position: _point.Point | None = None
     _position_pegboard: _point.Point | None = None
-    _wire_part: Union["_global_wire.Wire", None] = None
+    _wire_part: _Union["_global_wire.Wire", None] = None
 
     def configure(
         self,
         wire_part: "_global_wire.Wire",
-        terminal: Union["_terminal.Terminal", None] = None,
-        wire: Union["_wire.Wire", None] = None,
+        terminal: _Union["_terminal.Terminal", None] = None,
+        wire: _Union["_wire.Wire", None] = None,
         end: str | None = None,
-        splice: Union["_splice.Splice", None] = None,
+        splice: _Union["_splice.Splice", None] = None,
         position3d: _point.Point | None = None,
         position2d: _point.Point | None = None,
         position_pegboard: _point.Point | None = None,
@@ -180,7 +180,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return True
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         pass
 
     @property
@@ -188,7 +188,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return False
 
     @is_visible2d.setter
-    def is_visible2d(self, value: bool):
+    def is_visible2d(self, value: bool) -> None:
         pass
 
     @property
@@ -196,7 +196,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return False
 
     @is_visible3d.setter
-    def is_visible3d(self, value: bool):
+    def is_visible3d(self, value: bool) -> None:
         pass
 
     @property
@@ -209,7 +209,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return False
 
     @is_visible_pegboard.setter
-    def is_visible_pegboard(self, value: bool):
+    def is_visible_pegboard(self, value: bool) -> None:
         pass
 
     @property
@@ -225,7 +225,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return self._position_pegboard
 
     @position_pegboard.setter
-    def position_pegboard(self, value):
+    def position_pegboard(self, value: _point.Point | None) -> None:
         pass
 
     @property
@@ -237,7 +237,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position_pegboard_id.setter
-    def position_pegboard_id(self, value: bytes):
+    def position_pegboard_id(self, value: bytes) -> None:
         pass
 
     _position2d: _point.Point | None = None
@@ -255,7 +255,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position2d_id.setter
-    def position2d_id(self, value: bytes):
+    def position2d_id(self, value: bytes) -> None:
         pass
 
     _position3d: _point.Point | None = None
@@ -273,6 +273,6 @@ class PseudoPJTWireLayout(PJTWireLayout):
         return db_id[:-2] if db_id is not None else None
 
     @position3d_id.setter
-    def position3d_id(self, value: bytes):
+    def position3d_id(self, value: bytes) -> None:
         pass
 

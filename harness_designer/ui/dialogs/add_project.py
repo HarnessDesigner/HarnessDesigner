@@ -16,6 +16,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ... import ui as _ui
     from ...database.project_db import project as _project
 
 
@@ -31,7 +32,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent, name, table: "_project.ProjectsTable"):
+    def __init__(self, parent: "_ui.MainFrame", name: str, table: "_project.ProjectsTable") -> None:
         """Initialise the :class:`AddProjectDialog` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -99,7 +100,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         vsizer.addWidget(self.color_ctrl)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> tuple[str, str, str, str, bytes]:
         """Execute the get value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -118,7 +119,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
                 )
 
     @_check_types.do
-    def _on_name_text(self, _text: str = ''):
+    def _on_name_text(self, _text: str = '') -> None:
         """Handle the name text event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -128,7 +129,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         """
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             """Execute the do operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -147,7 +148,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def _on_user_model_text(self, _text: str = ''):
+    def _on_user_model_text(self, _text: str = '') -> None:
         """Handle the user model text event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -157,7 +158,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         """
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             """Execute the do operation.
 
             UNKNOWN details are inferred from the callable name and signature.
@@ -177,7 +178,7 @@ class AddProjectDialog(_dialog_base.BaseDialog):
         QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def _on_open_file(self):
+    def _on_open_file(self) -> None:
         """Handle the open file event.
 
         UNKNOWN details are inferred from the callable name and signature.

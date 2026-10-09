@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
     from ...objects import project as _project
     from ...objects import wire as _wire_object
+    from ...objects.objects_pegboard import base_pegboard as _base_pegboard
 
 
 class SnapProbeSet(_snap_probe_set.SnapProbeSet):
@@ -31,11 +32,11 @@ class SnapProbeSet(_snap_probe_set.SnapProbeSet):
         return dict(position_pegboard=db_obj.wire_position_pegboard)
 
     @staticmethod
-    def _get_view_object(obj: "_wire_object.Wire"):
+    def _get_view_object(obj: "_wire_object.Wire") -> "_base_pegboard.BasePegboard":
         return obj.objpegboard
 
     @staticmethod
-    def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire"):
+    def _wire_end_anchors(project: "_project.Project", wire_obj: "_wire_object.Wire") -> tuple[bool, bool]:
         # Always the 3D concrete Wire -- see
         # snap_probe_set.SnapProbeSet._wire_end_anchors's own docstring
         # (a project-wide topology fact, not a per-view rendering detail).

@@ -37,7 +37,6 @@ below rather than assumed:
 """
 
 import math
-
 import numpy as np
 
 from ..geometry import angle as _angle

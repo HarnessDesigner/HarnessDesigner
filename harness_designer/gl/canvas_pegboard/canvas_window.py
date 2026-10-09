@@ -2,9 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6 import QtWidgets
-from PySide6 import QtCore
-
 from . import canvas as _canvas
 from ... import check_types as _check_types
 from ..canvas_base import canvas_window_base as _canvas_window_base
@@ -21,7 +18,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 config: "_config.Config.editor_pegboard", size=None):
+                 config: "_config.Config.editor_pegboard", size: tuple[int, int] | None = None) -> None:
         """
         Initialise the :class:`CanvasWindow` instance.
 

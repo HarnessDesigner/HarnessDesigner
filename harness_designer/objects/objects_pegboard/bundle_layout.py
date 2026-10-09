@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
@@ -15,6 +15,7 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_bundle_layout as _pjt_bundle_layout
     from .. import bundle_layout as _bundle_layout
     from .. import bundle as _bundle_facade
@@ -34,7 +35,7 @@ class BundleLayout(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_bundle_layout.BundleLayout",
-                 db_obj: "_pjt_bundle_layout.PJTBundleLayout"):
+                 db_obj: "_pjt_bundle_layout.PJTBundleLayout") -> None:
         """Initialise the :class:`BundleLayout` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -123,7 +124,7 @@ class BundleLayout(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -197,7 +198,7 @@ class BundleLayout(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to BasePegboard's own generic drag handling otherwise.

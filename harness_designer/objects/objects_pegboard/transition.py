@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Union as _Union
 import numpy as np
 import build123d
 import math
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtGui, QtWidgets
 
 from . import base_pegboard as _base_pegboard
 from ...shapes import cylinder as _cylinder
@@ -21,6 +22,7 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_pegboard import editor_pegboard as _editor_pegboard
     from ...database.global_db import transition as _g_transition
     from ...database.global_db import transition_branch as _g_transition_branch
     from ...database.project_db import pjt_transition as _pjt_transition
@@ -95,7 +97,7 @@ class _PegBranch:
 
     @_check_types.do
     def __init__(self, catalog_branch: "_g_transition_branch.TransitionBranch",
-                 db_obj: "_pjt_transition_branch.PJTTransitionBranch | None" = None) -> None:
+                 db_obj: _Union["_pjt_transition_branch.PJTTransitionBranch", None] = None) -> None:
         self.idx = catalog_branch.idx
         self.catalog_branch = catalog_branch
         self.db_obj = db_obj
@@ -124,19 +126,19 @@ class _PegBranch:
         self._use_body_model = False
 
         self.diameter: float | None = None
-        self.branch_scale: "_point.Point | None" = None
-        self.bulb_scale: "_point.Point | None" = None
-        self.bulb_sphere_scale: "_point.Point | None" = None
+        self.branch_scale: _point.Point | None = None
+        self.bulb_scale: _point.Point | None = None
+        self.bulb_sphere_scale: _point.Point | None = None
 
         self._position: "_point.Point" = _point.Point(0.0, 0.0, 0.0)
         self._angle: "_angle.Angle" = _angle.Angle.from_euler(0.0, 0.0, 0.0)
-        self.branch_start: "_point.Point | None" = None
-        self.branch_angle: "_angle.Angle | None" = None
-        self.tip_point: "_point.Point | None" = None
-        self.bulb_start: "_point.Point | None" = None
-        self.bulb_angle: "_angle.Angle | None" = None
-        self.bulb_end: "_point.Point | None" = None
-        self.bulb_start_sphere: "_point.Point | None" = None
+        self.branch_start: _point.Point | None = None
+        self.branch_angle: _angle.Angle | None = None
+        self.tip_point: _point.Point | None = None
+        self.bulb_start: _point.Point | None = None
+        self.bulb_angle: _angle.Angle | None = None
+        self.bulb_end: _point.Point | None = None
+        self.bulb_start_sphere: _point.Point | None = None
 
         if db_obj is not None and db_obj.diameter is not None:
             seed_diameter = db_obj.diameter
@@ -545,10 +547,9 @@ class _PegBody:
         """No-op -- see ``objects_3d.transition._Body.release``."""
 
     @property
-    def ctx(self):
-        from PySide6.QtGui import QOpenGLContext
+    def ctx(self) -> "QtGui.QOpenGLContext":
 
-        ctx = QOpenGLContext.currentContext()
+        ctx = QtGui.QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
 
@@ -620,7 +621,7 @@ class _PegBody:
         return self._build_mesh()[1]
 
     @property
-    def faces(self):
+    def faces(self) -> None:
         return None
 
     def _compute_local_bounds(self) -> None:
@@ -636,7 +637,7 @@ class _PegBody:
     @_check_types.do
     def render(self, shaders: "_shader_program.FacesProgram", position: "_point.Point",
                angle: "_angle.Angle", scale: "_point.Point", smooth: bool | None = True,
-               material: "_materials.GLMaterial | None" = None,
+               material: _materials.GLMaterial | None = None,
                branch_materials: dict | None = None) -> None:
         """See ``objects_3d.transition._Body.render``'s own docstring."""
         overrides = branch_materials or {}
@@ -687,7 +688,7 @@ class Transition(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_transition.Transition",
-                 db_obj: "_pjt_transition.PJTTransition"):
+                 db_obj: "_pjt_transition.PJTTransition") -> None:
         """Initialise the :class:`Transition` instance.
 
         :param parent: Parent object.
@@ -926,7 +927,7 @@ class Transition(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -935,19 +936,19 @@ class Transition(_base_pegboard.BasePegboard):
             pass
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "TransitionMenu":
         """Return this transition's own right-click context menu (see
         ``ui/mainframe.py``'s ``_on_obj_right_click_pegboard``).
         """
         return TransitionMenu(self.pegboard.editor, self)
 
 
-class TransitionMenu(QMenu):
+class TransitionMenu(QtWidgets.QMenu):
     """Right-click menu for a pegboard Transition."""
 
     @_check_types.do
-    def __init__(self, canvas, selected: "Transition"):
-        QMenu.__init__(self)
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: "Transition") -> None:
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -968,7 +969,7 @@ class TransitionMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_show_table(self):
+    def on_show_table(self) -> None:
         """Show this transition's own peg-board wire table -- creating
         it the first time, or just re-showing it (see
         ``BasePegboard.show_table``).
@@ -976,19 +977,19 @@ class TransitionMenu(QMenu):
         self.selected.show_table()
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this transition the active selection."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.select_object_for_object(self.selected.parent.mainframe, self.selected.parent)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this transition from the project."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this transition's properties in the object editor."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.show_properties_for_object(self.selected.parent.mainframe, self.selected.parent)

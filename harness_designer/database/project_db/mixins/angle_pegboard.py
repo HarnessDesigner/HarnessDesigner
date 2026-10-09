@@ -1,11 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import uuid
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class AnglePegboardMixin(BaseMixin):
@@ -21,7 +27,7 @@ class AnglePegboardMixin(BaseMixin):
     _skip_db_write: bool = False
 
     @_check_types.do
-    def _update_angle_pegboard(self, angle: _angle.Angle):
+    def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
         """Update the peg-board angle.
 
         :param angle: Value for ``angle``.
@@ -68,13 +74,13 @@ class AnglePegboardMixin(BaseMixin):
 class AnglePegboardControl(_prop_ctrls.AngleProperty):
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         self.db_obj: AnglePegboardMixin | None = None
 
         super().__init__(parent, 'Pegboard Angle', axes='y')
 
     @_check_types.do
-    def set_obj(self, db_obj: AnglePegboardMixin | None):
+    def set_obj(self, db_obj: AnglePegboardMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

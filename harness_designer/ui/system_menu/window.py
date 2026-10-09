@@ -16,7 +16,7 @@ class WindowMenu(QtWidgets.QMenu):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """Initialise the :class:`WindowMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

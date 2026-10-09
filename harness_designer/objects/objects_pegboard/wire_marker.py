@@ -45,7 +45,7 @@ class WireMarker(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
-                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
+                 db_obj: "_pjt_wire_marker.PJTWireMarker") -> None:
         """Initialise the :class:`WireMarker` instance.
 
         :param parent: Parent object.
@@ -115,7 +115,7 @@ class WireMarker(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -197,7 +197,7 @@ class WireMarker(_base_pegboard.BasePegboard):
         return line.point_from_start(distance)
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """See ``objects_3d.wire_marker.WireMarker._update_position`` --
         same two-trigger reasoning (the marker dragged directly, or one
         of the wire's own peg-board endpoints moving), same db_id

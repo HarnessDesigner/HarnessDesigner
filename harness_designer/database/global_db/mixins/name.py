@@ -1,9 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from typing import TYPE_CHECKING
 
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....ui import prop_ctrls as _prop_ctrls
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class NameMixin(BaseMixin):
@@ -31,7 +37,7 @@ class NameMixin(BaseMixin):
 
     @name.setter
     @_check_types.do
-    def name(self, value: str):
+    def name(self, value: str) -> None:
         """Set the name.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -51,7 +57,7 @@ class NameControl(_prop_ctrls.StringProperty):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: NameMixin | None):
+    def set_obj(self, db_obj: NameMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -69,7 +75,7 @@ class NameControl(_prop_ctrls.StringProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_name(self, evt):
+    def _on_name(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the name event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -81,7 +87,7 @@ class NameControl(_prop_ctrls.StringProperty):
         self.db_obj.name = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`NameControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

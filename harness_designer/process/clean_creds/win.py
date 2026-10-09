@@ -6,7 +6,7 @@ import keyring
 from win32ctypes.pywin32.win32cred import CredEnumerate
 
 
-def run():
+def run() -> None:
     """Delete cached database credentials from the Windows credential store.
 
     :returns: ``None``.

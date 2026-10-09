@@ -38,13 +38,16 @@ accessor overrides already produce, so nothing about that behavior
 changes here.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
 from ...geometry import point as _point
 from ...handlers import wire_drag_base as _wire_drag_base
 from .. import editor_3d as _editor_3d
+from ...gl import materials as _materials
+from ... import color as _color
+from ... import config as _config
 from ... import check_types as _check_types
 from . import wire_snap as _wire_snap
 
@@ -53,8 +56,15 @@ if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ...objects import project as _project
     from ...objects import wire as _wire_object
+    from ...objects import terminal as _terminal
+    from ...objects import splice as _splice
     from ...database.project_db import pjt_wire as _pjt_wire
     from ... import ui as _ui
+    from ...objects.objects_3d import base_3d as _base_3d
+    from ...database.project_db import pjt_point3d as _pjt_point3d
+
+
+Config = _config.Config.colors.add_object
 
 
 class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
@@ -71,27 +81,27 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
     _SnapProbeSet = _wire_snap.SnapProbeSet
 
     @staticmethod
-    def _get_view_object(obj: "_wire_object.Wire"):
+    def _get_view_object(obj: "_wire_object.Wire") -> "_base_3d.Base3D":
         return obj.obj3d
 
     @staticmethod
-    def _get_editor(mainframe: "_ui.MainFrame"):
+    def _get_editor(mainframe: "_ui.MainFrame") -> "_canvas.Canvas":
         return mainframe.editor3d.editor._canvas  # NOQA
 
     @staticmethod
-    def _points_table(project: "_project.Project"):
+    def _points_table(project: "_project.Project") -> "_pjt_point3d.PJTPoints3DTable":
         return project.ptables.pjt_points3d_table
 
     @staticmethod
-    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire"):
+    def _waypoints(wire_db_obj: "_pjt_wire.PJTWire") -> list["_pjt_point3d.PJTPoint3D"]:
         return wire_db_obj.waypoints3d
 
     @staticmethod
-    def _wire_position_id_raw(obj) -> bytes | None:
+    def _wire_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
         return obj.wire_position3d_id_raw
 
     @staticmethod
-    def _attach_position_id_raw(obj) -> bytes | None:
+    def _attach_position_id_raw(obj: "_wire_object.Wire") -> bytes | None:
         return obj.attach_position3d_id_raw
 
     @staticmethod
@@ -111,7 +121,7 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         wire_db_obj.stop_position3d_id = value
 
     @staticmethod
-    def _layout_position_id(layout_db_obj: object) -> bytes | None:
+    def _layout_position_id(layout_db_obj: "_pjt_wire_layout.PJTWireLayout") -> bytes | None:
         return layout_db_obj.position3d_id
 
     @staticmethod
@@ -132,13 +142,91 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         _editor_3d.DragHandler3D.__init__(self, canvas, target)
         self._arm_drag(canvas, target, plan)
 
+        # Ambient "this is a valid snap target" tier, shown for the whole
+        # drag -- see _apply_ambient_highlights. Mirrors
+        # add_handlers.editor_3d.wire.Wire's own two-tier highlight for
+        # the two-click placement flow; this is the drag-to-an-existing-
+        # free-end equivalent, same rationale (asked for explicitly by the
+        # user, not just the two-click flow).
+        self._ambient_terminals: list["_terminal.Terminal"] = []
+        self._ambient_splices: list["_splice.Splice"] = []
+        self._engaged_kind: str | None = None
+        self._engaged_target = None
+
+        self._terminal_highlight = _materials.Plastic(
+            _color.Color(*Config.terminal_highlight))
+        self._splice_highlight = _materials.Plastic(
+            _color.Color(*Config.splice_highlight))
+        self._capable_highlight = _materials.Plastic(
+            _color.Color(*Config.snap_capable_highlight))
+
+        self._apply_ambient_highlights()
+
+    @_check_types.do
+    def _apply_ambient_highlights(self) -> None:
+        if self._snap_probes is None:
+            return
+
+        self._ambient_terminals = list(self._snap_probes.snap_terminals)
+        self._ambient_splices = list(self._snap_probes.snap_splices)
+
+        for terminal in self._ambient_terminals:
+            terminal.obj3d.set_snap_highlight(self._capable_highlight)
+
+        for splice in self._ambient_splices:
+            splice.identify(self._capable_highlight)
+
+    @_check_types.do
+    def _clear_ambient_highlights(self) -> None:
+        self._set_engaged_target(None, None)
+
+        for terminal in self._ambient_terminals:
+            terminal.obj3d.set_snap_highlight(None)
+
+        for splice in self._ambient_splices:
+            splice.identify(None)
+
+        self._ambient_terminals = []
+        self._ambient_splices = []
+
+    @_check_types.do
+    def _set_engaged_target(
+        self, kind: str | None,
+        target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire_object.Wire", str], None]
+    ) -> None:
+        """Move the "snap actually engaged here" tier from whichever
+        target had it last (reverting it to the ambient tier, same as
+        add_handlers.editor_3d.wire.Wire._revert_highlight) onto *target*
+        -- called every tick from __call__ with whatever
+        WireDragMixin.__call__ just resolved into
+        self.snapped_kind/self.snapped_target. Only 'terminal'/'splice'
+        ever carry a visible highlight here -- a 'wire' kind (merging onto
+        another dangling same-part end) has no mesh of its own to tint.
+        """
+        if target is self._engaged_target:
+            return
+
+        if self._engaged_kind == 'terminal':
+            self._engaged_target.obj3d.set_snap_highlight(self._capable_highlight)
+        elif self._engaged_kind == 'splice':
+            self._engaged_target.identify(self._capable_highlight)
+
+        self._engaged_kind = kind
+        self._engaged_target = target
+
+        if kind == 'terminal':
+            target.obj3d.set_snap_highlight(self._terminal_highlight)
+        elif kind == 'splice':
+            target.identify(self._splice_highlight)
+
     @_check_types.do
     def delete(self) -> None:
+        self._clear_ambient_highlights()
         self._disarm_drag()
         _editor_3d.DragHandler3D.delete(self)
 
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:
         # Explicit, never a bare inherited lookup -- DragHandler3D's own
         # ancestor DragHandlerBase also defines __call__ (as an
         # unconditional NotImplementedError, meant to be overridden per
@@ -150,8 +238,10 @@ class Wire(_editor_3d.DragHandler3D, _wire_drag_base.WireDragMixin):
         # rule as __init__/delete above.
         _wire_drag_base.WireDragMixin.__call__(self, delta, mouse_pos)
 
+        self._set_engaged_target(self.snapped_kind, self.snapped_target)
+
     @_check_types.do
-    def _move_delta(self, anchor: _point.Point, last_pos: _point.Point, delta: object, aabb: np.ndarray) -> _point.Point | None:
+    def _move_delta(self, anchor: _point.Point, last_pos: _point.Point, delta: _point.Point, aabb: np.ndarray) -> _point.Point | None:
         """3D's free-orbit camera makes a raw screen delta ambiguous
         (it could mean movement along any of X/Y/Z) -- lock to whichever
         axis dominates once the drag settles, same as every other 3D

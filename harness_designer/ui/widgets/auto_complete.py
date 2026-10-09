@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from PySide6 import QtCore
 from ... import check_types as _check_types
 
@@ -9,7 +9,7 @@ class _AutoCompleter:
     """Pure-Python autocomplete state machine, shared by all widget wrappers."""
 
     @_check_types.do
-    def __init__(self, choices):
+    def __init__(self, choices: list[str]) -> None:
         """Initialise the :class:`_AutoCompleter` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -20,7 +20,7 @@ class _AutoCompleter:
         self.choices = list(choices)
 
     @_check_types.do
-    def SetChoices(self, choices):
+    def SetChoices(self, choices: list[str]) -> None:
         """Execute the set choices operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -31,7 +31,7 @@ class _AutoCompleter:
         self.choices = list(choices)
 
     @_check_types.do
-    def GetChoices(self):
+    def GetChoices(self) -> list[str]:
         """Execute the get choices operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -42,7 +42,7 @@ class _AutoCompleter:
         return self.choices[:]
 
     @_check_types.do
-    def AppendChoices(self, choices):
+    def AppendChoices(self, choices: list[str]) -> None:
         """Execute the append choices operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -53,7 +53,7 @@ class _AutoCompleter:
         self.choices.extend(choices)
 
     @_check_types.do
-    def InsertChoice(self, item: str, pos: int):
+    def InsertChoice(self, item: str, pos: int) -> None:
         """Execute the insert choice operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +66,7 @@ class _AutoCompleter:
         self.choices.insert(pos, item)
 
     @_check_types.do
-    def RemoveChoice(self, pos: int):
+    def RemoveChoice(self, pos: int) -> None:
         """Execute the remove choice operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -78,7 +78,7 @@ class _AutoCompleter:
 
 
 @_check_types.do
-def _attach_completer(widget, ac: _AutoCompleter):
+def _attach_completer(widget: QtWidgets.QLineEdit, ac: _AutoCompleter) -> QtWidgets.QCompleter:
     """
     Create and attach a QCompleter to *widget*, returning it so callers can
     refresh it when the choices list changes.
@@ -94,14 +94,13 @@ def _attach_completer(widget, ac: _AutoCompleter):
 
 
 @_check_types.do
-def _refresh_completer(widget, ac: _AutoCompleter):
+def _refresh_completer(widget: QtWidgets.QLineEdit, ac: _AutoCompleter) -> None:
     """Rebuild the completer model from the current choices list."""
     completer = widget.completer()
     if completer is None:
         _attach_completer(widget, ac)
     else:
-        from PySide6.QtCore import QStringListModel
-        completer.setModel(QStringListModel(ac.choices, completer))
+        completer.setModel(QtCore.QStringListModel(ac.choices, completer))
 
 
 class AutoComplete(QtWidgets.QLineEdit):
@@ -110,7 +109,7 @@ class AutoComplete(QtWidgets.QLineEdit):
     """
 
     @_check_types.do
-    def __init__(self, parent=None, value='', autocomplete_choices=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, value: str = '', autocomplete_choices: list[str] | None = None) -> None:
         """Initialise the :class:`AutoComplete` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -128,7 +127,7 @@ class AutoComplete(QtWidgets.QLineEdit):
         _attach_completer(self, self._ac)
 
     @_check_types.do
-    def SetAutoCompleteChoices(self, choices):
+    def SetAutoCompleteChoices(self, choices: list[str]) -> None:
         """Execute the set auto complete choices operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -140,7 +139,7 @@ class AutoComplete(QtWidgets.QLineEdit):
         _refresh_completer(self, self._ac)
 
     @_check_types.do
-    def GetAutoCompleteChoices(self):
+    def GetAutoCompleteChoices(self) -> list[str]:
         """Execute the get auto complete choices operation.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -1,10 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from typing import TYPE_CHECKING
 
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import utils as _utils
 from ....ui import prop_ctrls as _prop_ctrls
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class WireSizeMixin(BaseMixin):
@@ -32,7 +38,7 @@ class WireSizeMixin(BaseMixin):
 
     @wire_size_dia_min.setter
     @_check_types.do
-    def wire_size_dia_min(self, value: float):
+    def wire_size_dia_min(self, value: float) -> None:
         """Set the wire size dia min.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +74,7 @@ class WireSizeMixin(BaseMixin):
 
     @wire_size_dia_max.setter
     @_check_types.do
-    def wire_size_dia_max(self, value: float):
+    def wire_size_dia_max(self, value: float) -> None:
         """Set the wire size dia max.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -104,7 +110,7 @@ class WireSizeMixin(BaseMixin):
 
     @wire_size_cross_min.setter
     @_check_types.do
-    def wire_size_cross_min(self, value: float):
+    def wire_size_cross_min(self, value: float) -> None:
         """Set the wire size cross min.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -140,7 +146,7 @@ class WireSizeMixin(BaseMixin):
 
     @wire_size_cross_max.setter
     @_check_types.do
-    def wire_size_cross_max(self, value: float):
+    def wire_size_cross_max(self, value: float) -> None:
         """Set the wire size cross max.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -176,7 +182,7 @@ class WireSizeMixin(BaseMixin):
 
     @wire_size_awg_min.setter
     @_check_types.do
-    def wire_size_awg_min(self, value: int):
+    def wire_size_awg_min(self, value: int) -> None:
         """Set the wire size awg min.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -212,7 +218,7 @@ class WireSizeMixin(BaseMixin):
 
     @wire_size_awg_max.setter
     @_check_types.do
-    def wire_size_awg_max(self, value: int):
+    def wire_size_awg_max(self, value: int) -> None:
         """Set the wire size awg max.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -237,7 +243,7 @@ class WireSizeControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: WireSizeMixin | None):
+    def set_obj(self, db_obj: WireSizeMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -285,7 +291,7 @@ class WireSizeControl(_prop_ctrls.Category):
             self.max_mm2_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_min_mm2(self, evt):
+    def _on_min_mm2(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the min mm 2 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -300,7 +306,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.min_dia_ctrl.SetValue(self.db_obj.wire_size_dia_min)
 
     @_check_types.do
-    def _on_max_mm2(self, evt):
+    def _on_max_mm2(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the max mm 2 event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -315,7 +321,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.max_dia_ctrl.SetValue(self.db_obj.wire_size_dia_max)
 
     @_check_types.do
-    def _on_min_awg(self, evt):
+    def _on_min_awg(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the min awg event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -330,7 +336,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.min_dia_ctrl.SetValue(self.db_obj.wire_size_dia_min)
 
     @_check_types.do
-    def _on_max_awg(self, evt):
+    def _on_max_awg(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the max awg event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -346,7 +352,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.max_dia_ctrl.SetValue(self.db_obj.wire_size_dia_max)       
 
     @_check_types.do
-    def _on_min_dia(self, evt):
+    def _on_min_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the min dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -361,7 +367,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.min_mm2_ctrl.SetValue(self.db_obj.wire_size_cross_min)
 
     @_check_types.do
-    def _on_max_dia(self, evt):
+    def _on_max_dia(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the max dia event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -376,7 +382,7 @@ class WireSizeControl(_prop_ctrls.Category):
         self.max_mm2_ctrl.SetValue(self.db_obj.wire_size_cross_max)
     
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`WireSizeControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

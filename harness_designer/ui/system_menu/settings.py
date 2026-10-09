@@ -19,7 +19,7 @@ class SettingsMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """Initialise the :class:`SettingsMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -33,7 +33,7 @@ class SettingsMenu(QtWidgets.QMenu):
         self.addAction('Debug Settings').triggered.connect(self.on_debug_settings)
 
     @_check_types.do
-    def on_debug_settings(self):
+    def on_debug_settings(self) -> None:
         """Handle the debug settings event.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -23,7 +23,7 @@ class Generic(_ObjectBase):
     objpegboard: _generic_pegboard.Generic
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """Initialise the :class:`Generic` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -1,11 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point2d as _pjt_point2d
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class StartStopPosition2DMixin(BaseMixin):
@@ -29,23 +35,21 @@ class StartStopPosition2DMixin(BaseMixin):
 
         if self._stored_start_position2d is DefaultStoredValue:
             point_id = self.start_position2d_id
-            
+
             if point_id is None:
                 self._stored_start_position2d = None
             else:
                 self._stored_start_position2d = self._table.db.pjt_points2d_table[point_id]
-        
+
         if self._stored_start_position2d is not None:
             if self._obj is not None:
                 self._stored_start_position2d.add_object(self._obj())
-            
+
             point = self._stored_start_position2d.point
         else:
             point = None
 
         return point
-    
-    _stored_start_position2d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -57,21 +61,20 @@ class StartStopPosition2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_start_position2d_id is DefaultStoredValue:
-            _rows = self._table.select('start_point2d_id', id=self._db_id)
-            point_id = _rows[0][0] if _rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, start_point2d_id=point_id)
-            self._stored_start_position2d_id = point_id
-            
-        return self._stored_start_position2d_id
+        _rows = self._table.select('start_point2d_id', id=self._db_id)
+        point_id = _rows[0][0] if _rows else None
+
+        if point_id is None:
+            point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, start_point2d_id=point_id)
+            self._populate('start_position2d_id')
+
+        return point_id
 
     @start_position2d_id.setter
     @_check_types.do
-    def start_position2d_id(self, value: bytes):
+    def start_position2d_id(self, value: bytes) -> None:
         """Set the start position 2D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -79,10 +82,8 @@ class StartStopPosition2DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        
-        self._stored_start_position2d_id = value
         self._stored_start_position2d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, start_point2d_id=value)
         self._populate('start_position2d_id')
 
@@ -101,7 +102,7 @@ class StartStopPosition2DMixin(BaseMixin):
 
         if self._stored_stop_position2d is DefaultStoredValue:
             point_id = self.stop_position2d_id
-            
+
             if point_id is None:
                 self._stored_stop_position2d = None
             else:
@@ -116,8 +117,6 @@ class StartStopPosition2DMixin(BaseMixin):
             point = None
 
         return point
-    
-    _stored_stop_position2d_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -129,22 +128,20 @@ class StartStopPosition2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        
-        if self._stored_stop_position2d_id is DefaultStoredValue:
-            _rows = self._table.select('stop_point2d_id', id=self._db_id)
-            point_id = _rows[0][0] if _rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, stop_point2d_id=point_id)
+        _rows = self._table.select('stop_point2d_id', id=self._db_id)
+        point_id = _rows[0][0] if _rows else None
 
-            self._stored_stop_position2d_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points2d_table.insert(x=0.0, y=0.0, z=0.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, stop_point2d_id=point_id)
+            self._populate('stop_position2d_id')
 
-        return self._stored_stop_position2d_id
+        return point_id
 
     @stop_position2d_id.setter
     @_check_types.do
-    def stop_position2d_id(self, value: bytes):
+    def stop_position2d_id(self, value: bytes) -> None:
         """Set the stop position 2D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -152,10 +149,8 @@ class StartStopPosition2DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        
-        self._stored_stop_position2d_id = value
         self._stored_stop_position2d = DefaultStoredValue
-        
+
         self._table.update(self._db_id, stop_point2d_id=value)
         self._populate('stop_position2d_id')
 
@@ -167,7 +162,7 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`StartStopPosition2DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -186,7 +181,7 @@ class StartStopPosition2DControl(_prop_ctrls.Property):
         self.addWidget(self.stop_ctrl)
 
     @_check_types.do
-    def set_obj(self, db_obj: StartStopPosition2DMixin | None):
+    def set_obj(self, db_obj: StartStopPosition2DMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

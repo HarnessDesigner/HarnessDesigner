@@ -1,6 +1,5 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Optional
 
 import numpy as np
 from PySide6 import QtCore
@@ -25,8 +24,8 @@ class AnalysisItem:
     # plane). Persisted to Cavity.wire_surf_indices/terminal_surf_indices so
     # match_cavity_surfaces() can skip its OBB nearest-neighbor heuristic on
     # later loads. Empty for manual (synthetic-marker) cavities.
-    wire_surf_indices: list = None
-    term_surf_indices: list = None
+    wire_surf_indices: list[int] | None = None
+    term_surf_indices: list[int] | None = None
     # True when wire_surf_si is shared with another cavity in this same
     # analysis run (no distinguishable per-cavity wire-side mesh geometry).
     # Committed as Cavity.render_wire_marker so match_cavity_surfaces()
@@ -35,7 +34,7 @@ class AnalysisItem:
     wire_is_shared: bool = False
 
     @_check_types.do
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.wire_surf_indices is None:
             self.wire_surf_indices = [self.wire_surf_si] if self.wire_surf_si >= 0 else []
         if self.term_surf_indices is None:
@@ -66,14 +65,14 @@ class EditPanel(QtWidgets.QWidget):
     itemChanged: QtCore.SignalInstance = QtCore.Signal()
 
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> None:
         super().__init__(parent)
-        self._item: Optional[AnalysisItem] = None
+        self._item: AnalysisItem | None = None
 
         QtWidgets.QFormLayout(self)
         self.setEnabled(False)
 
     @_check_types.do
-    def load(self, item: Optional[AnalysisItem]):
+    def load(self, item: AnalysisItem | None) -> None:
         self._item = item
         self.setEnabled(item is not None)

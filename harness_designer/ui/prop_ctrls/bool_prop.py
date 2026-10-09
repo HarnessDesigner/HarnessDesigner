@@ -16,7 +16,7 @@ class BoolProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`BoolProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -44,7 +44,7 @@ class BoolProperty(QtWidgets.QWidget):
         self._ctrl.checkStateChanged.connect(self._on_change)
 
     @_check_types.do
-    def _on_change(self, _):
+    def _on_change(self, _: QtCore.Qt.CheckState) -> None:
         """Handle the change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -65,7 +65,7 @@ class BoolProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetValue(self, value: bool):
+    def SetValue(self, value: bool) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -92,7 +92,7 @@ class BoolProperty(QtWidgets.QWidget):
         return self._ctrl.isChecked()
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

@@ -15,16 +15,21 @@ method name is never resolved through getattr. Easy to trace by reading,
 and something Cython can see and type at compile time.
 """
 
-from typing import BinaryIO, Iterable, Iterator
+from typing import TYPE_CHECKING, BinaryIO, Iterable, Iterator, TextIO
 
 import io
 import sys
+import types
+
+
+if TYPE_CHECKING:
+    from . import log_handler as _log_handler
 
 
 class _StreamRedirector(io.TextIOWrapper):
     """Shared TextIOWrapper plumbing for mirroring a std stream into the logger."""
 
-    def __init__(self, original):
+    def __init__(self, original: TextIO | None) -> None:
         self._original = original
         self._line = ''
 
@@ -157,12 +162,12 @@ class _StreamRedirector(io.TextIOWrapper):
     def reconfigure(self, **_kwargs) -> None:
         """No-op: nothing here honours stream reconfiguration requests."""
 
-    def __enter__(self):
+    def __enter__(self) -> "_StreamRedirector":
         if self._original is not None:
             self._original.__enter__()
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:
         if self._original is not None:
             self._original.__exit__(exc_type, exc_val, exc_tb)
 
@@ -189,7 +194,7 @@ class _StreamRedirector(io.TextIOWrapper):
 class StdOut(_StreamRedirector):
     """Mirrors :data:`sys.stdout`; completed lines are logged at INFO."""
 
-    def __init__(self, logger):
+    def __init__(self, logger: "_log_handler.Log") -> None:
         super().__init__(sys.stdout)
         self._logger = logger
         sys.stdout = self
@@ -205,7 +210,7 @@ class StdOut(_StreamRedirector):
 class StdErr(_StreamRedirector):
     """Mirrors :data:`sys.stderr`; completed lines are logged at ERROR."""
 
-    def __init__(self, logger):
+    def __init__(self, logger: "_log_handler.Log") -> None:
         super().__init__(sys.stderr)
         self._logger = logger
         sys.stderr = self

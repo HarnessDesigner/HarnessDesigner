@@ -1,8 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class SmoothMixin(BaseMixin):
@@ -11,8 +18,6 @@ class SmoothMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     
-    _stored_smooth: bool | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def smooth(self) -> bool | None:
@@ -23,19 +28,16 @@ class SmoothMixin(BaseMixin):
 
         :rtype: bool | None
         """
-        if self._stored_smooth is DefaultStoredValue:
-            _rows = self._table.select('smooth', id=self._db_id)
-            value = _rows[0][0] if _rows else None
-            if value is not None:
-                value = bool(value)
-                
-            self._stored_smooth = value
+        _rows = self._table.select('smooth', id=self._db_id)
+        value = _rows[0][0] if _rows else None
+        if value is not None:
+            value = bool(value)
 
-        return self._stored_smooth
+        return value
 
     @smooth.setter
     @_check_types.do
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         """
         Set whether to use smooth shading for this opject.
 
@@ -43,9 +45,6 @@ class SmoothMixin(BaseMixin):
 
         :type value: bool | None
         """
-        
-        self._stored_smooth = value
-
         real_value = value
         if real_value is not None:
             real_value = int(real_value)
@@ -60,7 +59,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`SmoothControl` instance.
 
         :param parent: Parent object.
@@ -73,7 +72,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
         self.propertyChanged.connect(self._on_smooth)
 
     @_check_types.do
-    def _on_smooth(self, evt):
+    def _on_smooth(self, evt: "_prop_events.PropertyEvent") -> None:
         """
         Handle the smooth event.
 
@@ -86,7 +85,7 @@ class SmoothControl(_prop_ctrls.TriStateCheckboxProperty):
         self.db_obj.smooth = value
 
     @_check_types.do
-    def set_obj(self, db_obj: SmoothMixin | None):
+    def set_obj(self, db_obj: SmoothMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

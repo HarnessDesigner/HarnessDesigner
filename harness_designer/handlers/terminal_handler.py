@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Union as _Union
 import os as _os
 import re as _re
 import statistics as _statistics
-
 import numpy as np
 
 from ..geometry import point as _point

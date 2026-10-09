@@ -1,11 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import math
 import numpy as np
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from . import pjt_terminal as _pjt_terminal
     from . import pjt_wire as _pjt_wire
     from ...objects import wire_service_loop as _wire_service_loop_obj
+    from ... import ui as _ui
 
 
 class PJTWireServiceLoopsTable(PJTTableBase):
@@ -60,7 +61,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -85,7 +86,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         return wire_service_loops.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -95,7 +96,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         wire_service_loops.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -117,7 +118,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
             yield PJTWireServiceLoop(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTWireServiceLoop":
+    def __getitem__(self, item: int | bytes | str) -> "PJTWireServiceLoop":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -160,11 +161,13 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         :rtype: :class:`PJTWireServiceLoop`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
-                                    start_point3d_id=start_point3d_id,
-                                    stop_point3d_id=stop_point3d_id,
-                                    quat3d=str([float(str(v)) for v in quat.tolist()]),
-                                    is_visible3d=int(is_visible))
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, circuit_id=circuit_id,
+            start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
+            quat3d=str([float(str(v)) for v in quat.tolist()]), is_visible3d=int(is_visible),
+            start_point_pegboard_id=None, stop_point_pegboard_id=None, notes='',
+            angle3d='[0.0, 0.0, 0.0]', quat_pegboard='[1.0, 0.0, 0.0, 0.0]',
+            angle_pegboard='[0.0, 0.0, 0.0]', is_visible_pegboard=1, smooth=None)
 
         return PJTWireServiceLoop(self, db_id)
 
@@ -194,7 +197,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -205,7 +208,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_wire_service_loop_obj.WireServiceLoop"):
+    def set_object(self, obj: "_wire_service_loop_obj.WireServiceLoop") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -219,8 +222,6 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         else:
             self._obj = obj
 
-    _stored_terminal: Union["_pjt_terminal.PJTTerminal", None, DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
@@ -231,26 +232,20 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
-        if self._stored_terminal is DefaultStoredValue:
-            start_position_id = self.start_position3d_id
-            stop_position_id = self.stop_position3d_id
+        start_position_id = self.start_position3d_id
+        stop_position_id = self.stop_position3d_id
 
-            start_position_ids = self.table.db.pjt_terminals_table.select(
-                'id', wire_point3d_id=start_position_id)
+        start_position_ids = self.table.db.pjt_terminals_table.select(
+            'id', wire_point3d_id=start_position_id)
 
-            stop_position_ids = self.table.db.pjt_terminals_table.select(
-                'id', wire_point3d_id=stop_position_id)
+        stop_position_ids = self.table.db.pjt_terminals_table.select(
+            'id', wire_point3d_id=stop_position_id)
 
-            if start_position_ids:
-                self._stored_terminal = self.table.db.pjt_terminals_table[start_position_ids[0][0]]
-            elif stop_position_ids:
-                self._stored_terminal = self.table.db.pjt_terminals_table[stop_position_ids[0][0]]
-            else:
-                self._stored_terminal = None
+        if start_position_ids:
+            return self.table.db.pjt_terminals_table[start_position_ids[0][0]]
 
-        return self._stored_terminal
-
-    _stored_wire: Union["_pjt_wire.PJTWire", None, DefaultStoredValueType] = DefaultStoredValue
+        if stop_position_ids:
+            return self.table.db.pjt_terminals_table[stop_position_ids[0][0]]
 
     @property
     @_check_types.do
@@ -262,24 +257,20 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_wire.PJTWire`
         """
-        if self._stored_wire is DefaultStoredValue:
-            start_position_id = self.start_position3d_id
-            stop_position_id = self.stop_position3d_id
+        start_position_id = self.start_position3d_id
+        stop_position_id = self.stop_position3d_id
 
-            start_position_ids = self.table.db.pjt_wires_table.select(
-                'id', start_point3d_id=start_position_id)
+        start_position_ids = self.table.db.pjt_wires_table.select(
+            'id', start_point3d_id=start_position_id)
 
-            stop_position_ids = self.table.db.pjt_wires_table.select(
-                'id', stop_point3d_id=stop_position_id)
+        stop_position_ids = self.table.db.pjt_wires_table.select(
+            'id', stop_point3d_id=stop_position_id)
 
-            if start_position_ids:
-                self._stored_wire = self.table.db.pjt_wires_table[start_position_ids[0][0]]
-            elif stop_position_ids:
-                self._stored_wire = self.table.db.pjt_wires_table[stop_position_ids[0][0]]
-            else:
-                self._stored_wire = None
+        if start_position_ids:
+            return self.table.db.pjt_wires_table[start_position_ids[0][0]]
 
-        return self._stored_wire
+        if stop_position_ids:
+            return self.table.db.pjt_wires_table[stop_position_ids[0][0]]
 
     @property
     @_check_types.do
@@ -379,8 +370,6 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         """
         return self._table
 
-    _stored_circuit: _pjt_circuit.PJTCircuit | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def circuit(self) -> _pjt_circuit.PJTCircuit:
@@ -391,21 +380,9 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_circuit.PJTCircuit`
         """
-        if self._stored_circuit is DefaultStoredValue:
-            circuit_id = self.circuit_id
-
-            if circuit_id is None:
-                self._stored_circuit = None
-            else:
-                self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
-
-        if self._stored_circuit is not None:
-            if self._obj is not None:
-                self._stored_circuit.add_object(self._obj())
-
-        return self._stored_circuit
-
-    _stored_circuit_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        circuit_id = self.circuit_id
+        if circuit_id is not None:
+            return self._table.db.pjt_circuits_table[circuit_id]
 
     @property
     @_check_types.do
@@ -417,14 +394,11 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :returns: Property value. UNKNOWN details.
         :rtype: bytes | None
         """
-        if self._stored_circuit_id is DefaultStoredValue:
-            self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
-
-        return self._stored_circuit_id
+        return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes | None):
+    def circuit_id(self, value: bytes | None) -> None:
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -432,13 +406,8 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :param value: Value to store or process.
         :type value: bytes | None
         """
-        self._stored_circuit_id = value
-        self._stored_circuit = DefaultStoredValue
-
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
-
-    _stored_is_visible: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -450,14 +419,11 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        if self._stored_is_visible is DefaultStoredValue:
-            self._stored_is_visible = bool(self._table.select('is_visible', id=self._db_id)[0][0])
-
-        return self._stored_is_visible
+        return bool(self._table.select('is_visible', id=self._db_id)[0][0])
 
     @is_visible.setter
     @_check_types.do
-    def is_visible(self, value: bool):
+    def is_visible(self, value: bool) -> None:
         """Set the is visible.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -465,7 +431,6 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         :param value: Value to store or process.
         :type value: bool
         """
-        self._stored_is_visible = value
         self._table.update(self._db_id, is_visible=int(value))
         self._populate('is_visible')
 
@@ -496,14 +461,14 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         return self._stored_part
 
 
-class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
+class PJTWireServiceLoopControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT wire service loop control in :mod:`harness_designer.database.project_db.pjt_wire_service_loop`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTWireServiceLoop | None):
+    def set_obj(self, db_obj: PJTWireServiceLoop | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -514,7 +479,7 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -535,7 +500,7 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTWireServiceLoopControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -545,8 +510,8 @@ class PJTWireServiceLoopControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTWireServiceLoop | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

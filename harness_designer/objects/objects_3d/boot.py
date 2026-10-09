@@ -15,6 +15,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
     from ...database.project_db import pjt_boot as _pjt_boot
     from .. import boot as _boot
 
@@ -97,7 +98,7 @@ class BootMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "Boot") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Boot") -> None:
         """Initialise the :class:`BootMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

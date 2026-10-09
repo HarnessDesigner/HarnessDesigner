@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 
@@ -39,7 +39,7 @@ class StippleEditor(QtWidgets.QWidget):
     _C_BG = QtGui.QColor(28,  28,  28)
 
     @_check_types.do
-    def __init__(self, value: int = 0, parent: QtWidgets.QWidget = None):
+    def __init__(self, value: int = 0, parent: QtWidgets.QWidget = None) -> None:
         super().__init__(parent)
 
         self._value = int(value) & 0xFFFFFFFF
@@ -54,7 +54,7 @@ class StippleEditor(QtWidgets.QWidget):
         return self._value
 
     @_check_types.do
-    def SetValue(self, v: int):
+    def SetValue(self, v: int) -> None:
         v = int(v) & 0xFFFFFFFF
         if v != self._value:
             self._value = v
@@ -100,7 +100,7 @@ class StippleEditor(QtWidgets.QWidget):
         return bool(self._value & (1 << i))
 
     @_check_types.do
-    def _set_bit(self, i: int, on: bool):
+    def _set_bit(self, i: int, on: bool) -> None:
         if on:
             self._value |= (1 << i)
         else:
@@ -111,7 +111,7 @@ class StippleEditor(QtWidgets.QWidget):
 
     # ── mouse events ──────────────────────────────────────────────────────────
     @_check_types.do
-    def mousePressEvent(self, event: QtGui.QMouseEvent):
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             i = self._index_at(event.position().toPoint())
             if i >= 0:
@@ -120,20 +120,20 @@ class StippleEditor(QtWidgets.QWidget):
                 self._set_bit(i, self._drag_on)
 
     @_check_types.do
-    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         if self._drag_on is not None:
             i = self._index_at(event.position().toPoint())
             if i >= 0:
                 self._set_bit(i, self._drag_on)
 
     @_check_types.do
-    def mouseReleaseEvent(self, event: QtGui.QMouseEvent):
+    def mouseReleaseEvent(self, event: QtGui.QMouseEvent) -> None:
         if event.button() == QtCore.Qt.MouseButton.LeftButton:
             self._drag_on = None
 
     # ── paint ─────────────────────────────────────────────────────────────────
     @_check_types.do
-    def paintEvent(self, event):
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         p = QtGui.QPainter(self)
         pen = QtGui.QPen(self._C_BORDER, 1)
 
@@ -151,7 +151,7 @@ class StippleEditor(QtWidgets.QWidget):
 class StippleCtrl(QtWidgets.QWidget):
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         super().__init__(parent)
 
         sizer = QtWidgets.QVBoxLayout(self)

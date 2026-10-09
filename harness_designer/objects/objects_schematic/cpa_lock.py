@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 from . import base_schematic as _base_schematic
-from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_cpa_lock as _pjt_cpa_lock
     from .. import cpa_lock as _cpa_lock
 
@@ -23,7 +22,7 @@ class CPALock(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_cpa_lock.CPALock",
-                 db_obj: "_pjt_cpa_lock.PJTCPALock"):
+                 db_obj: "_pjt_cpa_lock.PJTCPALock") -> None:
         """Initialise the :class:`CPALock` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -37,5 +36,5 @@ class CPALock(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

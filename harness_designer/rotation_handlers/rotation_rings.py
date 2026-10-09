@@ -56,6 +56,8 @@ if TYPE_CHECKING:
     from ..gl.canvas_3d import canvas as _canvas
     from .. import objects as _objects
     from ..gl import shaders as _shaders
+    from ..geometry import angle as _angle
+    from ..ui.object_browser import objectbrowser as _objectbrowser
 
 
 class RotationRings(_object_base.ObjectBase):
@@ -88,7 +90,7 @@ class RotationRings(_object_base.ObjectBase):
     _angle_lock_snapshot: tuple | None = None
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase"):
+    def __init__(self, canvas: "_canvas.Canvas", selected: "_objects.ObjectBase") -> None:
         """Initialise the :class:`RotationRings` instance.
 
         :param canvas: Canvas instance.
@@ -166,15 +168,12 @@ class RotationRings(_object_base.ObjectBase):
         # never touched by any of this -- the lock/snapshot only happen
         # together, right here, so there's nothing to undo otherwise.
         self._angle_lock_snapshot: tuple | None = None
-        if (
-            hasattr(selected, 'is_angle_locked') and hasattr(selected, 'lock_angle') and
-            hasattr(selected, 'unlock_angle') and not selected.is_angle_locked
-        ):
+        if not selected.is_angle_locked:
             selected.lock_angle()
             self._angle_lock_snapshot = tuple(selected.db_obj.angle3d.as_euler_float)
 
     @_check_types.do
-    def set_treeitem(self, treeitem):
+    def set_treeitem(self, treeitem: "_objectbrowser.TreeItem") -> None:
         """Set the treeitem.
 
         :param treeitem: Value for ``treeitem``.
@@ -183,7 +182,7 @@ class RotationRings(_object_base.ObjectBase):
         self._treeitem = treeitem
 
     @_check_types.do
-    def get_treeitem(self):
+    def get_treeitem(self) -> "_objectbrowser.TreeItem":
         """Return the treeitem.
 
         :returns: Return value. UNKNOWN details.
@@ -192,7 +191,7 @@ class RotationRings(_object_base.ObjectBase):
         return self._treeitem
 
     @_check_types.do
-    def __del__(self):
+    def __del__(self) -> None:
         """Execute the del operation."""
 
         # we need to avoid an error that can occur when the application closes
@@ -212,7 +211,7 @@ class RotationRings(_object_base.ObjectBase):
             pass
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Unbind from the tracked object and free each view's GL buffers
         -- never registered via ``add_object`` (see this class's own
         docstring), so there's nothing in the mainframe/tree/render loop
@@ -245,7 +244,7 @@ class RotationRings(_object_base.ObjectBase):
             self.objpegboard.detach()
 
     @_check_types.do
-    def close(self):
+    def close(self) -> None:
         """Execute the close operation.
 
         :raises NotImplementedError: Raised when the operation cannot be completed.
@@ -265,7 +264,7 @@ class RotationRings(_object_base.ObjectBase):
         self._render_target.render(shaders)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         """Set the selected.
 
         :param flag: Value for ``flag``.
@@ -285,7 +284,7 @@ class RotationRings(_object_base.ObjectBase):
 
     @is_selected.setter
     @_check_types.do
-    def is_selected(self, value: bool):
+    def is_selected(self, value: bool) -> None:
         """Set the is selected.
 
         :param value: Value to store or process.

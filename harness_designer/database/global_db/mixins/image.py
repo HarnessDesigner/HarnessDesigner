@@ -1,7 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
-
 from .. import image as _image
 from .... import check_types as _check_types
 
@@ -49,7 +48,7 @@ class ImageMixin(BaseMixin):
 
     @image_id.setter
     @_check_types.do
-    def image_id(self, value: bytes):
+    def image_id(self, value: bytes) -> None:
         """Set the image ID.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -44,7 +44,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(radius=1.0, resolution=None) -> tuple[np.ndarray, np.ndarray]:
+def create(radius: float = 1.0, resolution: int | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Create vertices and faces for a sphere mesh.
 
     :param radius: Sphere radius.

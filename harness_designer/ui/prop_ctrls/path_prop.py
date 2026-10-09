@@ -18,7 +18,7 @@ class PathProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`PathProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -48,7 +48,7 @@ class PathProperty(QtWidgets.QWidget):
         self._ctrl.pathChanged.connect(self._on_path_changed)
 
     @_check_types.do
-    def _on_text_edited(self, _) -> None:
+    def _on_text_edited(self, _: str) -> None:
         """
         Handle the text edited event.
         """
@@ -112,7 +112,7 @@ class PathProperty(QtWidgets.QWidget):
         self._ctrl.path_button.setEnabled(not value.startswith('http'))
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

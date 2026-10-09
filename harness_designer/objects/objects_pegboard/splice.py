@@ -45,7 +45,7 @@ class Splice(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_splice.Splice",
-                 db_obj: "_pjt_splice.PJTSplice"):
+                 db_obj: "_pjt_splice.PJTSplice") -> None:
         """Initialise the :class:`Splice` instance.
 
         :param parent: Parent object.
@@ -175,7 +175,7 @@ class Splice(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:

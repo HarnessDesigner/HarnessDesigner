@@ -19,6 +19,7 @@ assumes for every other object in the codebase, so ``from_points`` itself
 cannot be reused here without producing a mirrored/incorrect orientation.
 """
 
+from typing import Union as _Union
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -106,11 +107,11 @@ class WireMarkerArrow(_object_base.ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def set_treeitem(self, treeitem: object) -> None:
+    def set_treeitem(self, treeitem: "_objectbrowser.TreeItem") -> None:
         self._treeitem = treeitem
 
     @_check_types.do
-    def get_treeitem(self) -> object | None:
+    def get_treeitem(self) -> _Union["_objectbrowser.TreeItem", None]:
         return self._treeitem
 
     @_check_types.do
@@ -168,6 +169,8 @@ class _ArrowMarker2D(_base_schematic.BaseSchematic):
 
 class ArrowMarker3D(_base_3d.Base3D):
     """Renders the bidirectional wire-direction arrow pair."""
+
+    _floor_guard: bool = False
 
     @_check_types.do
     def __init__(self, parent: WireMarkerArrow, obj_position: _point.Point, direction: np.ndarray,
@@ -235,7 +238,7 @@ class ArrowMarker3D(_base_3d.Base3D):
     def _compute_aabb(self) -> None:
         _base_3d.Base3D._compute_aabb(self)
 
-        if getattr(self, '_floor_guard', False):
+        if self._floor_guard:
             ground = float(self.editor3d.config.floor.ground_height)
             if self._aabb[0][1] < ground:
                 self._aabb[0][1] = ground

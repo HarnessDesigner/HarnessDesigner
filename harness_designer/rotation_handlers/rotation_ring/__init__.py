@@ -34,6 +34,7 @@ from ...gl.canvas_base import camera_base as _camera_base
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...gl import context as _gl_context
 
 
 # Torus opacity while a sibling axis's protractor is active -- "the
@@ -150,10 +151,10 @@ class RotationRing:
     def __init__(self, axis: str, center: _point.Point,
                  obj_angle: _angle.Angle, radius: float, object_radius: float,
                  tube_diameter_scale: float, color: _color.Color,
-                 outer_color: _color.Color, label_size: float, context,
+                 outer_color: _color.Color, label_size: float, context: "_gl_context.GLContext",
                  mainframe: "_ui.MainFrame", base_cls: type[_base_var.BaseVar],
-                 camera=None, local_tilt: _angle.Angle | None = None,
-                 has_torus: bool = True):
+                 camera: "_camera_base.CameraBase" = None, local_tilt: _angle.Angle | None = None,
+                 has_torus: bool = True) -> None:
 
         self.axis = axis
         self.center = center
@@ -455,7 +456,7 @@ class RotationRing:
             self.outer.render(shaders)
 
     @_check_types.do
-    def delete(self, context) -> None:
+    def delete(self, context: "_gl_context.GLContext") -> None:
         if self.torus is not None:
             self.torus.delete(context)
 

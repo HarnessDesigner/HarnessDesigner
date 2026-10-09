@@ -7,6 +7,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_circuit as _pjt_circuit
     from .. import circuit as _circuit
 
@@ -21,7 +22,7 @@ class Circuit(_base_pegboard.BasePegboard):
     db_obj: "_pjt_circuit.PJTCircuit"
 
     @_check_types.do
-    def __init__(self, parent: "_circuit.Circuit", db_obj: "_pjt_circuit.PJTCircuit"):
+    def __init__(self, parent: "_circuit.Circuit", db_obj: "_pjt_circuit.PJTCircuit") -> None:
         """Initialise the :class:`Circuit` instance.
 
         :param parent: Parent object.
@@ -33,5 +34,5 @@ class Circuit(_base_pegboard.BasePegboard):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

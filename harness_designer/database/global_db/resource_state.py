@@ -12,6 +12,7 @@ imported from there directly by any module that needs them (including child
 process workers that use the simplified ``db_broker`` connector).
 """
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 import json
@@ -22,6 +23,10 @@ from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueT
 from ... import resources as _resources
 from ..create_database import resource_state as _resource_state
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 @_check_types.do
@@ -69,7 +74,7 @@ class ResourceStateTable(TableBase):
         return _resource_state.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, _):
+    def _add_table_to_db(self, _: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -80,7 +85,7 @@ class ResourceStateTable(TableBase):
         _resource_state.table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -115,7 +120,7 @@ class ResourceStateTable(TableBase):
         raise KeyError('invalid resource id')
 
     @_check_types.do
-    def insert(self, resource_type, resource_id) -> "ResourceState":
+    def insert(self, resource_type: str, resource_id: bytes) -> "ResourceState":
         field_name = _TYPE_TO_FIELD[resource_type]
 
         kwargs = {field_name: resource_id}
@@ -181,7 +186,7 @@ class ResourceState(EntryBase):
 
     @progress.setter
     @_check_types.do
-    def progress(self, value: int):
+    def progress(self, value: int) -> None:
         if value == 0 and self.claimed_by_host is None:
             self.claimed_by_host = _hostname()
             self.claimed_at = _now_iso()
@@ -201,7 +206,7 @@ class ResourceState(EntryBase):
 
     @claimed_by_host.setter
     @_check_types.do
-    def claimed_by_host(self, value: str):
+    def claimed_by_host(self, value: str) -> None:
         self._stored_claimed_by_host = value
         self._table.update(self._db_id, claimed_by_host=value)
 
@@ -217,7 +222,7 @@ class ResourceState(EntryBase):
 
     @claimed_at.setter
     @_check_types.do
-    def claimed_at(self, value: str):
+    def claimed_at(self, value: str) -> None:
         self._stored_claimed_at = value
         self._table.update(self._db_id, claimed_at=value)
 
@@ -233,12 +238,12 @@ class ResourceState(EntryBase):
 
     @updated_at.setter
     @_check_types.do
-    def updated_at(self, value: str):
+    def updated_at(self, value: str) -> None:
         self._stored_updated_at = value
         self._table.update(self._db_id, updated_at=value)
 
     @_check_types.do
-    def update_progress(self, step):
+    def update_progress(self, step: int) -> None:
         self.progress = step
         self.updated_at = _now_iso()
 
@@ -254,7 +259,7 @@ class ResourceState(EntryBase):
 
     @retry_count.setter
     @_check_types.do
-    def retry_count(self, value: int):
+    def retry_count(self, value: int) -> None:
         self._stored_retry_count = value
         self._table.update(self._db_id, retry_count=value)
 
@@ -270,7 +275,7 @@ class ResourceState(EntryBase):
 
     @error_step.setter
     @_check_types.do
-    def error_step(self, value: int | None):
+    def error_step(self, value: int | None) -> None:
         self._stored_error_step = value
         self._table.update(self._db_id, error_step=value)
 
@@ -285,7 +290,7 @@ class ResourceState(EntryBase):
         return self._stored_error_blob
 
     @_check_types.do
-    def set_error(self, step, allow_retry, **error_blob):
+    def set_error(self, step: int, allow_retry: bool, **error_blob) -> None:
         # This resource's own row can already be gone by the time this
         # runs -- a straggling/duplicate worker message (see
         # process.image_process.ImageProcess.recv's own docstring on the
@@ -320,7 +325,7 @@ class ResourceState(EntryBase):
 
     @error_blob.setter
     @_check_types.do
-    def error_blob(self, value: str | None):
+    def error_blob(self, value: str | None) -> None:
         self._stored_error_blob = value
         self._table.update(self._db_id, error_blob=value)
 
@@ -336,7 +341,7 @@ class ResourceState(EntryBase):
 
     @error_at.setter
     @_check_types.do
-    def error_at(self, value: str):
+    def error_at(self, value: str) -> None:
         self._stored_error_at = value
         self._table.update(self._db_id, error_at=value)
 
@@ -352,7 +357,7 @@ class ResourceState(EntryBase):
 
     @error_host.setter
     @_check_types.do
-    def error_host(self, value: str):
+    def error_host(self, value: str) -> None:
         self._stored_error_host = value
         self._table.update(self._db_id, error_host=value)
 
@@ -368,6 +373,6 @@ class ResourceState(EntryBase):
 
     @allow_retry.setter
     @_check_types.do
-    def allow_retry(self, value: bool):
+    def allow_retry(self, value: bool) -> None:
         self._stored_allow_retry = value
         self._table.update(self._db_id, allow_retry=int(value))

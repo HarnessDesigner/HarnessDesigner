@@ -17,7 +17,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label, style=0, units=None):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, style: int = 0, units: str | None = None) -> None:
         """
         Initialise the :class:`AutocompleteStringProperty` instance.
 
@@ -73,7 +73,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
         return self._value
 
     @_check_types.do
-    def SetValue(self, value: str):
+    def SetValue(self, value: str) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -102,7 +102,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
             self._ctrl.SetItems(items)
 
     @_check_types.do
-    def _on_enter(self):
+    def _on_enter(self) -> None:
         """Handle the enter event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -126,7 +126,7 @@ class AutocompleteStringProperty(QtWidgets.QWidget):
             self._value = text
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

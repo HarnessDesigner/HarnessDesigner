@@ -10,7 +10,7 @@ carries up to two independent TPA lock slots (``tpa_lock1``/
 is still open on each candidate housing.
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ...gl.canvas_base import interaction as _interaction
 from ...handlers import handler_base as _handler_base
@@ -36,9 +36,9 @@ class TPALock(_base.AddHandlerBase):
         self,
         canvas: "_canvas.Canvas",
         target: "_objects.ObjectBase",
-        housing: Union["_housing.Housing", None],
-        project_housings: list
-    ):
+        housing: _Union["_housing.Housing", None],
+        project_housings: list["_housing.Housing"]
+    ) -> None:
 
         super().__init__(canvas, target)
 
@@ -56,16 +56,16 @@ class TPALock(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -83,7 +83,7 @@ class TPALock(_base.AddHandlerBase):
 
     @property
     @_check_types.do
-    def snap_pool(self):
+    def snap_pool(self) -> _utils.SnapPool:
         housings = []
         positions = []
 
@@ -170,5 +170,5 @@ class TPALock(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

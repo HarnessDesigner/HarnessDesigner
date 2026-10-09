@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import numpy as np
 from OpenGL import GL
@@ -334,7 +334,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Generic single-position drag arming/dispatch, plus rotation-
         gizmo arming/dispatch (see rotation_handlers.rotation_rings.
@@ -398,7 +398,7 @@ class Base3D(_objectsvar.BaseVar):
     @_check_types.do
     def _handle_rotation_interaction(
         self, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forward one mouse event to the already-armed rotation gizmo
         (:attr:`_active_handler`, a RotationRings) -- see that class's

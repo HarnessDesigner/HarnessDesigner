@@ -20,7 +20,7 @@ class ColorProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """Initialise the :class:`ColorProperty` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -60,7 +60,7 @@ class ColorProperty(QtWidgets.QWidget):
         self._button.clicked.connect(self._on_colour)
 
     @_check_types.do
-    def _on_colour(self):
+    def _on_colour(self) -> None:
         """Handle the colour event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -98,7 +98,7 @@ class ColorProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def _on_change(self, value):
+    def _on_change(self, value: str) -> None:
         """Handle the change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -131,7 +131,7 @@ class ColorProperty(QtWidgets.QWidget):
         self.propertyChanged.emit(evt)
 
     @_check_types.do
-    def SetValue(self, value: list[str, _color.Color | QtGui.QColor] | tuple[str, _color.Color | QtGui.QColor]):
+    def SetValue(self, value: list[str, _color.Color | QtGui.QColor] | tuple[str, _color.Color | QtGui.QColor]) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -184,7 +184,7 @@ class ColorProperty(QtWidgets.QWidget):
         return self._value
 
     @_check_types.do
-    def Clear(self):  # NOQA
+    def Clear(self) -> None:  # NOQA
         """Execute the clear operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -193,7 +193,7 @@ class ColorProperty(QtWidgets.QWidget):
         self._ctrl.clear()
 
     @_check_types.do
-    def GetItems(self):
+    def GetItems(self) -> list[tuple[str, int]]:
         """Execute the get items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -204,7 +204,7 @@ class ColorProperty(QtWidgets.QWidget):
         return self._choices
 
     @_check_types.do
-    def SetItems(self, items):
+    def SetItems(self, items: list[tuple[str, int]]) -> None:
         """Execute the set items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -221,7 +221,7 @@ class ColorProperty(QtWidgets.QWidget):
         self._ctrl.blockSignals(False)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

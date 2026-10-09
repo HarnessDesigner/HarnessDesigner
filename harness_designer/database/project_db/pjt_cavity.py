@@ -1,11 +1,11 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING, Union
+from typing import Iterable as _Iterable, TYPE_CHECKING, Union as _Union
 
 import uuid
 import weakref
 import numpy as np
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from . import pjt_point_pegboard as _pjt_point_pegboard
     from ..global_db import cavity as _cavity
     from ...objects import cavity as _cavity_obj
+    from ... import ui as _ui
 
 
 class PJTCavitiesTable(PJTTableBase):
@@ -68,7 +69,7 @@ class PJTCavitiesTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """
         Start the control.
 
@@ -90,7 +91,7 @@ class PJTCavitiesTable(PJTTableBase):
     _controls: list["PJTCavityControl"] = []
 
     @_check_types.do
-    def get_control(self, index):
+    def get_control(self, index: int) -> "PJTCavityControl":
         """
         Return the control.
 
@@ -111,7 +112,7 @@ class PJTCavitiesTable(PJTTableBase):
         return self._controls[index]
 
     @_check_types.do
-    def get_from_position3d_id(self, position3d_id) -> "PJTCavity":
+    def get_from_position3d_id(self, position3d_id: bytes) -> "PJTCavity":
         """
         Return the from position 3D ID.
 
@@ -132,7 +133,7 @@ class PJTCavitiesTable(PJTTableBase):
             return self[rows[0][0]]
 
     @_check_types.do
-    def get_from_position2d_id(self, position2d_id) -> "PJTCavity":
+    def get_from_position2d_id(self, position2d_id: bytes) -> "PJTCavity":
         """
         Return the from position 2D ID.
 
@@ -165,7 +166,7 @@ class PJTCavitiesTable(PJTTableBase):
         return cavities.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """
         Add a table to database.
         """
@@ -175,7 +176,7 @@ class PJTCavitiesTable(PJTTableBase):
         cavities.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """
         Update the table in database.
         """
@@ -197,7 +198,7 @@ class PJTCavitiesTable(PJTTableBase):
             yield PJTCavity(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTCavity":
+    def __getitem__(self, item: int | bytes | str) -> "PJTCavity":
         """
         Return the requested item.
 
@@ -290,13 +291,15 @@ class PJTCavitiesTable(PJTTableBase):
         position3d = self.db.pjt_points3d_table.insert(*position3d.as_float)
         position_pegboard = self.db.pjt_points_pegboard_table.insert(*position_pegboard.as_float)
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, housing_id=housing_id,
-                                    name=name, quat2d=str(quat2d), angle2d=str(angle2d),
-                                    point3d_id=position3d.db_id,
-                                    point2d_id=position2d.db_id,
-                                    point_pegboard_id=position_pegboard.db_id,
-                                    aabb=str(aabb), obb=str(obb),
-                                    is_visible3d=0)
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, housing_id=housing_id, name=name,
+            quat2d=str(quat2d), angle2d=str(angle2d), point3d_id=position3d.db_id,
+            point2d_id=position2d.db_id, point_pegboard_id=position_pegboard.db_id,
+            aabb=str(aabb), obb=str(obb), is_visible3d=0, terminal_point3d_id=None,
+            wire_point3d_id=None, notes='', quat3d='[1.0, 0.0, 0.0, 0.0]',
+            angle3d='[0.0, 0.0, 0.0]', terminal_point_pegboard_id=None,
+            wire_point_pegboard_id=None, quat_pegboard='[1.0, 0.0, 0.0, 0.0]',
+            angle_pegboard='[0.0, 0.0, 0.0]', is_visible2d=0, is_visible_pegboard=0)
 
         return PJTCavity(self, db_id)
 
@@ -348,7 +351,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """
         Release the obj ref.
         """
@@ -356,7 +359,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_cavity_obj.Cavity"):
+    def set_object(self, obj: "_cavity_obj.Cavity") -> None:
         """
         Set the object.
 
@@ -396,13 +399,14 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
     @aabb.setter
     @_check_types.do
-    def aabb(self, value: np.ndarray):
+    def aabb(self, value: np.ndarray) -> None:
         self._stored_aabb = value
 
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
         self._table.update(self._db_id, aabb=str(value))
+        self._populate('aabb')
 
     _stored_obb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
 
@@ -418,15 +422,14 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
     @obb.setter
     @_check_types.do
-    def obb(self, value: np.ndarray):
+    def obb(self, value: np.ndarray) -> None:
         self._stored_obb = value
 
         value = [[float(str(item)) for item in items]
                  for items in value.tolist()]
 
         self._table.update(self._db_id, obb=str(value))
-
-    _stored_terminal: Union["_pjt_terminal.PJTTerminal", DefaultStoredValueType, None] = DefaultStoredValue
+        self._populate('obb')
 
     @property
     @_check_types.do
@@ -438,19 +441,12 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :rtype: :class:`_pjt_terminal.PJTTerminal`
         """
 
-        if self._stored_terminal is DefaultStoredValue:
+        terminal_ids = self._table.db.pjt_terminals_table.select('id', cavity_id=self._db_id)
 
-            terminal_ids = self._table.db.pjt_terminals_table.select(
-                'id', cavity_id=self._db_id)
-
-            if terminal_ids:
-                self._stored_terminal = self._table.db.pjt_terminals_table[terminal_ids[0][0]]
-            else:
-                self._stored_terminal = None
-
-        return self._stored_terminal
-
-    _stored_terminal_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
+        if terminal_ids:
+            return self._table.db.pjt_terminals_table[terminal_ids[0][0]]
+    
+    _stored_terminal_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -461,7 +457,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_point.Point`
         """
-
         if self._stored_terminal_position3d is DefaultStoredValue:
             point_id = self.terminal_position3d_id
 
@@ -474,13 +469,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
             if self._obj is not None:
                 self._stored_terminal_position3d.add_object(self._obj())
 
-            point = self._stored_terminal_position3d.point
-        else:
-            point = None
-
-        return point
-
-    _stored_terminal_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+            return self._stored_terminal_position3d.point
 
     @property
     @_check_types.do
@@ -492,50 +481,43 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :rtype: bytes
         """
 
-        if self._stored_terminal_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('terminal_point3d_id', id=self._db_id)[0][0]
-            if point_id is None:
+        point_id = self._table.select('terminal_point3d_id', id=self._db_id)[0][0]
+        if point_id is None:
+            cavity = self.part
 
-                cavity = self.part
+            length = cavity.length
 
-                length = cavity.length
+            ref = _point.Point(0.0, 0.0, length)
 
-                ref = _point.Point(0.0, 0.0, length)
+            position = self.position3d
 
-                position = self.position3d
+            ref @= self.angle3d
+            ref += position
 
-                ref @= self.angle3d
-                ref += position
+            x, y, z = (position + ((ref - position) / 2.0)).as_float
 
-                x, y, z = (position + ((ref - position) / 2.0)).as_float
+            point = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
+            point_id = point.db_id
+            self._table.update(self._db_id, terminal_point3d_id=point_id)
+            self._populate('terminal_position3d_id')
 
-                point = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
-                point_id = point.db_id
-                self._table.update(self._db_id, terminal_point3d_id=point_id)
-
-                self._stored_terminal_position3d_id = point_id
-            else:
-                self._stored_terminal_position3d_id = point_id
-
-        return self._stored_terminal_position3d_id
+        return point_id
 
     @terminal_position3d_id.setter
     @_check_types.do
-    def terminal_position3d_id(self, value: bytes):
+    def terminal_position3d_id(self, value: bytes) -> None:
         """
         Set the terminal position 3D ID.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-
-        self._stored_terminal_position3d_id = value
         self._stored_terminal_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, terminal_point3d_id=value)
         self._populate('terminal_position3d_id')
 
-    _stored_wire_position3d: Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_wire_position3d: _Union["_pjt_point3d.PJTPoint3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -548,7 +530,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :returns: Property value.
         :rtype: :class:`_point.Point`
         """
-
         if self._stored_wire_position3d is DefaultStoredValue:
             point_id = self.wire_position3d_id
 
@@ -561,13 +542,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
             if self._obj is not None:
                 self._stored_wire_position3d.add_object(self._obj())
 
-            point = self._stored_wire_position3d.point
-        else:
-            point = None
-
-        return point
-
-    _stored_wire_position3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+            return self._stored_wire_position3d.point
 
     @property
     @_check_types.do
@@ -592,45 +567,39 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :rtype: bytes
         """
 
-        if self._stored_wire_position3d_id is DefaultStoredValue:
-            point_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
+        point_id = self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
-            if point_id is None:
-                center = None
+        if point_id is None:
+            center = None
 
-                cavity_obj = self.get_object()
-                if cavity_obj is not None and cavity_obj.obj3d is not None:
-                    center = cavity_obj.obj3d.wire_surface_center()
+            cavity_obj = self.get_object()
+            if cavity_obj is not None and cavity_obj.obj3d is not None:
+                center = cavity_obj.obj3d.wire_surface_center()
 
-                if center is None:
-                    cav_length = float(self.part.length)
-                    center = _point.Point(0.0, 0.0, -cav_length / 2.0)
-                    center @= self.angle3d
-                    center += self.position3d
+            if center is None:
+                cav_length = float(self.part.length)
+                center = _point.Point(0.0, 0.0, -cav_length / 2.0)
+                center @= self.angle3d
+                center += self.position3d
 
-                x, y, z = center.as_float
+            x, y, z = center.as_float
 
-                point = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
-                point_id = point.db_id
-                self._table.update(self._db_id, wire_point3d_id=point_id)
+            point = self._table.db.pjt_points3d_table.insert(x=x, y=y, z=z)
+            point_id = point.db_id
+            self._table.update(self._db_id, wire_point3d_id=point_id)
+            self._populate('wire_position3d_id')
 
-                self._stored_wire_position3d_id = point_id
-            else:
-                self._stored_wire_position3d_id = point_id
-
-        return self._stored_wire_position3d_id
+        return point_id
 
     @wire_position3d_id.setter
     @_check_types.do
-    def wire_position3d_id(self, value: bytes):
+    def wire_position3d_id(self, value: bytes) -> None:
         """
         Set the wire-side layout point's ``pjt_points3d`` row id.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-
-        self._stored_wire_position3d_id = value
         self._stored_wire_position3d = DefaultStoredValue
 
         self._table.update(self._db_id, wire_point3d_id=value)
@@ -648,12 +617,10 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         point into existence for every cavity in the project just by
         asking.
         """
-        if self._stored_wire_position3d_id is not DefaultStoredValue:
-            return self._stored_wire_position3d_id
-
+     
         return self._table.select('wire_point3d_id', id=self._db_id)[0][0]
 
-    _stored_terminal_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_terminal_position_pegboard: _Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -677,13 +644,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
             if self._obj is not None:
                 self._stored_terminal_position_pegboard.add_object(self._obj())
 
-            point = self._stored_terminal_position_pegboard.point
-        else:
-            point = None
-
-        return point
-
-    _stored_terminal_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+            return self._stored_terminal_position_pegboard.point
 
     @property
     @_check_types.do
@@ -696,46 +657,44 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :returns: Property value.
         :rtype: bytes
         """
-        if self._stored_terminal_position_pegboard_id is DefaultStoredValue:
-            point_id = self._table.select('terminal_point_pegboard_id', id=self._db_id)[0][0]
-            if point_id is None:
-                # Mirrors terminal_position3d_id's own formula exactly
-                # (this cavity's own seated-terminal midpoint, rotated by
-                # this cavity's own angle and offset by its own position)
-                # but in the peg-board frame -- angle_pegboard/
-                # position_pegboard in place of angle3d/position3d.
-                # Honors Y naturally through that same rotation, same as
-                # position_pegboard's own seed in objects_pegboard/
-                # cavity.py.
-                length = float(self.part.length)
-                ref = _point.Point(0.0, 0.0, length)
-                position = self.position_pegboard
-                ref @= self.angle_pegboard
-                ref += position
-                x, y, z = (position + ((ref - position) / 2.0)).as_float
-                point = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z)
-                point_id = point.db_id
-                self._table.update(self._db_id, terminal_point_pegboard_id=point_id)
+        
+        point_id = self._table.select('terminal_point_pegboard_id', id=self._db_id)[0][0]
+        if point_id is None:
+            # Mirrors terminal_position3d_id's own formula exactly
+            # (this cavity's own seated-terminal midpoint, rotated by
+            # this cavity's own angle and offset by its own position)
+            # but in the peg-board frame -- angle_pegboard/
+            # position_pegboard in place of angle3d/position3d.
+            # Honors Y naturally through that same rotation, same as
+            # position_pegboard's own seed in objects_pegboard/
+            # cavity.py.
+            length = float(self.part.length)
+            ref = _point.Point(0.0, 0.0, length)
+            position = self.position_pegboard
+            ref @= self.angle_pegboard
+            ref += position
+            x, y, z = (position + ((ref - position) / 2.0)).as_float
+            point = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z)
+            point_id = point.db_id
+            self._table.update(self._db_id, terminal_point_pegboard_id=point_id)
+            self._populate('terminal_position_pegboard_id')
 
-            self._stored_terminal_position_pegboard_id = point_id
-
-        return self._stored_terminal_position_pegboard_id
+        return point_id
 
     @terminal_position_pegboard_id.setter
     @_check_types.do
-    def terminal_position_pegboard_id(self, value: bytes):
+    def terminal_position_pegboard_id(self, value: bytes) -> None:
         """Set the peg-board mirror of :attr:`terminal_position3d_id`.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_terminal_position_pegboard_id = value
         self._stored_terminal_position_pegboard = DefaultStoredValue
 
         self._table.update(self._db_id, terminal_point_pegboard_id=value)
         self._populate('terminal_position_pegboard_id')
 
-    _stored_wire_position_pegboard: Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_wire_position_pegboard: _Union["_pjt_point_pegboard.PJTPointPegboard", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -761,13 +720,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
             if self._obj is not None:
                 self._stored_wire_position_pegboard.add_object(self._obj())
 
-            point = self._stored_wire_position_pegboard.point
-        else:
-            point = None
-
-        return point
-
-    _stored_wire_position_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+            return self._stored_wire_position_pegboard.point
 
     @property
     @_check_types.do
@@ -780,44 +733,41 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :returns: Property value.
         :rtype: bytes
         """
-        if self._stored_wire_position_pegboard_id is DefaultStoredValue:
-            point_id = self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
-            if point_id is None:
-                # Mirrors wire_position3d_id's own no-live-object fallback
-                # formula exactly (this cavity's own wire-side/back face
-                # center, local -Z per the cavity-frame convention,
-                # rotated by this cavity's own angle and offset by its
-                # own position) but in the peg-board frame --
-                # angle_pegboard/position_pegboard in place of angle3d/
-                # position3d. This is the waypoint where a wire exits the
-                # back plane of the cavity (Terminal.add_wire gives it its
-                # own pjt_wire_layouts row, same as the terminal's own
-                # wire_position_pegboard) -- honors Y naturally through
-                # that same rotation; the very next waypoint made on the
-                # wire past this one is free-space and gets Y=0 from
-                # Camera.screen_to_world() as usual.
-                cav_length = float(self.part.length)
-                center = _point.Point(0.0, 0.0, -cav_length / 2.0)
-                center @= self.angle_pegboard
-                center += self.position_pegboard
-                x, y, z = center.as_float
-                point = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z)
-                point_id = point.db_id
-                self._table.update(self._db_id, wire_point_pegboard_id=point_id)
+        point_id = self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
+        if point_id is None:
+            # Mirrors wire_position3d_id's own no-live-object fallback
+            # formula exactly (this cavity's own wire-side/back face
+            # center, local -Z per the cavity-frame convention,
+            # rotated by this cavity's own angle and offset by its
+            # own position) but in the peg-board frame --
+            # angle_pegboard/position_pegboard in place of angle3d/
+            # position3d. This is the waypoint where a wire exits the
+            # back plane of the cavity (Terminal.add_wire gives it its
+            # own pjt_wire_layouts row, same as the terminal's own
+            # wire_position_pegboard) -- honors Y naturally through
+            # that same rotation; the very next waypoint made on the
+            # wire past this one is free-space and gets Y=0 from
+            # Camera.screen_to_world() as usual.
+            cav_length = float(self.part.length)
+            center = _point.Point(0.0, 0.0, -cav_length / 2.0)
+            center @= self.angle_pegboard
+            center += self.position_pegboard
+            x, y, z = center.as_float
+            point = self._table.db.pjt_points_pegboard_table.insert(x=x, y=y, z=z)
+            point_id = point.db_id
+            self._table.update(self._db_id, wire_point_pegboard_id=point_id)
+            self._populate('wire_position_pegboard_id')
 
-            self._stored_wire_position_pegboard_id = point_id
-
-        return self._stored_wire_position_pegboard_id
+        return point_id
 
     @wire_position_pegboard_id.setter
     @_check_types.do
-    def wire_position_pegboard_id(self, value: bytes):
+    def wire_position_pegboard_id(self, value: bytes) -> None:
         """Set the peg-board mirror of :attr:`wire_position3d_id`.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_wire_position_pegboard_id = value
         self._stored_wire_position_pegboard = DefaultStoredValue
 
         self._table.update(self._db_id, wire_point_pegboard_id=value)
@@ -832,8 +782,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         Unlike :attr:`wire_position_pegboard_id`, this never lazily creates
         and persists a point -- mirrors :attr:`wire_position3d_id_raw`.
         """
-        if self._stored_wire_position_pegboard_id is not DefaultStoredValue:
-            return self._stored_wire_position_pegboard_id
 
         return self._table.select('wire_point_pegboard_id', id=self._db_id)[0][0]
 
@@ -863,7 +811,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
     @terminal_position2d_id.setter
     @_check_types.do
-    def terminal_position2d_id(self, value: bytes):
+    def terminal_position2d_id(self, value: bytes) -> None:
         """
         Set the terminal position 2D ID.
 
@@ -873,8 +821,6 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         self.position2d_id = value
         self._populate('terminal_position2d_id')
-
-    _stored_seal: Union["_pjt_seal.PJTSeal", DefaultStoredValueType, None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -886,16 +832,10 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         :rtype: :class:`_pjt_seal.PJTSeal`
         """
 
-        if self._stored_seal is DefaultStoredValue:
-            seal_ids = self._table.db.pjt_seals_table.select(
-                'id', cavity_id=self._db_id)
+        seal_ids = self._table.db.pjt_seals_table.select('id', cavity_id=self._db_id)
 
-            if not seal_ids:
-                self._stored_seal = None
-            else:
-                self._stored_seal = self._table.db.pjt_seals_table[seal_ids[0][0]]
-
-        return self._stored_seal
+        if seal_ids:
+            return self._table.db.pjt_seals_table[seal_ids[0][0]]
 
     @property
     @_check_types.do
@@ -920,7 +860,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
 
         return self.terminal.position3d_id
 
-    _stored_part: Union["_cavity.Cavity", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_part: _Union["_cavity.Cavity", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -946,7 +886,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         return self._stored_part
 
     @_check_types.do
-    def _update_angle2d(self, angle: _angle.Angle):
+    def _update_angle2d(self, angle: _angle.Angle) -> None:
         """
         Update the angle 2D.
 
@@ -978,7 +918,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._populate('angle2d')
 
     @_check_types.do
-    def _update_angle3d(self, angle: _angle.Angle):
+    def _update_angle3d(self, angle: _angle.Angle) -> None:
         """
         Update the angle 3D.
 
@@ -1052,7 +992,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._populate('angle3d')
 
     @_check_types.do
-    def _update_angle_pegboard(self, angle: _angle.Angle):
+    def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
         """
         Update the peg-board angle.
 
@@ -1135,7 +1075,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         return angle
 
 
-class PJTCavityControl(QTabWidget, LazyTabMixin):
+class PJTCavityControl(QtWidgets.QTabWidget, LazyTabMixin):
     """
     Represent a PJT cavity control in :mod:`harness_designer.database.project_db.pjt_cavity`.
 
@@ -1158,7 +1098,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         self._label = value
 
     @_check_types.do
-    def SetIndex(self, index):
+    def SetIndex(self, index: int) -> None:
         """
         Execute the set index operation.
 
@@ -1169,7 +1109,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         self.SetLabel(f'Cavity {index}')
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTCavity | None):
+    def set_obj(self, db_obj: PJTCavity | None) -> None:
         """
         Set the obj.
 
@@ -1179,7 +1119,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         db_obj = self.db_obj
 
@@ -1207,7 +1147,7 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """
         Initialise the :class:`PJTCavityControl` instance.
 
@@ -1217,8 +1157,8 @@ class PJTCavityControl(QTabWidget, LazyTabMixin):
         self.db_obj: PJTCavity | None = None
         self._label = 'Cavity'
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

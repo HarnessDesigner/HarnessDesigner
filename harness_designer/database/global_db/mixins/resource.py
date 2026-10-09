@@ -1,9 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
-
 from ....ui import prop_ctrls as _prop_ctrls
 from .... import check_types as _check_types
 
@@ -12,6 +11,8 @@ if TYPE_CHECKING:
     from .. import cad as _cad_mod
     from .. import image as _image_mod
     from .. import datasheet as _datasheet_mod
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class ResourceMixin(BaseMixin):
@@ -20,10 +21,10 @@ class ResourceMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_cad_obj: Union[DefaultStoredValueType, "_cad_mod.CAD", None] = DefaultStoredValue
+    _stored_cad_obj: _Union[DefaultStoredValueType, "_cad_mod.CAD", None] = DefaultStoredValue
 
     @_check_types.do
-    def _get_cad_obj(self) -> Union["_cad_mod.CAD", None]:
+    def _get_cad_obj(self) -> _Union["_cad_mod.CAD", None]:
         """Return (and cache) the related CAD row, shared by ``cad``/``cad_type``."""
         if self._stored_cad_obj is DefaultStoredValue:
             cad_id = self.cad_id
@@ -85,7 +86,7 @@ class ResourceMixin(BaseMixin):
 
     @cad_id.setter
     @_check_types.do
-    def cad_id(self, value: bytes):
+    def cad_id(self, value: bytes) -> None:
         """Set the cad ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -98,10 +99,10 @@ class ResourceMixin(BaseMixin):
         self._table.update(self._db_id, cad_id=value)
         self._populate('cad_id')
 
-    _stored_image_obj: Union[DefaultStoredValueType, "_image_mod.Image", None] = DefaultStoredValue
+    _stored_image_obj: _Union[DefaultStoredValueType, "_image_mod.Image", None] = DefaultStoredValue
 
     @_check_types.do
-    def _get_image_obj(self) -> Union["_image_mod.Image", None]:
+    def _get_image_obj(self) -> _Union["_image_mod.Image", None]:
         """Return (and cache) the related Image row, shared by ``image``/``image_type``."""
         if self._stored_image_obj is DefaultStoredValue:
             image_id = self.image_id
@@ -163,7 +164,7 @@ class ResourceMixin(BaseMixin):
 
     @image_id.setter
     @_check_types.do
-    def image_id(self, value: bytes):
+    def image_id(self, value: bytes) -> None:
         """Set the image ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -176,10 +177,10 @@ class ResourceMixin(BaseMixin):
         self._table.update(self._db_id, image_id=value)
         self._populate('image_id')
 
-    _stored_datasheet_obj: Union[DefaultStoredValueType, "_datasheet_mod.Datasheet", None] = DefaultStoredValue
+    _stored_datasheet_obj: _Union[DefaultStoredValueType, "_datasheet_mod.Datasheet", None] = DefaultStoredValue
 
     @_check_types.do
-    def _get_datasheet_obj(self) -> Union["_datasheet_mod.Datasheet", None]:
+    def _get_datasheet_obj(self) -> _Union["_datasheet_mod.Datasheet", None]:
         """Return (and cache) the related Datasheet row, shared by ``datasheet``/``datasheet_type``."""
         if self._stored_datasheet_obj is DefaultStoredValue:
             datasheet_id = self.datasheet_id
@@ -241,7 +242,7 @@ class ResourceMixin(BaseMixin):
 
     @datasheet_id.setter
     @_check_types.do
-    def datasheet_id(self, value: bytes):
+    def datasheet_id(self, value: bytes) -> None:
         """Set the datasheet ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -262,7 +263,7 @@ class ResourcesControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`ResourcesControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -287,7 +288,7 @@ class ResourcesControl(_prop_ctrls.Category):
         self.cad_ctrl.propertyChanged.connect(self._on_cad)
 
     @_check_types.do
-    def set_obj(self, db_obj: ResourceMixin | None):
+    def set_obj(self, db_obj: ResourceMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -345,7 +346,7 @@ class ResourcesControl(_prop_ctrls.Category):
             self.cad_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_image(self, evt):
+    def _on_image(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the image event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -370,7 +371,7 @@ class ResourcesControl(_prop_ctrls.Category):
         self.image_ctrl.SetValue([path, image.data_path])
 
     @_check_types.do
-    def _on_cad(self, evt):
+    def _on_cad(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the cad event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -395,7 +396,7 @@ class ResourcesControl(_prop_ctrls.Category):
         self.cad_ctrl.SetValue([path, cad.data_path])
 
     @_check_types.do
-    def _on_datasheet(self, evt):
+    def _on_datasheet(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the datasheet event.
 
         UNKNOWN details are inferred from the callable name and signature.

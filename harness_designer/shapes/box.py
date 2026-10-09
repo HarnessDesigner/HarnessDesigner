@@ -45,7 +45,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(width, height, depth):
+def create(width: float, height: float, depth: float) -> tuple[np.ndarray, np.ndarray]:
     """Create vertex and face arrays for an axis-aligned box.
 
     The generated box is centered on the origin and uses triangle faces.

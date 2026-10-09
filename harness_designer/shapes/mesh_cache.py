@@ -24,7 +24,6 @@ case here.
 """
 
 import os
-
 import numpy as np
 
 from .. import utils as _utils
@@ -36,7 +35,7 @@ def path(name: str) -> str:
     return os.path.join(_utils.get_appdata(), f'{name}.npz')
 
 
-def load(name: str, version: int):
+def load(name: str, version: int) -> tuple[np.ndarray, int, np.ndarray, np.ndarray, np.ndarray | None] | None:
     """Return ``(packed, count, aabb, obb, extra)`` cached on disk for
     *name*, or ``None`` if there's no cache file yet, it's unreadable,
     or it was written by a different *version*.
@@ -65,7 +64,7 @@ def load(name: str, version: int):
 
 
 def save(name: str, version: int, packed: np.ndarray, count: int,
-         aabb: np.ndarray, obb: np.ndarray, extra=None) -> None:
+         aabb: np.ndarray, obb: np.ndarray, extra: np.ndarray | None = None) -> None:
     """Write *packed*/*count*/*aabb*/*obb* (plus optional small *extra*
     float array) to disk for cache *name*, so the next app launch can
     :func:`load` it back instead of rebuilding. Written to a temp file

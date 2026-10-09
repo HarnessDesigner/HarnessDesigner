@@ -6,7 +6,7 @@ from collections.abc import Callable
 import os
 
 import numpy as np
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from ...ui.widgets import context_menus as _context_menus
 from ...geometry import point as _point
@@ -23,6 +23,8 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_terminal as _pjt_terminal
     from ...database.project_db import pjt_cavity as _pjt_cavity_db
     from ...database.global_db import model3d as _model3d
@@ -157,6 +159,14 @@ class Terminal(_base_3d.Base3D):
             self._overlay_wire_surf_idx: int | None = None
             self._overlay_wire_marker = None
             self._overlay_pin_surf_idx: int | None = None
+
+            # Set by set_snap_highlight() while an add-wire/drag session has
+            # this terminal as a current snap target -- overrides the
+            # wire-side surface color computed below (free-floating case:
+            # the whole mesh instead, via identify()). Never affects the
+            # pin-side overlay -- only the wire-side is ever a wire's own
+            # attach point.
+            self._snap_highlight_material: _materials.GLMaterial | None = None
 
         # model.load()'s callback (_set_model) always fires, whether the
         # model needed a fresh download/conversion or was already cached
@@ -312,6 +322,27 @@ class Terminal(_base_3d.Base3D):
         return True
 
     @_check_types.do
+    def set_snap_highlight(self, material: _materials.GLMaterial | None) -> None:
+        """Override this terminal's own snap-feedback color for an
+        add-wire/drag session (``None`` clears it back to normal).
+
+        Free-floating (``cavity is None``): the whole terminal mesh is
+        visible on its own, so this is exactly ``identify()`` -- a plain
+        whole-object material swap.
+
+        Cavity-seated: the terminal itself never renders in this view (see
+        ``Cavity.identify``'s own docstring) -- only its cavity's wire-side
+        surface overlay (``render_cavity_overlay``) is ever visible, so
+        that's what this stores for ``render_cavity_overlay`` to read
+        instead, leaving the pin-side overlay (unrelated to where a wire
+        attaches) untouched.
+        """
+        self._snap_highlight_material = material
+
+        if self.db_obj.cavity is None:
+            self.identify(material)
+
+    @_check_types.do
     def render_cavity_overlay(self, shaders: "_shaders.ShaderProgram") -> None:
         """Draw this terminal's cavity wire-side/pin-side overlay onto the
         owning housing's mesh.
@@ -350,10 +381,21 @@ class Terminal(_base_3d.Base3D):
             # color instead, same as self._color already stores.
             color = self._color.rgba_scalar
 
+        # The wire-side surface alone doubles as the snap-feedback target
+        # for a cavity-seated terminal (see set_snap_highlight) -- the
+        # terminal itself has no mesh of its own visible in this view, so
+        # this surface is the only thing an add-wire/drag session has to
+        # highlight. Never applies to the pin-side overlay below, which
+        # has nothing to do with where a wire attaches.
+        if self._snap_highlight_material is not None:
+            wire_color = self._snap_highlight_material.diffuse
+        else:
+            wire_color = color
+
         if self._overlay_wire_surf_idx is not None:
-            housing_3d.render_surface_overlay(shaders, self._overlay_wire_surf_idx, color)
+            housing_3d.render_surface_overlay(shaders, self._overlay_wire_surf_idx, wire_color)
         elif self._overlay_wire_marker is not None:
-            housing_3d.render_marker_overlay(shaders, self._overlay_wire_marker, color)
+            housing_3d.render_marker_overlay(shaders, self._overlay_wire_marker, wire_color)
 
         if self._overlay_pin_surf_idx is not None:
             housing_3d.render_surface_overlay(shaders, self._overlay_pin_surf_idx, color)
@@ -855,7 +897,7 @@ class Terminal(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -899,7 +941,7 @@ class TerminalMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "Terminal") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Terminal") -> None:
         """Initialise the :class:`TerminalMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -951,7 +993,6 @@ class TerminalMenu(QtWidgets.QMenu):
         terminal's own attach point -- the part-search dialog (pre-filtered
         to wires whose diameter fits) opens immediately, straight into
         phase 1, same as a cavity's/splice's own pinned Add Wire."""
-        from PySide6 import QtCore
         from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe
@@ -966,7 +1007,6 @@ class TerminalMenu(QtWidgets.QMenu):
     @_check_types.do
     def on_add_seal(self) -> None:
         """Attach a seal to this terminal."""
-        from PySide6 import QtCore
         from . import seal as _seal_3d
 
         mainframe = self.selected.mainframe

@@ -29,7 +29,7 @@ class PegboardTable(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame",
-                 db_obj: "_pjt_pegboard_table.PJTPegboardTable"):
+                 db_obj: "_pjt_pegboard_table.PJTPegboardTable") -> None:
         """Initialise the :class:`PegboardTable` instance.
 
         :param mainframe: Main application frame.
@@ -49,7 +49,7 @@ class PegboardTable(_ObjectBase):
         self.mainframe.add_object(self)
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """Delete this table -- its owning anchor's own ``delete()`` is
         responsible for calling this (mirroring the existing cover_id/
         boot_id accessory-cascade pattern), not the other way around, so

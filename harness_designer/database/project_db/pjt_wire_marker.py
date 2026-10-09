@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -27,6 +27,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import pjt_wire as _pjt_wire
     from ...objects import wire_marker as _wire_marker_obj
+    from ... import ui as _ui
 
 
 class PJTWireMarkersTable(PJTTableBase):
@@ -56,7 +57,7 @@ class PJTWireMarkersTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -81,7 +82,7 @@ class PJTWireMarkersTable(PJTTableBase):
         return wire_markers.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -91,7 +92,7 @@ class PJTWireMarkersTable(PJTTableBase):
         wire_markers.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -113,7 +114,7 @@ class PJTWireMarkersTable(PJTTableBase):
             yield PJTWireMarker(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTWireMarker":
+    def __getitem__(self, item: int | bytes | str) -> "PJTWireMarker":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -154,8 +155,10 @@ class PJTWireMarkersTable(PJTTableBase):
         :rtype: :class:`PJTWireMarker`
         """
 
-        db_id = PJTTableBase.insert(self, point2d_id=point2d_id, point3d_id=point3d_id,
-                                    wire_id=wire_id, part_id=part_id, label=label)
+        db_id = PJTTableBase.insert(
+            self, point2d_id=point2d_id, point3d_id=point3d_id,
+            wire_id=wire_id, part_id=part_id, label=label, point_pegboard_id=None,
+            name='', notes='', is_visible2d=1, is_visible3d=1, is_visible_pegboard=1, smooth=None)
 
         return PJTWireMarker(self, db_id)
 
@@ -184,7 +187,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -195,7 +198,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_wire_marker_obj.WireMarker"):
+    def set_object(self, obj: "_wire_marker_obj.WireMarker") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -221,8 +224,6 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         """
         return self._table
 
-    _stored_wire: Union["_pjt_wire.PJTWire", DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
@@ -233,16 +234,12 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_wire.PJTWire`
         """
-        if self._stored_wire is DefaultStoredValue:
-            wire_id = self.wire_id
-            self._stored_wire = self._table.db.pjt_wires_table[wire_id]
+        wire = self._table.db.pjt_wires_table[self.wire_id]
 
-        if self._obj is not None:
-            self._stored_wire.add_object(self._obj())
+        if self._obj is not None and wire.get_object() is None:
+            wire.add_object(self._obj())
 
-        return self._stored_wire
-
-    _stored_wire_id: bytes | DefaultStoredValueType = DefaultStoredValue
+        return wire
 
     @property
     @_check_types.do
@@ -254,14 +251,11 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_wire_id is DefaultStoredValue:
-            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
-
-        return self._stored_wire_id
+        return self._table.select('wire_id', id=self._db_id)[0][0]
 
     @wire_id.setter
     @_check_types.do
-    def wire_id(self, value: bytes):
+    def wire_id(self, value: bytes) -> None:
         """Set the wire ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -269,9 +263,6 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_wire_id = value
-        self._stored_wire = DefaultStoredValue
-
         self._table.update(self._db_id, wire_id=value)
         self._populate('wire_id')
 
@@ -300,8 +291,6 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
 
         return self._stored_part
 
-    _stored_label: str | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def label(self) -> str:
@@ -312,14 +301,11 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        if self._stored_label is DefaultStoredValue:
-            self._stored_label = self._table.select('label', id=self._db_id)[0][0]
-
-        return self._stored_label
+        return self._table.select('label', id=self._db_id)[0][0]
 
     @label.setter
     @_check_types.do
-    def label(self, value: str):
+    def label(self, value: str) -> None:
         """Set the label.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -327,19 +313,18 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         :param value: Value to store or process.
         :type value: str
         """
-        self._stored_label = value
         self._table.update(self._db_id, label=value)
         self._populate('label')
 
 
-class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
+class PJTWireMarkerControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT wire marker control in :mod:`harness_designer.database.project_db.pjt_wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTWireMarker | None):
+    def set_obj(self, db_obj: PJTWireMarker | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -350,7 +335,7 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -368,7 +353,7 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTWireMarkerControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -378,8 +363,8 @@ class PJTWireMarkerControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTWireMarker | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

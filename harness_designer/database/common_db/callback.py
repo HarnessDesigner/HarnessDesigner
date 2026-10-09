@@ -2,7 +2,11 @@
 
 """Callback registration helpers for database-backed model objects."""
 
+from collections.abc import Callable
+
+import types
 import weakref
+
 from ... import check_types as _check_types
 
 
@@ -10,13 +14,13 @@ class CallbackMixin:
     """Provide callback registration and dispatch support.
     """
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize callback storage for the mixin instance.
         """
         self._callbacks = []
 
     @_check_types.do
-    def bind(self, callback, tag: str) -> "Callback":
+    def bind(self, callback: Callable[..., None], tag: str) -> "Callback":
         """Register a callback for a specific update tag.
 
         :param callback: Bound method to invoke for matching tags.
@@ -33,7 +37,7 @@ class CallbackMixin:
         return cb_class
 
     @_check_types.do
-    def unbind(self, cb_class: "Callback"):
+    def unbind(self, cb_class: "Callback") -> None:
         """Remove a previously registered callback wrapper.
 
         :param cb_class: UNKNOWN.
@@ -48,7 +52,7 @@ class CallbackMixin:
             pass
 
     @_check_types.do
-    def _populate(self, tag):
+    def _populate(self, tag: str) -> None:
         """Notify registered callbacks that match the supplied tag.
 
         :param tag: Callback or message tag associated with the operation.
@@ -66,7 +70,7 @@ class Callback:
     """Represent a weakly referenced callback binding.
     """
     @_check_types.do
-    def __init__(self, parent: CallbackMixin, callback, tag):
+    def __init__(self, parent: CallbackMixin, callback: Callable[..., None], tag: str) -> None:
         """Initialize the callback wrapper.
 
         :param parent: Parent :class:`CallbackMixin` that owns this wrapper.
@@ -82,7 +86,7 @@ class Callback:
         self._ref_count = 0
 
     @_check_types.do
-    def unbind(self):
+    def unbind(self) -> None:
         """Unregister this callback wrapper from its parent.
 
         :returns: ``None``.
@@ -91,7 +95,7 @@ class Callback:
         self._parent.unbind(self)
 
     @_check_types.do
-    def _remove_ref(self, ref):
+    def _remove_ref(self, ref: weakref.WeakMethod) -> None:
         """Remove this wrapper when the weak callback reference expires.
 
         :param ref: Weak reference callback argument supplied by :mod:`weakref`.
@@ -103,7 +107,7 @@ class Callback:
         self._parent.unbind(self)
 
     @_check_types.do
-    def __enter__(self):
+    def __enter__(self) -> None:
         """Mark the callback as actively executing within a context manager.
 
         :returns: ``None``.
@@ -112,7 +116,8 @@ class Callback:
         self._ref_count += 1
 
     @_check_types.do
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None,
+                 exc_tb: types.TracebackType | None) -> None:
         """Clear the active execution marker for the callback.
 
         :param exc_type: Exception type passed by the context manager protocol.
@@ -128,7 +133,7 @@ class Callback:
         self._ref_count -= 1
 
     @_check_types.do
-    def __call__(self, tag, entry):
+    def __call__(self, tag: str, entry: CallbackMixin) -> None:
         """Invoke the wrapped callback when the supplied tag matches.
 
         :param tag: Callback or message tag associated with the operation.

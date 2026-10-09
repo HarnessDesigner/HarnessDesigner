@@ -2,9 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from OpenGL import GL
-import numpy as np
-import ctypes
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
@@ -35,7 +32,7 @@ class FloorBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
         self.canvas = canvas
 
         self._vao = None
@@ -46,13 +43,13 @@ class FloorBase:
     # ─────────────────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def _initialize_grid(self):
+    def _initialize_grid(self) -> None:
         raise NotImplementedError
 
     # ─────────────────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def set(self, flag):
+    def set(self, flag: bool) -> None:
         """
         Enable or disable the floor, rebuilding GPU resources as needed.
         """
@@ -61,7 +58,7 @@ class FloorBase:
     # ─────────────────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """
         Draw the procedural floor in a single pass.
         """

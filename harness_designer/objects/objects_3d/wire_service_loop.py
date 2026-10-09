@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Union as _Union
 import math
 
 import numpy as np
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 
 from ...geometry import point as _point
 from ...geometry import angle as _angle
@@ -20,11 +20,15 @@ from ... import color as _color
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
     from .. import wire_service_loop as _wire_service_loop
     from .. import wire as _wire
     from .. import wire_marker as _wire_marker
     from ... import ui as _ui
+    from ...gl import vbo as _vbo_base
+    from ...shapes import text as _text
 
 
 Config = _config.Config.editor_3d
@@ -57,7 +61,7 @@ def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
 
 @_check_types.do
 def _mesh_world_triangles(
-    vbo: object | None, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
+    vbo: _Union["_vbo_base.VBOHandlerBase", "_text.Text", None], position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
 ) -> np.ndarray | None:
     """(N, 3, 3) world-space triangles for a mesh at the given pose -- same
     transform the faces shader applies (scale, then rotate, then
@@ -103,7 +107,7 @@ _OBB_TRIANGLE_INDICES = np.array([
 
 
 @_check_types.do
-def _candidate_obb(vbo: object | None, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
+def _candidate_obb(vbo: _Union["_vbo_base.VBOHandlerBase", "_text.Text", None], position: np.ndarray, angle: _angle.Angle, scale: np.ndarray
                    ) -> np.ndarray | None:
     """(8, 3) world-space OBB corners for a hypothetical (not-yet-applied)
     pose -- same formula Base3D._compute_obb uses for its own (always
@@ -251,7 +255,8 @@ def _obb_hit_owners(my_obb_tris: np.ndarray, session: "_MoveSession") -> np.ndar
 
 @_check_types.do
 def _is_clear(
-    vbo: object | None, position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
+    vbo: _Union["_vbo_base.VBOHandlerBase", "_text.Text", None],
+    position: np.ndarray, angle: _angle.Angle, scale: np.ndarray,
     my_obb: np.ndarray | None, session: "_MoveSession",
 ) -> bool:
     """True if a candidate pose (my_obb, plus vbo/position/angle/scale to
@@ -617,9 +622,9 @@ class WireServiceLoop(_base_3d.Base3D):
         in Python anymore.
         """
         return [
-            obj for obj in self.editor3d.camera.objects_in_view
-            if obj is not self.parent
-            and (obj.is_wire or obj.is_wire_service_loop)
+            view.parent for view in self._aabb_manager.visible_objects()
+            if view.parent is not self.parent
+            and (view.parent.is_wire or view.parent.is_wire_service_loop)
         ]
 
     @_check_types.do
@@ -923,7 +928,7 @@ class WireServiceLoop(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -1123,7 +1128,7 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "WireServiceLoop") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "WireServiceLoop") -> None:
         """Initialise the :class:`WireServiceLoopMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1161,7 +1166,6 @@ class WireServiceLoopMenu(QtWidgets.QMenu):
     @_check_types.do
     def on_add_wire(self) -> None:
         """Start placing a wire using this service loop's part type."""
-        from PySide6 import QtCore
         from . import wire as _wire_3d
 
         mainframe = self.selected.mainframe

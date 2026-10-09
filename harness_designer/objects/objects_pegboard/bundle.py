@@ -1,11 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
+
+from collections.abc import Iterator
 
 import math
 import numpy as np
 
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtCore, QtWidgets
 
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
@@ -17,10 +20,14 @@ from ...shapes import cylinder as _cylinder
 from ... import utils as _utils
 from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
+from ...rope_pull import offline_store as _offline_store
 from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_pegboard import editor_pegboard as _editor_pegboard
+    from ...gl import shaders as _shaders
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_bundle as _pjt_bundle
     from .. import bundle as _bundle
 
@@ -58,9 +65,13 @@ class Bundle(_base_pegboard.BasePegboard):
     _parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle"
 
+    # Cached result of :attr:`is_tight` (None = not computed yet).
+    _is_tight: bool | None = None
+    _TIGHT_TOLERANCE_MM: float = 0.001
+
     @_check_types.do
     def __init__(self, parent: "_bundle.Bundle",
-                 db_obj: "_pjt_bundle.PJTBundle"):
+                 db_obj: "_pjt_bundle.PJTBundle") -> None:
         """Initialise the :class:`Bundle` instance.
 
         :param parent: Parent object.
@@ -110,6 +121,8 @@ class Bundle(_base_pegboard.BasePegboard):
             super().__init__(parent, db_obj, vbo, angle, position, scale, material)
 
         self._p2.bind(self._update_position)
+        self._p1.bind(self._invalidate_is_tight)
+        self._p2.bind(self._invalidate_is_tight)
 
         # self.db_obj is only valid from here on (set by BaseVar.__init__
         # above, via super().__init__()) -- this is the first point
@@ -122,6 +135,28 @@ class Bundle(_base_pegboard.BasePegboard):
 
     @property
     @_check_types.do
+    def is_tight(self) -> bool:
+        """Whether this bundle's peg-board start-to-stop straight line
+        already spans its full 3D length, leaving no slack to pull into.
+
+        Cached -- recomputed only after :meth:`_invalidate_is_tight` runs,
+        which happens whenever the start or stop point moves or is repointed.
+        """
+        if self._is_tight is None:
+            straight = math.hypot(
+                float(self._p2.x) - float(self._p1.x),
+                float(self._p2.z) - float(self._p1.z))
+            self._is_tight = bool(
+                straight >= self.db_obj.length_mm - self._TIGHT_TOLERANCE_MM)
+
+        return self._is_tight
+
+    @_check_types.do
+    def _invalidate_is_tight(self, _: _point.Point | None) -> None:
+        self._is_tight = None
+
+    @property
+    @_check_types.do
     def smooth(self) -> bool:
         smooth = self.db_obj.smooth
         if smooth is None:
@@ -130,7 +165,7 @@ class Bundle(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -145,7 +180,7 @@ class Bundle(_base_pegboard.BasePegboard):
 
     @diameter.setter
     @_check_types.do
-    def diameter(self, value: float):
+    def diameter(self, value: float) -> None:
         # self._scale.x/.y hold the rendered diameter directly, not a
         # radius -- matches __init__'s own scale = Point(self._diameter,
         # self._diameter, 0.0). This setter used to halve it into a
@@ -167,7 +202,11 @@ class Bundle(_base_pegboard.BasePegboard):
         for point in self._waypoint_points:
             point.unbind(self._update_position)
 
-        self._waypoint_points = [wp.point for wp in self.db_obj.waypoints_pegboard]
+        overlay_points = _offline_store.overlay_points(self.db_obj.db_id)
+        if overlay_points is None:
+            self._waypoint_points = [wp.point for wp in self.db_obj.waypoints_pegboard]
+        else:
+            self._waypoint_points = overlay_points
 
         for point in self._waypoint_points:
             point.bind(self._update_position)
@@ -202,20 +241,26 @@ class Bundle(_base_pegboard.BasePegboard):
         see objects_3d.bundle.Bundle.set_start_position (same reasoning).
         """
         self._p1.unbind(self._update_position)
+        self._p1.unbind(self._invalidate_is_tight)
         self._p1 = point
         self._p1.bind(self._update_position)
+        self._p1.bind(self._invalidate_is_tight)
+        self._invalidate_is_tight(None)
         self._recalculate_geometry()
 
     @_check_types.do
     def set_stop_position(self, point: _point.Point) -> None:
         """See :meth:`set_start_position`."""
         self._p2.unbind(self._update_position)
+        self._p2.unbind(self._invalidate_is_tight)
         self._p2 = point
         self._p2.bind(self._update_position)
+        self._p2.bind(self._invalidate_is_tight)
+        self._invalidate_is_tight(None)
         self._recalculate_geometry()
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         # Diameter changes go through the diameter property above;
         # length (scale.z) is a derived aggregate recomputed by
         # _recalculate_geometry, never written directly -- mirrors
@@ -223,7 +268,7 @@ class Bundle(_base_pegboard.BasePegboard):
         pass
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         # This object's own self._angle is just an aggregate chord
         # direction (see _recalculate_geometry) -- render()/OBB/AABB all
         # derive their real per-segment transforms from position, not
@@ -248,7 +293,7 @@ class Bundle(_base_pegboard.BasePegboard):
 
     @staticmethod
     @_check_types.do
-    def _rotation_from_direction(direction) -> _angle.Angle:
+    def _rotation_from_direction(direction: np.ndarray) -> _angle.Angle:
         """Rotate the unit cylinder's local +Z axis to point along
         *direction* -- mirrors
         objects_3d.bundle.Bundle._rotation_from_direction exactly (same
@@ -273,7 +318,7 @@ class Bundle(_base_pegboard.BasePegboard):
         return _angle.Angle.from_axis_angle(axis, angle)
 
     @_check_types.do
-    def _segment_transforms(self):
+    def _segment_transforms(self) -> Iterator[tuple[_point.Point, _angle.Angle, _point.Point, float]]:
         """Yield (position, angle, scale, length) for every sub-segment
         of this bundle's current path -- mirrors
         objects_3d.bundle.Bundle._segment_transforms exactly.
@@ -294,7 +339,7 @@ class Bundle(_base_pegboard.BasePegboard):
             yield seg_position, seg_angle, seg_scale, seg_len
 
     @_check_types.do
-    def _recalculate_geometry(self):
+    def _recalculate_geometry(self) -> None:
         """Compute total length and OBB/AABB from the bundle's current
         start/interior-waypoints/stop path -- mirrors
         objects_3d.bundle.Bundle._recalculate_geometry, minus the
@@ -318,7 +363,7 @@ class Bundle(_base_pegboard.BasePegboard):
         self._compute_aabb()
 
     @_check_types.do
-    def _update_position(self, _: _point.Point | None):
+    def _update_position(self, _: _point.Point | None) -> None:
         """Recompute geometry immediately, not deferred to the next
         render pass -- bound to the start/stop endpoints and every
         interior waypoint (see :meth:`_bind_waypoints`).
@@ -326,7 +371,7 @@ class Bundle(_base_pegboard.BasePegboard):
         self._recalculate_geometry()
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         """Union AABB across every sub-segment, expressed as an 8-corner
         box -- mirrors objects_3d.bundle.Bundle._compute_obb exactly
         (same reasoning: a single rigid OBB has no meaningful
@@ -359,7 +404,7 @@ class Bundle(_base_pegboard.BasePegboard):
             self._obb[:] = obb
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         """See :meth:`_compute_obb` -- same union-of-segments envelope."""
         if self._vbo is None:
             return
@@ -373,7 +418,7 @@ class Bundle(_base_pegboard.BasePegboard):
         self._aabb[:] = aabb
 
     @_check_types.do
-    def _segment_world_corners(self):
+    def _segment_world_corners(self) -> np.ndarray:
         """World-space AABB corners (8 per segment) for every
         sub-segment, stacked into one array -- mirrors
         objects_3d.bundle.Bundle._segment_world_corners exactly.
@@ -408,7 +453,7 @@ class Bundle(_base_pegboard.BasePegboard):
         return np.concatenate(all_corners, axis=0)
 
     @_check_types.do
-    def hit_test_step3(self, ray_origin, ray_dir):
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
         """Precise per-segment mesh hit test (see BaseVar.hit_test_step3):
         tests every sub-segment's own transformed triangles individually
         instead of assuming one rigid transform for the whole bundle --
@@ -438,7 +483,7 @@ class Bundle(_base_pegboard.BasePegboard):
         return False
 
     @_check_types.do
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """Render every sub-segment of the bundle's current path.
 
         Geometry is always current by the time this runs --
@@ -467,7 +512,7 @@ class Bundle(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Segment drag -- same shape ``objects_pegboard.wire.Wire``'s own
         segment-drag case covers, via
@@ -524,19 +569,19 @@ class Bundle(_base_pegboard.BasePegboard):
         return self._p2
 
     @_check_types.do
-    def get_context_menu(self):
+    def get_context_menu(self) -> "BundleMenu":
         """Return this bundle's own right-click context menu (see
         ``ui/mainframe.py``'s ``_on_obj_right_click_pegboard``).
         """
         return BundleMenu(self.pegboard.editor, self)
 
 
-class BundleMenu(QMenu):
+class BundleMenu(QtWidgets.QMenu):
     """Right-click menu for a pegboard Bundle."""
 
     @_check_types.do
-    def __init__(self, canvas, selected: Bundle):
-        QMenu.__init__(self)
+    def __init__(self, canvas: "_editor_pegboard.EditorPegboardPanel", selected: Bundle) -> None:
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -561,12 +606,11 @@ class BundleMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_add_waypoint(self):
+    def on_add_waypoint(self) -> None:
         """Start the interactive waypoint-placement flow (see
         add_handlers.editor_pegboard.bundle_layout), seeded at the point
         that was right-clicked to open this menu.
         """
-        from PySide6.QtCore import QTimer
         from . import bundle_layout as _bundle_layout_pegboard
 
         mainframe = self.selected.parent.mainframe
@@ -579,13 +623,13 @@ class BundleMenu(QMenu):
             initial_pos = _point.Point(world_pos.x, 0.0, world_pos.z)
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             _bundle_layout_pegboard.BundleLayout.start_add(mainframe, bundle, initial_pos)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_show_table(self):
+    def on_show_table(self) -> None:
         """Show this bundle's own peg-board wire table -- creating it
         the first time, or just re-showing it (see
         ``BasePegboard.show_table``).
@@ -593,19 +637,19 @@ class BundleMenu(QMenu):
         self.selected.show_table()
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Make this bundle the active selection."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.select_object_for_object(self.selected.parent.mainframe, self.selected.parent)
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Delete this bundle from the project."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.delete_object(self.selected)
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Show this bundle's properties in the object editor."""
         from ...objects.objects_3d import menu_ops as _menu_ops
         _menu_ops.show_properties_for_object(self.selected.parent.mainframe, self.selected.parent)

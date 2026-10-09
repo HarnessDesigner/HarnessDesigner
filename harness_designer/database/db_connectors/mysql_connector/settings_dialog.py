@@ -2,21 +2,19 @@
 
 """Qt dialog helpers for editing MySQL connector settings."""
 
+from typing import Any
+from typing import TYPE_CHECKING
+
 import sys
-
 import mysql.connector.constants
-
-from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QGroupBox, QLabel, QLineEdit,
-    QCheckBox, QSpinBox, QGridLayout, QDialogButtonBox, QFileDialog,
-    QPushButton, QComboBox, QScrollArea, QWidget, QSizePolicy,
-    QToolTip
-)
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QCursor
+from PySide6 import QtWidgets, QtCore, QtGui
 
 from .... import config as _config
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
 
 DBConfig = _config.Config.database
 Config = _config.Config.database.mysql
@@ -67,24 +65,24 @@ MODE_TOOLTIPS = {
 
 
 @_check_types.do
-def _file_browse_button(parent, label, initial_value=''):
+def _file_browse_button(parent: QtWidgets.QWidget, label: str, initial_value: str = '') -> tuple[QtWidgets.QWidget, QtWidgets.QLineEdit]:
     """Return (row_widget, line_edit) for a file-browse row."""
-    widget = QWidget(parent)
-    row = QHBoxLayout(widget)
+    widget = QtWidgets.QWidget(parent)
+    row = QtWidgets.QHBoxLayout(widget)
     row.setContentsMargins(0, 0, 0, 0)
-    lbl = QLabel(label, widget)
+    lbl = QtWidgets.QLabel(label, widget)
     row.addWidget(lbl)
-    edit = QLineEdit(widget)
+    edit = QtWidgets.QLineEdit(widget)
     edit.setText(initial_value or '')
     row.addWidget(edit, 1)
-    btn = QPushButton('...', widget)
+    btn = QtWidgets.QPushButton('...', widget)
     btn.setFixedWidth(28)
 
     @_check_types.do
-    def _browse():
+    def _browse() -> None:
         """Perform the ``_browse`` operation. UNKNOWN.
         """
-        path, _ = QFileDialog.getOpenFileName(widget, f'Select {label}')
+        path, _ = QtWidgets.QFileDialog.getOpenFileName(widget, f'Select {label}')
         if path:
             edit.setText(path)
 
@@ -93,12 +91,12 @@ def _file_browse_button(parent, label, initial_value=''):
     return widget, edit
 
 
-class SQLOptionsDialog(QDialog):
+class SQLOptionsDialog(QtWidgets.QDialog):
 
     """Collect editable MySQL connector settings from the user.
     """
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Build the MySQL options dialog.
 
         :param parent: Parent Qt widget for the options dialog.
@@ -108,50 +106,45 @@ class SQLOptionsDialog(QDialog):
         :rtype: UNKNOWN
         """
         super().__init__(parent,
-                         Qt.Dialog | Qt.WindowStaysOnTopHint | Qt.WindowCloseButtonHint)
+                         QtCore.Qt.Dialog | QtCore.Qt.WindowStaysOnTopHint | QtCore.Qt.WindowCloseButtonHint)
         self.setWindowTitle('MySQL Options')
-        size = getattr(Config, 'settings_dialog', None)
-        if size and hasattr(size, 'size'):
-            w, h = size.size
-            self.resize(w, h)
-        else:
-            self.resize(900, 700)
+        w, h = Config.settings_dialog.size
+        self.resize(w, h)
 
-        pos = getattr(Config, 'settings_dialog', None)
-        if pos and hasattr(pos, 'pos') and pos.pos:
-            self.move(*pos.pos)
+        if Config.settings_dialog.pos:
+            self.move(*Config.settings_dialog.pos)
 
         self.resizeEvent = self._on_size
         self.moveEvent = self._on_move
 
-        outer = QVBoxLayout(self)
+        outer = QtWidgets.QVBoxLayout(self)
 
-        top_row = QHBoxLayout()
+        top_row = QtWidgets.QHBoxLayout()
 
         # Connection Settings
-        con_group = QGroupBox('Connection Settings', self)
-        con_lay = QVBoxLayout(con_group)
+        con_group = QtWidgets.QGroupBox('Connection Settings', self)
+        con_lay = QtWidgets.QVBoxLayout(con_group)
 
-        con_lay.addWidget(QLabel('Host:', con_group))
-        self.host_ctrl = QLineEdit(Config.host, con_group)
+        con_lay.addWidget(QtWidgets.QLabel('Host:', con_group))
+        self.host_ctrl = QtWidgets.QLineEdit(Config.host, con_group)
         con_lay.addWidget(self.host_ctrl)
 
-        con_lay.addWidget(QLabel('Port:', con_group))
-        self.port_ctrl = QSpinBox(con_group)
+        con_lay.addWidget(QtWidgets.QLabel('Port:', con_group))
+        self.port_ctrl = QtWidgets.QSpinBox(con_group)
         self.port_ctrl.setRange(1, 65535)
         self.port_ctrl.setValue(Config.port)
         con_lay.addWidget(self.port_ctrl)
 
-        ipv6_row = QHBoxLayout()
-        ipv6_row.addWidget(QLabel('Force IPV6:', con_group))
-        self.force_ipv6_ctrl = QCheckBox(con_group)
+        ipv6_row = QtWidgets.QHBoxLayout()
+        ipv6_row.addWidget(QtWidgets.QLabel('Force IPV6:', con_group))
+        self.force_ipv6_ctrl = QtWidgets.QCheckBox(con_group)
         self.force_ipv6_ctrl.setChecked(Config.force_ipv6)
         ipv6_row.addWidget(self.force_ipv6_ctrl)
         con_lay.addLayout(ipv6_row)
 
-        comp_row = QHBoxLayout()
-        comp_row.addWidget(QLabel('Compress Protocol:', con_group))
-        self.compress_ctrl = QCheckBox(con_group)
+        comp_row = QtWidgets.QHBoxLayout()
+        comp_row.addWidget(QtWidgets.QLabel('Compress Protocol:', con_group))
+        self.compress_ctrl = QtWidgets.QCheckBox(con_group)
         self.compress_ctrl.setChecked(Config.compress)
         comp_row.addWidget(self.compress_ctrl)
         con_lay.addLayout(comp_row)
@@ -159,18 +152,18 @@ class SQLOptionsDialog(QDialog):
         top_row.addWidget(con_group)
 
         # Misc Settings
-        misc_group = QGroupBox('Misc Settings', self)
-        misc_lay = QVBoxLayout(misc_group)
+        misc_group = QtWidgets.QGroupBox('Misc Settings', self)
+        misc_lay = QtWidgets.QVBoxLayout(misc_group)
 
-        buf_row = QHBoxLayout()
-        buf_row.addWidget(QLabel('Buffer responses:', misc_group))
-        self.buffer_ctrl = QCheckBox(misc_group)
+        buf_row = QtWidgets.QHBoxLayout()
+        buf_row.addWidget(QtWidgets.QLabel('Buffer responses:', misc_group))
+        self.buffer_ctrl = QtWidgets.QCheckBox(misc_group)
         self.buffer_ctrl.setChecked(Config.buffered)
         buf_row.addWidget(self.buffer_ctrl)
         misc_lay.addLayout(buf_row)
 
         @_check_types.do
-        def _timeout_spin(parent, label, value):
+        def _timeout_spin(parent: QtWidgets.QWidget, label: str, value: int | None) -> QtWidgets.QSpinBox:
             """Create a labeled timeout spin box row.
 
             :param parent: Parent widget that owns the spin box.
@@ -183,9 +176,9 @@ class SQLOptionsDialog(QDialog):
             :returns: Return value for this callable. UNKNOWN.
             :rtype: UNKNOWN
             """
-            r = QHBoxLayout()
-            r.addWidget(QLabel(label, parent))
-            sp = QSpinBox(parent)
+            r = QtWidgets.QHBoxLayout()
+            r.addWidget(QtWidgets.QLabel(label, parent))
+            sp = QtWidgets.QSpinBox(parent)
             sp.setRange(0, 60)
             sp.setValue(value or 0)
             r.addWidget(sp)
@@ -202,28 +195,28 @@ class SQLOptionsDialog(QDialog):
         top_row.addWidget(misc_group)
         outer.addLayout(top_row)
 
-        mid_row = QHBoxLayout()
+        mid_row = QtWidgets.QHBoxLayout()
 
         # Auth Settings
-        auth_group = QGroupBox('Authentication Settings', self)
-        auth_lay = QVBoxLayout(auth_group)
+        auth_group = QtWidgets.QGroupBox('Authentication Settings', self)
+        auth_lay = QtWidgets.QVBoxLayout(auth_group)
 
-        auth_lay.addWidget(QLabel('Auth plugin:', auth_group))
-        self.auth_plugin_ctrl = QLineEdit(Config.auth_plugin, auth_group)
+        auth_lay.addWidget(QtWidgets.QLabel('Auth plugin:', auth_group))
+        self.auth_plugin_ctrl = QtWidgets.QLineEdit(Config.auth_plugin, auth_group)
         self.auth_plugin_ctrl.textChanged.connect(self._on_auth_plugin)
         auth_lay.addWidget(self.auth_plugin_ctrl)
 
         # OCI
-        oci_group = QGroupBox('OCI Settings', auth_group)
-        oci_lay = QVBoxLayout(oci_group)
+        oci_group = QtWidgets.QGroupBox('OCI Settings', auth_group)
+        oci_lay = QtWidgets.QVBoxLayout(oci_group)
         oci_file_widget, self.oci_file_ctrl = _file_browse_button(
             oci_group, 'File:', Config.oci_config_file or '')
         self.oci_file_ctrl.textChanged.connect(self._on_oci_file)
         oci_lay.addWidget(oci_file_widget)
-        oci_profile_row = QHBoxLayout()
-        self.oci_config_profile_label = QLabel('Config Profile:', oci_group)
+        oci_profile_row = QtWidgets.QHBoxLayout()
+        self.oci_config_profile_label = QtWidgets.QLabel('Config Profile:', oci_group)
         oci_profile_row.addWidget(self.oci_config_profile_label)
-        self.oci_config_profile_ctrl = QLineEdit(Config.oci_config_profile or '', oci_group)
+        self.oci_config_profile_ctrl = QtWidgets.QLineEdit(Config.oci_config_profile or '', oci_group)
         oci_profile_row.addWidget(self.oci_config_profile_ctrl)
         oci_lay.addLayout(oci_profile_row)
         if not Config.oci_config_file:
@@ -232,8 +225,8 @@ class SQLOptionsDialog(QDialog):
         auth_lay.addWidget(oci_group)
 
         # Open ID
-        openid_group = QGroupBox('Open ID Settings', auth_group)
-        openid_lay = QVBoxLayout(openid_group)
+        openid_group = QtWidgets.QGroupBox('Open ID Settings', auth_group)
+        openid_lay = QtWidgets.QVBoxLayout(openid_group)
         openid_widget, self.openid_token_file_ctrl = _file_browse_button(
             openid_group, 'Token File:', Config.openid_token_file or '')
         if Config.auth_plugin != 'authentication_openid_connect_client':
@@ -243,12 +236,12 @@ class SQLOptionsDialog(QDialog):
 
         # Kerberos (Windows only)
         if sys.platform.startswith('win'):
-            kerb_group = QGroupBox('Kerberos Settings', auth_group)
-            kerb_lay = QVBoxLayout(kerb_group)
-            kerb_row = QHBoxLayout()
-            self.kerberos_auth_mode_label = QLabel('Auth Mode:', kerb_group)
+            kerb_group = QtWidgets.QGroupBox('Kerberos Settings', auth_group)
+            kerb_lay = QtWidgets.QVBoxLayout(kerb_group)
+            kerb_row = QtWidgets.QHBoxLayout()
+            self.kerberos_auth_mode_label = QtWidgets.QLabel('Auth Mode:', kerb_group)
             kerb_row.addWidget(self.kerberos_auth_mode_label)
-            self.kerberos_auth_mode_ctrl = QComboBox(kerb_group)
+            self.kerberos_auth_mode_ctrl = QtWidgets.QComboBox(kerb_group)
             self.kerberos_auth_mode_ctrl.addItems(['SSPI', 'GSSAPI'])
             idx = self.kerberos_auth_mode_ctrl.findText(
                 getattr(Config, 'kerberos_auth_mode', 'SSPI'))
@@ -261,26 +254,26 @@ class SQLOptionsDialog(QDialog):
             auth_lay.addWidget(kerb_group)
 
         # SSL
-        ssl_group = QGroupBox('SSL', auth_group)
-        ssl_lay = QVBoxLayout(ssl_group)
+        ssl_group = QtWidgets.QGroupBox('SSL', auth_group)
+        ssl_lay = QtWidgets.QVBoxLayout(ssl_group)
 
-        ssl_top = QHBoxLayout()
-        ssl_en_lbl = QLabel('Enable:', ssl_group)
+        ssl_top = QtWidgets.QHBoxLayout()
+        ssl_en_lbl = QtWidgets.QLabel('Enable:', ssl_group)
         ssl_top.addWidget(ssl_en_lbl)
-        self.ssl_enabled_ctrl = QCheckBox(ssl_group)
+        self.ssl_enabled_ctrl = QtWidgets.QCheckBox(ssl_group)
         self.ssl_enabled_ctrl.setChecked(not Config.ssl_disabled)
         self.ssl_enabled_ctrl.stateChanged.connect(self._on_ssl_enabled)
         ssl_top.addWidget(self.ssl_enabled_ctrl)
 
-        self.tls_12_label = QLabel('Use TLS 1.2:', ssl_group)
+        self.tls_12_label = QtWidgets.QLabel('Use TLS 1.2:', ssl_group)
         ssl_top.addWidget(self.tls_12_label)
-        self.tls_12_ctrl = QCheckBox(ssl_group)
+        self.tls_12_ctrl = QtWidgets.QCheckBox(ssl_group)
         self.tls_12_ctrl.setChecked('TLSv1.2' in Config.tls_versions)
         ssl_top.addWidget(self.tls_12_ctrl)
 
-        self.tls_13_label = QLabel('Use TLS 1.3:', ssl_group)
+        self.tls_13_label = QtWidgets.QLabel('Use TLS 1.3:', ssl_group)
         ssl_top.addWidget(self.tls_13_label)
-        self.tls_13_ctrl = QCheckBox(ssl_group)
+        self.tls_13_ctrl = QtWidgets.QCheckBox(ssl_group)
         self.tls_13_ctrl.setChecked('TLSv1.3' in Config.tls_versions)
         ssl_top.addWidget(self.tls_13_ctrl)
         ssl_lay.addLayout(ssl_top)
@@ -293,10 +286,10 @@ class SQLOptionsDialog(QDialog):
             ssl_group, 'Certificate File:', Config.ssl_cert or '')
         ssl_lay.addWidget(ssl_cert_widget)
 
-        vc_row = QHBoxLayout()
-        self.ssl_verify_cert_label = QLabel('Verify Certificate:', ssl_group)
+        vc_row = QtWidgets.QHBoxLayout()
+        self.ssl_verify_cert_label = QtWidgets.QLabel('Verify Certificate:', ssl_group)
         vc_row.addWidget(self.ssl_verify_cert_label)
-        self.ssl_verify_cert_ctrl = QCheckBox(ssl_group)
+        self.ssl_verify_cert_ctrl = QtWidgets.QCheckBox(ssl_group)
         self.ssl_verify_cert_ctrl.setChecked(Config.ssl_verify_cert)
         vc_row.addWidget(self.ssl_verify_cert_ctrl)
         ssl_lay.addLayout(vc_row)
@@ -305,10 +298,10 @@ class SQLOptionsDialog(QDialog):
             ssl_group, 'CA File:', Config.ssl_ca or '')
         ssl_lay.addWidget(ssl_ca_widget)
 
-        vi_row = QHBoxLayout()
-        self.ssl_verify_identity_label = QLabel('Verify Identity:', ssl_group)
+        vi_row = QtWidgets.QHBoxLayout()
+        self.ssl_verify_identity_label = QtWidgets.QLabel('Verify Identity:', ssl_group)
         vi_row.addWidget(self.ssl_verify_identity_label)
-        self.ssl_verify_identity_ctrl = QCheckBox(ssl_group)
+        self.ssl_verify_identity_ctrl = QtWidgets.QCheckBox(ssl_group)
         self.ssl_verify_identity_ctrl.setChecked(Config.ssl_verify_identity)
         vi_row.addWidget(self.ssl_verify_identity_ctrl)
         ssl_lay.addLayout(vi_row)
@@ -323,22 +316,22 @@ class SQLOptionsDialog(QDialog):
         mid_row.addWidget(auth_group)
 
         # Database Settings
-        db_group = QGroupBox('Database Settings', self)
-        db_lay = QVBoxLayout(db_group)
+        db_group = QtWidgets.QGroupBox('Database Settings', self)
+        db_lay = QtWidgets.QVBoxLayout(db_group)
 
-        db_name_row = QHBoxLayout()
-        db_name_row.addWidget(QLabel('Database Name:', db_group))
-        self.database_name_ctrl = QLineEdit(Config.database_name or '', db_group)
+        db_name_row = QtWidgets.QHBoxLayout()
+        db_name_row.addWidget(QtWidgets.QLabel('Database Name:', db_group))
+        self.database_name_ctrl = QtWidgets.QLineEdit(Config.database_name or '', db_group)
         db_name_row.addWidget(self.database_name_ctrl)
         db_lay.addLayout(db_name_row)
 
         # SQL Modes
-        sql_modes_group = QGroupBox('SQL Modes', db_group)
-        sql_modes_lay = QVBoxLayout(sql_modes_group)
-        modes_scroll = QScrollArea(sql_modes_group)
+        sql_modes_group = QtWidgets.QGroupBox('SQL Modes', db_group)
+        sql_modes_lay = QtWidgets.QVBoxLayout(sql_modes_group)
+        modes_scroll = QtWidgets.QScrollArea(sql_modes_group)
         modes_scroll.setWidgetResizable(True)
-        modes_container = QWidget()
-        gbs = QGridLayout(modes_container)
+        modes_container = QtWidgets.QWidget()
+        gbs = QtWidgets.QGridLayout(modes_container)
 
         current_modes = Config.sql_mode
         modes = mysql.connector.constants.SQLMode.get_full_info()
@@ -347,8 +340,8 @@ class SQLOptionsDialog(QDialog):
 
         for i, name in enumerate(modes):
             is_set = name in current_modes
-            label = QLabel(name + ': ', modes_container)
-            ctrl = QCheckBox(modes_container)
+            label = QtWidgets.QLabel(name + ': ', modes_container)
+            ctrl = QtWidgets.QCheckBox(modes_container)
             ctrl.setChecked(is_set)
             if name in MODE_TOOLTIPS:
                 label.setToolTip(MODE_TOOLTIPS[name])
@@ -367,12 +360,12 @@ class SQLOptionsDialog(QDialog):
         db_lay.addWidget(sql_modes_group)
 
         # Client Flags
-        client_flags_group = QGroupBox('Client Flags', db_group)
-        cf_lay = QVBoxLayout(client_flags_group)
-        cf_scroll = QScrollArea(client_flags_group)
+        client_flags_group = QtWidgets.QGroupBox('Client Flags', db_group)
+        cf_lay = QtWidgets.QVBoxLayout(client_flags_group)
+        cf_scroll = QtWidgets.QScrollArea(client_flags_group)
         cf_scroll.setWidgetResizable(True)
-        cf_container = QWidget()
-        cf_gbs = QGridLayout(cf_container)
+        cf_container = QtWidgets.QWidget()
+        cf_gbs = QtWidgets.QGridLayout(cf_container)
 
         available_client_flags = {}
         for line in mysql.connector.constants.ClientFlag.get_full_info():
@@ -383,8 +376,8 @@ class SQLOptionsDialog(QDialog):
         row_count = -1
         for i, (name, flag_data) in enumerate(list(available_client_flags.items())):
             is_set = bool(Config.client_flags & flag_data['value'])
-            label = QLabel(name + ': ', cf_container)
-            ctrl = QCheckBox(cf_container)
+            label = QtWidgets.QLabel(name + ': ', cf_container)
+            ctrl = QtWidgets.QCheckBox(cf_container)
             ctrl.setChecked(is_set)
             label.setToolTip(flag_data['description'])
             ctrl.setToolTip(flag_data['description'])
@@ -405,13 +398,13 @@ class SQLOptionsDialog(QDialog):
         mid_row.addWidget(db_group)
         outer.addLayout(mid_row)
 
-        btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        btn_box = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel, self)
         btn_box.accepted.connect(self.accept)
         btn_box.rejected.connect(self.reject)
         outer.addWidget(btn_box)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> dict[str, Any]:
         """Return the values selected in the MySQL options dialog.
 
         :returns: The current values collected by the dialog.
@@ -424,7 +417,7 @@ class SQLOptionsDialog(QDialog):
             tls_versions.append('TLSv1.3')
 
         @_check_types.do
-        def _timeout(ctrl):
+        def _timeout(ctrl: QtWidgets.QSpinBox) -> int | None:
             """Normalize a timeout control value to ``None`` when disabled.
 
             :param ctrl: Spin box whose timeout value should be normalized.
@@ -475,7 +468,7 @@ class SQLOptionsDialog(QDialog):
         return res
 
     @_check_types.do
-    def _on_oci_file(self, value):
+    def _on_oci_file(self, value: str) -> None:
         """Enable or disable OCI profile controls based on the selected file.
 
         :param value: Value or state to persist.
@@ -490,7 +483,7 @@ class SQLOptionsDialog(QDialog):
         self.oci_config_profile_label.setEnabled(has_file)
 
     @_check_types.do
-    def _on_size(self, evt):
+    def _on_size(self, evt: QtGui.QResizeEvent) -> None:
         """Persist the dialog size when the window is resized.
 
         :param evt: Qt event object associated with the callback.
@@ -500,12 +493,11 @@ class SQLOptionsDialog(QDialog):
         :rtype: None
         """
         s = evt.size()
-        if hasattr(Config, 'settings_dialog') and Config.settings_dialog:
-            Config.settings_dialog.size = (s.width(), s.height())
+        Config.settings_dialog.size = (s.width(), s.height())
         super().resizeEvent(evt)
 
     @_check_types.do
-    def _on_move(self, evt):
+    def _on_move(self, evt: QtGui.QMoveEvent) -> None:
         """Persist the dialog position when the window is moved.
 
         :param evt: Qt event object associated with the callback.
@@ -515,12 +507,11 @@ class SQLOptionsDialog(QDialog):
         :rtype: None
         """
         p = evt.pos()
-        if hasattr(Config, 'settings_dialog') and Config.settings_dialog:
-            Config.settings_dialog.pos = (p.x(), p.y())
+        Config.settings_dialog.pos = (p.x(), p.y())
         super().moveEvent(evt)
 
     @_check_types.do
-    def _on_ssl_enabled(self, state):
+    def _on_ssl_enabled(self, state: int) -> None:
         """Enable or disable SSL-related controls.
 
         :param state: Qt check-state value.
@@ -539,14 +530,14 @@ class SQLOptionsDialog(QDialog):
             w.setEnabled(value)
 
     @_check_types.do
-    def _on_auth_plugin(self):
+    def _on_auth_plugin(self) -> None:
         """Refresh auth-plugin dependent controls after the plugin changes.
 
         :returns: ``None``.
         :rtype: None
         """
         @_check_types.do
-        def _do():
+        def _do() -> None:
             """Apply delayed auth-plugin UI updates.
             """
             value = self.auth_plugin_ctrl.text()
@@ -558,4 +549,4 @@ class SQLOptionsDialog(QDialog):
                 self.kerberos_auth_mode_label.setEnabled(is_kerb)
                 self.kerberos_auth_mode_ctrl.setEnabled(is_kerb)
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)

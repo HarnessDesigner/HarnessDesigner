@@ -1,3 +1,4 @@
+import types
 import numpy as np
 from OpenGL import GL
 
@@ -11,16 +12,19 @@ from . import vertices as _vertices
 
 class Program:
 
-    def __init__(self, program):
+    has_normal_mode: bool = False
+    has_emissive_rim_power: bool = False
+
+    def __init__(self, program: int) -> None:
         self._program = program
         self._ref_count = 0
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self._ref_count += 1
         if self._ref_count == 1:
             GL.glUseProgram(self._program)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: types.TracebackType | None) -> None:
         self._ref_count -= 1
         if self._ref_count == 0:
             GL.glUseProgram(0)
@@ -28,7 +32,10 @@ class Program:
 
 class FacesProgram(Program):
 
-    def __init__(self):
+    has_normal_mode: bool = True
+    has_emissive_rim_power: bool = True
+
+    def __init__(self) -> None:
         program = _faces.compile_program()
         super().__init__(program)
 
@@ -63,233 +70,235 @@ class FacesProgram(Program):
             self._show_depth = GL.glGetUniformLocation(program, "showDepth")
 
     @property
-    def position(self):
+    def position(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @position.setter
-    def position(self, value: tuple[float, float, float]):
+    def position(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._position, *value)
 
     @property
-    def rotation(self):
+    def rotation(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @rotation.setter
-    def rotation(self, value: list[float, float, float, float]):
+    def rotation(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._rotation, *value)
 
     @property
-    def scale(self):
+    def scale(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @scale.setter
-    def scale(self, value: tuple[float, float, float]):
+    def scale(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._scale, *value)
 
     @property
-    def normal_mode(self):
+    def normal_mode(self) -> int:
         raise NotImplementedError
 
     @normal_mode.setter
-    def normal_mode(self, value: int):
+    def normal_mode(self, value: int) -> None:
         GL.glUniform1i(self._normal_mode, value)
 
     @property
-    def view_position(self):
+    def view_position(self) -> np.ndarray:
         raise NotImplementedError
 
     @view_position.setter
-    def view_position(self, value:np.ndarray):
+    def view_position(self, value:np.ndarray) -> None:
         GL.glUniform3fv(self._view_position, 1, value)
 
     @property
-    def projection(self):
+    def projection(self) -> np.ndarray:
         raise NotImplementedError
 
     @projection.setter
-    def projection(self, value: np.ndarray):
+    def projection(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._projection, 1, GL.GL_TRUE, value)
 
     @property
-    def view(self):
+    def view(self) -> np.ndarray:
         raise NotImplementedError
 
     @view.setter
-    def view(self, value: np.ndarray):
+    def view(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._view, 1, GL.GL_TRUE, value)
 
     @property
-    def show_depth(self):
+    def show_depth(self) -> bool:
         raise NotImplementedError
 
     @show_depth.setter
-    def show_depth(self, value: bool):
+    def show_depth(self, value: bool) -> None:
         GL.glUniform1i(self._show_depth, int(value))
 
     @property
-    def floor_y(self):
+    def floor_y(self) -> float:
         raise NotImplementedError
 
     @floor_y.setter
-    def floor_y(self, value: float):
+    def floor_y(self, value: float) -> None:
         GL.glUniform1f(self._floor_y, value)
 
     @property
-    def has_reflection(self):
+    def has_reflection(self) -> int:
         raise NotImplementedError
 
     @has_reflection.setter
-    def has_reflection(self, value: int):
+    def has_reflection(self, value: int) -> None:
         GL.glUniform1i(self._object_has_reflection, value)
 
     @property
-    def stripe_clip_start(self):
+    def stripe_clip_start(self) -> float:
         raise NotImplementedError
 
     @stripe_clip_start.setter
-    def stripe_clip_start(self, value: float):
+    def stripe_clip_start(self, value: float) -> None:
         GL.glUniform1f(self._stripe_clip_start, value)
 
     @property
-    def stripe_clip_stop(self):
+    def stripe_clip_stop(self) -> float:
         raise NotImplementedError
 
     @stripe_clip_stop.setter
-    def stripe_clip_stop(self, value: float):
+    def stripe_clip_stop(self, value: float) -> None:
         GL.glUniform1f(self._stripe_clip_stop, value)
 
     @property
-    def material_ambient(self):
+    def material_ambient(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_ambient.setter
-    def material_ambient(self, value: np.ndarray):
+    def material_ambient(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_ambient, 1, value)
 
     @property
-    def material_diffuse(self):
+    def material_diffuse(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_diffuse.setter
-    def material_diffuse(self, value: np.ndarray):
+    def material_diffuse(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_diffuse, 1, value)
 
     @property
-    def material_specular(self):
+    def material_specular(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_specular.setter
-    def material_specular(self, value: np.ndarray):
+    def material_specular(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_specular, 1, value)
 
     @property
-    def material_shininess(self):
+    def material_shininess(self) -> float:
         raise NotImplementedError
 
     @material_shininess.setter
-    def material_shininess(self, value: float):
+    def material_shininess(self, value: float) -> None:
         GL.glUniform1f(self._material_shininess, value)
 
     @property
-    def material_emissive(self):
+    def material_emissive(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_emissive.setter
-    def material_emissive(self, value: np.ndarray):
+    def material_emissive(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_emissive, 1, value)
 
     @property
-    def emissive_rim_power(self):
+    def emissive_rim_power(self) -> float:
         raise NotImplementedError
 
     @emissive_rim_power.setter
-    def emissive_rim_power(self, value: float):
+    def emissive_rim_power(self, value: float) -> None:
         GL.glUniform1f(self._emissive_rim_power, value)
 
     @property
-    def emissive_rim_intensity(self):
+    def emissive_rim_intensity(self) -> float:
         raise NotImplementedError
 
     @emissive_rim_intensity.setter
-    def emissive_rim_intensity(self, value: float):
+    def emissive_rim_intensity(self, value: float) -> None:
         GL.glUniform1f(self._emissive_rim_intensity, value)
 
     @property
-    def light_position(self):
+    def light_position(self) -> np.ndarray:
         raise NotImplementedError
 
     @light_position.setter
-    def light_position(self, value: np.ndarray):
+    def light_position(self, value: np.ndarray) -> None:
         GL.glUniform3fv(self._light_position, 1, value)
 
     @property
-    def light_ambient(self):
+    def light_ambient(self) -> np.ndarray:
         raise NotImplementedError
 
     @light_ambient.setter
-    def light_ambient(self, value: np.ndarray):
+    def light_ambient(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._light_ambient, 1, value)
 
     @property
-    def light_diffuse(self):
+    def light_diffuse(self) -> np.ndarray:
         raise NotImplementedError
 
     @light_diffuse.setter
-    def light_diffuse(self, value: np.ndarray):
+    def light_diffuse(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._light_diffuse, 1, value)
 
     @property
-    def light_specular(self):
+    def light_specular(self) -> np.ndarray:
         raise NotImplementedError
 
     @light_specular.setter
-    def light_specular(self, value: np.ndarray):
+    def light_specular(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._light_specular, 1, value)
 
     @property
-    def headlight_position(self):
+    def headlight_position(self) -> np.ndarray:
         raise NotImplementedError
 
     @headlight_position.setter
-    def headlight_position(self, value: np.ndarray):
+    def headlight_position(self, value: np.ndarray) -> None:
         GL.glUniform3fv(self._headlight_position, 1, value)
 
     @property
-    def headlight_direction(self):
+    def headlight_direction(self) -> np.ndarray:
         raise NotImplementedError
 
     @headlight_direction.setter
-    def headlight_direction(self, value: np.ndarray):
+    def headlight_direction(self, value: np.ndarray) -> None:
         GL.glUniform3fv(self._headlight_direction, 1, value)
 
     @property
-    def headlight_diffuse(self):
+    def headlight_diffuse(self) -> np.ndarray:
         raise NotImplementedError
 
     @headlight_diffuse.setter
-    def headlight_diffuse(self, value: np.ndarray):
+    def headlight_diffuse(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._headlight_diffuse, 1, value)
 
     @property
-    def headlight_diameter(self):
+    def headlight_diameter(self) -> float:
         raise NotImplementedError
 
     @headlight_diameter.setter
-    def headlight_diameter(self, value: float):
+    def headlight_diameter(self, value: float) -> None:
         GL.glUniform1f(self._headlight_diameter, value)
 
     @property
-    def headlight_enabled(self):
+    def headlight_enabled(self) -> int:
         raise NotImplementedError
 
     @headlight_enabled.setter
-    def headlight_enabled(self, value: int):
+    def headlight_enabled(self, value: int) -> None:
         GL.glUniform1i(self._headlight_enabled, value)
 
 
 class EdgesProgram(Program):
 
-    def __init__(self):
+    has_normal_mode: bool = True
+
+    def __init__(self) -> None:
         program = _edges.compile_program()
         super().__init__(program)
 
@@ -311,129 +320,129 @@ class EdgesProgram(Program):
             self._material_emissive = GL.glGetUniformLocation(program, "materialEmissive")
 
     @property
-    def position(self):
+    def position(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @position.setter
-    def position(self, value: tuple[float, float, float]):
+    def position(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._position, *value)
 
     @property
-    def rotation(self):
+    def rotation(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @rotation.setter
-    def rotation(self, value: list[float, float, float, float]):
+    def rotation(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._rotation, *value)
 
     @property
-    def scale(self):
+    def scale(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @scale.setter
-    def scale(self, value: tuple[float, float, float]):
+    def scale(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._scale, *value)
 
     @property
-    def normal_mode(self):
+    def normal_mode(self) -> int:
         raise NotImplementedError
 
     @normal_mode.setter
-    def normal_mode(self, value: int):
+    def normal_mode(self, value: int) -> None:
         GL.glUniform1i(self._normal_mode, value)
 
     @property
-    def normal_length(self):
+    def normal_length(self) -> float:
         raise NotImplementedError
 
     @normal_length.setter
-    def normal_length(self, value: float):
+    def normal_length(self, value: float) -> None:
         GL.glUniform1f(self._normal_length, value)
 
     @property
-    def render_mode(self):
+    def render_mode(self) -> int:
         raise NotImplementedError
 
     @render_mode.setter
-    def render_mode(self, value: int):
+    def render_mode(self, value: int) -> None:
         GL.glUniform1i(self._render_mode, value)
 
     @property
-    def projection(self):
+    def projection(self) -> np.ndarray:
         raise NotImplementedError
 
     @projection.setter
-    def projection(self, value: np.ndarray):
+    def projection(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._projection, 1, GL.GL_TRUE, value)
 
     @property
-    def view(self):
+    def view(self) -> np.ndarray:
         raise NotImplementedError
 
     @view.setter
-    def view(self, value: np.ndarray):
+    def view(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._view, 1, GL.GL_TRUE, value)
 
     @property
-    def stripe_clip_start(self):
+    def stripe_clip_start(self) -> float:
         raise NotImplementedError
 
     @stripe_clip_start.setter
-    def stripe_clip_start(self, value: float):
+    def stripe_clip_start(self, value: float) -> None:
         GL.glUniform1f(self._stripe_clip_start, value)
 
     @property
-    def stripe_clip_stop(self):
+    def stripe_clip_stop(self) -> float:
         raise NotImplementedError
 
     @stripe_clip_stop.setter
-    def stripe_clip_stop(self, value: float):
+    def stripe_clip_stop(self, value: float) -> None:
         GL.glUniform1f(self._stripe_clip_stop, value)
 
     @property
-    def material_ambient(self):
+    def material_ambient(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_ambient.setter
-    def material_ambient(self, value: np.ndarray):
+    def material_ambient(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_ambient, 1, value)
 
     @property
-    def material_diffuse(self):
+    def material_diffuse(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_diffuse.setter
-    def material_diffuse(self, value: np.ndarray):
+    def material_diffuse(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_diffuse, 1, value)
 
     @property
-    def material_specular(self):
+    def material_specular(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_specular.setter
-    def material_specular(self, value: np.ndarray):
+    def material_specular(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_specular, 1, value)
 
     @property
-    def material_shininess(self):
+    def material_shininess(self) -> float:
         raise NotImplementedError
 
     @material_shininess.setter
-    def material_shininess(self, value: float):
+    def material_shininess(self, value: float) -> None:
         GL.glUniform1f(self._material_shininess, value)
 
     @property
-    def material_emissive(self):
+    def material_emissive(self) -> np.ndarray:
         raise NotImplementedError
 
     @material_emissive.setter
-    def material_emissive(self, value: np.ndarray):
+    def material_emissive(self, value: np.ndarray) -> None:
         GL.glUniform4fv(self._material_emissive, 1, value)
 
 
 class VerticesProgram(Program):
 
-    def __init__(self):
+    def __init__(self) -> None:
         program = _vertices.compile_program()
         super().__init__(program)
 
@@ -448,73 +457,73 @@ class VerticesProgram(Program):
             self._stripe_clip_stop = GL.glGetUniformLocation(program, "stripeClipStop")
 
     @property
-    def position(self):
+    def position(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @position.setter
-    def position(self, value: tuple[float, float, float]):
+    def position(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._position, *value)
 
     @property
-    def rotation(self):
+    def rotation(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @rotation.setter
-    def rotation(self, value: list[float, float, float, float]):
+    def rotation(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._rotation, *value)
 
     @property
-    def scale(self):
+    def scale(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @scale.setter
-    def scale(self, value: tuple[float, float, float]):
+    def scale(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._scale, *value)
 
     @property
-    def color(self):
+    def color(self) -> list[float, float, float]:
         raise NotImplementedError
 
     @color.setter
-    def color(self, value: list[float, float, float]):
+    def color(self, value: list[float, float, float]) -> None:
         GL.glUniform3f(self._color, *value)
 
     @property
-    def projection(self):
+    def projection(self) -> np.ndarray:
         raise NotImplementedError
 
     @projection.setter
-    def projection(self, value: np.ndarray):
+    def projection(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._projection, 1, GL.GL_TRUE, value)
 
     @property
-    def view(self):
+    def view(self) -> np.ndarray:
         raise NotImplementedError
 
     @view.setter
-    def view(self, value: np.ndarray):
+    def view(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._view, 1, GL.GL_TRUE, value)
 
     @property
-    def stripe_clip_start(self):
+    def stripe_clip_start(self) -> float:
         raise NotImplementedError
 
     @stripe_clip_start.setter
-    def stripe_clip_start(self, value: float):
+    def stripe_clip_start(self, value: float) -> None:
         GL.glUniform1f(self._stripe_clip_start, value)
 
     @property
-    def stripe_clip_stop(self):
+    def stripe_clip_stop(self) -> float:
         raise NotImplementedError
 
     @stripe_clip_stop.setter
-    def stripe_clip_stop(self, value: float):
+    def stripe_clip_stop(self, value: float) -> None:
         GL.glUniform1f(self._stripe_clip_stop, value)
 
 
 class GridProgram(Program):
 
-    def __init__(self):
+    def __init__(self) -> None:
         program = _grid2d.compile_program()
         super().__init__(program)
 
@@ -525,42 +534,42 @@ class GridProgram(Program):
             self._dot_color = GL.glGetUniformLocation(program, "uDotColor")
 
     @property
-    def projection(self):
+    def projection(self) -> np.ndarray:
         raise NotImplementedError
 
     @projection.setter
-    def projection(self, value: np.ndarray):
+    def projection(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._projection, 1, GL.GL_FALSE,
                               np.ascontiguousarray(value))
 
     @property
-    def spacing(self):
+    def spacing(self) -> float:
         raise NotImplementedError
 
     @spacing.setter
-    def spacing(self, value: float):
+    def spacing(self, value: float) -> None:
         GL.glUniform1f(self._spacing, value)
 
     @property
-    def world_per_pixel(self):
+    def world_per_pixel(self) -> float:
         raise NotImplementedError
 
     @world_per_pixel.setter
-    def world_per_pixel(self, value: float):
+    def world_per_pixel(self, value: float) -> None:
         GL.glUniform1f(self._world_per_pixel, value)
 
     @property
-    def dot_color(self):
+    def dot_color(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @dot_color.setter
-    def dot_color(self, value: list[float, float, float, float]):
+    def dot_color(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._dot_color, *value)
 
 
 class FloorProgram(Program):
 
-    def __init__(self):
+    def __init__(self) -> None:
         program = _floor.compile_program()
         super().__init__(program)
 
@@ -580,107 +589,107 @@ class FloorProgram(Program):
             self._opaque_pass = GL.glGetUniformLocation(program, 'uOpaquePass')
 
     @property
-    def mvp(self):
+    def mvp(self) -> np.ndarray:
         raise NotImplementedError
 
     @mvp.setter
-    def mvp(self, value: np.ndarray):
+    def mvp(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._mvp, 1, GL.GL_TRUE, value)
 
     @property
-    def tile_size(self):
+    def tile_size(self) -> float:
         raise NotImplementedError
 
     @tile_size.setter
-    def tile_size(self, value: float):
+    def tile_size(self, value: float) -> None:
         GL.glUniform1f(self._tile_size, value)
 
     @property
-    def minor_spacing(self):
+    def minor_spacing(self) -> float:
         raise NotImplementedError
 
     @minor_spacing.setter
-    def minor_spacing(self, value: float):
+    def minor_spacing(self, value: float) -> None:
         GL.glUniform1f(self._minor_spacing, value)
 
     @property
-    def color_a(self):
+    def color_a(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @color_a.setter
-    def color_a(self, value: list[float, float, float, float]):
+    def color_a(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._color_a, *value)
 
     @property
-    def color_b(self):
+    def color_b(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @color_b.setter
-    def color_b(self, value: list[float, float, float, float]):
+    def color_b(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._color_b, *value)
 
     @property
-    def major_color(self):
+    def major_color(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @major_color.setter
-    def major_color(self, value: list[float, float, float, float]):
+    def major_color(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._major_color, *value)
 
     @property
-    def minor_color(self):
+    def minor_color(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @minor_color.setter
-    def minor_color(self, value: list[float, float, float, float]):
+    def minor_color(self, value: list[float, float, float, float]) -> None:
         GL.glUniform4f(self._minor_color, *value)
 
     @property
-    def major_width(self):
+    def major_width(self) -> float:
         raise NotImplementedError
 
     @major_width.setter
-    def major_width(self, value: float):
+    def major_width(self, value: float) -> None:
         GL.glUniform1f(self._major_width, value)
 
     @property
-    def minor_width(self):
+    def minor_width(self) -> float:
         raise NotImplementedError
 
     @minor_width.setter
-    def minor_width(self, value: float):
+    def minor_width(self, value: float) -> None:
         GL.glUniform1f(self._minor_width, value)
 
     @property
-    def stipple_pattern(self):
+    def stipple_pattern(self) -> int:
         raise NotImplementedError
 
     @stipple_pattern.setter
-    def stipple_pattern(self, value: int):
+    def stipple_pattern(self, value: int) -> None:
         GL.glUniform1ui(self._stipple_pattern, value & 0xFFFFFFFF)
 
     @property
-    def has_minor_grid(self):
+    def has_minor_grid(self) -> int:
         raise NotImplementedError
 
     @has_minor_grid.setter
-    def has_minor_grid(self, value: int):
+    def has_minor_grid(self, value: int) -> None:
         GL.glUniform1ui(self._has_minor_grid, value)
 
     @property
-    def stipple_phase(self):
+    def stipple_phase(self) -> int:
         raise NotImplementedError
 
     @stipple_phase.setter
-    def stipple_phase(self, value: int):
+    def stipple_phase(self, value: int) -> None:
         GL.glUniform1ui(self._stipple_phase, value)
 
     @property
-    def opaque_pass(self):
+    def opaque_pass(self) -> int:
         raise NotImplementedError
 
     @opaque_pass.setter
-    def opaque_pass(self, value: int):
+    def opaque_pass(self, value: int) -> None:
         GL.glUniform1i(self._opaque_pass, value)
 
 
@@ -691,7 +700,7 @@ class TextureProgram(Program):
     off-screen from a real Qt widget and uploaded as a GL texture).
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         program = _texture.compile_program()
         super().__init__(program)
 
@@ -708,43 +717,43 @@ class TextureProgram(Program):
             GL.glUniform1i(self._image_texture, 0)  # always texture unit 0
 
     @property
-    def projection(self):
+    def projection(self) -> np.ndarray:
         raise NotImplementedError
 
     @projection.setter
-    def projection(self, value: np.ndarray):
+    def projection(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._projection, 1, GL.GL_TRUE, value)
 
     @property
-    def view(self):
+    def view(self) -> np.ndarray:
         raise NotImplementedError
 
     @view.setter
-    def view(self, value: np.ndarray):
+    def view(self, value: np.ndarray) -> None:
         GL.glUniformMatrix4fv(self._view, 1, GL.GL_TRUE, value)
 
     @property
-    def position(self):
+    def position(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @position.setter
-    def position(self, value: tuple[float, float, float]):
+    def position(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._position, *value)
 
     @property
-    def scale(self):
+    def scale(self) -> tuple[float, float, float]:
         raise NotImplementedError
 
     @scale.setter
-    def scale(self, value: tuple[float, float, float]):
+    def scale(self, value: tuple[float, float, float]) -> None:
         GL.glUniform3f(self._scale, *value)
 
     @property
-    def rotation(self):
+    def rotation(self) -> list[float, float, float, float]:
         raise NotImplementedError
 
     @rotation.setter
-    def rotation(self, value: list[float, float, float, float]):
+    def rotation(self, value: list[float, float, float, float]) -> None:
         # No-op -- a peg-board table quad is never rotated, but
         # VBOHandlerBase.render() unconditionally sets program.rotation,
         # so this has to exist as a real (if unused) property, same as
@@ -753,11 +762,11 @@ class TextureProgram(Program):
         pass
 
     @property
-    def quad_size_px(self):
+    def quad_size_px(self) -> tuple[float, float]:
         raise NotImplementedError
 
     @quad_size_px.setter
-    def quad_size_px(self, value: tuple[float, float]):
+    def quad_size_px(self, value: tuple[float, float]) -> None:
         """Pixel size of the captured widget this quad displays --
         ``objects_pegboard.table.Table`` sets this from
         its own ``_texture_px_size`` every time it re-grabs, so the
@@ -768,11 +777,11 @@ class TextureProgram(Program):
         GL.glUniform2f(self._quad_size_px, *value)
 
     @property
-    def corner_radius_px(self):
+    def corner_radius_px(self) -> tuple[float, float, float, float]:
         raise NotImplementedError
 
     @corner_radius_px.setter
-    def corner_radius_px(self, value: tuple[float, float, float, float]):
+    def corner_radius_px(self, value: tuple[float, float, float, float]) -> None:
         """Per-corner radius, in the SAME pixel units as
         ``quad_size_px`` -- ``(top-left, top-right, bottom-right,
         bottom-left)``, each 0 disabling clipping on that one corner
@@ -789,11 +798,11 @@ class TextureProgram(Program):
         GL.glUniform4f(self._corner_radius_px, *value)
 
     @property
-    def ring_thickness_px(self):
+    def ring_thickness_px(self) -> float:
         raise NotImplementedError
 
     @ring_thickness_px.setter
-    def ring_thickness_px(self, value: float):
+    def ring_thickness_px(self, value: float) -> None:
         """0 (default) draws a normal filled rounded rect. >0 instead
         keeps only a ring this many units wide along the inside of the
         outer rounded-rect boundary -- see ``fragment.frag``'s own
@@ -804,11 +813,11 @@ class TextureProgram(Program):
         GL.glUniform1f(self._ring_thickness_px, float(value))
 
     @property
-    def bottom_corner_trim_px(self):
+    def bottom_corner_trim_px(self) -> float:
         raise NotImplementedError
 
     @bottom_corner_trim_px.setter
-    def bottom_corner_trim_px(self, value: float):
+    def bottom_corner_trim_px(self, value: float) -> None:
         """Size (same units as ``quad_size_px``) of a plain square
         notch discarded at ONLY the bottom-left/bottom-right corners --
         0 disables it. See ``fragment.frag``'s own comment for why:

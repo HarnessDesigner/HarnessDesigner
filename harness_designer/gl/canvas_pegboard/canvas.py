@@ -22,22 +22,22 @@ wx.glcanvas.GLCanvas -> QOpenGLWidget
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QSize
 from OpenGL import GL
 import numpy as np
+from PySide6 import QtCore
 
 from ... import config as _config
 from . import floor as _floor2d
 from . import mouse_handler as _mouse_handler2d
 from . import camera as _camera
 from ..canvas_base import canvas_base as _canvas_base
-
-
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ... import objects as _objects
+    from ...objects.objectsvar import base_var as _base_var
 
 
 class Canvas(_canvas_base.CanvasBase):
@@ -49,7 +49,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_pegboard = None,
-                 size: QSize = None):
+                 size: QtCore.QSize | None = None) -> None:
 
         """
         Initialise the :class:`Canvas` instance.
@@ -72,7 +72,7 @@ class Canvas(_canvas_base.CanvasBase):
         self._mouse_handler = _mouse_handler2d.MouseHandler(self)
 
     @_check_types.do
-    def set_draw_floor(self, value) -> None:
+    def set_draw_floor(self, value: bool) -> None:
         """
         Show/hide the reference grid.
 
@@ -85,7 +85,7 @@ class Canvas(_canvas_base.CanvasBase):
         self.update()
 
     @_check_types.do
-    def initializeGL(self):
+    def initializeGL(self) -> None:
         """
         One-time GL setup. Qt guarantees the context is already current here.
         """
@@ -97,7 +97,7 @@ class Canvas(_canvas_base.CanvasBase):
         GL.glDepthFunc(GL.GL_LESS)
 
     @_check_types.do
-    def resizeGL(self, width: int, height: int):
+    def resizeGL(self, width: int, height: int) -> None:
         """
         Called by Qt on resize. Context is already current here.
         """
@@ -106,7 +106,7 @@ class Canvas(_canvas_base.CanvasBase):
         GL.glViewport(0, 0, width, height)
         self.update()
 
-    def _render_floor_after(self):
+    def _render_floor_after(self) -> None:
         try:
             self._floor.render(self._shaders)
         except:  # NOQA
@@ -115,7 +115,7 @@ class Canvas(_canvas_base.CanvasBase):
             raise
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         return obj.objpegboard
 
     @property
@@ -160,7 +160,7 @@ class Canvas(_canvas_base.CanvasBase):
         focal = self.camera.focal_position.as_numpy
         return focal + np.array([300.0, 500.0, -300.0], dtype=np.float32)
 
-    def _set_view(self):
+    def _set_view(self) -> None:
         """
         Build the orthographic projection matrix for the current
         camera distance/focal_position and store it on the camera.

@@ -75,6 +75,11 @@ from ..objects import bundle as _bundle_obj
 
 
 if TYPE_CHECKING:
+    from .. import objects as _objects
+    from ..objects.objectsvar import base_var as _base_var
+    from ..gl import materials as _materials
+    from ..objects.objects_3d import transition as _transition_3d
+    from ..objects.objects_pegboard import transition as _transition_pegboard
     from ..geometry import point as _point
     from ..objects import project as _project
     from ..objects import transition as _transition_obj
@@ -97,7 +102,7 @@ _HOVERED = _transition_handler.HOVER_HIGHLIGHT
 
 
 @_check_types.do
-def _view_transition(t_obj: "_transition_obj.Transition", view: str):
+def _view_transition(t_obj: "_transition_obj.Transition", view: str) -> _Union["_transition_3d.Transition", "_transition_pegboard.Transition"]:
     return t_obj.obj3d if view == '3d' else t_obj.objpegboard
 
 
@@ -218,7 +223,7 @@ def same_hit(a: _Union[tuple, None], b: _Union[tuple, None]) -> bool:
 
 
 @_check_types.do
-def set_hover_highlight(hit: _Union[tuple, None], material, view: str) -> None:
+def set_hover_highlight(hit: _Union[tuple, None], material: "_materials.GLMaterial", view: str) -> None:
     """Apply *material* to *hit* (``_ELIGIBLE`` to un-hover it,
     ``_HOVERED`` to hover it) -- a no-op for ``None``."""
     if hit is None:
@@ -271,7 +276,7 @@ class WireRouteMixin:
     _moving = None
 
     @staticmethod
-    def _get_view_object(obj: object) -> object:
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         """Established by WireDragMixin -- see that class's own
         docstring. Declared here only so static analysis can resolve
         ``self._get_view_object(...)`` inside this mixin's own methods;
@@ -380,7 +385,7 @@ class RouteSession:
         self._highlight_current_transition()
 
     @_check_types.do
-    def _current_transition_view_obj(self):
+    def _current_transition_view_obj(self) -> _Union["_transition_3d.Transition", "_transition_pegboard.Transition"]:
         transition_db = self._walk.pending_transition
         return _view_transition(transition_db.get_object(), self._view)
 
@@ -433,7 +438,7 @@ class RouteSession:
     @_check_types.do
     def __call__(
         self, last_pos: "_point.Point", current_pos: "_point.Point", had_motion: bool,
-        interaction_type: "_interaction.MouseInteraction", clicked_object: object,
+        interaction_type: "_interaction.MouseInteraction", clicked_object: _Union["_objects.ObjectBase", None],
     ) -> bool:
         if interaction_type is _interaction.MouseInteraction.MOVE:
             view_transition = self._current_transition_view_obj()
@@ -483,7 +488,7 @@ class RouteSession:
 @_check_types.do
 def begin_route(
     canvas: "_canvas_base.CanvasBase", wire_obj: "_wire_obj.Wire",
-    grabbed_position, hit: tuple, view: str,
+    grabbed_position: "np.ndarray", hit: tuple, view: str,
 ) -> _Union["RouteSession", None]:
     """Call from ``handle_interaction``'s LEFT_UP branch once a
     :class:`WireRouteMixin` drag's own ``drop_hit`` is non-``None`` at

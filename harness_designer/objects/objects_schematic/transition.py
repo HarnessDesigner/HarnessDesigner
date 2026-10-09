@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 from . import base_schematic as _base_schematic
-from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_transition as _pjt_transition
     from .. import transition as _transition
 
@@ -23,7 +22,7 @@ class Transition(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_transition.Transition",
-                 db_obj: "_pjt_transition.PJTTransition"):
+                 db_obj: "_pjt_transition.PJTTransition") -> None:
         """Initialise the :class:`Transition` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -37,5 +36,5 @@ class Transition(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

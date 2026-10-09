@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING
 
 import math
 import numpy as np
+
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from . import canvas as _canvas
     from .. import shaders as _shaders
+    from ...geometry import point as _point
 
 
 class Headlight:
@@ -19,7 +21,7 @@ class Headlight:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas"):
+    def __init__(self, canvas: "_canvas.Canvas") -> None:
         """
         Initialise the :class:`Headlight` instance.
 
@@ -36,7 +38,7 @@ class Headlight:
         canvas.camera.focal_position.bind(self.__update)
 
     @_check_types.do
-    def __update(self, _):
+    def __update(self, _: "_point.Point") -> None:
         """
         Execute the update operation.
         """
@@ -46,7 +48,7 @@ class Headlight:
         self.light_direction = [d / magnitude for d in direction]
 
     @_check_types.do
-    def set(self, shaders: "_shaders.ShaderProgram"):
+    def set(self, shaders: "_shaders.ShaderProgram") -> None:
         """
         Push the headlight uniforms onto the faces program.
         """

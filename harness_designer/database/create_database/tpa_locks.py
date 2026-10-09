@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -12,23 +14,26 @@ from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
 from . import models3d as _models3d
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import housings as _housings
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=None,
-                 color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                 max_temp=None, model3d=None, lock_type='', length=0.0, width=0.0,
-                 height=0.0, weight=0.0, pins=0, terminal_size=0.0, compat_housings=None,
-                 commit=True):
+def add_tpa_lock(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+                 color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+                 max_temp: str | None = None, model3d: str | None = None, lock_type: str = '', length: float = 0.0, width: float = 0.0,
+                 height: float = 0.0, weight: float = 0.0, pins: int = 0, terminal_size: float = 0.0, compat_housings: list[str] | None = None,
+                 commit: bool = True) -> bytes:
     """Add a TPA lock.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -134,8 +139,8 @@ def add_tpa_lock(con, part_number, description, mfg=None, family=None, series=No
 
 
 @_check_types.do
-def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
-                     name='', notes='', quat3d=None, angle3d=None, is_visible3d=0):
+def add_pjt_tpa_lock(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, point3d_id: bytes | None = None, housing_id: bytes | None = None,
+                     name: str = '', notes: str = '', quat3d: list[float] | None = None, angle3d: list[float] | None = None, is_visible3d: int = 0) -> None:
     """Add a PJT TPA lock.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -180,7 +185,7 @@ def add_pjt_tpa_lock(con, project_id, part_id, point3d_id=None, housing_id=None,
 
 
 @_check_types.do
-def add_tpa_locks(con, data: tuple[dict] | list[dict]):
+def add_tpa_locks(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """Add a TPA locks.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -196,7 +201,7 @@ def add_tpa_locks(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.

@@ -1,11 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import uuid
 
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import angle as _angle
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class Angle3DMixin(BaseMixin):
@@ -20,7 +26,7 @@ class Angle3DMixin(BaseMixin):
     _skip_db_write: bool = False
 
     @_check_types.do
-    def _update_angle3d(self, angle: _angle.Angle):
+    def _update_angle3d(self, angle: _angle.Angle) -> None:
         """Update the angle 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -75,7 +81,7 @@ class Angle3DControl(_prop_ctrls.AngleProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`Angle3DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -88,7 +94,7 @@ class Angle3DControl(_prop_ctrls.AngleProperty):
         super().__init__(parent, '3D Angle', axes='xyz')
 
     @_check_types.do
-    def set_obj(self, db_obj: Angle3DMixin | None):
+    def set_obj(self, db_obj: Angle3DMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

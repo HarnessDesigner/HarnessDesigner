@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin
 from .... import check_types as _check_types
 
 
@@ -16,8 +16,6 @@ class HousingMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_housing: Union[DefaultStoredValueType, "_pjt_housing.PJTHousing", None] = DefaultStoredValue
-
     @property
     @_check_types.do
     def housing(self) -> "_pjt_housing.PJTHousing":
@@ -28,16 +26,9 @@ class HousingMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_housing.PJTHousing`
         """
-        if self._stored_housing is DefaultStoredValue:
-            db_id = self.housing_id
-            if db_id is None:
-                self._stored_housing = None
-            else:
-                self._stored_housing = self._table.db.pjt_housings_table[db_id]
-            
-        return self._stored_housing
-
-    _stored_housing_id: DefaultStoredValueType | bytes | None = DefaultStoredValue
+        db_id = self.housing_id
+        if db_id is not None:
+            return self._table.db.pjt_housings_table[db_id]
 
     @property
     @_check_types.do
@@ -49,15 +40,12 @@ class HousingMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_housing_id is DefaultStoredValue:
-            _rows = self._table.select('housing_id', id=self._db_id)
-            self._stored_housing_id = _rows[0][0] if _rows else None
-
-        return self._stored_housing_id
+        _rows = self._table.select('housing_id', id=self._db_id)
+        return _rows[0][0] if _rows else None
 
     @housing_id.setter
     @_check_types.do
-    def housing_id(self, value: bytes):
+    def housing_id(self, value: bytes) -> None:
         """Set the housing ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -65,8 +53,5 @@ class HousingMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_housing_id = value
-        self._stored_housing = DefaultStoredValue
-        
         self._table.update(self._db_id, housing_id=value)
         self._populate('housing_id')

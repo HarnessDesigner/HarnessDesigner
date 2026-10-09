@@ -34,10 +34,10 @@ what's different is only *how* a session gets constructed and driven:
   ``add_handlers.base.AddHandlerBase``).
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
-from PySide6.QtWidgets import QMessageBox
+from PySide6 import QtWidgets
 
 from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
@@ -60,6 +60,8 @@ if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
     from ... import ui as _ui
+    from ...objects.objects_3d import base_3d as _base_3d
+    from ...database.global_db import wire as _glb_wire
 
 
 Config = _config.Config.colors
@@ -80,11 +82,11 @@ class Wire(_base.AddHandlerBase):
         phase: int,
         growing_end: str = 'stop',
         preexisting_wire: bool = False,
-        start_circuit_id=None,
+        start_circuit_id: bytes | None = None,
         extension_mode: bool = False,
-        source_wire=None,
+        source_wire: _wire.Wire | None = None,
         source_endpoint: str | None = None,
-    ):
+    ) -> None:
 
         super().__init__(canvas, target)
 
@@ -119,6 +121,16 @@ class Wire(_base.AddHandlerBase):
         self._snap_probes: _wire_snap_3d.SnapProbeSet | None = None
         self._snap_probes_part_id: bytes | None = None
 
+        # Every real Terminal/Splice currently carrying the ambient
+        # "this is a valid snap target" highlight (see
+        # _apply_ambient_highlights/_clear_ambient_highlights) -- every
+        # wire-compatible target for the whole session, not just whichever
+        # one is closest to the cursor right now (that one additionally
+        # gets self._terminal_highlight/self._splice_highlight on top,
+        # same as before -- see _set_hover_obj/_clear_hover).
+        self._ambient_terminals: list[_terminal.Terminal] = []
+        self._ambient_splices: list[_splice.Splice] = []
+
         self._extension_snap_kind: str | None = None
         self._extension_snap_target = None
 
@@ -139,6 +151,12 @@ class Wire(_base.AddHandlerBase):
         self._splice_highlight = _materials.Plastic(
             _color.Color(*Config.add_object.splice_highlight))
 
+        # Ambient tier -- every wire-compatible terminal/splice, not just
+        # whichever one is closest to the cursor -- see
+        # _apply_ambient_highlights.
+        self._capable_highlight = _materials.Plastic(
+            _color.Color(*Config.add_object.snap_capable_highlight))
+
     @property
     @_check_types.do
     def is_finished(self) -> bool:
@@ -149,16 +167,16 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
 
             return True
 
@@ -185,11 +203,11 @@ class Wire(_base.AddHandlerBase):
         return False
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_3d.Base3D":
         return obj.obj3d
 
     @_check_types.do
-    def _get_wire_part(self):
+    def _get_wire_part(self) -> _Union["_glb_wire.Wire", None]:
         if self.part_id is None:
             return None
 
@@ -212,6 +230,7 @@ class Wire(_base.AddHandlerBase):
 
         if self._snap_probes is not None:
             self._snap_probes.close()
+            self._clear_ambient_highlights()
 
         if self._extension_mode:
             exclude_wire = self._source_wire
@@ -223,21 +242,91 @@ class Wire(_base.AddHandlerBase):
 
         self._snap_probes_part_id = wire_part.db_id
 
+        self._apply_ambient_highlights()
+
     @_check_types.do
-    def _set_hover_obj(self, obj, material) -> None:
+    def _apply_ambient_highlights(self) -> None:
+        """Flag every current snap target as snappable -- the ambient
+        tier shown for the whole session, distinct from
+        self._terminal_highlight/self._splice_highlight, which additionally
+        mark whichever single target is closest to the cursor right now
+        (see _set_hover_obj/_clear_hover). Cleared by
+        _clear_ambient_highlights, called from _cleanup and from here
+        itself whenever the probe set is rebuilt for a new part.
+        """
+        self._ambient_terminals = list(self._snap_probes.snap_terminals)
+        self._ambient_splices = list(self._snap_probes.snap_splices)
+
+        for terminal in self._ambient_terminals:
+            terminal.obj3d.set_snap_highlight(self._capable_highlight)
+
+        for splice in self._ambient_splices:
+            splice.identify(self._capable_highlight)
+
+    @_check_types.do
+    def _clear_ambient_highlights(self) -> None:
+        for terminal in self._ambient_terminals:
+            terminal.obj3d.set_snap_highlight(None)
+
+        for splice in self._ambient_splices:
+            splice.identify(None)
+
+        self._ambient_terminals = []
+        self._ambient_splices = []
+
+    @_check_types.do
+    def _apply_highlight(
+        self, obj: "_objects.ObjectBase", material: _materials.GLMaterial
+    ) -> None:
+        """Highlight *obj* as the one current snap target (the "snap
+        actually engaged here" tier) -- a Terminal goes through
+        ``set_snap_highlight`` (the only thing that reaches a cavity-seated
+        terminal's own wire-side surface instead of its own, possibly
+        invisible, mesh); everything else (Splice, WireLayout) is a real
+        visible mesh in this view, so a plain ``identify()`` is enough.
+        """
+        if isinstance(obj, _terminal.Terminal):
+            obj.obj3d.set_snap_highlight(material)
+        else:
+            obj.identify(material)
+
+    @_check_types.do
+    def _revert_highlight(self, obj: "_objects.ObjectBase") -> None:
+        """Un-highlight *obj* -- back to the ambient "still a valid snap
+        target for this session" tier if it's one of this session's
+        ``_ambient_terminals``/``_ambient_splices``, otherwise fully off
+        (a WireLayout probe/marker, which never carries an ambient tier).
+        """
+        if isinstance(obj, _terminal.Terminal):
+            if obj in self._ambient_terminals:
+                obj.obj3d.set_snap_highlight(self._capable_highlight)
+            else:
+                obj.obj3d.set_snap_highlight(None)
+        elif isinstance(obj, _splice.Splice):
+            if obj in self._ambient_splices:
+                obj.identify(self._capable_highlight)
+            else:
+                obj.identify(None)
+        else:
+            obj.identify(None)
+
+    @_check_types.do
+    def _set_hover_obj(
+        self, obj: _Union["_objects.ObjectBase", None], material: _materials.GLMaterial
+    ) -> None:
         if obj is not self._hover_obj:
             if self._hover_obj is not None:
-                self._hover_obj.identify(None)
+                self._revert_highlight(self._hover_obj)
 
             if obj is not None:
-                obj.identify(material)
+                self._apply_highlight(obj, material)
 
             self._hover_obj = obj
 
     @_check_types.do
     def _clear_hover(self) -> None:
         if self._hover_obj is not None:
-            self._hover_obj.identify(None)
+            self._revert_highlight(self._hover_obj)
             self._hover_obj = None
 
     # ------------------------------------------------------------------
@@ -262,7 +351,7 @@ class Wire(_base.AddHandlerBase):
             self.target.db_obj.start_position3d_id = point_id
 
     @_check_types.do
-    def _set_growing_position2d_id(self, point_id) -> None:
+    def _set_growing_position2d_id(self, point_id: bytes) -> None:
         if self._growing_end == 'stop':
             self.target.db_obj.stop_position2d_id = point_id
         else:
@@ -283,7 +372,7 @@ class Wire(_base.AddHandlerBase):
             self.target.objschematic.set_start_position(point)
 
     @_check_types.do
-    def _update_preview_stop(self, world_pos) -> None:
+    def _update_preview_stop(self, world_pos: _point.Point) -> None:
         if not isinstance(world_pos, _point.Point):
             world_pos = _point.Point(*world_pos)
 
@@ -293,13 +382,13 @@ class Wire(_base.AddHandlerBase):
         self.mainframe.editor3d.Refresh(False)
 
     @_check_types.do
-    def _project_extension(self, world_np):
+    def _project_extension(self, world_np: np.ndarray) -> np.ndarray:
         t = float(np.dot(world_np - self._extension_origin, self._extension_dir))
 
         return self._extension_origin + max(0.0, t) * self._extension_dir
 
     @_check_types.do
-    def _update_source_endpoint(self, world_np) -> None:
+    def _update_source_endpoint(self, world_np: np.ndarray) -> None:
         proj = self._project_extension(world_np)
         proj_pt = _point.Point(*proj)
 
@@ -566,10 +655,10 @@ class Wire(_base.AddHandlerBase):
 
             if not ok:
                 block_msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(
+                button = QtWidgets.QMessageBox.question(
                     self.mainframe, 'Incompatible Wire', block_msg)
 
-                if button == QMessageBox.StandardButton.No:
+                if button == QtWidgets.QMessageBox.StandardButton.No:
                     return
 
             self._start_circuit_id = terminal.db_obj.circuit_id
@@ -589,10 +678,10 @@ class Wire(_base.AddHandlerBase):
 
             if not ok:
                 block_msg += '\n\nDo you want to use this wire?'
-                button = QMessageBox.question(
+                button = QtWidgets.QMessageBox.question(
                     self.mainframe, 'Incompatible Wire', block_msg)
 
-                if button == QMessageBox.StandardButton.No:
+                if button == QtWidgets.QMessageBox.StandardButton.No:
                     return
 
             self._start_circuit_id = None
@@ -660,10 +749,10 @@ class Wire(_base.AddHandlerBase):
 
                 if not ok:
                     block_msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(
+                    button = QtWidgets.QMessageBox.question(
                         self.mainframe, 'Incompatible Wire', block_msg)
 
-                    if button == QMessageBox.StandardButton.No:
+                    if button == QtWidgets.QMessageBox.StandardButton.No:
                         return
 
             if circuit_id is None:
@@ -701,10 +790,10 @@ class Wire(_base.AddHandlerBase):
 
                 if not ok:
                     block_msg += '\n\nDo you want to use this wire?'
-                    button = QMessageBox.question(
+                    button = QtWidgets.QMessageBox.question(
                         self.mainframe, 'Incompatible Wire', block_msg)
 
-                    if button == QMessageBox.StandardButton.No:
+                    if button == QtWidgets.QMessageBox.StandardButton.No:
                         return
 
             stale_stop_id = self._growing_point.db_id[:-2]
@@ -838,8 +927,8 @@ class Wire(_base.AddHandlerBase):
             return
 
         if not self._has_committed_waypoint:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return
 
         self._promote_last_committed()
@@ -919,6 +1008,8 @@ class Wire(_base.AddHandlerBase):
         if self._overlay is not None:
             self._overlay.hide_message()
 
+        self._clear_ambient_highlights()
+
         if self._snap_probes is not None:
             self._snap_probes.close()
             self._snap_probes = None
@@ -933,5 +1024,5 @@ class Wire(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

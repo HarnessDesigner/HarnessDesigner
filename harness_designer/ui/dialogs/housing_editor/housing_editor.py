@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import numpy as np
 from PySide6 import QtCore
@@ -21,7 +21,12 @@ from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from .... import bounds as _bounds
+    from .... import objects as _objects
     from .... import ui as _ui
+    from ....database.global_db import housing as _global_housing
+    from ....gl import context as _gl_context
+    from ....utils import mesh_surface as _mesh_surface
 
 
 Config = _dialog_config.Config
@@ -72,7 +77,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
     """Transparent child widget that projects selected surfaces as 2D highlights."""
 
     @_check_types.do
-    def __init__(self, gl_widget, dialog: "HousingEditorDialog"):
+    def __init__(self, gl_widget: QtWidgets.QWidget, dialog: "HousingEditorDialog") -> None:
         super().__init__(gl_widget)
         self._dialog = dialog
         self.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -87,14 +92,14 @@ class SurfaceOverlay(QtWidgets.QWidget):
         self.raise_()
 
     @_check_types.do
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj: QtWidgets.QWidget, event: QtCore.QEvent) -> bool:
         if event.type() == QtCore.QEvent.Type.Resize:
             self.setGeometry(QtCore.QRect(0, 0, obj.width(), obj.height()))
 
         return False
 
     @_check_types.do
-    def paintEvent(self, event):
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         dlg = self._dialog
         if not dlg.surfaces or dlg.vertices is None:
             return
@@ -117,7 +122,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
         verts = dlg.vertices.reshape(-1, 3).astype(np.float64)
 
         @_check_types.do
-        def project(pt):
+        def project(pt: np.ndarray) -> QtCore.QPointF | None:
             v = np.array([pt[0], pt[1], pt[2], 1.0], dtype=np.float64)
             clip = clip_mat @ v
 
@@ -133,7 +138,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
             return QtCore.QPointF(sx, sy)
 
         @_check_types.do
-        def draw_surf(surf_, r_, g_, b_, alpha=80):
+        def draw_surf(surf_: "_mesh_surface.Surface", r_: int, g_: int, b_: int, alpha: int = 80) -> None:
             painter.setBrush(QtGui.QBrush(QtGui.QColor(r_, g_, b_, alpha)))
             for ti_ in surf_.tri_indices:
                 pts_ = [project(verts[3 * ti_ + k]) for k in range(3)]
@@ -219,7 +224,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
 
         # --- manually-drawn cavity markers (single-plane housings) ---
         @_check_types.do
-        def draw_shape(kind, params, r_, g_, b_, a_=140):
+        def draw_shape(kind: str, params: dict[str, Any], r_: int, g_: int, b_: int, a_: int = 140) -> None:
             poly_pts = [project(pt) for pt in _shape_polygon_points(kind, params)]
             if all(p is not None for p in poly_pts):
                 painter.setBrush(QtGui.QBrush(QtGui.QColor(r_, g_, b_, a_)))
@@ -253,7 +258,7 @@ class SurfaceOverlay(QtWidgets.QWidget):
 def _ray_plane_hit(
     origin: np.ndarray, direction: np.ndarray,
     normal: np.ndarray, point_on_plane: np.ndarray,
-) -> Optional[np.ndarray]:
+) -> np.ndarray | None:
     """
     Intersect a world-space ray with an (unbounded) plane.
 
@@ -283,7 +288,7 @@ class _SurfaceSelectFilter(QtCore.QObject):
     """
 
     @_check_types.do
-    def __init__(self, dialog: "HousingEditorDialog"):
+    def __init__(self, dialog: "HousingEditorDialog") -> None:
         super().__init__(dialog.canvas._canvas)  # NOQA
         self._dialog = dialog
         self._is_moved = False
@@ -311,7 +316,7 @@ class _SurfaceSelectFilter(QtCore.QObject):
         return normal, point
 
     @_check_types.do
-    def _ray_at(self, event: QtGui.QMouseEvent):
+    def _ray_at(self, event: QtGui.QMouseEvent) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
         pos = event.position().toPoint()
 
         return self._dialog._picker.compute_ray_world(pos.x(), pos.y())  # NOQA
@@ -418,7 +423,7 @@ class _SurfaceSelectFilter(QtCore.QObject):
                  QtGui.QKeyEvent | QtGui.QHideEvent)
 
     @_check_types.do
-    def eventFilter(self, obj, event: QtCore.QEvent | QtGui.QMouseEvent):
+    def eventFilter(self, obj: QtCore.QObject, event: QtCore.QEvent | QtGui.QMouseEvent) -> bool:
         dlg = self._dialog
         t = event.type()
 
@@ -474,7 +479,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         self.db_obj = None
 
         _dialog_base.BaseDialog.__init__(
@@ -526,13 +531,13 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.cavity_panel: _cavity_panel.CavityPanel = None
         self.accessory_panel: _accessory_panel.AccessoryPanel = None
         self._selected_obj = None
-        self.surface_overlay: Optional[SurfaceOverlay] = None
+        self.surface_overlay: SurfaceOverlay | None = None
 
         # ── surface-picking state ─────────────────────────────────────────────
-        self.vertices: Optional[np.ndarray] = None
-        self.surfaces: list = []
-        self._picker: Optional[_MeshSurfacePicker] = None
-        self.select_mode: Optional[str] = None
+        self.vertices: np.ndarray | None = None
+        self.surfaces: list["_mesh_surface.Surface"] = []
+        self._picker: _MeshSurfacePicker | None = None
+        self.select_mode: str | None = None
         # Plane groups: each entry is a list of
         # surface indices on one clicked plane.
         self.wire_plane_groups: list[list[int]] = []
@@ -566,27 +571,27 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         self.selected_cavity_wire_si: int = -1
         self.selected_cavity_term_si: int = -1
         self.length_factor: float = 1.0
-        self.surface_filter: Optional[_SurfaceSelectFilter] = None
+        self.surface_filter: _SurfaceSelectFilter | None = None
 
         # ── manual cavity drawing (single-plane housings) ──────────────────────
         # Draw a circle/rect directly on a selected terminal plane when the
         # housing has no distinct recessed mesh surface per cavity.
 
         # 'circle' | 'rect' | None
-        self.draw_mode: Optional[str] = None
+        self.draw_mode: str | None = None
 
         # term_plane_groups index being drawn on
         self.draw_group: int = -1
 
         # live params while dragging
-        self.draw_preview: Optional[dict] = None
+        self.draw_preview: dict | None = None
 
         # button currently held
         self._draw_active: bool = False
-        self._draw_center: Optional[np.ndarray] = None
-        self._draw_normal: Optional[np.ndarray] = None
-        self._draw_u: Optional[np.ndarray] = None
-        self._draw_v: Optional[np.ndarray] = None
+        self._draw_center: np.ndarray | None = None
+        self._draw_normal: np.ndarray | None = None
+        self._draw_u: np.ndarray | None = None
+        self._draw_v: np.ndarray | None = None
         # Finalized manual draws: [{'kind': 'circle'|'rect', 'params': {...}}]
         # params schema matches connector_analysis.classify_loop's output.
         self.manual_cavities: list[dict] = []
@@ -789,7 +794,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     # ── SetValue ──────────────────────────────────────────────────────────────
 
     @_check_types.do
-    def SetValue(self, db_obj):
+    def SetValue(self, db_obj: "_global_housing.Housing") -> None:
         self.db_obj = db_obj
 
         self.housing = _housing_obj.Housing(self, db_obj)
@@ -1114,7 +1119,9 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
         return covered
 
     @_check_types.do
-    def _match_wire_surface(self, n_t, boundary_pts, wire_surf_items):
+    def _match_wire_surface(self, n_t: np.ndarray, boundary_pts: np.ndarray,
+                            wire_surf_items: list[tuple[int, "_mesh_surface.Surface"]]
+                            ) -> tuple[int | None, _Union["_mesh_surface.Surface", None], np.ndarray | None]:
         """Find the wire-side surface that fully contains the terminal
         shape's own footprint once extruded straight along the terminal's
         normal -- not just the nearest one in cross-section, since a
@@ -1183,7 +1190,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
                 all_terminal.append(i)
 
         # Flatten all selected wire surfaces, keeping their picker surface index.
-        wire_surf_items: list[tuple[int, object]] = [(si, self.surfaces[si])
+        wire_surf_items: list[tuple[int, "_mesh_surface.Surface"]] = [(si, self.surfaces[si])
                                                      for grp in self.wire_plane_groups
                                                      for si in grp]
 
@@ -1585,7 +1592,7 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     # ── boilerplate (unchanged from original) ─────────────────────────────────
 
     @_check_types.do
-    def closeEvent(self, event):
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         if self._picker is not None:
             self._picker.cleanup()
 
@@ -1594,58 +1601,58 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
 
     @property
     @_check_types.do
-    def editor2d(self):
+    def editor2d(self) -> None:
         return None
 
     @property
     @_check_types.do
-    def editor3d(self):
+    def editor3d(self) -> "HousingEditorDialog":
         return self
 
     @property
     @_check_types.do
-    def editor_pegboard(self):
+    def editor_pegboard(self) -> None:
         return None
 
     @property
     @_check_types.do
-    def bounds_manager(self):
+    def bounds_manager(self) -> "_bounds.Manager":
         return self._bounds_manager
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         self.canvas.add_object(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         self.canvas.remove_object(obj)
 
     @_check_types.do
-    def _set_selected(self, obj):
+    def _set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         self._selected_obj = obj
         self.canvas.set_selected(obj)
 
     @_check_types.do
-    def set_selected(self, obj):  # NOQA
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:  # NOQA
         if obj is not None:
             obj.set_selected(True)
 
     @_check_types.do
-    def get_selected(self):
+    def get_selected(self) -> _Union["_objects.ObjectBase", None]:
         return self._selected_obj
 
     @property
     @_check_types.do
-    def config(self):
+    def config(self) -> type:
         return Config.editor_3d
 
     @_check_types.do
-    def Refresh(self, *_, **__):
+    def Refresh(self, *_, **__) -> None:
         self.canvas.update()
         if self.surface_overlay is not None:
             self.surface_overlay.update()
 
     @property
     @_check_types.do
-    def context(self):
+    def context(self) -> "_gl_context.GLContext":
         return self.canvas.context

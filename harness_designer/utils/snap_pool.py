@@ -1,9 +1,10 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import numpy as np
+
 from .. import check_types as _check_types
 
 
@@ -11,18 +12,21 @@ if TYPE_CHECKING:
     from ..geometry import point as _point
 
 
-class SnapPool:
+_T = TypeVar('_T')
+
+
+class SnapPool(Generic[_T]):
 
     @_check_types.do
-    def __init__(self, objects: list, snap_points: list["_point.Point"],
-                 threshold: float = 5.00):
+    def __init__(self, objects: list[_T], snap_points: list["_point.Point"],
+                 threshold: float = 5.00) -> None:
 
         self.objects = objects
         self.numpy_points = np.array([point.as_float for point in snap_points], dtype=np.float32).reshape(-1, 3)
         self.threshold_sq = threshold ** 2
 
     @_check_types.do
-    def query(self, pos: "_point.Point"):
+    def query(self, pos: "_point.Point") -> _T | None:
         if not self.objects:
             return None
 
@@ -36,7 +40,7 @@ class SnapPool:
             return self.objects[idx]
 
     @_check_types.do
-    def query_ray(self, origin: np.ndarray, direction: np.ndarray):
+    def query_ray(self, origin: np.ndarray, direction: np.ndarray) -> _T | None:
         """Snap by perpendicular distance from each point to the ray
         (*origin*, *direction*) instead of distance to a single fixed
         point.

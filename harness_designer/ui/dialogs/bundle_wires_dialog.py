@@ -3,14 +3,18 @@
 """Read-only dialog showing the wires contained within a bundle."""
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtWidgets, QtCore
 
 from . import dialog_base as _dialog_base
 from ... import check_types as _check_types
 
+
 if TYPE_CHECKING:
+    from ... import ui as _ui
+    from ...database.global_db import color as _global_color
+    from ...database.project_db import pjt_wire as _pjt_wire
     from ...objects.objects_3d import bundle as _bundle_3d
 
 
@@ -19,14 +23,14 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 @_check_types.do
-def _color_name(color_obj) -> str:
+def _color_name(color_obj: _Union["_global_color.Color", None]) -> str:
     if color_obj is None:
         return 'None'
     return str(color_obj.name)
 
 
 @_check_types.do
-def _wire_label(conc_wire) -> str:
+def _wire_label(conc_wire: "_pjt_wire.PJTWire") -> str:
     pjt_wire = conc_wire.wire
     part = pjt_wire.part
 
@@ -44,7 +48,7 @@ def _wire_label(conc_wire) -> str:
 
 
 @_check_types.do
-def _effective_diameter(conc_wires) -> float:
+def _effective_diameter(conc_wires: list["_pjt_wire.PJTWire"]) -> float:
     total_area = sum(
         math.pi * (cw.wire.part.od_mm / 2.0) ** 2
         for cw in conc_wires
@@ -67,12 +71,12 @@ class BundleWiresDialog(_dialog_base.BaseDialog):
     """
 
     @_check_types.do
-    def __init__(self, parent, bundle_3d: "_bundle_3d.Bundle"):
+    def __init__(self, parent: "_ui.MainFrame", bundle_3d: "_bundle_3d.Bundle") -> None:
         super().__init__(parent, 'Bundle Wire Contents', size=(620, 420))
         self._build_ui(bundle_3d)
 
     @_check_types.do
-    def _build_ui(self, bundle_3d: "_bundle_3d.Bundle"):
+    def _build_ui(self, bundle_3d: "_bundle_3d.Bundle") -> None:
         bundle_db = bundle_3d.db_obj
         g_part = bundle_db.part  # BundleCover global part
 
@@ -146,5 +150,5 @@ class BundleWiresDialog(_dialog_base.BaseDialog):
         panel_layout.addWidget(scroll)
 
     @_check_types.do
-    def GetValue(self):
+    def GetValue(self) -> None:
         return None

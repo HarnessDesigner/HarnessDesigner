@@ -26,7 +26,7 @@ class Note(_ObjectBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 db_obj: "_pjt_note.PJTNote", project_load=False):
+                 db_obj: "_pjt_note.PJTNote", project_load: bool = False) -> None:
         """Initialise the :class:`Note` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -59,7 +59,7 @@ class Note(_ObjectBase):
             self.obj3d._start_camera_tracking()  # NOQA
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         super().delete()
         self.mainframe.project.delete_note(self.db_obj.db_id)
         self.db_obj.delete()

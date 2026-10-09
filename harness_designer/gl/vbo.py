@@ -1,14 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Union as _Union
+
 import ctypes
 import threading
 import weakref
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Union as _Union
-
 import numpy as np
 from OpenGL import GL
-from PySide6.QtGui import QOpenGLContext
+from PySide6 import QtGui
 
 from .. import config as _config
 from .. import logger as _logger
@@ -18,6 +18,7 @@ from ..geometry import angle as _angle
 from .. import check_types as _check_types
 
 if TYPE_CHECKING:
+    from ..database.global_db import model3d as _model3d
     from .shaders import program as _shader_program
 
 
@@ -48,7 +49,7 @@ class _ArenaAllocation:
 class _MeshArena:
 
     @_check_types.do
-    def __init__(self, capacity_vertices: int):
+    def __init__(self, capacity_vertices: int) -> None:
         self.capacity_vertices = int(capacity_vertices)
         self._allocations: dict[str, _ArenaAllocation] = {}
         self._free_ranges: list[tuple[int, int]] = [(0, self.capacity_vertices)]
@@ -73,7 +74,7 @@ class _MeshArena:
         return int(buffer_id)
 
     @_check_types.do
-    def _create_buffer(self):
+    def _create_buffer(self) -> None:
         self._buffer = self._create_empty_array_buffer()
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, 0)
 
@@ -120,7 +121,7 @@ class _MeshArena:
                            f'capacity {self.capacity_vertices}')
 
     @_check_types.do
-    def free(self, key: str):
+    def free(self, key: str) -> None:
         alloc = self._allocations.pop(key, None)
         if alloc is None:
             return
@@ -144,7 +145,7 @@ class _MeshArena:
         self._free_ranges = merged
 
     @_check_types.do
-    def upload(self, key: str, data: np.ndarray):
+    def upload(self, key: str, data: np.ndarray) -> None:
         alloc = self._allocations[key]
 
         if len(data) != alloc.count * FLOATS_PER_VERTEX:
@@ -220,7 +221,7 @@ class _MeshArena:
     @staticmethod
     @_check_types.do
     def _gpu_copy(src_buffer: int, dst_buffer: int, src_vertex: int,
-                  dst_vertex: int, vertex_count: int):
+                  dst_vertex: int, vertex_count: int) -> None:
 
         size = vertex_count * VERTEX_STRIDE_BYTES
         read_offset = src_vertex * VERTEX_STRIDE_BYTES
@@ -324,7 +325,7 @@ class VBOSingleton(type):
     # and drops <id>_new, and the old one's later callback only drops its own key.
 
     @classmethod
-    def _live(cls, key: str):
+    def _live(cls, key: str) -> _Union["VBOHandlerBase", None]:
         """The VBO stored under *key*, or ``None`` -- dereferenced ONCE and
         returned as a strong reference. Checking that a reference is alive and
         then dereferencing it again is not safe: the garbage collector can run
@@ -338,7 +339,7 @@ class VBOSingleton(type):
 
     @classmethod
     @_check_types.do
-    def _remove_ref(cls, ref):
+    def _remove_ref(cls, ref: weakref.ref) -> None:
         with cls._instances_lock:
             for key, value in cls._instances.items():
                 if value == ref:
@@ -373,7 +374,7 @@ class VBOSingleton(type):
 
             del cls._instances[key]
 
-    def get(cls, id_: str):
+    def get(cls, id_: str) -> _Union["VBOHandlerBase", None]:
         """The VBO with id *id_*, or ``None`` if there isn't a live one -- in one
         step, as a strong reference. ``id_ in cls`` followed by ``cls(id_)`` is
         two steps, and the garbage collector can clear the reference between
@@ -390,7 +391,7 @@ class VBOSingleton(type):
             return instance
 
     @_check_types.do
-    def __contains__(cls, item):
+    def __contains__(cls, item: str) -> bool:
         """Whether a VBO with id *item* exists -- a live one: a model entry is a
         weak reference, and one whose VBO has been collected (its callback may
         not have run yet) doesn't count. Looks under ``item``, then under its
@@ -473,7 +474,7 @@ class VBOHandlerBase:
                  count: int = 0,
                  aabb: np.ndarray | None = None,
                  obb: np.ndarray | None = None,
-                 *, endpoint: _point.Point | None = None):
+                 *, endpoint: _point.Point | None = None) -> None:
         _ = self.ctx
 
         if data is None:
@@ -498,7 +499,7 @@ class VBOHandlerBase:
             self.local_obb = np.asarray(obb, dtype=np.float32).reshape(8, 3)
 
     @_check_types.do
-    def _compute_local_aabb(self):
+    def _compute_local_aabb(self) -> np.ndarray:
         # Bounding volumes are calculated once when a model is converted
         # and stored in the database; only primitives (and legacy rows
         # without stored bounds) compute them from the mesh here.
@@ -508,7 +509,7 @@ class VBOHandlerBase:
         return local_aabb
 
     @_check_types.do
-    def _compute_local_obb(self):
+    def _compute_local_obb(self) -> np.ndarray:
         local_aabb = self._compute_local_aabb().reshape(2, 3)
         p1 = _point.Point(*[float(str(item)) for item in local_aabb[0].tolist()])
         p2 = _point.Point(*[float(str(item)) for item in local_aabb[1].tolist()])
@@ -539,7 +540,7 @@ class VBOHandlerBase:
 
     @classmethod
     @_check_types.do
-    def _log_debug(cls, *args):
+    def _log_debug(cls, *args) -> None:
         _logger.debug_block(*args)
 
     @staticmethod
@@ -552,7 +553,7 @@ class VBOHandlerBase:
 
     @property
     @_check_types.do
-    def is_dirty(self):
+    def is_dirty(self) -> bool:
         return False
 
     @_check_types.do
@@ -581,11 +582,11 @@ class VBOHandlerBase:
 
     @classmethod
     @_check_types.do
-    def _create_vbo(cls, data):
+    def _create_vbo(cls, data: np.ndarray) -> int:
         raise NotImplementedError
 
     @_check_types.do
-    def _clear_vaos(self):
+    def _clear_vaos(self) -> None:
         for vao in self._vaos.values():
             self._release_vao(vao)
 
@@ -593,15 +594,15 @@ class VBOHandlerBase:
 
     @property
     @_check_types.do
-    def ctx(self):
-        ctx = QOpenGLContext.currentContext()
+    def ctx(self) -> QtGui.QOpenGLContext:
+        ctx = QtGui.QOpenGLContext.currentContext()
         if ctx is None:
             raise RuntimeError('context has not been acquired')
 
         return ctx
 
     @_check_types.do
-    def release(self):
+    def release(self) -> None:
         ctx = self.ctx
         ctx_id = id(ctx)
 
@@ -611,7 +612,7 @@ class VBOHandlerBase:
 
     @staticmethod
     @_check_types.do
-    def _release_vao(vao):
+    def _release_vao(vao: int | None) -> None:
         if vao is not None:
             try:
                 GL.glDeleteVertexArrays(1, [vao])
@@ -620,7 +621,7 @@ class VBOHandlerBase:
 
     @staticmethod
     @_check_types.do
-    def _release_vbo(vbo=None):
+    def _release_vbo(vbo: int | None = None) -> None:
         if vbo is not None:
             try:
                 GL.glDeleteBuffers(1, [vbo])
@@ -646,22 +647,22 @@ class VBOHandlerBase:
 
     @property
     @_check_types.do
-    def data(self):
+    def data(self) -> np.ndarray:
         return self._data
 
     @property
     @_check_types.do
-    def vertices(self):
+    def vertices(self) -> np.ndarray:
         return self._data[:self._vert_count * 3]
 
     @property
     @_check_types.do
-    def smooth_normals(self):
+    def smooth_normals(self) -> np.ndarray:
         return self._data[self._vert_count * 3:self._vert_count * 6]
 
     @property
     @_check_types.do
-    def face_normals(self):
+    def face_normals(self) -> np.ndarray:
         return self._data[self._vert_count * 6:]
 
     @property
@@ -671,13 +672,13 @@ class VBOHandlerBase:
 
     @property
     @_check_types.do
-    def faces(self):
+    def faces(self) -> None:
         return None
 
     @_check_types.do
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: _point.Point, angle: _angle.Angle, scale: _point.Point,
-               smooth: bool | None):
+               smooth: bool | None) -> None:
         """Set this mesh's own per-draw transform uniforms, then draw it.
 
         Moved here (out of objects/objectsvar/base_var.py's own
@@ -702,7 +703,7 @@ class VBOHandlerBase:
         if ctx_id not in self._vaos:
             self.acquire()
 
-        if smooth is not None and hasattr(type(program), "normal_mode"):
+        if smooth is not None and program.has_normal_mode:
             # gl/shaders/faces.py and edges.py both resolve normalMode as
             # "0 -> smooth normal, anything else -> face (flat) normal" --
             # int(not smooth) is therefore the correct mapping (smooth=True
@@ -723,7 +724,7 @@ class VBOHandlerBase:
         GL.glBindVertexArray(0)
 
     @_check_types.do
-    def acquire(self):
+    def acquire(self) -> None:
         ctx = self.ctx
 
         ctx_id = id(ctx)
@@ -761,14 +762,14 @@ class NonPooledVBOHandler(VBOHandlerBase):
                  count: int = 0,
                  aabb: np.ndarray | None = None,
                  obb: np.ndarray | None = None,
-                 *, endpoint: _point.Point | None = None):
+                 *, endpoint: _point.Point | None = None) -> None:
 
         super().__init__(data, count, aabb, obb, endpoint=endpoint)
         self._vbo = self._create_vbo(self._data)
         self._dirty_vaos = {}
 
     @_check_types.do
-    def release(self):
+    def release(self) -> None:
         super().release()
 
         if self._vaos:
@@ -789,7 +790,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         return int(buffer_id), int(base), int(base + block_size), int(base + 2 * block_size)
 
     @_check_types.do
-    def acquire(self):
+    def acquire(self) -> None:
         ctx = self.ctx
         ctx_id = id(ctx)
 
@@ -800,7 +801,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 
     @classmethod
     @_check_types.do
-    def _create_vbo(cls, data, vbo=None):
+    def _create_vbo(cls, data: np.ndarray, vbo: int | None = None) -> int:
         if vbo is None:
             vbo = GL.glGenBuffers(1)
 
@@ -832,7 +833,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
         self.local_obb = self._compute_local_obb()
 
     @_check_types.do
-    def _rebuild(self):
+    def _rebuild(self) -> None:
         ctx = self.ctx
         ctx_id = id(ctx)
 
@@ -870,7 +871,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
 
     @property
     @_check_types.do
-    def is_dirty(self):
+    def is_dirty(self) -> bool:
         ctx = self.ctx
 
         ctx_id = id(ctx)
@@ -879,7 +880,7 @@ class NonPooledVBOHandler(VBOHandlerBase):
     @_check_types.do
     def render(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"],
                position: _point.Point, angle: _angle.Angle, scale: _point.Point,
-               smooth: bool | None):
+               smooth: bool | None) -> None:
         self._rebuild()
 
         super().render(program, position, angle, scale, smooth)
@@ -894,7 +895,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                  aabb: np.ndarray | None = None,
                  obb: np.ndarray | None = None,
                  *, endpoint: _point.Point | None = None,
-                 arena_kind: int = VBO_TYPE_MODEL):
+                 arena_kind: int = VBO_TYPE_MODEL) -> None:
 
         super().__init__(data, count, aabb, obb, endpoint=endpoint)
 
@@ -930,7 +931,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
     @classmethod
     @_check_types.do
-    def _debug_print_new_buffer_allocation(cls, requested_vertices: int):
+    def _debug_print_new_buffer_allocation(cls, requested_vertices: int) -> None:
         if not cls._is_vbo_debug_enabled():
             return
 
@@ -947,7 +948,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
     @classmethod
     @_check_types.do
-    def _debug_print_compaction(cls, before: dict, after: dict):
+    def _debug_print_compaction(cls, before: dict, after: dict) -> None:
         if not cls._is_vbo_debug_enabled():
             return
 
@@ -1009,7 +1010,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
     @classmethod
     @_check_types.do
-    def _clear_model_vaos_for_arena(cls, arena: _MeshArena):
+    def _clear_model_vaos_for_arena(cls, arena: _MeshArena) -> None:
         with VBOSingleton._instances_lock:  # NOQA
             refs = list(VBOSingleton._instances.values())  # NOQA
         for ref in refs:
@@ -1045,7 +1046,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
         return int(buffer_id), int(base), int(base + block_size), int(base + 2 * block_size)
 
     @_check_types.do
-    def update(self, data: np.ndarray, count: int):
+    def update(self, data: np.ndarray, count: int) -> None:
         new_vert_count = self._normalize_vertex_count(count, len(data))
 
         if self._arena_kind == VBO_TYPE_MODEL:
@@ -1124,7 +1125,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
     @classmethod
     @_check_types.do
-    def release_model_allocation(cls, key: str):
+    def release_model_allocation(cls, key: str) -> None:
         for arena in cls._model_arenas:
             if arena.get_allocation(key) is None:
                 continue
@@ -1134,7 +1135,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
     @classmethod
     @_check_types.do
-    def evict(cls, key: str):
+    def evict(cls, key: str) -> None:
         """Remove a key from the singleton cache and free its arena slot.
 
         Call this before re-creating a VBO with the same key but different data.
@@ -1156,7 +1157,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
                     instance._model_arena = None  # NOQA
 
     @_check_types.do
-    def release(self):
+    def release(self) -> None:
         super().release()
 
         if self._vaos:
@@ -1168,7 +1169,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
     @classmethod
     @_check_types.do
-    def _create_vbo(cls, data):
+    def _create_vbo(cls, data: np.ndarray) -> int:
         vbo = GL.glGenBuffers(1)
         GL.glBindBuffer(GL.GL_ARRAY_BUFFER, vbo)
 
@@ -1186,7 +1187,7 @@ class PooledVBOHandler(VBOHandlerBase, metaclass=VBOSingleton):
 
 
 @_check_types.do
-def create_model_vbo(model):
+def create_model_vbo(model: "_model3d.Model3D") -> _Union["PooledVBOHandler", None]:
     """Create or return a shared arena-backed model VBO for a model record.
 
     Returns ``None`` when the model has no UUID or no cached mesh payload.
@@ -1211,6 +1212,6 @@ def create_model_vbo(model):
         return vbo
 
     return PooledVBOHandler(uuid, packed, len(packed),
-                            aabb=getattr(model, 'aabb', None),
-                            obb=getattr(model, 'obb', None),
+                            aabb=model.aabb,
+                            obb=model.obb,
                             arena_kind=VBO_TYPE_MODEL)

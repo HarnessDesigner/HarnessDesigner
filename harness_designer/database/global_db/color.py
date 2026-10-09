@@ -1,5 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 import uuid
@@ -8,6 +9,10 @@ from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueT
 from .mixins import NameMixin
 from ... import color as _color
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class ColorsTable(TableBase):
@@ -31,7 +36,7 @@ class ColorsTable(TableBase):
         return colors.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +51,7 @@ class ColorsTable(TableBase):
         colors.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +73,7 @@ class ColorsTable(TableBase):
             yield Color(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Color":
+    def __getitem__(self, item: int | bytes | str) -> "Color":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -177,7 +182,7 @@ class Color(EntryBase, NameMixin):
 
     @rgb.setter
     @_check_types.do
-    def rgb(self, value: tuple[int, int, int, int]):
+    def rgb(self, value: tuple[int, int, int, int]) -> None:
         """Set the RGB.
 
         UNKNOWN details are inferred from the callable name and signature.

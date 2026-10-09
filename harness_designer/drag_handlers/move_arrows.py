@@ -1,5 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import Union as _Union
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -46,7 +47,7 @@ class MoveArrows(_object_base.ObjectBase):
 
     @_check_types.do
     def __init__(self, obj_position: _point.Point, axis: str,
-                 mainframe: "_ui.MainFrame", aabb: np.ndarray):
+                 mainframe: "_ui.MainFrame", aabb: np.ndarray) -> None:
         """
         Initialise the :class:`MoveArrows` instance.
 
@@ -69,11 +70,11 @@ class MoveArrows(_object_base.ObjectBase):
         self._treeitem = None
 
     @_check_types.do
-    def set_treeitem(self, treeitem: object) -> None:
+    def set_treeitem(self, treeitem: "_objectbrowser.TreeItem") -> None:
         self._treeitem = treeitem
 
     @_check_types.do
-    def get_treeitem(self) -> object | None:
+    def get_treeitem(self) -> _Union["_objectbrowser.TreeItem", None]:
         return self._treeitem
 
     @_check_types.do
@@ -146,6 +147,8 @@ class ArrowsPegboard(_base_pegboard.BasePegboard):
 
 
 class Arrows3D(_base_3d.Base3D):
+
+    _floor_guard: bool = False
 
     @_check_types.do
     def __init__(self, parent: MoveArrows, obj_position: _point.Point, axis: str,
@@ -235,7 +238,7 @@ class Arrows3D(_base_3d.Base3D):
     def _compute_aabb(self) -> None:
         _base_3d.Base3D._compute_aabb(self)
 
-        if getattr(self, '_floor_guard', False):
+        if self._floor_guard:
             ground = float(self.editor3d.config.floor.ground_height)
             if self._aabb[0][1] < ground:
                 self._aabb[0][1] = ground

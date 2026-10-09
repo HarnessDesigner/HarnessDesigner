@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import Iterable as _Iterable, TYPE_CHECKING
+from typing import Any, Iterable as _Iterable, TYPE_CHECKING, Union as _Union
+from collections.abc import Callable, Generator as _Generator
 
 import weakref
 import threading
@@ -10,11 +11,14 @@ from ... import logger as _logger
 from ..common_db import callback as _callback
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
+from . import table_data as _table_data
 
 
 if TYPE_CHECKING:
+    from PySide6 import QtWidgets
     from ... import ui as _ui
     from ... import splash as _splash
+    from ...objects import object_base as _object_base
 
 
 @_check_types.do
@@ -69,7 +73,7 @@ class _PJTEntrySingleton(type):
     _instances = {}
 
     @_check_types.do
-    def __init__(cls, name, bases, dct):
+    def __init__(cls, name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> None:
         """Initialise the :class:`_PJTEntrySingleton` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -82,7 +86,6 @@ class _PJTEntrySingleton(type):
         :type dct: UNKNOWN
         """
         super().__init__(name, bases, dct)
-        setattr(cls, '_instances', {})
         cls._instances = {}
         # See _EntrySingleton (global_db/bases.py) for why this needs a
         # lock: _instances is read/written from __call__ (any thread that
@@ -92,12 +95,11 @@ class _PJTEntrySingleton(type):
         # to whichever thread is concurrently in __call__. Unsynchronized
         # concurrent mutation was corrupting this dict's internal
         # structure (see the crash investigation).
-        setattr(cls, '_instances_lock', threading.RLock())
         cls._instances_lock = threading.RLock()
 
     @staticmethod
     @_check_types.do
-    def __remove_instance_ref(cls, ref):
+    def __remove_instance_ref(cls, ref: weakref.ref) -> None:
         """Remove the instance ref.
 
         A plain staticmethod, not a classmethod -- this is defined ON
@@ -128,11 +130,11 @@ class _PJTEntrySingleton(type):
 
             del cls._instances[key]
 
-    def __contains__(cls, db_id: int | bytes):
+    def __contains__(cls, db_id: int | bytes) -> bool:
         return db_id in cls._instances and cls._instances[db_id]() is not None
 
     @_check_types.do
-    def __call__(cls, table, db_id: int | bytes):
+    def __call__(cls, table: "PJTTableBase", db_id: int | bytes) -> "PJTEntryBase":
         """Call the instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -171,7 +173,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
     """
 
     @_check_types.do
-    def __init__(self, table: "PJTTableBase", db_id: int | bytes):
+    def __init__(self, table: "PJTTableBase", db_id: int | bytes) -> None:
         """Initialise the :class:`PJTEntryBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -212,7 +214,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         return self._db_id
 
     @_check_types.do
-    def update_objects(self):
+    def update_objects(self) -> None:
         """Update the objects.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -225,7 +227,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
             obj.reload_from_db()
 
     @_check_types.do
-    def __remove_ref(self, ref):
+    def __remove_ref(self, ref: weakref.ref) -> None:
         """Remove the ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -239,7 +241,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
             pass
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "PJTEntryBase") -> None:
         """Add an object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -250,7 +252,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         self._objects.append(weakref.ref(obj, self.__remove_ref))
 
     @_check_types.do
-    def get_object(self):
+    def get_object(self) -> _Union["_object_base.ObjectBase", None]:
         """Return the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -260,7 +262,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         raise NotImplementedError
 
     @_check_types.do
-    def set_object(self, obj):
+    def set_object(self, obj: _Union["_object_base.ObjectBase", None]) -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -273,13 +275,13 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
 
     _bind_object_callbacks = {}
 
-    def bind_object(self, callback):
+    def bind_object(self, callback: Callable[..., None]) -> None:
         if self not in self._bind_object_callbacks:
             self._bind_object_callbacks[self] = []
 
         self._bind_object_callbacks[self].append(weakref.ref(callback))
 
-    def _process_bind_callbacks(self, obj):
+    def _process_bind_callbacks(self, obj: _Union["_object_base.ObjectBase", None]) -> None:
         if self in self._bind_object_callbacks:
             refs = self._bind_object_callbacks.pop(self)
             for ref in refs:
@@ -305,7 +307,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
 
     @selected.setter
     @_check_types.do
-    def selected(self, flag: bool):
+    def selected(self, flag: bool) -> None:
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -329,7 +331,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
 
     @property
     @_check_types.do
-    def table(self):
+    def table(self) -> "PJTTableBase":
         """Return the table.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -367,7 +369,7 @@ class PJTTableBase:
     __uses_uuid_id__: bool = True
 
     @_check_types.do
-    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: "_splash.Splash"):
+    def __init__(self, db: "PJTTables", project_id: int | None, table_names: list[str], splash: "_splash.Splash") -> None:
         """Initialise the :class:`PJTTableBase` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -384,6 +386,7 @@ class PJTTableBase:
         self.db = db
         self._con = db.connector
         self.__field_names__ = None
+        self._cache: _table_data.TableData | None = None
 
         if self.__table_name__ not in table_names:
             splash.SetText(f'Creating {self.__table_name__.replace("_", " ")} database table...')
@@ -399,9 +402,49 @@ class PJTTableBase:
 
         self.project_id = project_id
 
+    @_check_types.do
+    def _require_cache(self) -> _table_data.TableData:
+        """Return the loaded cache, or raise if this table was never loaded.
+
+        :returns: The table's cache.
+        :rtype: _table_data.TableData
+        """
+        if self._cache is None:
+            raise RuntimeError(f'{self.__table_name__} cache is not loaded')
+
+        return self._cache
+
+    @_check_types.do
+    def load_cache(self) -> None:
+        """Load this project's rows into the table cache with one query.
+
+        Only tables whose ids are project-scoped (``__uses_uuid_id__``) are
+        cached. The others keep reading the database.
+        """
+        if not self.__uses_uuid_id__:
+            return
+
+        low, high = _project_id_bounds(self.project_id)
+        cache = _table_data.TableData(self.__table_name__, self.field_names)
+        cache.load(self._con, low, high)
+        self._cache = cache
+
     @property
     @_check_types.do
-    def field_names(self):
+    def control(self) -> _Union["QtWidgets.QWidget", None]:
+        """Return the property editor control for this table's rows.
+
+        Tables whose rows have a property editor override this. Every other
+        table (lookup tables, and tables with no editor of their own) returns
+        ``None``, so callers can check for it instead of probing with getattr.
+
+        :returns: Property value.
+        """
+        return None
+
+    @property
+    @_check_types.do
+    def field_names(self) -> list[str]:
         """Return the field names.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -422,7 +465,7 @@ class PJTTableBase:
         return self.__field_names__
 
     @_check_types.do
-    def get_records(self, project_id):
+    def get_records(self, project_id: bytes) -> list[tuple]:
         """Return the records.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -447,7 +490,7 @@ class PJTTableBase:
         return rows
 
     @_check_types.do
-    def set_project(self, project_id: int | None = None):
+    def set_project(self, project_id: int | None = None) -> None:
         """Set the project.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -470,7 +513,7 @@ class PJTTableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -480,7 +523,7 @@ class PJTTableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -490,7 +533,7 @@ class PJTTableBase:
         raise NotImplementedError
 
     @_check_types.do
-    def __getitem__(self, item):
+    def __getitem__(self, item: int | bytes | str) -> tuple | None:
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -500,6 +543,9 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if self.__uses_uuid_id__:
+            return self._require_cache().row(item)
+
         self._con.execute(f'SELECT * FROM {self.__table_name__} WHERE id = ?;',
                           (item,))
 
@@ -515,6 +561,10 @@ class PJTTableBase:
         :returns: Iterator or iterable result. UNKNOWN details.
         :rtype: _Iterable[int]
         """
+        if self.__uses_uuid_id__:
+            yield from self._require_cache().row_ids()
+            return
+
         if self.project_id is None:
             self._con.execute(f'SELECT id FROM {self.__table_name__};')
         else:
@@ -548,6 +598,9 @@ class PJTTableBase:
         :returns: ``True`` when the condition is satisfied.
         :rtype: bool
         """
+        if self.__uses_uuid_id__:
+            return self._require_cache().contains(db_id)
+
         self._con.execute(f'SELECT id FROM {self.__table_name__} WHERE id = ?;',
                           (db_id,))
 
@@ -568,12 +621,14 @@ class PJTTableBase:
             or a plain ``int`` for ``ProjectsTable`` (still AUTO_INCREMENT).
         :rtype: int | bytes
         """
+        cache = None
         fields = []
         values = []
         args = []
         new_id = None
 
         if self.__uses_uuid_id__:
+            cache = self._require_cache()
             new_id = _id_generator.generate_project_row_id(self._con, self.project_id)
             fields.append('id')
             values.append('?')
@@ -594,12 +649,19 @@ class PJTTableBase:
         self._con.commit()
 
         if self.__uses_uuid_id__:
+            # Read the row back rather than assembling it from kwargs, since
+            # kwargs can omit columns that the database fills with a default.
+            self._con.execute(
+                f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id = ?;',
+                (new_id.bytes,))
+            row = self._con.fetchall()[0]
+            cache.mirror_insert(**dict(zip(self.field_names, row)))
             return new_id.bytes
 
         return self._con.lastrowid
 
     @_check_types.do
-    def select(self, *args, OR: bool = False, **kwargs):
+    def select(self, *args: str, OR: bool = False, **kwargs: Any) -> list[tuple]:
         """Execute the select operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -613,6 +675,9 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: UNKNOWN
         """
+        if self.__uses_uuid_id__:
+            return self._require_cache().select(*args, OR=OR, **kwargs)
+
         args = ', '.join(args)
 
         kwarg_clauses = []
@@ -662,13 +727,18 @@ class PJTTableBase:
         :param db_id: Identifier for the database.
         :type db_id: int | bytes
         """
+        cache = self._require_cache() if self.__uses_uuid_id__ else None
+
         self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;',
                           (db_id,))
 
         self._con.commit()
 
+        if cache is not None:
+            cache.mirror_delete(db_id)
+
     @_check_types.do
-    def update(self, db_id: int | bytes, **kwargs):
+    def update(self, db_id: int | bytes, **kwargs) -> None:
         """Execute the update operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -678,6 +748,8 @@ class PJTTableBase:
         :param kwargs: Additional keyword arguments.
         :type kwargs: UNKNOWN
         """
+        cache = self._require_cache() if self.__uses_uuid_id__ else None
+
         fields = []
         values = []
 
@@ -689,6 +761,9 @@ class PJTTableBase:
         values.append(db_id)
         self._con.execute(f'UPDATE {self.__table_name__} SET {fields} WHERE id = ?;', values)
         self._con.commit()
+
+        if cache is not None:
+            cache.mirror_update(db_id, **kwargs)
 
     @_check_types.do
     def batch_update(self, field_names: list, rows: list) -> None:
@@ -702,14 +777,21 @@ class PJTTableBase:
         """
         if not rows:
             return
+
+        cache = self._require_cache() if self.__uses_uuid_id__ else None
+
         set_clause = ', '.join(f'{f} = ?' for f in field_names)
         sql = f'UPDATE {self.__table_name__} SET {set_clause} WHERE id = ?'
         self._con.executemany(sql, rows)
         self._con.commit()
 
+        if cache is not None:
+            for row in rows:
+                cache.mirror_update(row[-1], **dict(zip(field_names, row[:-1])))
+
     @property
     @_check_types.do
-    def has_points3d(self):
+    def has_points3d(self) -> bool:
         """Return the has points 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -717,11 +799,11 @@ class PJTTableBase:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return any([name for name in self.field_names if name.endswith('_point3d_id')])
+        return any([name for name in self.field_names if name.endswith('point3d_id')])
 
     @property
     @_check_types.do
-    def has_points2d(self):
+    def has_points2d(self) -> bool:
         """Return the has points 2D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -729,7 +811,7 @@ class PJTTableBase:
         :returns: Property value. UNKNOWN details.
         :rtype: UNKNOWN
         """
-        return any([name for name in self.field_names if name.endswith('_point2d_id')])
+        return any([name for name in self.field_names if name.endswith('point2d_id')])
 
     @_check_types.do
     def find_unreferenced_point3d_ids(self, candidate_ids: list[int]) -> list[int]:
@@ -742,7 +824,7 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: list[int]
         """
-        return self._find_unreferenced_point_ids(candidate_ids, '_point3d_id')
+        return self._find_unreferenced_point_ids(candidate_ids, 'point3d_id')
 
     @_check_types.do
     def find_unreferenced_point2d_ids(self, candidate_ids: list[int]) -> list[int]:
@@ -755,7 +837,7 @@ class PJTTableBase:
         :returns: Return value. UNKNOWN details.
         :rtype: list[int]
         """
-        return self._find_unreferenced_point_ids(candidate_ids, '_point2d_id')
+        return self._find_unreferenced_point_ids(candidate_ids, 'point2d_id')
 
     @_check_types.do
     def _find_unreferenced_point_ids(self, candidate_ids: list[int], suffix: str) -> list[int]:
@@ -797,7 +879,7 @@ class PJTTableBase:
             IDs still unconfirmed as referenced.  Passed in from the
             previous table call (or the full batch on the first call).
         suffix : str
-            Column suffix to match, e.g. ``'_point3d_id'``.
+            Column suffix to match, e.g. ``'point3d_id'``.
 
         Returns
         -------
@@ -855,7 +937,7 @@ class PJTTableBase:
         return list(ret)
 
     @_check_types.do
-    def execute(self, cmd, params=None):
+    def execute(self, cmd: str, params: tuple | None = None) -> _Generator | None:
         """Execute the execute operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -873,7 +955,7 @@ class PJTTableBase:
             return self._con.execute(cmd, params)
 
     @_check_types.do
-    def fetchall(self):
+    def fetchall(self) -> list[tuple]:
         """Execute the fetchall operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -884,7 +966,7 @@ class PJTTableBase:
         return self._con.fetchall()
 
     @_check_types.do
-    def fetchone(self):
+    def fetchone(self) -> list[tuple] | None:
         """Execute the fetchone operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -895,7 +977,7 @@ class PJTTableBase:
         return self._con.fetchone()
 
     @_check_types.do
-    def commit(self):
+    def commit(self) -> None:
         """Execute the commit operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -904,7 +986,7 @@ class PJTTableBase:
 
     @property
     @_check_types.do
-    def lastrowid(self):
+    def lastrowid(self) -> int | None:
         """Return the lastrowid.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -954,7 +1036,7 @@ class PJTTables:
     """
 
     @_check_types.do
-    def __init__(self, splash, mainframe: "_ui.MainFrame"):
+    def __init__(self, splash: "_splash.Splash", mainframe: "_ui.MainFrame") -> None:
         """Initialise the :class:`PJTTables` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1019,7 +1101,7 @@ class PJTTables:
                 if name.endswith('_table') and not name.startswith('_')]
 
     @_check_types.do
-    def load(self, project_id):
+    def load(self, project_id: bytes) -> None:
         """Execute the load operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1040,7 +1122,7 @@ class PJTTables:
 
             @staticmethod
             @_check_types.do
-            def SetText(msg):
+            def SetText(msg: str) -> None:
                 """Execute the set text operation.
 
                 UNKNOWN details are inferred from the callable name and signature.
@@ -1080,6 +1162,20 @@ class PJTTables:
         self._pjt_transition_branches_table = PJTTransitionBranchesTable(self, project_id, tables, Splash)
         self._pjt_points_pegboard_table = PJTPointsPegboardTable(self, project_id, tables, Splash)
         self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
+
+        for table in (
+            self._pjt_bundles_table, self._pjt_bundle_layouts_table, self._pjt_circuits_table,
+            self._pjt_points2d_table, self._pjt_points3d_table, self._pjt_housings_table,
+            self._pjt_splices_table, self._pjt_transitions_table, self._pjt_wires_table,
+            self._pjt_wire_layouts_table, self._pjt_wire_paths_table, self._pjt_bundle_paths_table,
+            self._pjt_cavities_table, self._pjt_terminals_table, self._pjt_seals_table,
+            self._pjt_covers_table, self._pjt_boots_table, self._pjt_cpa_locks_table,
+            self._pjt_tpa_locks_table, self._pjt_wire_markers_table, self._pjt_wire_service_loops_table,
+            self._pjt_notes_table, self._pjt_concentrics_table, self._pjt_concentric_layers_table,
+            self._pjt_concentric_wires_table, self._pjt_transition_branches_table,
+            self._pjt_points_pegboard_table, self._pjt_pegboard_tables_table,
+        ):
+            table.load_cache()
 
     @property
     @_check_types.do

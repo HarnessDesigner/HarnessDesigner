@@ -27,7 +27,7 @@ get_appdata = _utils.get_appdata
 
 
 @_check_types.do
-def _sep_cavity_id(id_):
+def _sep_cavity_id(id_: str) -> str:
     """Split a cavity identifier into its alphabetic and numeric segments.
 
     :param id_: Cavity identifier to split or expand.
@@ -53,7 +53,7 @@ def _sep_cavity_id(id_):
 
 
 @_check_types.do
-def enumerate_alpha(start, stop):
+def enumerate_alpha(start: str, stop: str) -> list[str]:
     """Enumerate inclusive alphabetical identifiers between two characters.
 
     :param start: Inclusive start value for the range.
@@ -73,7 +73,7 @@ def enumerate_alpha(start, stop):
 
 
 @_check_types.do
-def _enumerate_int(start, stop):
+def _enumerate_int(start: int | str, stop: int | str) -> list[str]:
 
     """Enumerate inclusive numeric identifiers between two values.
 
@@ -94,7 +94,7 @@ def _enumerate_int(start, stop):
 
 
 @_check_types.do
-def _enumerate_ids(start, stop):
+def _enumerate_ids(start: str, stop: str) -> list[str]:
 
     """Expand a mixed cavity identifier range into individual identifiers.
 
@@ -138,7 +138,7 @@ def _enumerate_ids(start, stop):
 
 
 @_check_types.do
-def get_cavity_ids(str_cav):
+def get_cavity_ids(str_cav: str) -> list[str]:
     """Expand a comma-separated cavity identifier specification.
 
     :param str_cav: Comma-separated cavity identifier specification.
@@ -161,7 +161,7 @@ def get_cavity_ids(str_cav):
 
 
 @_check_types.do
-def purge_stale_files(db: "_global_db.GLBTables"):
+def purge_stale_files(db: "_global_db.GLBTables") -> None:
     """Remove resource files that are no longer referenced by the database.
 
     :param db: Database table collection used to locate configured resource paths.
@@ -173,7 +173,7 @@ def purge_stale_files(db: "_global_db.GLBTables"):
     con = db.connector
 
     @_check_types.do
-    def _get_files_to_prune(table, path):
+    def _get_files_to_prune(table: str, path: str) -> list[str]:
         """Return files present on disk that are missing from the database records.
 
         :param table: Database table name containing file references.
@@ -192,7 +192,7 @@ def purge_stale_files(db: "_global_db.GLBTables"):
         return list(files.difference(files_db))
 
     @_check_types.do
-    def _remove_files(files, path):
+    def _remove_files(files: list[str], path: str) -> None:
         """Delete the supplied files from disk, logging any failures.
 
         :param files: File names to remove from ``path``.

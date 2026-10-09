@@ -1,9 +1,14 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from typing import TYPE_CHECKING
 
+from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....ui import prop_ctrls as _prop_ctrls
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class DescriptionMixin(BaseMixin):
@@ -31,7 +36,7 @@ class DescriptionMixin(BaseMixin):
 
     @description.setter
     @_check_types.do
-    def description(self, value: str):
+    def description(self, value: str) -> None:
         """Set the description.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -51,7 +56,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`DescriptionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +71,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
         self.propertyChanged.connect(self._on_desc)
 
     @_check_types.do
-    def set_obj(self, db_obj: DescriptionMixin | None):
+    def set_obj(self, db_obj: DescriptionMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +89,7 @@ class DescriptionControl(_prop_ctrls.LongStringProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_desc(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_desc(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the desc event.
 
         UNKNOWN details are inferred from the callable name and signature.

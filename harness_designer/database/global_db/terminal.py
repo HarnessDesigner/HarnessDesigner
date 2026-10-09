@@ -1,8 +1,8 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import QTabWidget
 from typing import Iterable as _Iterable, TYPE_CHECKING
 
+from PySide6 import QtWidgets
 import uuid
 
 from ...ui import prop_ctrls as _prop_ctrls
@@ -35,6 +35,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from . import seal as _seal
     from . import cavity as _cavity
+    from ... import splash as _splash
+    from ...ui.prop_ctrls import events as _prop_events
 
 
 @_check_types.do
@@ -81,7 +83,7 @@ class TerminalsTable(TableBase):
         return self._control
 
     @_check_types.do
-    def _load_database(self, splash):
+    def _load_database(self, splash: "_splash.Splash") -> None:
         """Load the database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -108,7 +110,7 @@ class TerminalsTable(TableBase):
         return terminals.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -124,7 +126,7 @@ class TerminalsTable(TableBase):
         terminals.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -146,7 +148,7 @@ class TerminalsTable(TableBase):
             yield Terminal(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Terminal":
+    def __getitem__(self, item: int | bytes | str) -> "Terminal":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -171,7 +173,7 @@ class TerminalsTable(TableBase):
         raise KeyError(item)
 
     @_check_types.do
-    def get_compat(self, seal: str = None, housing: str = None):
+    def get_compat(self, seal: str = None, housing: str = None) -> list[bytes]:
         """Return the compat.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -215,7 +217,7 @@ class TerminalsTable(TableBase):
                max_vibration_g: int, max_current_ma: int, wire_size_min_awg: int,
                wire_size_max_awg: int, wire_dia_min: float, wire_dia_max: float,
                min_wire_cross: float, max_wire_cross: float, plating_id: bytes,
-               weight: float, length: float, width, _decimal, height: float) -> "Terminal":
+               weight: float, length: float, width: float, height: float) -> "Terminal":
         """Execute the insert operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -274,8 +276,6 @@ class TerminalsTable(TableBase):
         :type length: float
         :param width: Value for ``width``.
         :type width: UNKNOWN
-        :param _decimal: Value for ``decimal``.
-        :type _decimal: UNKNOWN
         :param height: Value for ``height``.
         :type height: float
         :returns: Return value. UNKNOWN details.
@@ -500,7 +500,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @sealing.setter
     @_check_types.do
-    def sealing(self, value: bool):
+    def sealing(self, value: bool) -> None:
         """Set the sealing.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -531,7 +531,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @blade_size.setter
     @_check_types.do
-    def blade_size(self, value: float):
+    def blade_size(self, value: float) -> None:
         """Set the blade size.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -562,7 +562,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @resistance.setter
     @_check_types.do
-    def resistance(self, value: float):
+    def resistance(self, value: float) -> None:
         """Set the resistance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -593,7 +593,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @mating_cycles.setter
     @_check_types.do
-    def mating_cycles(self, value: int):
+    def mating_cycles(self, value: int) -> None:
         """Set the mating cycles.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -624,7 +624,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @max_vibration_g.setter
     @_check_types.do
-    def max_vibration_g(self, value: int):
+    def max_vibration_g(self, value: int) -> None:
         """Set the max vibration g.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -655,7 +655,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @max_current_ma.setter
     @_check_types.do
-    def max_current_ma(self, value: int):
+    def max_current_ma(self, value: int) -> None:
         """Set the max current ma.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -686,7 +686,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @round_terminal.setter
     @_check_types.do
-    def round_terminal(self, value: bool):
+    def round_terminal(self, value: bool) -> None:
         """Set the round terminal.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -717,7 +717,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @length.setter
     @_check_types.do
-    def length(self, value: float):
+    def length(self, value: float) -> None:
         """Set the length.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -758,7 +758,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @width.setter
     @_check_types.do
-    def width(self, value: float):
+    def width(self, value: float) -> None:
         """Set the width.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -806,7 +806,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
 
     @height.setter
     @_check_types.do
-    def height(self, value: float):
+    def height(self, value: float) -> None:
         """Set the height.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -855,7 +855,7 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
     _stored_scale: _point.Point | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """Update the scale.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -936,14 +936,14 @@ class Terminal(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
         return self._stored_scale
 
 
-class TerminalControl(QTabWidget, LazyTabMixin):
+class TerminalControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a terminal control in :mod:`harness_designer.database.global_db.terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Terminal | None):
+    def set_obj(self, db_obj: Terminal | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1000,7 +1000,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
             self.max_current_ma_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_sealing(self, evt):
+    def _on_sealing(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the sealing event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1012,7 +1012,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         self.db_obj.sealing = value
 
     @_check_types.do
-    def _on_blade_size(self, evt):
+    def _on_blade_size(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the blade size event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1024,7 +1024,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         self.db_obj.blade_size = value
 
     @_check_types.do
-    def _on_resistance(self, evt):
+    def _on_resistance(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the resistance event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1036,7 +1036,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         self.db_obj.resistance = value
 
     @_check_types.do
-    def _on_mating_cycles(self, evt):
+    def _on_mating_cycles(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the mating cycles event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1048,7 +1048,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         self.db_obj.mating_cycles = value
 
     @_check_types.do
-    def _on_vibration(self, evt):
+    def _on_vibration(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the vibration event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1060,7 +1060,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         self.db_obj.max_vibration_g = value
 
     @_check_types.do
-    def _on_current(self, evt):
+    def _on_current(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the current event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1072,7 +1072,7 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         self.db_obj.max_current_ma = value
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`TerminalControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1082,8 +1082,8 @@ class TerminalControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: Terminal | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         general_page = _prop_ctrls.Category(self, 'General')

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtWidgets
 from ... import check_types as _check_types
 
 
@@ -15,7 +15,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent=None, label: str = ''):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, label: str = '') -> None:
         """Initialise the :class:`CheckboxCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -39,7 +39,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     # wx-compatible API
     # ------------------------------------------------------------------
     @_check_types.do
-    def Enable(self, flag: bool = True):
+    def Enable(self, flag: bool = True) -> None:
         """Execute the enable operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -51,7 +51,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
         self.st.setEnabled(flag)
 
     @_check_types.do
-    def SetToolTip(self, text: str):
+    def SetToolTip(self, text: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +66,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     SetToolTipString = SetToolTip
 
     @_check_types.do
-    def SetValue(self, value: bool):
+    def SetValue(self, value: bool) -> None:
         """Execute the set value operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -94,7 +94,7 @@ class CheckboxCtrl(QtWidgets.QWidget):
     # convenience property below.
     @property
     @_check_types.do
-    def checkStateChanged(self):
+    def checkStateChanged(self) -> QtCore.SignalInstance:
         """Return the check state changed.
 
         UNKNOWN details are inferred from the callable name and signature.

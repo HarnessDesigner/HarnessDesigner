@@ -36,7 +36,7 @@ the preview around during hover (see ``hover``'s own early-return on
 ``self._is_instant``).
 """
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -54,10 +54,12 @@ from ... import utils as _utils
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import cavity as _cavity
+    from ...database.project_db import pjt_cavity as _pjt_cavity
 
 
 @_check_types.do
-def cavity_midpoint(pjt_cavity):
+def cavity_midpoint(pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
     """
     World-space midpoint of *pjt_cavity* along its insertion axis.
     """
@@ -73,7 +75,7 @@ def cavity_midpoint(pjt_cavity):
 
 
 @_check_types.do
-def cavity_midpoint_pegboard(pjt_cavity):
+def cavity_midpoint_pegboard(pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
     """
     Peg-board equivalent of :func:`cavity_midpoint` -- same insertion-
     axis-midpoint math, using the cavity's own ``position_pegboard``/
@@ -93,7 +95,7 @@ def cavity_midpoint_pegboard(pjt_cavity):
 @_check_types.do
 def cavity_plug_search_params(
     max_dim: float
-) -> Union["_part_search.SearchParameters", None]:
+) -> _Union["_part_search.SearchParameters", None]:
 
     """
     PLUG/dummy-pin search-box seed for a cavity whose dimensions fit
@@ -137,11 +139,11 @@ class Seal(_base.AddHandlerBase):
         target: "_objects.ObjectBase",
         housing: _housing.Housing | None,
         terminal: _terminal.Terminal | None,
-        cavity,
+        cavity: _Union["_cavity.Cavity", None],
         is_instant: bool,
-        snap_targets: list,
+        snap_targets: list[_Union[_housing.Housing, _terminal.Terminal, "_cavity.Cavity"]],
         is_dummy_pin: bool
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -162,16 +164,16 @@ class Seal(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos, current_pos, had_motion: bool,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
                  interaction_type: _interaction.MouseInteraction,
-                 clicked_object) -> bool:
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -189,7 +191,7 @@ class Seal(_base.AddHandlerBase):
 
     @property
     @_check_types.do
-    def snap_pool(self):
+    def snap_pool(self) -> _utils.SnapPool:
         objects = []
         positions = []
 
@@ -374,5 +376,5 @@ class Seal(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

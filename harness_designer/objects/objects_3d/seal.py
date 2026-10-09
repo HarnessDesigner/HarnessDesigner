@@ -22,6 +22,8 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_seal as _pjt_seal
     from .. import seal as _seal
     from .. import housing as _housing_facade
@@ -442,7 +444,7 @@ class Seal(_base_3d.Base3D):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object: object | None
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to Base3D's own generic drag/rotation handling otherwise.
@@ -486,7 +488,7 @@ class SealMenu(QtWidgets.QMenu):
     """
 
     @_check_types.do
-    def __init__(self, canvas: object, selected: "Seal") -> None:
+    def __init__(self, canvas: "_editor_3d.Editor3DPanel", selected: "Seal") -> None:
         """Initialise the :class:`SealMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

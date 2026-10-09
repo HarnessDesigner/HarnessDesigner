@@ -1,13 +1,20 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_records(con, splash, _):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str) -> None:
     """
     Add a records.
 
@@ -46,7 +53,7 @@ def add_records(con, splash, _):
 
 
 @_check_types.do
-def get_cpa_lock_type_id(con, name):
+def get_cpa_lock_type_id(con: "_connector_base.ConnectorBase", name: str) -> bytes:
     """
     Return the CPA lock type ID.
 

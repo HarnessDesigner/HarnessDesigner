@@ -18,7 +18,7 @@ class AppleBackend(GPUBackend):
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         from apple_smi import soc_info, sampler
 
         self.gpu_manufacturer = 'Apple'

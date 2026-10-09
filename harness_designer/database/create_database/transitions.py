@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -15,23 +17,26 @@ from . import images as _images
 from . import datasheets as _datasheets
 from . import cads as _cads
 from . import transition_branches as _transition_branches
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_transition(con, part_number, description, mfg=None, family=None, series=None,
-                   color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                   max_temp=None, material=None, shape=None, protection=None,
-                   branch_count=0, adhesive_ids=None, weight=0.0, branches=[],
-                   commit=True):
+def add_transition(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+                   color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+                   max_temp: str | None = None, material: str | None = None, shape: str | None = None, protection: str | None = None,
+                   branch_count: int = 0, adhesive_ids: list[bytes] | None = None, weight: float = 0.0, branches: list[dict] = [],
+                   commit: bool = True) -> None:
     """Add a transition.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -118,8 +123,8 @@ def add_transition(con, part_number, description, mfg=None, family=None, series=
 
 
 @_check_types.do
-def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes='',
-                       quat3d=None, angle3d=None, is_visible3d=1):
+def add_pjt_transition(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, point3d_id: bytes | None = None, name: str = '', notes: str = '',
+                       quat3d: list[float] | None = None, angle3d: list[float] | None = None, is_visible3d: int = 1) -> None:
     """Add a PJT transition.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -160,7 +165,7 @@ def add_pjt_transition(con, project_id, part_id, point3d_id=None, name='', notes
 
 
 @_check_types.do
-def add_transitions(con, data: tuple[dict] | list[dict]):
+def add_transitions(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """Add a transitions.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -176,7 +181,7 @@ def add_transitions(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.

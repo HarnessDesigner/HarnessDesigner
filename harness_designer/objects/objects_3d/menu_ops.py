@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Union as _Union
 import re
 from collections.abc import Callable
 
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 
 from ... import color as _color
 from ... import config as _config
@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
     from ... import ui as _ui
     from ...ui.dialogs import part_search as _part_search
+    from ...database.global_db import bases as _glb_bases
+    from ...database.project_db import pjt_bases as _pjt_bases
+    from ...handlers import handler_base as _handler_base
 
 
 _colors_config = _config.Config.colors
@@ -108,9 +111,14 @@ def show_properties_for_object(mainframe: "_ui.MainFrame", parent: "_ObjectBase"
     try:
         # objects that support the properties dialog have a matching
         # object editor control registered on their table
-        control_cls = type(db_obj.table.control)
+        control = db_obj.table.control
     except (AttributeError, RuntimeError):
         return
+
+    if control is None:
+        return
+
+    control_cls = type(control)
 
     tab_widget = control_cls(None)
 
@@ -133,7 +141,10 @@ def show_properties_for_object(mainframe: "_ui.MainFrame", parent: "_ObjectBase"
 
 
 @_check_types.do
-def start_handler(mainframe: "_ui.MainFrame", handler_factory: Callable[[], object]) -> None:
+def start_handler(
+    mainframe: "_ui.MainFrame",
+    handler_factory: Callable[[], _Union["_handler_base.HandlerBase", None]],
+) -> None:
     """Install an interactive placement handler once the menu has closed.
 
     The factory may open a modal part-search dialog, so creation is deferred
@@ -151,7 +162,9 @@ def start_handler(mainframe: "_ui.MainFrame", handler_factory: Callable[[], obje
 
 
 @_check_types.do
-def run_attached_handler(handler_factory: Callable[[], object]) -> None:
+def run_attached_handler(
+    handler_factory: Callable[[], _Union["_handler_base.HandlerBase", None]],
+) -> None:
     """Run a placement handler whose target object is already known.
 
     Used for the housing/terminal "Add Seal/CPA/TPA/Cover" style actions
@@ -172,7 +185,7 @@ def run_attached_handler(handler_factory: Callable[[], object]) -> None:
 
 
 @_check_types.do
-def get_part_id(mainframe: "_ui.MainFrame", page_name: str, table: object, title: str,
+def get_part_id(mainframe: "_ui.MainFrame", page: Any, table: "_glb_bases.TableBase", title: str,
                 initial_params: _Union["_part_search.SearchParameters", None] = None) -> bytes | None:
     """Resolve a part id from the database editor's current selection or a
     part search dialog.
@@ -187,10 +200,8 @@ def get_part_id(mainframe: "_ui.MainFrame", page_name: str, table: object, title
         to pre-seed the search dialog's own search text.
     :returns: The selected part id or :data:`None` when cancelled.
     """
-    from PySide6 import QtWidgets
     from ...ui.dialogs import part_search as _part_search
 
-    page = getattr(mainframe.editor_db.editor, page_name)
     part_id = page.GetSelection()
 
     if part_id is None:
@@ -206,7 +217,7 @@ def get_part_id(mainframe: "_ui.MainFrame", page_name: str, table: object, title
 
 
 @_check_types.do
-def trace_circuit(obj3d: "_base_3d.Base3D", db_obj: object | None = None) -> None:
+def trace_circuit(obj3d: "_base_3d.Base3D", db_obj: _Union["_pjt_bases.PJTEntryBase", None] = None) -> None:
     """Highlight every project object on the circuit the object belongs to."""
     if db_obj is None:
         db_obj = obj3d.db_obj
@@ -222,12 +233,15 @@ def trace_circuit(obj3d: "_base_3d.Base3D", db_obj: object | None = None) -> Non
     material = _materials.Glowing(
         _color.Color(*_colors_config.add_object.wire_highlight))
 
-    for attr in ('wires', 'wire_service_loops', 'splices', 'terminals'):
+    member_lists = []
+    for read in (lambda: circuit.wires, lambda: circuit.wire_service_loops,
+                 lambda: circuit.splices, lambda: circuit.terminals):
         try:
-            members = getattr(circuit, attr)
+            member_lists.append(read())
         except (AttributeError, KeyError, TypeError):
             continue
 
+    for members in member_lists:
         for member in members:
             obj = member.get_object()
             if obj is not None:

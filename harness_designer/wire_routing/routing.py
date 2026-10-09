@@ -26,20 +26,27 @@ that doesn't need to bend at all comes back with an empty waypoint
 list.
 """
 
+from collections.abc import Container, Iterable
+from typing import NamedTuple, TYPE_CHECKING, Union as _Union
+
 import bisect
 import heapq
-from typing import NamedTuple, TYPE_CHECKING
-
 import math
-
 import numpy as np
 
 from .. import config as _config
 from .. import bounds as _bounds
 from ..geometry import cavity_layout as _cavity_layout
 
+
+# The four per-run arrays the vectorised run tests work on:
+# (horizontal, lane, lo, hi), one entry per run.
+_Runs = tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+
 if TYPE_CHECKING:
     from ..objects import project as _project
+    from ..objects import wire as _wire_obj
+    from .. import objects as _objects
 
 
 try:
@@ -94,7 +101,7 @@ def _lane_spacing() -> float:
     return Config.layout.wire_spacing
 
 
-def _terminal_cylinder_rect(term2d) -> tuple[float, float, float, float] | None:
+def _terminal_cylinder_rect(term2d: "_objects.ObjectBase") -> tuple[float, float, float, float] | None:
     """
     One ``objects_schematic/terminal.py`` ``Terminal``'s own rendered
     wire-stub cylinder (``_cylinder_start`` -> ``_wire_position``, the same
@@ -149,7 +156,7 @@ def _terminal_cylinder_rects(
     lo_z: float,
     hi_x: float,
     hi_z: float,
-    exclude=()
+    exclude: Iterable["_objects.ObjectBase"] = ()
 ) -> list[tuple[float, float, float, float]]:
 
     """
@@ -189,7 +196,7 @@ def _terminal_cylinder_rects(
 
 def attached_terminal_cylinder_rects(
     project: "_project.Project",
-    wire
+    wire: "_wire_obj.Wire"
 ) -> list[tuple[float, float, float, float]]:
     """
     The :func:`_terminal_cylinder_rect` of each Terminal *wire* is
@@ -217,7 +224,7 @@ def attached_terminal_cylinder_rects(
 
 def _obstacle_excludes(
     project: "_project.Project",
-    ignore_wire
+    ignore_wire: _Union["_wire_obj.Wire", None]
 ) -> tuple[list, list]:
 
     """
@@ -254,7 +261,7 @@ def _housing_rects(
     lo_z: float,
     hi_x: float,
     hi_z: float,
-    exclude=()
+    exclude: Iterable["_objects.ObjectBase"] = ()
 ) -> list[tuple[float, float, float, float]]:
 
     """
@@ -348,7 +355,7 @@ def _obstacle_rects(
     lo_z: float,
     hi_x: float,
     hi_z: float,
-    ignore_wire=None
+    ignore_wire: _Union["_wire_obj.Wire", None] = None
 ) -> list[tuple[float, float, float, float]]:
 
     """
@@ -392,8 +399,8 @@ def _wire_segments(
     lo_z: float,
     hi_x: float,
     hi_z: float,
-    ignore_wire=None,
-    skip_wires=frozenset()
+    ignore_wire: _Union["_wire_obj.Wire", None] = None,
+    skip_wires: frozenset["_wire_obj.Wire"] = frozenset()
 ) -> np.ndarray:
 
     """
@@ -608,7 +615,7 @@ def segment_blocked(
     project: "_project.Project",
     p1: tuple[float, float],
     p2: tuple[float, float],
-    ignore_wire=None
+    ignore_wire: _Union["_wire_obj.Wire", None] = None
 ) -> bool:
 
     """
@@ -711,7 +718,7 @@ def free_segment_blocked(
     project: "_project.Project",
     p1: tuple[float, float],
     p2: tuple[float, float],
-    ignore_wire=None,
+    ignore_wire: _Union["_wire_obj.Wire", None] = None,
     own_segments: list[tuple[tuple[float, float], tuple[float, float]]] | None = None
 ) -> str | None:
     """
@@ -1283,7 +1290,7 @@ def _search_window(
     start: tuple[float, float],
     stop: tuple[float, float],
     margin: float,
-    ignore_wire=None
+    ignore_wire: _Union["_wire_obj.Wire", None] = None
 ) -> tuple[float, float, float, float, list[tuple[float, float, float, float]]]:
 
     """
@@ -1352,7 +1359,7 @@ class WireEnds(NamedTuple):
 
 def attached_splice_rects(
     project: "_project.Project",
-    wire
+    wire: "_wire_obj.Wire"
 ) -> list[tuple[float, float, float, float]]:
 
     """
@@ -1445,7 +1452,7 @@ class RoutingFrame:
     Only available when the compiled search is (see :func:`build_frame`).
     """
 
-    def __init__(self, project: "_project.Project", batch: dict, pack_with=()):
+    def __init__(self, project: "_project.Project", batch: dict, pack_with: Iterable["_wire_obj.Wire"] = ()) -> None:
         """
         :param batch: ``{wire: WireEnds}`` for every wire that will be routed
             through this frame.
@@ -1525,7 +1532,7 @@ class RoutingFrame:
 
             self._paint(self._stubs[wire], 1)
 
-    def __contains__(self, wire) -> bool:
+    def __contains__(self, wire: "_wire_obj.Wire") -> bool:
         return wire in self._ends
 
     def _paint(self, segments: np.ndarray, delta: int) -> None:
@@ -1550,7 +1557,7 @@ class RoutingFrame:
 
         return i, j
 
-    def route(self, wire) -> list[tuple[float, float]]:
+    def route(self, wire: "_wire_obj.Wire") -> list[tuple[float, float]]:
         """
         Route *wire* (one of the batch) and settle it into the grid.
         Returns what :func:`route` does -- the interior ``(x, z)`` bend points
@@ -1642,7 +1649,7 @@ class RoutingFrame:
         return interior
 
 
-def _wire_segments_of(project: "_project.Project", wires) -> np.ndarray:
+def _wire_segments_of(project: "_project.Project", wires: Iterable["_wire_obj.Wire"]) -> np.ndarray:
     """
     The ``(S, 2, 2)`` segments of just *wires* (connected ones), from the pool.
     """
@@ -1658,7 +1665,7 @@ def _wire_segments_of(project: "_project.Project", wires) -> np.ndarray:
     return pool.segments(skip).astype(np.float64)
 
 
-def _static_segments(project: "_project.Project", batch) -> np.ndarray:
+def _static_segments(project: "_project.Project", batch: Container["_wire_obj.Wire"]) -> np.ndarray:
     """
     Every connected wire's ``(S, 2, 2)`` segments except those of *batch*
     (a container of wires) -- the lanes that stay put while the batch is
@@ -1699,7 +1706,7 @@ def _runs(
     return horizontal, lane, lo, hi
 
 
-def _runs_hit_rects(runs, rects: np.ndarray) -> bool:
+def _runs_hit_rects(runs: _Runs, rects: np.ndarray) -> bool:
     """
     Whether any of *runs* cuts through the interior of any of *rects* --
     the :func:`_edge_crosses_obstacle` test, vectorized over both.
@@ -1726,8 +1733,8 @@ def _runs_hit_rects(runs, rects: np.ndarray) -> bool:
 
 
 def _runs_hit_runs(
-    runs,
-    other,
+    runs: _Runs,
+    other: _Runs,
     other_owner: np.ndarray,
     owner: int,
     limit: float
@@ -1754,7 +1761,7 @@ def _runs_hit_runs(
     return bool(hit.any())
 
 
-def _path_folds(runs, limit: float) -> bool:
+def _path_folds(runs: _Runs, limit: float) -> bool:
     """
     Whether a path's runs come back to run too close and parallel to an
     earlier stretch of the SAME path -- the rule :func:`_astar` holds every
@@ -1788,7 +1795,7 @@ class ShiftJob(NamedTuple):
     direction of the terminal's exit stub (0 = along x, 1 = along z).
     """
 
-    wire: object
+    wire: "_wire_obj.Wire"
     path: list[tuple[float, float]]
     axis: int
     sign: int
@@ -1852,13 +1859,13 @@ def _shift_candidates(
     if abs(shift) < 1e-9 and abs(advance) < 1e-9:
         return [[]]
 
-    def moved(point, amount, axis):
+    def moved(point: Iterable[float], amount: float, axis: int) -> list[float]:
         new = list(point)
         new[axis] = point[axis] + amount
 
         return new[0], new[1]
 
-    def keeps_direction(before, after, target, axis):
+    def keeps_direction(before: Iterable[float], after: Iterable[float], target: Iterable[float], axis: int) -> bool:
         # Still runs the same way to *target*, and by more than nothing.
         old = target[axis] - before[axis]
         new = target[axis] - after[axis]
@@ -1937,7 +1944,7 @@ def plan_shift(
     segments = [static]
     owners = [np.full(static.shape[0], -1)]
 
-    def add(owner, points):
+    def add(owner: int, points: list[tuple[float, float]]) -> None:
         if len(points) >= 2:
             segments.append(np.array(
                 list(zip(points, points[1:])),
@@ -1991,8 +1998,8 @@ def plan_shift(
 def build_frame(
     project: "_project.Project",
     batch: dict,
-    pack_with=()
-) -> "RoutingFrame | None":
+    pack_with: Iterable["_wire_obj.Wire"] = ()
+) -> RoutingFrame | None:
 
     """
     A :class:`RoutingFrame` for *batch* (``{wire: WireEnds}``), or
@@ -2010,8 +2017,8 @@ def route(
     project: "_project.Project",
     start: tuple[float, float],
     stop: tuple[float, float],
-    ignore_wire=None,
-    skip_wires=frozenset(),
+    ignore_wire: _Union["_wire_obj.Wire", None] = None,
+    skip_wires: frozenset["_wire_obj.Wire"] = frozenset(),
     start_anchor: tuple[float, float] | None = None,
     stop_anchor: tuple[float, float] | None = None,
     extra_segments: list[tuple[tuple[float, float], tuple[float, float]]] | None = None

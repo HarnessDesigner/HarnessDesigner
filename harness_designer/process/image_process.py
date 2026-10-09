@@ -1,8 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union as _Union
 
 import multiprocessing
+import multiprocessing.synchronize
 import queue
 import os
 import json
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
 def _process_worker(in_queue: multiprocessing.Queue,
                     out_queue: multiprocessing.Queue,
                     exit_event: multiprocessing.Event,
-                    print_lock: multiprocessing.Lock):
+                    print_lock: "multiprocessing.synchronize.Lock") -> None:
 
     """Download and register missing image resources in a subprocess.
 
@@ -209,7 +210,7 @@ def _process_worker(in_queue: multiprocessing.Queue,
 class ProcessWorker:
 
     def __init__(self, manager: "_manager.ProcessManager",
-                 print_lock: multiprocessing.Lock):
+                 print_lock: "multiprocessing.synchronize.Lock") -> None:
 
         self.manager = manager
         self.exit_event = multiprocessing.Event()
@@ -230,7 +231,7 @@ class ProcessWorker:
 
         self.process.daemon = True
 
-    def start(self):
+    def start(self) -> None:
         """
         Start the image child process.
 
@@ -249,11 +250,11 @@ class ProcessWorker:
         self.out_queue.put(os.getpid())
 
     @property
-    def has_pending(self):
+    def has_pending(self) -> bool:
         with self.queue_lock:
             return bool(len(list(self.queue.keys()))) or self.running is not None
 
-    def send(self):
+    def send(self) -> None:
         with self.queue_lock:
             if self.running is None:
                 priorities = list(self.queue.keys())
@@ -280,9 +281,9 @@ class ProcessWorker:
                 self.out_queue.put(message)
 
     def add(self, priority: int, obj_type: int,
-            db_obj: Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"],
+            db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"],
             resource_obj: "_resource_state.ResourceState", mfg: str,
-            part_number: str, path: str):
+            part_number: str, path: str) -> None:
         """
         Queue an image identifier for background resource collection.
 
@@ -340,7 +341,7 @@ class ProcessWorker:
                 }
             )
 
-    def recv(self):  # NOQA
+    def recv(self) -> None:  # NOQA
 
         if not self.in_queue.empty():
             message = self.in_queue.get_nowait()
@@ -367,7 +368,7 @@ class ProcessWorker:
                 else:
                     message['allow_retry'] = True
 
-                def _do(rs, db_obj, msg):
+                def _do(rs: "_resource_state.ResourceState", db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"], msg: dict[str, Any]) -> None:
                     db_obj.set_progress(-1)
                     rs.set_error(**msg)
 
@@ -376,7 +377,7 @@ class ProcessWorker:
 
             else:
                 if message['step'] == 5:
-                    def _do(rs, db_obj):
+                    def _do(rs: "_resource_state.ResourceState", db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"]) -> None:
                         db_obj.set_progress(5)
                         rs.delete()
                         db_obj.download_complete()
@@ -384,16 +385,16 @@ class ProcessWorker:
                     self.app.CallAfter(_do, resource_state, self.running['db_obj'])
                     self.running = None
                 else:
-                    def _do(rs, db_obj, step):
+                    def _do(rs: "_resource_state.ResourceState", db_obj: _Union["_image.Image", "_datasheet.Datasheet", "_cad.CAD"], step: int) -> None:
                         db_obj.set_progress(step)
                         rs.update_progress(step)
 
                     self.app.CallAfter(_do, resource_state, self.running['db_obj'], message['step'])
 
-    def reset(self):
+    def reset(self) -> None:
         pass
 
-    def stop(self):
+    def stop(self) -> None:
         """
         Signal the worker child processes to stop.
 

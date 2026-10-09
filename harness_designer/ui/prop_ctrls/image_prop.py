@@ -20,7 +20,7 @@ class ImageProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str):
+    def __init__(self, parent: QtWidgets.QWidget, label: str) -> None:
         """
         Initialise the :class:`ImageProperty` instance.
 
@@ -123,7 +123,7 @@ class ImageProperty(QtWidgets.QWidget):
         self._ctrl.SetValue(value[0])
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

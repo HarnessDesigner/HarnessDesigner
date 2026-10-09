@@ -16,11 +16,11 @@ _DefaultFeatures = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable |
 class DockWidget(QtWidgets.QDockWidget):
 
     @_check_types.do
-    def Raise(self):
+    def Raise(self) -> None:
         self.raise_()
 
     @_check_types.do
-    def Show(self, flag=True):
+    def Show(self, flag: bool = True) -> None:
         if flag:
             self.show()
             self.raise_()
@@ -36,7 +36,7 @@ class DockBase:
     @_check_types.do
     def __init__(self, mainframe: "_mainframe.MainFrame", title: str,
                  name: str, area: QtCore.Qt.DockWidgetArea = None,
-                 features: QtWidgets.QDockWidget.DockWidgetFeature = _DefaultFeatures):
+                 features: QtWidgets.QDockWidget.DockWidgetFeature = _DefaultFeatures) -> None:
 
         self.mainframe = mainframe
 
@@ -73,7 +73,7 @@ class DockBase:
         return self._dock.isVisible()
 
     @_check_types.do
-    def Show(self, show=True) -> None:
+    def Show(self, show: bool = True) -> None:
         """
         Show or hide the 3D editor's dock (does not close it — see the
         ``DockWidgetClosable`` feature stripped in ``__init__``).

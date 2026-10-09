@@ -13,9 +13,9 @@ menu, never a bare click -- see ``ui.mainframe._on_obj_right_click_
 pegboard``.
 """
 
-import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
+import math
 import numpy as np
 
 from ...gl.canvas_base import interaction as _interaction
@@ -27,6 +27,8 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import objects as _objects
+    from ...objects import bundle as _bundle
+    from ...objects import project as _project
     from ...objects import wire as _wire
     from ...objects import wire_layout as _wire_layout_facade
 
@@ -35,7 +37,9 @@ _SNAP_THRESHOLD_MM = 5.0
 
 
 @_check_types.do
-def closest_point_on_chain(wire_or_bundle, world_pos: np.ndarray):
+def closest_point_on_chain(
+    wire_or_bundle: _Union["_wire.Wire", "_bundle.Bundle"], world_pos: np.ndarray
+) -> tuple[np.ndarray, bool, str | None]:
     """Closest point on *wire_or_bundle*'s own pegboard chain
     (``objpegboard._segments()``) to *world_pos* -- returns
     ``(position, is_at_endpoint, endpoint)``, same shape as
@@ -77,7 +81,9 @@ def closest_point_on_chain(wire_or_bundle, world_pos: np.ndarray):
 
 
 @_check_types.do
-def segment_insertion_index(wire_or_bundle, world_pos: np.ndarray) -> int:
+def segment_insertion_index(
+    wire_or_bundle: _Union["_wire.Wire", "_bundle.Bundle"], world_pos: np.ndarray
+) -> int:
     """Which sub-segment of *wire_or_bundle*'s own pegboard chain
     (``objpegboard._segments()``) *world_pos* falls closest to --
     equivalently, how many of its existing interior peg-board waypoints
@@ -113,7 +119,7 @@ def segment_insertion_index(wire_or_bundle, world_pos: np.ndarray) -> int:
 
 @_check_types.do
 def create_wire_layout_on_wire_pegboard(
-    project, wire: "_wire.Wire", position: _point.Point, insert_idx: int
+    project: "_project.Project", wire: "_wire.Wire", position: _point.Point, insert_idx: int
 ) -> "_wire_layout_facade.WireLayout":
     """Insert a new interior peg-board waypoint into *wire*'s own
     peg-board path at *position* and mark it with a WireLayout --
@@ -155,7 +161,7 @@ class WireLayout(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", wire: "_wire.Wire"
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -170,15 +176,16 @@ class WireLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -204,6 +211,11 @@ class WireLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def _finalize(self, mouse_pos: _point.Point) -> None:
+        # Set before the self.target.delete() below (the not-at-endpoint
+        # branch), not after -- see editor_3d.bundle_layout.BundleLayout.
+        # _finalize's own comment for why.
+        self._finalized = True
+
         world_pos = self.camera.screen_to_world(mouse_pos)
         raw_pos, is_at_endpoint, endpoint = closest_point_on_chain(
             self._wire, world_pos.as_numpy)
@@ -235,8 +247,6 @@ class WireLayout(_base.AddHandlerBase):
 
             self.target = new_obj
 
-        self._finalized = True
-
     @_check_types.do
     def cancel(self) -> None:
         if self.target is not None:
@@ -246,5 +256,5 @@ class WireLayout(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

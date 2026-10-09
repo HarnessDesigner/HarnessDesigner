@@ -90,7 +90,7 @@ def create_flat_ring_vbo() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_resolution=20):
+def create(torus_radius: float = 1.0, tube_radius: float = 0.5, radial_resolution: int = 20, tubular_resolution: int = 20) -> tuple[np.ndarray, np.ndarray]:
     """Create vertices and faces for a torus mesh.
 
     :param torus_radius: Distance from the origin to the center of the tube.
@@ -110,7 +110,7 @@ def create(torus_radius=1.0, tube_radius=0.5, radial_resolution=20, tubular_reso
     faces = np.full((count * 2, 3), [0, 0, 0], dtype=np.int32)
 
     @_check_types.do
-    def vert_idx(uidx_, vidx_):
+    def vert_idx(uidx_: int, vidx_: int) -> int:
         """Return the flattened vertex index for torus grid coordinates.
 
         :param uidx_: Radial ring index.

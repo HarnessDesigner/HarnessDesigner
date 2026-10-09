@@ -1,10 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from ....geometry import point as _point
 from .. import pjt_point_pegboard as _pjt_point_pegboard
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 class ScalePegboardMixin(BaseMixin):
@@ -42,8 +48,6 @@ class ScalePegboardMixin(BaseMixin):
 
         return point
 
-    _stored_scale_pegboard_id: bytes | DefaultStoredValueType | None = DefaultStoredValue
-
     @property
     @_check_types.do
     def scale_pegboard_id(self) -> bytes:
@@ -52,27 +56,25 @@ class ScalePegboardMixin(BaseMixin):
         :returns: Property value.
         :rtype: bytes
         """
-        if self._stored_scale_pegboard_id is DefaultStoredValue:
-            _rows = self._table.select('scale_pegboard_id', id=self._db_id)
-            point_id = _rows[0][0] if _rows else None
-            if point_id is None:
-                point = self._table.db.pjt_points_pegboard_table.insert(x=1.0, y=1.0, z=1.0)
-                point_id = point.db_id
-                self._table.update(self._db_id, scale_pegboard_id=point_id)
+        _rows = self._table.select('scale_pegboard_id', id=self._db_id)
+        point_id = _rows[0][0] if _rows else None
 
-            self._stored_scale_pegboard_id = point_id
+        if point_id is None:
+            point = self._table.db.pjt_points_pegboard_table.insert(x=1.0, y=1.0, z=1.0)
+            point_id = point.db_id
+            self._table.update(self._db_id, scale_pegboard_id=point_id)
+            self._populate('scale_pegboard_id')
 
-        return self._stored_scale_pegboard_id
+        return point_id
 
     @scale_pegboard_id.setter
     @_check_types.do
-    def scale_pegboard_id(self, value: bytes):
+    def scale_pegboard_id(self, value: bytes) -> None:
         """Set the peg-board scale's row id.
 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_scale_pegboard_id = value
         self._stored_scale_pegboard = DefaultStoredValue
 
         self._table.update(self._db_id, scale_pegboard_id=value)
@@ -83,7 +85,7 @@ class ScalePegboardControl(_prop_ctrls.ScaleProperty):
     """Represent a scale pegboard control in :mod:`harness_designer.database.project_db.mixins.scale_pegboard`."""
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`ScalePegboardControl` instance.
 
         :param parent: Parent object.
@@ -94,7 +96,7 @@ class ScalePegboardControl(_prop_ctrls.ScaleProperty):
         super().__init__(parent, 'Pegboard Scale')
 
     @_check_types.do
-    def set_obj(self, db_obj: ScalePegboardMixin | None):
+    def set_obj(self, db_obj: ScalePegboardMixin | None) -> None:
         """Set the obj.
 
         :param db_obj: Database-backed object.

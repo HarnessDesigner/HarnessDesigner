@@ -4,8 +4,8 @@
 
 import io
 from PIL import Image
+from PySide6 import QtGui
 
-from PySide6.QtGui import QPixmap, QImage, QCursor
 from .. import check_types as _check_types
 
 
@@ -44,7 +44,7 @@ def pil_image_2_png_bytes(img: Image.Image) -> bytes:
 
 
 @_check_types.do
-def bytes_data_2_qpixmap(data: bytes) -> QPixmap:
+def bytes_data_2_qpixmap(data: bytes) -> QtGui.QPixmap:
     """Decode PNG bytes into a Qt pixmap.
 
     :param data: PNG-encoded image bytes.
@@ -52,13 +52,13 @@ def bytes_data_2_qpixmap(data: bytes) -> QPixmap:
     :returns: Pixmap loaded from the provided bytes.
     :rtype: :class:`PySide6.QtGui.QPixmap`
     """
-    pm = QPixmap()
+    pm = QtGui.QPixmap()
     pm.loadFromData(data, 'PNG')
     return pm
 
 
 @_check_types.do
-def pil_image_2_qpixmap(img: Image.Image) -> QPixmap:
+def pil_image_2_qpixmap(img: Image.Image) -> QtGui.QPixmap:
     """Convert a PIL image into a Qt pixmap.
 
     :param img: Image to convert.
@@ -68,13 +68,13 @@ def pil_image_2_qpixmap(img: Image.Image) -> QPixmap:
     """
     img_rgba = img.convert('RGBA')
     data = img_rgba.tobytes('raw', 'RGBA')
-    qimg = QImage(data, img_rgba.width, img_rgba.height, QImage.Format_RGBA8888)
-    pm = QPixmap.fromImage(qimg)
+    qimg = QtGui.QImage(data, img_rgba.width, img_rgba.height, QtGui.QImage.Format_RGBA8888)
+    pm = QtGui.QPixmap.fromImage(qimg)
     return pm
 
 
 @_check_types.do
-def pil_image_2_qimage(img: Image.Image) -> QImage:
+def pil_image_2_qimage(img: Image.Image) -> QtGui.QImage:
     """Convert a PIL image into a detached Qt image.
 
     :param img: Image to convert.
@@ -84,12 +84,12 @@ def pil_image_2_qimage(img: Image.Image) -> QImage:
     """
     img_rgba = img.convert('RGBA')
     data = img_rgba.tobytes('raw', 'RGBA')
-    qimg = QImage(data, img_rgba.width, img_rgba.height, QImage.Format_RGBA8888)
+    qimg = QtGui.QImage(data, img_rgba.width, img_rgba.height, QtGui.QImage.Format_RGBA8888)
     return qimg.copy()
 
 
 @_check_types.do
-def resize_pil_image(img: Image.Image, width: int, height: int = None) -> Image.Image:
+def resize_pil_image(img: Image.Image, width: int, height: int | None = None) -> Image.Image:
     """Resize a PIL image, preserving aspect ratio when height is omitted.
 
     :param img: Image to resize.
@@ -124,7 +124,7 @@ def rotate_pil_image(img: Image.Image, angle: float) -> Image.Image:
 @_check_types.do
 def pil_image_2_qcursor(img: Image.Image,
                         hotspot_x: int | None = None,
-                        hotspot_y: int | None = None) -> QCursor:
+                        hotspot_y: int | None = None) -> QtGui.QCursor:
     """Convert a PIL image into a Qt cursor.
 
     :param img: Image to convert.
@@ -141,4 +141,4 @@ def pil_image_2_qcursor(img: Image.Image,
     if hotspot_y is None:
         hotspot_y = img.height // 2
     pm = pil_image_2_qpixmap(img)
-    return QCursor(pm, hotspot_x, hotspot_y)
+    return QtGui.QCursor(pm, hotspot_x, hotspot_y)

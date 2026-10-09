@@ -7,7 +7,7 @@ No Qt or OpenGL dependencies.
 import math
 import numpy as np
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 from .... import check_types as _check_types
 from ....utils import mesh_surface as _mesh_surface
 
@@ -20,7 +20,7 @@ def compute_surfaces(
     face_normals: np.ndarray,   # (3N, 3) float32 — face normal repeated per vertex
     normal_tol: float = 0.02,
     dist_tol: float = 0.5,
-) -> List[_mesh_surface.Surface]:
+) -> list[_mesh_surface.Surface]:
 
     """Group triangle indices into coplanar surface groups."""
     n_tris = len(vertices) // 3
@@ -44,7 +44,7 @@ def compute_surfaces(
     qn = np.round(normals / normal_tol).astype(np.int64)
     qd = np.round(dists / dist_tol).astype(np.int64)
 
-    groups: Dict[tuple, List[int]] = defaultdict(list)
+    groups: dict[tuple, list[int]] = defaultdict(list)
     for i in range(n_tris):
         groups[(tuple(qn[i]), int(qd[i]))].append(i)
 
@@ -55,7 +55,7 @@ def compute_surfaces(
 
 
 @_check_types.do
-def split_into_components(surface: _mesh_surface.Surface, vertices: np.ndarray) -> List[_mesh_surface.Surface]:
+def split_into_components(surface: _mesh_surface.Surface, vertices: np.ndarray) -> list[_mesh_surface.Surface]:
     """
     Split a surface group into topologically connected triangle islands.
     Two triangles are neighbours if they share an edge (two matching vertex positions).
@@ -66,7 +66,7 @@ def split_into_components(surface: _mesh_surface.Surface, vertices: np.ndarray) 
     tri_list = list(surface.tri_indices)
 
     # Build edge → [triangle, ...] map
-    edge_tris: Dict[tuple, List[int]] = defaultdict(list)
+    edge_tris: dict[tuple, list[int]] = defaultdict(list)
     for ti in tri_list:
         pvs = [_pos_key(verts[3*ti + j]) for j in range(3)]
         for j in range(3):
@@ -76,7 +76,7 @@ def split_into_components(surface: _mesh_surface.Surface, vertices: np.ndarray) 
             edge_tris[edge].append(ti)
 
     # Triangle adjacency (shared edge)
-    adj: Dict[int, List[int]] = defaultdict(list)
+    adj: dict[int, list[int]] = defaultdict(list)
     for tris in edge_tris.values():
         for i in range(len(tris)):
             for k in range(i + 1, len(tris)):
@@ -85,7 +85,7 @@ def split_into_components(surface: _mesh_surface.Surface, vertices: np.ndarray) 
 
     # BFS flood-fill
     visited = set()
-    components: List[List[int]] = []
+    components: list[list[int]] = []
     for start in tri_list:
         if start in visited:
             continue
@@ -119,9 +119,9 @@ def _pos_key(v: np.ndarray) -> tuple:
 
 @_check_types.do
 def extract_boundary_loops(
-    tri_indices: List[int],
+    tri_indices: list[int],
     vertices: np.ndarray,   # (3N, 3) float32
-) -> List[np.ndarray]:
+) -> list[np.ndarray]:
     """
     Return closed boundary loops (hole outlines) as list of (M, 3) float32 arrays.
 
@@ -133,8 +133,8 @@ def extract_boundary_loops(
 
     verts = vertices.reshape(-1, 3)
 
-    edge_use: Dict[tuple, int] = defaultdict(int)
-    edge_fwd: Dict[tuple, Tuple[tuple, tuple]] = {}
+    edge_use: dict[tuple, int] = defaultdict(int)
+    edge_fwd: dict[tuple, tuple[tuple, tuple]] = {}
 
     for ti in tri_indices:
         for j in range(3):
@@ -145,14 +145,14 @@ def extract_boundary_loops(
             edge_fwd[key] = (pa, pb)
 
     # boundary = edges belonging to exactly one triangle
-    adj: Dict[tuple, List[tuple]] = defaultdict(list)
+    adj: dict[tuple, list[tuple]] = defaultdict(list)
     for key, cnt in edge_use.items():
         if cnt == 1:
             pa, pb = edge_fwd[key]
             adj[pa].append(pb)
 
     visited = set()
-    loops: List[np.ndarray] = []
+    loops: list[np.ndarray] = []
 
     for start in list(adj):
         if start in visited:
@@ -182,7 +182,7 @@ def extract_boundary_loops(
 # ── 3.  Hole classification ───────────────────────────────────────────────────
 
 @_check_types.do
-def plane_frame(n: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+def plane_frame(n: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     n = np.asarray(n, np.float64)
     n /= np.linalg.norm(n) + 1e-12
 
@@ -201,7 +201,7 @@ def plane_frame(n: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 def classify_loop(
     pts: np.ndarray,   # (M, 3)
     normal: np.ndarray,
-) -> Tuple[str, Dict[str, Any]]:
+) -> tuple[str, dict[str, Any]]:
     """
     Classify a 2-D shape as 'circle' or 'rect' by area comparison.
 
@@ -281,11 +281,11 @@ def classify_loop(
 
 @_check_types.do
 def align_holes(
-    pin_holes: List[dict],
-    wire_holes: List[dict],
+    pin_holes: list[dict],
+    wire_holes: list[dict],
     normal: np.ndarray,
     pos_tol: float = 2.0,
-) -> List[Tuple[dict, dict]]:
+) -> list[tuple[dict, dict]]:
     """
     Greedy nearest-neighbor match of pin→wire
     holes projected onto the shared plane.
@@ -294,9 +294,9 @@ def align_holes(
     u, v = plane_frame(np.asarray(normal, np.float64))
 
     @_check_types.do
-    def proj(c):
-        c = np.asarray(c, np.float64)
-        return np.array([float(c @ u), float(c @ v)])
+    def proj(c: list[float] | np.ndarray) -> np.ndarray:
+        pt = np.asarray(c, np.float64)
+        return np.array([float(pt @ u), float(pt @ v)])
 
     used, matched = set(), []
     for ph in pin_holes:
@@ -332,7 +332,7 @@ def _project_to_plane(c: np.ndarray, n: np.ndarray, d: float) -> np.ndarray:
 @_check_types.do
 def _cylinder_mesh(c: np.ndarray, r: float, u: np.ndarray,
                    v: np.ndarray, n: np.ndarray, d0: float,
-                   d1: float, seg: int = 32) -> Tuple[np.ndarray, np.ndarray]:
+                   d1: float, seg: int = 32) -> tuple[np.ndarray, np.ndarray]:
 
     ang = np.linspace(0, 2 * math.pi, seg, endpoint=False)
 
@@ -361,7 +361,7 @@ def _cylinder_mesh(c: np.ndarray, r: float, u: np.ndarray,
 
 @_check_types.do
 def _box_mesh(c: np.ndarray, hw: float, hh: float, u: np.ndarray, v: np.ndarray,
-              n: np.ndarray, d0: float, d1: float) -> Tuple[np.ndarray, np.ndarray]:
+              n: np.ndarray, d0: float, d1: float) -> tuple[np.ndarray, np.ndarray]:
 
     offs = np.array([-hw * u - hh * v,
                      hw * u - hh * v,
@@ -392,7 +392,7 @@ def generate_hole_geometry(
     params: dict,
     d_pin: float,
     d_wire: float,
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Triangle-soup cylinder or box spanning pin→wire planes.
     Returns (verts, norms) float32.
@@ -426,9 +426,9 @@ def _loop_area_2d(loop: np.ndarray, u: np.ndarray, v: np.ndarray) -> float:
 
 @_check_types.do
 def inner_loops_only(
-    loops: List[np.ndarray],
+    loops: list[np.ndarray],
     normal: np.ndarray
-) -> List[np.ndarray]:
+) -> list[np.ndarray]:
     """
     Given all boundary loops of a flat face, discard the outer perimeter(s) and
     return only the inner hole loops.
@@ -490,9 +490,9 @@ def surface_holes(
 
 @_check_types.do
 def filter_by_size_consensus(
-    holes: List[dict],
+    holes: list[dict],
     size_tol: float = 0.5,
-) -> List[dict]:
+) -> list[dict]:
     """
     Keep only holes whose size matches at least one other hole within `size_tol`.
     This enforces the requirement that valid cavities appear in groups of ≥ 2.
@@ -544,10 +544,10 @@ def _coplanar(s: _mesh_surface.Surface, ref: _mesh_surface.Surface, normal_tol: 
 @_check_types.do
 def find_coplanar_surfaces(
     reference: _mesh_surface.Surface,
-    all_surfaces: List[_mesh_surface.Surface],
+    all_surfaces: list[_mesh_surface.Surface],
     normal_tol: float = 0.02,
     dist_tol: float = 0.5,
-) -> List[_mesh_surface.Surface]:
+) -> list[_mesh_surface.Surface]:
     """
     Return every surface in all_surfaces that lies on the same world plane as
     reference (same normal direction within normal_tol, same plane distance
@@ -563,7 +563,7 @@ def find_coplanar_surfaces(
 def get_surface_shape(
     surface: _mesh_surface.Surface,
     vertices: np.ndarray,   # (3N, 3) float32
-) -> Tuple[str, dict]:
+) -> tuple[str, dict]:
     """
     Classify the 2-D footprint of a surface as 'circle' or 'rect'.
     Projects all vertex positions of the surface onto its plane and runs the
@@ -628,9 +628,9 @@ def generate_terminal_geometry(
     terminal: _mesh_surface.Surface,
     wire: _mesh_surface.Surface,
     vertices: np.ndarray,
-    kind_override: Optional[str] = None,
+    kind_override: str | None = None,
     length_factor: float = 1.0,
-) -> Tuple[str, dict, np.ndarray, np.ndarray]:
+) -> tuple[str, dict, np.ndarray, np.ndarray]:
     """
     Build a box or cylinder for one terminal cavity, spanning from the terminal
     recess plane toward the wire-side plane.
@@ -669,12 +669,12 @@ def run_analysis(
     face_normals: np.ndarray,  # NOQA
     pin_surface: _mesh_surface.Surface,
     wire_surface: _mesh_surface.Surface,
-    all_surfaces: List[_mesh_surface.Surface],
+    all_surfaces: list[_mesh_surface.Surface],
     normal_tol: float = 0.02,
     dist_tol: float = 0.5,
     pos_tol: float = 2.0,
     size_tol: float = 0.5,
-) -> List[Tuple[str, dict, np.ndarray, np.ndarray]]:
+) -> list[tuple[str, dict, np.ndarray, np.ndarray]]:
     """
     Full pipeline:
       1. Collect all triangles coplanar with pin_surface / wire_surface.

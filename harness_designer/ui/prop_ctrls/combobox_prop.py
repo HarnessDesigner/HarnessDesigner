@@ -17,7 +17,7 @@ class ComboBoxProperty(QtWidgets.QWidget):
     propertyChanged: QtCore.SignalInstance = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label: str, units: str | None = None):
+    def __init__(self, parent: QtWidgets.QWidget, label: str, units: str | None = None) -> None:
         """
         Initialise the :class:`ComboBoxProperty` instance.
 
@@ -140,7 +140,7 @@ class ComboBoxProperty(QtWidgets.QWidget):
         return self._choices
 
     @_check_types.do
-    def SetItems(self, items: list[str]):
+    def SetItems(self, items: list[str]) -> None:
         """
         Execute the set items operation.
 
@@ -157,7 +157,7 @@ class ComboBoxProperty(QtWidgets.QWidget):
         self._ctrl.blockSignals(False)
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         self._label = value
         self._st.setText(value)
 

@@ -37,6 +37,7 @@ from ..database import id_generator as _id_generator
 
 
 if TYPE_CHECKING:
+    from ..database.project_db import pjt_bases as _pjt_bases
     from .. import ui as _ui
     from ..database.project_db import project as _project
     from ..database.global_db import model3d as _model3d
@@ -164,7 +165,7 @@ def _reconcile_bundle_sibling_graph(project: "Project") -> None:
 
         for transition in project.transitions:
             for branch_id in range(1, 7):
-                branch = getattr(transition.db_obj, f'branch{branch_id}')
+                branch = transition.db_obj.branch_in_slot(branch_id)
                 if branch is None:
                     continue
 
@@ -348,7 +349,7 @@ class Project:
         #     _ = _helix.create_vbo(db_obj.wire_stripe_max_length + _HELIX_OVERSHOOT_MM)
 
         @_check_types.do
-        def _load_objects(table_: object, label: str, obj_cls: type[_ObjectBase], container: dict,
+        def _load_objects(table_: "_pjt_bases.PJTTableBase", label: str, obj_cls: type[_ObjectBase], container: dict,
                           cur_count: int, max_count: int) -> int:
             # helper function for loading a project
             # note: the object browser tree is populated by

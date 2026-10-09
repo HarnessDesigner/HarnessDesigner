@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 from . import base_schematic as _base_schematic
-from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_wire_service_loop as _pjt_wire_service_loop
     from .. import wire_service_loop as _wire_service_loop
 
@@ -23,7 +22,7 @@ class WireServiceLoop(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_wire_service_loop.WireServiceLoop",
-                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"):
+                 db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop") -> None:
         """Initialise the :class:`WireServiceLoop` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -37,5 +36,5 @@ class WireServiceLoop(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

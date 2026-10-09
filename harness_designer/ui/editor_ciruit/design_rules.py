@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from enum import Enum, auto
 from dataclasses import dataclass
@@ -8,6 +8,8 @@ import math
 from ... import check_types as _check_types
 
 if TYPE_CHECKING:
+    from ...database import project_db as _project_db
+    from ...database.project_db import pjt_bundle as _pjt_bundle
     from . import editor_circuit as _editor_circuit
 
 
@@ -164,7 +166,7 @@ def nearest_wire_at_least(target_mm2: float) -> tuple[int | None, float | None]:
 
 
 @_check_types.do
-def resolve_awg(awg, mm2) -> int | None:
+def resolve_awg(awg: float | int | str | None, mm2: float | int | str | None) -> int | None:
     """Execute the resolve awg operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -284,29 +286,9 @@ def run_drt(row: "_editor_circuit.CircuitRow") -> list[DRTIssue]:
     return issues
 
 
-@_check_types.do
-def safe(obj, attr: str, default=None):
-    """Execute the safe operation.
-
-    UNKNOWN details are inferred from the callable name and signature.
-
-    :param obj: Object instance to operate on.
-    :type obj: UNKNOWN
-    :param attr: Value for ``attr``.
-    :type attr: str
-    :param default: Value for ``default``.
-    :type default: UNKNOWN
-    :returns: Return value. UNKNOWN details.
-    :rtype: UNKNOWN
-    """
-    try:
-        return getattr(obj, attr, default)
-    except Exception:   # NOQA
-        return default
-
 
 @_check_types.do
-def find_bundle_by_name(db, name: str):
+def find_bundle_by_name(db: "_project_db.PJTTables", name: str) -> _Union["_pjt_bundle.PJTBundle", None]:
     """Find the bundle by name.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -320,7 +302,7 @@ def find_bundle_by_name(db, name: str):
     """
     try:
         for b in db.pjt_bundles_table:
-            if (safe(b, "name", "") or "") == name:
+            if (b.name or "") == name:
                 return b
 
     except Exception:  # NOQA
@@ -328,7 +310,7 @@ def find_bundle_by_name(db, name: str):
 
 
 @_check_types.do
-def bundle_wire_ods(bundle) -> list[float]:
+def bundle_wire_ods(bundle: "_pjt_bundle.PJTBundle") -> list[float]:
     """Execute the bundle wire ods operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -338,23 +320,16 @@ def bundle_wire_ods(bundle) -> list[float]:
     :returns: Return value. UNKNOWN details.
     :rtype: list[float]
     """
-    ods = []
-    try:
-        for bw in (safe(bundle, "wires", []) or []):
-            pw = safe(bw, "wire")
-            if pw:
-                od = safe(safe(pw, "part"), "od_mm")
-                if od:
-                    ods.append(float(od))
+    # Bundle wires are PJTWire objects, which have no ``wire`` attribute, so the
+    # per-wire lookup never matched and this always returned []. Kept as a stub
+    # until the bug is decided (see performance_notes/ui/editor_ciruit).
+    return []
 
-    except Exception:  # NOQA
-        pass
-    return ods
 
 
 @_check_types.do
 def generate_suggestions(row: "_editor_circuit.CircuitRow",
-                         project_db) -> list[SplitSuggestion]:
+                         project_db: "_project_db.PJTTables") -> list[SplitSuggestion]:
     """Execute the generate suggestions operation.
 
     UNKNOWN details are inferred from the callable name and signature.

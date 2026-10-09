@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING
 
 import math
 import numpy as np
-from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt, QSize
 from PySide6 import QtGui
 
 from . import canvas as _canvas
@@ -25,7 +23,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame", config: "_config.Config.editor_3d",
-                 size, axis_overlay: bool = False):
+                 size: tuple[int, int], axis_overlay: bool = False) -> None:
         """Initialise the :class:`Canvas3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -40,7 +40,7 @@ class _PackageInfo:
 
     @_check_types.do
     def __init__(self, name: str, version: str, summary: str,
-                 author: str, homepage: str, license_text: str):
+                 author: str, homepage: str, license_text: str) -> None:
         self.name = name
         self.version = version
         self.summary = summary
@@ -167,7 +167,7 @@ class _UpdateCheckWorker(QtCore.QThread):
     finished_check: QtCore.SignalInstance = QtCore.Signal(bool, str, str)  # success, latest, error
 
     @_check_types.do
-    def run(self):
+    def run(self) -> None:
         try:
             resp = requests.get(
                 _RELEASES_URL, timeout=8,
@@ -185,7 +185,7 @@ class AboutDialog(_dialog_base.BaseDialog):
     """About box: application info, update check, and third-party package credits."""
 
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame"):
+    def __init__(self, parent: "_ui.MainFrame") -> None:
         """Initialise the :class:`AboutDialog` instance.
 
         :param parent: Main application frame.
@@ -288,7 +288,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         return page
 
     @_check_types.do
-    def _on_check_updates(self):
+    def _on_check_updates(self) -> None:
         """Kick off a background check against the GitHub releases API."""
 
         if self._update_worker is not None and self._update_worker.isRunning():
@@ -302,7 +302,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         self._update_worker.start()
 
     @_check_types.do
-    def _on_update_check_finished(self, success: bool, latest: str, error: str):
+    def _on_update_check_finished(self, success: bool, latest: str, error: str) -> None:
         """Handle the result of the background update check."""
 
         self._update_btn.setEnabled(True)
@@ -378,7 +378,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         return page
 
     @_check_types.do
-    def _on_package_selected(self, row: int):
+    def _on_package_selected(self, row: int) -> None:
         """Populate the package page for the clicked list entry."""
 
         if row < 0 or row >= len(self._packages):
@@ -400,7 +400,7 @@ class AboutDialog(_dialog_base.BaseDialog):
         self._stack.setCurrentWidget(self._package_page)
 
     @_check_types.do
-    def closeEvent(self, event: QtGui.QCloseEvent):
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Give the background update-check thread a chance to wind down."""
 
         if self._update_worker and self._update_worker.isRunning():

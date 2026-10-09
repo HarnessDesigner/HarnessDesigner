@@ -7,6 +7,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import project as _project
     from .. import project_model as _project_model
 
@@ -16,9 +17,9 @@ class ProjectModel(_base_schematic.BaseSchematic):
     db_obj: "_project.Project" = None
 
     @_check_types.do
-    def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project"):
+    def __init__(self, parent: "_project_model.ProjectModel", db_obj: "_project.Project") -> None:
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

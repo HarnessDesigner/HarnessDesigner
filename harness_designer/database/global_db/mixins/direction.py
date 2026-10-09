@@ -1,15 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import direction as _direction  # NOQA
+    from PySide6 import QtWidgets
 
 
 class DirectionMixin(BaseMixin):
@@ -18,11 +18,11 @@ class DirectionMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_direction: Union[DefaultStoredValueType, "_direction.Direction"] = DefaultStoredValue
+    _stored_direction: _Union[DefaultStoredValueType, "_direction.Direction"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def direction(self) -> Union["_direction.Direction", None]:
+    def direction(self) -> _Union["_direction.Direction", None]:
         """Return the direction.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -63,7 +63,7 @@ class DirectionMixin(BaseMixin):
 
     @direction_id.setter
     @_check_types.do
-    def direction_id(self, value: bytes):
+    def direction_id(self, value: bytes) -> None:
         """Set the direction ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -85,7 +85,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`DirectionControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -101,7 +101,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
         self.propertyChanged.connect(self._on_direction)
 
     @_check_types.do
-    def set_obj(self, db_obj: DirectionMixin | None):
+    def set_obj(self, db_obj: DirectionMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -132,7 +132,7 @@ class DirectionControl(_prop_ctrls.ComboBoxProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_direction(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_direction(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the direction event.
 
         UNKNOWN details are inferred from the callable name and signature.

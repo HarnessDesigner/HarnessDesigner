@@ -1,15 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import gender as _gender  # NOQA
+    from PySide6 import QtWidgets
 
 
 class GenderMixin(BaseMixin):
@@ -18,11 +18,11 @@ class GenderMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_gender: Union[DefaultStoredValueType, "_gender.Gender"] = DefaultStoredValue
+    _stored_gender: _Union[DefaultStoredValueType, "_gender.Gender"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def gender(self) -> Union["_gender.Gender", None]:
+    def gender(self) -> _Union["_gender.Gender", None]:
         """Return the gender.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -61,7 +61,7 @@ class GenderMixin(BaseMixin):
 
     @gender_id.setter
     @_check_types.do
-    def gender_id(self, value: bytes):
+    def gender_id(self, value: bytes) -> None:
         """Set the gender ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -83,7 +83,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`GenderControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -99,7 +99,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
         self.propertyChanged.connect(self._on_gender)
 
     @_check_types.do
-    def set_obj(self, db_obj: GenderMixin | None):
+    def set_obj(self, db_obj: GenderMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -130,7 +130,7 @@ class GenderControl(_prop_ctrls.ComboBoxProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_gender(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_gender(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the gender event.
 
         UNKNOWN details are inferred from the callable name and signature.

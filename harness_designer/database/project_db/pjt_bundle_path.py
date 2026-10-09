@@ -40,13 +40,13 @@ class PJTBundlePathsTable(PJTTableBase):
         return bundle_paths.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         from ..create_database import bundle_paths
 
         bundle_paths.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         from ..create_database import bundle_paths
 
         bundle_paths.pjt_table.update_fields(self)
@@ -57,7 +57,7 @@ class PJTBundlePathsTable(PJTTableBase):
             yield PJTBundlePath(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTBundlePath":
+    def __getitem__(self, item: int | bytes | str) -> "PJTBundlePath":
         if isinstance(item, (int, bytes)):
             if item in PJTBundlePath or item in self:
                 return PJTBundlePath(self, item)
@@ -106,16 +106,15 @@ class PJTBundlePathsTable(PJTTableBase):
 
     @_check_types.do
     def _renumber(self, pairs: list[tuple[int, bytes]]) -> None:
-        """Write new ``idx`` values for many rows in ONE transaction and
-        bring any live row object's cached value up to date.
+        """Write new ``idx`` values for many rows in ONE transaction.
+
+        ``idx`` has no local cache to refresh any more -- its getter
+        always reads straight through -- so nothing further is needed
+        once the batch write lands.
 
         :param pairs: ``(new_idx, row_id)`` for each row to change.
         """
         self.batch_update(['idx'], pairs)
-
-        for new_idx, row_id in pairs:
-            if row_id in PJTBundlePath:
-                PJTBundlePath(self, row_id)._stored_idx = new_idx  # NOQA
 
     @_check_types.do
     def for_bundle(self, bundle_id: bytes, view: str) -> list["PJTBundlePath"]:
@@ -274,21 +273,16 @@ class PJTBundlePath(PJTEntryBase):
     def table(self) -> PJTBundlePathsTable:
         return self._table
 
-    _stored_bundle_id: bytes | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def bundle_id(self) -> bytes:
-        if self._stored_bundle_id is DefaultStoredValue:
-            self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
-
-        return self._stored_bundle_id
+        return self._table.select('bundle_id', id=self._db_id)[0][0]
 
     @bundle_id.setter
     @_check_types.do
-    def bundle_id(self, value: bytes):
-        self._stored_bundle_id = value
+    def bundle_id(self, value: bytes) -> None:
         self._table.update(self._db_id, bundle_id=value)
+        self._populate('bundle_id')
 
     @property
     @_check_types.do
@@ -303,59 +297,46 @@ class PJTBundlePath(PJTEntryBase):
     def idx(self) -> int:
         """This row's position in its bundle's list for its view. Changing
         it does not move any other row."""
-        if self._stored_idx is DefaultStoredValue:
-            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
-
-        return self._stored_idx
+        return self._table.select('idx', id=self._db_id)[0][0]
 
     @idx.setter
     @_check_types.do
-    def idx(self, value: int):
-        self._stored_idx = value
+    def idx(self, value: int) -> None:
         self._table.update(self._db_id, idx=value)
-
-    _stored_point3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('idx')
 
     @property
     @_check_types.do
     def point3d_id(self) -> bytes | None:
         """The shared 3D point this row references, or ``None`` when the
         row belongs to the peg-board list."""
-        if self._stored_point3d_id is DefaultStoredValue:
-            self._stored_point3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-
-        return self._stored_point3d_id
+        return self._table.select('point3d_id', id=self._db_id)[0][0]
 
     @point3d_id.setter
     @_check_types.do
-    def point3d_id(self, value: bytes):
+    def point3d_id(self, value: bytes) -> None:
         """Point this row at a 3D point -- clears the peg-board column so
         exactly one stays populated."""
-        self._stored_point3d_id = value
-        self._stored_point_pegboard_id = None
-        self._table.update(self._db_id, point3d_id=value, point_pegboard_id=None)
 
-    _stored_point_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._table.update(self._db_id, point3d_id=value, point_pegboard_id=None)
+        self._populate('point3d_id')
 
     @property
     @_check_types.do
     def point_pegboard_id(self) -> bytes | None:
         """The shared peg-board point this row references, or ``None``
         when the row belongs to the 3D list."""
-        if self._stored_point_pegboard_id is DefaultStoredValue:
-            self._stored_point_pegboard_id = self._table.select(
-                'point_pegboard_id', id=self._db_id)[0][0]
 
-        return self._stored_point_pegboard_id
+        return self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
     @point_pegboard_id.setter
     @_check_types.do
-    def point_pegboard_id(self, value: bytes):
+    def point_pegboard_id(self, value: bytes) -> None:
         """Point this row at a peg-board point -- clears the 3D column so
         exactly one stays populated."""
-        self._stored_point_pegboard_id = value
-        self._stored_point3d_id = None
+
         self._table.update(self._db_id, point_pegboard_id=value, point3d_id=None)
+        self._populate('point_pegboard_id')
 
     @property
     @_check_types.do

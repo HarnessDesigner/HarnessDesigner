@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from PySide6 import QtCore
 from PySide6 import QtWidgets
@@ -10,6 +10,7 @@ from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ... import objects as _objects
     from .. import mainframe as _mainframe
 
 
@@ -20,7 +21,7 @@ class EditorObj(_dock_base.DockBase):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_mainframe.MainFrame"):
+    def __init__(self, mainframe: "_mainframe.MainFrame") -> None:
         """Initialise the :class:`EditorObj` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -34,7 +35,7 @@ class EditorObj(_dock_base.DockBase):
                          QtCore.Qt.DockWidgetArea.LeftDockWidgetArea)
 
     @_check_types.do
-    def _on_visibility_changed(self, visible):
+    def _on_visibility_changed(self, visible: bool) -> None:
         """Handle the visibility changed event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +47,7 @@ class EditorObj(_dock_base.DockBase):
             self.set_selected(None)
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """Set the selected.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -73,7 +74,7 @@ class EditorObjPanel(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: "_mainframe.MainFrame"):
+    def __init__(self, parent: "_mainframe.MainFrame") -> None:
         """
         Initialise the :class:`EditorObjPanel` instance.
 
@@ -93,7 +94,7 @@ class EditorObjPanel(QtWidgets.QWidget):
         self._selected = None
 
     @_check_types.do
-    def set_selected(self, obj):
+    def set_selected(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the selected.
 
@@ -122,7 +123,7 @@ class EditorObjPanel(QtWidgets.QWidget):
             # it has to configure). Treat that the same as obj is None
             # above -- clear whatever was showing and stop -- rather
             # than assuming every db_obj.table exposes .control.
-            control = getattr(obj.db_obj.table, 'control', None)
+            control = obj.db_obj.table.control
             if control is None:
                 if self.control is not None:
                     self.control.hide()

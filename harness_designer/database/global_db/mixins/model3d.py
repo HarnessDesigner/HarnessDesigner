@@ -1,17 +1,17 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtWidgets
 
 from .... import utils as _utils
-from PySide6.QtWidgets import QTabWidget
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from .. import model3d as _model3d
+    from ....ui.prop_ctrls import events as _prop_events
 
 
 class Model3DMixin(BaseMixin):
@@ -20,7 +20,7 @@ class Model3DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_model3d: Union[DefaultStoredValueType, "_model3d.Model3D", None] = DefaultStoredValue
+    _stored_model3d: _Union[DefaultStoredValueType, "_model3d.Model3D", None] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -61,7 +61,7 @@ class Model3DMixin(BaseMixin):
 
     @model3d_id.setter
     @_check_types.do
-    def model3d_id(self, value: bytes):
+    def model3d_id(self, value: bytes) -> None:
         """Set the model 3D ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -82,7 +82,7 @@ class Model3DControl(_prop_ctrls.Category):
     """
 
     @_check_types.do
-    def set_obj(self, db_obj: Model3DMixin | None):
+    def set_obj(self, db_obj: Model3DMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -198,7 +198,7 @@ class Model3DControl(_prop_ctrls.Category):
                 self.mimetype_ctrl.setEnabled(True)
 
     @_check_types.do
-    def set_preview_model(self):
+    def set_preview_model(self) -> None:
         """Set the preview model.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -217,7 +217,7 @@ class Model3DControl(_prop_ctrls.Category):
         pass
 
     @_check_types.do
-    def _on_path(self, evt):
+    def _on_path(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the path event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -232,7 +232,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     @_check_types.do
-    def _on_simplify(self, evt):
+    def _on_simplify(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the simplify event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -245,7 +245,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     @_check_types.do
-    def _on_target_count(self, evt):
+    def _on_target_count(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the target count event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -258,7 +258,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     @_check_types.do
-    def _on_update_rate(self, evt):
+    def _on_update_rate(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the update rate event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -271,7 +271,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     @_check_types.do
-    def _on_iterations(self, evt):
+    def _on_iterations(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the iterations event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -284,7 +284,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     @_check_types.do
-    def _on_aggressiveness(self, evt):
+    def _on_aggressiveness(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the aggressiveness event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -297,7 +297,7 @@ class Model3DControl(_prop_ctrls.Category):
         self.set_preview_model()
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`Model3DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -309,8 +309,8 @@ class Model3DControl(_prop_ctrls.Category):
 
         super().__init__(parent, '3D Model')
 
-        self.nb = QTabWidget(self)
-        self.nb.setTabPosition(QTabWidget.TabPosition.North)
+        self.nb = QtWidgets.QTabWidget(self)
+        self.nb.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.nb.setUsesScrollButtons(True)
 
         self.addWidget(self.nb)

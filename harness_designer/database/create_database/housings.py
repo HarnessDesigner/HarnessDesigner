@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -18,29 +20,32 @@ from . import genders as _genders
 from . import ip_ratings as _ip_ratings
 from . import cpa_lock_types as _cpa_lock_types
 from . import seal_types as _seal_types
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_housing(con, part_number, description, mfg=None, family=None, series=None,
-                color=None, image=None, datasheet=None, cad=None, min_temp=None,
-                max_temp=None, model3d=None, direction=None, gender=None, cavity_lock=None,
-                ip_rating='IP00', seal_type=None, cpa_lock_type=None, sealing=0, rows=0,
-                num_pins=0, terminal_sizes=None, terminal_size_counts=None, centerline=0.0,
-                compat_cpas=None, compat_tpas=None, compat_covers=None, compat_terminals=None,
-                compat_seals=None, compat_housings=None, compat_boots=None, length=0.0,
-                width=0.0, height=0.0, weight=0.0, cover_point3d=None, seal_point3d=None,
-                boot_point3d=None, tpa_lock_1_point3d=None, tpa_lock_2_point3d=None,
-                cpa_lock_point3d=None, commit=True):
+def add_housing(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+                color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+                max_temp: str | None = None, model3d: str | None = None, direction: str | None = None, gender: str | None = None, cavity_lock: str | None = None,
+                ip_rating: str = 'IP00', seal_type: str | None = None, cpa_lock_type: str | None = None, sealing: int = 0, rows: int = 0,
+                num_pins: int = 0, terminal_sizes: list[float] | None = None, terminal_size_counts: list[int] | None = None, centerline: float = 0.0,
+                compat_cpas: list[str] | None = None, compat_tpas: list[str] | None = None, compat_covers: list[str] | None = None, compat_terminals: list[str] | None = None,
+                compat_seals: list[str] | None = None, compat_housings: list[str] | None = None, compat_boots: list[str] | None = None, length: float = 0.0,
+                width: float = 0.0, height: float = 0.0, weight: float = 0.0, cover_point3d: list[float] | None = None, seal_point3d: list[float] | None = None,
+                boot_point3d: list[float] | None = None, tpa_lock_1_point3d: list[float] | None = None, tpa_lock_2_point3d: list[float] | None = None,
+                cpa_lock_point3d: list[float] | None = None, commit: bool = True) -> bytes:
     """
     Add a housing.
 
@@ -302,7 +307,7 @@ def add_housing(con, part_number, description, mfg=None, family=None, series=Non
 
 
 @_check_types.do
-def add_housings(con, data: tuple[dict] | list[dict]):
+def add_housings(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """
     Add a housings.
 
@@ -318,7 +323,7 @@ def add_housings(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """
     Add a records.
 

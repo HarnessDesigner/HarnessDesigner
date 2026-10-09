@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 import weakref
-from PySide6.QtWidgets import QTabWidget
+from PySide6 import QtWidgets
 
 from ...ui import prop_ctrls as _prop_ctrls
 from ..common_db.lazy_tab_mixin import LazyTabMixin
@@ -35,6 +35,7 @@ if TYPE_CHECKING:
     from . import pjt_wire_layout as _pjt_wire_layout
     from ...geometry import point as _point
     from ...objects import wire as _wire_obj
+    from ... import ui as _ui
 
 
 @_check_types.do
@@ -84,7 +85,7 @@ class PJTWiresTable(PJTTableBase):
 
     @classmethod
     @_check_types.do
-    def start_control(cls, mainframe):
+    def start_control(cls, mainframe: "_ui.MainFrame") -> None:
         """Start the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -109,7 +110,7 @@ class PJTWiresTable(PJTTableBase):
         return wires.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -119,7 +120,7 @@ class PJTWiresTable(PJTTableBase):
         wires.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -141,7 +142,7 @@ class PJTWiresTable(PJTTableBase):
             yield PJTWire(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTWire":
+    def __getitem__(self, item: int | bytes | str) -> "PJTWire":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -195,17 +196,20 @@ class PJTWiresTable(PJTTableBase):
         :rtype: :class:`PJTWire`
         """
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, name=name, circuit_id=circuit_id,
-                                    start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
-                                    start_point2d_id=start_point2d_id, stop_point2d_id=stop_point2d_id,
-                                    is_visible3d=int(is_visible3d), is_visible2d=int(is_visible2d),
-                                    layer_view_point_id=layer_view_point_id, layer_id=layer_id,
-                                    is_filler_wire=int(is_filler_wire))
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, name=name, circuit_id=circuit_id,
+            start_point3d_id=start_point3d_id, stop_point3d_id=stop_point3d_id,
+            start_point2d_id=start_point2d_id, stop_point2d_id=stop_point2d_id,
+            is_visible3d=int(is_visible3d), is_visible2d=int(is_visible2d),
+            layer_view_point_id=layer_view_point_id, layer_id=layer_id,
+            is_filler_wire=int(is_filler_wire), bundle_id=None, transition_id=None,
+            start_point_pegboard_id=None, stop_point_pegboard_id=None, notes='',
+            is_visible_pegboard=1, smooth=None)
 
         return PJTWire(self, db_id)
 
     @_check_types.do
-    def find_by_start_point3d_id(self, point3d_id: bytes) -> Union["PJTWire", None]:
+    def find_by_start_point3d_id(self, point3d_id: bytes) -> _Union["PJTWire", None]:
         """Return the wire whose ``start_point3d_id`` matches ``point3d_id``.
 
         Used to find "the next wire in the chain" from a wire's own
@@ -221,7 +225,7 @@ class PJTWiresTable(PJTTableBase):
         return self[db_ids[0][0]]
 
     @_check_types.do
-    def find_by_stop_point3d_id(self, point3d_id: bytes) -> Union["PJTWire", None]:
+    def find_by_stop_point3d_id(self, point3d_id: bytes) -> _Union["PJTWire", None]:
         """Return the wire whose ``stop_point3d_id`` matches ``point3d_id``.
 
         Used at wire-creation time to find "the predecessor" for a new
@@ -262,7 +266,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._obj
 
     @_check_types.do
-    def __release_obj_ref(self, _):
+    def __release_obj_ref(self, _: weakref.ref) -> None:
         """Release the obj ref.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -273,7 +277,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._obj = None
 
     @_check_types.do
-    def set_object(self, obj: "_wire_obj.Wire"):
+    def set_object(self, obj: "_wire_obj.Wire") -> None:
         """Set the object.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -394,7 +398,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         return res
 
-    _stored_layer_view_position: Union["_pjt_point2d.PJTPoint2D", None, DefaultStoredValueType] = DefaultStoredValue
+    _stored_layer_view_position: _Union["_pjt_point2d.PJTPoint2D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -424,8 +428,6 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
 
         return point
 
-    _stored_layer_view_position_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def layer_view_position_id(self) -> bytes:
@@ -436,14 +438,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_layer_view_position_id is DefaultStoredValue:
-            self._stored_layer_view_position_id = self._table.select('layer_view_point_id', id=self._db_id)[0][0]
-
-        return self._stored_layer_view_position_id
+        return self._table.select('layer_view_point_id', id=self._db_id)[0][0]
 
     @layer_view_position_id.setter
     @_check_types.do
-    def layer_view_position_id(self, value: bytes):
+    def layer_view_position_id(self, value: bytes) -> None:
         """Set the layer view position ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -451,13 +450,10 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_layer_view_position_id = value
         self._stored_layer_view_position = DefaultStoredValue
 
         self._table.update(self._db_id, layer_view_point_id=value)
         self._populate('layer_view_position_id')
-
-    _stored_layer_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -469,14 +465,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: bytes | None
         """
-        if self._stored_layer_id is DefaultStoredValue:
-            self._stored_layer_id = self._table.select('layer_id', id=self._db_id)[0][0]
-
-        return self._stored_layer_id
+        return self._table.select('layer_id', id=self._db_id)[0][0]
 
     @layer_id.setter
     @_check_types.do
-    def layer_id(self, value: bytes | None):
+    def layer_id(self, value: bytes | None) -> None:
         """Set the layer ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -484,11 +477,8 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: bytes | None
         """
-        self._stored_layer_id = value
         self._table.update(self._db_id, layer_id=value)
         self._populate('layer_id')
-
-    _stored_is_filler_wire: bool | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -500,14 +490,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        if self._stored_is_filler_wire is DefaultStoredValue:
-            self._stored_is_filler_wire = bool(self._table.select('is_filler_wire', id=self._db_id)[0][0])
-
-        return self._stored_is_filler_wire
+        return bool(self._table.select('is_filler_wire', id=self._db_id)[0][0])
 
     @is_filler_wire.setter
     @_check_types.do
-    def is_filler_wire(self, value: bool):
+    def is_filler_wire(self, value: bool) -> None:
         """Set the is filler wire.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -515,7 +502,6 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: bool
         """
-        self._stored_is_filler_wire = value
         self._table.update(self._db_id, is_filler_wire=int(value))
         self._populate('is_filler_wire')
 
@@ -649,8 +635,6 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         """
         return self._table
 
-    _stored_circuit: _pjt_circuit.PJTCircuit | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def circuit(self) -> _pjt_circuit.PJTCircuit | None:
@@ -661,20 +645,13 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_circuit.PJTCircuit`
         """
-        if self._stored_circuit is DefaultStoredValue:
-            circuit_id = self.circuit_id
-            if circuit_id is None:
-                self._stored_circuit = None
-            else:
-                self._stored_circuit = self._table.db.pjt_circuits_table[circuit_id]
-
-        return self._stored_circuit
-
-    _stored_circuit_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        circuit_id = self.circuit_id
+        if circuit_id is not None:
+            return self._table.db.pjt_circuits_table[circuit_id]
 
     @property
     @_check_types.do
-    def has_stripe(self):
+    def has_stripe(self) -> bool:
         return isinstance(self.part.stripe_color_id, int)
 
     @property
@@ -687,14 +664,11 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_circuit_id is DefaultStoredValue:
-            self._stored_circuit_id = self._table.select('circuit_id', id=self._db_id)[0][0]
-
-        return self._stored_circuit_id
+        return self._table.select('circuit_id', id=self._db_id)[0][0]
 
     @circuit_id.setter
     @_check_types.do
-    def circuit_id(self, value: bytes | None):
+    def circuit_id(self, value: bytes | None) -> None:
         """Set the circuit ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -702,9 +676,6 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_circuit_id = value
-        self._stored_circuit = DefaultStoredValue
-
         self._table.update(self._db_id, circuit_id=value)
         self._populate('circuit_id')
 
@@ -735,14 +706,14 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._stored_part
 
 
-class PJTWireControl(QTabWidget, LazyTabMixin):
+class PJTWireControl(QtWidgets.QTabWidget, LazyTabMixin):
     """Represent a PJT wire control in :mod:`harness_designer.database.project_db.pjt_wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def _update_position3d(self, _):
+    def _update_position3d(self, _: "_point.Point") -> None:
         """Update the position 3D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -758,7 +729,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         self.resistance_ctrl.SetValue(str(self.db_obj.resistance))
 
     @_check_types.do
-    def set_obj(self, db_obj: PJTWire | None):
+    def set_obj(self, db_obj: PJTWire | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -772,7 +743,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         self._lazy_set_obj(db_obj)
 
     @_check_types.do
-    def _load_tab(self, index: int):
+    def _load_tab(self, index: int) -> None:
         page = self.widget(index)
         if page is self._general_page:
             self.name_ctrl.set_obj(self.db_obj)
@@ -816,7 +787,7 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         self._tab_loaded[index] = True
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: QtWidgets.QWidget) -> None:
         """Initialise the :class:`PJTWireControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -826,8 +797,8 @@ class PJTWireControl(QTabWidget, LazyTabMixin):
         """
         self.db_obj: PJTWire | None = None
 
-        QTabWidget.__init__(self, parent)
-        self.setTabPosition(QTabWidget.TabPosition.North)
+        QtWidgets.QTabWidget.__init__(self, parent)
+        self.setTabPosition(QtWidgets.QTabWidget.TabPosition.North)
         self.setUsesScrollButtons(True)
 
         self._general_page = general_page = _prop_ctrls.Category(self, 'General')

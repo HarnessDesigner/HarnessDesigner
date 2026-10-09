@@ -2,18 +2,14 @@
 
 from typing import TYPE_CHECKING
 
-import numpy as np
 
 # from ...widgets.context_menus import RotateMenu, MirrorMenu
-from ...geometry import point as _point
-from ...geometry import angle as _angle
 from . import base_schematic as _base_schematic
-from ...gl import vbo as _vbo
-from ...gl import materials as _materials
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from .. import generic as _generic
 
 
@@ -25,7 +21,7 @@ class Generic(_base_schematic.BaseSchematic):
     _parent: "_generic.Generic" = None
 
     @_check_types.do
-    def __init__(self, parent: "_generic.Generic", ):
+    def __init__(self, parent: "_generic.Generic", ) -> None:
         """Initialise the :class:`Generic` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -37,5 +33,5 @@ class Generic(_base_schematic.BaseSchematic):
         super().__init__(parent, None, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

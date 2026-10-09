@@ -7,16 +7,21 @@ The OBB calculation, camera setup, and all rendering logic are completely
 unchanged.  Only the canvas host widget changes.
 """
 
+from typing import Union as _Union
+from typing import TYPE_CHECKING
+
 import math
 import numpy as np
 from OpenGL import GL
 from OpenGL import GLU
-
-from PySide6.QtCore import QSize
-from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6 import QtOpenGLWidgets
 
 from ... import utils as _utils
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from PySide6 import QtWidgets
 
 
 # ---------------------------------------------------------------------------
@@ -24,7 +29,7 @@ from ... import check_types as _check_types
 # ---------------------------------------------------------------------------
 
 @_check_types.do
-def _calculate_obb(vertices):
+def _calculate_obb(vertices: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Calculate the OBB.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -63,7 +68,7 @@ def _calculate_obb(vertices):
 
 
 @_check_types.do
-def _find_best_corner_view(center, corners):
+def _find_best_corner_view(center: np.ndarray, corners: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """Find the best corner view.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +89,7 @@ def _find_best_corner_view(center, corners):
 
 
 @_check_types.do
-def _calculate_camera_distance(extents, fov_degrees, aspect_ratio, padding_factor=1.15):
+def _calculate_camera_distance(extents: np.ndarray, fov_degrees: float, aspect_ratio: float, padding_factor: float = 1.15) -> float:
     """Calculate the camera distance.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -112,7 +117,7 @@ def _calculate_camera_distance(extents, fov_degrees, aspect_ratio, padding_facto
 # Canvas
 # ---------------------------------------------------------------------------
 
-class Canvas(QOpenGLWidget):
+class Canvas(QtOpenGLWidgets.QOpenGLWidget):
     """
     Standalone 3D model preview widget.
 
@@ -123,7 +128,7 @@ class Canvas(QOpenGLWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent=None):
+    def __init__(self, parent: _Union["QtWidgets.QWidget", None] = None) -> None:
         """Initialise the :class:`Canvas` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -149,7 +154,7 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def set_model(self, color, vertices, faces):
+    def set_model(self, color: str, vertices: np.ndarray, faces: np.ndarray) -> None:
         """Set the model.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -183,7 +188,7 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def initializeGL(self):
+    def initializeGL(self) -> None:
         """One-time GL setup (replaces init_gl called from on_paint)."""
         GL.glEnable(GL.GL_DEPTH_TEST)
         GL.glDepthFunc(GL.GL_LEQUAL)
@@ -206,14 +211,14 @@ class Canvas(QOpenGLWidget):
         self.initialized = True
 
     @_check_types.do
-    def resizeGL(self, width: int, height: int):
+    def resizeGL(self, width: int, height: int) -> None:
         """Called by Qt on resize (replaces on_size)."""
         if not self.isVisible():
             return
         GL.glViewport(0, 0, width, max(height, 1))
 
     @_check_types.do
-    def paintGL(self):
+    def paintGL(self) -> None:
         """Render one frame (replaces on_paint)."""
         if not self.isVisible():
             return
@@ -229,7 +234,7 @@ class Canvas(QOpenGLWidget):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def setup_projection(self):
+    def setup_projection(self) -> None:
         """Execute the setup projection operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -267,7 +272,7 @@ class Canvas(QOpenGLWidget):
         )
 
     @_check_types.do
-    def render_model(self):
+    def render_model(self) -> None:
         """Render the model.
 
         UNKNOWN details are inferred from the callable name and signature.

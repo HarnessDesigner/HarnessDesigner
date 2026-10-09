@@ -1,8 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class Angle3DLockMixin(BaseMixin):
@@ -36,7 +43,7 @@ class Angle3DLockMixin(BaseMixin):
 
     @angle3d_lock.setter
     @_check_types.do
-    def angle3d_lock(self, value: bool):
+    def angle3d_lock(self, value: bool) -> None:
         """Set whether this object's own ``angle3d`` is locked.
 
         :param value: Value to store or process.
@@ -64,7 +71,7 @@ class Angle3DLockControl(_prop_ctrls.BoolProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`Angle3DLockControl` instance.
 
         :param parent: Parent widget.
@@ -77,7 +84,7 @@ class Angle3DLockControl(_prop_ctrls.BoolProperty):
         self.propertyChanged.connect(self._on_lock_changed)
 
     @_check_types.do
-    def _on_lock_changed(self, evt):
+    def _on_lock_changed(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the lock-checkbox event.
 
         :param evt: Event object.
@@ -85,7 +92,7 @@ class Angle3DLockControl(_prop_ctrls.BoolProperty):
         """
         value = evt.GetValue()
 
-        obj = self.db_obj.get_object() if hasattr(self.db_obj, 'get_object') else None
+        obj = self.db_obj.get_object()
         if obj is not None and hasattr(obj, 'lock_angle') and hasattr(obj, 'unlock_angle'):
             if value:
                 obj.lock_angle()
@@ -99,7 +106,7 @@ class Angle3DLockControl(_prop_ctrls.BoolProperty):
             self.db_obj.angle3d_lock = value
 
     @_check_types.do
-    def set_obj(self, db_obj: Angle3DLockMixin | None):
+    def set_obj(self, db_obj: Angle3DLockMixin | None) -> None:
         """Set the obj.
 
         :param db_obj: Database-backed object.

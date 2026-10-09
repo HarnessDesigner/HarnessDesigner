@@ -16,7 +16,7 @@ CaptionBarStyle keeps all its setter/getter methods unchanged.
 
 import base64
 
-from PySide6 import QtWidgets
+from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6 import QtCore
 from PySide6 import QtGui
 from ... import check_types as _check_types
@@ -115,7 +115,7 @@ class CaptionBarStyle:
     """
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialise the :class:`CaptionBarStyle` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -133,7 +133,7 @@ class CaptionBarStyle:
         self._captionStyle = CAPTIONBAR_GRADIENT_V
 
     @_check_types.do
-    def ResetDefaults(self):
+    def ResetDefaults(self) -> None:
         """Execute the reset defaults operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -147,7 +147,7 @@ class CaptionBarStyle:
 
     # Font
     @_check_types.do
-    def SetCaptionFont(self, font: QtGui.QFont):
+    def SetCaptionFont(self, font: QtGui.QFont) -> None:
         """Execute the set caption font operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -182,7 +182,7 @@ class CaptionBarStyle:
 
     # First colour
     @_check_types.do
-    def SetFirstColour(self, colour: QtGui.QColor):
+    def SetFirstColour(self, colour: QtGui.QColor) -> None:
         """Execute the set first colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -217,7 +217,7 @@ class CaptionBarStyle:
 
     # Second colour
     @_check_types.do
-    def SetSecondColour(self, colour: QtGui.QColor):
+    def SetSecondColour(self, colour: QtGui.QColor) -> None:
         """Execute the set second colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -252,7 +252,7 @@ class CaptionBarStyle:
 
     # Caption (text) colour
     @_check_types.do
-    def SetCaptionColour(self, colour: QtGui.QColor):
+    def SetCaptionColour(self, colour: QtGui.QColor) -> None:
         """Execute the set caption colour operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -287,7 +287,7 @@ class CaptionBarStyle:
 
     # Caption style
     @_check_types.do
-    def SetCaptionStyle(self, style: int):
+    def SetCaptionStyle(self, style: int) -> None:
         """Execute the set caption style operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -340,7 +340,7 @@ class CaptionBar(QtWidgets.QWidget):
     def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
                  rightIndent: int = FPB_BMP_RIGHTSPACE,
-                 collapsed: bool = False):
+                 collapsed: bool = False) -> None:
         """Initialise the :class:`CaptionBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -375,7 +375,7 @@ class CaptionBar(QtWidgets.QWidget):
     # ------------------------------------------------------------------
     @_check_types.do
     def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
-                          applyDefault: bool = True):
+                          applyDefault: bool = True) -> None:
         """Execute the apply caption style operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -418,7 +418,7 @@ class CaptionBar(QtWidgets.QWidget):
 
     @_check_types.do
     def SetCaptionStyle(self, cbstyle: CaptionBarStyle | None = None,
-                        applyDefault: bool = True):
+                        applyDefault: bool = True) -> None:
         """Execute the set caption style operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -457,7 +457,7 @@ class CaptionBar(QtWidgets.QWidget):
         return self._collapsed
 
     @_check_types.do
-    def Collapse(self):
+    def Collapse(self) -> None:
         """Execute the collapse operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -466,7 +466,7 @@ class CaptionBar(QtWidgets.QWidget):
         self.update()
 
     @_check_types.do
-    def Expand(self):
+    def Expand(self) -> None:
         """Execute the expand operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -475,7 +475,7 @@ class CaptionBar(QtWidgets.QWidget):
         self.update()
 
     @_check_types.do
-    def SetRightIndent(self, pixels: int):
+    def SetRightIndent(self, pixels: int) -> None:
         """Execute the set right indent operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -488,7 +488,7 @@ class CaptionBar(QtWidgets.QWidget):
         self.update()
 
     @_check_types.do
-    def SetBoldFont(self):
+    def SetBoldFont(self) -> None:
         """Execute the set bold font operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -498,7 +498,7 @@ class CaptionBar(QtWidgets.QWidget):
         self.setFont(f)
 
     @_check_types.do
-    def SetNormalFont(self):
+    def SetNormalFont(self) -> None:
         """Execute the set normal font operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -563,7 +563,7 @@ class CaptionBar(QtWidgets.QWidget):
         return QtCore.QSize(w, h)
 
     @_check_types.do
-    def paintEvent(self, event: QtGui.QPaintEvent):
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         """Execute the paint event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -614,7 +614,7 @@ class CaptionBar(QtWidgets.QWidget):
         painter.end()
 
     @_check_types.do
-    def _fill_background(self, painter: QtGui.QPainter, rect: QtCore.QRect):
+    def _fill_background(self, painter: QtGui.QPainter, rect: QtCore.QRect) -> None:
         """Execute the fill background operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -687,7 +687,7 @@ class CaptionBar(QtWidgets.QWidget):
         return pos.y() < (self._ICON_H + self._rightIndent)
 
     @_check_types.do
-    def mousePressEvent(self, event: QtGui.QMouseEvent):
+    def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse press event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -704,7 +704,7 @@ class CaptionBar(QtWidgets.QWidget):
         super().mousePressEvent(event)
 
     @_check_types.do
-    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent):
+    def mouseDoubleClickEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse double click event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -718,7 +718,7 @@ class CaptionBar(QtWidgets.QWidget):
         super().mouseDoubleClickEvent(event)
 
     @_check_types.do
-    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
         """Execute the mouse move event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -733,7 +733,7 @@ class CaptionBar(QtWidgets.QWidget):
         super().mouseMoveEvent(event)
 
     @_check_types.do
-    def leaveEvent(self, event):
+    def leaveEvent(self, event: QtCore.QEvent) -> None:
         """Execute the leave event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -752,7 +752,7 @@ class FoldWindowItem:
     """Tracks a single child (window or separator) inside a FoldPanelItem."""
 
     @_check_types.do
-    def __init__(self, parent: "FoldPanelItem", window: QtWidgets.QWidget | None, **kw):
+    def __init__(self, parent: "FoldPanelItem", window: QtWidgets.QWidget | None, **kw) -> None:
         """Initialise the :class:`FoldWindowItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -884,7 +884,7 @@ class FoldWindowItem:
         return 0
 
     @_check_types.do
-    def ResizeItem(self, size: int, vertical: bool = True):
+    def ResizeItem(self, size: int, vertical: bool = True) -> None:
         """Execute the resize item operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -915,7 +915,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, caption: str = '',
                  cbstyle: CaptionBarStyle | None = None,
-                 collapsed: bool = False):
+                 collapsed: bool = False) -> None:
         """Initialise the :class:`FoldPanelItem` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -956,7 +956,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # Internal
     # ------------------------------------------------------------------
     @_check_types.do
-    def _on_caption_toggle(self, bar: CaptionBar):
+    def _on_caption_toggle(self, bar: CaptionBar) -> None:
         """Handle the caption toggle event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1085,7 +1085,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         return self.GetPanelLength()
 
     @_check_types.do
-    def ResizePanel(self):
+    def ResizePanel(self) -> None:
         """Execute the resize panel operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1143,7 +1143,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     def AddWindow(self, window: QtWidgets.QWidget, flags: int = FPB_ALIGN_WIDTH,
                   spacing: int = FPB_DEFAULT_SPACING,
                   leftSpacing: int = FPB_DEFAULT_LEFTLINESPACING,
-                  rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING):
+                  rightSpacing: int = FPB_DEFAULT_RIGHTLINESPACING) -> None:
         """Execute the add window operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1185,7 +1185,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     @_check_types.do
     def AddSeparator(self, colour: QtGui.QColor = None, spacing: int = FPB_DEFAULT_SPACING,
                      leftSpacing: int = FPB_DEFAULT_LEFTSPACING,
-                     rightSpacing: int = FPB_DEFAULT_RIGHTSPACING):
+                     rightSpacing: int = FPB_DEFAULT_RIGHTSPACING) -> None:
         """Execute the add separator operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1216,7 +1216,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # Style delegation
     # ------------------------------------------------------------------
     @_check_types.do
-    def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle):
+    def ApplyCaptionStyle(self, cbstyle: CaptionBarStyle) -> None:
         """Execute the apply caption style operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1241,7 +1241,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # Collapse / Expand (called by FoldPanelBar)
     # ------------------------------------------------------------------
     @_check_types.do
-    def Collapse(self):
+    def Collapse(self) -> None:
         """Execute the collapse operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1250,7 +1250,7 @@ class FoldPanelItem(QtWidgets.QWidget):
         self.ResizePanel()
 
     @_check_types.do
-    def Expand(self):
+    def Expand(self) -> None:
         """Execute the expand operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1262,7 +1262,7 @@ class FoldPanelItem(QtWidgets.QWidget):
     # Paint separators
     # ------------------------------------------------------------------
     @_check_types.do
-    def paintEvent(self, event: QtGui.QPaintEvent):
+    def paintEvent(self, event: QtGui.QPaintEvent) -> None:
         """Execute the paint event operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1301,7 +1301,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent: QtWidgets.QWidget | None = None, agwStyle: int = 0):
+    def __init__(self, parent: QtWidgets.QWidget | None = None, agwStyle: int = 0) -> None:
         """Initialise the :class:`FoldPanelBar` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1340,7 +1340,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
     @_check_types.do
     def AddFoldPanel(self, caption: str = '', collapsed: bool = False,
-                     foldIcons=None,   # NOQA IGNORED
+                     foldIcons: None = None,   # NOQA IGNORED
                      cbstyle: CaptionBarStyle | None = None) -> FoldPanelItem:
         """Execute the add fold panel operation.
 
@@ -1445,7 +1445,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         return 0
 
     @_check_types.do
-    def Collapse(self, foldpanel: FoldPanelItem):
+    def Collapse(self, foldpanel: FoldPanelItem) -> None:
         """Execute the collapse operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1462,7 +1462,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         self.RefreshPanelsFrom(foldpanel)
 
     @_check_types.do
-    def Expand(self, foldpanel: FoldPanelItem):
+    def Expand(self, foldpanel: FoldPanelItem) -> None:
         """Execute the expand operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1490,7 +1490,7 @@ class FoldPanelBar(QtWidgets.QWidget):
 
     @_check_types.do
     def ApplyCaptionStyle(self, foldpanel: FoldPanelItem,  # NOQA
-                          cbstyle: CaptionBarStyle):
+                          cbstyle: CaptionBarStyle) -> None:
         """Execute the apply caption style operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1504,7 +1504,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         foldpanel.ApplyCaptionStyle(cbstyle)
 
     @_check_types.do
-    def ApplyCaptionStyleAll(self, cbstyle: CaptionBarStyle):
+    def ApplyCaptionStyleAll(self, cbstyle: CaptionBarStyle) -> None:
         """Execute the apply caption style all operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1563,7 +1563,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     # Layout
     # ------------------------------------------------------------------
     @_check_types.do
-    def RefreshPanelsFrom(self, item: FoldPanelItem):
+    def RefreshPanelsFrom(self, item: FoldPanelItem) -> None:
         """Execute the refresh panels from operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1593,7 +1593,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         self.update()
 
     @_check_types.do
-    def RepositionCollapsedToBottom(self):
+    def RepositionCollapsedToBottom(self) -> None:
         """Execute the reposition collapsed to bottom operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1614,7 +1614,7 @@ class FoldPanelBar(QtWidgets.QWidget):
                 offset += p.Reposition(offset)
 
     @_check_types.do
-    def GetPanelsLength(self, collapsed: int, expanded: int):
+    def GetPanelsLength(self, collapsed: int, expanded: int) -> tuple[int, int, int]:
         """Execute the get panels length operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1639,7 +1639,7 @@ class FoldPanelBar(QtWidgets.QWidget):
         return collapsed, expanded, value
 
     @_check_types.do
-    def RedisplayFoldPanelItems(self):
+    def RedisplayFoldPanelItems(self) -> None:
         """Execute the redisplay fold panel items operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -1652,7 +1652,7 @@ class FoldPanelBar(QtWidgets.QWidget):
     # Qt events
     # ------------------------------------------------------------------
     @_check_types.do
-    def resizeEvent(self, event: QtGui.QResizeEvent):
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Execute the resize event operation.
 
         UNKNOWN details are inferred from the callable name and signature.

@@ -10,7 +10,6 @@ class PartMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     
-    _stored_part_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
     _stored_part: DefaultStoredValueType | None = DefaultStoredValue
 
     @property
@@ -23,15 +22,12 @@ class PartMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_part_id is DefaultStoredValue:
-            _rows = self._table.select('part_id', id=self._db_id)
-            self._stored_part_id = _rows[0][0] if _rows else None
-
-        return self._stored_part_id
+        _rows = self._table.select('part_id', id=self._db_id)
+        return _rows[0][0] if _rows else None
 
     @part_id.setter
     @_check_types.do
-    def part_id(self, value: bytes):
+    def part_id(self, value: bytes) -> None:
         """Set the part ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -39,8 +35,7 @@ class PartMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_part_id = value
         self._stored_part = DefaultStoredValue
-        
+
         self._table.update(self._db_id, part_id=value)
         self._populate('part_id')

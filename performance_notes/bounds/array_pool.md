@@ -39,3 +39,8 @@ concat" less than a one-line change, and it's not yet clear whether the
 concat cost is actually significant at realistic scene sizes (worth
 benchmarking with the block count a real large project reaches before
 changing this).
+
+## Added in the folder review: `__contains__` and `visible_objects`
+`__contains__` uses the same O(n) list scan as `__getitem__` above, so the fix described there covers both methods.
+`visible_objects` builds a new list on each call by dereferencing each entry of `_visible_refs`. Its callers decide whether this matters, so check them before changing anything.
+

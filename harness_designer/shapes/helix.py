@@ -94,7 +94,7 @@ def create_vbo(min_length: float | int) -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(radius, length, pitch):
+def create(radius: float, length: float, pitch: float) -> tuple[np.ndarray, np.ndarray]:
     """Create a mesh for a helical stripe wrapped around a cylinder.
 
     :param radius: Radius of the underlying wire or cylinder.

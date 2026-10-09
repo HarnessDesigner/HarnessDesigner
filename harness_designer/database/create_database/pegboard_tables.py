@@ -23,7 +23,6 @@ other with a plain equality lookup on ``point_pegboard_id`` /
 
 from . import projects as _projects
 from . import points_pegboard as _points_pegboard
-
 from .. import db_connectors as _con
 
 

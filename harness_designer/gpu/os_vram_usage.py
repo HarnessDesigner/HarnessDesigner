@@ -38,7 +38,7 @@ from .. import check_types as _check_types
 
 
 @_check_types.do
-def get_current_usage_bytes(adapter_index: int = 0):
+def get_current_usage_bytes(adapter_index: int = 0) -> int | None:
     """Current VRAM usage, in bytes, attributed to *this process* --
     verified live on Windows (see :mod:`._dxgi_win`); not tested against a
     real GPU on Linux (see this module's own docstring for why that
@@ -61,7 +61,7 @@ def get_current_usage_bytes(adapter_index: int = 0):
 
 
 @_check_types.do
-def _windows_usage(adapter_index: int):
+def _windows_usage(adapter_index: int) -> int | None:
     try:
         from . import _dxgi_win
     except Exception:  # NOQA -- comtypes not installed, or DXGI unavailable
@@ -74,7 +74,7 @@ def _windows_usage(adapter_index: int):
 
 
 @_check_types.do
-def _linux_usage():
+def _linux_usage() -> int | None:
     import os
     import re
 

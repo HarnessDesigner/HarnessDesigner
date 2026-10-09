@@ -1,5 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 import os
 import json
 
@@ -15,21 +17,24 @@ from . import platings as _platings
 from . import splice_types as _splice_types
 from . import temperatures as _temperatures
 from . import models3d as _models3d
-
 from . import projects as _projects
 from . import points3d as _points3d
 from . import points2d as _points2d
 from . import points_pegboard as _points_pegboard
 from . import circuits as _circuits
-
 from .. import db_connectors as _con
 from ... import logger as _logger
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 
 
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
+
+
 @_check_types.do
-def add_records(con, splash, data_path):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", data_path: str) -> None:
     """Add a records.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -88,7 +93,7 @@ def add_records(con, splash, data_path):
 
 
 @_check_types.do
-def add_splices(con, data: tuple[dict] | list[dict]):
+def add_splices(con: "_connector_base.ConnectorBase", data: tuple[dict] | list[dict]) -> None:
     """Add a splices.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -104,13 +109,13 @@ def add_splices(con, data: tuple[dict] | list[dict]):
 
 
 @_check_types.do
-def add_splice(con, part_number, description, mfg=None, family=None, series=None,
-               color=None, image=None, datasheet=None, cad=None, min_temp=None,
-               max_temp=None, model3d=None, material=None, plating=None,  type=None,  # NOQA
-               min_dia=0.0, max_dia=0.0, resistance=0.0, length=0.0, weight=0.0,
-               wire_size_awg_min=None, wire_size_awg_max=None, wire_size_dia_min=None,
-               wire_size_dia_max=None, wire_size_cross_min=None, wire_size_cross_max=None,
-               num_wires=None, commit=True):
+def add_splice(con: "_connector_base.ConnectorBase", part_number: str, description: str, mfg: str | None = None, family: str | None = None, series: str | None = None,
+               color: str | None = None, image: str | None = None, datasheet: str | None = None, cad: str | None = None, min_temp: str | None = None,
+               max_temp: str | None = None, model3d: str | None = None, material: str | None = None, plating: str | None = None,  type: str | None = None,  # NOQA
+               min_dia: float = 0.0, max_dia: float = 0.0, resistance: float = 0.0, length: float = 0.0, weight: float = 0.0,
+               wire_size_awg_min: int | None = None, wire_size_awg_max: int | None = None, wire_size_dia_min: float | None = None,
+               wire_size_dia_max: float | None = None, wire_size_cross_min: float | None = None, wire_size_cross_max: float | None = None,
+               num_wires: int | None = None, commit: bool = True) -> bytes:
     """Add a splice.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -216,9 +221,9 @@ def add_splice(con, part_number, description, mfg=None, family=None, series=None
 
 
 @_check_types.do
-def add_pjt_splice(con, project_id, part_id, start_point3d_id=None, stop_point3d_id=None,
-                   branch_point3d_id=None, point2d_id=None, circuit_id=None, name='',
-                   notes='', is_visible2d=0, is_visible3d=0):
+def add_pjt_splice(con: "_connector_base.ConnectorBase", project_id: bytes, part_id: bytes, start_point3d_id: bytes | None = None, stop_point3d_id: bytes | None = None,
+                   branch_point3d_id: bytes | None = None, point2d_id: bytes | None = None, circuit_id: bytes = None, name: str = '',
+                   notes: str = '', is_visible2d: int = 0, is_visible3d: int = 0) -> None:
     """Add a PJT splice.
 
     UNKNOWN details are inferred from the callable name and signature.

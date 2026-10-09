@@ -22,7 +22,7 @@ fraction.
 """
 
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -39,10 +39,15 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_schematic import canvas as _canvas
     from ... import objects as _objects
+    from ...gl import materials as _materials
+    from ...database.global_db import splice as _glb_splice
+    from ...objects.objects_schematic import base_schematic as _base_schematic
 
 
 @_check_types.do
-def closest_point_on_wire_2d(wire: _wire.Wire, world_x: float, world_z: float):
+def closest_point_on_wire_2d(
+    wire: _wire.Wire, world_x: float, world_z: float
+) -> tuple[float, tuple[float, float]]:
     """Closest point on *wire*'s full 2D polyline (true start, through
     every waypoint, to true stop) to ``(world_x, world_z)``.
 
@@ -102,8 +107,9 @@ class Splice(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", part_id: bytes,
-        part, preview_material, compat_material
-    ):
+        part: "_glb_splice.Splice", preview_material: "_materials.GLMaterial",
+        compat_material: "_materials.GLMaterial"
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -122,20 +128,21 @@ class Splice(_base.AddHandlerBase):
         return self._finalized
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_schematic.BaseSchematic":
         return obj.objschematic
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -182,8 +189,12 @@ class Splice(_base.AddHandlerBase):
         from ...objects import splice as _splice_facade
 
         if self.target is not None:
-            self.target.delete()
+            # Null self.target before deleting it, not after -- see
+            # editor_3d.splice.Splice._recreate_preview's own comment for
+            # the full reentrancy explanation.
+            old_target = self.target
             self.target = None
+            old_target.delete()
 
         p1 = wire.obj3d.start_position.as_numpy
         p2 = wire.obj3d.stop_position.as_numpy
@@ -241,9 +252,11 @@ class Splice(_base.AddHandlerBase):
         seg = p2 - p1
         seg_len = float(np.linalg.norm(seg))
         if seg_len < 1e-8:
+            # Set before self.target.delete(), not after -- see
+            # _recreate_preview's own comment above for why.
+            self._finalized = True
             self.target.delete()
             self.target = None
-            self._finalized = True
             return
 
         direction = seg / seg_len
@@ -304,5 +317,5 @@ class Splice(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

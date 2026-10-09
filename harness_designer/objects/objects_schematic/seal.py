@@ -3,12 +3,11 @@
 from typing import TYPE_CHECKING
 
 from . import base_schematic as _base_schematic
-from ...geometry import point as _point
-from ...geometry import angle as _angle
 from ... import check_types as _check_types
 
 
 if TYPE_CHECKING:
+    from ...gl import shaders as _shaders
     from ...database.project_db import pjt_seal as _pjt_seal
     from .. import seal as _seal
 
@@ -22,7 +21,7 @@ class Seal(_base_schematic.BaseSchematic):
     db_obj: "_pjt_seal.PJTSeal"
 
     @_check_types.do
-    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal"):
+    def __init__(self, parent: "_seal.Seal", db_obj: "_pjt_seal.PJTSeal") -> None:
         """Initialise the :class:`Seal` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -36,5 +35,5 @@ class Seal(_base_schematic.BaseSchematic):
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

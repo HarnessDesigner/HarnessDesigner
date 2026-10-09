@@ -19,5 +19,5 @@ class IntelBackend(GPUBackend):
     """Reserved for a future Intel-specific SDK. Currently a no-op."""
 
     @_check_types.do
-    def __init__(self):
+    def __init__(self) -> None:
         pass

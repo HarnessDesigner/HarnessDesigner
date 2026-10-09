@@ -109,6 +109,9 @@ from ..objects import terminal as _terminal_obj
 
 
 if TYPE_CHECKING:
+    from ..database.project_db import pjt_point3d as _pjt_point3d
+    from ..database.project_db import pjt_point_pegboard as _pjt_point_pegboard
+    from ..database.project_db import pjt_wire as _pjt_wire
     from ..database.project_db.pjt_bases import ProjectTables as _ProjectTables
     from ..database.project_db.pjt_bundle import PJTBundle as _PJTBundle
     from ..database.project_db.pjt_transition_branch import PJTTransitionBranch as _PJTTransitionBranch
@@ -122,7 +125,6 @@ if TYPE_CHECKING:
 _VIEWS = ('3d', 'pegboard')
 
 # Which ptables point table a guard/new point gets inserted into, per view.
-_VIEW_POINTS_TABLE_ATTR = {'3d': 'pjt_points3d_table', 'pegboard': 'pjt_points_pegboard_table'}
 
 # The real pjt_transition_branches column name for a branch's own point,
 # per view -- used for the reverse "is this point a branch" lookup.
@@ -138,12 +140,14 @@ def check_view(view: str) -> None:
 
 
 @_check_types.do
-def _points_table(ptables: "_ProjectTables", view: str):
+def _points_table(ptables: "_ProjectTables", view: str) -> _Union["_pjt_point3d.PJTPoints3DTable", "_pjt_point_pegboard.PJTPointsPegboardTable"]:
     """The ptables point table for *view* -- ``pjt_points3d_table`` or
     ``pjt_points_pegboard_table``.
     """
     check_view(view)
-    return getattr(ptables, _VIEW_POINTS_TABLE_ATTR[view])
+    if view == '3d':
+        return ptables.pjt_points3d_table
+    return ptables.pjt_points_pegboard_table
 
 
 @_check_types.do
@@ -171,7 +175,7 @@ def _transition_centre_point_id(transition: "_PJTTransition", view: str) -> byte
 
 
 @_check_types.do
-def _wire_end_point(wire_db, is_start: bool, view: str) -> _Point:
+def _wire_end_point(wire_db: "_pjt_wire.PJTWire", is_start: bool, view: str) -> _Point:
     """*wire_db*'s own start/stop ``Point`` for *view*."""
     check_view(view)
     if view == '3d':
@@ -469,7 +473,7 @@ class RouteWalk:
         self._entry_diameter = _diameter_of_terminus(entry)
         self._advance()
 
-    def _add(self, point_id: bytes, **tags) -> None:
+    def _add(self, point_id: bytes, **tags: int | bytes | None) -> None:
         self._ordered.append(point_id)
         d = self._point_tags.setdefault(point_id, {})
         for key, value in tags.items():

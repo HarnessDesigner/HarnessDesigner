@@ -48,6 +48,8 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..gl.canvas_3d import Canvas3D as _Canvas3D
+    from ..gl.canvas_3d import camera as _camera
+    from ..objects.objects_3d import base_3d as _base_3d
     from ..geometry import angle as _angle
     from ..geometry import point as _point
 
@@ -127,7 +129,7 @@ class MeshSurfacePicker:
 
     @property
     @_check_types.do
-    def camera(self):
+    def camera(self) -> "_camera.Camera":
         return self._camera
 
     @property
@@ -151,7 +153,7 @@ class MeshSurfacePicker:
         return self._pos_arr
 
     @_check_types.do
-    def __init__(self, obj3d, canvas3d: "_Canvas3D"):
+    def __init__(self, obj3d: "_base_3d.Base3D", canvas3d: "_Canvas3D") -> None:
         self._obj3d = obj3d
         self._gl_widget = canvas3d._canvas  # NOQA
         self._camera = self._gl_widget.camera

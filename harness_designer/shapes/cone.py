@@ -44,7 +44,7 @@ def create_vbo() -> _vbo_handler.PooledVBOHandler:
 
 
 @_check_types.do
-def create(radius=1.0, height=2.0, resolution=None, split=None):
+def create(radius: float = 1.0, height: float = 2.0, resolution: int | None = None, split: int | None = None) -> tuple[np.ndarray, np.ndarray]:
     """Create vertices and faces for a cone surface.
 
     The current implementation generates the conical side surface and apex,

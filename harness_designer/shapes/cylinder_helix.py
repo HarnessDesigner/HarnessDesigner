@@ -7,7 +7,6 @@ stores the result in a cached :class:`harness_designer.gl.vbo.PooledVBOHandler`.
 """
 
 import math
-
 import build123d
 import numpy as np
 
@@ -54,7 +53,7 @@ _SEGMENT2_STRIPE_OFFSET_DEG = -90.0 + _STRIPE_ARC_WIDTH_DEG + 1.0
 _LOOP_STRIPE_OFFSET_DEG = 180.0
 
 
-def _stripe_profile(radius, extra_deg=0.0):
+def _stripe_profile(radius: float, extra_deg: float = 0.0) -> "build123d.Face":
     """Small offset-arc cross-section for the decorative twist stripe,
     riding a diameter straddling ``radius`` (half embedded in the wire,
     half protruding) rather than sitting flush against its surface.
@@ -78,7 +77,7 @@ def _stripe_profile(radius, extra_deg=0.0):
     return face
 
 
-def _straight_stripe(radius, length, start_deg=0.0):
+def _straight_stripe(radius: float, length: float, start_deg: float = 0.0) -> "build123d.Shape":
     """Twist stripe for a straight wire segment running along +Z from the
     origin -- same offset-arc + binormal-helix technique as
     :func:`harness_designer.shapes.helix.create`'s stripe, sized and
@@ -102,7 +101,7 @@ def _straight_stripe(radius, length, start_deg=0.0):
     return build123d.sweep(profile, s_line, binormal=twist)
 
 
-def _loop_stripe_guide(path, radius, start_deg=0.0, n_samples=40):
+def _loop_stripe_guide(path: "build123d.Shape", radius: float, start_deg: float = 0.0, n_samples: int = 40) -> "build123d.Edge":
     """Sampled twist-reference curve for the loop's stripe.
 
     A straight wire's stripe gets its twist from a ``binormal=`` Helix
@@ -140,7 +139,7 @@ def _loop_stripe_guide(path, radius, start_deg=0.0, n_samples=40):
     return build123d.Spline(*points)
 
 
-def _loop_stripe(path, radius, start_deg=0.0):
+def _loop_stripe(path: "build123d.Shape", radius: float, start_deg: float = 0.0) -> "build123d.Shape":
     """Twist stripe following the loop's own helical path, riding the same
     diameter as the loop's swept tube.
 
@@ -161,7 +160,7 @@ def _loop_stripe(path, radius, start_deg=0.0):
 
 
 @_check_types.do
-def create_vbo():
+def create_vbo() -> "_vbo_handler.VBOHandlerBase":
     """Create or return the cached cylinder-helix VBO.
 
     The generated part combines two cylinders with a swept helix loop, each
@@ -280,7 +279,7 @@ def create_vbo():
 
 
 @_check_types.do
-def create_stripe_vbo():
+def create_stripe_vbo() -> "_vbo_handler.VBOHandlerBase":
     """Create or return the cached cylinder-helix stripe VBO -- the
     decorative twist stripe rendered as its own mesh, overlaid on top of
     the plain body from :func:`create_vbo` (see

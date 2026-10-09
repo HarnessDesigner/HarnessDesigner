@@ -10,13 +10,18 @@ here (per-vendor subpackages, :mod:`.gl_meminfo`, :mod:`.gpu_specs_lookup`,
 drives, not a separate public surface.
 """
 
+from typing import TYPE_CHECKING, Any, Union as _Union
+
 from .gpu_base import GPUAttribute
 from .gpu_vendor import get as _get_vendor
 from .gpu_vendor import GPU_NVIDIA, GPU_AMD, GPU_APPLE, GPU_INTEL
 from .backend_base import GPUBackend as _GPUBackend
-
 from .. import logger as _logger
 from .. import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    import pyopencl as _cl
 
 
 class GPU:
@@ -24,16 +29,16 @@ class GPU:
     them in.
 
     :param opencl_device: Optional OpenCL device used for fallback estimation.
-    :type opencl_device: object | None
+    :type opencl_device: pyopencl.Device | None
     """
 
     @_check_types.do
-    def __init__(self, opencl_device=None):
+    def __init__(self, opencl_device: _Union["_cl.Device", None] = None) -> None:
         """Create the attribute set (all start at ``'Unknown'``) and store
         the optional OpenCL device used for fallback estimation.
 
         :param opencl_device: Optional OpenCL device exposing ``global_mem_size``.
-        :type opencl_device: object | None
+        :type opencl_device: pyopencl.Device | None
         """
         self.device = opencl_device
 
@@ -76,7 +81,7 @@ class GPU:
         self.gpu_temp = GPUAttribute('Temperature: ')
 
     @_check_types.do
-    def detect(self):
+    def detect(self) -> None:
         """Detect the GPU vendor and populate this instance's attributes.
 
         :returns: ``None``.
@@ -97,7 +102,7 @@ class GPU:
             self._fallback()
 
     @_check_types.do
-    def is_ok(self):
+    def is_ok(self) -> bool:
         """Return whether the collected VRAM values look usable.
 
         :returns: ``True`` when VRAM size and usage are integers and size is positive.
@@ -109,7 +114,7 @@ class GPU:
             self.vram_size.value > 0)
 
     @_check_types.do
-    def __str__(self):
+    def __str__(self) -> str:
         """Format the current GPU state as a multi-section report.
 
         :returns: Multiline summary of driver, GPU, VRAM, clock, PCIe, and fan data.
@@ -161,14 +166,63 @@ class GPU:
             f'\t{self.fan_speed_rpm}',
             f'\t{self.fan_speed}',
             '',
-            f'{self.gpu_temp}'
+            f'{self.gpu_temp}',
             f'{self.gpu_engine}',
             f'{self.memory_engine}',
         ]
         return '\n'.join(ret)
 
     @_check_types.do
-    def _collect_generic(self, backend: _GPUBackend):
+    def _backend_pairs(self, backend: _GPUBackend) -> list[tuple[GPUAttribute, Any]]:
+        """Pair each attribute on this instance with the same-named value on
+        *backend*, written out by hand.
+
+        Explicit rather than looked up by name: a misspelled field shows up
+        as an ``AttributeError`` at the line that reads it, and nothing here
+        needs ``getattr``/``setattr``. Every name must also exist on
+        :class:`.backend_base.GPUBackend` (its ``ATTRIBUTE_NAMES`` lists the
+        same thirty).
+
+        :param backend: Backend whose values are being collected.
+        :type backend: :class:`.backend_base.GPUBackend`
+        :returns: ``(attribute, value)`` pairs, one per attribute.
+        :rtype: list[tuple[GPUAttribute, Any]]
+        """
+        return [
+            (self.driver_name, backend.driver_name),
+            (self.driver_version, backend.driver_version),
+            (self.driver_date, backend.driver_date),
+            (self.gpu_model, backend.gpu_model),
+            (self.gpu_name, backend.gpu_name),
+            (self.gpu_manufacturer, backend.gpu_manufacturer),
+            (self.gpu_serial, backend.gpu_serial),
+            (self.gpu_cores, backend.gpu_cores),
+            (self.architecture, backend.architecture),
+            (self.generation, backend.generation),
+            (self.foundry, backend.foundry),
+            (self.vram_size, backend.vram_size),
+            (self.vram_width, backend.vram_width),
+            (self.vram_use, backend.vram_use),
+            (self.memory_type, backend.memory_type),
+            (self.memory_bandwidth, backend.memory_bandwidth),
+            (self.gpu_engine, backend.gpu_engine),
+            (self.memory_engine, backend.memory_engine),
+            (self.soc_clock, backend.soc_clock),
+            (self.boost_clock, backend.boost_clock),
+            (self.memory_clock, backend.memory_clock),
+            (self.pcie_max_width, backend.pcie_max_width),
+            (self.pcie_width, backend.pcie_width),
+            (self.pcie_max_speed, backend.pcie_max_speed),
+            (self.pcie_speed, backend.pcie_speed),
+            (self.pcie_bandwidth, backend.pcie_bandwidth),
+            (self.pcie_version, backend.pcie_version),
+            (self.fan_speed_rpm, backend.fan_speed_rpm),
+            (self.fan_speed, backend.fan_speed),
+            (self.gpu_temp, backend.gpu_temp),
+        ]
+
+    @_check_types.do
+    def _collect_generic(self, backend: _GPUBackend) -> None:
         """Copy every non-``None`` metric off a vendor backend onto ``self``.
 
         Every concrete backend (:class:`.nvidia.NvidiaBackend`,
@@ -181,13 +235,12 @@ class GPU:
         :returns: ``None``.
         :rtype: None
         """
-        for name in _GPUBackend.ATTRIBUTE_NAMES:
-            value = getattr(backend, name, None)
+        for attr, value in self._backend_pairs(backend):
             if value is not None:
-                getattr(self, name).value = value
+                attr.value = value
 
     @_check_types.do
-    def _collect_gaps(self, backend: _GPUBackend):
+    def _collect_gaps(self, backend: _GPUBackend) -> None:
         """Like :meth:`_collect_generic`, but only fills attributes that
         don't already have a real value.
 
@@ -202,12 +255,10 @@ class GPU:
         :returns: ``None``.
         :rtype: None
         """
-        for name in _GPUBackend.ATTRIBUTE_NAMES:
-            attr = getattr(self, name)
+        for attr, value in self._backend_pairs(backend):
             if attr.value != 'Unknown':
                 continue
 
-            value = getattr(backend, name, None)
             if value is not None:
                 attr.value = value
 
@@ -233,7 +284,7 @@ class GPU:
         return self.is_ok()
 
     @_check_types.do
-    def _nvidia(self):
+    def _nvidia(self) -> None:
         """Collect NVIDIA metrics, then fill in anything nvapi couldn't,
         then estimate VRAM if even that came up short.
 
@@ -266,7 +317,7 @@ class GPU:
             self._opencl_estimate(multiplier=0.5)
 
     @_check_types.do
-    def _amd(self):
+    def _amd(self) -> None:
         """Collect AMD metrics, then fill in anything pyamd_adl couldn't,
         then estimate VRAM if even that came up short.
 
@@ -295,7 +346,7 @@ class GPU:
             self._opencl_estimate(multiplier=0.5)
 
     @_check_types.do
-    def _intel(self):
+    def _intel(self) -> None:
         """Collect Intel metrics and estimate VRAM if required.
 
         No vendor SDK exists for Intel in this codebase yet (:class:`.intel.IntelBackend`
@@ -323,7 +374,7 @@ class GPU:
             self._opencl_estimate(multiplier=0.4)
 
     @_check_types.do
-    def _apple(self):
+    def _apple(self) -> None:
         """Collect Apple metrics and estimate VRAM if required.
 
         :returns: ``None``.
@@ -344,7 +395,7 @@ class GPU:
             self._opencl_estimate(multiplier=0.4)
 
     @_check_types.do
-    def _opencl_estimate(self, multiplier):
+    def _opencl_estimate(self, multiplier: float) -> None:
         """Estimate VRAM values from the configured OpenCL device.
 
         The method stores total memory in bytes (``global_mem_size`` is
@@ -370,7 +421,7 @@ class GPU:
         self._fallback()
 
     @_check_types.do
-    def _fallback(self):  # NOQA
+    def _fallback(self) -> None:  # NOQA
         """Populate conservative default VRAM values.
 
         The fallback uses 4 GiB total VRAM and 2 GiB used VRAM.
@@ -382,7 +433,7 @@ class GPU:
         self.vram_use.value = 2147483648
 
     @_check_types.do
-    def get_chunk_size(self, width, height, target_usage=0.4):  # NOQA
+    def get_chunk_size(self, width: int, height: int, target_usage: float = 0.4) -> int:  # NOQA
         """Compute a render chunk height from the stored VRAM information.
 
         The method estimates per-chunk memory use for RGB ``float32`` pixels,

@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import (
@@ -39,7 +39,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
         return transition_branches.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -49,7 +49,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
         transition_branches.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -71,7 +71,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
             yield PJTTransitionBranch(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTTransitionBranch":
+    def __getitem__(self, item: int | bytes | str) -> "PJTTransitionBranch":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -116,9 +116,10 @@ class PJTTransitionBranchesTable(PJTTableBase):
         if branch_id < 1 or branch_id > 6:
             raise RuntimeError('sanity check')
 
-        db_id = PJTTableBase.insert(self, part_id=part_id, transition_id=transition_id,
-                                    point3d_id=point_id, branch_id=branch_id,
-                                    diameter=float(diameter))
+        db_id = PJTTableBase.insert(
+            self, part_id=part_id, transition_id=transition_id,
+            point3d_id=point_id, branch_id=branch_id, diameter=float(diameter),
+            point_pegboard_id=None, table_point_peg_id=None, table_hidden=0)
 
         # No peg-board data table of its own (unlike housing/bundle/
         # transition) -- a transition has ONE table, listing the wires of
@@ -176,8 +177,6 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
 
         return res
 
-    _stored_bundle: Union["_pjt_bundle.PJTBundle", None, DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def bundle(self) -> "_pjt_bundle.PJTBundle":
@@ -188,29 +187,22 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_bundle.PJTBundle`
         """
-        if self._stored_bundle is DefaultStoredValue:
-            position_id = self.position3d_id
-            bundles_table = self.table.db.pjt_bundles_table
+        position_id = self.position3d_id
+        bundles_table = self.table.db.pjt_bundles_table
 
-            # A brand-new branch (nothing attached yet) has no bundle row
-            # referencing its position at all -- the previous version of
-            # this indexed [0][0] straight into the (possibly empty)
-            # row list, crashing with IndexError, and its own fallback
-            # confused "a list of rows" with "a single id" (indexing
-            # [0][0] into a bytes id on the way out, which would itself
-            # have failed the moment this branch actually got a bundle).
-            rows = bundles_table.select('id', start_point3d_id=position_id)
-            if not rows:
-                rows = bundles_table.select('id', stop_point3d_id=position_id)
+        # A brand-new branch (nothing attached yet) has no bundle row
+        # referencing its position at all -- the previous version of
+        # this indexed [0][0] straight into the (possibly empty)
+        # row list, crashing with IndexError, and its own fallback
+        # confused "a list of rows" with "a single id" (indexing
+        # [0][0] into a bytes id on the way out, which would itself
+        # have failed the moment this branch actually got a bundle).
+        rows = bundles_table.select('id', start_point3d_id=position_id)
+        if not rows:
+            rows = bundles_table.select('id', stop_point3d_id=position_id)
 
-            if not rows:
-                self._stored_bundle = None
-            else:
-                self._stored_bundle = bundles_table[rows[0][0]]
-
-        return self._stored_bundle
-
-    _stored_concentric: Union["_pjt_concentric.PJTConcentric", None, DefaultStoredValueType] = DefaultStoredValue
+        if rows:
+            return bundles_table[rows[0][0]]
 
     @property
     @_check_types.do
@@ -222,22 +214,13 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_concentric.PJTConcentric`
         """
-        if self._stored_concentric is DefaultStoredValue:
-            rows = self.table.db.pjt_concentrics_table.select('id', transition_branch_id=self.db_id)
-            # A plain transition branch has no pjt_concentrics row at all
-            # any more (see .wires, which no longer needs one either) --
-            # an empty result means "not concentric-twisted", not an
-            # error, so this no longer indexes [0] blindly.
-            concentric_id = rows[0][0] if rows else None
-
-            if concentric_id is None:
-                self._stored_concentric = None
-            else:
-                self._stored_concentric = self.table.db.pjt_concentrics_table[concentric_id]
-
-        return self._stored_concentric
-
-    _stored_transition: Union["_pjt_transition.PJTTransition", DefaultStoredValueType] = DefaultStoredValue
+        rows = self.table.db.pjt_concentrics_table.select('id', transition_branch_id=self.db_id)
+        # A plain transition branch has no pjt_concentrics row at all
+        # any more (see .wires, which no longer needs one either) --
+        # an empty result means "not concentric-twisted", not an
+        # error, so this no longer indexes [0] blindly.
+        if rows:
+            return self.table.db.pjt_concentrics_table[rows[0][0]]
 
     @property
     @_check_types.do
@@ -249,13 +232,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition.PJTTransition`
         """
-        if self._stored_transition is DefaultStoredValue:
-            transition_id = self.transition_id
-            self._stored_transition = self._table.db.pjt_transitions_table[transition_id]
-
-        return self._stored_transition
-
-    _stored_transition_id: bytes | DefaultStoredValueType = DefaultStoredValue
+        return self._table.db.pjt_transitions_table[self.transition_id]
 
     @property
     @_check_types.do
@@ -267,14 +244,11 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_transition_id is DefaultStoredValue:
-            self._stored_transition_id = self._table.select('transition_id', id=self._db_id)[0][0]
-
-        return self._stored_transition_id
+        return self._table.select('transition_id', id=self._db_id)[0][0]
 
     @transition_id.setter
     @_check_types.do
-    def transition_id(self, value: bytes):
+    def transition_id(self, value: bytes) -> None:
         """Set the transition ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -282,13 +256,8 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_transition_id = value
-        self._stored_transition = DefaultStoredValue
-
         self._table.update(self._db_id, transition_id=value)
         self._populate('transition_id')
-
-    _stored_branch_id: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -300,14 +269,11 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :returns: Property value. UNKNOWN details.
         :rtype: int
         """
-        if self._stored_branch_id is DefaultStoredValue:
-            self._stored_branch_id = self._table.select('branch_id', id=self._db_id)[0][0]
-
-        return self._stored_branch_id
+        return self._table.select('branch_id', id=self._db_id)[0][0]
 
     @branch_id.setter
     @_check_types.do
-    def branch_id(self, value: int):
+    def branch_id(self, value: int) -> None:
         """Set the branch ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -315,11 +281,8 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :param value: Value to store or process.
         :type value: int
         """
-        self._stored_branch_id = value
         self._table.update(self._db_id, branch_id=value)
         self._populate('branch_id')
-
-    _stored_diameter: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -331,14 +294,11 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :returns: Property value. UNKNOWN details.
         :rtype: float
         """
-        if self._stored_diameter is DefaultStoredValue:
-            self._stored_diameter = self._table.select('diameter', id=self._db_id)[0][0]
-
-        return self._stored_diameter
+        return self._table.select('diameter', id=self._db_id)[0][0]
 
     @diameter.setter
     @_check_types.do
-    def diameter(self, value: float):
+    def diameter(self, value: float) -> None:
         """Set the diameter.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -346,14 +306,13 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         :param value: Value to store or process.
         :type value: float
         """
-        self._stored_diameter = value
         self._table.update(self._db_id, diameter=value)
         self._populate('diameter')
 
     _stored_part: _transition_branch.TransitionBranch | DefaultStoredValueType = DefaultStoredValue
 
     @_check_types.do
-    def reload_from_db(self):
+    def reload_from_db(self) -> None:
         """Execute the reload from database operation.
 
         UNKNOWN details are inferred from the callable name and signature.

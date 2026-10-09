@@ -16,8 +16,8 @@ class TripleFloatCtrl(QtWidgets.QWidget):
     """
 
     @_check_types.do
-    def __init__(self, parent, position_or_angle: _point.Point | _angle.Angle | None,
-                 color: _color.Color | None = None, register_events: bool = True, label=None):
+    def __init__(self, parent: QtWidgets.QWidget, position_or_angle: _point.Point | _angle.Angle | None,
+                 color: _color.Color | None = None, register_events: bool = True, label: str | None = None) -> None:
         """Initialise the :class:`TripleFloatCtrl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -105,7 +105,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
             self.z.value_changed.connect(self.on_z)
 
     @_check_types.do
-    def set_obj(self, position_or_angle):
+    def set_obj(self, position_or_angle: _point.Point | _angle.Angle | None) -> None:
 
         if self.position_or_angle is not None:
             self.position_or_angle.unbind(self.on_position_or_angle)
@@ -147,7 +147,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
             self.z.blockSignals(False)
 
     @_check_types.do
-    def on_position_or_angle(self, p):
+    def on_position_or_angle(self, p: _point.Point | _angle.Angle) -> None:
         """Handle the position or angle event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -164,7 +164,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.z.update()
 
     @_check_types.do
-    def on_x(self, value):
+    def on_x(self, value: float) -> None:
         """Handle the x event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -177,7 +177,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.position_or_angle.bind(self.on_position_or_angle)
 
     @_check_types.do
-    def on_y(self, value):
+    def on_y(self, value: float) -> None:
         """Handle the y event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -190,7 +190,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.position_or_angle.bind(self.on_position_or_angle)
 
     @_check_types.do
-    def on_z(self, value):
+    def on_z(self, value: float) -> None:
         """Handle the z event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -203,7 +203,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.position_or_angle.bind(self.on_position_or_angle)
 
     @_check_types.do
-    def setEnabled(self, flag):
+    def setEnabled(self, flag: bool) -> None:
         """Execute the set enabled operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -216,7 +216,7 @@ class TripleFloatCtrl(QtWidgets.QWidget):
         self.z.Enable(flag)
 
     @_check_types.do
-    def setToolTip(self, tip):
+    def setToolTip(self, tip: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.

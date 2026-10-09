@@ -20,6 +20,7 @@ from .... import check_types as _check_types
 
 if TYPE_CHECKING:
     from ....database.global_db import housing as _housing
+    from ....gl import shaders as _shaders
     from . import housing_editor as _housing_editor
 
 
@@ -32,7 +33,7 @@ class Housing(_objects.ObjectBase):
 
     @_check_types.do
     def __init__(self, parent: "_housing_editor.HousingEditorDialog",
-                 housing: "_housing.Housing"):
+                 housing: "_housing.Housing") -> None:
         """Initialise the :class:`Housing` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -52,7 +53,7 @@ class Housing(_objects.ObjectBase):
         parent.add_object(self)
 
     @_check_types.do
-    def set_selected(self, flag):
+    def set_selected(self, flag: bool) -> None:
         pass
         # if self.dialog.can_select:
         #     super().set_selected(flag)
@@ -66,7 +67,7 @@ class Housing3D(_base_3d.Base3D):
     db_obj: "_housing.Housing" = None
 
     @_check_types.do
-    def __init__(self, parent: Housing, db_obj: "_housing.Housing"):
+    def __init__(self, parent: Housing, db_obj: "_housing.Housing") -> None:
         """Initialise the :class:`Housing3D` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -133,7 +134,7 @@ class Housing3D(_base_3d.Base3D):
             self.editor3d.Refresh(False)
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Update the position.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -147,20 +148,20 @@ class Housing3D(_base_3d.Base3D):
 
 class HousingPegboard(_base_pegboard.BasePegboard):
 
-    def __init__(self, parent, db_obj):
+    def __init__(self, parent: Housing, db_obj: "_housing.Housing") -> None:
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
 
 class HousingSchematic(_base_schematic.BaseSchematic):
 
-    def __init__(self, parent, db_obj):
+    def __init__(self, parent: Housing, db_obj: "_housing.Housing") -> None:
 
         super().__init__(parent, db_obj, None, None,
                          None, None, None)
 
-    def render(self, shaders):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         pass

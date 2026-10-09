@@ -1,5 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase, DefaultStoredValue, DefaultStoredValueType
@@ -28,7 +29,7 @@ class AdhesivesTable(TableBase):
         return adhesives.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -44,7 +45,7 @@ class AdhesivesTable(TableBase):
         adhesives.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +67,7 @@ class AdhesivesTable(TableBase):
             yield Adhesive(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Adhesive":
+    def __getitem__(self, item: int | bytes | str) -> "Adhesive":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -132,7 +133,7 @@ class Adhesive(EntryBase, DescriptionMixin):
 
     @code.setter
     @_check_types.do
-    def code(self, value: str):
+    def code(self, value: str) -> None:
         """Set the code.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -164,7 +165,7 @@ class Adhesive(EntryBase, DescriptionMixin):
 
     @accessory_part_nums.setter
     @_check_types.do
-    def accessory_part_nums(self, value: list[str]):
+    def accessory_part_nums(self, value: list[str]) -> None:
         """Set the accessory part nums.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -214,3 +215,7 @@ class Adhesive(EntryBase, DescriptionMixin):
 
 
 from . import accessory as _accessory  # NOQA
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash

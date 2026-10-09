@@ -2,6 +2,7 @@
 
 """Reactive point primitives shared across the geometry subsystem."""
 
+from typing import TYPE_CHECKING
 from typing import Self, Any, Union as _Union
 from collections.abc import Iterable
 
@@ -271,7 +272,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
     """
 
     @_check_types.do
-    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: object, instance: object,
+    def __array_ufunc__(self, func: np.ufunc, _: str, inputs: _Union["Point", "_angle.Angle", "_line.Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None], instance: _Union["Point", "_angle.Angle", "_line.Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None],
                          out: tuple[np.ndarray, ...] | None = None, **__: dict[str, Any]) -> np.ndarray:
         """
         Handle selected NumPy ufuncs involving a point.
@@ -989,7 +990,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return not all(np.isclose(self._data, arr))
 
     @_check_types.do
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: _Union["Point", "_angle.Angle", "_line.Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None]) -> bool:
         """Return whether this point matches ``other`` component-wise.
 
         :param other: Value to compare against -- ``False`` for anything
@@ -1005,7 +1006,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         return all(np.isclose(self._data, other.as_numpy))
 
     @_check_types.do
-    def __ne__(self, other: object) -> bool:
+    def __ne__(self, other: _Union["Point", "_angle.Angle", "_line.Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None]) -> bool:
         """Return whether this point differs from ``other``.
 
         :param other: Value to compare against -- ``True`` for anything
@@ -1193,3 +1194,8 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
 ZERO_POINT = Point(0.0, 0.0, 0.0)
 
 from . import angle as _angle  # NOQA
+
+
+if TYPE_CHECKING:
+    from . import line as _line
+    from .angle import quaternion as _quaternion

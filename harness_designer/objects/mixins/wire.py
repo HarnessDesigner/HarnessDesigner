@@ -62,7 +62,7 @@ class WireTypeMixin:
     # navigation and static type-checking keep working.
     # ------------------------------------------------------------------
 
-    def _waypoints(self, db_obj):
+    def _waypoints(self, db_obj) -> None:
         """Return *db_obj*'s own ordered interior waypoints for this
         view (e.g. ``db_obj.waypoints3d`` / ``db_obj.waypoints_pegboard``).
         """
@@ -74,6 +74,16 @@ class WireTypeMixin:
         """Resolve *mouse_pos* to ``(closest_point, segment_index)`` on
         this wire's own current path -- see the module docstring for why
         this is a required override, not shared math.
+        """
+        raise NotImplementedError
+
+    def _endpoint_diameter(self) -> float:
+        """Return this object's own diameter in mm, used to size the
+        endpoint-snap tolerance in :meth:`get_closest_endpoint`.
+
+        A wire reads its catalog part's ``od_mm``, but a bundle's
+        ``part`` is a BundleCover (no ``od_mm``), so each concrete
+        wire/bundle class supplies its own.
         """
         raise NotImplementedError
 
@@ -151,7 +161,7 @@ class WireTypeMixin:
         dist_to_p1 = np.linalg.norm(closest_point - p1)
         dist_to_p2 = np.linalg.norm(closest_point - p2)
 
-        wire_diameter = self.db_obj.part.od_mm
+        wire_diameter = self._endpoint_diameter()
         tolerance = max(wire_diameter, endpoint_tolerance)
 
         if dist_to_p1 < tolerance:

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Iterable as _Iterable
 
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
 from ... import check_types as _check_types
 
@@ -43,13 +43,13 @@ class PJTWirePathsTable(PJTTableBase):
         return wire_paths.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         from ..create_database import wire_paths
 
         wire_paths.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         from ..create_database import wire_paths
 
         wire_paths.pjt_table.update_fields(self)
@@ -60,7 +60,7 @@ class PJTWirePathsTable(PJTTableBase):
             yield PJTWirePath(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTWirePath":
+    def __getitem__(self, item: int | bytes | str) -> "PJTWirePath":
         if isinstance(item, (int, bytes)):
             if item in PJTWirePath or item in self:
                 return PJTWirePath(self, item)
@@ -135,16 +135,15 @@ class PJTWirePathsTable(PJTTableBase):
 
     @_check_types.do
     def _renumber(self, pairs: list[tuple[int, bytes]]) -> None:
-        """Write new ``idx`` values for many rows in ONE transaction and
-        bring any live row object's cached value up to date.
+        """Write new ``idx`` values for many rows in ONE transaction.
+
+        ``idx`` has no local cache to refresh any more -- its getter
+        always reads straight through -- so nothing further is needed
+        once the batch write lands.
 
         :param pairs: ``(new_idx, row_id)`` for each row to change.
         """
         self.batch_update(['idx'], pairs)
-
-        for new_idx, row_id in pairs:
-            if row_id in PJTWirePath:
-                PJTWirePath(self, row_id)._stored_idx = new_idx  # NOQA
 
     @_check_types.do
     def for_wire(self, wire_id: bytes, view: str) -> list["PJTWirePath"]:
@@ -391,21 +390,16 @@ class PJTWirePath(PJTEntryBase):
     def table(self) -> PJTWirePathsTable:
         return self._table
 
-    _stored_wire_id: bytes | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def wire_id(self) -> bytes:
-        if self._stored_wire_id is DefaultStoredValue:
-            self._stored_wire_id = self._table.select('wire_id', id=self._db_id)[0][0]
-
-        return self._stored_wire_id
+        return self._table.select('wire_id', id=self._db_id)[0][0]
 
     @wire_id.setter
     @_check_types.do
-    def wire_id(self, value: bytes):
-        self._stored_wire_id = value
+    def wire_id(self, value: bytes) -> None:
         self._table.update(self._db_id, wire_id=value)
+        self._populate('wire_id')
 
     @property
     @_check_types.do
@@ -413,94 +407,73 @@ class PJTWirePath(PJTEntryBase):
         """The wire this row belongs to."""
         return self._table.db.pjt_wires_table[self.wire_id]
 
-    _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def idx(self) -> int:
         """This row's position in its wire's route for its view. Changing
         it does not move any other row; the caller keeps the wire's route
         contiguous."""
-        if self._stored_idx is DefaultStoredValue:
-            self._stored_idx = self._table.select('idx', id=self._db_id)[0][0]
-
-        return self._stored_idx
+        return self._table.select('idx', id=self._db_id)[0][0]
 
     @idx.setter
     @_check_types.do
-    def idx(self, value: int):
-        self._stored_idx = value
+    def idx(self, value: int) -> None:
         self._table.update(self._db_id, idx=value)
-
-    _stored_point3d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('idx')
 
     @property
     @_check_types.do
     def point3d_id(self) -> bytes | None:
         """The shared 3D point this row references, or ``None`` when the
         row belongs to another view's route."""
-        if self._stored_point3d_id is DefaultStoredValue:
-            self._stored_point3d_id = self._table.select('point3d_id', id=self._db_id)[0][0]
-
-        return self._stored_point3d_id
+        return self._table.select('point3d_id', id=self._db_id)[0][0]
 
     @point3d_id.setter
     @_check_types.do
-    def point3d_id(self, value: bytes):
+    def point3d_id(self, value: bytes) -> None:
         """Point this row at a 3D point -- clears the other views' point
         columns so exactly one stays populated."""
-        self._stored_point3d_id = value
-        self._stored_point_pegboard_id = None
-        self._stored_point2d_id = None
         self._table.update(
             self._db_id, point3d_id=value, point_pegboard_id=None, point2d_id=None)
-
-    _stored_point_pegboard_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('point3d_id')
+        self._populate('point_pegboard_id')
+        self._populate('point2d_id')
 
     @property
     @_check_types.do
     def point_pegboard_id(self) -> bytes | None:
         """The shared peg-board point this row references, or ``None``
         when the row belongs to another view's route."""
-        if self._stored_point_pegboard_id is DefaultStoredValue:
-            self._stored_point_pegboard_id = self._table.select(
-                'point_pegboard_id', id=self._db_id)[0][0]
-
-        return self._stored_point_pegboard_id
+        return self._table.select('point_pegboard_id', id=self._db_id)[0][0]
 
     @point_pegboard_id.setter
     @_check_types.do
-    def point_pegboard_id(self, value: bytes):
+    def point_pegboard_id(self, value: bytes) -> None:
         """Point this row at a peg-board point -- clears the other views'
         point columns so exactly one stays populated."""
-        self._stored_point_pegboard_id = value
-        self._stored_point3d_id = None
-        self._stored_point2d_id = None
         self._table.update(
             self._db_id, point_pegboard_id=value, point3d_id=None, point2d_id=None)
-
-    _stored_point2d_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('point_pegboard_id')
+        self._populate('point3d_id')
+        self._populate('point2d_id')
 
     @property
     @_check_types.do
     def point2d_id(self) -> bytes | None:
         """The shared schematic point this row references, or ``None``
         when the row belongs to another view's route."""
-        if self._stored_point2d_id is DefaultStoredValue:
-            self._stored_point2d_id = self._table.select('point2d_id', id=self._db_id)[0][0]
-
-        return self._stored_point2d_id
+        return self._table.select('point2d_id', id=self._db_id)[0][0]
 
     @point2d_id.setter
     @_check_types.do
-    def point2d_id(self, value: bytes):
+    def point2d_id(self, value: bytes) -> None:
         """Point this row at a schematic point -- clears the other views'
         point columns so exactly one stays populated."""
-        self._stored_point2d_id = value
-        self._stored_point3d_id = None
-        self._stored_point_pegboard_id = None
         self._table.update(
             self._db_id, point2d_id=value, point3d_id=None, point_pegboard_id=None)
+        self._populate('point2d_id')
+        self._populate('point3d_id')
+        self._populate('point_pegboard_id')
 
     @property
     @_check_types.do
@@ -547,72 +520,51 @@ class PJTWirePath(PJTEntryBase):
 
         return db.pjt_points2d_table[self.point2d_id].point
 
-    _stored_bundle_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def bundle_id(self) -> bytes | None:
         """The bundle whose span this row lies inside, or ``None``."""
-        if self._stored_bundle_id is DefaultStoredValue:
-            self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
-
-        return self._stored_bundle_id
+        return self._table.select('bundle_id', id=self._db_id)[0][0]
 
     @bundle_id.setter
     @_check_types.do
-    def bundle_id(self, value: bytes | None):
-        self._stored_bundle_id = value
+    def bundle_id(self, value: bytes | None) -> None:
         self._table.update(self._db_id, bundle_id=value)
-
-    _stored_concentric_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('bundle_id')
 
     @property
     @_check_types.do
     def concentric_id(self) -> bytes | None:
         """The concentric twist this row belongs to, or ``None``."""
-        if self._stored_concentric_id is DefaultStoredValue:
-            self._stored_concentric_id = self._table.select('concentric_id', id=self._db_id)[0][0]
-
-        return self._stored_concentric_id
+        return self._table.select('concentric_id', id=self._db_id)[0][0]
 
     @concentric_id.setter
     @_check_types.do
-    def concentric_id(self, value: bytes | None):
-        self._stored_concentric_id = value
+    def concentric_id(self, value: bytes | None) -> None:
         self._table.update(self._db_id, concentric_id=value)
-
-    _stored_transition_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('concentric_id')
 
     @property
     @_check_types.do
     def transition_id(self) -> bytes | None:
         """The transition this row is the centre of, or a branch position
         of, or ``None``."""
-        if self._stored_transition_id is DefaultStoredValue:
-            self._stored_transition_id = self._table.select('transition_id', id=self._db_id)[0][0]
-
-        return self._stored_transition_id
+        return self._table.select('transition_id', id=self._db_id)[0][0]
 
     @transition_id.setter
     @_check_types.do
-    def transition_id(self, value: bytes | None):
-        self._stored_transition_id = value
+    def transition_id(self, value: bytes | None) -> None:
         self._table.update(self._db_id, transition_id=value)
-
-    _stored_transition_branch_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        self._populate('transition_id')
 
     @property
     @_check_types.do
     def transition_branch_id(self) -> bytes | None:
         """The transition branch this row is the position of, or ``None``."""
-        if self._stored_transition_branch_id is DefaultStoredValue:
-            self._stored_transition_branch_id = self._table.select(
-                'transition_branch_id', id=self._db_id)[0][0]
-
-        return self._stored_transition_branch_id
+        return self._table.select('transition_branch_id', id=self._db_id)[0][0]
 
     @transition_branch_id.setter
     @_check_types.do
-    def transition_branch_id(self, value: bytes | None):
-        self._stored_transition_branch_id = value
+    def transition_branch_id(self, value: bytes | None) -> None:
         self._table.update(self._db_id, transition_branch_id=value)
+        self._populate('transition_branch_id')

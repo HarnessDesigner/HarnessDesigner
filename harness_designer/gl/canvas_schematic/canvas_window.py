@@ -2,9 +2,6 @@
 
 from typing import TYPE_CHECKING
 
-from PySide6 import QtWidgets
-from PySide6 import QtCore
-
 from . import canvas as _canvas
 from ... import check_types as _check_types
 from ..canvas_base import canvas_window_base as _canvas_window_base
@@ -12,6 +9,7 @@ from ..canvas_base import canvas_window_base as _canvas_window_base
 if TYPE_CHECKING:
     from ... import ui as _ui
     from ... import config as _config
+    from ...objects import object_base as _objects_unused
 
 
 class CanvasWindow(_canvas_window_base.CanvasWindowBase):
@@ -21,7 +19,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
 
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
-                 config: "_config.Config.editor_schematic", size=None):
+                 config: "_config.Config.editor_schematic", size: tuple[int, int] | None = None) -> None:
         """
         Initialise the :class:`Canvas2D` instance.
 
@@ -40,7 +38,7 @@ class CanvasWindow(_canvas_window_base.CanvasWindowBase):
         super().__init__(mainframe, config, size)
 
     @_check_types.do
-    def add_preview_object(self, obj):
+    def add_preview_object(self, obj: "_objects.ObjectBase") -> None:
         """Register a wire that is still being drawn -- see
         :meth:`Canvas.add_preview_object`."""
 

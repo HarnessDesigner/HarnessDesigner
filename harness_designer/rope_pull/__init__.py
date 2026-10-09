@@ -38,8 +38,9 @@ def solve_chain(
     required_length: float,
     drag_end: DragEnd,
     target: tuple[float, float],
-    height_cap_fraction: float,
-    min_height_mm: float,
+    diameter_mm: float,
+    zigzag_length_factor: float,
+    threshold_factor: float,
     tolerance: float = 1e-6,
 ) -> ChainResult:
     """See :func:`~.rope_pull_py.solve_chain` for the full contract --
@@ -50,10 +51,10 @@ def solve_chain(
     if _rope_pull_ext is None:
         return _rope_pull_py.solve_chain(
             start, stop, required_length, drag_end, target,
-            height_cap_fraction, min_height_mm, tolerance)
+            diameter_mm, zigzag_length_factor, threshold_factor, tolerance)
 
     accepted, points = _rope_pull_ext.solve_chain(
         start, stop, required_length, _DRAG_END_TO_INT[drag_end], target,
-        height_cap_fraction, min_height_mm, tolerance)
+        diameter_mm, zigzag_length_factor, threshold_factor, tolerance)
 
     return ChainResult(accepted, points)

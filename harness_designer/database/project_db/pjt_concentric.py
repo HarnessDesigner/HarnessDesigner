@@ -1,9 +1,9 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Iterable as _Iterable, Union
+from typing import TYPE_CHECKING, Iterable as _Iterable, Union as _Union
 
 from ...ui import prop_ctrls as _prop_ctrls
-from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
+from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
 from ... import check_types as _check_types
 
@@ -36,7 +36,7 @@ class PJTConcentricsTable(PJTTableBase):
         return concentrics.pjt_table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self):
+    def _add_table_to_db(self) -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +46,7 @@ class PJTConcentricsTable(PJTTableBase):
         concentrics.pjt_table.add_to_db(self)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +68,7 @@ class PJTConcentricsTable(PJTTableBase):
             yield PJTConcentric(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "PJTConcentric":
+    def __getitem__(self, item: int | bytes | str) -> "PJTConcentric":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -102,7 +102,8 @@ class PJTConcentricsTable(PJTTableBase):
         :rtype: :class:`PJTConcentric`
         """
 
-        db_id = PJTTableBase.insert(self, bundle_id=bundle_id, transition_branch_id=transition_branch_id)
+        db_id = PJTTableBase.insert(
+            self, bundle_id=bundle_id, transition_branch_id=transition_branch_id, notes='')
 
         return PJTConcentric(self, db_id)
 
@@ -159,8 +160,6 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         """
         return self._table
 
-    _stored_bundle: Union["_pjt_bundle.PJTBundle", None, DefaultStoredValueType] = DefaultStoredValue
-
     @property
     @_check_types.do
     def bundle(self) -> "_pjt_bundle.PJTBundle":
@@ -171,16 +170,9 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_bundle.PJTBundle`
         """
-        if self._stored_bundle is DefaultStoredValue:
-            bundle_id = self.bundle_id
-            if bundle_id is None:
-                self._stored_bundle = None
-            else:
-                self._stored_bundle = self._table.db.pjt_bundles_table[bundle_id]
-
-        return self._stored_bundle
-
-    _stored_bundle_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        bundle_id = self.bundle_id
+        if bundle_id is not None:
+            return self._table.db.pjt_bundles_table[bundle_id]
 
     @property
     @_check_types.do
@@ -192,14 +184,11 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_bundle_id is DefaultStoredValue:
-            self._stored_bundle_id = self._table.select('bundle_id', id=self._db_id)[0][0]
-
-        return self._stored_bundle_id
+        return self._table.select('bundle_id', id=self._db_id)[0][0]
 
     @bundle_id.setter
     @_check_types.do
-    def bundle_id(self, value: bytes):
+    def bundle_id(self, value: bytes) -> None:
         """Set the bundle ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -207,13 +196,8 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_bundle_id = value
-        self._stored_bundle = DefaultStoredValue
-
         self._table.update(self._db_id, bundle_id=value)
         self._populate('bundle_id')
-
-    _stored_transition_branch: Union["_pjt_transition_branches.PJTTransitionBranch", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
     @_check_types.do
@@ -225,16 +209,9 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: :class:`_pjt_transition_branches.PJTTransitionBranch`
         """
-        if self._stored_transition_branch is DefaultStoredValue:
-            transition_branch_id = self.transition_branch_id
-            if transition_branch_id is None:
-                self._stored_transition_branch = None
-            else:
-                self._stored_transition_branch = self._table.db.pjt_transition_branches_table[transition_branch_id]
-
-        return self._stored_transition_branch
-
-    _stored_transition_branch_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
+        transition_branch_id = self.transition_branch_id
+        if transition_branch_id is not None:
+            return self._table.db.pjt_transition_branches_table[transition_branch_id]
 
     @property
     @_check_types.do
@@ -246,14 +223,11 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bytes
         """
-        if self._stored_transition_branch_id is DefaultStoredValue:
-            self._stored_transition_branch_id = self._table.select('transition_branch_id', id=self._db_id)[0][0]
-
-        return self._stored_transition_branch_id
+        return self._table.select('transition_branch_id', id=self._db_id)[0][0]
 
     @transition_branch_id.setter
     @_check_types.do
-    def transition_branch_id(self, value: bytes):
+    def transition_branch_id(self, value: bytes) -> None:
         """Set the transition branch ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -261,9 +235,6 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         :param value: Value to store or process.
         :type value: bytes
         """
-        self._stored_transition_branch_id = value
-        self._stored_transition_branch = DefaultStoredValue
-
         self._table.update(self._db_id, transition_branch_id=value)
         self._populate('transition_branch_id')
 

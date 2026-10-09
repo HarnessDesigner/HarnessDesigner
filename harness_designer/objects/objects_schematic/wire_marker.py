@@ -1,13 +1,13 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import math
 
 import numpy as np
 
-from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QMenu
+
+from PySide6 import QtCore, QtWidgets
 
 from . import base_schematic as _base_schematic
 from ...geometry import point as _point
@@ -25,6 +25,8 @@ Config = _config.Config.editor_schematic
 
 
 if TYPE_CHECKING:
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from .. import ObjectBase as _ObjectBase
     from .. import wire_marker as _wire_marker
     from ...database.project_db import pjt_wire_marker as _pjt_wire_marker
     from ...database.project_db import pjt_wire as _pjt_wire
@@ -58,7 +60,7 @@ class WireMarker(_base_schematic.BaseSchematic):
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",
-                 db_obj: "_pjt_wire_marker.PJTWireMarker"):
+                 db_obj: "_pjt_wire_marker.PJTWireMarker") -> None:
         """Initialise the :class:`WireMarker` instance.
 
         :param parent: Parent object.
@@ -139,7 +141,7 @@ class WireMarker(_base_schematic.BaseSchematic):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -236,7 +238,7 @@ class WireMarker(_base_schematic.BaseSchematic):
         return line.point_from_start(distance)
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """Update the position.
 
         Two independent triggers land here (both endpoints bind this same
@@ -340,7 +342,7 @@ class WireMarker(_base_schematic.BaseSchematic):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Along-the-wire drag -- overrides BaseSchematic's generic
         single-position drag so the specific WireMarker handler gets
@@ -378,14 +380,14 @@ class WireMarker(_base_schematic.BaseSchematic):
         return True
 
 
-class WireMarkerMenu(QMenu):
+class WireMarkerMenu(QtWidgets.QMenu):
     """Represent a wire marker menu in :mod:`harness_designer.objects.objects_schematic.wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
     @_check_types.do
-    def __init__(self, canvas, selected):
+    def __init__(self, canvas: "_editor_schematic.EditorSchematicPanel", selected: "WireMarker") -> None:
         """Initialise the :class:`WireMarkerMenu` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -395,7 +397,7 @@ class WireMarkerMenu(QMenu):
         :param selected: Value for ``selected``.
         :type selected: UNKNOWN
         """
-        QMenu.__init__(self)
+        QtWidgets.QMenu.__init__(self)
         self.canvas = canvas
         self.selected = selected
 
@@ -422,16 +424,15 @@ class WireMarkerMenu(QMenu):
         action.triggered.connect(self.on_properties)
 
     @_check_types.do
-    def on_set_label(self):
+    def on_set_label(self) -> None:
         """Edit the marker label."""
         @_check_types.do
-        def _do():
-            from PySide6.QtWidgets import QInputDialog
+        def _do() -> None:
 
             mainframe = self.selected.mainframe
             current = self.selected.db_obj.label or ''
 
-            label, ok = QInputDialog.getText(
+            label, ok = QtWidgets.QInputDialog.getText(
                 mainframe, 'Set Label', 'Label:', text=current)
 
             if not ok or label == current:
@@ -440,10 +441,10 @@ class WireMarkerMenu(QMenu):
             self.selected.db_obj.label = label
             self.selected.editor2d.Refresh()
 
-        QTimer.singleShot(0, _do)
+        QtCore.QTimer.singleShot(0, _do)
 
     @_check_types.do
-    def on_flip_label(self):
+    def on_flip_label(self) -> None:
         """Handle the flip label event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -451,7 +452,7 @@ class WireMarkerMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_select(self):
+    def on_select(self) -> None:
         """Handle the select event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -459,7 +460,7 @@ class WireMarkerMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_clone(self):
+    def on_clone(self) -> None:
         """Handle the clone event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -467,7 +468,7 @@ class WireMarkerMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_delete(self):
+    def on_delete(self) -> None:
         """Handle the delete event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -475,7 +476,7 @@ class WireMarkerMenu(QMenu):
         pass
 
     @_check_types.do
-    def on_properties(self):
+    def on_properties(self) -> None:
         """Handle the properties event.
 
         UNKNOWN details are inferred from the callable name and signature.

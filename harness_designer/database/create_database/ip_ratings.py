@@ -1,12 +1,18 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .. import db_connectors as _con
+from typing import TYPE_CHECKING
 
+from .. import db_connectors as _con
 from . import ip_supps as _ip_supps
 from . import ip_fluids as _ip_fluids
 from . import ip_solids as _ip_solids
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
+    from ..db_connectors import base as _connector_base
 
 # Positional index -> ip_solids.name / ip_fluids.name, matching the order
 # each was seeded in (see ip_solids.py/ip_fluids.py add_records) -- this
@@ -17,7 +23,7 @@ _FLUID_NAMES_BY_INDEX = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '6K',
 
 
 @_check_types.do
-def add_records(con, splash, _=None):
+def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", _: str | None = None) -> None:
     """
     Add a records.
 
@@ -106,7 +112,7 @@ def add_records(con, splash, _=None):
 
 
 @_check_types.do
-def get_ip_rating_id(con, ip_rating):  # NOQA
+def get_ip_rating_id(con: "_connector_base.ConnectorBase", ip_rating: str) -> bytes:  # NOQA
     """
     Return the ip rating ID.
 

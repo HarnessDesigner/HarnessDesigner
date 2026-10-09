@@ -8,7 +8,6 @@ from . import bundle_covers as _bundle_covers
 from . import concentrics as _concentrics
 from . import transitions as _transitions
 from . import transition_branches as _transition_branches
-
 from .. import db_connectors as _con
 
 

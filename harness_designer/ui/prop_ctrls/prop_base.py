@@ -1,24 +1,22 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QSizePolicy
-)
-from PySide6.QtCore import Signal
+from PySide6 import QtCore, QtWidgets
 
 from . import events as _events
 from ... import check_types as _check_types
 
 
-class Property(QWidget):
+class Property(QtWidgets.QWidget):
     """Represent a property in :mod:`harness_designer.ui.prop_ctrls.prop_base`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    propertyChanged = Signal(object)
+    propertyChanged = QtCore.Signal(object)
 
     @_check_types.do
-    def __init__(self, parent, label, orientation=None):
+    def __init__(self, parent: QtWidgets.QWidget, label: str,
+                 orientation: str | None = None) -> None:
         """Initialise the :class:`Property` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -30,7 +28,7 @@ class Property(QWidget):
         :param orientation: Value for ``orientation``.
         :type orientation: UNKNOWN
         """
-        QWidget.__init__(self, parent)
+        QtWidgets.QWidget.__init__(self, parent)
 
         self._label = label
         self._ctrl = None
@@ -42,39 +40,39 @@ class Property(QWidget):
         self._orientation = orientation
 
         if orientation is None:
-            self._sizer = QVBoxLayout()
+            self._sizer = QtWidgets.QVBoxLayout()
             self._sizer.setContentsMargins(0, 0, 0, 0)
             self.setLayout(self._sizer)
         else:
-            self._static_box = QGroupBox(label, self)
+            self._static_box = QtWidgets.QGroupBox(label, self)
 
             if orientation == 'vertical':
-                self._sizer = QVBoxLayout()
+                self._sizer = QtWidgets.QVBoxLayout()
                 self._sizer.setContentsMargins(4, 4, 4, 4)
                 self._static_box.setLayout(self._sizer)
 
-                sizer = QHBoxLayout()
+                sizer = QtWidgets.QHBoxLayout()
                 sizer.addWidget(self._static_box, 1)
                 self.setLayout(sizer)
 
             else:
-                self._sizer = QHBoxLayout()
+                self._sizer = QtWidgets.QHBoxLayout()
                 self._sizer.setContentsMargins(5, 5, 5, 5)
                 self._static_box.setLayout(self._sizer)
 
-                sizer = QVBoxLayout()
+                sizer = QtWidgets.QVBoxLayout()
                 sizer.addWidget(self._static_box, 1)
                 self.setLayout(sizer)
 
     @_check_types.do
-    def addWidget(self, widget):
-        if isinstance(self._sizer, QHBoxLayout):
+    def addWidget(self, widget: QtWidgets.QWidget) -> None:
+        if isinstance(self._sizer, QtWidgets.QHBoxLayout):
             self._sizer.addWidget(widget)
         else:
             self._sizer.addWidget(widget, 1)
 
     @_check_types.do
-    def SetToolTip(self, text):
+    def SetToolTip(self, text: str) -> None:
         """Execute the set tool tip operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -87,7 +85,7 @@ class Property(QWidget):
         if self._ctrl is not None:
             self._ctrl.setToolTip(text)
         else:
-            QWidget.setToolTip(self, text)
+            QtWidgets.QWidget.setToolTip(self, text)
 
     @_check_types.do
     def GetLabel(self) -> str:
@@ -101,7 +99,7 @@ class Property(QWidget):
         return self._label
 
     @_check_types.do
-    def SetLabel(self, value: str):
+    def SetLabel(self, value: str) -> None:
         """Execute the set label operation.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -116,7 +114,7 @@ class Property(QWidget):
             self._st.setText(value + ':')
 
     @_check_types.do
-    def _send_changed_event(self, value_type, value):
+    def _send_changed_event(self, value_type: type, value: "_events.PropertyValue") -> None:
         """Execute the send changed event operation.
 
         UNKNOWN details are inferred from the callable name and signature.

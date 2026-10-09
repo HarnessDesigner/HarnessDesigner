@@ -1,16 +1,24 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING, Any, Union as _Union
+
 from .. import config as _config
 
 
 Config = _config.Config.database
 
 
+if TYPE_CHECKING:
+    import sqlite3
+    from mysql.connector.connection import MySQLConnection
+    from mysql.connector.cursor import MySQLCursor
+
+
 class BaseConnector:
 
     """Wrap a low-level database connection used by monitor workers.
     """
-    def __init__(self, con, cur):
+    def __init__(self, con: _Union["sqlite3.Connection", "MySQLConnection"], cur: _Union["sqlite3.Cursor", "MySQLCursor"]) -> None:
         """Initialize the connection and cursor wrapper.
 
         :param con: Open database connection.
@@ -21,7 +29,7 @@ class BaseConnector:
         self._connection = con
         self._cursor = cur
 
-    def execute(self, cmd, params=None):
+    def execute(self, cmd: str, params: tuple | None = None) -> None:
         """Execute a SQL statement with the wrapped cursor.
 
         :param cmd: SQL command string to execute.
@@ -37,7 +45,7 @@ class BaseConnector:
         else:
             self._cursor.execute(cmd, params)
 
-    def fetchall(self):
+    def fetchall(self) -> list[tuple]:
         """Fetch all rows from the wrapped cursor.
 
         :returns: All remaining rows from the cursor.
@@ -45,7 +53,7 @@ class BaseConnector:
         """
         return self._cursor.fetchall()
 
-    def commit(self):
+    def commit(self) -> None:
         """Commit the wrapped database transaction.
 
         :returns: ``None``.
@@ -53,7 +61,7 @@ class BaseConnector:
         """
         self._connection.commit()
 
-    def close(self):
+    def close(self) -> None:
         """Close the wrapped cursor and connection if possible.
 
         :returns: ``None``.
@@ -70,7 +78,7 @@ class MySQLConnector(BaseConnector):
 
     """Open a monitor-side connection to a MySQL database.
     """
-    def __init__(self, host, port, user, password, database):
+    def __init__(self, host: str, port: int, user: str, password: str, database: str) -> None:
         """Initialize the MySQL monitor connector.
 
         :param host: MySQL host name or address.
@@ -122,7 +130,7 @@ class SQLiteConnector(BaseConnector):
 
     """Open a monitor-side connection to a SQLite database.
     """
-    def __init__(self, path):
+    def __init__(self, path: str) -> None:
         """Initialize the SQLite monitor connector.
 
         :param path: Path to the SQLite database file.
@@ -136,7 +144,7 @@ class SQLiteConnector(BaseConnector):
         super().__init__(con, cur)
 
 
-def connect_to_database(credentials):
+def connect_to_database(credentials: dict[str, Any]) -> _Union["BaseConnector", None]:
     """Create a monitor connector from stored credentials.
 
     :param credentials: Credential dictionary previously stored in the keyring.

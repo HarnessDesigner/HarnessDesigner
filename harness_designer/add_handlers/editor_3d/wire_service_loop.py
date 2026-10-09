@@ -13,7 +13,7 @@ placeholder-preview phase here at all -- the real, already-split preview
 is the target from the start.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -29,6 +29,7 @@ from ... import check_types as _check_types
 if TYPE_CHECKING:
     from ...gl.canvas_3d import canvas as _canvas
     from ... import objects as _objects
+    from ... import ui as _ui
     from ...objects import wire as _wire
     from ...objects import wire_layout as _wire_layout
 
@@ -37,15 +38,15 @@ class SplitState:
     """Snapshot of the wire that's been split to make room for the loop --
     see handlers.wire_service_loop_handler._SplitState, ported verbatim.
     """
-    wire1: "_wire.Wire" = None
-    wire2: "_wire.Wire" = None
-    layout1: "_wire_layout.WireLayout" = None
-    layout2: "_wire_layout.WireLayout" = None
-    line: _line.Line = None
+    wire1: _Union["_wire.Wire", None] = None
+    wire2: _Union["_wire.Wire", None] = None
+    layout1: _Union["_wire_layout.WireLayout", None] = None
+    layout2: _Union["_wire_layout.WireLayout", None] = None
+    line: _line.Line | None = None
 
 
 @_check_types.do
-def wire_segments(wire: "_wire.Wire"):
+def wire_segments(wire: "_wire.Wire") -> list[tuple[np.ndarray, np.ndarray]]:
     """Every (p1, p2) sub-segment of *wire*'s current 3D path, as numpy
     arrays. Ported from handlers.wire_service_loop_handler._wire_segments."""
     points = [wire.obj3d.start_position.as_numpy]
@@ -58,7 +59,7 @@ def wire_segments(wire: "_wire.Wire"):
 
 @_check_types.do
 def split_wire_for_loop(
-    mainframe, wire: "_wire.Wire", start_point_id, stop_point_id, seg_idx: int
+    mainframe: "_ui.MainFrame", wire: "_wire.Wire", start_point_id: bytes, stop_point_id: bytes, seg_idx: int
 ) -> SplitState:
     """Cut *wire* into two pieces around a gap spanning start_point_id/
     stop_point_id, and insert a WireLayout at each cut. Ported from
@@ -92,7 +93,7 @@ def split_wire_for_loop(
 
 
 @_check_types.do
-def restore_wire_from_split(mainframe, state: SplitState) -> None:
+def restore_wire_from_split(mainframe: "_ui.MainFrame", state: SplitState) -> None:
     """Reverse split_wire_for_loop. Ported from
     AddWireServiceLoopHandler._restore_wire_from_split."""
     project = mainframe.project
@@ -114,7 +115,7 @@ class WireServiceLoop(_base.AddHandlerBase):
     @_check_types.do
     def __init__(
         self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", split_state: SplitState
-    ):
+    ) -> None:
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -130,15 +131,16 @@ class WireServiceLoop(_base.AddHandlerBase):
 
     @_check_types.do
     def __call__(
-        self, last_pos, current_pos, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
+        interaction_type: _interaction.MouseInteraction,
+        clicked_object: _Union["_objects.ObjectBase", None]
     ) -> bool:
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
-            self.cancel()
             self._finalized = True
+            self.cancel()
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
@@ -152,7 +154,9 @@ class WireServiceLoop(_base.AddHandlerBase):
         return False
 
     @_check_types.do
-    def _closest_point_on_line(self, line: _line.Line, mouse_pos: _point.Point):
+    def _closest_point_on_line(
+        self, line: _line.Line, mouse_pos: _point.Point
+    ) -> tuple[_point.Point | None, _angle.Angle | None]:
         """Pin the hover position to *line* instead of the (already-split)
         wire's own endpoints -- see the original handler's own docstring
         for why: wire1's stop / wire2's start IS the loop's own
@@ -205,8 +209,16 @@ class WireServiceLoop(_base.AddHandlerBase):
         position, wire_angle = self._closest_point_on_line(state.line, mouse_pos)
 
         if position is None or wire_angle is None:
-            self._teardown_preview()
+            # Set before _teardown_preview(), not after -- it deletes
+            # self.target, which finds its own _active_handler is still
+            # this same handler and calls this object's delete() again,
+            # re-entrantly, while we're still inside this call. That
+            # delete() only tears down a second time when _finalized is
+            # still False, so it has to already be True before the
+            # teardown ever runs -- see editor_3d.bundle_layout.
+            # BundleLayout._finalize's own comment for the full version.
             self._finalized = True
+            self._teardown_preview()
             return
 
         with self.mainframe.editor3d.context:
@@ -239,5 +251,5 @@ class WireServiceLoop(_base.AddHandlerBase):
     @_check_types.do
     def delete(self) -> None:
         if not self._finalized:
-            self.cancel()
             self._finalized = True
+            self.cancel()

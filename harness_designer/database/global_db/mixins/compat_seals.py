@@ -3,13 +3,13 @@
 from typing import TYPE_CHECKING
 
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
-
 from ....ui import prop_ctrls as _prop_ctrls
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import seal as _seal
+    from PySide6 import QtWidgets
 
 
 class CompatSealsMixin(BaseMixin):
@@ -77,7 +77,7 @@ class CompatSealsMixin(BaseMixin):
 
     @compat_seals_array.setter
     @_check_types.do
-    def compat_seals_array(self, value: list[str]):
+    def compat_seals_array(self, value: list[str]) -> None:
         """Set the compat seals array.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -100,7 +100,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`CompatSealsControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -114,7 +114,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
         self.propertyChanged.connect(self._on_compat_housings)
 
     @_check_types.do
-    def set_obj(self, db_obj: CompatSealsMixin | None):
+    def set_obj(self, db_obj: CompatSealsMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -132,7 +132,7 @@ class CompatSealsControl(_prop_ctrls.ArrayStringProperty):
             self.setEnabled(True)
 
     @_check_types.do
-    def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_compat_housings(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the compat housings event.
 
         UNKNOWN details are inferred from the callable name and signature.

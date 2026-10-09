@@ -56,6 +56,10 @@ from ..geometry import point as _point
 
 
 if TYPE_CHECKING:
+    from .. import objects as _objects
+    from ..objects.objectsvar import base_var as _base_var
+    from ..database.project_db import pjt_wire as _pjt_wire
+    from ..database.project_db import pjt_transition_branch as _pjt_transition_branch
     from .. import ui as _ui
     from ..objects import terminal as _terminal
     from ..objects import wire as _wire
@@ -114,6 +118,17 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
         self.mainframe = mainframe
         self._probes: list[_wire_layout.WireLayout] = []
 
+        # Every real Terminal/Splice a probe above was actually built for
+        # in this session -- i.e. every currently wire-compatible snap
+        # target, free-floating or cavity-seated alike (a seated terminal's
+        # own object, never its cavity -- see the loop below). Purely data;
+        # this class stays view-agnostic. A per-view add-wire handler
+        # (e.g. add_handlers.editor_3d.wire.Wire) reads these to drive its
+        # own ambient "this is snappable" highlight -- see that module's
+        # own docstring for why that highlight lives there instead of here.
+        self.snap_terminals: list["_terminal.Terminal"] = []
+        self.snap_splices: list["_splice.Splice"] = []
+
         project = mainframe.project
 
         for terminal in project.terminals:
@@ -127,6 +142,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
             probe = self._make_probe(wire_part, terminal=terminal, **kwargs)
 
             self._probes.append(probe)
+            self.snap_terminals.append(terminal)
 
         for cavity in project.cavities:
             pjt_terminal = cavity.db_obj.terminal
@@ -147,12 +163,14 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
             probe = self._make_probe(wire_part, terminal=terminal, **kwargs)
 
             self._probes.append(probe)
+            self.snap_terminals.append(terminal)
 
         for splice in project.splices:
             kwargs = self._get_branch_position(splice.db_obj)
 
             probe = self._make_probe(wire_part, splice=splice, **kwargs)
             self._probes.append(probe)
+            self.snap_splices.append(splice)
 
         for wire in project.wires:
             if wire is exclude_wire:
@@ -241,23 +259,23 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
         return _wire_layout.WireLayout(self.mainframe, db_obj)
 
     @staticmethod
-    def _get_start_position(db_obj: object) -> dict[str, _point.Point]:
+    def _get_start_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_stop_position(db_obj: object) -> dict[str, _point.Point]:
+    def _get_stop_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_branch_position(db_obj: object) -> dict[str, _point.Point]:
+    def _get_branch_position(db_obj: "_pjt_transition_branch.PJTTransitionBranch") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_wire_position(db_obj: object) -> dict[str, _point.Point]:
+    def _get_wire_position(db_obj: "_pjt_wire.PJTWire") -> dict[str, _point.Point]:
         raise NotImplementedError
 
     @staticmethod
-    def _get_view_object(obj: object) -> object:
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
         raise NotImplementedError
 
     @staticmethod

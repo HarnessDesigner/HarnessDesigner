@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union as _Union
 
 from . import base_pegboard as _base_pegboard
 from . import chain_edges as _chain_edges
@@ -15,6 +15,7 @@ from ... import config as _config
 
 
 if TYPE_CHECKING:
+    from .. import ObjectBase as _ObjectBase
     from ...database.project_db import pjt_wire_layout as _pjt_wire_layout
     from .. import wire_layout as _wire_layout
     from .. import wire as _wire_facade
@@ -51,7 +52,7 @@ class WireLayout(_base_pegboard.BasePegboard):
 
     @_check_types.do
     def __init__(self, parent: "_wire_layout.WireLayout",
-                 db_obj: "_pjt_wire_layout.PJTWireLayout"):
+                 db_obj: "_pjt_wire_layout.PJTWireLayout") -> None:
         """Initialise the :class:`WireLayout` instance.
 
         :param parent: Parent object.
@@ -103,7 +104,7 @@ class WireLayout(_base_pegboard.BasePegboard):
         return False
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """Clean up this layout's own peg-board bend before deleting --
         mirrors ``objects_3d.wire_layout.WireLayout._delete`` exactly,
         one view down (peg-board waypoints are their own independent
@@ -116,7 +117,7 @@ class WireLayout(_base_pegboard.BasePegboard):
         super()._delete()
 
     @_check_types.do
-    def _reconnect_wires(self):
+    def _reconnect_wires(self) -> None:
         """Remove this layout's own bend from whatever wire it sits on,
         peg-board side -- see
         ``objects_3d.wire_layout.WireLayout._reconnect_wires``'s own
@@ -203,7 +204,7 @@ class WireLayout(_base_pegboard.BasePegboard):
         return smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -275,7 +276,7 @@ class WireLayout(_base_pegboard.BasePegboard):
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Forwards to an active add-session (see start_add); falls back
         to BasePegboard's own generic drag handling otherwise.

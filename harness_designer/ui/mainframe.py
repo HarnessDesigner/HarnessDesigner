@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
+from collections.abc import Callable
 
 import gc
 
@@ -20,7 +21,13 @@ from .. import memory_diagnostics as _memory_diagnostics
 
 
 if TYPE_CHECKING:
+    from .. import splash as _splash
+    from .. import bounds as _bounds
+    from ..handlers import handler_base as _handler_base
     from ..database.db_connectors import SQLConnector as _SQLConnector
+    from .editor_3d import editor_3d as _editor_3d
+    from .editor_pegboard import editor_pegboard as _editor_pegboard
+    from .editor_schematic import editor_schematic as _editor_schematic
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
     from ..objects import project as _project
@@ -69,7 +76,7 @@ class MainFrame(QtWidgets.QMainWindow):
         return self._project
 
     @project.setter
-    def project(self, value: Union["_project.Project", None]):
+    def project(self, value: _Union["_project.Project", None]) -> None:
         self._project = value
 
         if value is not None:
@@ -92,7 +99,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.editor3d.editor.camera.position.x += 0.000001
 
     @_check_types.do
-    def __init__(self, splash, logger: "_logger.Log"):
+    def __init__(self, splash: "_splash.Splash", logger: "_logger.Log") -> None:
         """
         Initialise the :class:`MainFrame` instance.
 
@@ -534,11 +541,11 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def end_progress_bar(self):
+    def end_progress_bar(self) -> None:
         self.progress_bar.hide()
 
     @_check_types.do
-    def set_progress(self, value: int, label: str = None):
+    def set_progress(self, value: int, label: str = None) -> None:
         """
         Set the progress.
 
@@ -566,7 +573,7 @@ class MainFrame(QtWidgets.QMainWindow):
         QtWidgets.QApplication.processEvents()
 
     @_check_types.do
-    def start_progress(self, label: str, max_value: int):
+    def start_progress(self, label: str, max_value: int) -> None:
         """
         Start the progress.
 
@@ -583,7 +590,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.progress_bar.show()
 
     @_check_types.do
-    def _center_on_screen(self):
+    def _center_on_screen(self) -> None:
         """
         Execute the center on screen operation.
         """
@@ -599,7 +606,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _connect_editor3d_signals(self):
+    def _connect_editor3d_signals(self) -> None:
         """
         Wire all EVT_GL_* signal sentinels to their mainframe handlers.
         """
@@ -644,31 +651,31 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor3d.bind(_gl.EVT_GL_CAMERA_RESET, self._on_camera_reset_3d)
 
     @_check_types.do
-    def _on_camera_zoom_3d(self, evt: _gl.GLCameraEvent):
+    def _on_camera_zoom_3d(self, evt: _gl.GLCameraEvent) -> None:
         self.Set3DCoordinates(evt)
 
     @_check_types.do
-    def _on_camera_orbit_3d(self, evt: _gl.GLCameraEvent):
+    def _on_camera_orbit_3d(self, evt: _gl.GLCameraEvent) -> None:
         self.Set3DCoordinates(evt)
 
     @_check_types.do
-    def _on_camera_walk_3d(self, evt: _gl.GLCameraEvent):
+    def _on_camera_walk_3d(self, evt: _gl.GLCameraEvent) -> None:
         self.Set3DCoordinates(evt)
 
     @_check_types.do
-    def _on_camera_truckpedistal_3d(self, evt: _gl.GLCameraEvent):
+    def _on_camera_truckpedistal_3d(self, evt: _gl.GLCameraEvent) -> None:
         self.Set3DCoordinates(evt)
 
     @_check_types.do
-    def _on_camera_rotate_3d(self, evt: _gl.GLCameraEvent):
+    def _on_camera_rotate_3d(self, evt: _gl.GLCameraEvent) -> None:
         self.Set3DCoordinates(evt)
 
     @_check_types.do
-    def _on_camera_reset_3d(self, evt: _gl.GLCameraEvent):
+    def _on_camera_reset_3d(self, evt: _gl.GLCameraEvent) -> None:
         self.Set3DCoordinates(evt)
 
     @_check_types.do
-    def _connect_editor2d_signals(self):
+    def _connect_editor2d_signals(self) -> None:
         self.editor2d.bind(_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_2d)
         self.editor2d.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_2d)
@@ -702,7 +709,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor2d.bind(_gl.EVT_GL_AUX2_DCLICK, self._on_aux2_dclick_2d)
 
     @_check_types.do
-    def _connect_editor_pegboard_signals(self):
+    def _connect_editor_pegboard_signals(self) -> None:
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_SELECTED,      self._on_obj_selected_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_UNSELECTED, self._on_obj_unselected_pegboard)
         self.editor_pegboard.bind(_gl.EVT_GL_OBJECT_ACTIVATED, self._on_obj_activated_pegboard)
@@ -740,7 +747,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def moveEvent(self, event):
+    def moveEvent(self, event: QtGui.QMoveEvent) -> None:
         """
         Execute the move event operation.
 
@@ -752,7 +759,7 @@ class MainFrame(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(0, self._save_position)
 
     @_check_types.do
-    def resizeEvent(self, event):
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """
         Execute the resize event operation.
 
@@ -764,7 +771,7 @@ class MainFrame(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(0, self._save_size)
 
     @_check_types.do
-    def closeEvent(self, event):
+    def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """
         Execute the close event operation.
 
@@ -821,12 +828,12 @@ class MainFrame(QtWidgets.QMainWindow):
         self.process_manager.stop()
 
         @_check_types.do
-        def _finished():
+        def _finished() -> None:
             # close_dlg.close()
             QtWidgets.QApplication.instance().quit()
 
         @_check_types.do
-        def _do():
+        def _do() -> None:
             count = 0
             import time
 
@@ -853,7 +860,7 @@ class MainFrame(QtWidgets.QMainWindow):
             QtWidgets.QApplication.processEvents()
 
             @_check_types.do
-            def _run(label, func, step):  # NOQA
+            def _run(label: str, func: Callable[[], None], step: int) -> None:  # NOQA
                 # time.sleep(0.250)
                 self.logger.info(label)
                 # close_dlg.set_message(label)
@@ -878,7 +885,7 @@ class MainFrame(QtWidgets.QMainWindow):
         event.ignore()
 
     @_check_types.do
-    def _save_position(self):
+    def _save_position(self) -> None:
         """
         Save the position.
         """
@@ -887,7 +894,7 @@ class MainFrame(QtWidgets.QMainWindow):
         Config.position = (pos.x(), pos.y())
 
     @_check_types.do
-    def _save_size(self):
+    def _save_size(self) -> None:
         """
         Save the size.
         """
@@ -900,7 +907,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _on_idle(self):
+    def _on_idle(self) -> None:
         """
         Called by the zero-interval QTimer whenever the event loop is idle.
 
@@ -928,7 +935,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def SetStatusText(self, text, _=None):
+    def SetStatusText(self, text: str, _: None = None) -> None:
         """
         Execute the set status text operation.
 
@@ -941,7 +948,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.status_bar.showMessage(text)
 
     @_check_types.do
-    def RevertStatusText(self):
+    def RevertStatusText(self) -> None:
         """
         Execute the revert status text operation.
         """
@@ -949,7 +956,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.status_bar.clearMessage()
 
     @_check_types.do
-    def Set3DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
+    def Set3DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent) -> None:
         """
         Execute the set 3dcoordinates operation.
 
@@ -970,7 +977,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._status_z.setText(f'Z: {round(float(z), 4)}')
 
     @_check_types.do
-    def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent):
+    def Set2DCoordinates(self, evt: _gl.GLEvent | _gl.GLCameraEvent) -> None:
         """
         Execute the set 3dcoordinates operation.
 
@@ -990,7 +997,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._status_z.setText('')
 
     @_check_types.do
-    def showEvent(self, event):
+    def showEvent(self, event: QtGui.QShowEvent) -> None:
         """
         Execute the show event operation.
 
@@ -1010,7 +1017,7 @@ class MainFrame(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(0, self._open_project)
 
     @_check_types.do
-    def _open_project(self):
+    def _open_project(self) -> None:
         # The one-time startup work below (VBO/glyph caching, tearing down
         # the splash, loading editor_db) must run exactly once, from
         # showEvent -- guarded here because the `project` property above
@@ -1068,7 +1075,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.project = _proj.Project.select_project(self)
 
     @_check_types.do
-    def load_project(self):
+    def load_project(self) -> None:
         """
         Handler for the ``File > Load Project...`` menu action.
 
@@ -1174,7 +1181,7 @@ class MainFrame(QtWidgets.QMainWindow):
                 context_menu.exec(global_pos)
 
     @_check_types.do
-    def _show_empty_space_menu(self, gl_widget, menu_cls: type, evt: _gl.GLEvent) -> None:
+    def _show_empty_space_menu(self, gl_widget: QtWidgets.QWidget, menu_cls: type, evt: _gl.GLEvent) -> None:
         """
         Pop up *menu_cls* (see ``ui.widgets.empty_space_menus``) at the
         position of the right click *evt* reports, over *gl_widget* (the
@@ -1396,7 +1403,7 @@ class MainFrame(QtWidgets.QMainWindow):
         evt.Skip()
 
     @_check_types.do
-    def _cancel_active_handler_obj(self, canvas) -> bool:
+    def _cancel_active_handler_obj(self, canvas: _Union["_editor_3d.Editor3DPanel", "_editor_schematic.EditorSchematicPanel", "_editor_pegboard.EditorPegboardPanel"]) -> bool:
         """
         Escape for the new object-owned handler system (see
         objectsvar.base_var.BaseVar.handle_interaction) -- there's no
@@ -2864,7 +2871,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def set_clone_obj(self, obj):
+    def set_clone_obj(self, obj: _Union["_objects.ObjectBase", None]) -> None:
         """
         Set the clone obj.
 
@@ -2878,7 +2885,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor_pegboard.set_clone_obj(obj)
 
     @_check_types.do
-    def get_clone_obj(self):
+    def get_clone_obj(self) -> _Union["_objects.ObjectBase", None]:
         """
         Return the clone obj.
 
@@ -2889,7 +2896,7 @@ class MainFrame(QtWidgets.QMainWindow):
         return self._clone_obj
 
     @_check_types.do
-    def set_obj_handler(self, handler):
+    def set_obj_handler(self, handler: _Union["_handler_base.HandlerBase", None]) -> None:
         """
         Install an interactive placement handler.
 
@@ -2906,7 +2913,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self._obj_handler = handler
 
     @_check_types.do
-    def add_object(self, obj):
+    def add_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Add an object.
 
@@ -2976,7 +2983,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.object_browser.add_wire_service_loop(obj)
 
     @_check_types.do
-    def remove_object(self, obj):
+    def remove_object(self, obj: "_objects.ObjectBase") -> None:
         """
         Remove the object.
 
@@ -2992,7 +2999,7 @@ class MainFrame(QtWidgets.QMainWindow):
         self.editor_pegboard.remove_object(obj)
 
     @_check_types.do
-    def _set_selected(self, obj: "_objects.ObjectBase"):
+    def _set_selected(self, obj: "_objects.ObjectBase") -> None:
         """
         Set the selected.
 
@@ -3057,7 +3064,7 @@ class MainFrame(QtWidgets.QMainWindow):
             self.editor_pegboard.editor.center_on_object(obj)
 
     @_check_types.do
-    def set_selected(self, obj: "_objects.ObjectBase"):  # NOQA
+    def set_selected(self, obj: "_objects.ObjectBase") -> None:  # NOQA
         """
         Set the selected.
 
@@ -3084,7 +3091,7 @@ class MainFrame(QtWidgets.QMainWindow):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _get_active_canvas(self):
+    def _get_active_canvas(self) -> _Union["_editor_3d.Editor3DPanel", "_editor_schematic.EditorSchematicPanel", "_editor_pegboard.EditorPegboardPanel"]:
         """
         Return the currently-active canvas's own inner editor widget
         (editor3d.editor / editor2d.editor / editor_pegboard.editor) --
@@ -3306,7 +3313,7 @@ class MainFrame(QtWidgets.QMainWindow):
                 _cover_3d.Cover.start_add(self)
 
     @_check_types.do
-    def unload(self):
+    def unload(self) -> None:
         """
         Tear down the currently loaded project's in-memory state,
         without touching the database or deleting anything.
@@ -3391,25 +3398,22 @@ class MainFrame(QtWidgets.QMainWindow):
         :type project: :class:`_project.Project`
         """
 
-        views = (
-            ('bounds_3d', self.bounds_manager.editor_3d),
-            ('bounds_schematic', self.bounds_manager.editor_schematic),
-            ('bounds_pegboard', self.bounds_manager.editor_pegboard))
+        def _extent_value(view: "_bounds.View") -> list[list[float]] | None:
+            extent = view.aabb.extent()
+            if extent is None:
+                return None
+
+            return [extent[0].tolist(), extent[1].tolist()]
 
         try:
-            for column, view in views:
-                extent = view.aabb.extent()
-                if extent is None:
-                    value = None
-                else:
-                    value = [extent[0].tolist(), extent[1].tolist()]
-
-                setattr(project.db_obj, column, value)
+            project.db_obj.bounds_3d = _extent_value(self.bounds_manager.editor_3d)
+            project.db_obj.bounds_schematic = _extent_value(self.bounds_manager.editor_schematic)
+            project.db_obj.bounds_pegboard = _extent_value(self.bounds_manager.editor_pegboard)
         except Exception as err:  # NOQA
             self.logger.error(f'could not save project bounds: {err!r}')
 
     @_check_types.do
-    def open_database(self, splash):
+    def open_database(self, splash: "_splash.Splash") -> None:
         """
         Open the database.
 

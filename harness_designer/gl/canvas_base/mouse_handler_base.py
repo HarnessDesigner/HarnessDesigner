@@ -16,9 +16,11 @@ skipped entirely; `False` (nothing armed, and the freshly picked object
 declined to arm one) falls through unchanged to the existing behavior.
 """
 
-import math
+from typing import Union as _Union
+from collections.abc import Iterable
 from typing import TYPE_CHECKING
 
+import math
 from PySide6 import QtCore
 from PySide6 import QtGui
 
@@ -33,6 +35,9 @@ from ... import check_types as _check_types
 
 if TYPE_CHECKING:
     from . import canvas_base as _canvas_base
+    from ...ui.prop_ctrls import events as _prop_events
+    from ... import objects as _objects
+    from ...objects.objectsvar import base_var as _base_var
 
 
 MOUSE_NONE = _config.MOUSE_NONE
@@ -87,7 +92,7 @@ _WHEEL_IDLE_MS = 500
 
 
 @_check_types.do
-def _qt_pos(qt_event) -> _point.Point:
+def _qt_pos(qt_event: QtGui.QMouseEvent) -> _point.Point:
     """Execute the qt pos operation.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -102,7 +107,7 @@ def _qt_pos(qt_event) -> _point.Point:
 
 
 @_check_types.do
-def _qt_buttons_flag(qt_event) -> int:
+def _qt_buttons_flag(qt_event: QtGui.QMouseEvent) -> int:
     """Convert Qt mouse buttons bitmask to our internal BTN_* flags."""
     btns = qt_event.buttons()
     flags = 0
@@ -126,7 +131,7 @@ class MouseHandlerBase:
     """
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas_base.CanvasBase"):
+    def __init__(self, canvas: "_canvas_base.CanvasBase") -> None:
         """Initialise the :class:`MouseHandler` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -168,7 +173,7 @@ class MouseHandlerBase:
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def handle_event(self, event) -> bool:
+    def handle_event(self, event: QtGui.QMouseEvent) -> bool:
         """
         Handle the event.
 
@@ -239,7 +244,7 @@ class MouseHandlerBase:
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _blocks_deselection(self, obj) -> bool:
+    def _blocks_deselection(self, obj: _Union["_objects.ObjectBase", None]) -> bool:
         """
         Whether *obj* currently has its rotation gizmo up -- if so, a
         click that misses everything (or lands back on the object
@@ -253,12 +258,13 @@ class MouseHandlerBase:
         from ...rotation_handlers import rotation_rings as _rotation_rings
 
         view_obj = self._get_view_object(obj)
+        if view_obj is None:
+            return False
 
-        return isinstance(getattr(view_obj, '_active_handler', None),
-                          _rotation_rings.RotationRings)
+        return isinstance(view_obj._active_handler, _rotation_rings.RotationRings)
 
     @_check_types.do
-    def _pick_object(self, mouse_pos, current_selection=None):
+    def _pick_object(self, mouse_pos: "_point.Point", current_selection: _Union["_objects.ObjectBase", None] = None) -> _Union["_objects.ObjectBase", None]:
         """
         Pick a scene object. Gizmo overlays (the focal-target indicator,
         the rotation rings) never come back -- they set a negative
@@ -272,7 +278,7 @@ class MouseHandlerBase:
     @_check_types.do
     def _dispatch_to_active_handler(self, mouse_pos: _point.Point,
                                     interaction_type: _interaction.MouseInteraction,
-                                    had_motion: bool, clicked_object=None) -> bool:
+                                    had_motion: bool, clicked_object: _Union["_objects.ObjectBase", None] = None) -> bool:
 
         """
         Route one mouse event to whatever's armed on this canvas, or to
@@ -328,8 +334,8 @@ class MouseHandlerBase:
 
     @_check_types.do
     def _dispatch_wheel_to_active_handler(self, mouse_pos: _point.Point,
-                                          qt_wheel_event,
-                                          clicked_object=None) -> bool:
+                                          qt_wheel_event: QtGui.QWheelEvent,
+                                          clicked_object: _Union["_objects.ObjectBase", None] = None) -> bool:
 
         """
         Route one wheel event to whatever's armed on this canvas, or
@@ -355,7 +361,7 @@ class MouseHandlerBase:
         return target.handle_wheel(mouse_pos, qt_wheel_event, clicked_object)
 
     @_check_types.do
-    def _process_mouse(self, code):
+    def _process_mouse(self, code: str) -> None:
         """
         Execute the process mouse operation.
 
@@ -367,7 +373,7 @@ class MouseHandlerBase:
             self.config.truck_pedestal.mouse & code
         ):
 
-            def _wrapper(dx, dy):
+            def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.truck_pedestal.mouse & MOUSE_SWAP_AXIS:
                     dy, dx = dx, dy
@@ -389,7 +395,7 @@ class MouseHandlerBase:
             self.config.rotate.mouse & code
         ):
 
-            def _wrapper(dx, dy):
+            def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.rotate.mouse & MOUSE_SWAP_AXIS:
                     dy, dx = dx, dy
@@ -410,7 +416,7 @@ class MouseHandlerBase:
             self.config.pan_tilt.mouse & code
         ):
 
-            def _wrapper(dx, dy):
+            def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.pan_tilt.mouse & MOUSE_SWAP_AXIS:
                     dy, dx = dx, dy
@@ -435,7 +441,7 @@ class MouseHandlerBase:
                 self.config.walk.mouse is not None and
                 self.config.walk.mouse & code
             ):
-                def _wrapper(dx, dy):
+                def _wrapper(dx: float, dy: float) -> None:
 
                     if dy == 0.0:
                         # dy == 0.0 here means this call came from the
@@ -517,7 +523,7 @@ class MouseHandlerBase:
                 return _wrapper
 
             else:
-                def _wrapper(dx, dy):
+                def _wrapper(dx: float, dy: float) -> None:
 
                     if self.config.dolly.mouse & MOUSE_SWAP_AXIS:
                         dy, dx = dx, dy
@@ -532,7 +538,7 @@ class MouseHandlerBase:
             self.config.reset.mouse & code
         ):
 
-            def _wrapper(_, __):
+            def _wrapper(_: float, __: float) -> None:
                 self.canvas.camera.Reset()
 
             return _wrapper
@@ -541,7 +547,7 @@ class MouseHandlerBase:
             self.config.walk.mouse is not None and
             self.config.walk.mouse & code
         ):
-            def _wrapper(dx, dy):
+            def _wrapper(dx: float, dy: float) -> None:
                 if dy == 0.0:
                     self.canvas.PanTilt(dx * 6.0, 0.0)
                     return
@@ -568,7 +574,7 @@ class MouseHandlerBase:
             self.config.zoom.mouse is not None and
             self.config.zoom.mouse & code
         ):
-            def _wrapper(dx, dy):
+            def _wrapper(dx: float, dy: float) -> None:
 
                 if self.config.zoom.mouse & MOUSE_SWAP_AXIS:
                     dy, dx = dx, dy
@@ -588,7 +594,7 @@ class MouseHandlerBase:
                 # event's own position is gone -- same reason the walk+dolly
                 # combined case above re-queries the cursor live instead of
                 # capturing it once).
-                if hasattr(camera, 'zoom_at_point'):
+                if camera.is_top_down:
                     global_pos = QtGui.QCursor.pos()
                     local_pos = self.canvas.mapFromGlobal(global_pos)
                     camera.zoom_at_point(_point.Point(local_pos.x(), local_pos.y()), dx * sens)
@@ -598,7 +604,7 @@ class MouseHandlerBase:
 
             return _wrapper
 
-        def _do_nothing_func(_, __):
+        def _do_nothing_func(_: float, __: float) -> None:
             pass
 
         return _do_nothing_func
@@ -616,7 +622,7 @@ class MouseHandlerBase:
 
     @_check_types.do
     def _send_event(self, new_event: _events.GLEvent | _events.GLObjectEvent,
-                    qt_event) -> bool:
+                    qt_event: QtGui.QMouseEvent) -> bool:
         """
         Execute the send event operation.
 
@@ -644,12 +650,12 @@ class MouseHandlerBase:
         else:
             self._gl_mouse_event = None
 
-        getattr(self.canvas, new_event.GetType()).emit(new_event)
+        self.canvas.event_signal(new_event.GetType()).emit(new_event)
 
         return new_event.ShouldPropagate()
 
     @_check_types.do
-    def _send_capture_lost(self):
+    def _send_capture_lost(self) -> None:
         """
         Execute the send capture lost operation.
 
@@ -667,7 +673,7 @@ class MouseHandlerBase:
         self._is_motion = False
 
     @_check_types.do
-    def on_left_down(self, evt):
+    def on_left_down(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the left down event.
         """
@@ -698,7 +704,7 @@ class MouseHandlerBase:
         self.canvas.grabMouse()
 
     @_check_types.do
-    def on_left_up(self, evt):
+    def on_left_up(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the left up event.
         """
@@ -753,7 +759,7 @@ class MouseHandlerBase:
                 # object ends up (de)selected below owns its own overlay.
                 if isinstance(selected, _housing.Housing):
                     view_obj = self._get_view_object(selected)
-                    if hasattr(view_obj, 'try_pick_cavity'):
+                    if view_obj is not None:
                         cavity = view_obj.try_pick_cavity(
                             int(mouse_pos.x), int(mouse_pos.y))
 
@@ -834,7 +840,7 @@ class MouseHandlerBase:
             self.canvas.repaint()
 
     @_check_types.do
-    def on_left_dclick(self, evt):
+    def on_left_dclick(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the left dclick event.
         """
@@ -862,7 +868,7 @@ class MouseHandlerBase:
                     self._send_event(event, evt)
 
     @_check_types.do
-    def on_middle_up(self, evt):
+    def on_middle_up(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the middle up event.
         """
@@ -898,7 +904,7 @@ class MouseHandlerBase:
             self.canvas.repaint()
 
     @_check_types.do
-    def on_middle_down(self, evt):
+    def on_middle_down(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the middle down event.
         """
@@ -923,7 +929,7 @@ class MouseHandlerBase:
         self._mouse_pos = _qt_pos(evt)
 
     @_check_types.do
-    def on_middle_dclick(self, evt):
+    def on_middle_dclick(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the middle dclick event.
         """
@@ -944,7 +950,7 @@ class MouseHandlerBase:
                     self._send_event(event, evt)
 
     @_check_types.do
-    def on_right_up(self, evt):
+    def on_right_up(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the right up event.
         """
@@ -982,7 +988,7 @@ class MouseHandlerBase:
                     cavity = None
                     if isinstance(selected, _housing.Housing):
                         view_obj = self._get_view_object(selected)
-                        if hasattr(view_obj, 'try_pick_cavity'):
+                        if view_obj is not None:
                             cavity = view_obj.try_pick_cavity(
                                 int(mouse_pos.x), int(mouse_pos.y))
 
@@ -1022,7 +1028,7 @@ class MouseHandlerBase:
             self.canvas.repaint()
 
     @_check_types.do
-    def on_right_down(self, evt):
+    def on_right_down(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the right down event.
 
@@ -1055,7 +1061,7 @@ class MouseHandlerBase:
         self.canvas.grabMouse()
 
     @_check_types.do
-    def on_right_dclick(self, evt):
+    def on_right_dclick(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the right dclick event.
         """
@@ -1076,7 +1082,7 @@ class MouseHandlerBase:
                     self._send_event(event, evt)
 
     @_check_types.do
-    def on_mouse_wheel(self, evt):
+    def on_mouse_wheel(self, evt: QtGui.QWheelEvent) -> None:
         """
         Handle the mouse wheel event.
         """
@@ -1155,7 +1161,7 @@ class MouseHandlerBase:
     def _orient_to_mouse_on_focal_plane(self, mouse_pos: _point.Point,
                                         wheel_delta: float) -> None:
 
-        def _norm(values) -> float:
+        def _norm(values: Iterable[float]) -> float:
             return math.sqrt(sum(v * v for v in values))
 
         camera = self.canvas.camera
@@ -1223,7 +1229,7 @@ class MouseHandlerBase:
         camera.PanTilt(yaw_delta / 6, pitch_delta / 6)
 
     @_check_types.do
-    def on_mouse_motion(self, evt):
+    def on_mouse_motion(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the mouse motion event.
 
@@ -1334,7 +1340,7 @@ class MouseHandlerBase:
             self.canvas.repaint()
 
     @_check_types.do
-    def on_aux1_up(self, evt):
+    def on_aux1_up(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the aux 1 up event.
         """
@@ -1354,7 +1360,7 @@ class MouseHandlerBase:
         self.canvas.releaseMouse()
 
     @_check_types.do
-    def on_aux1_down(self, evt):
+    def on_aux1_down(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the aux 1 down event.
         """
@@ -1364,7 +1370,7 @@ class MouseHandlerBase:
         self._mouse_pos = _qt_pos(evt)
 
     @_check_types.do
-    def on_aux1_dclick(self, evt):
+    def on_aux1_dclick(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the aux 1 dclick event.
         """
@@ -1381,7 +1387,7 @@ class MouseHandlerBase:
                 self._send_event(event, evt)
 
     @_check_types.do
-    def on_aux2_up(self, evt):
+    def on_aux2_up(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the aux 2 up event.
         """
@@ -1401,7 +1407,7 @@ class MouseHandlerBase:
         self.canvas.releaseMouse()
 
     @_check_types.do
-    def on_aux2_down(self, evt):
+    def on_aux2_down(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the aux 2 down event.
         """
@@ -1411,7 +1417,7 @@ class MouseHandlerBase:
         self._mouse_pos = _qt_pos(evt)
 
     @_check_types.do
-    def on_aux2_dclick(self, evt):
+    def on_aux2_dclick(self, evt: QtGui.QMouseEvent) -> None:
         """
         Handle the aux 2 dclick event.
         """
@@ -1428,6 +1434,6 @@ class MouseHandlerBase:
                 self._send_event(event, evt)
 
     @staticmethod
-    def _get_view_object(obj):  # NOQA
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":  # NOQA
         # this function needs to be overridden to return the correct view object
         raise NotImplementedError

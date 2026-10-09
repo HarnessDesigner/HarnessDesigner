@@ -1,8 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
+
 from ....ui import prop_ctrls as _prop_ctrls
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from .base import BaseMixin
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class Visible2DMixin(BaseMixin):
@@ -11,8 +18,6 @@ class Visible2DMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     
-    _stored_is_visible2d: bool | None | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def is_visible2d(self) -> bool:
@@ -23,15 +28,13 @@ class Visible2DMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: bool
         """
-        if self._stored_is_visible2d is DefaultStoredValue:
-            _rows = self._table.select('is_visible2d', id=self._db_id)
-            self._stored_is_visible2d = bool(_rows[0][0]) if _rows else None
-        
-        return self._stored_is_visible2d
-        
+        _rows = self._table.select('is_visible2d', id=self._db_id)
+        return bool(_rows[0][0]) if _rows else None
+
+
     @is_visible2d.setter
     @_check_types.do
-    def is_visible2d(self, value: bool):
+    def is_visible2d(self, value: bool) -> None:
         """Set the is visible 2D.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -39,8 +42,6 @@ class Visible2DMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: bool
         """
-        
-        self._stored_is_visible2d = value
         
         self._table.update(self._db_id, is_visible2d=int(value))
         self._populate('is_visible2d')
@@ -53,7 +54,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`Visible2DControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -68,7 +69,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
         self.propertyChanged.connect(self._on_visible2d)
 
     @_check_types.do
-    def _on_visible2d(self, evt):
+    def _on_visible2d(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the visible 2D event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -80,7 +81,7 @@ class Visible2DControl(_prop_ctrls.BoolProperty):
         self.db_obj.is_visible2d = value
 
     @_check_types.do
-    def set_obj(self, db_obj: Visible2DMixin | None):
+    def set_obj(self, db_obj: Visible2DMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.

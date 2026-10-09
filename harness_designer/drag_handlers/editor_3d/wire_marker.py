@@ -61,7 +61,7 @@ class WireMarker(_editor_3d.DragHandler3D):
 
     @_debug.logfunc
     @_check_types.do
-    def __call__(self, delta: object, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
+    def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
         position = self.target.obj3d.position
 
         delta3d = self._delta3d(position, self.last_pos, delta)

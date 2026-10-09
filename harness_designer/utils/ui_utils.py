@@ -1,6 +1,7 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
 from PySide6 import QtWidgets
+
 from .. import check_types as _check_types
 
 
@@ -74,7 +75,7 @@ MODEL_FILE_WILDCARDS = (
 
 
 @_check_types.do
-def HSizer(parent, label, ctrl) -> QtWidgets.QHBoxLayout:
+def HSizer(parent: QtWidgets.QWidget, label: str, ctrl: QtWidgets.QWidget) -> QtWidgets.QHBoxLayout:
     """
     Create a horizontal layout containing a label and control.
 

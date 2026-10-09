@@ -14,7 +14,6 @@ from . import tpa_locks as _tpa_locks
 from . import cpa_locks as _cpa_locks
 from . import covers as _covers
 from . import terminals as _terminals
-
 from .. import db_connectors as _con
 
 

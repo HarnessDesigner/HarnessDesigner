@@ -23,6 +23,8 @@ from ..canvas_base import canvas_base as _canvas_base
 
 if TYPE_CHECKING:
     from ... import ui as _ui
+    from ...objects.objects_3d import base_3d as _base_3d
+    from ... import objects as _objects
 
 _debug_config = _config.Config.debug.rendering3d
 
@@ -82,7 +84,7 @@ class Canvas(_canvas_base.CanvasBase):
     @_check_types.do
     def __init__(self, mainframe: "_ui.MainFrame",
                  config: _config.Config.editor_3d,
-                 size: QtCore.QSize = None):
+                 size: QtCore.QSize | None = None) -> None:
         """
         Initialise the :class:`Canvas` instance.
 
@@ -118,7 +120,7 @@ class Canvas(_canvas_base.CanvasBase):
         return self.parent()._axis_overlay  # NOQA
 
     @_check_types.do
-    def initializeGL(self):
+    def initializeGL(self) -> None:
         """
         Called once by Qt after the GL context is created.
         Qt guarantees the context is already current here — no makeCurrent needed.
@@ -208,7 +210,7 @@ class Canvas(_canvas_base.CanvasBase):
         focal_target.delete()
 
     @_check_types.do
-    def set_focal_target(self, flag: bool):
+    def set_focal_target(self, flag: bool) -> None:
         """
         Show/hide the focal-target indicator -- called from the
         focal-target toggle button, and once at startup from
@@ -225,7 +227,7 @@ class Canvas(_canvas_base.CanvasBase):
         if self._focal_target is not None:
             self._focal_target.obj3d.is_visible = flag
 
-    def _set_view(self):
+    def _set_view(self) -> None:
         if self.size:
             w, h = self.size
         else:
@@ -253,10 +255,10 @@ class Canvas(_canvas_base.CanvasBase):
         self.camera.set_view(projection, modelview, fov_deg)
 
     @staticmethod
-    def _get_view_object(obj):
+    def _get_view_object(obj: "_objects.ObjectBase") -> "_base_3d.Base3D":
         return obj.obj3d
 
-    def _render_floor_after(self):
+    def _render_floor_after(self) -> None:
         try:
             self._floor.render(self._shaders)
         except:  # NOQA
@@ -266,7 +268,7 @@ class Canvas(_canvas_base.CanvasBase):
 
     @_debug.logfunc
     @_check_types.do
-    def _on_draw(self):
+    def _on_draw(self) -> None:
         super()._on_draw()
 
         try:

@@ -1,11 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
+from typing import TYPE_CHECKING
 from typing import Iterable as _Iterable
 
 from .bases import EntryBase, TableBase
 from .mixins import (PartNumberMixin, DescriptionMixin, ManufacturerMixin,
                      FamilyMixin, SeriesMixin, ColorMixin, MaterialMixin)
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ... import splash as _splash
 
 
 class AccessoriesTable(TableBase):
@@ -19,7 +24,7 @@ class AccessoriesTable(TableBase):
 
     @property
     @_check_types.do
-    def control(self):  # -> "AccessoryControl":
+    def control(self) -> "AccessoryControl":  # -> "AccessoryControl":
         """Return the control.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -46,7 +51,7 @@ class AccessoriesTable(TableBase):
         return accessories.table.is_ok(self)
 
     @_check_types.do
-    def _add_table_to_db(self, splash):
+    def _add_table_to_db(self, splash: "_splash.Splash") -> None:
         """Add a table to database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -62,7 +67,7 @@ class AccessoriesTable(TableBase):
         accessories.add_records(self._con, splash, data_path)
 
     @_check_types.do
-    def _update_table_in_db(self):
+    def _update_table_in_db(self) -> None:
         """Update the table in database.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +89,7 @@ class AccessoriesTable(TableBase):
             yield Accessory(self, db_id)
 
     @_check_types.do
-    def __getitem__(self, item) -> "Accessory":
+    def __getitem__(self, item: int | bytes | str) -> "Accessory":
         """Return the requested item.
 
         UNKNOWN details are inferred from the callable name and signature.

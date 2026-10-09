@@ -1,6 +1,6 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 import numpy as np
 
@@ -18,6 +18,10 @@ from ... import bounds as _bounds
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
+    from ..objects_3d import cavity as _cavity3d
+    from ...ui.editor_3d import editor_3d as _editor_3d
+    from ...ui.editor_schematic import editor_schematic as _editor_schematic
+    from ...ui.editor_pegboard import editor_pegboard as _editor_pegboard
     from .. import ObjectBase as _ObjectBase
     from ...gl import shaders as _shaders
     from ...gl.shaders import program as _shader_program
@@ -62,10 +66,10 @@ class BaseVar:
     _is_deleted: bool = False
 
     @_check_types.do
-    def __init__(self, parent: "_ObjectBase", db_obj: Union["_project_db.PJTEntryBase", None],
+    def __init__(self, parent: "_ObjectBase", db_obj: _Union["_project_db.PJTEntryBase", None],
                  vbo: _vbo_base.VBOHandlerBase | _text.Text | None,
                  angle: _angle.Angle | None, position: _point.Point | None,
-                 scale: _point.Point | None, material: _materials.GLMaterial | None):
+                 scale: _point.Point | None, material: _materials.GLMaterial | None) -> None:
 
         self._is_selected = False
         self._is_visible = False
@@ -137,7 +141,7 @@ class BaseVar:
         else:
             self._smooth = True
 
-    def __update_smooth(self, *_, **__):
+    def __update_smooth(self, *_, **__) -> None:
         self._smooth = self.db_obj.smooth  # NOQA
 
     @property
@@ -148,7 +152,7 @@ class BaseVar:
         return self._smooth
 
     @smooth.setter
-    def smooth(self, value: bool | None):
+    def smooth(self, value: bool | None) -> None:
         self._smooth = value
 
         try:
@@ -178,11 +182,11 @@ class BaseVar:
 
     @property
     @_check_types.do
-    def editor(self):
+    def editor(self) -> _Union["_editor_3d.Editor3D", "_editor_schematic.EditorSchematic", "_editor_pegboard.EditorPegboard"]:
         raise NotImplementedError
 
     @_check_types.do
-    def _is_visible_callback(self, *_, **__):
+    def _is_visible_callback(self, *_, **__) -> None:
         raise NotImplementedError
 
     @_check_types.do
@@ -206,7 +210,7 @@ class BaseVar:
         self._obb_manager.release(self._obb_index)
 
     @_check_types.do
-    def _compute_obb(self):
+    def _compute_obb(self) -> None:
         if self._is_deleted:
             return
 
@@ -246,7 +250,7 @@ class BaseVar:
             self._obb[:] = obb
 
     @_check_types.do
-    def _compute_aabb(self):
+    def _compute_aabb(self) -> None:
         if self._is_deleted:
             return
 
@@ -283,7 +287,7 @@ class BaseVar:
         self._aabb[:] = aabb
 
     @_check_types.do
-    def hit_test_step1(self, ray_origin, ray_direction):
+    def hit_test_step1(self, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
         """
         Stage 1: Test against cached AABB
 
@@ -297,7 +301,7 @@ class BaseVar:
         return np.min(tmax) >= max(0, np.max(tmin))
 
     @_check_types.do
-    def hit_test_step2(self, ray_origin, ray_direction):
+    def hit_test_step2(self, ray_origin: np.ndarray, ray_direction: np.ndarray) -> bool:
         """
         Stage 2: Test against cached OBB
 
@@ -319,7 +323,7 @@ class BaseVar:
         return np.min(tmax) >= max(0, np.max(tmin))
 
     @_check_types.do
-    def hit_test_step3(self, ray_origin, ray_dir):
+    def hit_test_step3(self, ray_origin: np.ndarray, ray_dir: np.ndarray) -> bool:
         """
         Stage 3: Vectorized ray-mesh intersection
 
@@ -356,7 +360,8 @@ class BaseVar:
     @staticmethod
     @_check_types.do
     def _ray_triangles_intersect_vectorized(
-        ray_origin, ray_dir, vertices, max_t=None):  # NOQA
+        ray_origin: np.ndarray, ray_dir: np.ndarray, vertices: np.ndarray,
+        max_t: float | None = None) -> bool:  # NOQA
 
         """
         Vectorized Möller-Trumbore ray-triangle intersection
@@ -374,8 +379,7 @@ class BaseVar:
                 the original unbounded-ray behavior used for picking.
 
         Returns:
-            hit_mask: (N,) boolean array - True where ray hits triangle
-            distances: (N,) float array - distance to intersection (inf if no hit)
+            True if the ray hits any of the triangles, otherwise False.
         """
         num_triangles = vertices.shape[0]  # NOQA
 
@@ -473,7 +477,7 @@ class BaseVar:
             self._is_opaque[0] = int(self._material.is_opaque)
 
     @_check_types.do
-    def _update_position(self, position: _point.Point):
+    def _update_position(self, position: _point.Point) -> None:
         """
         Update the position.
 
@@ -507,7 +511,7 @@ class BaseVar:
         self.editor.Refresh(False)
 
     @_check_types.do
-    def _update_angle(self, angle: _angle.Angle):
+    def _update_angle(self, angle: _angle.Angle) -> None:
         """
         Update the angle.
 
@@ -526,7 +530,7 @@ class BaseVar:
         self.editor.Refresh(False)
 
     @_check_types.do
-    def _update_scale(self, scale: _point.Point):
+    def _update_scale(self, scale: _point.Point) -> None:
         """
         Update the scale.
 
@@ -555,7 +559,7 @@ class BaseVar:
 
     @position.setter
     @_check_types.do
-    def position(self, value: _point.Point):
+    def position(self, value: _point.Point) -> None:
         """
         Set the position.
 
@@ -583,7 +587,7 @@ class BaseVar:
 
     @angle.setter
     @_check_types.do
-    def angle(self, value: _angle.Angle):
+    def angle(self, value: _angle.Angle) -> None:
         """
         Set the angle.
 
@@ -611,7 +615,7 @@ class BaseVar:
 
     @scale.setter
     @_check_types.do
-    def scale(self, value: _point.Point):
+    def scale(self, value: _point.Point) -> None:
         """
         Set the scale.
 
@@ -648,6 +652,34 @@ class BaseVar:
 
         return self._aabb
 
+    @_check_types.do
+    def get_bounds(self) -> tuple[float, float, float, float] | None:
+        """
+        Get the world-space bounding box from the OBB/AABB ``BaseVar``
+        already computes for any VBO-backed object -- generic for every
+        such subclass (Housing2D, Cavity2D, Terminal2D, ...); legacy
+        (``vbo is None``) subclasses have no ``_aabb`` and fall through
+        to ``None``.
+
+        Returns:
+            tuple: (min_x, min_z, max_x, max_z) or None
+        """
+        if self._aabb is None:
+            return None
+
+        (min_x, _, min_z), (max_x, _, max_z) = self._aabb
+        return float(min_x), float(min_z), float(max_x), float(max_z)
+
+    @property
+    @_check_types.do
+    def is_in_view(self) -> bool:
+        """Whether this object was drawn in its own view's current pass.
+
+        Read from that view's pools (the same ones that hold its bounds), not
+        from camera geometry.
+        """
+        return self._aabb_manager.is_visible(self._aabb_index)
+
     @property
     @_check_types.do
     def is_selected(self) -> bool:
@@ -661,7 +693,7 @@ class BaseVar:
         return self._is_selected
 
     @_check_types.do
-    def set_selected(self, flag: bool):
+    def set_selected(self, flag: bool) -> None:
         """
         Set if the object is selected.
 
@@ -696,7 +728,7 @@ class BaseVar:
         self._is_selected = flag
 
     @_check_types.do
-    def delete(self):
+    def delete(self) -> None:
         """
         Execute the delete operation.
 
@@ -708,7 +740,7 @@ class BaseVar:
         self.parent.delete()
 
     @_check_types.do
-    def _delete(self):
+    def _delete(self) -> None:
         """
         Any object specific taredown should occur in this function
         """
@@ -768,7 +800,7 @@ class BaseVar:
 
     @is_visible.setter
     @_check_types.do
-    def is_visible(self, value: bool):
+    def is_visible(self, value: bool) -> None:
         """
         Set object visibility.
 
@@ -778,7 +810,7 @@ class BaseVar:
         raise NotImplementedError
 
     @_check_types.do
-    def touching_budgets(self) -> list:
+    def touching_budgets(self) -> list[tuple[float, float, float]]:
         """
         Return every ``(neighbor_x, neighbor_z, max_length_mm)`` length
         budget constraining how far this object can move, in whichever
@@ -878,7 +910,14 @@ class BaseVar:
         :type value: float
         """
         if self._angle is not None:
-            setattr(self._angle, axis, value)
+            if axis == 'x':
+                self._angle.x = value
+            elif axis == 'y':
+                self._angle.y = value
+            elif axis == 'z':
+                self._angle.z = value
+            else:
+                raise ValueError(f'unknown axis {axis!r}')
 
     # ------------------------------------------------------------------
     # Add/drag/rotation dispatch entry point
@@ -899,7 +938,7 @@ class BaseVar:
     @_check_types.do
     def handle_interaction(
         self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction, clicked_object
+        interaction_type: _interaction.MouseInteraction, clicked_object: _Union["_ObjectBase", None]
     ) -> bool:
         """Entry point ``MouseHandlerBase`` calls on whichever view object
         is either already armed (``canvas.active_handler_obj``) or was just
@@ -931,7 +970,7 @@ class BaseVar:
         return False
 
     @_check_types.do
-    def handle_wheel(self, mouse_pos: _point.Point, qt_wheel_event, clicked_object) -> bool:
+    def handle_wheel(self, mouse_pos: _point.Point, qt_wheel_event, clicked_object: _Union["_ObjectBase", None]) -> bool:
         """Entry point ``MouseHandlerBase.on_mouse_wheel`` calls on
         whichever view object is either already armed
         (``canvas.active_handler_obj``) or was just freshly picked.
@@ -975,7 +1014,7 @@ class BaseVar:
         return self._active_handler is not None
 
     @_check_types.do
-    def _render_geometry(self, program: Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"]):
+    def _render_geometry(self, program: _Union["_shader_program.FacesProgram", "_shader_program.EdgesProgram", "_shader_program.VerticesProgram"]) -> None:
         """Render the object geometry using the active shader program.
 
         Called by render() for each rendering pass (faces, edges, normals, vertices).
@@ -1017,8 +1056,11 @@ class BaseVar:
     def render_handler(self, shaders: "_shaders.ShaderProgram") -> None:
         pass
 
+    def try_pick_cavity(self, x: int, y: int) -> _Union["_cavity3d.Cavity", None]:
+        return None
+
     @_check_types.do
-    def render(self, shaders: "_shaders.ShaderProgram"):
+    def render(self, shaders: "_shaders.ShaderProgram") -> None:
         """
         Execute the render operation.
 
@@ -1028,6 +1070,22 @@ class BaseVar:
         """
 
         if not self.is_visible:
+            # An invisible snap probe (PseudoPJTWireLayout.is_snap_probe)
+            # never draws, but still has to be a valid ray-cast candidate
+            # -- gl.object_picker.find_object's hit_test only considers
+            # slots marked visible this frame, and that's normally only
+            # ever set by the draw calls below, which a hidden object
+            # never reaches. Mark it here instead, without drawing
+            # anything, so the probe stays pickable.
+            try:
+                is_snap_probe = self.db_obj.is_snap_probe  # NOQA
+            except AttributeError:
+                is_snap_probe = False
+
+            if is_snap_probe and self._vbo is not None:
+                self._aabb_manager.mark_visible(self._aabb_index)
+                self._obb_manager.mark_visible(self._obb_index)
+
             return
 
         if self._vbo is None:

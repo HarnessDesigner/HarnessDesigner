@@ -12,7 +12,7 @@ class GPUAttribute:
     """
 
     @_check_types.do
-    def __init__(self, label):
+    def __init__(self, label: str) -> None:
         """Initialize the attribute with a display label.
 
         :param label: Prefix used when the value is converted to text.
@@ -22,7 +22,7 @@ class GPUAttribute:
         self.value = 'Unknown'
 
     @_check_types.do
-    def __str__(self):
+    def __str__(self) -> str:
         """Return the label and current value as a single string.
 
         :returns: Human-readable label/value text.

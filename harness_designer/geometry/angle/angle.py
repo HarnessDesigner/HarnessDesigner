@@ -2,6 +2,7 @@
 
 """Angle wrappers that combine Euler angles and quaternions."""
 
+from typing import TYPE_CHECKING
 from typing import Self, Any, Union as _Union
 from collections.abc import Callable, Iterable
 
@@ -15,6 +16,10 @@ from .. import point as _point
 from ..decimal import Decimal as _d
 from ... import app_mixins as _app_mixins
 from ... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from .. import line as _line
 
 
 ONE = 1.0
@@ -89,7 +94,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
     @_check_types.do
-    def __array_ufunc__(self, func: np.ufunc, method: str, inputs: object, instance: object,
+    def __array_ufunc__(self, func: np.ufunc, method: str, inputs: _Union["_point.Point", "Angle", "_line.Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None], instance: _Union["_point.Point", "Angle", "_line.Line", "_quaternion.Quaternion", np.ndarray, tuple, list, float, int, None],
                          out: tuple[np.ndarray, ...] | None = None,
                          **kwargs: dict[str, Any]) -> _Union[np.ndarray, _quaternion.Quaternion, "Angle"]:  # NOQA
         """

@@ -11,5 +11,5 @@ if sys.platform.startswith('win'):
     run = module.run
 
 else:
-    def run():
+    def run() -> None:
         pass

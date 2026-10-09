@@ -56,7 +56,7 @@ class PegboardSnapButton(QtWidgets.QToolButton):
 
     @_check_types.do
     def __init__(self, parent: QtWidgets.QWidget, label: str,
-                 checked_icon: QtGui.QIcon, unchecked_icon: QtGui.QIcon):
+                 checked_icon: QtGui.QIcon, unchecked_icon: QtGui.QIcon) -> None:
         super().__init__(parent)
 
         self._label = label

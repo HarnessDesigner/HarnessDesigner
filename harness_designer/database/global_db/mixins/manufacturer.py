@@ -1,15 +1,16 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Union as _Union
 
 from ....ui import prop_ctrls as _prop_ctrls
-
 from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType, NIL_ID
 from .... import check_types as _check_types
 
 
 if TYPE_CHECKING:
     from .. import manufacturer as _manufacturer  # NOQA
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class ManufacturerMixin(BaseMixin):
@@ -18,11 +19,11 @@ class ManufacturerMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
 
-    _stored_manufacturer: Union[DefaultStoredValueType, "_manufacturer.Manufacturer"] = DefaultStoredValue
+    _stored_manufacturer: _Union[DefaultStoredValueType, "_manufacturer.Manufacturer"] = DefaultStoredValue
 
     @property
     @_check_types.do
-    def manufacturer(self) -> Union["_manufacturer.Manufacturer", None]:
+    def manufacturer(self) -> _Union["_manufacturer.Manufacturer", None]:
         """Return the manufacturer.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -62,7 +63,7 @@ class ManufacturerMixin(BaseMixin):
 
     @mfg_id.setter
     @_check_types.do
-    def mfg_id(self, value: bytes):
+    def mfg_id(self, value: bytes) -> None:
         """Set the mfg ID.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -84,7 +85,7 @@ class ManufacturerControl(_prop_ctrls.Category):
     """
     
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`ManufacturerControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -125,7 +126,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.name_ctrl.propertyChanged.connect(self._on_name_change)
 
     @_check_types.do
-    def set_obj(self, db_obj: ManufacturerMixin | None):
+    def set_obj(self, db_obj: ManufacturerMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -193,7 +194,7 @@ class ManufacturerControl(_prop_ctrls.Category):
             self.website_ctrl.setEnabled(True)
 
     @_check_types.do
-    def _on_name_change(self, evt: _prop_ctrls.PropertyEvent):
+    def _on_name_change(self, evt: _prop_ctrls.PropertyEvent) -> None:
         """Handle the name change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -233,7 +234,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.website_ctrl.SetValue(website)
 
     @_check_types.do
-    def _on_desc_change(self, evt):
+    def _on_desc_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the desc change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -244,7 +245,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.db_obj.manufacturer.description = evt.GetValue()
 
     @_check_types.do
-    def _on_addr_change(self, evt):
+    def _on_addr_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the addr change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -255,7 +256,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.db_obj.manufacturer.address = evt.GetValue()
 
     @_check_types.do
-    def _on_contact_change(self, evt):
+    def _on_contact_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the contact change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -266,7 +267,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.db_obj.manufacturer.contact_person = evt.GetValue()
 
     @_check_types.do
-    def _on_phone_change(self, evt):
+    def _on_phone_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the phone change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -277,7 +278,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.db_obj.manufacturer.phone = evt.GetValue()
 
     @_check_types.do
-    def _on_ext_change(self, evt):
+    def _on_ext_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the ext change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -288,7 +289,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.db_obj.manufacturer.ext = evt.GetValue()
 
     @_check_types.do
-    def _on_email_change(self, evt):
+    def _on_email_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the email change event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -299,7 +300,7 @@ class ManufacturerControl(_prop_ctrls.Category):
         self.db_obj.manufacturer.email = evt.GetValue()
 
     @_check_types.do
-    def _on_website_change(self, evt):
+    def _on_website_change(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the website change event.
 
         UNKNOWN details are inferred from the callable name and signature.

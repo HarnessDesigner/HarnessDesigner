@@ -23,7 +23,7 @@ class SystemMenu(QtWidgets.QMenuBar):
     """
 
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame"):
+    def __init__(self, mainframe: "_ui.MainFrame") -> None:
         """
         Initialise the :class:`SystemMenu` instance.
 

@@ -1,8 +1,15 @@
 # © 2025-2026 Kevin G. Schlosser <kevin.g.schlosser@gmail.com>
 
-from .base import BaseMixin, DefaultStoredValue, DefaultStoredValueType
+from typing import TYPE_CHECKING
+
+from .base import BaseMixin
 from ....ui import prop_ctrls as _prop_ctrls
 from .... import check_types as _check_types
+
+
+if TYPE_CHECKING:
+    from ....ui.prop_ctrls import events as _prop_events
+    from PySide6 import QtWidgets
 
 
 class NotesMixin(BaseMixin):
@@ -11,8 +18,6 @@ class NotesMixin(BaseMixin):
     UNKNOWN details are inferred from the class name and surrounding code.
     """
     
-    _stored_notes: str | DefaultStoredValueType = DefaultStoredValue
-
     @property
     @_check_types.do
     def notes(self) -> str:
@@ -23,15 +28,12 @@ class NotesMixin(BaseMixin):
         :returns: Property value. UNKNOWN details.
         :rtype: str
         """
-        if self._stored_notes is DefaultStoredValue:
-            _rows = self._table.select('notes', id=self._db_id)
-            self._stored_notes = _rows[0][0] if _rows else None
-            
-        return self._stored_notes
+        _rows = self._table.select('notes', id=self._db_id)
+        return _rows[0][0] if _rows else None
 
     @notes.setter
     @_check_types.do
-    def notes(self, value: str):
+    def notes(self, value: str) -> None:
         """Set the notes.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -39,7 +41,6 @@ class NotesMixin(BaseMixin):
         :param value: Value to store or process.
         :type value: str
         """
-        self._stored_notes = value
         self._table.update(self._db_id, notes=value)
         self._populate('notes')
 
@@ -51,7 +52,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
     """
 
     @_check_types.do
-    def __init__(self, parent):
+    def __init__(self, parent: "QtWidgets.QWidget") -> None:
         """Initialise the :class:`NotesControl` instance.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -66,7 +67,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
         self.propertyChanged.connect(self._on_notes)
 
     @_check_types.do
-    def _on_notes(self, evt):
+    def _on_notes(self, evt: "_prop_events.PropertyEvent") -> None:
         """Handle the notes event.
 
         UNKNOWN details are inferred from the callable name and signature.
@@ -78,7 +79,7 @@ class NotesControl(_prop_ctrls.LongStringProperty):
         self.db_obj.notes = value
 
     @_check_types.do
-    def set_obj(self, db_obj: NotesMixin | None):
+    def set_obj(self, db_obj: NotesMixin | None) -> None:
         """Set the obj.
 
         UNKNOWN details are inferred from the callable name and signature.
