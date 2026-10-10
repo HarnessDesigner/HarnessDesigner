@@ -267,13 +267,13 @@ class WireRouteMixin:
     # WireRouteMixin has no inheritance relationship to WireDragMixin --
     # they only meet on the concrete subclass -- so without these,
     # static analysis has no way to know self.canvas/self.target/
-    # self.end/self._moving/self._get_view_object are ever going to
+    # self.end/self.moving/self._get_view_object are ever going to
     # exist. Same convention WireDragMixin itself follows for its own
     # ``canvas``/``target``/etc. placeholders, for the identical reason.
     canvas = None
     target = None
     end = None
-    _moving = None
+    moving = None
 
     @staticmethod
     def _get_view_object(obj: "_objects.ObjectBase") -> "_base_var.BaseVar":
@@ -294,14 +294,14 @@ class WireRouteMixin:
         end, or an anchored pair collapsed to one survivor) is never
         eligible, full stop.
         """
-        if self.end is not None or self._moving is None or len(self._moving) != 2:
+        if self.end is not None or self.moving is None or len(self.moving) != 2:
             return False
 
         view_obj = self._get_view_object(self.target)
         start_id = view_obj.start_position.db_id
         stop_id = view_obj.stop_position.db_id
 
-        for point in self._moving:
+        for point in self.moving:
             if point.db_id in (start_id, stop_id):
                 return False
 
