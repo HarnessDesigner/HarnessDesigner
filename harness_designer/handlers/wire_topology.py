@@ -22,6 +22,7 @@ from .. import check_types as _check_types
 
 if TYPE_CHECKING:
     from ..objects import project as _project
+    from ..database.project_db.pjt_bases import ProjectTables as _ProjectTables
 
 
 @_check_types.do
@@ -70,6 +71,36 @@ def segment_index(wire: _wire.Wire, position: np.ndarray, view: str = '3d') -> i
             best_idx = i
 
     return best_idx
+
+
+@_check_types.do
+def hidden_waypoint_ids(ptables: "_ProjectTables", wire_id: bytes, view: str) -> set:
+    """Point ids (raw ``pjt_points3d``/``pjt_points_pegboard`` row ids,
+    matching ``PJTWirePath.point_id`` -- NOT a live geometry ``Point``'s
+    own suffixed ``db_id``, see e.g. ``objects.objects_3d.wire.Wire.
+    is_housing_attached``) on *wire_id*'s own route for *view* that sit
+    inside a bundle or transition's span -- BUNDLE_DESIGN.md 2.6's
+    ``bundle_id``/``transition_id`` tag columns on ``pjt_wire_paths``.
+
+    BUNDLE_PLACEMENT.md section 12: the stretch of wire between two such
+    tagged points runs through the bundle/transition's own rendered
+    geometry and must never be drawn a second time as a bare wire
+    segment -- see ``objects.objects_3d/objects_pegboard.wire.Wire.
+    _segment_transforms``, the only callers (via each view's own cached
+    ``_hidden_waypoint_ids``, refreshed by ``_bind_waypoints``, never
+    recomputed per frame). The entry/exit guard points bracketing that
+    stretch (``handlers.wire_routing_handler``'s own guard waypoints)
+    carry neither tag, so the open-air stub segment on their outward
+    side stays visible.
+    """
+    rows = ptables.pjt_wire_paths_table.for_wire(wire_id, view)
+
+    hidden = set()
+    for row in rows:
+        if row.bundle_id is not None or row.transition_id is not None:
+            hidden.add(row.point_id)
+
+    return hidden
 
 
 @_check_types.do

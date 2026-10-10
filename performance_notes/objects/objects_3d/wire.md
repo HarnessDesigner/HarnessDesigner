@@ -14,6 +14,9 @@ by `WireStripe.render_segment`). Typical wires have only a few segments, so
 this is not a problem on its own; it multiplies with the number of wires in the
 scene, which is the case to watch for.
 
+## `Wire._segment_transforms` — hidden-segment filtering adds one list build, no new query
+The routed-through-skeleton hiding added 2026-10-10 builds a `point_ids` list by walking `self._waypoints(self.db_obj)` once per call (same list `_segments()` itself already walks, so no new DB access) and does an O(1) set-membership check (`self._hidden_waypoint_ids`, cached by `_bind_waypoints`, see `performance_notes/handlers/wire_topology.md`) per segment. No SELECT happens here. Same per-call-allocation shape the note below already flags for the rest of this method -- caching the transforms would subsume this too.
+
 ## Line 351-369 (`Wire._segment_transforms`) — rebuilt on every call
 `_segment_transforms` is a generator that allocates a `Point` and an `Angle`
 per segment and recomputes `_rotation_from_direction` for each. It is called

@@ -8,3 +8,6 @@ Same pattern as the 3D wire: every endpoint or waypoint move recalculates length
 
 ## Line 458-... (`hit_test_step3`) — full mesh transformed per segment on pick
 Same full-mesh structure as the 3D `hit_test_step3`; see `objects_3d/wire.md`.
+
+## `_segment_transforms` — same hidden-segment filtering as the 3D wire
+See `objects_3d/wire.md`'s own note on this -- identical shape here (one extra list build from `self._waypoints(self.db_obj)`, no new query; the cache itself is populated by `_bind_waypoints`).

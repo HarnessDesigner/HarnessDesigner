@@ -65,6 +65,8 @@ material calls in this module specifically have not been exercised.
 
 from typing import TYPE_CHECKING, Union as _Union
 
+from PySide6 import QtCore, QtWidgets
+
 from . import bundle_diameter as _bundle_diameter
 from . import transition_handler as _transition_handler
 from . import wire_routing_handler as _wire_routing_handler
@@ -104,6 +106,18 @@ _HOVERED = _transition_handler.HOVER_HIGHLIGHT
 @_check_types.do
 def _view_transition(t_obj: "_transition_obj.Transition", view: str) -> _Union["_transition_3d.Transition", "_transition_pegboard.Transition"]:
     return t_obj.obj3d if view == '3d' else t_obj.objpegboard
+
+
+@_check_types.do
+def _refresh_committed_wire(wire_obj: "_wire_obj.Wire", view: str) -> None:
+    """Resync *wire_obj*'s own *view* object with the ``pjt_wire_paths``
+    rows a ``wire_routing_handler.RouteWalk.commit()`` call just wrote --
+    without this, the wire's cached waypoint list (and the hidden-segment
+    cache ``_segment_transforms`` reads, see ``handlers.wire_topology.
+    hidden_waypoint_ids``) would keep showing the pre-route geometry
+    until something else happened to call ``refresh_waypoints`` later."""
+    view_obj = wire_obj.obj3d if view == '3d' else wire_obj.objpegboard
+    view_obj.refresh_waypoints()
 
 
 @_check_types.do
@@ -440,7 +454,30 @@ class RouteSession:
         self, last_pos: "_point.Point", current_pos: "_point.Point", had_motion: bool,
         interaction_type: "_interaction.MouseInteraction", clicked_object: _Union["_objects.ObjectBase", None],
     ) -> bool:
+        """BUNDLE_PLACEMENT.md section 12: "the only left click with no
+        motion that will be accepted as a click on anything is when a
+        branch on the transition is clicked... a right click with no
+        motion will cancel the operation. All other mouse interactions
+        that move the camera are allowed to take place." Two things
+        follow, both fixed 2026-10-10 (previously every MOVE/LEFT_UP/
+        RIGHT_UP was swallowed unconditionally, which silently blocked
+        camera orbit/pan/truck while a session was armed and cancelled
+        the whole route on a right-drag camera release):
+
+        - MOVE only updates the branch hover highlight while no mouse
+          button is actually held -- a camera-move drag (whichever
+          button the user's own config binds to orbit/pan/truck) is
+          declined outright so ``on_mouse_motion``'s own fallback
+          button-delta handling runs instead of being pre-empted here.
+        - LEFT_UP/RIGHT_UP only act when *had_motion* is False, mirroring
+          ``add_handlers.base``'s own "a click-type event with motion was
+          actually a drag release, let it fall through" convention --
+          see e.g. ``add_handlers.editor_3d.wire.Wire.__call__``.
+        """
         if interaction_type is _interaction.MouseInteraction.MOVE:
+            if QtWidgets.QApplication.mouseButtons() != QtCore.Qt.MouseButton.NoButton:
+                return False
+
             view_transition = self._current_transition_view_obj()
             origin, direc = _object_picker.build_ray(current_pos, self.canvas.camera)
             hit = None
@@ -458,6 +495,11 @@ class RouteSession:
 
             return True
 
+        if had_motion:
+            # A camera-move drag's own release (orbit/pan/truck, whatever
+            # button it used) -- never a branch pick or a cancel.
+            return False
+
         if interaction_type is _interaction.MouseInteraction.LEFT_UP:
             if self._hovered_branch is None:
                 return False  # click missed every eligible branch -- stay armed
@@ -468,6 +510,7 @@ class RouteSession:
 
             if self._walk.is_finished:
                 self._walk.commit()
+                _refresh_committed_wire(self.target, self._view)
                 self._finished = True
             else:
                 self._highlight_current_transition()
@@ -515,6 +558,7 @@ def begin_route(
 
     if walk.is_finished:
         walk.commit()
+        _refresh_committed_wire(wire_obj, view)
         return None
 
     return RouteSession(canvas, wire_obj, walk, wire_od, view)

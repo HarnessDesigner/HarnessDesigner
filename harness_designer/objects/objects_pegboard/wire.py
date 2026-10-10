@@ -108,6 +108,14 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             # objects.terminal.Terminal.add_wire).
             self._waypoint_points: list[_point.Point] = []
 
+            # Raw point ids (see handlers.wire_topology.hidden_waypoint_ids)
+            # that sit inside a bundle/transition this wire is routed
+            # through -- recomputed only in _bind_waypoints (waypoint-
+            # change time), never per frame, and read by
+            # _segment_transforms to skip drawing that stretch
+            # (BUNDLE_PLACEMENT.md section 12).
+            self._hidden_waypoint_ids: set = set()
+
             self._length = self._calc_length()
 
             position = self._p1
@@ -219,6 +227,11 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
         for point in self._waypoint_points:
             point.bind(self._update_position)
+
+        from ...handlers import wire_topology as _wire_topology  # NOQA -- avoid a cycle at import time
+
+        self._hidden_waypoint_ids = _wire_topology.hidden_waypoint_ids(
+            self.parent.mainframe.project.ptables, self.db_obj.db_id, 'pegboard')
 
     @_check_types.do
     def refresh_waypoints(self) -> None:
@@ -396,10 +409,29 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         """Yield (position, angle, scale, length) for every sub-segment
         of this wire's current path -- the values render()/hit_test_step3
         both draw/test against, computed fresh each call since a wire's
-        waypoints can change at any time."""
-        diameter = self._scale.x
+        waypoints can change at any time.
 
-        for seg_p1, seg_p2 in self._segments():
+        Skips any sub-segment that lies entirely between two skeleton
+        points (both its own endpoints in ``self._hidden_waypoint_ids``,
+        cached by ``_bind_waypoints``) -- that stretch runs through a
+        bundle's or transition's own rendered geometry, so drawing it
+        again here would double it up (BUNDLE_PLACEMENT.md section 12).
+        The guard waypoints bracketing that stretch are never themselves
+        hidden, so the open-air stub segment on their outward side still
+        renders normally.
+        """
+        diameter = self._scale.x
+        hidden_ids = self._hidden_waypoint_ids
+
+        point_ids = [self.start_position.db_id[:-2]]
+        for wp in self._waypoints(self.db_obj):
+            point_ids.append(wp.db_id)
+        point_ids.append(self.stop_position.db_id[:-2])
+
+        for (seg_p1, seg_p2), id1, id2 in zip(self._segments(), point_ids, point_ids[1:]):
+            if hidden_ids and id1 in hidden_ids and id2 in hidden_ids:
+                continue
+
             seg_vec = seg_p2 - seg_p1
             seg_len = float(np.linalg.norm(seg_vec))
             if seg_len < 1e-6:

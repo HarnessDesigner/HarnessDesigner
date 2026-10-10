@@ -8,3 +8,9 @@ The bundle check reuses the picker result, so no second pick is made for bundles
 
 ## Line 108-... (`compute_eligible_targets`) - once per drag start
 Walks project bundles and transitions once and checks freeness per end. The `is_in_*` checks it makes now read the view pools (see performance_notes/gl/camera notes), so this is one array read per object rather than a camera scan.
+
+## `RouteSession.__call__` MOVE branch (2026-10-10 fix) - one extra static call per move, only while armed
+Added `QtWidgets.QApplication.mouseButtons()` so a camera-move drag (any button) declines the event instead of being swallowed. That's a single Qt static-method call, not a query of any kind, paid once per mouse-move event while a session is armed (a rare, user-initiated, short-lived state) -- negligible next to the ray-sphere branch tests already below it.
+
+## `_refresh_committed_wire` - one `refresh_waypoints()` call, once per committed route
+Called exactly once per `RouteWalk.commit()` (either in `begin_route` for a single-hop route, or in `RouteSession.__call__`'s `LEFT_UP` once `self._walk.is_finished`), never per move. Cost is `Wire.refresh_waypoints`'s own (a waypoint rebind plus one `hidden_waypoint_ids` SELECT, see `performance_notes/handlers/wire_topology.md`) -- a one-shot cost at the end of a user-driven drag/click session, not a hot-path concern.
