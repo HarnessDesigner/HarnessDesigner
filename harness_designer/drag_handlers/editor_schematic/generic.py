@@ -122,6 +122,16 @@ class Generic(_editor_schematic.DragHandlerSchematic):
             _wire_reroute.wires_attached_to(target),
             key=lambda w: (not _wire_reroute.is_junction_wire(w), _wire_reroute.crow_flies_distance(w)))
 
+        # Open the move gesture for this drag's whole lifetime (WRITE_DESIGN.md
+        # section 4.12): every write this drag triggers -- the housing/
+        # transition position cascade, and any nested wire-reroute
+        # apply_shifts call from follow_moved/_route below -- defers into
+        # each table's cache instead of touching the database, until
+        # delete() closes it and the outermost close flushes once. Last
+        # statement in __init__ on purpose -- see editor_3d/generic.py's
+        # identical note.
+        canvas.mainframe.project.begin_gesture()
+
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
@@ -209,9 +219,18 @@ class Generic(_editor_schematic.DragHandlerSchematic):
 
     @_check_types.do
     def delete(self) -> None:
-        # Mouse released: report whatever the profiler gathered this drag.
-        _profile_report()
-
         project = self.canvas.mainframe.project
-        _wire_reroute.sweep_for_overlaps(project, self.target, self._attached)
-        super().delete()
+
+        try:
+            # Mouse released: report whatever the profiler gathered this drag.
+            _profile_report()
+
+            _wire_reroute.sweep_for_overlaps(project, self.target, self._attached)
+            super().delete()
+        finally:
+            # Close the gesture last, whichever way this exits -- see
+            # __init__ above. A gesture that never closes would silently
+            # defer every later write app-wide until something else
+            # happened to close it, so this must run even if the cleanup
+            # above raises.
+            project.end_gesture()

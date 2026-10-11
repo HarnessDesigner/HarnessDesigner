@@ -515,6 +515,30 @@ class Project:
             mainframe.editor_pegboard.editor.request_fit_all()
 
     @_check_types.do
+    def begin_gesture(self) -> None:
+        """Open one move/rotate gesture -- see
+        ``ptables.begin_gesture``/WRITE_DESIGN.md section 4.12.
+        """
+        self.ptables.begin_gesture()
+
+    @_check_types.do
+    def end_gesture(self) -> None:
+        """Close one move/rotate gesture, flushing on the outermost close --
+        see ``ptables.end_gesture``/WRITE_DESIGN.md section 4.12.
+        """
+        self.ptables.end_gesture()
+
+    @_check_types.do
+    def gesture(self) -> "_pjt_bases._GestureContext":
+        """``with project.gesture():`` -- the drag/rotate handlers' entry
+        point for section 4.12's write suppression. See ``ptables.gesture``.
+
+        :returns: The context manager.
+        :rtype: _pjt_bases._GestureContext
+        """
+        return self.ptables.gesture()
+
+    @_check_types.do
     def close(self) -> None:
         """Drop every reference this project holds to its own registered
         objects, without touching the database or calling any object's

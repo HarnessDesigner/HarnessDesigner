@@ -254,35 +254,31 @@ def shift_targets(waypoint_points: list, at_start: bool, updates: list[tuple[int
 
 def apply_shifts(project: "_project.Project", targets: list[tuple["_point.Point", float, float]]) -> None:
     """Move every ``(waypoint Point, x, z)`` in *targets* -- across ALL the
-    wires being shifted -- with a SINGLE database write.
+    wires being shifted.
 
-    A ``Point``'s own callback writes its row and commits, and a commit costs
-    the same (a few milliseconds: it waits for the disk) whether it carries
-    one row or a hundred. So letting each moved waypoint write for itself
-    made a drag pay one commit per waypoint per mouse move, on top of the
-    housing's own. This does what ``PJTHousing._update_position2d`` does for
-    the terminals it carries: one ``batch_update`` for all of them, then the
-    points move with the per-point write switched off (their callbacks -- the
-    ones that redraw -- still fire).
+    Every caller of this function (a wire's own schematic drag, and
+    ``follow_moved`` nested inside a housing's own schematic move) opens a
+    move gesture before it ever runs (WRITE_DESIGN.md section 4.12), so
+    each point's own ``_update_point``/``table.update()`` call below
+    defers into its table's cache instead of running real SQL -- no
+    explicit batch write needed here anymore. The gesture's end flushes
+    every waypoint any wire in this drag touched, across every nested
+    caller, in one batched ``UPDATE``, the same "one commit no matter how
+    many rows" property this function used to provide by hand with its
+    own ``batch_update`` call. Outside a gesture this runs exactly as it
+    always has: one real ``UPDATE`` per point.
     """
     if not targets:
         return
 
-    rows = [[float(x), float(z), point.db_id[:-2]] for point, x, z in targets]
-    project.ptables.pjt_points2d_table.batch_update(['x', 'z'], rows)
+    for point, x, z in targets:
+        with point:
+            point.x = x
+            point.z = z
 
-    _pjt_point2d.PJTPoint2D._skip_db_write = True
-    try:
-        for point, x, z in targets:
-            with point:
-                point.x = x
-                point.z = z
-
-            # Callbacks are suppressed inside ``with point:`` and the caller
-            # is responsible for firing them afterwards (see reroute_wire).
-            point._process_callbacks()  # NOQA
-    finally:
-        _pjt_point2d.PJTPoint2D._skip_db_write = False
+        # Callbacks are suppressed inside ``with point:`` and the caller
+        # is responsible for firing them afterwards (see reroute_wire).
+        point._process_callbacks()  # NOQA
 
 
 def follow_moved(project: "_project.Project", obj: "_objects.ObjectBase", wires: list["_wire_obj.Wire"],

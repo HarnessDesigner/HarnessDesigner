@@ -596,6 +596,14 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         # waypoint structure changed out from under self._plan.
         self._rerouted = False
 
+        # Open the move gesture for this drag's whole lifetime -- see
+        # editor_schematic/generic.py Generic.__init__ for the same hook,
+        # and WRITE_DESIGN.md section 4.12. apply_shifts (called from
+        # __call__ below) defers into the cache instead of the database
+        # for as long as this is open. Last statement in __init__ on
+        # purpose -- see editor_3d/generic.py's identical note.
+        canvas.mainframe.project.begin_gesture()
+
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, locked ortho camera gives an absolute world position directly
@@ -934,32 +942,38 @@ class Wire(_editor_schematic.DragHandlerSchematic):
         ``reroute_wire`` already replaced the whole path, waypoints and
         all, the moment it ran.
         """
-        if self._rerouted:
-            super().delete()
-            return
-
-        plan = self._plan
         project = self.canvas.mainframe.project
 
-        if plan.horizontal:
-            near_collapsed = abs(float(plan.p_near.z) - float(plan.p_before.z)) < 1e-6
-            far_collapsed = abs(float(plan.p_far.z) - float(plan.p_after.z)) < 1e-6
-        else:
-            near_collapsed = abs(float(plan.p_near.x) - float(plan.p_before.x)) < 1e-6
-            far_collapsed = abs(float(plan.p_far.x) - float(plan.p_after.x)) < 1e-6
+        try:
+            if self._rerouted:
+                super().delete()
+                return
 
-        if near_collapsed:
-            self._remove_waypoint(project, plan.layout_near, plan.waypoint_near)
+            plan = self._plan
 
-            if plan.waypoint_before is not None:
-                self._remove_waypoint(project, plan.layout_before, plan.waypoint_before)
+            if plan.horizontal:
+                near_collapsed = abs(float(plan.p_near.z) - float(plan.p_before.z)) < 1e-6
+                far_collapsed = abs(float(plan.p_far.z) - float(plan.p_after.z)) < 1e-6
+            else:
+                near_collapsed = abs(float(plan.p_near.x) - float(plan.p_before.x)) < 1e-6
+                far_collapsed = abs(float(plan.p_far.x) - float(plan.p_after.x)) < 1e-6
 
-        if far_collapsed:
-            self._remove_waypoint(project, plan.layout_far, plan.waypoint_far)
+            if near_collapsed:
+                self._remove_waypoint(project, plan.layout_near, plan.waypoint_near)
 
-            if plan.waypoint_after is not None:
-                self._remove_waypoint(project, plan.layout_after, plan.waypoint_after)
+                if plan.waypoint_before is not None:
+                    self._remove_waypoint(project, plan.layout_before, plan.waypoint_before)
 
-        self.target.objschematic.refresh_waypoints()
+            if far_collapsed:
+                self._remove_waypoint(project, plan.layout_far, plan.waypoint_far)
 
-        super().delete()
+                if plan.waypoint_after is not None:
+                    self._remove_waypoint(project, plan.layout_after, plan.waypoint_after)
+
+            self.target.objschematic.refresh_waypoints()
+
+            super().delete()
+        finally:
+            # Close the gesture last, whichever way delete() exits -- see
+            # __init__ above.
+            project.end_gesture()

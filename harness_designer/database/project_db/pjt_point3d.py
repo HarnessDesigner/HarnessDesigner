@@ -281,10 +281,6 @@ class PJTPoint3D(PJTEntryBase):
         self._stored_z = value
         self._table.update(self._db_id, z=value)
 
-    # Class-level flag: set True during bulk position batch-writes so that the
-    # per-point DB callback is suppressed while 3D render callbacks still fire.
-    _skip_db_write: bool = False
-
     @_check_types.do
     def _update_point(self, point: _point.Point) -> None:
         """Update the point.
@@ -327,8 +323,6 @@ class PJTPoint3D(PJTEntryBase):
         # objects/objects_pegboard/cavity.py's peg-board seeding fix).
         # Left as-is for now -- don't "fix" this again without also
         # working out why it breaks fresh-housing cavity selection.
-        if PJTPoint3D._skip_db_write:
-            return
         x, y, z = point.as_float
         self._stored_x = x
         self._stored_y = y

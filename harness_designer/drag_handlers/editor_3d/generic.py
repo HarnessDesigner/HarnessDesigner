@@ -79,12 +79,30 @@ class Generic(_editor_3d.DragHandler3D):
         if target.is_wire_service_loop:
             target.obj3d.begin_move_session()
 
+        # Open the move gesture for this drag's whole lifetime (WRITE_DESIGN.md
+        # section 4.12): every database write this drag triggers -- the
+        # housing/transition position cascade included -- defers into each
+        # table's cache instead of touching the database, until delete()
+        # below closes it and the outermost close flushes once. Last
+        # statement in __init__ on purpose: if anything above raised, this
+        # object was never fully constructed and delete() will never be
+        # called on it, so a gesture opened earlier would leak open forever.
+        canvas.mainframe.project.begin_gesture()
+
     @_check_types.do
     def delete(self) -> None:
-        if self.target.is_wire_service_loop:
-            self.target.obj3d.end_move_session()
+        try:
+            if self.target.is_wire_service_loop:
+                self.target.obj3d.end_move_session()
 
-        super().delete()
+            super().delete()
+        finally:
+            # Close the gesture last, whichever way this exits -- see
+            # __init__ above. A gesture that never closes would silently
+            # defer every later write app-wide until something else
+            # happened to close it, so this must run even if the cleanup
+            # above raises.
+            self.canvas.mainframe.project.end_gesture()
 
     @_debug.logfunc
     @_check_types.do

@@ -103,8 +103,7 @@ class PJTPointPegboard(PJTEntryBase):
 
     Structurally identical to :class:`~harness_designer.database.project_db.
     pjt_point3d.PJTPoint3D` -- same singleton/attach/clone/self-heal
-    lifecycle, same ``parent_point_id`` column, same ``_skip_db_write``
-    batch-suppression flag. See
+    lifecycle, same ``parent_point_id`` column. See
     that class's docstring for the full mechanics (NORMAL LIFECYCLE,
     ATTACH/CLONE LIFECYCLE, SELF-HEALING VIA ``_update_point``, CLONE GUARD,
     SINGLETON CACHE CLEANUP) -- none of it is repeated here since it applies
@@ -215,10 +214,6 @@ class PJTPointPegboard(PJTEntryBase):
         self._stored_z = value
         self._table.update(self._db_id, z=value)
 
-    # Class-level flag: set True during bulk position batch-writes so that the
-    # per-point DB callback is suppressed while pegboard render callbacks still fire.
-    _skip_db_write: bool = False
-
     @_check_types.do
     def _update_point(self, point: _point.Point) -> None:
         """Update the point.
@@ -247,8 +242,6 @@ class PJTPointPegboard(PJTEntryBase):
         # selection right after a fresh housing placement (unrelated,
         # pre-existing construction-ordering issue) -- don't re-attempt
         # without also solving that.
-        if PJTPointPegboard._skip_db_write:
-            return
         x, y, z = point.as_float
         self._stored_x = x
         self._stored_y = y

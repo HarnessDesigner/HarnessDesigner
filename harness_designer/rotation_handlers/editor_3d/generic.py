@@ -62,6 +62,11 @@ class Rings3D(_base_3d.Base3D):
         """
         obj3d = selected.obj3d
 
+        # Needed below (begin_inner_drag/end_inner_drag) for the rotate
+        # gesture (WRITE_DESIGN.md section 4.12); stored explicitly since
+        # Base3D doesn't keep its own mainframe reference.
+        self.mainframe = mainframe
+
         self._axes = AXES
         self._active_axis = None
 
@@ -416,6 +421,15 @@ class Rings3D(_base_3d.Base3D):
         if not ring.hit_test_inner(mouse_pos, camera):
             return False
 
+        # Open the rotate gesture (WRITE_DESIGN.md section 4.12) BEFORE
+        # begin_drag(): that call's very first line sets is_dragging True,
+        # and end_inner_drag (which closes the gesture) fires based on
+        # is_dragging, not on whether begin_inner_drag returned normally --
+        # so the gesture must already be open by the time is_dragging could
+        # possibly become true, or a raise inside begin_drag (after its own
+        # first line) would leave is_dragging True with no gesture open for
+        # end_inner_drag to close.
+        self.mainframe.project.begin_gesture()
         ring.inner.begin_drag(mouse_pos, camera)
         return True
 
@@ -434,7 +448,14 @@ class Rings3D(_base_3d.Base3D):
         if self._active_axis is None:
             return
 
-        self._rings[self._active_axis].inner.end_drag()
+        try:
+            self._rings[self._active_axis].inner.end_drag()
+        finally:
+            # Close the gesture opened in begin_inner_drag above -- the
+            # outermost close flushes everything the drag accumulated.
+            # Must run even if end_drag() raises, or the gesture would
+            # silently stay open and defer every later write app-wide.
+            self.mainframe.project.end_gesture()
 
     @_check_types.do
     def update_outer_hover(self, mouse_pos: _point.Point, camera: "_camera_base.CameraBase") -> None:

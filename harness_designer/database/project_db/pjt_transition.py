@@ -12,8 +12,6 @@ from ..global_db import transition as _transition
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ...geometry import angle as _angle
-from . import pjt_point3d as _pjt_point3d
-from . import pjt_point_pegboard as _pjt_point_pegboard
 from .mixins import (
     Angle3DMixin, Angle3DControl,
     Position3DMixin, Position3DControl,
@@ -386,27 +384,23 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
         new_pos_arr = positions_array + delta
 
-        db_ids = [p.db_id[:-2] for p in positions]
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
-        self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
+        # Set every branch point's new value directly -- no explicit batch
+        # DB write here anymore (WRITE_DESIGN.md section 4.12). The move
+        # drag handlers open a gesture before touching position3d, so each
+        # point's own DB-writing callback (fired by _process_callbacks()
+        # below) defers into its table's cache instead of running real
+        # SQL; the gesture's end flushes every branch this drag touched in
+        # one batched UPDATE. Outside a gesture this runs exactly as it
+        # always has.
+        for i, pos in enumerate(positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-        # The DB row for each branch point was already batch-written above
-        # in one shot -- suppress PJTPoint3D's own per-point DB write while
-        # applying the same values to the live Point (still need
-        # _process_callbacks() to fire so rendering/geometry recompute).
-        _pjt_point3d.PJTPoint3D._skip_db_write = True
-        try:
-            for i, pos in enumerate(positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
-
-                pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point3d.PJTPoint3D._skip_db_write = False
+            pos._process_callbacks()  # NOQA
 
     _o_scale3d: _point.Point = None
 
@@ -487,23 +481,18 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
         new_pos_arr = positions_array + delta
 
-        db_ids = [p.db_id[:-2] for p in positions]
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
-        self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
+        # Set every branch point's new value directly -- see
+        # _update_position3d's identical comment (WRITE_DESIGN.md section
+        # 4.12). No explicit batch DB write here anymore.
+        for i, pos in enumerate(positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-        _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
-        try:
-            for i, pos in enumerate(positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
-
-                pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+            pos._process_callbacks()  # NOQA
 
     _o_quat3d: list = None
     _o_euler3d: list = None
@@ -562,21 +551,17 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        db_ids = [p.db_id[:-2] for p in positions]
-        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
-        self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
 
-        _pjt_point3d.PJTPoint3D._skip_db_write = True
-        try:
-            for i, pos in enumerate(positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
+        # Set every branch point's new value directly -- see
+        # _update_position3d's identical comment (WRITE_DESIGN.md section
+        # 4.12). No explicit batch DB write here anymore.
+        for i, pos in enumerate(positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-                pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point3d.PJTPoint3D._skip_db_write = False
+            pos._process_callbacks()  # NOQA
 
     _o_quat_pegboard: list = None
     _o_euler_pegboard: list = None
@@ -627,21 +612,17 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        db_ids = [p.db_id[:-2] for p in positions]
-        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
-        self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
 
-        _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
-        try:
-            for i, pos in enumerate(positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
+        # Set every branch point's new value directly -- see
+        # _update_position3d's identical comment (WRITE_DESIGN.md section
+        # 4.12). No explicit batch DB write here anymore.
+        for i, pos in enumerate(positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-                pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+            pos._process_callbacks()  # NOQA
 
     @property
     @_check_types.do

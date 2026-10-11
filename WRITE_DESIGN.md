@@ -1,7 +1,7 @@
 # Table-store persistence for drag, rotate, insert, and delete
 
-Status: **design settled in discussion, Phase 1 not started.** Last revised 2026-10-11.
-Open items are in section 7.
+Status: **Phase 1b implemented (section 4.12/5); Phase 1c, 2, and 3 not
+started.** Last revised 2026-10-11. Open items are in section 7.
 
 Scope: every project table (`pjt_*`) and every view (3D, schematic, peg board).
 Global (`global_db`) rows are covered in section 4.9. The cascading-write
@@ -389,12 +389,14 @@ the cascade itself.
 
 **New open items this raises** (added to section 7):
 
-- **Nested gesture + reroute.** `follow_moved`'s `apply_shifts` call already
-  runs inside a housing move's own per-frame callback (section 1). Confirm
-  `apply_shifts` opens its own gesture (so it's correct when called on its
-  own, from a bare wire drag) rather than assuming one is already open --
-  the depth counter makes nesting either way safe, but the call site should
-  not assume context it doesn't control.
+- **Nested gesture + reroute -- resolved, 2026-10-11.** `apply_shifts` itself
+  opens no gesture of its own; it relies on one already being open. Checked
+  both callers: the schematic `Wire` drag handler opens one in its own
+  `__init__`, and `follow_moved` only ever runs from inside the schematic
+  move `Generic`'s own per-frame callback, whose `__init__` also opens one
+  -- so by the time `apply_shifts` runs, either path, a gesture is always
+  already open. Nothing to add; `apply_shifts` deliberately stays as a
+  plain function with no gesture logic of its own.
 - **Crash safety, now higher-stakes.** Section 7e already flagged that a
   crash mid-gesture loses unflushed work; a multi-second rotate that
   previously wrote the database every frame now writes nothing until
@@ -434,29 +436,68 @@ It touches one choke point (`PJTTableBase.update`/`insert`/`delete`/
 `batch_update`) and the handful of begin/end pairs section 4.12 names --
 nothing else needs to change first.
 
-1. Choke-point check (section 4.11) -- confirm no cascading-owner write
-   (housing, transition, reroute) bypasses `PJTTableBase`.
-2. Add the gesture depth counter to `Project` (`begin_gesture`/`end_gesture`,
-   or a `with project.gesture():` wrapper).
-3. Branch `PJTTableBase.update`/`insert`/`delete`/`batch_update` on gesture
-   depth, per section 4.12.
-4. Add the flush-on-outermost-`end_gesture` loop over every loaded table.
-5. Open/close the gesture at the begin/end pairs section 4.12 lists (move
-   drag construct/`delete()`, rotation ring `begin_drag`/`end_drag`, wire
-   waypoint drag construct/`delete()`).
-6. Retire the explicit `batch_update()` calls and every `_skip_db_write`
-   site in section 1's list (`pjt_housing.py`, `pjt_transition.py`,
-   `wire_routing/reroute.py`, `pjt_point3d.py`, `pjt_point2d.py`,
-   `pjt_point_pegboard.py`, `mixins/angle3d.py`, `mixins/angle_pegboard.py`)
-   -- replace each cascade's batch call with plain per-point assignment, now
-   that the gesture makes the resulting per-point writes free.
+**Done, 2026-10-11:**
+
+1. ~~Choke-point check (section 4.11)~~ -- confirmed: every cascading owner
+   (housing, transition, reroute) already wrote exclusively through
+   `PJTTableBase.update`/`batch_update`; nothing bypassed it.
+2. ~~Add the gesture depth counter to `Project`~~ -- added to `PJTTables`
+   (`gesture_depth`/`begin_gesture`/`end_gesture`/`gesture()`, the last a
+   `_GestureContext` for `with project.gesture():`), with a thin delegating
+   `begin_gesture`/`end_gesture`/`gesture` on `objects/project.py`'s
+   `Project` (what `mainframe.project` actually returns -- its `.ptables` IS
+   the `PJTTables` instance).
+3. ~~Branch `update`/`batch_update` on gesture depth~~ -- done, per section
+   4.12 exactly (`insert`/`delete` stay immediate always for now -- see
+   4.12's note on why that's a deliberate, separate cut from this round).
+4. ~~Add the flush-on-outermost-`end_gesture` loop~~ -- `PJTTables.
+   _flush_gesture`, visiting tables via a new `_ordered_project_tables()`
+   (the same parent-before-child list `load()` already used, now shared).
+5. ~~Open/close the gesture at the begin/end pairs~~ -- all six: the three
+   move `Generic.__init__`/`delete()` (3D/schematic/pegboard) plus the
+   schematic `Wire.__init__`/`delete()`, and the three rotation
+   `begin_inner_drag`/`end_inner_drag` (3D/schematic/pegboard). Every
+   `end_gesture()` call is in a `finally` (a gesture that never closes would
+   silently defer every later write app-wide), and every `begin_gesture()`
+   is placed so it can't run without the matching close later firing either
+   (the rotation ones specifically go *before* `ring.inner.begin_drag()`,
+   not after -- `end_inner_drag`'s firing depends on `is_dragging`, which
+   `begin_drag()` sets on its very first line, not on `begin_inner_drag`
+   itself returning normally). Found and fixed in passing: `Rings3D`/
+   `Rings2D`/`RingsPegboard` never actually stored the `mainframe` they
+   were constructed with, as a real attribute to resolve against, even
+   though `Rings2D.detach()` already called `self.mainframe.project` --
+   a pre-existing latent `AttributeError` this work needed to not inherit.
+6. ~~Retire the explicit `batch_update()` calls and every `_skip_db_write`
+   site~~ -- all of them, across `pjt_housing.py` (6 cascades),
+   `pjt_transition.py` (4), `wire_routing/reroute.py`'s `apply_shifts`, and
+   the now-dead flag/check in `pjt_point3d.py`/`pjt_point2d.py`/
+   `pjt_point_pegboard.py`/`mixins/angle3d.py`/`mixins/angle_pegboard.py`.
+   The angle-result `batch_update()` calls for cavity/terminal/seal/
+   accessory `quat3d`/`angle3d` rows (further down `_update_angle3d`/
+   `_update_angle_pegboard`) were deliberately left alone -- they already
+   benefit from step 3's generic `batch_update` branch with no code change,
+   and (discovered while reading them) have no per-object callback fallback
+   to redirect to anyway: `Angle`'s own `__exit__` (`CallbackMixin`) never
+   auto-fires callbacks, and nothing in those loops calls
+   `_process_callbacks()` -- the explicit batch write is the ONLY thing
+   that ever persisted them, before and after this change.
 
 **Acceptance for 1b:** zero SQL statements per mouse event during a drag and
 a rotate; one transaction per gesture, covering every table any cascading
-owner touched (including a nested `apply_shifts`); a headless test of the
-flush against a temporary project database, with the store's contents after
-the flush matching the database row for row. Run it with `USERPROFILE`/
-`HOME` sandboxed, one process at a time.
+owner touched (including a nested `apply_shifts`) -- verified by direct
+code reading of every touched call site (listed above) plus a standalone
+script exercising the real `TableData` class (not a reimplementation)
+against a temporary in-memory SQLite table, confirming: a point touched on
+every one of 50 simulated drag frames produces exactly one `UPDATE`
+covering its final value, not an intermediate one; a mid-gesture read sees
+the in-flight value; the real database table is untouched until the flush
+runs. **Not verified by running the app** -- this container has no PySide6
+(confirmed: `import harness_designer...` fails at the package's own
+`__init__.py` before reaching any file this change touches), consistent
+with Phase 0's own note that the assistant doesn't launch the GUI. The user
+running a real drag and rotate in the app, plus a flush test against a real
+on-disk project database, is still the outstanding verification step.
 
 **Phase 1c -- the rest of the original Phase 1 scope.**
 
@@ -567,3 +608,19 @@ config, process) are out of scope and stay as they are.
   Corrected 4.10: selects already read the cache, that part of Phase 1 is
   done, not pending. Closed open items (a) and (b) -- both already decided in
   the existing code.
+- 2026-10-11 (later the same day): implemented Phase 1b. Gesture depth
+  counter on `PJTTables` (`begin_gesture`/`end_gesture`/`gesture()`), a
+  gesture-aware branch in `PJTTableBase.update`/`batch_update`, the flush
+  loop, and the six begin/end hook pairs (move x3, rotate x3). Retired every
+  explicit cascade `batch_update()` call and `_skip_db_write` site in
+  `pjt_housing.py`/`pjt_transition.py`/`wire_routing/reroute.py` and the
+  point/angle classes that flag lived on. Left the cavity/terminal/seal/
+  accessory angle-result `batch_update()` calls alone (already gesture-aware
+  for free, and have no per-object callback fallback to redirect to -- see
+  item 6 above). Verified with `ast.parse`/`pyflakes` on every touched file
+  (zero new warnings against the pre-change baseline) and a standalone
+  script exercising the real `TableData` against a temporary SQLite table;
+  could not run the app itself (no PySide6 in this container). Fixed one
+  pre-existing latent bug found along the way: `Rings3D`/`Rings2D`/
+  `RingsPegboard` never stored their own `mainframe` reference despite
+  `Rings2D.detach()` already depending on it.

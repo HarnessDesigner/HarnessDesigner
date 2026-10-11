@@ -2023,28 +2023,22 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         all_positions_array = np.array([pos.as_float for pos in all_positions], dtype=np.float32)
         new_pos_arr = all_positions_array + delta
 
-        db_ids = [p.db_id[:-2] for p in all_positions]
         f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
-        self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
+        # Set every point's new value directly -- see _update_position3d's
+        # identical comment (WRITE_DESIGN.md section 4.12). No explicit
+        # batch DB write here anymore: the move drag handlers open a
+        # gesture before touching position_pegboard, so each point's own
+        # DB-writing callback defers into its table's cache instead of
+        # running real SQL, and the gesture's end flushes everything this
+        # drag touched in one batched UPDATE.
+        for i, pos in enumerate(all_positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-        # No seal (or any other accessory) cascade exists in the
-        # peg-board scope, unlike _update_position3d's terminal_positions
-        # group -- so every position here can uniformly skip the
-        # individual per-point DB write, the batch call above already
-        # persisted all of them.
-        _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
-        try:
-            for i, pos in enumerate(all_positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
-
-                pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+            pos._process_callbacks()  # NOQA
 
     _o_position_pegboard: _point.Point = None
 
@@ -2093,20 +2087,11 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         cavities = [c for c in self.cavities if c is not None]
 
-        # Cavity + accessory positions: use _skip_db_write (no seal cascade).
         cavity_positions = [cavity.position3d for cavity in cavities]
 
         accessory_positions = [self.cover_position3d, self.seal_position3d,
                                self.boot_position3d, self.tpa_lock_1_position3d,
                                self.tpa_lock_2_position3d, self.cpa_lock_position3d]
-
-        # Terminal center positions: no _skip_db_write (seal cascade must reach DB).
-        # Wire attachment/layout points: same as cavity/accessory -- the
-        # batch write below already persists them, so the individual
-        # per-point DB write PJTPoint3D._update_point would otherwise fire
-        # is pure redundant overhead (one synchronous UPDATE per point per
-        # drag frame -- this is what made rotation/move jerky before
-        # _skip_db_write was applied to this group too).
 
         terminal_positions = []
         wire_positions = []
@@ -2146,9 +2131,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         wire_positions.extend(self._find_child_points(wire_positions))
 
-        skip_write_ids = {p.db_id[:-2]
-                          for p in cavity_positions + accessory_positions + wire_positions}
-
         all_positions = cavity_positions + accessory_positions + terminal_positions + wire_positions
 
         seen = {}
@@ -2171,54 +2153,37 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         new_pos_arr = all_positions_array + delta
 
-        # ONE batch DB write for everything (one executemany + one commit).
-        db_ids = [p.db_id[:-2] for p in all_positions]
-
-        # The row handling seen commented below is inefficient and would produce
-        # incorrect values because of how the conversion from a numpy array to a
-        # float array was being done.
-        # rows = [
-        #     (float(new_pos_arr[i, 0]), float(new_pos_arr[i, 1]), float(new_pos_arr[i, 2]), db_ids[i])
-        #     for i in range(len(all_positions))
-        # ]
         f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
 
-        # each row is [x, y, z, db_id] — four elements matching the four ? placeholders
-        rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
-
-        self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
-
-        # The DB row for each point was already batch-written above in one
-        # shot, so the per-point mutation below is wrapped in `with pos:`
-        # to suppress any *individual* DB write a bound callback might
-        # otherwise trigger. _process_callbacks() is fired explicitly once
-        # the block closes, so rendering-side geometry recompute and
-        # Point.attach() delegate-sync (_on_delegate_changed) still run --
-        # both of which must run for a .attach()-shared point (a wire
-        # ending on a terminal/layout, or a snapped cover/seal/lock) to
-        # actually follow the housing.
+        # Set every point's new value directly -- no explicit batch DB
+        # write here anymore (WRITE_DESIGN.md section 4.12). Every caller of
+        # this callback (the move drag handlers, one per editor) opens a
+        # gesture before touching position3d at all, so each point's own
+        # bound DB-writing callback (PJTPoint3D._update_point, fired by
+        # _process_callbacks() below) defers into that table's cache
+        # instead of running real SQL -- the gesture's own end flushes
+        # every point this drag touched in one batched UPDATE, no matter
+        # how many drag frames or how many points. Outside a gesture (e.g.
+        # a typed value from the property grid) this runs exactly as it
+        # always has: one real UPDATE per point.
         #
-        # PJTPoint3D._skip_db_write additionally suppresses the specific
-        # DB-writing callback (PJTPoint3D._update_point) for the
-        # skip_write_ids group, since the batch write above already
-        # persisted them -- see the comments above on cavity_positions/
-        # accessory_positions/wire_positions vs. terminal_positions.
-        _pjt_point3d.PJTPoint3D._skip_db_write = True
-        try:
-            for i, pos in enumerate(all_positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
+        # `with pos:` still suppresses every bound callback (DB write
+        # included) until all three axes are set, so a point fires its
+        # callbacks once per frame, not three times -- _process_callbacks()
+        # outside the block is what actually fires them, and must run for
+        # EVERY point: rendering-side geometry recompute and
+        # Point.attach() delegate-sync (_on_delegate_changed) have to run
+        # for a .attach()-shared point (a wire ending on a terminal/layout,
+        # or a snapped cover/seal/lock) to actually follow the housing,
+        # same as before this method stopped special-casing which points
+        # get their own write.
+        for i, pos in enumerate(all_positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-                if pos.db_id[:-2] in skip_write_ids:
-                    pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point3d.PJTPoint3D._skip_db_write = False
-
-        for pos in all_positions:
-            if pos.db_id[:-2] not in skip_write_ids:
-                pos._process_callbacks()  # NOQA
+            pos._process_callbacks()  # NOQA
 
     _o_position3d: _point.Point = None
 
@@ -2333,23 +2298,24 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         positions_array = np.array([pos.as_float for pos in positions], dtype=np.float32)
         new_pos_arr = positions_array + delta
 
-        db_ids = [p.db_id[:-2] for p in positions]
         f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-        rows = [[pos[0], pos[1], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
 
-        self._table.db.pjt_points2d_table.batch_update(['x', 'y', 'z'], rows)
+        # Set every point's new value directly -- see _update_position3d's
+        # identical comment (WRITE_DESIGN.md section 4.12). No explicit
+        # batch DB write here anymore: the move drag handlers open a
+        # gesture before touching position2d, so each point's own DB-
+        # writing callback defers into its table's cache instead of
+        # running real SQL, and the gesture's end flushes everything this
+        # drag touched in one batched UPDATE. Loop order (wire_position2d
+        # before terminal_position2d) is unchanged and still matters --
+        # see the docstring above.
+        for i, pos in enumerate(positions):
+            with pos:
+                pos.x = f_position_array[i][0]
+                pos.y = f_position_array[i][1]
+                pos.z = f_position_array[i][2]
 
-        _pjt_point2d.PJTPoint2D._skip_db_write = True
-        try:
-            for i, pos in enumerate(positions):
-                with pos:
-                    pos.x = f_position_array[i][0]
-                    pos.y = f_position_array[i][1]
-                    pos.z = f_position_array[i][2]
-
-                pos._process_callbacks()  # NOQA
-        finally:
-            _pjt_point2d.PJTPoint2D._skip_db_write = False
+            pos._process_callbacks()  # NOQA
 
     _o_position2d: _point.Point = None
 
@@ -2430,30 +2396,24 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         center = position.as_numpy.copy()
 
         # ── Collect all positions for one vectorized rotation ─────────────────
-        # Same skip_write / normal split as _update_position3d: cavity,
-        # accessory, and wire-routing points are already covered by the
-        # single batch write below, so PJTPoint3D's own per-point DB write
-        # is redundant overhead for them; terminal positions need it (seal
-        # cascade).
-        skip_write_positions = []
-        normal_positions = []
+        all_positions = []
         for cavity in cavities:
-            skip_write_positions.append(cavity.position3d)
+            all_positions.append(cavity.position3d)
             terminal = cavity.terminal
             if terminal is not None:
-                normal_positions.append(cavity.terminal_position3d)
-                normal_positions.append(terminal.position3d)
+                all_positions.append(cavity.terminal_position3d)
+                all_positions.append(terminal.position3d)
                 wp = terminal.wire_position3d
                 if wp is not None:
-                    skip_write_positions.append(wp)
+                    all_positions.append(wp)
 
                 ap = terminal.attach_position3d
                 if ap is not None:
-                    skip_write_positions.append(ap)
+                    all_positions.append(ap)
 
                 cwp = cavity.wire_position3d
                 if cwp is not None:
-                    skip_write_positions.append(cwp)
+                    all_positions.append(cwp)
 
                 # A wire seal on this terminal has its own independent
                 # point (see _update_position3d above for why) -- must be
@@ -2462,17 +2422,13 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 if seal is not None:
                     sp = seal.position3d
                     if sp is not None:
-                        skip_write_positions.append(sp)
+                        all_positions.append(sp)
 
-        skip_write_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
-                                     self.tpa_lock_2_position3d, self.boot_position3d,
-                                     self.cpa_lock_position3d, self.cover_position3d])
+        all_positions.extend([self.tpa_lock_1_position3d, self.seal_position3d,
+                              self.tpa_lock_2_position3d, self.boot_position3d,
+                              self.cpa_lock_position3d, self.cover_position3d])
 
-        skip_write_positions.extend(self._find_child_points(skip_write_positions))
-
-        skip_write_ids = {p.db_id[:-2] for p in skip_write_positions}
-
-        all_positions = skip_write_positions + normal_positions
+        all_positions.extend(self._find_child_points(all_positions))
 
         seen = {}
         for pos in all_positions:
@@ -2489,26 +2445,21 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
             f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-            db_ids = [p.db_id[:-2] for p in all_positions]
-            rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
-            self._table.db.pjt_points3d_table.batch_update(['x', 'y', 'z'], rows)
 
-            _pjt_point3d.PJTPoint3D._skip_db_write = True
-            try:
-                for i, pos in enumerate(all_positions):
-                    with pos:
-                        pos.x = f_position_array[i][0]
-                        pos.y = f_position_array[i][1]
-                        pos.z = f_position_array[i][2]
+            # Set every point's new value directly -- see
+            # _update_position3d's identical comment (WRITE_DESIGN.md
+            # section 4.12). No explicit batch DB write here anymore: the
+            # rotate handlers (editor_3d/editor_schematic/editor_pegboard
+            # rotation_handlers/generic.py) open a gesture before touching
+            # angle3d, so each point's own DB-writing callback defers into
+            # its table's cache instead of running real SQL.
+            for i, pos in enumerate(all_positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
 
-                    if pos.db_id[:-2] in skip_write_ids:
-                        pos._process_callbacks()  # NOQA
-            finally:
-                _pjt_point3d.PJTPoint3D._skip_db_write = False
-
-            for pos in all_positions:
-                if pos.db_id[:-2] not in skip_write_ids:
-                    pos._process_callbacks()  # NOQA
+                pos._process_callbacks()  # NOQA
 
         # ── Per-cavity angle computation (OBB-based) ──────────────────────────
         angle_results = []  # [(cavity, q_acc_new, new_euler), ...]
@@ -2819,21 +2770,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             new_pos_arr = rel + 2.0 * w_d * t_vec + 2.0 * np.cross(qvec_d, t_vec) + center
 
             f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
-            db_ids = [p.db_id[:-2] for p in all_positions]
-            rows = [[*pos, db_id] for pos, db_id in zip(f_position_array, db_ids)]
-            self._table.db.pjt_points_pegboard_table.batch_update(['x', 'y', 'z'], rows)
 
-            _pjt_point_pegboard.PJTPointPegboard._skip_db_write = True
-            try:
-                for i, pos in enumerate(all_positions):
-                    with pos:
-                        pos.x = f_position_array[i][0]
-                        pos.y = f_position_array[i][1]
-                        pos.z = f_position_array[i][2]
+            # Set every point's new value directly -- see
+            # _update_position3d's identical comment (WRITE_DESIGN.md
+            # section 4.12). No explicit batch DB write here anymore.
+            for i, pos in enumerate(all_positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
 
-                    pos._process_callbacks()  # NOQA
-            finally:
-                _pjt_point_pegboard.PJTPointPegboard._skip_db_write = False
+                pos._process_callbacks()  # NOQA
 
         # ── Per-cavity angle: no OBB face-alignment (no peg-board mesh
         # geometry exists to align against) -- the accumulated
@@ -3061,21 +3008,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                 new_pos_arr[:, 2] += np.array(z_shifts, dtype=np.float32)
 
             f_position_array = [[float(str(axis)) for axis in pt] for pt in new_pos_arr]
-            db_ids = [p.db_id[:-2] for p in positions]
-            rows = [[pos[0], pos[1], pos[2], db_id] for pos, db_id in zip(f_position_array, db_ids)]
-            self._table.db.pjt_points2d_table.batch_update(['x', 'y', 'z'], rows)
 
-            _pjt_point2d.PJTPoint2D._skip_db_write = True
-            try:
-                for i, pos in enumerate(positions):
-                    with pos:
-                        pos.x = f_position_array[i][0]
-                        pos.y = f_position_array[i][1]
-                        pos.z = f_position_array[i][2]
+            # Set every point's new value directly -- see
+            # _update_position3d's identical comment (WRITE_DESIGN.md
+            # section 4.12). No explicit batch DB write here anymore.
+            for i, pos in enumerate(positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
 
-                    pos._process_callbacks()  # NOQA
-            finally:
-                _pjt_point2d.PJTPoint2D._skip_db_write = False
+                pos._process_callbacks()  # NOQA
 
         self._populate('angle2d')
 

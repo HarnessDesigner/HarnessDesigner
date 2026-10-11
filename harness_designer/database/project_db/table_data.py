@@ -176,6 +176,18 @@ class TableData:
         """
         return list(self._rows)
 
+    @property
+    @_check_types.do
+    def is_dirty(self) -> bool:
+        """Whether this table has any pending insert, update, or delete
+        waiting for the flush.
+
+        :returns: ``True`` when the next flush has something to write for
+            this table.
+        :rtype: bool
+        """
+        return bool(self._inserts or self._updates or self._deletes)
+
     @_check_types.do
     def contains(self, row_id: bytes) -> bool:
         """Return whether a row is in the cache.

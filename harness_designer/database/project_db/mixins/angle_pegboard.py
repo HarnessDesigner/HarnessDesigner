@@ -22,9 +22,6 @@ class AnglePegboardMixin(BaseMixin):
     """
     _angle_pegboard_db_id: bytes | None = None
     _stored_angle_pegboard: _angle.Angle | DefaultStoredValueType = DefaultStoredValue
-    # Per-instance flag: set True during bulk angle batch-writes so the individual
-    # DB callback is suppressed while pegboard render callbacks still fire.
-    _skip_db_write: bool = False
 
     @_check_types.do
     def _update_angle_pegboard(self, angle: _angle.Angle) -> None:
@@ -33,9 +30,6 @@ class AnglePegboardMixin(BaseMixin):
         :param angle: Value for ``angle``.
         :type angle: :class:`_angle.Angle`
         """
-        if self._skip_db_write:
-            return
-
         quat = str(list(angle.as_quat_float))
         euler = str(list(angle.as_euler_float))
 

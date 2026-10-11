@@ -102,6 +102,17 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
                     self._point_starts.append((attach_id, attach_live.copy()))
                     self._attach_live = attach_live
 
+        # Open the move gesture for this drag's whole lifetime -- see
+        # editor_3d/generic.py Generic.__init__ for the same hook, and
+        # WRITE_DESIGN.md section 4.12. Closed in delete() below (this
+        # class has no delete() override today, so one is added here
+        # purely to close the gesture -- DragHandlerPegboard/DragHandlerBase
+        # don't define their own delete(), so there's nothing else to do
+        # on the way out but call super().delete() for form). Last
+        # statement in __init__ on purpose -- see editor_3d/generic.py's
+        # identical note.
+        canvas.mainframe.project.begin_gesture()
+
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly
@@ -143,3 +154,14 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
             attach_now = self._attach_live
             attach_now += _point.Point(
                 attach_x - float(attach_now.x), 0.0, attach_z - float(attach_now.z))
+
+    @_check_types.do
+    def delete(self) -> None:
+        try:
+            super().delete()
+        finally:
+            # Close the gesture opened in __init__ -- see that method's
+            # comment. Must run even if super().delete() raises, or the
+            # gesture would silently stay open and defer every later write
+            # app-wide until something else happened to close it.
+            self.canvas.mainframe.project.end_gesture()

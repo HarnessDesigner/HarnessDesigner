@@ -750,6 +750,14 @@ class PJTTableBase:
         """
         cache = self._require_cache() if self.__uses_uuid_id__ else None
 
+        # A gesture (drag/rotate in progress -- WRITE_DESIGN.md section 4.12)
+        # defers this into the cache instead of touching the database. The
+        # outermost end_gesture() flushes everything that accumulated in one
+        # transaction. Outside a gesture, behavior is unchanged.
+        if cache is not None and self.db.gesture_depth > 0:
+            cache.change(db_id, **kwargs)
+            return
+
         fields = []
         values = []
 
@@ -779,6 +787,12 @@ class PJTTableBase:
             return
 
         cache = self._require_cache() if self.__uses_uuid_id__ else None
+
+        # Same deferral as update() above -- see WRITE_DESIGN.md section 4.12.
+        if cache is not None and self.db.gesture_depth > 0:
+            for row in rows:
+                cache.change(row[-1], **dict(zip(field_names, row[:-1])))
+            return
 
         set_clause = ', '.join(f'{f} = ?' for f in field_names)
         sql = f'UPDATE {self.__table_name__} SET {set_clause} WHERE id = ?'
@@ -1029,6 +1043,43 @@ from .pjt_pegboard_table import PJTPegboardTablesTable  # NOQA
 from .project import ProjectsTable  # NOQA
 
 
+class _GestureContext:
+    """``with tables.gesture():`` -- opens a gesture on entry, closes it on
+    exit (committing/flushing on the outermost exit) even if the block
+    raises. See ``PJTTables.gesture``/``begin_gesture``/``end_gesture`` and
+    WRITE_DESIGN.md section 4.12.
+    """
+
+    @_check_types.do
+    def __init__(self, tables: "PJTTables") -> None:
+        """Hold the :class:`PJTTables` this gesture belongs to.
+
+        :param tables: The tables instance to open/close the gesture on.
+        :type tables: PJTTables
+        """
+        self._tables = tables
+
+    @_check_types.do
+    def __enter__(self) -> "_GestureContext":
+        """Open the gesture.
+
+        :returns: This context manager.
+        :rtype: _GestureContext
+        """
+        self._tables.begin_gesture()
+        return self
+
+    @_check_types.do
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        """Close the gesture regardless of whether the block raised.
+
+        :param exc_type: Exception type, if the block raised. Unused.
+        :param exc_val: Exception value, if the block raised. Unused.
+        :param exc_tb: Traceback, if the block raised. Unused.
+        """
+        self._tables.end_gesture()
+
+
 class PJTTables:
     """Represent a PJT tables in :mod:`harness_designer.database.project_db.pjt_bases`.
 
@@ -1086,6 +1137,14 @@ class PJTTables:
         self._points3d = []
 
         self._current_count = 0
+
+        # Gesture depth for move/rotate (WRITE_DESIGN.md section 4.12).
+        # 0 = no gesture open, every write is immediate (today's behavior).
+        # > 0 = a drag/rotate is in progress; PJTTableBase.update/batch_update
+        # defer into each table's TableData cache instead of touching the
+        # database, and the outermost end_gesture() flushes everything that
+        # accumulated in one transaction.
+        self._gesture_depth = 0
 
     @property
     @_check_types.do
@@ -1163,7 +1222,25 @@ class PJTTables:
         self._pjt_points_pegboard_table = PJTPointsPegboardTable(self, project_id, tables, Splash)
         self._pjt_pegboard_tables_table = PJTPegboardTablesTable(self, project_id, tables, Splash)
 
-        for table in (
+        for table in self._ordered_project_tables():
+            table.load_cache()
+
+    @_check_types.do
+    def _ordered_project_tables(self) -> list[PJTTableBase]:
+        """Every project (UUID-id) table, parents before the children that
+        reference them.
+
+        This is the one order every project table was already loaded in
+        (``load()`` above); the gesture flush (section 4.12) reuses it for
+        the same reason ``load()`` needed it -- a child's foreign key (e.g.
+        a housing's ``position3d_id``) must point at a row that already
+        exists, so on insert a parent table's statement must run before the
+        children that reference it, and on delete the reverse.
+
+        :returns: Every project table, in parent-before-child order.
+        :rtype: list[PJTTableBase]
+        """
+        return [
             self._pjt_bundles_table, self._pjt_bundle_layouts_table, self._pjt_circuits_table,
             self._pjt_points2d_table, self._pjt_points3d_table, self._pjt_housings_table,
             self._pjt_splices_table, self._pjt_transitions_table, self._pjt_wires_table,
@@ -1174,8 +1251,94 @@ class PJTTables:
             self._pjt_notes_table, self._pjt_concentrics_table, self._pjt_concentric_layers_table,
             self._pjt_concentric_wires_table, self._pjt_transition_branches_table,
             self._pjt_points_pegboard_table, self._pjt_pegboard_tables_table,
-        ):
-            table.load_cache()
+        ]
+
+    @property
+    @_check_types.do
+    def gesture_depth(self) -> int:
+        """How many gestures are currently nested (0 = none open).
+
+        :returns: The current gesture depth.
+        :rtype: int
+        """
+        return self._gesture_depth
+
+    @_check_types.do
+    def begin_gesture(self) -> None:
+        """Open one gesture (a drag or rotate in progress).
+
+        Writes made while any gesture is open are deferred into each
+        table's cache instead of reaching the database -- see
+        ``PJTTableBase.update``/``batch_update`` and WRITE_DESIGN.md section
+        4.12. Nested calls just increment the depth; only the outermost
+        :meth:`end_gesture` flushes.
+        """
+        self._gesture_depth += 1
+
+    @_check_types.do
+    def end_gesture(self) -> None:
+        """Close one gesture. The outermost call flushes every table that
+        accumulated a pending write, in one transaction.
+
+        :raises RuntimeError: Called with no gesture open.
+        """
+        if self._gesture_depth == 0:
+            raise RuntimeError('end_gesture() called with no gesture open')
+
+        self._gesture_depth -= 1
+
+        if self._gesture_depth == 0:
+            self._flush_gesture()
+
+    @_check_types.do
+    def gesture(self) -> "_GestureContext":
+        """A ``with`` block that opens a gesture on entry and closes it on
+        exit, flushing on the outermost exit even if the block raises.
+
+        :returns: The context manager.
+        :rtype: _GestureContext
+        """
+        return _GestureContext(self)
+
+    @_check_types.do
+    def _flush_gesture(self) -> None:
+        """Write every pending change, across every project table, in one
+        transaction (WRITE_DESIGN.md section 4.8). Called only by
+        :meth:`end_gesture` on the outermost close.
+
+        Deletes run before inserts (children before the parents they
+        reference go away), inserts run before updates (a row's own insert
+        must exist before anything can update it -- though in today's
+        scope, section 4.12, only ``update``/``batch_update`` ever defer, so
+        this table is usually empty), and tables are visited in
+        :meth:`_ordered_project_tables` order within each phase.
+        """
+        tables = [table for table in self._ordered_project_tables() if table is not None]
+        dirty = [table for table in tables if table._cache is not None and table._cache.is_dirty]
+
+        if not dirty:
+            return
+
+        for table in reversed(dirty):
+            statement = table._cache.delete_statement()
+            if statement is not None:
+                sql, rows = statement
+                self.connector.executemany(sql, rows)
+
+        for table in dirty:
+            statement = table._cache.insert_statement()
+            if statement is not None:
+                sql, rows = statement
+                self.connector.executemany(sql, rows)
+
+        for table in dirty:
+            for sql, rows in table._cache.update_statements():
+                self.connector.executemany(sql, rows)
+
+        self.connector.commit()
+
+        for table in dirty:
+            table._cache.commit_flushed()
 
     @property
     @_check_types.do
