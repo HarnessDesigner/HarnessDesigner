@@ -558,13 +558,37 @@ i. **MySQL.** The MySQL path is not active, so the design is untested there. The
 
 ## 7a. Deferred: raw `execute` and `executemany` call sites
 
-Not started. These need a per-case review before Phase 1 touches them. The `select`
-sites are classified in section 4.10; these are the direct SQL calls that bypass the
-table layer.
+The `executemany` item below is reviewed and resolved, 2026-10-11 -- see that
+entry. Everything else here is still not started; these still need a per-case
+review before Phase 1c touches them. The `select` sites are classified in
+section 4.10; these are the direct SQL calls that bypass the table layer.
 
-- `database/project_db/pjt_housing.py`: `executemany` in `PJTHousingsTable.insert`
-  (lines 397, 406, 415, 427) and `PJTHousing.update_cavities` (lines 665, 674, 683,
-  700). They write points and cavities directly.
+- **Reviewed and resolved, 2026-10-11.** `database/project_db/pjt_housing.py`:
+  `executemany` in `PJTHousingsTable.insert` (lines 406, 445, 464, 486) and
+  `PJTHousing.update_cavities` (lines 739, 779, 798, 825). They bulk-write a new
+  housing's cavity set (points3d/points2d/points_pegboard/cavities, up to
+  hundreds of rows) straight through `_con`, bypassing `PJTTableBase`/
+  `TableData` entirely -- the exact pattern this document's choke point
+  (section 4.11) says shouldn't exist. Scanned specifically for whether this is
+  a move/rotate-style hot path like section 4.12 fixed (the user's literal
+  ask: find batch-update call sites that AREN'T a rotation or a move). It
+  isn't: both are one-shot, click-triggered actions (`Housing.start_add`/
+  `Housing.__call__` in `add_handlers/*/housing.py`, never nested under an
+  open gesture), and each table was already one `executemany` -- the real
+  lever per section 2 -- so there was no per-frame multiplication to fix.
+  What WAS wrong: each of the 4 `executemany` calls committed separately, so
+  a failure partway through (e.g. the cavities `INSERT`) left the earlier
+  tables' rows committed and orphaned, referenced by nothing. Fixed by
+  removing the three early commits so all four land in one transaction (the
+  read-back `SELECT`s in between still see their own uncommitted rows, same
+  connection) -- a correctness fix, not a performance one, and it doesn't
+  need the gesture mechanism at all since there's no multi-frame gesture
+  here to begin with. These two methods still bypass `PJTTableBase` for the
+  choke-point check (section 4.11) -- that part of the original finding
+  stands for whenever Phase 1c gets to it, converting them to the pending-
+  insert API is a separate, larger change (it needs every column's DB
+  default without a round trip, which both methods' own read-back comments
+  say they deliberately avoid guessing).
 - `database/project_db/pjt_housing.py`: `cache_names` (line 1066), a three-table
   `LEFT JOIN` over cavities, 2D points, and terminals. Needs an in-memory join.
 - `database/project_db/pjt_housing.py`: `_find_child_points` and
@@ -624,3 +648,18 @@ config, process) are out of scope and stay as they are.
   pre-existing latent bug found along the way: `Rings3D`/`Rings2D`/
   `RingsPegboard` never stored their own `mainframe` reference despite
   `Rings2D.detach()` already depending on it.
+- 2026-10-11 (later still): scanned every `executemany` call site in the
+  package for batch-write locations that aren't move/rotate (the user's
+  explicit ask, after Phase 1b). Found three categories: `_renumber` in
+  `pjt_wire_path.py`/`pjt_bundle_path.py` and the angle-result writes in
+  `pjt_housing.py` already go through `PJTTableBase.batch_update()`, so
+  Phase 1b already covers them for free; every `create_database/*.py`
+  `executemany` is one-time seed data, irrelevant; and
+  `PJTHousingsTable.insert`/`PJTHousing.update_cavities` write raw through
+  `_con`, bypassing the choke point entirely (section 7a). Confirmed by
+  caller scan that neither of the last two ever runs under an open gesture
+  (both are one-shot housing-placement/cavity-regenerate actions), so they
+  didn't need gesture deferral -- what they needed was their 4 separate
+  per-table commits consolidated into 1, for atomicity (a failure partway
+  through was leaving earlier tables' rows committed and orphaned). Fixed;
+  section 7a updated to reflect it.
