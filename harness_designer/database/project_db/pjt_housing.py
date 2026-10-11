@@ -397,113 +397,60 @@ class PJTHousingsTable(PJTTableBase):
                 _id_generator.generate_project_row_id(self._con, self.project_id).bytes
                 for _ in range(n)]
 
-            point3d_rows = [
-                (new_point3d_ids[i], float(position3d_arr[i, 0]),
-                 float(position3d_arr[i, 1]), float(position3d_arr[i, 2]))
-                for i in range(n)]
-
+            # Every row below is built complete (every column, id included)
+            # so PJTTableBase.batch_insert can write it with no read-back --
+            # see that method's own docstring. Points first, cavities last
+            # (commit=False on everything but the last call, so all four
+            # tables land in ONE shared commit): a cavity row stores its own
+            # point rows' ids, so those rows must exist in this same
+            # transaction before the cavity row referencing them is built,
+            # even though nothing here waits on a database-assigned id --
+            # every id is already generated in Python (_id_generator) before
+            # any of these INSERTs run.
             points3d_table = self.db.pjt_points3d_table
-            points3d_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
-
-            # No commit here -- this and the three INSERTs below (points2d,
-            # points_pegboard, cavities) share ONE commit, at the very end
-            # after the cavities INSERT, so the whole "add N cavities" batch
-            # is atomic: a failure partway through (e.g. the cavities
-            # INSERT) rolls back the point rows too, instead of leaving
-            # orphaned, committed point rows that nothing references yet.
-            # The read-back SELECTs below still see these uncommitted rows
-            # fine -- they're on this same connection/transaction.
-            #
-            # The row-level cache (TableData) has no way to know about rows
-            # written straight through the connector like this -- mirror
-            # each one in directly, same as PJTTableBase.insert() does for
-            # a normal single-row insert. Read every row back rather than
-            # assembling it from id/x/y/z -- the live table can carry
-            # columns beyond what this INSERT's own column list covers
-            # (e.g. one left over from an earlier schema revision that
-            # hasn't been dropped from the actual database file yet),
-            # and TableData's cache needs a value for every column the
-            # live table actually has, same reasoning as the cavity
-            # table below.
-            points3d_fields = points3d_table.field_names
-            points3d_placeholders = ', '.join(['?'] * len(new_point3d_ids))
-            points3d_table._con.execute(
-                f'SELECT {", ".join(points3d_fields)} FROM pjt_points3d '
-                f'WHERE id IN ({points3d_placeholders});',
-                new_point3d_ids)
-            points3d_cache = points3d_table._require_cache()
-            for row in points3d_table._con.fetchall():
-                points3d_cache.mirror_insert(**dict(zip(points3d_fields, row)))
-
-            point2d_rows = [
-                (new_point2d_ids[i], float(position2d_arr[i, 0]),
-                 float(position2d_arr[i, 1]), float(position2d_arr[i, 2]))
-                for i in range(n)]
+            points3d_table.batch_insert([
+                {'id': new_point3d_ids[i], 'x': float(position3d_arr[i, 0]),
+                 'y': float(position3d_arr[i, 1]), 'z': float(position3d_arr[i, 2]),
+                 'parent_point_id': None}
+                for i in range(n)], commit=False)
 
             points2d_table = self.db.pjt_points2d_table
-            points2d_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
-
-            points2d_fields = points2d_table.field_names
-            points2d_placeholders = ', '.join(['?'] * len(new_point2d_ids))
-            points2d_table._con.execute(
-                f'SELECT {", ".join(points2d_fields)} FROM pjt_points2d '
-                f'WHERE id IN ({points2d_placeholders});',
-                new_point2d_ids)
-            points2d_cache = points2d_table._require_cache()
-            for row in points2d_table._con.fetchall():
-                points2d_cache.mirror_insert(**dict(zip(points2d_fields, row)))
-
-            peg_rows = [
-                (new_peg_ids[i], float(position_pegboard_arr[i, 0]),
-                 float(position_pegboard_arr[i, 1]), float(position_pegboard_arr[i, 2]))
-                for i in range(n)]
+            points2d_table.batch_insert([
+                {'id': new_point2d_ids[i], 'x': float(position2d_arr[i, 0]),
+                 'y': float(position2d_arr[i, 1]), 'z': float(position2d_arr[i, 2]),
+                 'parent_point_id': None}
+                for i in range(n)], commit=False)
 
             points_pegboard_table = self.db.pjt_points_pegboard_table
-            points_pegboard_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
-
-            points_pegboard_fields = points_pegboard_table.field_names
-            points_pegboard_placeholders = ', '.join(['?'] * len(new_peg_ids))
-            points_pegboard_table._con.execute(
-                f'SELECT {", ".join(points_pegboard_fields)} FROM pjt_points_pegboard '
-                f'WHERE id IN ({points_pegboard_placeholders});',
-                new_peg_ids)
-            points_pegboard_cache = points_pegboard_table._require_cache()
-            for row in points_pegboard_table._con.fetchall():
-                points_pegboard_cache.mirror_insert(**dict(zip(points_pegboard_fields, row)))
+            points_pegboard_table.batch_insert([
+                {'id': new_peg_ids[i], 'x': float(position_pegboard_arr[i, 0]),
+                 'y': float(position_pegboard_arr[i, 1]), 'z': float(position_pegboard_arr[i, 2]),
+                 'parent_point_id': None}
+                for i in range(n)], commit=False)
 
             aabb_str = [str([[float(str(item)) for item in items] for items in aabb_arr[i].tolist()]) for i in range(n)]
             obb_str = [str([[float(str(item)) for item in items] for items in obb_arr[i].tolist()]) for i in range(n)]
 
             housing_ids = [db_id] * n
 
-            data = list(zip(new_cavity_ids, g_ids, g_names, new_point2d_ids,
-                            new_point3d_ids, new_peg_ids, housing_ids, aabb_str, obb_str))
-
+            # Every column the schema declares beyond the ones this housing
+            # actually knows yet, set to the exact same value the database's
+            # own DEFAULT clause would have used (create_database/
+            # cavities.py's pjt_table definition) -- so behavior is
+            # identical to the old read-back path, just without the read.
             cavities_table = self.db.pjt_cavities_table
-            cavities_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_cavities '
-                '(id, part_id, name, point2d_id, point3d_id, point_pegboard_id, housing_id, aabb, obb) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                data)
-
-            cavities_table._con.commit()  # NOQA
-
-            # Unlike the three point tables above, this INSERT's own column
-            # list omits some of pjt_cavities' columns (e.g. notes), which
-            # get the database's own default -- read the rows back rather
-            # than guess those defaults, same reasoning as
-            # PJTTableBase.insert()'s own read-back.
-            cavity_fields = cavities_table.field_names
-            placeholders = ', '.join(['?'] * len(new_cavity_ids))
-            cavities_table._con.execute(
-                f'SELECT {", ".join(cavity_fields)} FROM pjt_cavities WHERE id IN ({placeholders});',
-                new_cavity_ids)
-            cavities_cache = cavities_table._require_cache()
-            for row in cavities_table._con.fetchall():
-                cavities_cache.mirror_insert(**dict(zip(cavity_fields, row)))
+            cavities_table.batch_insert([
+                {'id': new_cavity_ids[i], 'part_id': g_ids[i], 'name': g_names[i],
+                 'point2d_id': new_point2d_ids[i], 'point3d_id': new_point3d_ids[i],
+                 'terminal_point3d_id': None, 'wire_point3d_id': None,
+                 'point_pegboard_id': new_peg_ids[i], 'terminal_point_pegboard_id': None,
+                 'wire_point_pegboard_id': None, 'housing_id': housing_ids[i],
+                 'notes': '', 'quat2d': '[1.0, 0.0, 0.0, 0.0]', 'angle2d': '[0.0, 0.0, 0.0]',
+                 'quat3d': '[1.0, 0.0, 0.0, 0.0]', 'angle3d': '[0.0, 0.0, 0.0]',
+                 'quat_pegboard': '[1.0, 0.0, 0.0, 0.0]', 'angle_pegboard': '[0.0, 0.0, 0.0]',
+                 'is_visible2d': 1, 'is_visible3d': 0, 'is_visible_pegboard': 0,
+                 'aabb': aabb_str[i], 'obb': obb_str[i]}
+                for i in range(n)])  # commit=True (default): this is the batch's one shared commit
 
             # Set the geometry cache directly -- see PJTHousing.
             # cavity_geometry's own docstring for why: everything needed
@@ -730,83 +677,36 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
                     self.table._con, self.table.project_id).bytes  # NOQA
                 for _ in range(n)]
 
-            point3d_rows = [
-                (new_point3d_ids[i], float(position3d_arr[i, 0]),
-                 float(position3d_arr[i, 1]), float(position3d_arr[i, 2]))
-                for i in range(n)]
-
+            # Every row below is built complete (every column, id included)
+            # so PJTTableBase.batch_insert can write it with no read-back --
+            # see that method's own docstring. Points first, cavities last
+            # (commit=False on everything but the last call, so all four
+            # tables land in ONE shared commit): a cavity row stores its own
+            # point rows' ids, so those rows must exist in this same
+            # transaction before the cavity row referencing them is built,
+            # even though nothing here waits on a database-assigned id --
+            # every id is already generated in Python (_id_generator) before
+            # any of these INSERTs run.
             points3d_table = self.table.db.pjt_points3d_table
-            points3d_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
-
-            # No commit here -- this and the three INSERTs below (points2d,
-            # points_pegboard, cavities) share ONE commit, at the very end
-            # after the cavities INSERT, so the whole "regenerate N
-            # cavities" batch is atomic: a failure partway through (e.g.
-            # the cavities INSERT) rolls back the point rows too, instead
-            # of leaving orphaned, committed point rows that nothing
-            # references yet. The read-back SELECTs below still see these
-            # uncommitted rows fine -- they're on this same connection/
-            # transaction.
-            #
-            # The row-level cache (TableData) has no way to know about rows
-            # written straight through the connector like this -- mirror
-            # each one in directly, same as PJTTableBase.insert() does for
-            # a normal single-row insert. Read every row back rather than
-            # assembling it from id/x/y/z -- the live table can carry
-            # columns beyond what this INSERT's own column list covers
-            # (e.g. one left over from an earlier schema revision that
-            # hasn't been dropped from the actual database file yet),
-            # and TableData's cache needs a value for every column the
-            # live table actually has, same reasoning as the cavity
-            # table below.
-            points3d_fields = points3d_table.field_names
-            points3d_placeholders = ', '.join(['?'] * len(new_point3d_ids))
-            points3d_table._con.execute(
-                f'SELECT {", ".join(points3d_fields)} FROM pjt_points3d '
-                f'WHERE id IN ({points3d_placeholders});',
-                new_point3d_ids)
-            points3d_cache = points3d_table._require_cache()
-            for row in points3d_table._con.fetchall():
-                points3d_cache.mirror_insert(**dict(zip(points3d_fields, row)))
-
-            point2d_rows = [
-                (new_point2d_ids[i], float(position2d_arr[i, 0]),
-                 float(position2d_arr[i, 1]), float(position2d_arr[i, 2]))
-                for i in range(n)]
+            points3d_table.batch_insert([
+                {'id': new_point3d_ids[i], 'x': float(position3d_arr[i, 0]),
+                 'y': float(position3d_arr[i, 1]), 'z': float(position3d_arr[i, 2]),
+                 'parent_point_id': None}
+                for i in range(n)], commit=False)
 
             points2d_table = self.table.db.pjt_points2d_table
-            points2d_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
-
-            points2d_fields = points2d_table.field_names
-            points2d_placeholders = ', '.join(['?'] * len(new_point2d_ids))
-            points2d_table._con.execute(
-                f'SELECT {", ".join(points2d_fields)} FROM pjt_points2d '
-                f'WHERE id IN ({points2d_placeholders});',
-                new_point2d_ids)
-            points2d_cache = points2d_table._require_cache()
-            for row in points2d_table._con.fetchall():
-                points2d_cache.mirror_insert(**dict(zip(points2d_fields, row)))
-
-            peg_rows = [
-                (new_peg_ids[i], float(position_pegboard_arr[i, 0]),
-                 float(position_pegboard_arr[i, 1]), float(position_pegboard_arr[i, 2]))
-                for i in range(n)]
+            points2d_table.batch_insert([
+                {'id': new_point2d_ids[i], 'x': float(position2d_arr[i, 0]),
+                 'y': float(position2d_arr[i, 1]), 'z': float(position2d_arr[i, 2]),
+                 'parent_point_id': None}
+                for i in range(n)], commit=False)
 
             points_pegboard_table = self.table.db.pjt_points_pegboard_table
-            points_pegboard_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
-
-            points_pegboard_fields = points_pegboard_table.field_names
-            points_pegboard_placeholders = ', '.join(['?'] * len(new_peg_ids))
-            points_pegboard_table._con.execute(
-                f'SELECT {", ".join(points_pegboard_fields)} FROM pjt_points_pegboard '
-                f'WHERE id IN ({points_pegboard_placeholders});',
-                new_peg_ids)
-            points_pegboard_cache = points_pegboard_table._require_cache()
-            for row in points_pegboard_table._con.fetchall():
-                points_pegboard_cache.mirror_insert(**dict(zip(points_pegboard_fields, row)))
+            points_pegboard_table.batch_insert([
+                {'id': new_peg_ids[i], 'x': float(position_pegboard_arr[i, 0]),
+                 'y': float(position_pegboard_arr[i, 1]), 'z': float(position_pegboard_arr[i, 2]),
+                 'parent_point_id': None}
+                for i in range(n)], commit=False)
 
             aabb_str = [str([
                 [float(str(item)) for item in items]
@@ -818,31 +718,24 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
             housing_ids = [self.db_id] * n
 
-            data = list(zip(new_cavity_ids, g_ids, g_names, new_point2d_ids,
-                            new_point3d_ids, new_peg_ids, housing_ids, aabb_str, obb_str))
-
+            # Every column the schema declares beyond the ones this housing
+            # actually knows yet, set to the exact same value the database's
+            # own DEFAULT clause would have used (create_database/
+            # cavities.py's pjt_table definition) -- so behavior is
+            # identical to the old read-back path, just without the read.
             cavities_table = self.table.db.pjt_cavities_table
-            cavities_table._con.executemany(  # NOQA
-                'INSERT INTO pjt_cavities '
-                '(id, part_id, name, point2d_id, point3d_id, point_pegboard_id, housing_id, aabb, obb) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);',
-                data)
-
-            cavities_table._con.commit()  # NOQA
-
-            # Unlike the three point tables above, this INSERT's own column
-            # list omits some of pjt_cavities' columns (e.g. notes), which
-            # get the database's own default -- read the rows back rather
-            # than guess those defaults, same reasoning as
-            # PJTTableBase.insert()'s own read-back.
-            cavity_fields = cavities_table.field_names
-            placeholders = ', '.join(['?'] * len(new_cavity_ids))
-            cavities_table._con.execute(
-                f'SELECT {", ".join(cavity_fields)} FROM pjt_cavities WHERE id IN ({placeholders});',
-                new_cavity_ids)
-            cavities_cache = cavities_table._require_cache()
-            for row in cavities_table._con.fetchall():
-                cavities_cache.mirror_insert(**dict(zip(cavity_fields, row)))
+            cavities_table.batch_insert([
+                {'id': new_cavity_ids[i], 'part_id': g_ids[i], 'name': g_names[i],
+                 'point2d_id': new_point2d_ids[i], 'point3d_id': new_point3d_ids[i],
+                 'terminal_point3d_id': None, 'wire_point3d_id': None,
+                 'point_pegboard_id': new_peg_ids[i], 'terminal_point_pegboard_id': None,
+                 'wire_point_pegboard_id': None, 'housing_id': housing_ids[i],
+                 'notes': '', 'quat2d': '[1.0, 0.0, 0.0, 0.0]', 'angle2d': '[0.0, 0.0, 0.0]',
+                 'quat3d': '[1.0, 0.0, 0.0, 0.0]', 'angle3d': '[0.0, 0.0, 0.0]',
+                 'quat_pegboard': '[1.0, 0.0, 0.0, 0.0]', 'angle_pegboard': '[0.0, 0.0, 0.0]',
+                 'is_visible2d': 1, 'is_visible3d': 0, 'is_visible_pegboard': 0,
+                 'aabb': aabb_str[i], 'obb': obb_str[i]}
+                for i in range(n)])  # commit=True (default): this is the batch's one shared commit
 
             # Set the geometry cache directly -- see PJTHousing.
             # cavity_geometry's own docstring for why: everything needed

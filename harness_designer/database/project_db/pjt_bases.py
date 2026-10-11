@@ -803,6 +803,82 @@ class PJTTableBase:
             for row in rows:
                 cache.mirror_update(row[-1], **dict(zip(field_names, row[:-1])))
 
+    @_check_types.do
+    def batch_insert(self, rows: list[dict], commit: bool = True) -> None:
+        """Insert many complete rows into this table in ONE ``executemany``.
+
+        Unlike :meth:`insert`, there is no read-back: every row here already
+        carries an explicit value for every column (id included), so there is
+        no database-computed default left to discover. This is what lets a
+        caller building hundreds of rows at once (e.g. a housing's cavity
+        set -- see ``PJTHousingsTable.insert``/``PJTHousing.update_cavities``)
+        do it as one statement instead of looping a per-row ``insert()``.
+
+        Trade-off that comes with skipping the read-back: a caller that
+        wants every row's columns to exactly match the schema's OWN
+        defaults (``create_database/cavities.py`` etc.) has to keep its own
+        copy of those defaults up to date by hand -- unlike ``insert()``'s
+        read-back, which tolerates the live table carrying columns beyond
+        what any one INSERT names (e.g. a column kept around from an
+        earlier schema revision) because it asks the database what actually
+        landed instead of assuming. A schema change that adds, removes, or
+        re-defaults a column must update every :meth:`batch_insert` caller
+        for that table in the same change, or the next call raises (see
+        below) rather than silently drifting.
+
+        Always immediate -- this never defers into the cache during an open
+        gesture, unlike :meth:`update`/:meth:`batch_update`. A cross-table
+        insert batch's statement order has to match real foreign-key
+        dependency order (every point row before the cavity row that
+        references it, etc.), and that order is this method's CALLER's job,
+        not something to hand off to the gesture flush's own table order --
+        confirmed that order is not a valid dependency order for inserts in
+        general (``pjt_bundles`` references ``pjt_points3d`` but is visited
+        before it there), so :meth:`batch_insert` deliberately doesn't ride
+        on it. See WRITE_DESIGN.md section 4.12 for the gesture mechanism
+        this intentionally stays outside of.
+
+        :param rows: Every row to insert, each a dict covering every column
+            of this table (id included) with its real intended value.
+        :type rows: list[dict]
+        :param commit: Commit after this table's insert. ``False`` lets a
+            caller inserting into several tables at once (e.g. points then
+            the cavity row referencing them) share ONE commit at the end,
+            instead of one per table -- see the callers above for why that
+            matters (a failure partway through must not leave an earlier
+            table's rows committed with nothing yet referencing them).
+        :type commit: bool
+        :raises ValueError: A row's keys don't match this table's columns
+            exactly.
+        """
+        if not rows:
+            return
+
+        cache = self._require_cache() if self.__uses_uuid_id__ else None
+
+        fields = self.field_names
+        field_set = frozenset(fields)
+
+        for row in rows:
+            if set(row) != field_set:
+                raise ValueError(
+                    f'{self.__table_name__} batch_insert needs exactly {sorted(field_set)} per row, '
+                    f'got {sorted(row)}')
+
+        columns = ', '.join(fields)
+        placeholders = ', '.join(['?'] * len(fields))
+        sql = f'INSERT INTO {self.__table_name__} ({columns}) VALUES ({placeholders});'
+
+        param_rows = [[row[field] for field in fields] for row in rows]
+        self._con.executemany(sql, param_rows)
+
+        if commit:
+            self._con.commit()
+
+        if cache is not None:
+            for row in rows:
+                cache.mirror_insert(**row)
+
     @property
     @_check_types.do
     def has_points3d(self) -> bool:

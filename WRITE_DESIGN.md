@@ -1,7 +1,8 @@
 # Table-store persistence for drag, rotate, insert, and delete
 
-Status: **Phase 1b implemented (section 4.12/5); Phase 1c, 2, and 3 not
-started.** Last revised 2026-10-11. Open items are in section 7.
+Status: **Phase 1b implemented (section 4.12/5); batched inserts for the
+housing cavity-creation path implemented (section 4.13); Phase 1c, 2, and 3
+not started.** Last revised 2026-10-11. Open items are in section 7.
 
 Scope: every project table (`pjt_*`) and every view (3D, schematic, peg board).
 Global (`global_db`) rows are covered in section 4.9. The cascading-write
@@ -403,6 +404,97 @@ the cascade itself.
   release, so a crash loses the whole gesture instead of losing nothing.
   Still unresolved -- same open question, bigger blast radius.
 
+## 4.13 Batching multi-row INSERTs outside a gesture
+
+Added 2026-10-11, after the executemany scan in section 7a turned up
+`PJTHousingsTable.insert`/`PJTHousing.update_cavities` -- both bulk-creating
+a new housing's cavity set (points3d/points2d/points_pegboard/cavities, up
+to hundreds of rows each) with raw SQL. The atomicity fix (one shared commit,
+section 7a) was step one; this is step two -- route those raw `executemany`
+calls through `PJTTableBase` too, so the choke point (section 4.11) actually
+holds for inserts the same way it already does for updates.
+
+**Why this is a separate, narrower mechanism than section 4.12's gesture,**
+not an extension of it: a cross-table insert batch's statement order has to
+match real foreign-key dependency order (every point row before the cavity
+row that references it). Checking `_ordered_project_tables()` (the table
+visitation order section 4.12's flush already uses) against the actual
+schema found it is NOT a valid insert-dependency order in general --
+`pjt_bundles` declares `start_point3d_id`/`stop_point3d_id` as `NOT NULL`
+foreign keys into `pjt_points3d`, but is visited before it in that list. SQLite
+doesn't enforce foreign keys in this app today (no `PRAGMA foreign_keys`
+anywhere in the connector), so nothing breaks in practice, but building a new
+feature on an ordering that's only accidentally safe would be the wrong
+foundation. Fixing `_ordered_project_tables()` into a true topological order
+for all ~26 tables is a bigger, separate piece of work (section 7a's
+remaining raw-`execute` items are more pressing candidates for that
+attention) -- out of scope here. Per the row ids themselves: every id is
+already generated in Python (`id_generator`) before any INSERT runs, not by
+the database, so there is no "wait for the database to assign an id" ordering
+concern at all -- only "the referenced row must physically exist in this
+transaction before the referencing row's statement runs," which the CALLER
+already controls by the order it builds its rows in.
+
+**`PJTTableBase.batch_insert(rows: list[dict], commit: bool = True)`**
+(`pjt_bases.py`): the insert-side counterpart to `batch_update`. Builds one
+`INSERT ... VALUES (...), (...), ...` via `executemany` for the whole list,
+then (if `commit`) one commit, then mirrors every row into the cache via
+`TableData.mirror_insert` (no read-back query at all -- see the trade-off
+below). `commit=False` lets several tables share ONE commit, which is what
+makes a multi-table batch like "N cavities across 4 tables" atomic without
+each table doing its own commit (reusing the same principle the 7a
+atomicity fix already established, now built into the primitive itself
+instead of hand-rolled per call site).
+
+**Always immediate -- never gesture-deferred,** unlike `update`/
+`batch_update`. Deferring an insert into the pending-write path would mean
+its statement order at flush time is decided by `_flush_gesture`'s own table
+order, which -- per the `_ordered_project_tables` finding above -- isn't
+dependency-correct for inserts. Keeping `batch_insert` immediate-always
+sidesteps that: the caller's own call order IS the dependency order, with no
+intermediate flush-ordering layer to get it wrong. Confirmed by caller scan
+that neither `PJTHousingsTable.insert` nor `PJTHousing.update_cavities` ever
+runs nested under an open gesture (both are one-shot, click-triggered
+actions), so nothing is lost by this.
+
+**Trade-off: every row must carry every column, including whatever the
+schema's own `DEFAULT` would have supplied.** `TableData.insert()`
+(the pending-write counterpart `batch_insert` mirrors into) already required
+this -- "insert needs exactly {field_set}" -- so `batch_insert` just applies
+the same contract to the immediate path too. This is what makes skipping the
+read-back safe (nothing is left for the database to fill in that the cache
+wouldn't otherwise know), but it also means `batch_insert` does NOT tolerate
+the live table carrying a column beyond what the caller names -- unlike
+`insert()`'s own read-back, which the original raw code explicitly relied on
+for exactly that ("the live table can carry columns beyond what this
+INSERT's own column list covers... e.g. one left over from an earlier schema
+revision"). A schema change to a table any `batch_insert` caller targets must
+update that caller's row-building in the same change, or the next call
+raises `ValueError` (naming the expected and actual column sets) rather than
+silently drifting.
+
+**Rewired:** `PJTHousingsTable.insert`'s and `PJTHousing.update_cavities`'s
+cavity-creation blocks -- each now builds one list of complete-row dicts per
+table (points3d, points2d, points_pegboard with `commit=False`, then
+cavities with the default `commit=True` as the batch's one shared commit)
+instead of hand-written SQL plus a read-back `SELECT`+`fetchall`+`zip`+
+`mirror_insert` loop per table. Every column `pjt_cavities` declares beyond
+what the housing/cavity-analysis code already computes (`terminal_point3d_id`,
+`wire_point3d_id`, `notes`, `quat2d`/`angle2d`/`quat3d`/`angle3d`,
+`terminal_point_pegboard_id`, `wire_point_pegboard_id`,
+`quat_pegboard`/`angle_pegboard`, `is_visible2d`/`is_visible3d`/
+`is_visible_pegboard`) is set to the exact literal the schema's own
+`DEFAULT` clause would have used (`create_database/cavities.py`'s `pjt_table`
+definition), so behavior is identical to the old read-back path, just
+without the read. Verified against the real `TableData` class plus the real
+`batch_insert` method body (extracted from the file and run as-is, not
+reimplemented) against a temporary in-memory SQLite table: validation
+rejects an incomplete row before any write, `commit=False` genuinely defers
+the commit, a multi-table batch lands in exactly one commit, every row's
+real values (not DB defaults) land correctly, and the cache mirrors every
+row with no extra query. Not run against the real app (still no PySide6 in
+this container).
+
 ## 5. Phasing
 
 ### Phase 0: baseline (no code change)
@@ -663,3 +755,25 @@ config, process) are out of scope and stay as they are.
   per-table commits consolidated into 1, for atomicity (a failure partway
   through was leaving earlier tables' rows committed and orphaned). Fixed;
   section 7a updated to reflect it.
+- 2026-10-11 (later still again): wired up batched INSERTs, per the user's
+  explicit follow-up ask ("handle those as a single batch insert"). Added
+  `PJTTableBase.batch_insert` (section 4.13) and rewired
+  `PJTHousingsTable.insert`/`PJTHousing.update_cavities` onto it, retiring
+  the raw SQL the previous entry's atomicity fix had patched in place.
+  Along the way, found `_ordered_project_tables` (section 4.12, reused from
+  `load()`) is not a valid insert-dependency order in general (`pjt_bundles`
+  references `pjt_points3d` but is visited first) -- harmless today only
+  because SQLite FK enforcement is off, not because the order is actually
+  correct. Decided `batch_insert` stays outside the gesture/flush mechanism
+  entirely rather than resting on that order: it's always immediate, and the
+  caller's own call sequence (points before the cavity row referencing them)
+  is the dependency order, confirmed sufficient since ids are generated in
+  Python, not by the database. Fixing `_ordered_project_tables` into a true
+  topological order is separate, deferred work -- section 7a's remaining raw
+  `execute` sites are likely a better next target for that attention than
+  this path, which doesn't need it. Verified by extracting the real
+  `batch_insert` method body from the file (not a reimplementation) and
+  running it against a temporary SQLite table: rejects an incomplete row
+  before writing, a multi-table batch shares exactly one commit, and every
+  row lands with its real values. `ast.parse`/`pyflakes` clean against the
+  pre-change baseline. Not run against the real app.
