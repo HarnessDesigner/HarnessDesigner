@@ -1,0 +1,801 @@
+# Review progress
+
+Second full pass over `harness_designer/`, one top-level folder at a time, in alphabetical order.
+
+## Per-file checklist
+
+For each module: (1) every parameter and return annotated per the MEMORY.md typing rules, (2) imports follow the group order and `TYPE_CHECKING` conventions, (3) no `getattr`/`setattr`/`hasattr` left unless justified, (4) performance note under `performance_notes/` mirroring the source path.
+
+Top-level files (`harness_designer/*.py`) are listed last under `(root)`.
+
+### add_handlers/ - done
+
+- [x] `add_handlers/__init__.py`
+- [x] `add_handlers/base.py`
+- [x] `add_handlers/editor_3d/__init__.py`
+- [x] `add_handlers/editor_3d/bundle.py`
+- [x] `add_handlers/editor_3d/bundle_layout.py`
+- [x] `add_handlers/editor_3d/cover.py`
+- [x] `add_handlers/editor_3d/cpa_lock.py`
+- [x] `add_handlers/editor_3d/housing.py`
+- [x] `add_handlers/editor_3d/note.py`
+- [x] `add_handlers/editor_3d/seal.py`
+- [x] `add_handlers/editor_3d/splice.py`
+- [x] `add_handlers/editor_3d/terminal.py`
+- [x] `add_handlers/editor_3d/tpa_lock.py`
+- [x] `add_handlers/editor_3d/transition.py`
+- [x] `add_handlers/editor_3d/wire.py`
+- [x] `add_handlers/editor_3d/wire_layout.py`
+- [x] `add_handlers/editor_3d/wire_service_loop.py`
+- [x] `add_handlers/editor_pegboard/__init__.py`
+- [x] `add_handlers/editor_pegboard/bundle_layout.py`
+- [x] `add_handlers/editor_pegboard/housing.py`
+- [x] `add_handlers/editor_pegboard/wire.py`
+- [x] `add_handlers/editor_pegboard/wire_layout.py`
+- [x] `add_handlers/editor_schematic/__init__.py`
+- [x] `add_handlers/editor_schematic/housing.py`
+- [x] `add_handlers/editor_schematic/splice.py`
+- [x] `add_handlers/editor_schematic/terminal.py`
+- [x] `add_handlers/editor_schematic/wire.py`
+
+### app_mixins/ - done
+
+- [x] `app_mixins/__init__.py`
+- [x] `app_mixins/callback_mixin.py`
+
+### bounds/ - done
+
+- [x] `bounds/__init__.py`
+- [x] `bounds/aabb.py`
+- [x] `bounds/array_pool.py`
+- [x] `bounds/manager.py`
+- [x] `bounds/obb.py`
+- [x] `bounds/segment_pool.py`
+
+### database/ - done (8 reflection calls left for a decision; see performance_notes/database/README.md) - done
+
+- [x] `database/__init__.py`
+- [x] `database/common_db/__init__.py`
+- [x] `database/common_db/callback.py`
+- [x] `database/common_db/lazy_tab_mixin.py`
+- [x] `database/config_db.py`
+- [x] `database/create_database/__init__.py`
+- [x] `database/create_database/accessories.py`
+- [x] `database/create_database/adhesives.py`
+- [x] `database/create_database/app_users.py`
+- [x] `database/create_database/boots.py`
+- [x] `database/create_database/bundle_cover_layouts.py`
+- [x] `database/create_database/bundle_covers.py`
+- [x] `database/create_database/bundle_paths.py`
+- [x] `database/create_database/cads.py`
+- [x] `database/create_database/cavities.py`
+- [x] `database/create_database/cavity_locks.py`
+- [x] `database/create_database/circuits.py`
+- [x] `database/create_database/colors.py`
+- [x] `database/create_database/concentric_layers.py`
+- [x] `database/create_database/concentric_wires.py`
+- [x] `database/create_database/concentrics.py`
+- [x] `database/create_database/covers.py`
+- [x] `database/create_database/cpa_lock_types.py`
+- [x] `database/create_database/cpa_locks.py`
+- [x] `database/create_database/datasheets.py`
+- [x] `database/create_database/directions.py`
+- [x] `database/create_database/families.py`
+- [x] `database/create_database/file_types.py`
+- [x] `database/create_database/genders.py`
+- [x] `database/create_database/housings.py`
+- [x] `database/create_database/images.py`
+- [x] `database/create_database/ip_fluids.py`
+- [x] `database/create_database/ip_ratings.py`
+- [x] `database/create_database/ip_solids.py`
+- [x] `database/create_database/ip_supps.py`
+- [x] `database/create_database/manufacturers.py`
+- [x] `database/create_database/materials.py`
+- [x] `database/create_database/models3d.py`
+- [x] `database/create_database/notes.py`
+- [x] `database/create_database/pegboard_tables.py`
+- [x] `database/create_database/platings.py`
+- [x] `database/create_database/points2d.py`
+- [x] `database/create_database/points3d.py`
+- [x] `database/create_database/points_pegboard.py`
+- [x] `database/create_database/projects.py`
+- [x] `database/create_database/protections.py`
+- [x] `database/create_database/resource_state.py`
+- [x] `database/create_database/seal_types.py`
+- [x] `database/create_database/seals.py`
+- [x] `database/create_database/series.py`
+- [x] `database/create_database/settings.py`
+- [x] `database/create_database/shapes.py`
+- [x] `database/create_database/splice_types.py`
+- [x] `database/create_database/splices.py`
+- [x] `database/create_database/temperatures.py`
+- [x] `database/create_database/terminals.py`
+- [x] `database/create_database/tpa_locks.py`
+- [x] `database/create_database/transition_branches.py`
+- [x] `database/create_database/transition_series.py`
+- [x] `database/create_database/transitions.py`
+- [x] `database/create_database/used_parts.py`
+- [x] `database/create_database/wire_layouts.py`
+- [x] `database/create_database/wire_markers.py`
+- [x] `database/create_database/wire_paths.py`
+- [x] `database/create_database/wire_service_loops.py`
+- [x] `database/create_database/wires.py`
+- [x] `database/db_connectors/__init__.py`
+- [x] `database/db_connectors/base.py`
+- [x] `database/db_connectors/db_data.py`
+- [x] `database/db_connectors/mysql_connector/__init__.py`
+- [x] `database/db_connectors/mysql_connector/connector.py`
+- [x] `database/db_connectors/mysql_connector/row_id_functions.py`
+- [x] `database/db_connectors/mysql_connector/settings_dialog.py`
+- [x] `database/db_connectors/mysql_connector/sql_table.py`
+- [x] `database/db_connectors/sqlite_connector/__init__.py`
+- [x] `database/db_connectors/sqlite_connector/connector.py`
+- [x] `database/db_connectors/sqlite_connector/settings_dialog.py`
+- [x] `database/db_connectors/sqlite_connector/sql_table.py`
+- [x] `database/global_db/__init__.py`
+- [x] `database/global_db/accessory.py`
+- [x] `database/global_db/adhesive.py`
+- [x] `database/global_db/app_users.py`
+- [x] `database/global_db/bases.py`
+- [x] `database/global_db/boot.py`
+- [x] `database/global_db/bundle_cover.py`
+- [x] `database/global_db/cad.py`
+- [x] `database/global_db/cavity.py`
+- [x] `database/global_db/cavity_lock.py`
+- [x] `database/global_db/color.py`
+- [x] `database/global_db/cover.py`
+- [x] `database/global_db/cpa_lock.py`
+- [x] `database/global_db/cpa_lock_type.py`
+- [x] `database/global_db/datasheet.py`
+- [x] `database/global_db/direction.py`
+- [x] `database/global_db/family.py`
+- [x] `database/global_db/file_types.py`
+- [x] `database/global_db/gender.py`
+- [x] `database/global_db/housing.py`
+- [x] `database/global_db/image.py`
+- [x] `database/global_db/ip/__init__.py`
+- [x] `database/global_db/ip/fluid.py`
+- [x] `database/global_db/ip/solid.py`
+- [x] `database/global_db/ip/supp.py`
+- [x] `database/global_db/manufacturer.py`
+- [x] `database/global_db/material.py`
+- [x] `database/global_db/mixins/__init__.py`
+- [x] `database/global_db/mixins/adhesive.py`
+- [x] `database/global_db/mixins/base.py`
+- [x] `database/global_db/mixins/cavity_lock.py`
+- [x] `database/global_db/mixins/color.py`
+- [x] `database/global_db/mixins/compat_housings.py`
+- [x] `database/global_db/mixins/compat_seals.py`
+- [x] `database/global_db/mixins/compat_terminals.py`
+- [x] `database/global_db/mixins/description.py`
+- [x] `database/global_db/mixins/dimension.py`
+- [x] `database/global_db/mixins/direction.py`
+- [x] `database/global_db/mixins/family.py`
+- [x] `database/global_db/mixins/gender.py`
+- [x] `database/global_db/mixins/image.py`
+- [x] `database/global_db/mixins/manufacturer.py`
+- [x] `database/global_db/mixins/material.py`
+- [x] `database/global_db/mixins/model3d.py`
+- [x] `database/global_db/mixins/name.py`
+- [x] `database/global_db/mixins/part_number.py`
+- [x] `database/global_db/mixins/plating.py`
+- [x] `database/global_db/mixins/protection.py`
+- [x] `database/global_db/mixins/resource.py`
+- [x] `database/global_db/mixins/series.py`
+- [x] `database/global_db/mixins/temperature.py`
+- [x] `database/global_db/mixins/weight.py`
+- [x] `database/global_db/mixins/wire_size.py`
+- [x] `database/global_db/model3d.py`
+- [x] `database/global_db/plating.py`
+- [x] `database/global_db/protection.py`
+- [x] `database/global_db/resource_state.py`
+- [x] `database/global_db/seal.py`
+- [x] `database/global_db/seal_type.py`
+- [x] `database/global_db/series.py`
+- [x] `database/global_db/setting.py`
+- [x] `database/global_db/shape.py`
+- [x] `database/global_db/splice.py`
+- [x] `database/global_db/splice_types.py`
+- [x] `database/global_db/temperature.py`
+- [x] `database/global_db/terminal.py`
+- [x] `database/global_db/tpa_lock.py`
+- [x] `database/global_db/transition.py`
+- [x] `database/global_db/transition_branch.py`
+- [x] `database/global_db/used_part.py`
+- [x] `database/global_db/wire.py`
+- [x] `database/global_db/wire_marker.py`
+- [x] `database/id_generator.py`
+- [x] `database/project_db/__init__.py`
+- [x] `database/project_db/cleanup.py`
+- [x] `database/project_db/mixins/__init__.py`
+- [x] `database/project_db/mixins/angle2d.py`
+- [x] `database/project_db/mixins/angle3d.py`
+- [x] `database/project_db/mixins/angle3d_lock.py`
+- [x] `database/project_db/mixins/angle_pegboard.py`
+- [x] `database/project_db/mixins/base.py`
+- [x] `database/project_db/mixins/color.py`
+- [x] `database/project_db/mixins/housing.py`
+- [x] `database/project_db/mixins/name.py`
+- [x] `database/project_db/mixins/notes.py`
+- [x] `database/project_db/mixins/part.py`
+- [x] `database/project_db/mixins/position2d.py`
+- [x] `database/project_db/mixins/position3d.py`
+- [x] `database/project_db/mixins/position_pegboard.py`
+- [x] `database/project_db/mixins/scale2d.py`
+- [x] `database/project_db/mixins/scale3d.py`
+- [x] `database/project_db/mixins/scale_pegboard.py`
+- [x] `database/project_db/mixins/smooth.py`
+- [x] `database/project_db/mixins/start_stop_position2d.py`
+- [x] `database/project_db/mixins/start_stop_position3d.py`
+- [x] `database/project_db/mixins/start_stop_position_pegboard.py`
+- [x] `database/project_db/mixins/table_hidden.py`
+- [x] `database/project_db/mixins/table_position_peg.py`
+- [x] `database/project_db/mixins/visible2d.py`
+- [x] `database/project_db/mixins/visible3d.py`
+- [x] `database/project_db/mixins/visible_pegboard.py`
+- [x] `database/project_db/pjt_bases.py`
+- [x] `database/project_db/pjt_boot.py`
+- [x] `database/project_db/pjt_bundle.py`
+- [x] `database/project_db/pjt_bundle_layout.py`
+- [x] `database/project_db/pjt_bundle_path.py`
+- [x] `database/project_db/pjt_cavity.py`
+- [x] `database/project_db/pjt_circuit.py`
+- [x] `database/project_db/pjt_concentric.py`
+- [x] `database/project_db/pjt_concentric_layer.py`
+- [x] `database/project_db/pjt_concentric_wire.py`
+- [x] `database/project_db/pjt_cover.py`
+- [x] `database/project_db/pjt_cpa_lock.py`
+- [x] `database/project_db/pjt_housing.py`
+- [x] `database/project_db/pjt_note.py`
+- [x] `database/project_db/pjt_pegboard_table.py`
+- [x] `database/project_db/pjt_point2d.py`
+- [x] `database/project_db/pjt_point3d.py`
+- [x] `database/project_db/pjt_point_pegboard.py`
+- [x] `database/project_db/pjt_seal.py`
+- [x] `database/project_db/pjt_splice.py`
+- [x] `database/project_db/pjt_terminal.py`
+- [x] `database/project_db/pjt_tpa_lock.py`
+- [x] `database/project_db/pjt_transition.py`
+- [x] `database/project_db/pjt_transition_branch.py`
+- [x] `database/project_db/pjt_wire.py`
+- [x] `database/project_db/pjt_wire_layout.py`
+- [x] `database/project_db/pjt_wire_marker.py`
+- [x] `database/project_db/pjt_wire_path.py`
+- [x] `database/project_db/pjt_wire_service_loop.py`
+- [x] `database/project_db/project.py`
+- [x] `database/project_db/pseudo_wire_layout.py`
+- [x] `database/utils.py`
+
+### drag_handlers/ - done
+
+- [x] `drag_handlers/__init__.py`
+- [x] `drag_handlers/base.py`
+- [x] `drag_handlers/editor_3d/__init__.py`
+- [x] `drag_handlers/editor_3d/bundle.py`
+- [x] `drag_handlers/editor_3d/generic.py`
+- [x] `drag_handlers/editor_3d/wire.py`
+- [x] `drag_handlers/editor_3d/wire_marker.py`
+- [x] `drag_handlers/editor_3d/wire_route.py`
+- [x] `drag_handlers/editor_3d/wire_snap.py`
+- [x] `drag_handlers/editor_pegboard/__init__.py`
+- [x] `drag_handlers/editor_pegboard/bundle.py`
+- [x] `drag_handlers/editor_pegboard/generic.py`
+- [x] `drag_handlers/editor_pegboard/wire.py`
+- [x] `drag_handlers/editor_pegboard/wire_route.py`
+- [x] `drag_handlers/editor_pegboard/wire_snap.py`
+- [x] `drag_handlers/editor_schematic/__init__.py`
+- [x] `drag_handlers/editor_schematic/generic.py`
+- [x] `drag_handlers/editor_schematic/wire.py`
+- [x] `drag_handlers/editor_schematic/wire_marker.py`
+- [x] `drag_handlers/move_arrows.py`
+- [x] `drag_handlers/wire_marker_arrow.py`
+
+### exporter/ - done
+
+- [x] `exporter/__init__.py`
+- [x] `exporter/exporter.py`
+
+### geometry/ - done
+
+- [x] `geometry/__init__.py`
+- [x] `geometry/angle/__init__.py`
+- [x] `geometry/angle/angle.py`
+- [x] `geometry/angle/quaternion.py`
+- [x] `geometry/cavity_layout.py`
+- [x] `geometry/decimal.py`
+- [x] `geometry/line.py`
+- [x] `geometry/point.py`
+
+### gl/ - done
+
+- [x] `gl/__init__.py`
+- [x] `gl/canvas_3d/__init__.py`
+- [x] `gl/canvas_3d/axis_overlay.py`
+- [x] `gl/canvas_3d/camera.py`
+- [x] `gl/canvas_3d/canvas.py`
+- [x] `gl/canvas_3d/canvas_window.py`
+- [x] `gl/canvas_3d/floor.py`
+- [x] `gl/canvas_3d/focal_target.py`
+- [x] `gl/canvas_3d/headlight.py`
+- [x] `gl/canvas_3d/mouse_handler.py`
+- [x] `gl/canvas_base/__init__.py`
+- [x] `gl/canvas_base/camera_base.py`
+- [x] `gl/canvas_base/canvas_base.py`
+- [x] `gl/canvas_base/canvas_window_base.py`
+- [x] `gl/canvas_base/floor_base.py`
+- [x] `gl/canvas_base/interaction.py`
+- [x] `gl/canvas_base/key_handler.py`
+- [x] `gl/canvas_base/mouse_handler_base.py`
+- [x] `gl/canvas_base/scene_light.py`
+- [x] `gl/canvas_pegboard/__init__.py`
+- [x] `gl/canvas_pegboard/camera.py`
+- [x] `gl/canvas_pegboard/canvas.py`
+- [x] `gl/canvas_pegboard/canvas_window.py`
+- [x] `gl/canvas_pegboard/floor.py`
+- [x] `gl/canvas_pegboard/mouse_handler.py`
+- [x] `gl/canvas_schematic/__init__.py`
+- [x] `gl/canvas_schematic/camera.py`
+- [x] `gl/canvas_schematic/canvas.py`
+- [x] `gl/canvas_schematic/canvas_window.py`
+- [x] `gl/canvas_schematic/floor.py`
+- [x] `gl/canvas_schematic/mouse_handler.py`
+- [x] `gl/context.py`
+- [x] `gl/culling/__init__.py`
+- [x] `gl/events.py`
+- [x] `gl/info.py`
+- [x] `gl/materials/__init__.py`
+- [x] `gl/materials/generic.py`
+- [x] `gl/materials/glowing.py`
+- [x] `gl/materials/material.py`
+- [x] `gl/materials/metallic.py`
+- [x] `gl/materials/plastic.py`
+- [x] `gl/materials/polished.py`
+- [x] `gl/materials/rubber.py`
+- [x] `gl/model_preview/__init__.py`
+- [x] `gl/model_preview/canvas.py`
+- [x] `gl/object_picker.py`
+- [x] `gl/shaders/__init__.py`
+- [x] `gl/shaders/compiler.py`
+- [x] `gl/shaders/edges/__init__.py`
+- [x] `gl/shaders/edges/edges.py`
+- [x] `gl/shaders/faces/__init__.py`
+- [x] `gl/shaders/faces/faces.py`
+- [x] `gl/shaders/floor/__init__.py`
+- [x] `gl/shaders/floor/floor.py`
+- [x] `gl/shaders/grid2d/__init__.py`
+- [x] `gl/shaders/grid2d/grid2d.py`
+- [x] `gl/shaders/program.py`
+- [x] `gl/shaders/shader_program.py`
+- [x] `gl/shaders/texture/__init__.py`
+- [x] `gl/shaders/texture/texture.py`
+- [x] `gl/shaders/vertices/__init__.py`
+- [x] `gl/shaders/vertices/vertices.py`
+- [x] `gl/vbo.py`
+
+### gpu/ - done
+
+- [x] `gpu/__init__.py`
+- [x] `gpu/_dxgi_win.py`
+- [x] `gpu/amd/__init__.py`
+- [x] `gpu/amd/backend.py`
+- [x] `gpu/apple/__init__.py`
+- [x] `gpu/apple/backend.py`
+- [x] `gpu/backend_base.py`
+- [x] `gpu/gl_meminfo.py`
+- [x] `gpu/gpu.py`
+- [x] `gpu/gpu_base.py`
+- [x] `gpu/gpu_specs_lookup.py`
+- [x] `gpu/gpu_vendor.py`
+- [x] `gpu/intel/__init__.py`
+- [x] `gpu/intel/backend.py`
+- [x] `gpu/nvidia/__init__.py`
+- [x] `gpu/nvidia/backend.py`
+- [x] `gpu/os_vram_usage.py`
+
+### handlers/ - done
+
+- [x] `handlers/__init__.py`
+- [x] `handlers/bundle_diameter.py`
+- [x] `handlers/bundle_layout_handler.py`
+- [x] `handlers/bundle_topology.py`
+- [x] `handlers/handler_base.py`
+- [x] `handlers/rope_pull_handler.py`
+- [x] `handlers/seal_handler.py`
+- [x] `handlers/snap_probe_set.py`
+- [x] `handlers/splice_handler.py`
+- [x] `handlers/terminal_handler.py`
+- [x] `handlers/transition_handler.py`
+- [x] `handlers/wire_drag_base.py`
+- [x] `handlers/wire_handler.py`
+- [x] `handlers/wire_layout_handler.py`
+- [x] `handlers/wire_routing_drag.py`
+- [x] `handlers/wire_routing_handler.py`
+- [x] `handlers/wire_slack.py`
+- [x] `handlers/wire_snap.py`
+- [x] `handlers/wire_topology.py`
+
+### image/ - done
+
+- [x] `image/__init__.py`
+- [x] `image/utils.py`
+
+### logger/ - done
+
+- [x] `logger/__init__.py`
+- [x] `logger/log_handler.py`
+- [x] `logger/redirect.py`
+
+### objects/
+
+- [ ] `objects/__init__.py`
+- [ ] `objects/bom.py`
+- [ ] `objects/boot.py`
+- [ ] `objects/bundle.py`
+- [ ] `objects/bundle_layout.py`
+- [ ] `objects/cavity.py`
+- [ ] `objects/circuit.py`
+- [ ] `objects/cover.py`
+- [ ] `objects/cpa_lock.py`
+- [ ] `objects/generic.py`
+- [ ] `objects/housing.py`
+- [ ] `objects/mixins/__init__.py`
+- [ ] `objects/mixins/wire.py`
+- [ ] `objects/note.py`
+- [ ] `objects/object_base.py`
+- [ ] `objects/objects_3d/__init__.py`
+- [ ] `objects/objects_3d/base_3d.py`
+- [ ] `objects/objects_3d/boot.py`
+- [ ] `objects/objects_3d/bundle.py`
+- [ ] `objects/objects_3d/bundle_layout.py`
+- [ ] `objects/objects_3d/cavity.py`
+- [ ] `objects/objects_3d/cover.py`
+- [ ] `objects/objects_3d/cpa_lock.py`
+- [ ] `objects/objects_3d/generic.py`
+- [ ] `objects/objects_3d/housing.py`
+- [ ] `objects/objects_3d/menu_ops.py`
+- [ ] `objects/objects_3d/mixins/__init__.py`
+- [ ] `objects/objects_3d/mixins/wire_type.py`
+- [ ] `objects/objects_3d/note.py`
+- [ ] `objects/objects_3d/project_model.py`
+- [ ] `objects/objects_3d/seal.py`
+- [ ] `objects/objects_3d/splice.py`
+- [ ] `objects/objects_3d/table.py`
+- [ ] `objects/objects_3d/terminal.py`
+- [ ] `objects/objects_3d/tpa_lock.py`
+- [ ] `objects/objects_3d/transition.py`
+- [ ] `objects/objects_3d/wire.py`
+- [ ] `objects/objects_3d/wire_layout.py`
+- [ ] `objects/objects_3d/wire_marker.py`
+- [ ] `objects/objects_3d/wire_service_loop.py`
+- [ ] `objects/objects_pegboard/__init__.py`
+- [ ] `objects/objects_pegboard/base_pegboard.py`
+- [ ] `objects/objects_pegboard/boot.py`
+- [ ] `objects/objects_pegboard/bundle.py`
+- [ ] `objects/objects_pegboard/bundle_layout.py`
+- [ ] `objects/objects_pegboard/cavity.py`
+- [ ] `objects/objects_pegboard/chain_edges.py`
+- [ ] `objects/objects_pegboard/circuit.py`
+- [ ] `objects/objects_pegboard/cover.py`
+- [ ] `objects/objects_pegboard/cpa_lock.py`
+- [ ] `objects/objects_pegboard/generic.py`
+- [ ] `objects/objects_pegboard/housing.py`
+- [ ] `objects/objects_pegboard/mixins.py`
+- [ ] `objects/objects_pegboard/note.py`
+- [ ] `objects/objects_pegboard/project_model.py`
+- [ ] `objects/objects_pegboard/seal.py`
+- [ ] `objects/objects_pegboard/splice.py`
+- [ ] `objects/objects_pegboard/table.py`
+- [ ] `objects/objects_pegboard/table_placement.py`
+- [ ] `objects/objects_pegboard/terminal.py`
+- [ ] `objects/objects_pegboard/tpa_lock.py`
+- [ ] `objects/objects_pegboard/transition.py`
+- [ ] `objects/objects_pegboard/wire.py`
+- [ ] `objects/objects_pegboard/wire_highlight.py`
+- [ ] `objects/objects_pegboard/wire_layout.py`
+- [ ] `objects/objects_pegboard/wire_marker.py`
+- [ ] `objects/objects_pegboard/wire_service_loop.py`
+- [ ] `objects/objects_schematic/__init__.py`
+- [ ] `objects/objects_schematic/auto_arrange.py`
+- [ ] `objects/objects_schematic/base_schematic.py`
+- [ ] `objects/objects_schematic/boot.py`
+- [ ] `objects/objects_schematic/bundle.py`
+- [ ] `objects/objects_schematic/bundle_layout.py`
+- [ ] `objects/objects_schematic/cavity.py`
+- [ ] `objects/objects_schematic/cover.py`
+- [ ] `objects/objects_schematic/cpa_lock.py`
+- [ ] `objects/objects_schematic/generic.py`
+- [ ] `objects/objects_schematic/housing.py`
+- [ ] `objects/objects_schematic/mixins/__init__.py`
+- [ ] `objects/objects_schematic/note.py`
+- [ ] `objects/objects_schematic/project_model.py`
+- [ ] `objects/objects_schematic/seal.py`
+- [ ] `objects/objects_schematic/splice.py`
+- [ ] `objects/objects_schematic/table.py`
+- [ ] `objects/objects_schematic/terminal.py`
+- [ ] `objects/objects_schematic/tpa_lock.py`
+- [ ] `objects/objects_schematic/transition.py`
+- [ ] `objects/objects_schematic/wire.py`
+- [ ] `objects/objects_schematic/wire_layout.py`
+- [ ] `objects/objects_schematic/wire_marker.py`
+- [ ] `objects/objects_schematic/wire_service_loop.py`
+- [ ] `objects/objectsvar/__init__.py`
+- [ ] `objects/objectsvar/base_var.py`
+- [ ] `objects/pegboard_table.py`
+- [ ] `objects/project.py`
+- [ ] `objects/project_model.py`
+- [ ] `objects/seal.py`
+- [ ] `objects/splice.py`
+- [ ] `objects/terminal.py`
+- [ ] `objects/tpa_lock.py`
+- [ ] `objects/transition.py`
+- [ ] `objects/wire.py`
+- [ ] `objects/wire_layout.py`
+- [ ] `objects/wire_marker.py`
+- [ ] `objects/wire_service_loop.py`
+
+### process/ - done
+
+- [x] `process/__init__.py`
+- [x] `process/clean_creds/__init__.py`
+- [x] `process/clean_creds/win.py`
+- [x] `process/db_broker.py`
+- [x] `process/image_process.py`
+- [x] `process/manager.py`
+- [x] `process/model_process.py`
+
+### ray_tracing/ - done
+
+- [x] `ray_tracing/__init__.py`
+- [x] `ray_tracing/bvh_processor.py`
+- [x] `ray_tracing/dialog.py`
+- [x] `ray_tracing/light.py`
+- [x] `ray_tracing/renderer.py`
+- [x] `ray_tracing/scene.py`
+
+### rope_pull/ - done
+
+- [x] `rope_pull/__init__.py`
+- [x] `rope_pull/rope_pull_py.py`
+
+### rotation_handlers/ - done
+
+- [x] `rotation_handlers/__init__.py`
+- [x] `rotation_handlers/editor_3d/__init__.py`
+- [x] `rotation_handlers/editor_3d/generic.py`
+- [x] `rotation_handlers/editor_pegboard/__init__.py`
+- [x] `rotation_handlers/editor_pegboard/generic.py`
+- [x] `rotation_handlers/editor_schematic/__init__.py`
+- [x] `rotation_handlers/editor_schematic/generic.py`
+- [x] `rotation_handlers/rotation_mesh.py`
+- [x] `rotation_handlers/rotation_ring/__init__.py`
+- [x] `rotation_handlers/rotation_ring/_hit_test.py`
+- [x] `rotation_handlers/rotation_ring/_protractor_base.py`
+- [x] `rotation_handlers/rotation_ring/inner_ring.py`
+- [x] `rotation_handlers/rotation_ring/outer_ring.py`
+- [x] `rotation_handlers/rotation_ring/tick_pick_object.py`
+- [x] `rotation_handlers/rotation_ring/torus_ring.py`
+- [x] `rotation_handlers/rotation_rings.py`
+
+### shapes/ - done
+
+- [x] `shapes/__init__.py`
+- [x] `shapes/arrow.py`
+- [x] `shapes/box.py`
+- [x] `shapes/circle.py`
+- [x] `shapes/cone.py`
+- [x] `shapes/cylinder.py`
+- [x] `shapes/cylinder_helix.py`
+- [x] `shapes/disc_ring.py`
+- [x] `shapes/helix.py`
+- [x] `shapes/line.py`
+- [x] `shapes/mesh_cache.py`
+- [x] `shapes/rectangle.py`
+- [x] `shapes/sphere.py`
+- [x] `shapes/square_outline.py`
+- [x] `shapes/text.py`
+- [x] `shapes/torus.py`
+- [x] `shapes/triangle.py`
+
+### themes/ - done
+
+- [x] `themes/__init__.py`
+- [x] `themes/themes.py`
+
+### ui/
+
+- [ ] `ui/__init__.py`
+- [ ] `ui/datasheet_viewer/__init__.py`
+- [ ] `ui/datasheet_viewer/viewer.py`
+- [ ] `ui/dialogs/__init__.py`
+- [ ] `ui/dialogs/about_dialog.py`
+- [ ] `ui/dialogs/add_note.py`
+- [ ] `ui/dialogs/add_project.py`
+- [ ] `ui/dialogs/bom_dialog.py`
+- [ ] `ui/dialogs/bundle_wires_dialog.py`
+- [ ] `ui/dialogs/closing_dialog.py`
+- [ ] `ui/dialogs/debug_settings.py`
+- [ ] `ui/dialogs/dialog_base.py`
+- [ ] `ui/dialogs/dimensions_dialog.py`
+- [ ] `ui/dialogs/error.py`
+- [ ] `ui/dialogs/export_dialog.py`
+- [ ] `ui/dialogs/header.py`
+- [ ] `ui/dialogs/housing_editor/__init__.py`
+- [ ] `ui/dialogs/housing_editor/accessory_obj.py`
+- [ ] `ui/dialogs/housing_editor/accessory_panel.py`
+- [ ] `ui/dialogs/housing_editor/analysis_panel.py`
+- [ ] `ui/dialogs/housing_editor/cavity_obj.py`
+- [ ] `ui/dialogs/housing_editor/cavity_panel.py`
+- [ ] `ui/dialogs/housing_editor/config.py`
+- [ ] `ui/dialogs/housing_editor/connector_analysis.py`
+- [ ] `ui/dialogs/housing_editor/housing_editor.py`
+- [ ] `ui/dialogs/housing_editor/housing_obj.py`
+- [ ] `ui/dialogs/housing_editor/housing_panel.py`
+- [ ] `ui/dialogs/housing_editor/tree_panels.py`
+- [ ] `ui/dialogs/part_orientation.py`
+- [ ] `ui/dialogs/part_search.py`
+- [ ] `ui/dialogs/project_dialog.py`
+- [ ] `ui/dialogs/project_model_dialog.py`
+- [ ] `ui/dialogs/properties_dialog.py`
+- [ ] `ui/dialogs/render_setings.py`
+- [ ] `ui/dialogs/transition_editor/__init__.py`
+- [ ] `ui/dialogs/transition_editor/dialog.py`
+- [ ] `ui/dialogs/transition_editor/preview.py`
+- [ ] `ui/dialogs/transition_routing.py`
+- [ ] `ui/dock_base.py`
+- [ ] `ui/editor_3d/__init__.py`
+- [ ] `ui/editor_3d/editor_3d.py`
+- [ ] `ui/editor_assembly/__init__.py`
+- [ ] `ui/editor_assembly/editor_assembly.py`
+- [ ] `ui/editor_ciruit/__init__.py`
+- [ ] `ui/editor_ciruit/bitmaps.py`
+- [ ] `ui/editor_ciruit/design_rules.py`
+- [ ] `ui/editor_ciruit/editor_circuit.py`
+- [ ] `ui/editor_ciruit/editor_widget.py`
+- [ ] `ui/editor_db/__init__.py`
+- [ ] `ui/editor_db/accessory.py`
+- [ ] `ui/editor_db/base.py`
+- [ ] `ui/editor_db/boot.py`
+- [ ] `ui/editor_db/bundle_cover.py`
+- [ ] `ui/editor_db/cover.py`
+- [ ] `ui/editor_db/cpa_lock.py`
+- [ ] `ui/editor_db/edit_dialog.py`
+- [ ] `ui/editor_db/editordb.py`
+- [ ] `ui/editor_db/housing.py`
+- [ ] `ui/editor_db/seal.py`
+- [ ] `ui/editor_db/splice.py`
+- [ ] `ui/editor_db/terminal.py`
+- [ ] `ui/editor_db/tpa_lock.py`
+- [ ] `ui/editor_db/transition.py`
+- [ ] `ui/editor_db/wire.py`
+- [ ] `ui/editor_db/wire_marker.py`
+- [ ] `ui/editor_obj/__init__.py`
+- [ ] `ui/editor_obj/editorobj.py`
+- [ ] `ui/editor_obj/prop_grid.py`
+- [ ] `ui/editor_pegboard/__init__.py`
+- [ ] `ui/editor_pegboard/editor_pegboard.py`
+- [ ] `ui/editor_schematic/__init__.py`
+- [ ] `ui/editor_schematic/editor_schematic.py`
+- [ ] `ui/editor_script/__init__.py`
+- [ ] `ui/log_viewer/__init__.py`
+- [ ] `ui/log_viewer/logviewer.py`
+- [ ] `ui/log_viewer/viewer.py`
+- [ ] `ui/mainframe.py`
+- [ ] `ui/object_browser/__init__.py`
+- [ ] `ui/object_browser/objectbrowser.py`
+- [ ] `ui/pegboard_table/__init__.py`
+- [ ] `ui/pegboard_table/column_defs.py`
+- [ ] `ui/pegboard_table/mdi_host.py`
+- [ ] `ui/pegboard_table/wire_table.py`
+- [ ] `ui/prop_ctrls/__init__.py`
+- [ ] `ui/prop_ctrls/_array_dialog_base.py`
+- [ ] `ui/prop_ctrls/_image_ctrl_base.py`
+- [ ] `ui/prop_ctrls/_path_ctrl_base.py`
+- [ ] `ui/prop_ctrls/angle_prop.py`
+- [ ] `ui/prop_ctrls/array_float_prop.py`
+- [ ] `ui/prop_ctrls/array_int_prop.py`
+- [ ] `ui/prop_ctrls/array_string_prop.py`
+- [ ] `ui/prop_ctrls/autocomplete_string_prop.py`
+- [ ] `ui/prop_ctrls/bitmap_combobox_prop.py`
+- [ ] `ui/prop_ctrls/bool_prop.py`
+- [ ] `ui/prop_ctrls/category.py`
+- [ ] `ui/prop_ctrls/choice_prop.py`
+- [ ] `ui/prop_ctrls/color_prop.py`
+- [ ] `ui/prop_ctrls/combobox_prop.py`
+- [ ] `ui/prop_ctrls/datasheet_cad_prop.py`
+- [ ] `ui/prop_ctrls/enum_prop.py`
+- [ ] `ui/prop_ctrls/events.py`
+- [ ] `ui/prop_ctrls/float_prop.py`
+- [ ] `ui/prop_ctrls/image_prop.py`
+- [ ] `ui/prop_ctrls/int_prop.py`
+- [ ] `ui/prop_ctrls/long_string_prop.py`
+- [ ] `ui/prop_ctrls/model3d_prop.py`
+- [ ] `ui/prop_ctrls/path_prop.py`
+- [ ] `ui/prop_ctrls/point_prop.py`
+- [ ] `ui/prop_ctrls/position_prop.py`
+- [ ] `ui/prop_ctrls/prop_base.py`
+- [ ] `ui/prop_ctrls/scale_prop.py`
+- [ ] `ui/prop_ctrls/string_prop.py`
+- [ ] `ui/prop_ctrls/tri_state_checkbox_prop.py`
+- [ ] `ui/system_menu/__init__.py`
+- [ ] `ui/system_menu/database.py`
+- [ ] `ui/system_menu/edit.py`
+- [ ] `ui/system_menu/file.py`
+- [ ] `ui/system_menu/help.py`
+- [ ] `ui/system_menu/settings.py`
+- [ ] `ui/system_menu/system_menu.py`
+- [ ] `ui/system_menu/view.py`
+- [ ] `ui/system_menu/window.py`
+- [ ] `ui/toolbar/__init__.py`
+- [ ] `ui/toolbar/float_spin_button.py`
+- [ ] `ui/toolbar/pegboard_drag_mode_button.py`
+- [ ] `ui/toolbar/pegboard_snap_button.py`
+- [ ] `ui/toolbar/snap_angle_button.py`
+- [ ] `ui/toolbar/toolbar.py`
+- [ ] `ui/web_viewer/__init__.py`
+- [ ] `ui/widgets/__init__.py`
+- [ ] `ui/widgets/auto_complete.py`
+- [ ] `ui/widgets/autocomplete_combobox.py`
+- [ ] `ui/widgets/autocomplete_textctrl.py`
+- [ ] `ui/widgets/bitmap_autocomplete_combobox.py`
+- [ ] `ui/widgets/cad_datasheet_ctrl.py`
+- [ ] `ui/widgets/checkbox_ctrl.py`
+- [ ] `ui/widgets/choice_ctrl.py`
+- [ ] `ui/widgets/color_ctrl.py`
+- [ ] `ui/widgets/combobox_ctrl.py`
+- [ ] `ui/widgets/context_menus.py`
+- [ ] `ui/widgets/editable_tab_ctrl.py`
+- [ ] `ui/widgets/empty_space_menus.py`
+- [ ] `ui/widgets/float_ctrl.py`
+- [ ] `ui/widgets/foldpanelbar.py`
+- [ ] `ui/widgets/int_ctrl.py`
+- [ ] `ui/widgets/list_ctrl.py`
+- [ ] `ui/widgets/search_db.py`
+- [ ] `ui/widgets/stipple_ctrl.py`
+- [ ] `ui/widgets/text_ctrl.py`
+- [ ] `ui/widgets/tri_state_checkbox_ctrl.py`
+- [ ] `ui/widgets/triple_float_ctrl.py`
+
+### utils/ - done
+
+- [x] `utils/__init__.py`
+- [x] `utils/bounding_boxes.py`
+- [x] `utils/mesh_normals.py`
+- [x] `utils/mesh_surface.py`
+- [x] `utils/mesh_surface_picker.py`
+- [x] `utils/model_utils.py`
+- [x] `utils/natural_sort.py`
+- [x] `utils/paths.py`
+- [x] `utils/remap.py`
+- [x] `utils/snap_pool.py`
+- [x] `utils/ui_utils.py`
+- [x] `utils/window_geometry.py`
+- [x] `utils/wire_conversions.py`
+
+### wire_routing/ - done
+
+- [x] `wire_routing/__init__.py`
+- [x] `wire_routing/reroute.py`
+- [x] `wire_routing/routing.py`
+
+### (root)
+
+- [ ] `__init__.py`
+- [ ] `__version__.py`
+- [ ] `app.py`
+- [ ] `check_types.py`
+- [ ] `color.py`
+- [ ] `config.py`
+- [ ] `critical_error_dialog.py`
+- [ ] `debug.py`
+- [ ] `memory_diagnostics.py`
+- [ ] `monkey_patch.py`
+- [ ] `ocp_ops.py`
+- [ ] `ocp_threadworker.py`
+- [ ] `process_memory.py`
+- [ ] `resources.py`
+- [ ] `splash.py`
+
+## Status notes
+- database/: typed (no untyped parameters or returns), imports regrouped, performance notes written under performance_notes/database/ (200 modules, AST-based facts). 8 getattr/setattr/hasattr calls remain and need a decision (listed in the README). Every module imports.
+- Whole package: all 714 importable modules import after each pass.
+- Not yet started: drag_handlers (next alphabetically), then exporter, geometry, gl, gpu, handlers, image, logger, objects, process, ray_tracing, rope_pull, rotation_handlers, shapes, themes, ui (re-review), utils, wire_routing, and the top-level files.

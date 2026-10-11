@@ -121,6 +121,20 @@ def _refresh_committed_wire(wire_obj: "_wire_obj.Wire", view: str) -> None:
 
 
 @_check_types.do
+def _refresh_routed_bundle_diameters(walk: "_wire_routing_handler.RouteWalk") -> None:
+    """Recompute and apply the wire-driven diameter of every bundle
+    *walk* just routed the wire through -- without this, a free bundle
+    with no wires yet stays at its catalog minimum diameter forever,
+    even once wires are routed through it, since nothing else triggers
+    ``handlers.bundle_diameter.refresh_diameter`` for a plain drag-and-
+    drop commit (it was previously only called from
+    ``objects.bundle.Bundle.set_sibling``, i.e. transition attach).
+    """
+    for bundle_db in walk.touched_bundles:
+        _bundle_diameter.refresh_diameter(bundle_db.get_object())
+
+
+@_check_types.do
 def compute_eligible_targets(
     project: "_project.Project", wire_od: float, view: str,
 ) -> tuple[list, list]:
@@ -511,6 +525,7 @@ class RouteSession:
             if self._walk.is_finished:
                 self._walk.commit()
                 _refresh_committed_wire(self.target, self._view)
+                _refresh_routed_bundle_diameters(self._walk)
                 self._finished = True
             else:
                 self._highlight_current_transition()
@@ -559,6 +574,7 @@ def begin_route(
     if walk.is_finished:
         walk.commit()
         _refresh_committed_wire(wire_obj, view)
+        _refresh_routed_bundle_diameters(walk)
         return None
 
     return RouteSession(canvas, wire_obj, walk, wire_od, view)

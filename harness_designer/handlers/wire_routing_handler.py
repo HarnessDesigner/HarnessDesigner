@@ -525,6 +525,28 @@ class RouteWalk:
         ``None`` once :attr:`is_finished`."""
         return None if self._finished else self._branch.transition
 
+    @property
+    @_check_types.do
+    def touched_bundles(self) -> list["_PJTBundle"]:
+        """Every bundle this walk actually routed the wire through, in
+        walk order, de-duplicated -- read from the ``bundle_id`` tags
+        collected while walking (section 2.6), so the common case of
+        entering directly onto a free end (no transition in the way)
+        still returns that one bundle. Callers use this after
+        :meth:`commit` to refresh each bundle's own wire-driven diameter
+        (``handlers.bundle_diameter.refresh_diameter``).
+        """
+        bundles_table = self._ptables.pjt_bundles_table
+        ids: list[bytes] = []
+        seen = set()
+        for tags in self._point_tags.values():
+            bundle_id = tags.get('bundle_id')
+            if bundle_id is not None and bundle_id not in seen:
+                seen.add(bundle_id)
+                ids.append(bundle_id)
+
+        return [bundles_table[bundle_id] for bundle_id in ids]
+
     @_check_types.do
     def choose(self, hop: _Union[ContinueBranch, EndAtSplice]) -> None:
         """Resolve the hop at :attr:`pending_transition`. May finish the

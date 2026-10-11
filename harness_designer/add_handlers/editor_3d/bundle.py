@@ -66,6 +66,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...gl import object_picker as _object_picker
 from ...geometry import point as _point
 from ...handlers import transition_handler as _transition_handler
+from ...handlers import bundle_diameter as _bundle_diameter
 from .. import base as _base
 from ... import check_types as _check_types
 
@@ -144,6 +145,17 @@ class Bundle(_base.AddHandlerBase):
         self._start_branch_orig_diameter = start_branch_orig_diameter
         self._start_layout = start_layout
         self._stop_branch = None
+        self._stop_layout = None
+
+        # Set by _handle_first_click when the start end attaches to a
+        # branch that already has wires routed directly onto it (no
+        # bundle plugged in yet -- BUNDLE_PLACEMENT.md section 3's
+        # 2026-10-10 note). While true, phase 1 refuses every branch
+        # (wired or not) for the stop end -- connecting to a transition
+        # on BOTH ends when one side already has wires is the "which wire
+        # exits which branch" ambiguity the user hasn't solved yet, so
+        # for now the other end must be a free placement.
+        self._start_branch_has_wires = False
 
         self._hovered_branch = None
         self._committed_layouts = []
@@ -264,7 +276,11 @@ class Bundle(_base.AddHandlerBase):
 
             origin, direc = _object_picker.build_ray(mouse_pos, self.camera)
             hit = None
-            if origin is not None:
+            # The start end already landed on a branch with wires on it --
+            # the stop end is restricted to a free placement, so no branch
+            # (of any transition) is ever offered here. See
+            # _start_branch_has_wires's own docstring in __init__.
+            if origin is not None and not (self._phase != 0 and self._start_branch_has_wires):
                 hit = _transition_handler._find_free_branch_ray(  # NOQA
                     origin, direc, self.mainframe.project,
                     exclude_transition=exclude_transition)
@@ -290,7 +306,18 @@ class Bundle(_base.AddHandlerBase):
                 self._move_growing_point(
                     self.camera.get_position_on_focal_plane(mouse_pos))
 
-            self.target.obj3d.is_visible = True
+            # Branch highlighting above runs every phase-0 hover regardless
+            # (so a free end is still shown as a valid attach target before
+            # the start point exists) -- but the bundle body itself must
+            # stay hidden through all of phase 0: the start is the growing
+            # point here, so showing it would render a segment from the
+            # still-placeholder stop point (the origin) to wherever the
+            # start happens to be hovering, a visible "preview" that has no
+            # business existing before the user has actually clicked
+            # anything. _handle_first_click turns this on for real once
+            # phase 1 begins.
+            if self._phase != 0:
+                self.target.obj3d.is_visible = True
 
     @_check_types.do
     def _clear_branch_hover(self) -> None:
@@ -303,6 +330,31 @@ class Bundle(_base.AddHandlerBase):
     def _branch_fits(self, branch: "_transition_3d.Branch") -> bool:
         return (self._diameter_lo <= branch.max_diameter and
                 self._diameter_hi >= branch.min_diameter)
+
+    @_check_types.do
+    def _branch_has_wires(self, branch: "_transition_3d.Branch") -> bool:
+        """Whether *branch* already has a wire routed directly onto it
+        with no bundle attached (BUNDLE_DESIGN.md 2.6: such a wire's
+        ``pjt_wire_paths`` row carries ``transition_branch_id`` with
+        ``bundle_id`` left ``NULL``) -- checked only in the 3D view,
+        since this handler never touches the peg-board one."""
+        rows = self.ptables.pjt_wire_paths_table.for_transition_branch(branch.db_obj.db_id)
+        return any(row.point3d_id is not None for row in rows)
+
+    @_check_types.do
+    def _adopt_branch_wires(self, branch: "_transition_3d.Branch") -> None:
+        """Tag every wire path row already sitting at *branch* (3D view)
+        with this session's own newly-placed bundle, so wires that were
+        already routed directly onto the branch become members of the
+        bundle now plugged in there -- "the wire would be added to it
+        once the end position of the bundle is selected"
+        (BUNDLE_PLACEMENT.md section 3, 2026-10-10). A no-op when
+        *branch* has no wires.
+        """
+        bundle_id = self.target.db_obj.db_id
+        for row in self.ptables.pjt_wire_paths_table.for_transition_branch(branch.db_obj.db_id):
+            if row.point3d_id is not None:
+                row.bundle_id = bundle_id
 
     # ------------------------------------------------------------------
     # Clicks
@@ -331,6 +383,7 @@ class Bundle(_base.AddHandlerBase):
                 return
 
             self._start_branch_orig_diameter = branch.diameter
+            self._start_branch_has_wires = self._branch_has_wires(branch)
             self._attach_growing_end_to_branch(branch)
             t_obj.add_bundle(self.target, 'start', branch.db_obj.branch_id)
             self._start_branch = (t_obj, branch)
@@ -339,6 +392,16 @@ class Bundle(_base.AddHandlerBase):
 
         self._clear_branch_hover()
         self._phase = 1
+
+        # The start point is locked in for real now (free, or on a branch)
+        # -- this is the moment the preview is allowed to exist at all, per
+        # BUNDLE_PLACEMENT.md section 3's "the preview should not be
+        # created until after the first click is registered." Set this
+        # directly rather than waiting for the next hover() call so there
+        # is no stray frame where phase is already 1 but nothing is shown
+        # yet.
+        with self.mainframe.editor3d.context:
+            self.target.obj3d.is_visible = True
 
     @_check_types.do
     def _handle_later_click(self, mouse_pos: _point.Point) -> None:  # NOQA
@@ -408,7 +471,7 @@ class Bundle(_base.AddHandlerBase):
         t_obj.add_bundle(self.target, 'stop', branch.db_obj.branch_id)
         self._stop_branch = (t_obj, branch)
         self._narrow_diameter_range(branch)
-        drop_joint_layout(self.mainframe, branch)
+        self._stop_layout = drop_joint_layout(self.mainframe, branch)
 
         self._finish_common()
 
@@ -488,6 +551,29 @@ class Bundle(_base.AddHandlerBase):
     @_check_types.do
     def _finish_common(self) -> None:
         self._clear_branch_hover()
+
+        for branch_info in (self._start_branch, self._stop_branch):
+            if branch_info is not None:
+                self._adopt_branch_wires(branch_info[1])
+
+        # Adoption above can bring in wires this session's own diameter
+        # narrowing never accounted for (it only ever looked at the
+        # branches' own catalog ranges, since a freshly placed bundle is
+        # normally empty) -- recompute for real now that the bundle may
+        # not be, and bring every joint/interior layout already dropped
+        # at the OLD diameter up to date (same reasoning as
+        # _narrow_diameter_range's own refresh, for the same reason: a
+        # layout's diameter is cached once, at construction).
+        _bundle_diameter.refresh_diameter(self.target)
+        final_diameter = self.target.db_obj.diameter
+
+        for layout_obj in (self._start_layout, self._stop_layout):
+            if layout_obj is not None:
+                layout_obj.obj3d.set_diameter(final_diameter)
+
+        for layout_obj in self._committed_layouts:
+            layout_obj.obj3d.set_diameter(final_diameter)
+
         self.target.identify(None)
         self._seed_pegboard()
         self.mainframe.project.add_bundle(self.target)
