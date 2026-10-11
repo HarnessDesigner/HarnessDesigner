@@ -405,8 +405,16 @@ class PJTHousingsTable(PJTTableBase):
             points3d_table = self.db.pjt_points3d_table
             points3d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
-            points3d_table._con.commit()  # NOQA
 
+            # No commit here -- this and the three INSERTs below (points2d,
+            # points_pegboard, cavities) share ONE commit, at the very end
+            # after the cavities INSERT, so the whole "add N cavities" batch
+            # is atomic: a failure partway through (e.g. the cavities
+            # INSERT) rolls back the point rows too, instead of leaving
+            # orphaned, committed point rows that nothing references yet.
+            # The read-back SELECTs below still see these uncommitted rows
+            # fine -- they're on this same connection/transaction.
+            #
             # The row-level cache (TableData) has no way to know about rows
             # written straight through the connector like this -- mirror
             # each one in directly, same as PJTTableBase.insert() does for
@@ -436,7 +444,6 @@ class PJTHousingsTable(PJTTableBase):
             points2d_table = self.db.pjt_points2d_table
             points2d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
-            points2d_table._con.commit()  # NOQA
 
             points2d_fields = points2d_table.field_names
             points2d_placeholders = ', '.join(['?'] * len(new_point2d_ids))
@@ -456,7 +463,6 @@ class PJTHousingsTable(PJTTableBase):
             points_pegboard_table = self.db.pjt_points_pegboard_table
             points_pegboard_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
-            points_pegboard_table._con.commit()  # NOQA
 
             points_pegboard_fields = points_pegboard_table.field_names
             points_pegboard_placeholders = ', '.join(['?'] * len(new_peg_ids))
@@ -732,8 +738,17 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             points3d_table = self.table.db.pjt_points3d_table
             points3d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points3d (id, x, y, z) VALUES (?, ?, ?, ?);', point3d_rows)
-            points3d_table._con.commit()  # NOQA
 
+            # No commit here -- this and the three INSERTs below (points2d,
+            # points_pegboard, cavities) share ONE commit, at the very end
+            # after the cavities INSERT, so the whole "regenerate N
+            # cavities" batch is atomic: a failure partway through (e.g.
+            # the cavities INSERT) rolls back the point rows too, instead
+            # of leaving orphaned, committed point rows that nothing
+            # references yet. The read-back SELECTs below still see these
+            # uncommitted rows fine -- they're on this same connection/
+            # transaction.
+            #
             # The row-level cache (TableData) has no way to know about rows
             # written straight through the connector like this -- mirror
             # each one in directly, same as PJTTableBase.insert() does for
@@ -763,7 +778,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             points2d_table = self.table.db.pjt_points2d_table
             points2d_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points2d (id, x, y, z) VALUES (?, ?, ?, ?);', point2d_rows)
-            points2d_table._con.commit()  # NOQA
 
             points2d_fields = points2d_table.field_names
             points2d_placeholders = ', '.join(['?'] * len(new_point2d_ids))
@@ -783,7 +797,6 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             points_pegboard_table = self.table.db.pjt_points_pegboard_table
             points_pegboard_table._con.executemany(  # NOQA
                 'INSERT INTO pjt_points_pegboard (id, x, y, z) VALUES (?, ?, ?, ?);', peg_rows)
-            points_pegboard_table._con.commit()  # NOQA
 
             points_pegboard_fields = points_pegboard_table.field_names
             points_pegboard_placeholders = ', '.join(['?'] * len(new_peg_ids))
