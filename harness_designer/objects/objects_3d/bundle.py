@@ -23,6 +23,7 @@ from . import mixins as _mixins
 from ... import utils as _utils
 from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -41,11 +42,20 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_3d
 
 
+@capturable()
 class Bundle(_base_3d.Base3D, _mixins.WireTypeMixin):
     """Represent a bundle in :mod:`harness_designer.objects.objects_3d.bundle`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_diameter', severity=2),
+        Attr('_p1', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_waypoint_points', severity=1),
+    )
+
     parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle" = None
 

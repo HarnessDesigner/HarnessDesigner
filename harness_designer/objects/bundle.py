@@ -9,7 +9,9 @@ from .objects_schematic import bundle as _bundle_schematic
 from .objects_3d import bundle as _bundle_3d
 from .objects_pegboard import bundle as _bundle_pegboard
 from ..handlers import bundle_diameter as _bundle_diameter
+from ..geometry import point as _point
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
     from . import transition as _transition_obj
 
 
+@capturable()
 class Bundle(_ObjectBase):
     """Represent a bundle in :mod:`harness_designer.objects.bundle`.
 
@@ -62,6 +65,7 @@ class Bundle(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def start_sibling(self) -> _Union["_transition_obj.Transition", None]:
         """Whatever this bundle's start end attaches to (a Transition), or
@@ -69,6 +73,7 @@ class Bundle(_ObjectBase):
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def stop_sibling(self) -> _Union["_transition_obj.Transition", None]:
         """Whatever this bundle's stop end attaches to (a Transition), or
@@ -76,26 +81,32 @@ class Bundle(_ObjectBase):
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @_check_types.do
-    def set_sibling(self, other: _Union["_transition_obj.Transition", None], end: str) -> None:
-        """Record *other* as what this bundle's *end* ('start' or 'stop')
-        attaches to.
+    def set_sibling(
+        self, other: _Union["_transition_obj.Transition", None], end_position: _point.Point
+    ) -> None:
+        """Record *other* as what this bundle's end attaches to, where
+        *end_position* is the actual ``Point`` of that end (this
+        bundle's own ``obj3d.start_position``/``stop_position``) -- not
+        a 'start'/'stop' label.
 
         One-sided: this only stores this bundle's own side of the link.
         The reverse direction (Transition.add_bundle) is a separate,
         explicit call made by whichever handler is wiring the two objects
         together -- see handlers.transition_handler.
 
-        :param other: The Transition attached at *end*, or None to clear it.
-        :param end: 'start' or 'stop'.
+        :param other: The Transition attached at *end_position*, or None
+            to clear it.
+        :param end_position: This bundle's own start or stop ``Point``.
         """
         ref = None if other is None else weakref.ref(other)
 
-        if end == 'start':
+        if end_position is self.obj3d.start_position:
             self._start_sibling_ref = ref
-        elif end == 'stop':
+        elif end_position is self.obj3d.stop_position:
             self._stop_sibling_ref = ref
         else:
-            raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
+            raise ValueError(
+                f'end_position must be this bundle\'s own start or stop position, got {end_position!r}')
 
         # Attaching to (or detaching from) a transition branch changes
         # whether handlers.bundle_diameter's own branch-floor applies to

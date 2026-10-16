@@ -108,9 +108,10 @@ class PseudoPJTWireLayout(PJTWireLayout):
       returns it as ``('terminal', terminal)`` for
       ``dragging.EndpointDragObject`` to call ``terminal.add_wire()`` with
       on drop.
-    - ``snap_wire`` / ``snap_end`` -- the real ``Wire`` ObjectBase wrapper
-      and which of its own ends (``'start'`` or ``'stop'``) is open and
-      dangling there, for a probe placed at another wire's own free end.
+    - ``snap_wire`` / ``snap_point`` -- the real ``Wire`` ObjectBase wrapper
+      and the actual Point (its own start or stop) that is open and
+      dangling there -- not a 'start'/'stop' label -- for a probe placed
+      at another wire's own free end.
       ``wire_handler.py`` needs no unwrapping for this case at all --
       ``position3d_id`` below already matches the real endpoint's, so the
       existing ``isinstance(picked, WireLayout)`` /
@@ -130,7 +131,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
 
     snap_terminal: _Union["_terminal.Terminal", None] = None
     snap_wire: _Union["_wire.Wire", None] = None
-    snap_end: str | None = None
+    snap_point: _point.Point | None = None
     snap_splice: _Union["_splice.Splice", None] = None
 
     _position: _point.Point | None = None
@@ -142,7 +143,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         wire_part: "_global_wire.Wire",
         terminal: _Union["_terminal.Terminal", None] = None,
         wire: _Union["_wire.Wire", None] = None,
-        end: str | None = None,
+        end_position: _point.Point | None = None,
         splice: _Union["_splice.Splice", None] = None,
         position3d: _point.Point | None = None,
         position2d: _point.Point | None = None,
@@ -156,7 +157,7 @@ class PseudoPJTWireLayout(PJTWireLayout):
         self._wire_part = wire_part
         self.snap_terminal = terminal
         self.snap_wire = wire
-        self.snap_end = end
+        self.snap_point = end_position
         self.snap_splice = splice
 
     @property

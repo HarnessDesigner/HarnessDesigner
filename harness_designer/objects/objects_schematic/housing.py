@@ -11,6 +11,7 @@ from ... import config as _config
 from ... import color as _color
 from ... import check_types as _check_types
 from ... import bounds as _bounds
+from ...crash_dump import Attr, capturable
 from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ...shapes import rectangle as _rectangle
@@ -52,6 +53,7 @@ def _is_180(degrees: float) -> bool:
     return round(abs(degrees)) % 360 == 180
 
 
+@capturable()
 class Housing(_base_schematic.BaseSchematic):
     """
     2D representation of a housing for schematic view
@@ -100,6 +102,11 @@ class Housing(_base_schematic.BaseSchematic):
     _parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing"
     _bounds_tag = _bounds.TAG_OBSTACLE
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_text_position', severity=2),
+    )
 
     @_check_types.do
     def __init__(self, parent: "_housing.Housing",

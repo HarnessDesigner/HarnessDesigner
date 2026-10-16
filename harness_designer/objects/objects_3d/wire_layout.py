@@ -14,6 +14,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import color as _color
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -36,11 +37,16 @@ Config = _config.Config.editor_3d
 _SNAP_PROBE_MIN_DIAMETER = 10.0
 
 
+@capturable()
 class WireLayout(_base_3d.Base3D):
     """Represent a wire layout in :mod:`harness_designer.objects.objects_3d.wire_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_bundle_layout_point_id', severity=2),
+    )
+
     parent: "_wire_layout.WireLayout" = None
     db_obj: "_pjt_wire_layout.PJTWireLayout" = None
 
@@ -64,6 +70,19 @@ class WireLayout(_base_3d.Base3D):
 
         with parent.mainframe.editor3d.context:
             self._bundle_layout_point_id = None
+
+            # A PJTWireLayout row is exclusive to exactly one view (see
+            # the class docstring on PJTWireLayout itself) -- the facade
+            # always builds all three view wrappers unconditionally for
+            # every row (objects.wire_layout.WireLayout.__init__),
+            # regardless of which one it actually belongs to. This
+            # branch is the normal, expected case for a row placed in
+            # the peg-board or schematic view -- no vbo/angle/scale/
+            # material at all, mirroring objects_pegboard.wire_layout.
+            # WireLayout's own identical guard.
+            if db_obj.position3d_id is None:
+                super().__init__(parent, db_obj, None, None, None, None, None)
+                return
 
             wires = db_obj.attached_wires
             if wires:
@@ -126,8 +145,16 @@ class WireLayout(_base_3d.Base3D):
             return True
 
         from ...objects import terminal as _terminal
+        from ...handlers import wire_routing_handler as _wire_routing_handler
 
         ptables = self.parent.mainframe.project.ptables
+
+        # A wire guard (BUNDLE_PLACEMENT.md section 12) can only ever
+        # move when the bundle end it sits next to moves -- never by a
+        # direct drag on the guard itself.
+        if _wire_routing_handler.is_guard_point(ptables, '3d', point_id):
+            return False
+
         point_row = ptables.pjt_points3d_table[point_id]
 
         # The shared point IS this row's own id (the first wire on a

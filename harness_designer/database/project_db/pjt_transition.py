@@ -26,6 +26,7 @@ from .mixins import (
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -178,6 +179,7 @@ class PJTTransitionsTable(PJTTableBase):
         return db_obj
 
 
+@capturable()
 class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin,
                     TablePositionPegMixin, AnglePegboardMixin, PartMixin,
                     NameMixin, Visible3DMixin, VisiblePegboardMixin, NotesMixin, SmoothMixin):
@@ -285,6 +287,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
         raise ValueError(f'transition has branch slots 1 to 6, not {slot!r}')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branches(self) -> list["_pjt_transition_branch.PJTTransitionBranch"]:
         """Every non-``None`` branch (``branch1``..``branch6``) --
@@ -296,6 +299,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
                             self.branch4, self.branch5, self.branch6) if b is not None]
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def wires(self) -> list["_pjt_wire.PJTWire"]:
         """Union of every branch's own wires -- see
@@ -723,6 +727,7 @@ class PJTTransition(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboar
     _stored_part: _transition.Transition | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _transition.Transition:
         """Return the part.

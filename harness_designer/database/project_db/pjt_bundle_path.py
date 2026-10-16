@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -264,6 +265,7 @@ class PJTBundlePathsTable(PJTTableBase):
             self[row[0]].delete()
 
 
+@capturable()
 class PJTBundlePath(PJTEntryBase):
     """One row of a bundle's waypoint list -- see :class:`PJTBundlePathsTable`."""
     _table: PJTBundlePathsTable = None
@@ -274,6 +276,7 @@ class PJTBundlePath(PJTEntryBase):
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def bundle_id(self) -> bytes:
         return self._table.select('bundle_id', id=self._db_id)[0][0]
@@ -293,6 +296,7 @@ class PJTBundlePath(PJTEntryBase):
     _stored_idx: int | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def idx(self) -> int:
         """This row's position in its bundle's list for its view. Changing
@@ -306,6 +310,7 @@ class PJTBundlePath(PJTEntryBase):
         self._populate('idx')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def point3d_id(self) -> bytes | None:
         """The shared 3D point this row references, or ``None`` when the
@@ -322,6 +327,7 @@ class PJTBundlePath(PJTEntryBase):
         self._populate('point3d_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def point_pegboard_id(self) -> bytes | None:
         """The shared peg-board point this row references, or ``None``
@@ -339,6 +345,7 @@ class PJTBundlePath(PJTEntryBase):
         self._populate('point_pegboard_id')
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def view(self) -> str:
         """Which view's list this row belongs to: ``'3d'`` or ``'pegboard'``."""

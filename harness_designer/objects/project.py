@@ -34,6 +34,7 @@ from ..gl import vbo as _vbo_handler
 from ..shapes import helix as _helix
 from .. import check_types as _check_types
 from ..database import id_generator as _id_generator
+from ..crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -76,46 +77,46 @@ def _reconcile_wire_sibling_graph(project: "Project") -> None:
             if attach_id is None:
                 continue
             if attach_id == start_id:
-                wire.set_sibling(terminal, 'start')
+                wire.set_sibling(terminal, wire.obj3d.start_position)
                 terminal._wire_refs.append(_weakref.ref(wire))  # NOQA
             if attach_id == stop_id:
-                wire.set_sibling(terminal, 'stop')
+                wire.set_sibling(terminal, wire.obj3d.stop_position)
                 terminal._wire_refs.append(_weakref.ref(wire))  # NOQA
 
         for splice in project.splices:
             sdb = splice.db_obj
             if sdb.start_position3d_id == start_id:
-                wire.set_sibling(splice, 'start')
+                wire.set_sibling(splice, wire.obj3d.start_position)
                 splice._start_sibling_ref = _weakref.ref(wire)  # NOQA
             if sdb.start_position3d_id == stop_id:
-                wire.set_sibling(splice, 'stop')
+                wire.set_sibling(splice, wire.obj3d.stop_position)
                 splice._start_sibling_ref = _weakref.ref(wire)  # NOQA
             if sdb.stop_position3d_id == start_id:
-                wire.set_sibling(splice, 'start')
+                wire.set_sibling(splice, wire.obj3d.start_position)
                 splice._stop_sibling_ref = _weakref.ref(wire)  # NOQA
             if sdb.stop_position3d_id == stop_id:
-                wire.set_sibling(splice, 'stop')
+                wire.set_sibling(splice, wire.obj3d.stop_position)
                 splice._stop_sibling_ref = _weakref.ref(wire)  # NOQA
             if sdb.branch_position3d_id == start_id:
-                wire.set_sibling(splice, 'start')
+                wire.set_sibling(splice, wire.obj3d.start_position)
                 splice._branch_wire_refs.append(_weakref.ref(wire))  # NOQA
             if sdb.branch_position3d_id == stop_id:
-                wire.set_sibling(splice, 'stop')
+                wire.set_sibling(splice, wire.obj3d.stop_position)
                 splice._branch_wire_refs.append(_weakref.ref(wire))  # NOQA
 
         for loop in project.wire_service_loops:
             ldb = loop.db_obj
             if ldb.start_position3d_id == start_id:
-                wire.set_sibling(loop, 'start')
+                wire.set_sibling(loop, wire.obj3d.start_position)
                 loop._start_sibling_ref = _weakref.ref(wire)  # NOQA
             if ldb.start_position3d_id == stop_id:
-                wire.set_sibling(loop, 'stop')
+                wire.set_sibling(loop, wire.obj3d.stop_position)
                 loop._start_sibling_ref = _weakref.ref(wire)  # NOQA
             if ldb.stop_position3d_id == start_id:
-                wire.set_sibling(loop, 'start')
+                wire.set_sibling(loop, wire.obj3d.start_position)
                 loop._stop_sibling_ref = _weakref.ref(wire)  # NOQA
             if ldb.stop_position3d_id == stop_id:
-                wire.set_sibling(loop, 'stop')
+                wire.set_sibling(loop, wire.obj3d.stop_position)
                 loop._stop_sibling_ref = _weakref.ref(wire)  # NOQA
 
 
@@ -171,18 +172,49 @@ def _reconcile_bundle_sibling_graph(project: "Project") -> None:
 
                 branch_point_id = branch.position3d_id
                 if branch_point_id == start_id:
-                    bundle.set_sibling(transition, 'start')
+                    bundle.set_sibling(transition, bundle.obj3d.start_position)
                     transition._bundle_refs[branch_id] = _weakref.ref(bundle)  # NOQA
                 if branch_point_id == stop_id:
-                    bundle.set_sibling(transition, 'stop')
+                    bundle.set_sibling(transition, bundle.obj3d.stop_position)
                     transition._bundle_refs[branch_id] = _weakref.ref(bundle)  # NOQA
 
 
+@capturable(severity=2)
 class Project:
     """Represent a project in :mod:`harness_designer.objects.project`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
+
+    No ``ObjectBase`` ancestor to inherit severity from (this is the
+    top-level in-memory container, not a scene object) -- severity is
+    given explicitly, same as ``ObjectBase`` itself does for every scene
+    object's hierarchy.
     """
+    __dump_schema__ = (
+        Attr('project_id', severity=2),
+        Attr('project_name', severity=2),
+        Attr('db_obj', severity=2),
+        Attr('_model', severity=2),
+        Attr('_boots', severity=2),
+        Attr('_bundles', severity=2),
+        Attr('_bundle_layouts', severity=2),
+        Attr('_covers', severity=2),
+        Attr('_cpa_locks', severity=2),
+        Attr('_housings', severity=2),
+        Attr('_notes', severity=2),
+        Attr('_seals', severity=2),
+        Attr('_splices', severity=2),
+        Attr('_terminals', severity=2),
+        Attr('_tpa_locks', severity=2),
+        Attr('_transitions', severity=2),
+        Attr('_wires', severity=2),
+        Attr('_wire_markers', severity=2),
+        Attr('_wire_service_loops', severity=2),
+        Attr('_wire_layouts', severity=2),
+        Attr('_circuits', severity=2),
+        Attr('_cavities', severity=2),
+        Attr('_obj_count', severity=1),
+    )
 
     @_check_types.do
     def _set_model(self, model3d: "_model3d.Model3D") -> None:
@@ -525,8 +557,25 @@ class Project:
     def end_gesture(self) -> None:
         """Close one move/rotate gesture, flushing on the outermost close --
         see ``ptables.end_gesture``/WRITE_DESIGN.md section 4.12.
+
+        The outermost close first writes any rope-pull drag overlay still
+        open (``rope_pull_handler.finalize_drag``): every frame of a drag
+        -- a peg-board drag's own, and the slack handler's reconcile for a
+        3D one alike -- runs with ``in_progress=True`` while a gesture is
+        open, which only repositions an in-memory overlay and never writes
+        the chain's route, so nothing but this release-time commit ever
+        does. It runs while the gesture is still open so its row
+        inserts/deletes batch into the same flush, and the gesture is
+        closed even if it raises -- a gesture left open would silently
+        defer every later write app-wide.
         """
-        self.ptables.end_gesture()
+        try:
+            if self.ptables.gesture_depth == 1:
+                from ..handlers import rope_pull_handler as _rope_pull_handler  # NOQA -- avoid a cycle at import time
+
+                _rope_pull_handler.finalize_drag(self.mainframe)
+        finally:
+            self.ptables.end_gesture()
 
     @_check_types.do
     def gesture(self) -> "_pjt_bases._GestureContext":

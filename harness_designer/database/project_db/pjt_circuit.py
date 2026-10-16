@@ -17,6 +17,7 @@ from .mixins import (
     NotesMixin, NotesControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -204,6 +205,7 @@ class _Set:
         return _iter(self.items)
 
 
+@capturable()
 class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
     """Represent a PJT circuit in :mod:`harness_designer.database.project_db.pjt_circuit`.
 
@@ -252,6 +254,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
             self._obj = obj
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def volts(self) -> float:
         """Return the volts.
@@ -268,6 +271,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return terminal.volts
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
@@ -294,6 +298,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return float(resistance)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def start_terminal(self) -> "_pjt_terminal.PJTTerminal":
         """Return the start terminal.
@@ -325,6 +330,7 @@ class PJTCircuit(PJTEntryBase, NameMixin, NotesMixin):
         return drop
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def load_terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         """Return the load terminals.

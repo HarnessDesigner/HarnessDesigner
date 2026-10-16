@@ -33,12 +33,9 @@ class BundleLayout(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(
-        self,
-        canvas: "_canvas.Canvas",
-        target: "_objects.ObjectBase",
-        bundle: "_bundle.Bundle"
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 bundle: "_bundle.Bundle") -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -52,8 +49,8 @@ class BundleLayout(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-                 interaction_type: _interaction.MouseInteraction,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
@@ -79,7 +76,7 @@ class BundleLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        raw_pos, _is_at_endpoint, _endpoint = (
+        raw_pos, _is_at_endpoint = (
             self._bundle.obj3d.get_closest_endpoint(mouse_pos))
 
         if not isinstance(raw_pos, _point.Point):
@@ -103,11 +100,11 @@ class BundleLayout(_base.AddHandlerBase):
         # False, so it has to already be True before the delete ever runs.
         self._finalized = True
 
-        raw_pos, is_at_endpoint, endpoint = (
+        raw_pos, is_at_endpoint = (
             self._bundle.obj3d.get_closest_endpoint(mouse_pos))
 
         if is_at_endpoint:
-            if endpoint == 'start':
+            if raw_pos is self._bundle.obj3d.start_position:
                 self._bundle.obj3d.start_position.attach(
                     self.target.obj3d.position)
             else:

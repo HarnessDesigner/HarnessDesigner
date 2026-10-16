@@ -17,6 +17,7 @@ from ... import debug as _debug
 from ... import config as _config
 from .. import culling as _culling
 from ... import logger as _logger
+from ... import crash_dump as _crash_dump
 from ... import check_types as _check_types
 from ... import bounds as _bounds
 from . import camera_base as _camera_base
@@ -700,6 +701,21 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
 
         self.update()  # Qt: schedules a repaint (≈ wx Refresh)
 
+    def _dump_visible_objects(self) -> None:
+        """Snapshot every object this canvas actually drew last frame --
+        see ``key_handler.KeyHandler.handle_event``'s Ctrl+Shift+D
+        shortcut. ``view_obj.is_in_view`` reflects whatever the most
+        recently completed render pass marked visible, so this needs no
+        fresh render of its own.
+        """
+        visible_view_objs = []
+        for obj in self._objects:
+            view_obj = self._get_view_object(obj)
+            if view_obj is not None and view_obj.is_in_view:
+                visible_view_objs.append(view_obj)
+
+        _crash_dump.dump_visible_objects(visible_view_objs, type(self).__name__)
+
     @_check_types.do
     def clear(self) -> None:
         """
@@ -1069,6 +1085,8 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
             except Exception as err:  # NOQA
                 _logger.traceback(
                     err, 'object render error')
+                if 'view_obj' in locals():
+                    _crash_dump.dump_render_failure(view_obj, err)
 
         # Deferred full-color pass for the selected, translucent object --
         # see the matching "continue" in _draw_scene's own object loop,
@@ -1124,6 +1142,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                 except Exception as err:  # NOQA
                     _logger.traceback(
                         err, 'selected object render error')
+                    _crash_dump.dump_render_failure(view_obj, err)
             else:
                 GL.glDepthMask(GL.GL_FALSE)
 
@@ -1162,6 +1181,7 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
                 except Exception as err:  # NOQA
                     _logger.traceback(
                         err, 'selected object render error')
+                    _crash_dump.dump_render_failure(view_obj, err)
 
                 # Restore reflection uniform and colour mask before floor render.
                 has_reflection = int(self.config.floor.reflections.enable and

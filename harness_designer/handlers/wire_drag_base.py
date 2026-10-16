@@ -27,7 +27,7 @@ nearest segment are anchored) returns ``None``, and the caller should
 treat the click as a camera-pan instead of starting a no-op drag.
 
 When the plan's moving point is a true wire end (snap-eligible -- see
-:attr:`WireDragPlan.snap_end`), the drag also builds an invisible
+:attr:`WireDragPlan.snap_point`), the drag also builds an invisible
 snap-probe set (see :mod:`~harness_designer.handlers.wire_snap`) at
 every terminal's own back point, every splice's own branch point, and
 every other open, same-part wire end, and hit-tests the REAL cursor
@@ -134,19 +134,22 @@ class WireDragPlan:
     :ivar anchor: The path point nearest the click, used as the
         screen-projection anchor (see :meth:`WireDragMixin.
         _raw_move_delta`).
-    :ivar snap_end: 'start'/'stop' when *moving* is a single point that is
-        also the wire's own true end (snap-eligible) -- None otherwise
-        (a moving pair, or a single non-end point, never snaps; the
-        general rule guarantees a lone moving point is always a true end
-        though, see :func:`plan_wire_drag`).
+    :ivar snap_point: The actual Point -- not a 'start'/'stop' label --
+        when *moving* is a single point that is also the wire's own true
+        end (snap-eligible) -- None otherwise (a moving pair, or a single
+        non-end point, never snaps; the general rule guarantees a lone
+        moving point is always a true end though, see
+        :func:`plan_wire_drag`).
     """
 
-    __slots__ = ('moving', 'anchor', 'snap_end')
+    __slots__ = ('moving', 'anchor', 'snap_point')
 
-    def __init__(self, moving: list[_point.Point], anchor: _point.Point, snap_end: str | None) -> None:
+    def __init__(
+            self, moving: list[_point.Point], anchor: _point.Point,
+            snap_point: _point.Point | None) -> None:
         self.moving = moving
         self.anchor = anchor
-        self.snap_end = snap_end
+        self.snap_point = snap_point
 
 
 class WireDragMixin:
@@ -171,7 +174,7 @@ class WireDragMixin:
     moving = None
     anchor = None
     last_pos = None
-    end = None
+    snap_point = None
     _snap_probes = None
     _overlay = None
     snapped_kind = None
@@ -412,14 +415,9 @@ class WireDragMixin:
 
         view_obj = cls._get_view_object(wire_obj)
 
-        _pos, is_endpoint, end_name = view_obj.get_closest_endpoint(mouse_pos)
+        moving_point, is_endpoint = view_obj.get_closest_endpoint(mouse_pos)
 
         if is_endpoint:
-            if end_name == 'start':
-                moving_point = view_obj.start_position
-            else:
-                moving_point = view_obj.stop_position
-
             point_id = moving_point.db_id[:-2]
 
             if cls.is_anchor_point(project, point_id):
@@ -427,7 +425,7 @@ class WireDragMixin:
 
             return WireDragPlan(moving=[moving_point],
                                 anchor=moving_point.copy(),
-                                snap_end=end_name)
+                                snap_point=moving_point)
 
         closest_point, _angle, seg_idx = view_obj.get_closest_point(mouse_pos)
         if closest_point is None:
@@ -450,17 +448,15 @@ class WireDragMixin:
         if not moving:
             return None
 
-        snap_end = None
+        snap_point = None
         if len(moving) == 1:
-            idx, _point_obj = moving[0]
-            if idx == 0:
-                snap_end = 'start'
-            elif idx == last_idx:
-                snap_end = 'stop'
+            idx, point_obj = moving[0]
+            if idx == 0 or idx == last_idx:
+                snap_point = point_obj
 
         return WireDragPlan(moving=[point for _idx, point in moving],
                             anchor=closest_point.copy(),
-                            snap_end=snap_end)
+                            snap_point=snap_point)
 
     # ------------------------------------------------------------------
     # Shared wire-topology lookups -- also plain classmethods, resolved
@@ -517,14 +513,21 @@ class WireDragMixin:
     @classmethod
     @_check_types.do
     def pick_free_end(cls, mainframe: "_ui.MainFrame", wire_obj: "_wire_object.Wire",
-                      click_pos: _point.Point | None = None) -> str | None:
+                      click_pos: _point.Point | None = None) -> _point.Point | None:
 
         """
-        Return ``'start'``/``'stop'`` -- whichever end of *wire_obj* is
-        free to extend/add onto (see ``objects.objects_3d.wire.WireMenu``/
+        Return the actual end ``Point`` (``view_obj.start_position`` or
+        ``view_obj.stop_position``) of *wire_obj* that is free to
+        extend/add onto (see ``objects.objects_3d.wire.WireMenu``/
         ``objects.objects_pegboard.wire.WireMenu``'s Extend Wire/Add to
         Wire actions) -- or ``None`` if both ends are anchored to a
         terminal/cavity (those menu actions are disabled in that case).
+        Callers identify which one it is via ``is``, comparing against
+        the same view object's own ``start_position``/``stop_position``
+        -- there is no 'start'/'stop' label here, only the point itself
+        (user, 2026-10-12: "we don't use start and stop in an attempt to
+        identify where the route should go... we should be using the
+        actual point and nothing more").
 
         Exactly one free end wins outright; with both free, whichever is
         closer to *click_pos* (where the context menu was opened, in
@@ -535,24 +538,23 @@ class WireDragMixin:
 
         project = mainframe.project
         start_anchored, stop_anchored = cls.wire_end_anchors(project, wire_obj)
+        view_obj = cls._get_view_object(wire_obj)
 
         if start_anchored and stop_anchored:
             return None
 
         if start_anchored:
-            return 'stop'
+            return view_obj.stop_position
 
         if stop_anchored:
-            return 'start'
-
-        view_obj = cls._get_view_object(wire_obj)
+            return view_obj.start_position
 
         if click_pos is None:
-            return 'stop'
+            return view_obj.stop_position
 
         closest_point, _angle, _seg_idx = view_obj.get_closest_point(click_pos)
         if closest_point is None:
-            return 'stop'
+            return view_obj.stop_position
 
         start_dist = float(np.linalg.norm(
             closest_point.as_numpy - view_obj.start_position.as_numpy))
@@ -561,9 +563,9 @@ class WireDragMixin:
             closest_point.as_numpy - view_obj.stop_position.as_numpy))
 
         if start_dist <= stop_dist:
-            return 'start'
+            return view_obj.start_position
 
-        return 'stop'
+        return view_obj.stop_position
 
     @staticmethod
     def _view_merge_geometry(get_view_object: Callable, get_waypoints: Callable, wire_obj: "_wire_object.Wire",
@@ -763,11 +765,11 @@ class WireDragMixin:
             project.add_wire_layout(layout_obj)
 
         if orig_start_sibling is not None:
-            merged_obj.set_sibling(orig_start_sibling, 'start')
+            merged_obj.set_sibling(orig_start_sibling, merged_obj.obj3d.start_position)
             orig_start_sibling.replace_wire(wire_obj, merged_obj)
 
         if other_stop_sibling is not None:
-            merged_obj.set_sibling(other_stop_sibling, 'stop')
+            merged_obj.set_sibling(other_stop_sibling, merged_obj.obj3d.stop_position)
             other_stop_sibling.replace_wire(other_wire, merged_obj)
 
         project.add_wire(merged_obj)
@@ -886,7 +888,7 @@ class WireDragMixin:
         self.moving = plan.moving
         self.anchor = plan.anchor
         self.last_pos = self.anchor.copy()
-        self.end = plan.snap_end
+        self.snap_point = plan.snap_point
 
         self._snap_probes = None
         self._overlay = None
@@ -894,7 +896,7 @@ class WireDragMixin:
         self.snapped_target = None
         self.pick_offset = None
 
-        if self.end is not None:
+        if self.snap_point is not None:
             wire_part = target.db_obj.part
             if wire_part is not None:
                 self._snap_probes = self._SnapProbeSet(
@@ -902,6 +904,18 @@ class WireDragMixin:
 
                 self._overlay = _wire_snap.SnapOverlay(
                     self._get_editor(canvas.mainframe))
+
+        # Open the move gesture for this drag's whole lifetime -- see
+        # drag_handlers.editor_pegboard.generic.Generic.__init__ for the
+        # same hook and WRITE_DESIGN.md section 4.12. Closed in
+        # _disarm_drag below. Last statement on purpose, same precedent.
+        # Without this, every position write a wire-body/waypoint drag
+        # makes (every frame, via Point.__iadd__) hits the database
+        # immediately and individually instead of deferring into the
+        # gesture's own batched flush -- confirmed live, 2026-10-12:
+        # neither drag_handlers.editor_3d.wire nor .editor_pegboard.wire
+        # (both built on this mixin) ever opened a gesture at all.
+        canvas.mainframe.project.begin_gesture()
 
     @_check_types.do
     def _disarm_drag(self) -> None:
@@ -911,13 +925,20 @@ class WireDragMixin:
         ``super().delete()`` -- this is NOT ``delete`` itself.
         """
 
-        if self._snap_probes is not None:
-            self._snap_probes.close()
-            self._snap_probes = None
+        try:
+            if self._snap_probes is not None:
+                self._snap_probes.close()
+                self._snap_probes = None
 
-        if self._overlay is not None:
-            self._overlay.deleteLater()
-            self._overlay = None
+            if self._overlay is not None:
+                self._overlay.deleteLater()
+                self._overlay = None
+        finally:
+            # Close the gesture opened in _arm_drag -- see that method's
+            # own comment. In a finally so a raise above never leaves it
+            # open, deferring every later write app-wide until something
+            # else happens to close it.
+            self.canvas.mainframe.project.end_gesture()
 
     @_debug.logfunc
     @_check_types.do

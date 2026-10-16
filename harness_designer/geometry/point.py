@@ -14,6 +14,7 @@ import numpy as np
 from .decimal import Decimal as _d
 from .. import app_mixins as _app_mixins
 from .. import check_types as _check_types
+from ..crash_dump import Attr, capturable, dump_property
 
 
 class PointMeta(type):
@@ -143,6 +144,7 @@ class PointMeta(type):
         return instance
 
 
+@capturable(severity=2)
 class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
     """
     A 3D (or 2D) position that is the connective tissue of the entire
@@ -449,6 +451,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self.__ref_count__ = 0
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def db_id(self) -> bytes | None:
         """
@@ -486,6 +489,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
             self._root.__exit__(exc_type, exc_val, exc_tb)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def x(self) -> float:
         """
@@ -514,6 +518,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self._process_callbacks()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def y(self) -> float:
         """
@@ -542,6 +547,7 @@ class Point(_app_mixins.CallbackMixin, metaclass=PointMeta):
         self._process_callbacks()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def z(self) -> float:
         """

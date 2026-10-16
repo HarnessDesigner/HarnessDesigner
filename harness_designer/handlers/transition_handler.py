@@ -396,9 +396,12 @@ def is_bundle_end_free(ptables: "_pjt_bases.PJTTables", bundle: _bundle.Bundle, 
 @_check_types.do
 def _find_free_bundle_end(
     mouse_pos: _point.Point, camera: "_camera.Camera", project: "_project.Project"
-) -> tuple[_bundle.Bundle, str] | None:
+) -> tuple[_bundle.Bundle, _point.Point] | None:
     """The closest FREE bundle end (start or stop -- never a mid-span
-    point) within snapping distance of the mouse, or ``None``.
+    point) within snapping distance of the mouse, or ``None`` -- the
+    actual end ``Point``, not a 'start'/'stop' label (the caller
+    identifies which one it is via ``is``, against that same bundle's
+    own ``start_position``/``stop_position``).
 
     BUNDLE_PLACEMENT.md section 4: "no mid-bundle placement... a
     transition is never snapped onto the middle of a bundle" -- unlike
@@ -416,6 +419,9 @@ def _find_free_bundle_end(
         if not bndl.is_in_3dview:
             continue
 
+        # 'start'/'stop' here only ever select which of the bundle's two
+        # DB columns is_bundle_end_free checks -- the two real candidate
+        # points themselves are what actually gets compared/returned.
         for endpoint, point in (
             ('start', bndl.obj3d.start_position), ('stop', bndl.obj3d.stop_position)
         ):
@@ -424,7 +430,7 @@ def _find_free_bundle_end(
 
             dist_sq = float(np.sum((world_pos - point.as_numpy) ** 2))
             if dist_sq < best_dist_sq:
-                best_dist_sq, best = dist_sq, (bndl, endpoint)
+                best_dist_sq, best = dist_sq, (bndl, point)
 
     return best
 
@@ -586,16 +592,17 @@ def _branch_local_direction(branch: "_global_transition_branch.TransitionBranch"
 @_check_types.do
 def _align_branch_to_bundle(
     transition_db_obj: "_pjt_transition.PJTTransition", branch_local_direction: np.ndarray, bundle: _bundle.Bundle,
-    endpoint: str
+    end_position: _point.Point
 ) -> None:
     """Rotate *transition_db_obj* so the branch whose own local direction
     is *branch_local_direction* ends up pointing back along *bundle* from
-    *endpoint* -- BUNDLE_PLACEMENT.md section 4: "the branch's outward
-    axis points back along the bundle, so the bundle runs straight into
-    the branch mouth." Generalizes ``_set_angle_from_bundle``'s own
-    "align local X to the bundle" special case (which assumed the
-    trunk's own local direction always WAS local +X) to whichever branch
-    the user actually picked.
+    *end_position* (the actual end ``Point`` -- not a 'start'/'stop'
+    label) -- BUNDLE_PLACEMENT.md section 4: "the branch's outward axis
+    points back along the bundle, so the bundle runs straight into the
+    branch mouth." Generalizes ``_set_angle_from_bundle``'s own "align
+    local X to the bundle" special case (which assumed the trunk's own
+    local direction always WAS local +X) to whichever branch the user
+    actually picked.
     """
     p1 = bundle.obj3d.start_position.as_numpy
     p2 = bundle.obj3d.stop_position.as_numpy
@@ -605,7 +612,8 @@ def _align_branch_to_bundle(
         return
 
     bundle_direction = seg / seg_len
-    target_direction = bundle_direction if endpoint == 'stop' else -bundle_direction
+    is_stop = end_position is bundle.obj3d.stop_position
+    target_direction = bundle_direction if is_stop else -bundle_direction
 
     rot_mat = _rotation_matrix_between(branch_local_direction, target_direction)
     _apply_rotation(transition_db_obj, rot_mat)

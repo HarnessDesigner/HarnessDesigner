@@ -95,11 +95,11 @@ def merge_bundles(
     merged_obj = _bundle.Bundle(mainframe, merged_db)
 
     if orig_start_sibling is not None:
-        merged_obj.set_sibling(orig_start_sibling, 'start')
+        merged_obj.set_sibling(orig_start_sibling, merged_obj.obj3d.start_position)
         orig_start_sibling.replace_bundle(bundle_before, merged_obj)
 
     if orig_stop_sibling is not None:
-        merged_obj.set_sibling(orig_stop_sibling, 'stop')
+        merged_obj.set_sibling(orig_stop_sibling, merged_obj.obj3d.stop_position)
         orig_stop_sibling.replace_bundle(bundle_after, merged_obj)
 
     project.add_bundle(merged_obj)

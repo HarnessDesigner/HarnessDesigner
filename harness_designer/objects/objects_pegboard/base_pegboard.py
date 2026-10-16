@@ -18,6 +18,7 @@ from . import table_placement as _table_placement
 
 from ... import debug as _debug
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -73,6 +74,7 @@ def notify_table_wires_changed(anchor_db_obj: _Union["_pjt_housing.PJTHousing", 
     table_obj.objpegboard.refresh_wires()
 
 
+@capturable()
 class BasePegboard(_objectsvar.BaseVar):
     """
     Base class for Peg Board Editor representations of objects.
@@ -111,6 +113,14 @@ class BasePegboard(_objectsvar.BaseVar):
     "no batching, no deferred commit" discipline ``position3d``/``angle3d``
     already use for live 3D dragging.
     """
+
+    __dump_schema__ = (
+        # Identity key for gl.canvas_pegboard's bundle-graph matching --
+        # genuinely new vs. BaseVar (not just a repeat of parent/db_obj),
+        # and the one thing every concrete anchor subclass sets its own
+        # way (see housing.py/terminal.py/splice.py/transition.py).
+        Attr('point3d_id', severity=2),
+    )
 
     # Local-canvas mouse position that opened this object's context menu,
     # stashed by mainframe.py's _on_obj_right_click_pegboard right before it

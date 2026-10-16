@@ -27,7 +27,9 @@ class Housing(_base.AddHandlerBase):
     """Single-click housing placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+    def __init__(self, canvas: "_canvas.Canvas",
+                 target: "_objects.ObjectBase") -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -40,11 +42,10 @@ class Housing(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction,
-        clicked_object: _Union["_objects.ObjectBase", None]
-    ) -> bool:
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
+
         if self._finalized:
             return False
 
@@ -57,14 +58,18 @@ class Housing(_base.AddHandlerBase):
             self._follow(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._follow(current_pos)
 
             self.mainframe.project.add_housing(self.target)
-            self.target.db_obj.update_cavities()
-            self.target.obj3d.match_cavity_surfaces()
+            self.target.db_obj.update_cavities()  # NOQA
+            self.target.obj3d.match_cavity_surfaces()  # NOQA
 
             self._finalized = True
+
             return True
 
         return False

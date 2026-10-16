@@ -33,6 +33,7 @@ from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -46,9 +47,20 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
+@capturable(severity=2)
 class WireHighlight:
     """The editor's single current wire highlight -- see the module
     docstring."""
+
+    # Not a BaseVar descendant, so there's no ancestor severity to
+    # inherit -- explicit severity=2 above matches the level a
+    # render-failure dump actually triggers at (see crash_dump's own
+    # module docstring / MEMORY.md).
+    __dump_schema__ = (
+        Attr('_owner', severity=2),
+        Attr('_objects', severity=2),
+        Attr('_transitions', severity=2),
+    )
 
     @_check_types.do
     def __init__(self, editor: "_editor_pegboard.EditorPegboard") -> None:

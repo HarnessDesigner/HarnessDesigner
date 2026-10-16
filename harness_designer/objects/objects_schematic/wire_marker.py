@@ -19,6 +19,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...shapes import cylinder as _cylinder
 from ... import logger as _logger
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 Config = _config.Config.editor_schematic
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from ...database.project_db import pjt_wire as _pjt_wire
 
 
+@capturable()
 class WireMarker(_base_schematic.BaseSchematic):
     """
     2D representation of a wire marker for schematic view
@@ -57,6 +59,12 @@ class WireMarker(_base_schematic.BaseSchematic):
     # Sits on/inside its wire's own OBB by design -- see
     # objects.objectsvar.base_var.BaseVar._pick_priority.
     _pick_priority = 1
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_percent', severity=2),
+        Attr('_p2', severity=2),
+    )
 
     @_check_types.do
     def __init__(self, parent: "_wire_marker.WireMarker",

@@ -189,7 +189,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
                     kwargs = self._get_start_position(wire.db_obj)
 
                     probe = self._make_probe(
-                        wire_part, wire=wire, end='start', **kwargs)
+                        wire_part, wire=wire, end_position=point, **kwargs)
 
                     self._probes.append(probe)
 
@@ -202,7 +202,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
                     kwargs = self._get_stop_position(wire.db_obj)
 
                     probe = self._make_probe(
-                        wire_part, wire=wire, end='stop', **kwargs)
+                        wire_part, wire=wire, end_position=point, **kwargs)
 
                     self._probes.append(probe)
 
@@ -235,7 +235,7 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
         wire_part: "_global_wire.Wire",
         terminal: _Union["_terminal.Terminal", None] = None,
         wire: _Union["_wire.Wire", None] = None,
-        end: str | None = None,
+        end_position: _point.Point | None = None,
         splice: _Union["_splice.Splice", None] = None,
         position3d: _point.Point | None = None,
         position_pegboard: _point.Point | None = None,
@@ -252,7 +252,8 @@ class SnapProbeSet(metaclass=SnapProbeSetType):
         shows up as pickable in the view it wasn't built for.
         """
         db_obj = _pseudo_wire_layout.PseudoPJTWireLayout(None, _uuid_module.uuid4().bytes)
-        db_obj.configure(wire_part, terminal=terminal, wire=wire, end=end, splice=splice,
+        db_obj.configure(wire_part, terminal=terminal, wire=wire, end_position=end_position,
+                         splice=splice,
                          position3d=position3d,
                          position_pegboard=position_pegboard)
 

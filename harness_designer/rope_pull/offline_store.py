@@ -44,6 +44,13 @@ def set_overlay(chain_id: bytes, entries: list) -> None:
     _OVERLAYS[chain_id] = entries
 
 
+def overlay_chain_ids() -> list[bytes]:
+    """The id of every chain that currently has a live drag overlay -- the
+    chains a drag release still has to write (see
+    ``handlers.rope_pull_handler.finalize_drag``)."""
+    return list(_OVERLAYS)
+
+
 def overlay_points(chain_id: bytes) -> list | None:
     """The overlay's live ``Point`` objects in order, for the strand to draw
     from, or ``None`` when no drag overlay is active for *chain_id*."""

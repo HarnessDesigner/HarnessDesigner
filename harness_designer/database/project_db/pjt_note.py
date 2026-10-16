@@ -26,6 +26,7 @@ from .mixins import (
     ColorMixin, ColorControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -195,6 +196,7 @@ class PJTNotesTable(PJTTableBase):
         return PJTNote(self, db_id)
 
 
+@capturable()
 class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AnglePegboardMixin,
               NotesMixin, ColorMixin,
               Position3DMixin, Position2DMixin, PositionPegboardMixin,
@@ -273,6 +275,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def size(self) -> int:
         """Return this note's font size -- shared by every view that
@@ -295,6 +298,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         self._populate('size')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def h_align(self) -> int:
         """Return this note's horizontal text alignment -- shared by
@@ -318,6 +322,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         self._populate('h_align')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def style(self) -> int:
         """Return this note's font style -- shared by every view that
@@ -340,6 +345,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         self._populate('style')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position2d_id(self) -> bytes | None:
         """Like ``Position2DMixin``'s own version, but never lazily
@@ -369,6 +375,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         self._populate('position2d_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position3d_id(self) -> bytes | None:
         """Like ``Position3DMixin``'s own version, but never lazily
@@ -394,6 +401,7 @@ class PJTNote(PJTEntryBase, Angle3DMixin, Angle3DLockMixin, Angle2DMixin, AngleP
         self._populate('position3d_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         """Like ``PositionPegboardMixin``'s own version, but never

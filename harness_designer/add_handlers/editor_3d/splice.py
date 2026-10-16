@@ -49,16 +49,11 @@ class Splice(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(
-        self,
-        canvas: "_canvas.Canvas",
-        target: "_objects.ObjectBase",
-        part_id: bytes,
-        part: "_splice_part.Splice",
-        preview_material: "_materials.GLMaterial",
-        compat_material: "_materials.GLMaterial",
-        snapped_wire: _wire.Wire | None = None
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 part_id: bytes, part: "_splice_part.Splice",
+                 preview_material: "_materials.GLMaterial",
+                 compat_material: "_materials.GLMaterial",
+                 snapped_wire: _wire.Wire | None = None) -> None:
 
         super().__init__(canvas, target)
 
@@ -82,8 +77,8 @@ class Splice(_base.AddHandlerBase):
         return obj.obj3d
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-                 interaction_type: _interaction.MouseInteraction,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
@@ -118,7 +113,10 @@ class Splice(_base.AddHandlerBase):
         else:
             wire = None
 
-        if wire is None or not _splice_handler._wire_fits(self._part, wire):  # NOQA
+        if (
+            wire is None or
+            not _splice_handler._wire_fits(self._part, wire)  # NOQA
+        ):
             if self.target is not None:
                 self.target.obj3d.is_visible = False
 
@@ -172,6 +170,7 @@ class Splice(_base.AddHandlerBase):
         p1 = wire.obj3d.start_position.as_numpy
         p2 = wire.obj3d.stop_position.as_numpy
         seg = p2 - p1
+
         seg_len = float(np.linalg.norm(seg))
         if seg_len < 1e-8:
             self._snapped_wire = None
@@ -192,10 +191,10 @@ class Splice(_base.AddHandlerBase):
 
         name = f'{self._part.manufacturer.name} {self._part.part_number}'
 
-        db_obj = ptables.pjt_splices_table.insert(
-            self._part_id, name,
-            start_db.db_id, stop_db.db_id, branch_db.db_id,
-            None, None)
+        db_obj = ptables.pjt_splices_table.insert(self._part_id, name,
+                                                  start_db.db_id, stop_db.db_id,
+                                                  branch_db.db_id,None,
+                                                  None)
 
         facade = _splice.Splice(self.mainframe, db_obj)
         facade.identify(self._preview_material)
@@ -265,8 +264,8 @@ class Splice(_base.AddHandlerBase):
 
         self.target.db_obj.circuit_id = circuit_id
         self.target.set_siblings(wire_before, wire_after)
-        wire_before.set_sibling(self.target, 'stop')
-        wire_after.set_sibling(self.target, 'start')
+        wire_before.set_sibling(self.target, wire_before.obj3d.stop_position)
+        wire_after.set_sibling(self.target, wire_after.obj3d.start_position)
 
         project.add_splice(self.target)
 

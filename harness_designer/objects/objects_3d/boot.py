@@ -12,6 +12,7 @@ from ...shapes import sphere as _sphere
 from ...gl import materials as _materials
 from ... import config as _config
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -23,11 +24,16 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_3d
 
 
+@capturable()
 class Boot(_base_3d.Base3D):
     """Represent a boot in :mod:`harness_designer.objects.objects_3d.boot`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+    )
+
     parent: "_boot.Boot" = None
     db_obj: "_pjt_boot.PJTBoot" = None
 

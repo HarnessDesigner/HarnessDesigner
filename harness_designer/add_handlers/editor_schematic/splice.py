@@ -298,8 +298,8 @@ class Splice(_base.AddHandlerBase):
 
         self.target.db_obj.circuit_id = circuit_id
         self.target.set_siblings(wire_before, wire_after)
-        wire_before.set_sibling(self.target, 'stop')
-        wire_after.set_sibling(self.target, 'start')
+        wire_before.set_sibling(self.target, wire_before.obj3d.stop_position)
+        wire_after.set_sibling(self.target, wire_after.obj3d.start_position)
 
         project.add_splice(self.target)
 

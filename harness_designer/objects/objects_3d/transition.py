@@ -23,6 +23,7 @@ from ... import color as _color
 from ... import logger as _logger
 from ... import check_types as _check_types
 from ...database.project_db import pjt_transition as _pjt_transition
+from ...crash_dump import Attr, capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -940,11 +941,18 @@ class _Body:
                 material.set(shaders)
 
 
+@capturable()
 class Transition(_base_3d.Base3D):
     """Represent a transition in :mod:`harness_designer.objects.objects_3d.transition`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('branch_count', severity=2),
+        Attr('_branch_materials', severity=1),
+    )
+
     parent: "_transition.Transition" = None
     db_obj: "_pjt_transition.PJTTransition" = None
 
@@ -1014,6 +1022,7 @@ class Transition(_base_3d.Base3D):
                          db_obj.position3d, scale, material)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branches(self) -> list:
         """Every one of this transition's own ``Branch`` objects, ordered

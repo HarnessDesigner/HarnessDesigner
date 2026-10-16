@@ -33,6 +33,7 @@ from ...shapes import sphere as _sphere
 from ...shapes import torus as _torus
 from ...handlers import terminal_handler as _terminal_handler
 from ... import utils as _utils
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -72,6 +73,7 @@ _NO_ROTATION = _angle.Angle()
 _WIRE_JUNCTION_MATERIAL = _materials.Generic(_color.Color(*Config.colors.wire_junction))
 
 
+@capturable()
 class Terminal(_base_schematic.BaseSchematic):
     """
     2D representation of a terminal for schematic view
@@ -155,6 +157,14 @@ class Terminal(_base_schematic.BaseSchematic):
     # will be), drawn as a ring instead of from its cavity's stub -- see
     # __init__'s *free*.
     _is_free: bool = False
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_is_free', severity=2),
+        Attr('_geometry', severity=2),
+        Attr('_wire_position', severity=2),
+        Attr('_name_position', severity=2),
+    )
 
     @_check_types.do
     def __init__(self, parent: "_terminal.Terminal",

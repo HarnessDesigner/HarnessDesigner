@@ -9,14 +9,17 @@ from .objects_schematic import transition as _transition_schematic
 from .objects_3d import transition as _transition_3d
 from .objects_pegboard import transition as _transition_pegboard
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
     from .. import ui as _ui
     from ..database.project_db import pjt_transition as _pjt_transition
     from . import bundle as _bundle_obj
+    from ..geometry import point as _point
 
 
+@capturable()
 class Transition(_ObjectBase):
     """Represent a transition in :mod:`harness_designer.objects.transition`.
 
@@ -77,6 +80,7 @@ class Transition(_ObjectBase):
         return None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def bundles(self) -> list["_bundle_obj.Bundle"]:
         """Every Bundle currently attached to any branch of this transition."""
@@ -88,21 +92,22 @@ class Transition(_ObjectBase):
         return res
 
     @_check_types.do
-    def add_bundle(self, bundle: "_bundle_obj.Bundle", end: str, branch_id: int) -> None:
+    def add_bundle(self, bundle: "_bundle_obj.Bundle", end_position: "_point.Point", branch_id: int) -> None:
         """Attach *bundle* to this transition at *branch_id* (1-6).
 
         Records the link on both sides: this transition's own
         ``_bundle_refs`` slot for *branch_id*, and a call to
-        ``bundle.set_sibling(self, end)`` so the bundle knows what its own
-        *end* ('start' or 'stop') attaches to.
+        ``bundle.set_sibling(self, end_position)`` so the bundle knows
+        what its own end attaches to.
 
         :param bundle: The bundle being attached.
-        :param end: Which of the bundle's own ends is attaching -- 'start'
-            or 'stop'.
+        :param end_position: The actual ``Point`` of whichever of the
+            bundle's own two ends is attaching -- not a 'start'/'stop'
+            label.
         :param branch_id: Which branch slot (1-6) the bundle attaches at.
         """
         self._bundle_refs[branch_id] = weakref.ref(bundle)
-        bundle.set_sibling(self, end)
+        bundle.set_sibling(self, end_position)
 
     @_check_types.do
     def replace_bundle(self, old: "_bundle_obj.Bundle", new: "_bundle_obj.Bundle") -> None:

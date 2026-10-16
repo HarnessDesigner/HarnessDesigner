@@ -59,11 +59,17 @@ def wire_segments(wire: "_wire.Wire") -> list[tuple[np.ndarray, np.ndarray]]:
 
 @_check_types.do
 def split_wire_for_loop(
-    mainframe: "_ui.MainFrame", wire: "_wire.Wire", start_point_id: bytes, stop_point_id: bytes, seg_idx: int
+    mainframe: "_ui.MainFrame",
+    wire: "_wire.Wire",
+    start_point_id: bytes,
+    stop_point_id: bytes,
+    seg_idx: int
 ) -> SplitState:
+
     """Cut *wire* into two pieces around a gap spanning start_point_id/
     stop_point_id, and insert a WireLayout at each cut. Ported from
     AddWireServiceLoopHandler._split_wire_for_loop."""
+
     from ...objects import wire_layout as _wire_layout_facade
 
     project = mainframe.project
@@ -73,8 +79,11 @@ def split_wire_for_loop(
     seg_p1, seg_p2 = wire_segments(wire)[seg_idx]
     state.line = _line.Line(_point.Point(*seg_p1), _point.Point(*seg_p2))
 
-    wire_b, wire_a = _wire_topology.split_wire_at_point(project, wire, start_point_id)
-    wire_d, wire_c = _wire_topology.split_wire_at_point(project, wire_b, stop_point_id)
+    wire_b, wire_a = _wire_topology.split_wire_at_point(
+        project, wire, start_point_id)
+
+    wire_d, wire_c = _wire_topology.split_wire_at_point(
+        project, wire_b, stop_point_id)
 
     if mainframe.get_selected() is wire_c:
         wire_c.set_selected(False)
@@ -93,9 +102,14 @@ def split_wire_for_loop(
 
 
 @_check_types.do
-def restore_wire_from_split(mainframe: "_ui.MainFrame", state: SplitState) -> None:
+def restore_wire_from_split(
+    mainframe: "_ui.MainFrame",
+    state: SplitState
+) -> None:
+
     """Reverse split_wire_for_loop. Ported from
     AddWireServiceLoopHandler._restore_wire_from_split."""
+
     project = mainframe.project
 
     for layout_obj in (state.layout1, state.layout2):
@@ -113,9 +127,9 @@ class WireServiceLoop(_base.AddHandlerBase):
     """Fixed-wire service-loop placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", split_state: SplitState
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 split_state: SplitState) -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -130,11 +144,10 @@ class WireServiceLoop(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction,
-        clicked_object: _Union["_objects.ObjectBase", None]
-    ) -> bool:
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
+
         if self._finalized:
             return False
 
@@ -147,7 +160,10 @@ class WireServiceLoop(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize(current_pos)
             return True
 
@@ -192,7 +208,9 @@ class WireServiceLoop(_base.AddHandlerBase):
         if self._split_state is None or self.target is None:
             return
 
-        position, wire_angle = self._closest_point_on_line(self._split_state.line, mouse_pos)
+        position, wire_angle = self._closest_point_on_line(
+            self._split_state.line, mouse_pos)
+
         if position is None or wire_angle is None:
             return
 
@@ -206,7 +224,8 @@ class WireServiceLoop(_base.AddHandlerBase):
 
         state = self._split_state
 
-        position, wire_angle = self._closest_point_on_line(state.line, mouse_pos)
+        position, wire_angle = (
+            self._closest_point_on_line(state.line, mouse_pos))
 
         if position is None or wire_angle is None:
             # Set before _teardown_preview(), not after -- it deletes

@@ -6,6 +6,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -108,6 +109,7 @@ class PJTConcentricsTable(PJTTableBase):
         return PJTConcentric(self, db_id)
 
 
+@capturable()
 class PJTConcentric(PJTEntryBase, NotesMixin):
     """Represent a PJT concentric in :mod:`harness_designer.database.project_db.pjt_concentric`.
 
@@ -131,6 +133,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
     #         self._obj = obj
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def layers(self) -> list["_pjt_concentric_layer.PJTConcentricLayer"]:
         """Return the layers.
@@ -161,6 +164,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def bundle(self) -> "_pjt_bundle.PJTBundle":
         """Return the bundle.
@@ -200,6 +204,7 @@ class PJTConcentric(PJTEntryBase, NotesMixin):
         self._populate('bundle_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def transition_branch(self) -> "_pjt_transition_branches.PJTTransitionBranch":
         """Return the transition branch.

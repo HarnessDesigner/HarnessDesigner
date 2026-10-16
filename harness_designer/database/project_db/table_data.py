@@ -10,6 +10,7 @@ See WRITE_DESIGN.md sections 4.1-4.8 for the flow this implements.
 from typing import Any
 
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 # A cell as the database returns it. None is a NULL column.
@@ -68,8 +69,18 @@ def _row_matches(row: _Row, where: dict[str, _CellValue], use_or: bool) -> bool:
     return all(checks)
 
 
+@capturable(severity=1)
 class TableData:
     """Raw row data and pending writes for one project table."""
+
+    __dump_schema__ = (
+        Attr('table_name', severity=1),
+        Attr('field_names', severity=1),
+        Attr('_rows', severity=1),
+        Attr('_inserts', severity=1),
+        Attr('_updates', severity=1),
+        Attr('_deletes', severity=1),
+    )
 
     @_check_types.do
     def __init__(self, table_name: str, field_names: list[str]) -> None:

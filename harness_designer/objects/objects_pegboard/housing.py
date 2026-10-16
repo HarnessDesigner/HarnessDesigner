@@ -14,6 +14,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...geometry import point as _point
 from ... import check_types as _check_types
 from ... import config as _config
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -27,12 +28,19 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
+@capturable()
 class Housing(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a housing -- reuses the real 3D
     mesh/material/scale the 3D editor already holds, laid flat via its
     part's OBB-derived "up" face (see ``gl.canvas_pegboard.flatten``).
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_model', severity=2),
+    )
+
     db_obj: "_pjt_housing.PJTHousing"
 
     @_check_types.do

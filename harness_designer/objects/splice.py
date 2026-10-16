@@ -9,6 +9,7 @@ from .objects_schematic import splice as _splice_schematic
 from .objects_3d import splice as _splice_3d
 from .objects_pegboard import splice as _splice_pegboard
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from . import wire as _wire_obj
 
 
+@capturable()
 class Splice(_ObjectBase):
     """Represent a splice in :mod:`harness_designer.objects.splice`.
 
@@ -62,16 +64,19 @@ class Splice(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def start_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def stop_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branch_wires(self) -> list["_wire_obj.Wire"]:
         """Every wire attached to this splice's branch point."""

@@ -183,6 +183,17 @@ class WireLayout(_base_pegboard.BasePegboard):
         these points, so this can never drift out of sync with that
         rule.
         """
+        point_pegboard_id = self.db_obj.position_pegboard_id
+        if point_pegboard_id is not None:
+            # A wire guard (BUNDLE_PLACEMENT.md section 12) can only ever
+            # move when the bundle end it sits next to moves -- never by
+            # a direct drag on the guard itself.
+            from ...handlers import wire_routing_handler as _wire_routing_handler
+
+            ptables = self.parent.mainframe.project.ptables
+            if _wire_routing_handler.is_guard_point(ptables, 'pegboard', point_pegboard_id):
+                return False
+
         if self.point3d_id is None:
             return super().can_drag()
 

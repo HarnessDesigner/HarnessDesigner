@@ -65,6 +65,7 @@ material calls in this module specifically have not been exercised.
 
 from typing import TYPE_CHECKING, Union as _Union
 
+import numpy as np
 from PySide6 import QtCore, QtWidgets
 
 from . import bundle_diameter as _bundle_diameter
@@ -82,6 +83,8 @@ if TYPE_CHECKING:
     from ..gl import materials as _materials
     from ..objects.objects_3d import transition as _transition_3d
     from ..objects.objects_pegboard import transition as _transition_pegboard
+    from ..objects.objects_3d import bundle as _bundle_3d
+    from ..objects.objects_pegboard import bundle as _bundle_pegboard
     from ..geometry import point as _point
     from ..objects import project as _project
     from ..objects import transition as _transition_obj
@@ -98,7 +101,7 @@ _ELIGIBLE = _transition_handler.BRANCH_FIT
 _HOVERED = _transition_handler.HOVER_HIGHLIGHT
 
 # A "hit" is one of:
-#   ('bundle', bundle_facade, end)         end is 'start'/'stop'
+#   ('bundle', bundle_facade, end_position)   end_position is the actual Point
 #   ('branch', transition_facade, branch)  branch is the view-level Branch
 # or None.
 
@@ -106,6 +109,32 @@ _HOVERED = _transition_handler.HOVER_HIGHLIGHT
 @_check_types.do
 def _view_transition(t_obj: "_transition_obj.Transition", view: str) -> _Union["_transition_3d.Transition", "_transition_pegboard.Transition"]:
     return t_obj.obj3d if view == '3d' else t_obj.objpegboard
+
+
+@_check_types.do
+def _view_bundle(bndl: "_bundle_obj.Bundle", view: str) -> _Union["_bundle_3d.Bundle", "_bundle_pegboard.Bundle"]:
+    return bndl.obj3d if view == '3d' else bndl.objpegboard
+
+
+
+@_check_types.do
+def _closest_bundle_end(
+    start_pos: "_point.Point", stop_pos: "_point.Point", waypoint: "_point.Point",
+) -> "_point.Point":
+    """Whichever of *start_pos*/*stop_pos* is geometrically nearer
+    *waypoint* -- plain straight-line distance, nothing else (user,
+    2026-10-12: "feed in the end points of the bundle and one of the 2
+    waypoints that make up the section... whichever is the shorter
+    straight line distance, return that bundle end"). Returns the
+    winning Point itself, not a 'start'/'stop' label. View-agnostic by
+    construction: the caller already resolved both positions in
+    whichever view it cares about, and *waypoint* is already real
+    world-space coordinates -- nothing here reads a view, a bundle, or
+    an eligibility list.
+    """
+    start_dist_sq = float(np.sum((waypoint.as_numpy - start_pos.as_numpy) ** 2))
+    stop_dist_sq = float(np.sum((waypoint.as_numpy - stop_pos.as_numpy) ** 2))
+    return start_pos if start_dist_sq <= stop_dist_sq else stop_pos
 
 
 @_check_types.do
@@ -151,7 +180,7 @@ def compute_eligible_targets(
     (``obj3d``/``objpegboard``) supplies ``.branches`` depend on *view*.
 
     :returns: ``(eligible_ends, eligible_branches)`` -- a list of
-        ``(bundle_facade, end)`` and a list of
+        ``(bundle_facade, end_position)`` and a list of
         ``(transition_facade, branch)`` tuples respectively.
     """
     _wire_routing_handler.check_view(view)
@@ -162,11 +191,12 @@ def compute_eligible_targets(
         if not is_in_view:
             continue
 
-        for end in ('start', 'stop'):
+        view_obj = _view_bundle(bndl, view)
+        for end, point in (('start', view_obj.start_position), ('stop', view_obj.stop_position)):
             if not _transition_handler.is_bundle_end_free(project.ptables, bndl, end):
                 continue
             if _bundle_diameter.wire_fits_bundle(wire_od, bndl.db_obj):
-                eligible_ends.append((bndl, end))
+                eligible_ends.append((bndl, point))
 
     eligible_branches = []
     for t_obj in project.transitions:
@@ -207,7 +237,7 @@ def clear_eligible_highlights(eligible_ends: list, eligible_branches: list, view
 @_check_types.do
 def find_drop_hit(
     canvas: "_canvas_base.CanvasBase", mouse_pos: "_point.Point",
-    eligible_ends: list, eligible_branches: list, view: str,
+    eligible_ends: list, eligible_branches: list, view: str, moving: list["_point.Point"],
 ) -> _Union[tuple, None]:
     """Whatever's under *mouse_pos* right now, restricted to the
     precomputed eligible sets -- ``None`` if the cursor is over nothing
@@ -218,15 +248,23 @@ def find_drop_hit(
     per transition, same as every other branch-pick site in this
     codebase, e.g. ``add_handlers.editor_3d.transition.Transition.
     hover``).
+
+    *moving* is the dragged section's own two waypoints (``self.moving``
+    on the drag handler) -- needed to pick the right END when a picked
+    bundle has more than one eligible end (see :func:`_closest_bundle_end`).
     """
     camera = canvas.camera
 
     picked = _object_picker.find_object(mouse_pos, camera, canvas)
     if picked is not None:
         if isinstance(picked, _bundle_obj.Bundle):
-            for bndl, end in eligible_ends:
-                if bndl is picked:
-                    return 'bundle', bndl, end
+            candidates = [point for bndl, point in eligible_ends if bndl is picked]
+            if len(candidates) == 1:
+                return 'bundle', picked, candidates[0]
+            if candidates:
+                view_obj = _view_bundle(picked, view)
+                end_position = _closest_bundle_end(view_obj.start_position, view_obj.stop_position, moving[0])
+                return 'bundle', picked, end_position
 
     origin, direc = _object_picker.build_ray(mouse_pos, camera)
     if origin is not None:
@@ -295,12 +333,12 @@ class WireRouteMixin:
     # WireRouteMixin has no inheritance relationship to WireDragMixin --
     # they only meet on the concrete subclass -- so without these,
     # static analysis has no way to know self.canvas/self.target/
-    # self.end/self.moving/self._get_view_object are ever going to
+    # self.snap_point/self.moving/self._get_view_object are ever going to
     # exist. Same convention WireDragMixin itself follows for its own
     # ``canvas``/``target``/etc. placeholders, for the identical reason.
     canvas = None
     target = None
-    end = None
+    snap_point = None
     moving = None
 
     @staticmethod
@@ -322,7 +360,7 @@ class WireRouteMixin:
         end, or an anchored pair collapsed to one survivor) is never
         eligible, full stop.
         """
-        if self.end is not None or self.moving is None or len(self.moving) != 2:
+        if self.snap_point is not None or self.moving is None or len(self.moving) != 2:
             return False
 
         view_obj = self._get_view_object(self.target)
@@ -364,7 +402,8 @@ class WireRouteMixin:
             return
 
         new_hit = find_drop_hit(
-            self.canvas, mouse_pos, self._eligible_ends, self._eligible_branches, self._view)
+            self.canvas, mouse_pos, self._eligible_ends, self._eligible_branches, self._view,
+            self.moving)
 
         if same_hit(new_hit, self.drop_hit):
             return
@@ -551,7 +590,7 @@ def begin_route(
     """Call from ``handle_interaction``'s LEFT_UP branch once a
     :class:`WireRouteMixin` drag's own ``drop_hit`` is non-``None`` at
     release. Constructs the engine's ``RouteWalk`` from *hit*
-    (``('bundle', bundle, end)`` or ``('branch', t_obj, branch)``) and
+    (``('bundle', bundle, end_position)`` or ``('branch', t_obj, branch)``) and
     *grabbed_position*; commits immediately and returns ``None`` if the
     walk already reached a free end (no transition in the way), or
     returns a :class:`RouteSession` to install as the new
@@ -563,8 +602,8 @@ def begin_route(
 
     kind = hit[0]
     if kind == 'bundle':
-        _kind, bundle, end = hit
-        entry = _wire_routing_handler.EnterBundle(bundle.db_obj, end)
+        _kind, bundle, end_position = hit
+        entry = _wire_routing_handler.EnterBundle(bundle.db_obj, end_position)
     else:
         _kind, _t_obj, branch = hit
         entry = _wire_routing_handler.EnterBranch(branch.db_obj)

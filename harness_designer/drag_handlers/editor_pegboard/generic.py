@@ -102,6 +102,36 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
                     self._point_starts.append((attach_id, attach_live.copy()))
                     self._attach_live = attach_live
 
+            # A housing's own structural point has nothing attached to it
+            # directly -- every wire/bundle anchors at one of its seated
+            # terminals' own attach points instead (PJTHousing.
+            # _update_position_pegboard already rigidly carries those
+            # along, unprompted, the moment this drag moves the housing's
+            # own point -- see that method's own docstring). Without this,
+            # resolve_rigid_move below never sees any of those chains at
+            # all (it only ever checked the housing's own bare point,
+            # which nothing references), so it always returns t=1.0 and
+            # the housing drags the full raw delta regardless of what's
+            # actually attached -- confirmed live, 2026-10-12: a wire
+            # stretches straight past its real length instead of pulling
+            # the far end, and shrinking the gap never bows slack back in,
+            # because the rigid cascade runs with no constraint on it at
+            # all. No separate post-hoc move is needed here the way the
+            # terminal branch above needs self._attach_live -- the housing's
+            # own cascade already moves every one of these points for us;
+            # this only has to let resolve_rigid_move see them so it can
+            # clamp the housing's own delta in the first place.
+            if target.is_housing:
+                for cavity in target.db_obj.cavities:
+                    terminal = cavity.terminal if cavity is not None else None
+                    if terminal is None:
+                        continue
+
+                    attach_id = terminal.attach_position_pegboard_id_raw
+                    if attach_id is not None:
+                        self._point_starts.append(
+                            (attach_id, terminal.attach_position_pegboard.copy()))
+
         # Open the move gesture for this drag's whole lifetime -- see
         # editor_3d/generic.py Generic.__init__ for the same hook, and
         # WRITE_DESIGN.md section 4.12. Closed in delete() below (this

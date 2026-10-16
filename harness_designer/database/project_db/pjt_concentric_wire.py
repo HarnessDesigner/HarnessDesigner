@@ -6,6 +6,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin, Position2DMixin
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -114,6 +115,7 @@ class PJTConcentricWiresTable(PJTTableBase):
         return PJTConcentricWire(self, db_id)
 
 
+@capturable()
 class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
     """Represent a PJT concentric wire in :mod:`harness_designer.database.project_db.pjt_concentric_wire`.
 
@@ -156,6 +158,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def layer(self) -> "_pjt_concentric_layer.PJTConcentricLayer":
         """Return the layer.
@@ -193,6 +196,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         self._populate('layer_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def idx(self) -> int:
         """Return the idx.
@@ -218,6 +222,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         self._populate('idx')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def is_filler(self) -> bool:
         """Return the is filler.
@@ -243,6 +248,7 @@ class PJTConcentricWire(PJTEntryBase, NotesMixin, Position2DMixin):
         self._populate('is_filler')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
         """Return the wire.

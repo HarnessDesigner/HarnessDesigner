@@ -24,6 +24,7 @@ from .mixins import (
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -241,6 +242,7 @@ class PJTWiresTable(PJTTableBase):
         return self[db_ids[0][0]]
 
 
+@capturable()
 class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPosition2DMixin,
               StartStopPositionPegboardMixin,
               Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NameMixin, NotesMixin, SmoothMixin):
@@ -356,6 +358,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         super().delete()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         """Return the terminals.
@@ -456,6 +459,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._populate('layer_view_position_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def layer_id(self) -> bytes | None:
         """Return the layer ID.
@@ -481,6 +485,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         self._populate('layer_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def is_filler_wire(self) -> bool:
         """Return the is filler wire.
@@ -636,6 +641,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def circuit(self) -> _pjt_circuit.PJTCircuit | None:
         """Return the circuit.
@@ -682,6 +688,7 @@ class PJTWire(PJTEntryBase, StartStopPosition3DMixin, PartMixin, StartStopPositi
     _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _wire.Wire:
         """Return the part.

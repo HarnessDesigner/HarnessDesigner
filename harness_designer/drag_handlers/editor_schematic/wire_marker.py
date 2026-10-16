@@ -27,6 +27,31 @@ if TYPE_CHECKING:
 class WireMarker(_editor_schematic.DragHandlerSchematic):
     """Wire-marker drag -- see the module docstring."""
 
+    @_check_types.do
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase") -> None:
+        super().__init__(canvas, target)
+
+        # Open the move gesture for this drag's whole lifetime -- see
+        # drag_handlers.editor_pegboard.generic.Generic.__init__ for the
+        # same hook and WRITE_DESIGN.md section 4.12. Closed in delete()
+        # below. Without this, every position write this drag makes
+        # hits the database immediately and individually on every frame
+        # instead of deferring into the gesture's own batched flush --
+        # confirmed live, 2026-10-12: this class never opened a gesture
+        # at all.
+        canvas.mainframe.project.begin_gesture()
+
+    @_check_types.do
+    def delete(self) -> None:
+        try:
+            super().delete()
+        finally:
+            # Close the gesture opened in __init__ -- see that method's
+            # comment. Must run even if super().delete() raises, or the
+            # gesture would silently stay open and defer every later
+            # write app-wide until something else closes it.
+            self.canvas.mainframe.project.end_gesture()
+
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- delta unused, the locked ortho camera gives an absolute world position directly

@@ -9,6 +9,7 @@ from .objects_3d import wire_service_loop as _wire_service_loop_3d
 from .objects_schematic import wire_service_loop as _wire_service_loop_schematic
 from .objects_pegboard import wire_service_loop as _wire_service_loop_pegboard
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from . import wire as _wire_obj
 
 
+@capturable()
 class WireServiceLoop(_ObjectBase):
     """Represent a wire service loop in :mod:`harness_designer.objects.wire_service_loop`.
 
@@ -61,11 +63,13 @@ class WireServiceLoop(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def start_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def stop_sibling(self) -> _Union["_wire_obj.Wire", None]:
         return None if self._stop_sibling_ref is None else self._stop_sibling_ref()

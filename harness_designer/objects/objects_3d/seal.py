@@ -19,6 +19,7 @@ from ... import config as _config
 from ... import color as _color
 from ... import utils as _utils
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -69,10 +70,16 @@ def _build_sws(length: float, o_dia: float, i_dia: float) -> tuple[np.ndarray, n
     return vertices, faces
 
 
+@capturable()
 class Seal(_base_3d.Base3D):
     """
     Represent a seal in :mod:`harness_designer.objects.objects_3d.seal`.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_vbo_id', severity=2),
+    )
+
     parent: "_seal.Seal" = None
     db_obj: "_pjt_seal.PJTSeal" = None
 

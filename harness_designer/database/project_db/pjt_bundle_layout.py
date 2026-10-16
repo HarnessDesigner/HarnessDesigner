@@ -18,6 +18,7 @@ from .mixins import (
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -198,6 +199,7 @@ class PJTBundleLayoutsTable(PJTTableBase):
         return self[rows[0][0]]
 
 
+@capturable()
 class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesMixin, SmoothMixin):
     """Represent a PJT bundle layout in :mod:`harness_designer.database.project_db.pjt_bundle_layout`.
 
@@ -239,6 +241,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         return point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position3d_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points3d`` row id, or ``None``.
@@ -288,6 +291,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         return point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points_pegboard`` row id, or
@@ -351,6 +355,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
             self._obj = obj
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def attached_bundles(self) -> list["_pjt_bundle.PJTBundle"]:
         """Every bundle whose true start/stop lands on this layout's point.
@@ -402,6 +407,7 @@ class PJTBundleLayout(PJTEntryBase, Visible3DMixin, VisiblePegboardMixin, NotesM
         return self._table
     
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def diameter(self) -> float:
         """This waypoint's own diameter -- never a stored column (there

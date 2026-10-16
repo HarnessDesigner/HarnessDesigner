@@ -17,6 +17,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ... import config as _config
 from ... import color as _color
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -63,11 +64,19 @@ def _build_model(
     return model, (corner1, corner2)
 
 
+@capturable()
 class Splice(_base_3d.Base3D):
     """Represent a splice in :mod:`harness_designer.objects.objects_3d.splice`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_p1', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_p3', severity=2),
+    )
+
     parent: "_splice.Splice" = None
     db_obj: "_pjt_splice.PJTSplice" = None
 

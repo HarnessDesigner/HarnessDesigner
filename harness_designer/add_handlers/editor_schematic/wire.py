@@ -492,7 +492,9 @@ class Wire(_base.AddHandlerBase):
         self.mainframe.project.ptables.pjt_points3d_table[stale3d_id].delete()
 
         splice_obj.add_wire(self.target)
-        self.target.set_sibling(splice_obj, end)
+        self.target.set_sibling(
+            splice_obj,
+            self.target.obj3d.start_position if end == 'start' else self.target.obj3d.stop_position)
         _wire_reroute.on_wire_attached(self.mainframe.project, self.target)
 
     @_check_types.do

@@ -87,14 +87,9 @@ class Transition(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(
-        self,
-        canvas: "_canvas.Canvas",
-        target: "_objects.ObjectBase",
-        part_id: bytes,
-        part: "_glb_transition.Transition",
-        highlight_material: "_materials.GLMaterial"
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 part_id: bytes, part: "_glb_transition.Transition",
+                 highlight_material: "_materials.GLMaterial") -> None:
 
         super().__init__(canvas, target)
 
@@ -105,7 +100,7 @@ class Transition(_base.AddHandlerBase):
         self._part = part
         self._highlight_material = highlight_material
         self._snapped_bundle: _bundle.Bundle | None = None
-        self._snapped_endpoint: str | None = None
+        self._snapped_end_position: _point.Point | None = None
         self._hovered_branch = None
         self._finalized = False
 
@@ -115,8 +110,8 @@ class Transition(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-                 interaction_type: _interaction.MouseInteraction,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
@@ -157,18 +152,13 @@ class Transition(_base.AddHandlerBase):
 
             return
 
-        bundle, endpoint = bundle_end
+        bundle, end_position = bundle_end
 
         if bundle is not self._snapped_bundle:
             self._clear_bundle_hover()
             bundle.identify(self._highlight_material)
             self._snapped_bundle = bundle
-            self._snapped_endpoint = endpoint
-
-        if endpoint == 'start':
-            end_position = bundle.obj3d.start_position
-        else:
-            end_position = bundle.obj3d.stop_position
+            self._snapped_end_position = end_position
 
         self._move_target_to(end_position)
         self.target.obj3d.is_visible = True
@@ -189,7 +179,10 @@ class Transition(_base.AddHandlerBase):
             self._clear_branch_hover()
 
             if selected is not None:
-                diameter = _transition_handler.RouteThroughTransitionHandler._diameter_of(bundle)  # NOQA
+                diameter = (
+                    _transition_handler.RouteThroughTransitionHandler._diameter_of(  # NOQA
+                    bundle))
+
                 fits = self.target.obj3d.branch_fits(selected, diameter)
 
                 if fits:
@@ -210,7 +203,7 @@ class Transition(_base.AddHandlerBase):
         if self._snapped_bundle is not None:
             self._snapped_bundle.identify(None)
             self._snapped_bundle = None
-            self._snapped_endpoint = None
+            self._snapped_end_position = None
 
         self._clear_branch_hover()
 
@@ -235,14 +228,15 @@ class Transition(_base.AddHandlerBase):
             # they want to attach to the end." Stay in placement mode.
             return
 
-        diameter = _transition_handler.RouteThroughTransitionHandler._diameter_of(  # NOQA
-            self._snapped_bundle)
+        diameter = (
+            _transition_handler.RouteThroughTransitionHandler._diameter_of(  # NOQA
+            self._snapped_bundle))
 
         if not self.target.obj3d.branch_fits(self._hovered_branch, diameter):
             return  # highlighted orange (no fit) -- refuse the pick, stay active
 
         self._commit_attached(self._snapped_bundle,
-                              self._snapped_endpoint,
+                              self._snapped_end_position,
                               self._hovered_branch)
 
     @_check_types.do
@@ -303,16 +297,13 @@ class Transition(_base.AddHandlerBase):
         project.add_transition(transition_obj)
 
     @_check_types.do
-    def _commit_attached(
-        self,
-        bundle: _bundle.Bundle,
-        endpoint: str,
-        branch: "_transition_3d.Branch"
-    ) -> None:
+    def _commit_attached(self, bundle: _bundle.Bundle, end_position: _point.Point,
+                         branch: "_transition_3d.Branch") -> None:
 
         """
-        Place with the chosen branch attached to *bundle*'s free
-        *endpoint* -- section 4's "DECIDED -- placement at the end of a
+        Place with the chosen branch attached to *bundle*'s free end
+        (*end_position*, the actual ``Point`` -- not a 'start'/'stop'
+        label) -- section 4's "DECIDED -- placement at the end of a
         bundle" and section 5's "the bundle's start/stop point and the
         branch's position point are the same row." Every OTHER branch is
         left free, same as the free-placement case.
@@ -331,14 +322,15 @@ class Transition(_base.AddHandlerBase):
         # branches' off-by-one, see TRANSITION_DESIGN.md section 6/7).
         branch_id = branch.db_obj.branch_id
         catalog_branch = self._part.branches[branch_id - 1]
-        local_direction = _transition_handler._branch_local_direction(catalog_branch)  # NOQA
+        local_direction = (
+            _transition_handler._branch_local_direction(catalog_branch))  # NOQA
 
-        if endpoint == 'start':
+        is_start = end_position is bundle.obj3d.start_position
+
+        if is_start:
             end_point_id = bundle.db_obj.start_position3d_id
-            end_position = bundle.obj3d.start_position
         else:
             end_point_id = bundle.db_obj.stop_position3d_id
-            end_position = bundle.obj3d.stop_position
 
         ex, ey, ez = end_position.as_float
 
@@ -376,10 +368,10 @@ class Transition(_base.AddHandlerBase):
             # No concentric row, no wires -- see _commit_free's own comment.
 
         _transition_handler._align_branch_to_bundle(  # NOQA
-            transition_db, local_direction, bundle, endpoint)
+            transition_db, local_direction, bundle, end_position)
 
         transition_obj = _transition.Transition(self.mainframe, transition_db)
-        transition_obj.add_bundle(bundle, endpoint, branch_id)
+        transition_obj.add_bundle(bundle, end_position, branch_id)
         project.add_transition(transition_obj)
 
     @_check_types.do

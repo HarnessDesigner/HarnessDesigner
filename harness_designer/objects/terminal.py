@@ -14,6 +14,7 @@ from ..wire_routing import reroute as _wire_reroute
 from . import wire_layout as _wire_layout
 from ..geometry import point as _point
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -84,6 +85,7 @@ def _wire_end_point(wire_db, end: str, view: str):
     return wire_db.stop_position2d
 
 
+@capturable()
 class Terminal(_ObjectBase):
     """Represent a terminal in :mod:`harness_designer.objects.terminal`.
 
@@ -131,6 +133,7 @@ class Terminal(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def wires(self) -> list["_wire_obj.Wire"]:
         """Every Wire currently attached to this terminal."""
@@ -289,7 +292,7 @@ class Terminal(_ObjectBase):
         wire.obj3d.refresh_waypoints()
         wire.objpegboard.refresh_waypoints()
 
-        wire.set_sibling(self, end)
+        wire.set_sibling(self, wire.obj3d.start_position if end == 'start' else wire.obj3d.stop_position)
         self._wire_refs.append(weakref.ref(wire))
 
         # This terminal just became a junction (see
@@ -360,7 +363,7 @@ class Terminal(_ObjectBase):
             self._detach_wire_waypoints(wire, end, 'pegboard')
             self._detach_wire_2d(wire, end)
 
-            wire.set_sibling(None, end)
+            wire.set_sibling(None, wire.obj3d.start_position if end == 'start' else wire.obj3d.stop_position)
 
         self._wire_refs = []
 

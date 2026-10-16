@@ -14,6 +14,7 @@ from ...shapes import sphere as _sphere
 from ... import config as _config
 from ... import color as _color
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -28,11 +29,16 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_3d
 
 
+@capturable()
 class BundleLayout(_base_3d.Base3D):
     """Represent a bundle layout in :mod:`harness_designer.objects.objects_3d.bundle_layout`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_diameter', severity=2),
+    )
+
     parent: "_bundle_layout.BundleLayout" = None
     db_obj: "_pjt_bundle_layout.PJTBundleLayout" = None
 

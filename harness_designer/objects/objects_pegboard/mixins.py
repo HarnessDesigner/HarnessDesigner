@@ -27,6 +27,7 @@ import numpy as np
 
 from ...geometry import point as _point
 from .. import mixins as _wire_type_base
+from ...rope_pull import offline_store as _offline_store
 from ... import check_types as _check_types
 
 
@@ -51,6 +52,50 @@ class WireTypeMixin(_wire_type_base.WireTypeMixin):
     @_check_types.do
     def _waypoints(db_obj: _Union["_pjt_wire.PJTWire", "_pjt_bundle.PJTBundle"]) -> list["_pjt_point_pegboard.PJTPointPegboard"]:
         return db_obj.waypoints_pegboard
+
+    @_check_types.do
+    def _live_waypoint_points(self) -> list[_point.Point]:
+        """The chain's interior waypoint Points in route order, as they are
+        RIGHT NOW: the drag overlay (:mod:`rope_pull.offline_store`) while a
+        drag has one open, else the saved path.
+
+        A drag frame repositions the overlay and gives surplus waypoints up
+        to a store without touching the saved path (only the release-time
+        commit writes it), so the saved path is stale -- given-up points
+        frozen where they were, newly created in-memory bends missing
+        altogether -- for the whole drag. Drawing the strand from it made
+        the wire show the previous shape until the mouse was released.
+        """
+        overlay_points = _offline_store.overlay_points(self.db_obj.db_id)
+        if overlay_points is not None:
+            return overlay_points
+
+        return [waypoint.point for waypoint in self._waypoints(self.db_obj)]
+
+    @_check_types.do
+    def _live_waypoint_ids(self) -> list[bytes | None]:
+        """Row ids matching :meth:`_live_waypoint_points` one for one --
+        ``None`` for an in-memory bend a drag created that has no row yet.
+        """
+        entries = _offline_store.overlay(self.db_obj.db_id)
+        if entries is not None:
+            return [entry.point_id for entry in entries]
+
+        return [waypoint.db_id for waypoint in self._waypoints(self.db_obj)]
+
+    @_check_types.do
+    def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
+        """Every (p1, p2) sub-segment from start, through each interior
+        waypoint (:meth:`_live_waypoint_points`) in route order, to stop --
+        the base implementation, but over the live overlay instead of the
+        saved path.
+        """
+        points = [self.start_position.as_numpy]
+        for point in self._live_waypoint_points():
+            points.append(point.as_numpy)
+        points.append(self.stop_position.as_numpy)
+
+        return list(zip(points, points[1:]))
 
     @staticmethod
     @_check_types.do

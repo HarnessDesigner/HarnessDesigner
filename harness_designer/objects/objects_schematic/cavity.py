@@ -14,6 +14,7 @@ from ...gl import materials as _materials
 from ...shapes import text as _text
 from ... import utils as _utils
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -40,6 +41,7 @@ def _is_180(degrees: float) -> bool:
 _NO_ROTATION = _angle.Angle()
 
 
+@capturable()
 class Cavity(_base_schematic.BaseSchematic):
     """
     2D representation of a cavity for schematic view
@@ -96,6 +98,10 @@ class Cavity(_base_schematic.BaseSchematic):
     # -- see :meth:`_rebuild_geometry`.
     _geometry: _cavity_layout.CavityGeometry = None
 
+    __dump_schema__ = (
+        Attr('_geometry', severity=2),
+    )
+
     @_check_types.do
     def __init__(self, parent: "_cavity.Cavity",
                  db_obj: "_pjt_cavity.PJTCavity") -> None:
@@ -139,6 +145,7 @@ class Cavity(_base_schematic.BaseSchematic):
         self._terminal_cb = self.db_obj.bind(self._on_terminal_changed, 'terminal_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def housing(self) -> _Union["_housing_schematic.Housing", None]:
         """This cavity's owning ``Housing2D``, or ``None``.

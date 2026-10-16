@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Iterable as _Iterable
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -113,7 +114,8 @@ class PJTWirePathsTable(PJTTableBase):
             self, wire_id=wire_id, idx=idx, point3d_id=point3d_id,
             point_pegboard_id=point_pegboard_id, point2d_id=point2d_id,
             bundle_id=bundle_id, concentric_id=concentric_id,
-            transition_id=transition_id, transition_branch_id=transition_branch_id)
+            transition_id=transition_id, transition_branch_id=transition_branch_id,
+            guard_bundle_id=None, guard_end=None)
 
         return PJTWirePath(self, db_id)
 
@@ -381,6 +383,7 @@ class PJTWirePathsTable(PJTTableBase):
             self[row[0]].delete()
 
 
+@capturable()
 class PJTWirePath(PJTEntryBase):
     """One row of a wire's route -- see :class:`PJTWirePathsTable`."""
     _table: PJTWirePathsTable = None
@@ -391,6 +394,7 @@ class PJTWirePath(PJTEntryBase):
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def wire_id(self) -> bytes:
         return self._table.select('wire_id', id=self._db_id)[0][0]
@@ -408,6 +412,7 @@ class PJTWirePath(PJTEntryBase):
         return self._table.db.pjt_wires_table[self.wire_id]
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def idx(self) -> int:
         """This row's position in its wire's route for its view. Changing
@@ -422,6 +427,7 @@ class PJTWirePath(PJTEntryBase):
         self._populate('idx')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def point3d_id(self) -> bytes | None:
         """The shared 3D point this row references, or ``None`` when the
@@ -440,6 +446,7 @@ class PJTWirePath(PJTEntryBase):
         self._populate('point2d_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def point_pegboard_id(self) -> bytes | None:
         """The shared peg-board point this row references, or ``None``
@@ -458,6 +465,7 @@ class PJTWirePath(PJTEntryBase):
         self._populate('point2d_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def point2d_id(self) -> bytes | None:
         """The shared schematic point this row references, or ``None``
@@ -476,6 +484,7 @@ class PJTWirePath(PJTEntryBase):
         self._populate('point_pegboard_id')
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def view(self) -> str:
         """Which view's route this row belongs to: ``'3d'``,

@@ -9,6 +9,7 @@ from .mixins import (
 from ...ui import prop_ctrls as _prop_ctrls
 from ..global_db import transition_branch as _transition_branch
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -127,6 +128,7 @@ class PJTTransitionBranchesTable(PJTTableBase):
         return PJTTransitionBranch(self, db_id)
 
 
+@capturable()
 class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, PartMixin,
                           VisiblePegboardMixin):
     """Represent a PJT transition branch in :mod:`harness_designer.database.project_db.pjt_transition_branch`.
@@ -148,6 +150,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         return self._table
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def wires(self) -> list["_pjt_wire.PJTWire"]:
         """Every wire routed through this branch's own position, via
@@ -178,6 +181,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         return res
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def bundle(self) -> "_pjt_bundle.PJTBundle":
         """Return the bundle.
@@ -205,6 +209,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
             return bundles_table[rows[0][0]]
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
@@ -223,6 +228,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
             return self.table.db.pjt_concentrics_table[rows[0][0]]
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def transition(self) -> "_pjt_transition.PJTTransition":
         """Return the transition.
@@ -260,6 +266,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         self._populate('transition_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branch_id(self) -> int:
         """Return the branch ID.
@@ -285,6 +292,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         self._populate('branch_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def diameter(self) -> float:
         """Return the diameter.
@@ -320,6 +328,7 @@ class PJTTransitionBranch(PJTEntryBase, Position3DMixin, PositionPegboardMixin, 
         self.transition.update_objects()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _transition_branch.TransitionBranch:
         """Return the part.

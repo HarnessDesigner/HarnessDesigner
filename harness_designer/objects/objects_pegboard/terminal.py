@@ -10,6 +10,7 @@ from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
 from ... import check_types as _check_types
 from ... import config as _config
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
+@capturable()
 class Terminal(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a terminal.
@@ -41,6 +43,12 @@ class Terminal(_base_pegboard.BasePegboard):
     construction does not dynamically flip this instance's peg-board
     presence.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_model', severity=2),
+    )
+
     db_obj: "_pjt_terminal.PJTTerminal"
 
     @_check_types.do

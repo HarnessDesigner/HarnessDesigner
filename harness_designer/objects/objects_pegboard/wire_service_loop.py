@@ -11,6 +11,7 @@ from ...geometry import point as _point
 from ...geometry import angle as _angle
 from ... import check_types as _check_types
 from ... import config as _config
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -31,6 +32,7 @@ Config = _config.Config.editor_pegboard
 _HOUSING_OFFSET_MM = 25.0
 
 
+@capturable()
 class WireServiceLoop(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a wire service loop -- reuses the
@@ -54,6 +56,13 @@ class WireServiceLoop(_base_pegboard.BasePegboard):
     in the peg-board view (so a loop's own attached wires show where they
     connect) is a separate, later piece of work.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_last_centroid', severity=1),
+    )
+
     _parent: "_wire_service_loop.WireServiceLoop" = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop"
 

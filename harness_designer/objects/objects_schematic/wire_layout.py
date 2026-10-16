@@ -57,6 +57,18 @@ class WireLayout(_base_schematic.BaseSchematic):
         :param db_obj: Database-backed object.
         :type db_obj: :class:`_pjt_wire_layout.PJTWireLayout`
         """
+        # A PJTWireLayout row is exclusive to exactly one view (see the
+        # class docstring on PJTWireLayout itself) -- the facade always
+        # builds all three view wrappers unconditionally for every row
+        # (objects.wire_layout.WireLayout.__init__), regardless of which
+        # one it actually belongs to. This branch is the normal,
+        # expected case for a row placed in the 3D or peg-board view --
+        # no vbo/angle/scale/material at all, mirroring
+        # objects_pegboard.wire_layout.WireLayout's own identical guard.
+        if db_obj.position2d_id is None:
+            super().__init__(parent, db_obj, None, None, None, None, None)
+            return
+
         position = db_obj.position2d
 
         # PJTWireLayout has Position2DMixin but no angle2d mixin -- a

@@ -21,6 +21,7 @@ from .mixins import (
     Scale3DMixin, Scale3DControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -172,6 +173,7 @@ class PJTBootsTable(PJTTableBase):
         return PJTBoot(self, db_id)
 
 
+@capturable()
 class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMixin,
               HousingMixin, Visible3DMixin, NameMixin, NotesMixin, SmoothMixin):
     """Represent a PJT boot in :mod:`harness_designer.database.project_db.pjt_boot`.
@@ -236,6 +238,7 @@ class PJTBoot(PJTEntryBase, Angle3DMixin, Position3DMixin, PartMixin, Scale3DMix
     _stored_part: _boot.Boot | DefaultStoredValueType | None = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _boot.Boot:
         """Return the part.

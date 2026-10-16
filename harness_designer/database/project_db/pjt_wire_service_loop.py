@@ -25,6 +25,7 @@ from .mixins import (
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -172,6 +173,7 @@ class PJTWireServiceLoopsTable(PJTTableBase):
         return PJTWireServiceLoop(self, db_id)
 
 
+@capturable()
 class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartStopPosition3DMixin,
                          StartStopPositionPegboardMixin,
                          PartMixin, Visible3DMixin, VisiblePegboardMixin, NotesMixin, NameMixin, SmoothMixin):
@@ -223,6 +225,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
             self._obj = obj
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """Return the terminal.
@@ -248,6 +251,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
             return self.table.db.pjt_terminals_table[stop_position_ids[0][0]]
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
         """Return the wire.
@@ -371,6 +375,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def circuit(self) -> _pjt_circuit.PJTCircuit:
         """Return the circuit.
@@ -410,6 +415,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
         self._populate('circuit_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def is_visible(self) -> bool:
         """Return the is visible.
@@ -437,6 +443,7 @@ class PJTWireServiceLoop(PJTEntryBase, Angle3DMixin, AnglePegboardMixin, StartSt
     _stored_part: _wire.Wire | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _wire.Wire:
         """Return the part.

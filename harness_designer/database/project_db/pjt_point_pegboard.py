@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 class PJTPointsPegboardTable(PJTTableBase):
@@ -98,6 +99,7 @@ class PJTPointsPegboardTable(PJTTableBase):
         return PJTPointPegboard(self, db_id)
 
 
+@capturable()
 class PJTPointPegboard(PJTEntryBase):
     """ORM entry for a single row in ``pjt_points_pegboard``, with a reactive geometry Point.
 
@@ -127,6 +129,7 @@ class PJTPointPegboard(PJTEntryBase):
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def x(self) -> float:
         """Return the x.
@@ -157,6 +160,7 @@ class PJTPointPegboard(PJTEntryBase):
     _stored_y: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def y(self) -> float:
         """Return the y.
@@ -187,6 +191,7 @@ class PJTPointPegboard(PJTEntryBase):
     _stored_z: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def z(self) -> float:
         """Return the z.
@@ -251,6 +256,7 @@ class PJTPointPegboard(PJTEntryBase):
     _stored_parent_point_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def parent_point_id(self) -> bytes | None:
         """Return the id of the "real"/canonical point this one was cloned

@@ -192,10 +192,10 @@ def split_wire_at_point(
     wire2_obj = _wire.Wire(mainframe, wire2_db)
 
     if orig_start_sibling is not None:
-        wire1_obj.set_sibling(orig_start_sibling, 'start')
+        wire1_obj.set_sibling(orig_start_sibling, wire1_obj.obj3d.start_position)
         orig_start_sibling.replace_wire(wire, wire1_obj)
     if orig_stop_sibling is not None:
-        wire2_obj.set_sibling(orig_stop_sibling, 'stop')
+        wire2_obj.set_sibling(orig_stop_sibling, wire2_obj.obj3d.stop_position)
         orig_stop_sibling.replace_wire(wire, wire2_obj)
 
     project.add_wire(wire1_obj)
@@ -291,10 +291,10 @@ def merge_wires(
     merged_obj = _wire.Wire(mainframe, merged_db)
 
     if orig_start_sibling is not None:
-        merged_obj.set_sibling(orig_start_sibling, 'start')
+        merged_obj.set_sibling(orig_start_sibling, merged_obj.obj3d.start_position)
         orig_start_sibling.replace_wire(wire_before, merged_obj)
     if orig_stop_sibling is not None:
-        merged_obj.set_sibling(orig_stop_sibling, 'stop')
+        merged_obj.set_sibling(orig_stop_sibling, merged_obj.obj3d.stop_position)
         orig_stop_sibling.replace_wire(wire_after, merged_obj)
 
     project.add_wire(merged_obj)

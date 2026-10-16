@@ -265,7 +265,7 @@ def resolve_picked(picked: _Union["_objects.ObjectBase", None]) -> _Union["_obje
 
 
 @_check_types.do
-def get_snap_info(picked: _Union["_objects.ObjectBase", None]) -> tuple[str | None, _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", str], None]]:
+def get_snap_info(picked: _Union["_objects.ObjectBase", None]) -> tuple[str | None, _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", _point.Point], None]]:
     """Return ``(kind, target)`` describing a snap-probe hit, for callers
     (dragging.EndpointDragObject) that need to know exactly what a hit
     stands for rather than having it unwrapped/left in place the way
@@ -273,8 +273,9 @@ def get_snap_info(picked: _Union["_objects.ObjectBase", None]) -> tuple[str | No
 
     ``kind`` is ``'terminal'`` (``target`` the real ``Terminal``),
     ``'splice'`` (``target`` the real ``Splice``), ``'wire_end'``
-    (``target`` the ``(Wire, end)`` pair), or ``None`` (``target`` also
-    ``None``) when *picked* isn't one of this session's own probes at all.
+    (``target`` the ``(Wire, Point)`` pair -- the actual Point, not a
+    'start'/'stop' label), or ``None`` (``target`` also ``None``) when
+    *picked* isn't one of this session's own probes at all.
     """
     if not (
         isinstance(picked, _wire_layout.WireLayout) and
@@ -293,15 +294,15 @@ def get_snap_info(picked: _Union["_objects.ObjectBase", None]) -> tuple[str | No
         return 'splice', splice
 
     wire = db_obj.snap_wire
-    end = db_obj.snap_end
-    if wire is not None and end is not None:
-        return 'wire_end', (wire, end)
+    end_point = db_obj.snap_point
+    if wire is not None and end_point is not None:
+        return 'wire_end', (wire, end_point)
 
     return None, None
 
 
 @_check_types.do
-def snap_point(kind: str, target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", str]]) -> _point.Point | None:
+def snap_point(kind: str, target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", _point.Point]]) -> _point.Point | None:
     """Return the live world-space ``Point`` a resolved snap target sits
     at -- the exact position ``dragging.EndpointDragObject`` should move
     the dragged endpoint onto (never a copy: the caller must copy before
@@ -322,15 +323,15 @@ def snap_point(kind: str, target: _Union["_terminal.Terminal", "_splice.Splice",
         return target.obj3d.wire_position
 
     if kind == 'wire_end':
-        wire, end = target
-        return wire.obj3d.start_position if end == 'start' else wire.obj3d.stop_position
+        _wire, end_point = target
+        return end_point
 
     return None
 
 
 @_check_types.do
 def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
-                 kind: str, target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", str]]) -> None:
+                 kind: str, target: _Union["_terminal.Terminal", "_splice.Splice", tuple["_wire.Wire", _point.Point]]) -> None:
     """Commit a real connection for a resolved snap hit once the mouse
     releases on a snapped drag (dragging.EndpointDragObject) -- the
     two-click placement flow (wire_handler.py) already commits its own
@@ -358,7 +359,10 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
         # that seam point right back out from under the merge.
         from ..drag_handlers.editor_3d import wire as _wire_3d  # NOQA -- avoid a cycle at import time
 
-        other_wire, other_end = target
+        other_wire, other_point = target
+        # merge_wire_into's own `other_end` parameter stays a string --
+        # reconstruct it here, once, right at this boundary.
+        other_end = 'start' if other_point is other_wire.obj3d.start_position else 'stop'
         _wire_3d.Wire.merge_wire_into(
             mainframe.project, wire_obj, other_wire, other_end, own_end=end)
         return
@@ -386,7 +390,7 @@ def commit_snap(mainframe: "_ui.MainFrame", wire_obj: "_wire.Wire", end: str,
             wire_obj.objschematic.set_stop_position(target.db_obj.position2d)
 
         target.add_wire(wire_obj)
-        wire_obj.set_sibling(target, end)
+        wire_obj.set_sibling(target, wire_obj.obj3d.start_position if end == 'start' else wire_obj.obj3d.stop_position)
         _wire_reroute.on_wire_attached(mainframe.project, wire_obj)
 
         # A layout at the wire's own true end -- purely a visual cap

@@ -24,6 +24,7 @@ from .mixins import (
     TableHiddenMixin
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -198,6 +199,7 @@ class PJTBundlesTable(PJTTableBase):
         return db_obj
 
 
+@capturable()
 class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
                 StartStopPositionPegboardMixin,
                 Visible3DMixin, VisiblePegboardMixin, NameMixin, NotesMixin, SmoothMixin,
@@ -209,6 +211,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     _table: PJTBundlesTable = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def diameter(self) -> float:
         """This bundle's own effective diameter, computed fresh on every
@@ -388,6 +391,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return self._table
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def length_mm(self) -> float:
         """Total physical length: the sum of every sub-segment from
@@ -453,6 +457,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
         return res
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def concentric(self) -> _Union["_pjt_concentric.PJTConcentric", None]:
         """Return this bundle's own concentric-twisting row, or ``None``.
@@ -504,6 +509,7 @@ class PJTBundle(PJTEntryBase, PartMixin, StartStopPosition3DMixin,
     _stored_part: _bundle_cover.BundleCover | DefaultStoredValueType | None = DefaultStoredValue
     
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _bundle_cover.BundleCover:
         """Return the part.

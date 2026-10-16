@@ -29,9 +29,9 @@ class WireLayout(_base.AddHandlerBase):
     """Interactive wire-waypoint placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", wire: "_wire.Wire"
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 wire: "_wire.Wire") -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -45,11 +45,10 @@ class WireLayout(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction,
-        clicked_object: _Union["_objects.ObjectBase", None]
-    ) -> bool:
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
+
         if self._finalized:
             return False
 
@@ -62,7 +61,10 @@ class WireLayout(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize(current_pos)
             return True
 
@@ -70,7 +72,9 @@ class WireLayout(_base.AddHandlerBase):
 
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
-        raw_pos, _is_at_endpoint, _endpoint = self._wire.obj3d.get_closest_endpoint(mouse_pos)
+        raw_pos, _is_at_endpoint = (
+            self._wire.obj3d.get_closest_endpoint(mouse_pos))
+
         if not isinstance(raw_pos, _point.Point):
             raw_pos = _point.Point(*raw_pos)
 
@@ -88,22 +92,31 @@ class WireLayout(_base.AddHandlerBase):
         # _finalize's own comment for why.
         self._finalized = True
 
-        raw_pos, is_at_endpoint, endpoint = self._wire.obj3d.get_closest_endpoint(mouse_pos)
+        raw_pos, is_at_endpoint = (
+            self._wire.obj3d.get_closest_endpoint(mouse_pos))
 
         if is_at_endpoint:
-            if endpoint == 'start':
-                self._wire.obj3d.start_position.attach(self.target.obj3d.position)
+            if raw_pos is self._wire.obj3d.start_position:
+                self._wire.obj3d.start_position.attach(
+                    self.target.obj3d.position)
             else:
-                self._wire.obj3d.stop_position.attach(self.target.obj3d.position)
+                self._wire.obj3d.stop_position.attach(
+                    self.target.obj3d.position)
 
-            self.target.db_obj.position3d_id = self.target.obj3d.position.db_id[:-2]
+            self.target.db_obj.position3d_id = (
+                self.target.obj3d.position.db_id[:-2])
+
             self.target.obj3d.is_visible = True
             self.mainframe.project.add_wire_layout(self.target)
         else:
-            preview_position = _point.Point(*self.target.obj3d.position.as_float)
+            preview_position = _point.Point(
+                *self.target.obj3d.position.as_float)
+
             self.target.delete()
+
             self.target = _wire_layout_handler._create_wire_layout_on_wire(  # NOQA
                 self.mainframe.project, self._wire, preview_position)
+
             self.target.obj3d.is_visible = True
 
     @_check_types.do

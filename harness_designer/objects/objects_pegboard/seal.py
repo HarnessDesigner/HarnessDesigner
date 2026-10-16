@@ -14,6 +14,7 @@ from ... import check_types as _check_types
 from ... import config as _config
 from ...geometry import point as _point
 from ... import utils as _utils
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -57,6 +58,7 @@ def _build_sws(length: float, o_dia: float, i_dia: float) -> tuple[np.ndarray, n
     return vertices, faces
 
 
+@capturable()
 class Seal(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a seal -- reuses the real 3D
@@ -82,6 +84,11 @@ class Seal(_base_pegboard.BasePegboard):
       own round-terminal case).
     - Anything else: a plain shared unit box, same rationale.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+    )
+
     db_obj: "_pjt_seal.PJTSeal"
 
     @_check_types.do

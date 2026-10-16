@@ -10,6 +10,7 @@ from .objects_pegboard import housing as _housing_pegboard
 from . import cavity as _cavity
 from .. import debug as _debug
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from ..database.project_db import pjt_housing as _pjt_housing
 
 
+@capturable()
 class Housing(_ObjectBase):
     """Represent a housing in :mod:`harness_designer.objects.housing`.
 
@@ -108,6 +110,7 @@ class Housing(_ObjectBase):
             mainframe.project.add_cavity(cavity_obj)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cavities(self) -> list[_cavity.Cavity]:
         res = []

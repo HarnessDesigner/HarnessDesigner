@@ -149,6 +149,21 @@ class KeyHandler:
         if event.isAutoRepeat():  # ← ignore auto-repeats
             return False
 
+        # Ctrl+Shift+D: a one-shot diagnostic snapshot of whatever this
+        # canvas actually drew last frame -- deliberately short-circuited
+        # here, before on_key_down's held-key tracking, since this has
+        # nothing to do with that machinery (nothing to hold, nothing to
+        # repeat). See CanvasBase._dump_visible_objects.
+        if (
+            t == QtCore.QEvent.Type.KeyPress
+            and event.key() == QtCore.Qt.Key.Key_D
+            and event.modifiers() == (
+                QtCore.Qt.KeyboardModifier.ControlModifier | QtCore.Qt.KeyboardModifier.ShiftModifier
+            )
+        ):
+            self.canvas._dump_visible_objects()  # NOQA
+            return True
+
         if t == QtCore.QEvent.Type.KeyPress:
             self.on_key_down(event)
         elif t == QtCore.QEvent.Type.KeyRelease:

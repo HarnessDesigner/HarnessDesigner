@@ -33,6 +33,7 @@ from .mixins import (
     ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -183,6 +184,7 @@ class PJTSplicesTable(PJTTableBase):
         return PJTSplice(self, db_id)
 
 
+@capturable()
 class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMixin,
                 StartStopPositionPegboardMixin, TablePositionPegMixin, AnglePegboardMixin,
                 Visible3DMixin, Visible2DMixin, VisiblePegboardMixin,
@@ -258,6 +260,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._table
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def wires(self) -> list[list["_pjt_wire.PJTWire"], list["_pjt_wire.PJTWire"], list["_pjt_wire.PJTWire"]]:
         """Return the wires.
@@ -326,6 +329,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._stored_branch_position3d.point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branch_position3d_id(self) -> bytes:
         """Return the branch position 3D ID.
@@ -380,6 +384,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         return self._stored_branch_position_pegboard.point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branch_position_pegboard_id(self) -> bytes:
         """Return the ``pjt_points_pegboard`` row id for the peg-board
@@ -413,6 +418,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
         self._populate('branch_position_pegboard_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def circuit(self) -> _pjt_circuit.PJTCircuit:
         """Return the circuit.
@@ -464,6 +470,7 @@ class PJTSplice(PJTEntryBase, PartMixin, StartStopPosition3DMixin, Position2DMix
     _stored_part: _splice.Splice | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _splice.Splice:
         """Return the part.

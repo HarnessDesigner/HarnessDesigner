@@ -24,6 +24,7 @@ from ... import utils as _utils
 from . import mixins as _mixins
 from ... import check_types as _check_types
 from ...rope_pull import offline_store as _offline_store
+from ...crash_dump import Attr, capturable
 
 if TYPE_CHECKING:
     from ..objects_3d import bundle as _bundle_3d
@@ -50,11 +51,22 @@ _HELIX_OVERSHOOT_MM = 1000.0
 _TIGHT_TOLERANCE_MM = 0.001
 
 
+@capturable()
 class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     """Represent a wire in :mod:`harness_designer.objects.objects_pegboard.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_waypoint_points', severity=2),
+        Attr('_bundle', severity=2),
+        Attr('_stripe', severity=1),
+        Attr('_hidden_waypoint_ids', severity=1),
+    )
+
     parent: "_wire.Wire" = None
     db_obj: "_pjt_wire.PJTWire" = None
 
@@ -242,6 +254,12 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         self._recalculate_geometry()
         self.pegboard.Refresh()
 
+        # The wire's own slack-handler safety net needs the same
+        # refresh -- its own bound callbacks must match whatever is
+        # actually in the route now, same reason _bind_waypoints()
+        # itself just re-ran (see handlers.wire_slack_handler).
+        self.parent._slack_handler.register_pegboard()  # NOQA
+
     @property
     @_check_types.do
     def start_position(self) -> _point.Point:
@@ -423,9 +441,11 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         diameter = self._scale.x
         hidden_ids = self._hidden_waypoint_ids
 
+        # Aligned with self._segments() below -- both read the live drag
+        # overlay while one is open, not the saved path (see
+        # mixins.WireTypeMixin._live_waypoint_points).
         point_ids = [self.start_position.db_id[:-2]]
-        for wp in self._waypoints(self.db_obj):
-            point_ids.append(wp.db_id)
+        point_ids.extend(self._live_waypoint_ids())
         point_ids.append(self.stop_position.db_id[:-2])
 
         for (seg_p1, seg_p2), id1, id2 in zip(self._segments(), point_ids, point_ids[1:]):
@@ -809,12 +829,12 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             return cls._start_from_splice(mainframe, canvas, splice, part_id)
 
         if extend_wire is not None:
-            wire_obj, end = extend_wire
-            return cls._start_extend_from_wire(mainframe, canvas, wire_obj, end)
+            wire_obj, end_point = extend_wire
+            return cls._start_extend_from_wire(mainframe, canvas, wire_obj, end_point)
 
         if add_to_wire is not None:
-            wire_obj, end = add_to_wire
-            return cls._start_add_to_wire(mainframe, canvas, wire_obj, end)
+            wire_obj, end_point = add_to_wire
+            return cls._start_add_to_wire(mainframe, canvas, wire_obj, end_point)
 
         part_id = mainframe.editor_db.editor.wires.GetSelection()
         if part_id is None:
@@ -884,8 +904,9 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         terminal.add_wire(facade, 'start')
         ptables.pjt_points_pegboard_table[placeholder_id].delete()
 
-        return cls._arm(canvas, facade, part_id, phase=1, growing_end='stop',
-                        start_circuit_id=start_circuit_id)
+        return cls._arm(
+            canvas, facade, part_id, phase=1, growing_point=facade.objpegboard.stop_position,
+            start_circuit_id=start_circuit_id)
 
     @classmethod
     @_check_types.do
@@ -920,30 +941,32 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         facade = _wire_facade.Wire(mainframe, wire_db)
 
         splice.add_wire(facade)
-        facade.set_sibling(splice, 'start')
+        facade.set_sibling(splice, facade.objpegboard.start_position)
 
-        return cls._arm(canvas, facade, part_id, phase=1, growing_end='stop', start_circuit_id=None)
+        return cls._arm(
+            canvas, facade, part_id, phase=1, growing_point=facade.objpegboard.stop_position,
+            start_circuit_id=None)
 
     @classmethod
     @_check_types.do
-    def _start_extend_from_wire(cls, mainframe: "_ui.MainFrame", canvas: "_editor_pegboard.EditorPegboardPanel", wire_obj: "_wire.Wire", end: str) -> _Union["_wire.Wire", None]:
-        """Extension mode: live-move *wire_obj*'s own dangling *end*
-        directly, never creating a fresh preview -- see
-        add_handlers.editor_3d.wire.Wire's own module docstring.
+    def _start_extend_from_wire(cls, mainframe: "_ui.MainFrame", canvas: "_editor_pegboard.EditorPegboardPanel", wire_obj: "_wire.Wire", end_point: _point.Point) -> _Union["_wire.Wire", None]:
+        """Extension mode: live-move *wire_obj*'s own dangling end
+        (identified by *end_point*, not a 'start'/'stop' label) directly,
+        never creating a fresh preview -- see add_handlers.editor_3d.wire.
+        Wire's own module docstring.
         """
 
         objpegboard = wire_obj.objpegboard
         start_np = objpegboard.start_position.as_numpy
         stop_np = objpegboard.stop_position.as_numpy
+        is_start = end_point is objpegboard.start_position
 
-        if end == 'stop':
-            source_endpoint = 'stop'
-            endpoint_np = stop_np
-            seg = stop_np - start_np
-        else:
-            source_endpoint = 'start'
+        if is_start:
             endpoint_np = start_np
             seg = start_np - stop_np
+        else:
+            endpoint_np = stop_np
+            seg = stop_np - start_np
 
         seg_len = float(np.linalg.norm(seg))
         if seg_len < 1e-8:
@@ -954,7 +977,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         handler = _add_wire.Wire(
             canvas, wire_obj, wire_obj.db_obj.part_id, phase=1,
             start_circuit_id=wire_obj.db_obj.circuit_id,
-            extension_mode=True, source_wire=wire_obj, source_endpoint=source_endpoint)
+            extension_mode=True, source_wire=wire_obj, source_point=end_point)
 
         handler._extension_dir = seg / seg_len  # NOQA
         handler._extension_origin = endpoint_np.copy()  # NOQA
@@ -967,18 +990,19 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
     @classmethod
     @_check_types.do
-    def _start_add_to_wire(cls, mainframe: "_ui.MainFrame", canvas: "_editor_pegboard.EditorPegboardPanel", wire_obj: "_wire.Wire", end: str) -> _Union["_wire.Wire", None]:
-        """Continue *wire_obj* from its own free *end* -- tags that end
-        as a permanent interior waypoint, then continues the live
-        preview from a fresh point there. Unlike every other entry
-        point, *wire_obj* is a real, already-placed, already-registered
-        wire the whole time (see add_handlers.editor_3d.wire.Wire's own
-        ``_preexisting_wire``/``_growing_end`` handling).
+    def _start_add_to_wire(cls, mainframe: "_ui.MainFrame", canvas: "_editor_pegboard.EditorPegboardPanel", wire_obj: "_wire.Wire", end_point: _point.Point) -> _Union["_wire.Wire", None]:
+        """Continue *wire_obj* from its own free end (identified by
+        *end_point*, not a 'start'/'stop' label) -- tags that end as a
+        permanent interior waypoint, then continues the live preview
+        from a fresh point there. Unlike every other entry point,
+        *wire_obj* is a real, already-placed, already-registered wire
+        the whole time (see add_handlers.editor_3d.wire.Wire's own
+        ``_preexisting_wire``/``_growing_point`` handling).
         """
         from ...add_handlers.editor_pegboard import wire as _add_wire
 
         handler = _add_wire.Wire(
-            canvas, wire_obj, wire_obj.db_obj.part_id, phase=1, growing_end=end,
+            canvas, wire_obj, wire_obj.db_obj.part_id, phase=1, growing_point=end_point,
             preexisting_wire=True, start_circuit_id=wire_obj.db_obj.circuit_id)
 
         wire_obj.objpegboard._active_handler = handler  # NOQA
@@ -1015,16 +1039,18 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
         facade = _wire_facade.Wire(mainframe, wire_db)
 
-        return cls._arm(canvas, facade, part_id, phase=0, growing_end='start', start_circuit_id=None)
+        return cls._arm(
+            canvas, facade, part_id, phase=0, growing_point=facade.objpegboard.start_position,
+            start_circuit_id=None)
 
     @classmethod
     @_check_types.do
-    def _arm(cls, canvas: "_editor_pegboard.EditorPegboardPanel", facade: "_wire.Wire", part_id: bytes, phase: int, growing_end: str,
-             start_circuit_id) -> "_wire.Wire":
+    def _arm(cls, canvas: "_editor_pegboard.EditorPegboardPanel", facade: "_wire.Wire", part_id: bytes, phase: int,
+             growing_point: _point.Point, start_circuit_id) -> "_wire.Wire":
         from ...add_handlers.editor_pegboard import wire as _add_wire
 
         handler = _add_wire.Wire(
-            canvas, facade, part_id, phase=phase, growing_end=growing_end,
+            canvas, facade, part_id, phase=phase, growing_point=growing_point,
             start_circuit_id=start_circuit_id)
 
         facade.objpegboard._active_handler = handler  # NOQA
@@ -1128,7 +1154,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
                     return True
 
-                if handler.end is not None and handler.snapped_kind is not None:
+                if handler.snap_point is not None and handler.snapped_kind is not None:
                     # KNOWN GAP (see handlers.wire_drag_base's own module
                     # docstring): commit_snap/Terminal.add_wire/Splice.
                     # add_wire are still 3D-only -- this writes the
@@ -1138,8 +1164,11 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
                     # correctly for peg-board; only this final commit
                     # step doesn't yet.
                     from ...handlers import wire_snap as _wire_snap  # NOQA -- avoid a cycle at import time
+                    # commit_snap's own `end` parameter stays a string --
+                    # reconstruct it here, once, right at this boundary.
+                    end = 'start' if handler.snap_point is self.start_position else 'stop'
                     _wire_snap.commit_snap(
-                        self.parent.mainframe, self.parent, handler.end,
+                        self.parent.mainframe, self.parent, end,
                         handler.snapped_kind, handler.snapped_target)
 
                 handler.delete()
@@ -1168,11 +1197,16 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         return True
 
 
+@capturable()
 class WireStripe(_base_pegboard.BasePegboard):
     """Represent a wire stripe in :mod:`harness_designer.objects.objects_pegboard.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+
+    __dump_schema__ = (
+        Attr('_wire', severity=2),
+    )
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", wire: Wire, color: _color.Color, scale: _point.Point,
@@ -1469,9 +1503,9 @@ class WireMenu(QtWidgets.QMenu):
         action.triggered.connect(self.on_add_to_wire)
 
         can_add_terminal = False
-        if free_end == 'start':
+        if free_end is wire.objpegboard.start_position:
             can_add_terminal = wire.start_sibling is None
-        elif free_end == 'stop':
+        elif free_end is wire.objpegboard.stop_position:
             can_add_terminal = wire.stop_sibling is None
 
         action = self.addAction('Add Terminal')
@@ -1597,13 +1631,13 @@ class WireMenu(QtWidgets.QMenu):
         wire = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
-        end = _wire_pegboard.Wire.pick_free_end(mainframe, wire, click_pos)
-        if end is None:
+        end_point = _wire_pegboard.Wire.pick_free_end(mainframe, wire, click_pos)
+        if end_point is None:
             return
 
         @_check_types.do
         def _do() -> None:
-            Wire.start_add(mainframe, extend_wire=(wire, end))
+            Wire.start_add(mainframe, extend_wire=(wire, end_point))
 
         QtCore.QTimer.singleShot(0, _do)
 
@@ -1618,13 +1652,13 @@ class WireMenu(QtWidgets.QMenu):
         wire = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
-        end = _wire_pegboard.Wire.pick_free_end(mainframe, wire, click_pos)
-        if end is None:
+        end_point = _wire_pegboard.Wire.pick_free_end(mainframe, wire, click_pos)
+        if end_point is None:
             return
 
         @_check_types.do
         def _do() -> None:
-            _terminal_3d.Terminal.add_at_wire_end(mainframe, wire, end)
+            _terminal_3d.Terminal.add_at_wire_end(mainframe, wire, end_point)
 
         QtCore.QTimer.singleShot(0, _do)
 
@@ -1639,13 +1673,13 @@ class WireMenu(QtWidgets.QMenu):
         wire = self.selected.parent
         click_pos = self.selected._context_menu_click_pos  # NOQA
 
-        end = _wire_pegboard.Wire.pick_free_end(mainframe, wire, click_pos)
-        if end is None:
+        end_point = _wire_pegboard.Wire.pick_free_end(mainframe, wire, click_pos)
+        if end_point is None:
             return
 
         @_check_types.do
         def _do() -> None:
-            Wire.start_add(mainframe, add_to_wire=(wire, end))
+            Wire.start_add(mainframe, add_to_wire=(wire, end_point))
 
         QtCore.QTimer.singleShot(0, _do)
 

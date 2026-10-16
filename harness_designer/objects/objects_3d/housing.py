@@ -26,6 +26,7 @@ from ... import config as _config
 
 from ... import debug as _debug
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable, dump_property
 
 if TYPE_CHECKING:
     from .. import ObjectBase as _ObjectBase
@@ -85,11 +86,18 @@ def _build_marker_local_verts(
     return np.array([c0, c1, c2, c0, c2, c3], dtype=np.float32)
 
 
+@capturable()
 class Housing(_base_3d.Base3D):
     """Represent a housing in :mod:`harness_designer.objects.objects_3d.housing`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_picker', severity=2),
+        Attr('_surf_to_cavity', severity=2),
+    )
+
     parent: "_housing.Housing" = None
     db_obj: "_pjt_housing.PJTHousing" = None
 
@@ -213,6 +221,7 @@ class Housing(_base_3d.Base3D):
             pass
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cavities(self) -> list["_cavity3d.Cavity"]:
         return [c.obj3d for c in self.parent.cavities

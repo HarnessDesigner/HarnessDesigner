@@ -28,6 +28,7 @@ from .mixins import (
     AnglePegboardMixin, AnglePegboardControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -304,6 +305,7 @@ class PJTCavitiesTable(PJTTableBase):
         return PJTCavity(self, db_id)
 
 
+@capturable()
 class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboardMixin,
                 HousingMixin, PartMixin, NameMixin, NotesMixin, Visible2DMixin,
                 Visible3DMixin, VisiblePegboardMixin,
@@ -388,6 +390,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     _stored_aabb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def aabb(self) -> np.ndarray:
         if self._stored_aabb is DefaultStoredValue:
@@ -411,6 +414,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     _stored_obb: np.ndarray | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def obb(self) -> np.ndarray:
         if self._stored_obb is DefaultStoredValue:
@@ -432,6 +436,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._populate('obb')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """
@@ -823,6 +828,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
         self._populate('terminal_position2d_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def seal(self) -> "_pjt_seal.PJTSeal":
         """
@@ -863,6 +869,7 @@ class PJTCavity(PJTEntryBase, Position3DMixin, Position2DMixin, PositionPegboard
     _stored_part: _Union["_cavity.Cavity", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> "_cavity.Cavity":
         """

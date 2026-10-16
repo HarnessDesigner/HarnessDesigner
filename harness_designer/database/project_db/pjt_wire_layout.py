@@ -19,6 +19,7 @@ from .mixins import (
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -204,6 +205,7 @@ class PJTWireLayoutsTable(PJTTableBase):
         return self[rows[0][0]]
 
 
+@capturable()
 class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, SmoothMixin):
     """Represent a PJT wire layout in :mod:`harness_designer.database.project_db.pjt_wire_layout`.
 
@@ -256,6 +258,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         return point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position3d_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points3d`` row id, or ``None``.
@@ -307,6 +310,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         return point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position2d_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points2d`` row id, or ``None``.
@@ -358,6 +362,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         return point
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def position_pegboard_id(self) -> bytes | None:
         """Return this waypoint's ``pjt_points_pegboard`` row id, or
@@ -422,6 +427,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
             self._obj = obj
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def attached_wires(self) -> list["_pjt_wire.PJTWire"]:
         """Return the wire(s) this layout marks a point on.
@@ -470,6 +476,7 @@ class PJTWireLayout(PJTEntryBase, Visible3DMixin, Visible2DMixin, VisiblePegboar
         return [self._table.db.pjt_wires_table[wire_id] for wire_id in wire_ids]
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def diameter(self) -> float:
         """This waypoint's own diameter -- never a stored column, always

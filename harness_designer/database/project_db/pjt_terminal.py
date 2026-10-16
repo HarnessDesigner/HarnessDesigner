@@ -35,6 +35,7 @@ from .mixins import (
     ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -204,6 +205,7 @@ class PJTTerminalsTable(PJTTableBase):
         return terminal
 
 
+@capturable()
 class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
                   Position3DMixin, NotesMixin,
                   Position2DMixin, PositionPegboardMixin, PartMixin, Visible3DMixin,
@@ -289,6 +291,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
             self._obj = obj
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def is_start(self) -> bool:
         """Return the is start.
@@ -380,6 +383,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._populate('voltage_drop')
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def resistance(self) -> float:
         """Return the resistance.
@@ -392,6 +396,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         return self.part.resistance
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def volts(self) -> float:
         """Return the volts.
@@ -425,6 +430,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._populate('volts')
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def load(self) -> float:
         """Return the load.
@@ -472,6 +478,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
     _stored_cavity: "_pjt_cavity.PJTCavity" = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cavity(self) -> "_pjt_cavity.PJTCavity":
         """Return the cavity.
@@ -535,6 +542,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
     _stored_circuit: _pjt_circuit.PJTCircuit = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def circuit(self) -> _pjt_circuit.PJTCircuit:
         """Return the circuit.
@@ -583,6 +591,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
         self._populate('circuit_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def seal(self) -> _pjt_seal.PJTSeal:
         """Return the seal.
@@ -1272,6 +1281,7 @@ class PJTTerminal(PJTEntryBase, Angle3DMixin, Angle2DMixin, AnglePegboardMixin,
     _stored_part: _terminal.Terminal = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _terminal.Terminal:
         """Return the part.

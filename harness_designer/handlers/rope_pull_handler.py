@@ -63,14 +63,13 @@ machinery). A pulled Housing/Splice/WireServiceLoop only ever
 translates -- the doc's own rotation rule is specific to a Transition's
 own branch geometry.
 
-Terminal is NOT one of the node types :func:`_node_for_point` recognises
-yet -- see that function's own docstring for why (its real wire
-attachment point is a separate, derived point from its own structural
-position, with nothing yet known to keep the two in sync under a pull
-the way a Transition's branch tips already are). A wire reaching a
-terminal today pulls only that one attachment point, same as a free
-end -- correct in effect (the point ends up in the right place), but
-the terminal's own rendered body does not visibly move with it yet.
+A seated Terminal resolves to its own Housing (see :func:`_node_for_point`'s
+own docstring) -- pulling a wire plugged into one seated terminal pulls
+the whole housing, which cascades into every other wire plugged into
+every OTHER terminal on that same housing too, each all the way to
+whatever it in turn finds enough slack (or runs out and keeps
+cascading). A free-standing/"ring" terminal (not seated in any cavity)
+has nothing to cascade into, same as a genuinely free end.
 
 **Waypoint add/remove deferred to mouse-up (user's own spec,
 2026-10-02).** A drag can run many frames a second, and the solver's
@@ -85,9 +84,10 @@ ordinary frame -- :func:`_fixed_count_interior` repositions whatever
 already exists to the best shape that count can reach, exact length
 when it can, visibly taut/straight when it can't yet -- and the drag's
 own very last call, the moment the mouse button is released
-(``drag_handlers.editor_pegboard.generic.Generic.delete``), runs the
-real, height-cap-derived reconcile exactly once, letting the count
-finally catch up to whatever it actually needs. Every OTHER caller
+(:func:`finalize_drag`, run by ``objects.project.Project.end_gesture`` on
+the outermost gesture close), runs the real, height-cap-derived
+reconcile exactly once, letting the count finally catch up to whatever
+it actually needs. Every OTHER caller
 (:func:`realize_length_change`, a one-shot reconcile, not a per-frame
 drag) always uses the real shape, same as before this existed.
 
@@ -157,13 +157,14 @@ from ..geometry import point as _point
 from ..geometry.angle import angle as _angle
 from ..objects import bundle_layout as _bundle_layout
 from ..objects import wire_layout as _wire_layout
+from ..database.project_db import pjt_bundle as _pjt_bundle
+from . import wire_routing_handler as _wire_routing_handler
 from .. import check_types as _check_types
 
 
 if TYPE_CHECKING:
-    from ..database.project_db.pjt_bases import ProjectTables as _ProjectTables
+    from ..database.project_db.pjt_pegboard_table import PJTPegboardTable as _PJTPegboardTable
     from .. import ui as _ui
-    from ..database.project_db import pjt_bundle as _pjt_bundle
     from ..database.project_db import pjt_wire as _pjt_wire
     from ..database.project_db import pjt_bundle_path as _pjt_bundle_path
     from ..database.project_db import pjt_wire_path as _pjt_wire_path
@@ -172,6 +173,16 @@ if TYPE_CHECKING:
 
 
 Config = _config.Config.editor_pegboard.rope_pull
+
+# How many times one pulled node may be pulled again inside a single solve
+# before the move is refused -- see _evaluate_points' pull_if_needed. Several
+# wires between the same two housings settle in one or two; this only ends a
+# loop that genuinely cannot fit.
+_MAX_REPULLS = 16
+
+# A re-pull smaller than this (mm) is floating-point noise, not a chain that
+# still needs relief -- matches solve_chain's own default tolerance.
+_REPULL_TOLERANCE_MM = 1e-6
 
 
 @_check_types.do
@@ -198,18 +209,199 @@ def _chain_diameter(
 
 
 @_check_types.do
+def _structural_stub_ids(ptables: "_PJTPegboardTable", attach_point_id: bytes | None) -> list[bytes]:
+    """The real (canonical, never a per-wire clone) terminal/cavity
+    wire-stub point ids anchored at *attach_point_id* -- a wire's own
+    real start/stop anchor (``PJTTerminal.attach_position_pegboard_id``,
+    the ONLY thing ``Terminal.add_wire`` ever uses as a wire's own
+    start/stop_position, never an interior waypoint), nearest-the-
+    terminal first: the terminal's own ``wire_position_pegboard``, then
+    (only when seated in a cavity) that cavity's own
+    ``wire_position_pegboard`` -- exactly ``Terminal.add_wire``'s own
+    construction order for a 'start' attach (reversed on disk for a
+    'stop' attach, but reading *backward* from a wire's own stop anchor
+    lands on this same nearest-terminal-first order -- see
+    :func:`_stub_boundary`, this function's only caller).
+
+    These two points are fixed offsets from the terminal's/cavity's own
+    structural geometry, already carried along rigidly whenever the
+    terminal/housing moves (``Terminal._own_or_cloned_point_id``'s own
+    ``parent_point_id`` -> ``PJTHousing._update_position3d``/
+    ``_update_position_pegboard`` cascade) -- never something the
+    rope-pull solver should reposition, or delete/recreate as an
+    ordinary free zigzag waypoint, which is exactly what was happening
+    before this existed: confirmed live, 2026-10-13, dragging a housing
+    with only two wires attached visibly corrupted both wires' own
+    near-terminal points, because ``solve_chain`` was being handed the
+    terminal's raw ``attach_position_pegboard`` as its anchor and told
+    these two fixed points were free interior slack, same as any
+    ordinary bend. Empty when *attach_point_id* isn't a terminal's
+    attach point at all (a free/dangling end, a splice, a wire-service-
+    loop, ...).
+    """
+    if attach_point_id is None:
+        return []
+
+    rows = ptables.pjt_terminals_table.select('id', attach_point_pegboard_id=attach_point_id)
+    if not rows:
+        return []
+
+    terminal = ptables.pjt_terminals_table[rows[0][0]]
+    ids = []
+
+    stub_id = terminal.wire_position_pegboard_id_raw
+    if stub_id is not None:
+        ids.append(stub_id)
+
+    cavity_id = terminal.cavity_id
+    if cavity_id is not None:
+        cavity = ptables.pjt_cavities_table[cavity_id]
+        cavity_stub_id = cavity.wire_position_pegboard_id_raw
+        if cavity_stub_id is not None:
+            ids.append(cavity_stub_id)
+
+    return ids
+
+
+@_check_types.do
+def _canonical_point_id(points_table: object, point_id: bytes) -> bytes:
+    """*point_id*'s own canonical identity -- itself, or whatever
+    ``parent_point_id`` it was cloned from (every terminal/cavity stub
+    past the first wire on that terminal is a clone at the same spot,
+    tagged this way so it still tracks the real point's own future
+    movement -- see ``Terminal._own_or_cloned_point_id``)."""
+    parent_id = points_table[point_id].parent_point_id
+    return parent_id if parent_id is not None else point_id
+
+
+@_check_types.do
+def _stub_boundary(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire") -> tuple[int, int]:
+    """How many of *wire_db_obj*'s own leading (start-side) and trailing
+    (stop-side) peg-board interior waypoints are terminal/cavity
+    structural stubs (see :func:`_structural_stub_ids`) -- ``(0, 0)``
+    for either end that isn't attached to a terminal at all.
+
+    Verifies identity (via :func:`_canonical_point_id`) against the
+    expected ids rather than just trusting the expected count, so a
+    chain that somehow doesn't match ``Terminal.add_wire``'s usual
+    construction order degrades to excluding nothing for that end
+    instead of silently excluding the wrong points. Clamped so the two
+    ends' own counts can never overlap and claim the same point twice,
+    for a wire short enough that its whole interior is just these
+    stubs.
+    """
+    old_ids = list(ptables.pjt_wire_paths_table.point_ids(wire_db_obj.db_id, 'pegboard'))
+    points_table = ptables.pjt_points_pegboard_table
+
+    def count(expected_ids: list[bytes], from_tail: bool) -> int:
+        found = 0
+        for i, expected in enumerate(expected_ids):
+            index = len(old_ids) - 1 - i if from_tail else i
+            if index < 0 or index >= len(old_ids):
+                break
+            if _canonical_point_id(points_table, old_ids[index]) != expected:
+                break
+            found += 1
+        return found
+
+    leading = count(_structural_stub_ids(ptables, wire_db_obj.start_position_pegboard_id), False)
+    trailing = count(_structural_stub_ids(ptables, wire_db_obj.stop_position_pegboard_id), True)
+
+    if leading + trailing > len(old_ids):
+        overlap = leading + trailing - len(old_ids)
+        if trailing >= leading:
+            trailing -= overlap
+        else:
+            leading -= overlap
+
+    return leading, trailing
+
+
+@_check_types.do
+def _stub_boundary_for_chain(
+    ptables: "_PJTPegboardTable", chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
+) -> tuple[int, int]:
+    """``(0, 0)`` for a bundle -- a bundle never attaches through a
+    terminal the way a wire does, see :func:`_stub_boundary`."""
+    if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+        return 0, 0
+
+    return _stub_boundary(ptables, chain_db_obj)
+
+
+@_check_types.do
+def _distance3d(a: "_point.Point", b: "_point.Point") -> float:
+    dx = float(b.x) - float(a.x)
+    dy = float(b.y) - float(a.y)
+    dz = float(b.z) - float(a.z)
+    return math.sqrt(dx * dx + dy * dy + dz * dz)
+
+
+@_check_types.do
+def _wire_stub_length3d(wire_db_obj: "_pjt_wire.PJTWire", leading: int, trailing: int) -> float:
+    """Real 3D length of *wire_db_obj*'s own leading/trailing structural
+    stub segment(s) -- see :func:`_stub_boundary`. Walked over
+    ``waypoints3d`` (not the peg-board list) since this is subtracted
+    from ``length_mm``, itself a pure 3D measurement (see
+    ``PJTWire.length_mm``'s own docstring)."""
+    if not leading and not trailing:
+        return 0.0
+
+    points = [wire_db_obj.start_position3d, *(wp.point for wp in wire_db_obj.waypoints3d),
+              wire_db_obj.stop_position3d]
+
+    total = 0.0
+    if leading:
+        for a, b in zip(points[:leading], points[1:leading + 1]):
+            total += _distance3d(a, b)
+    if trailing:
+        for a, b in zip(points[-trailing - 1:-1], points[-trailing:]):
+            total += _distance3d(a, b)
+    return total
+
+
+@_check_types.do
 def _anchors_and_length(
-    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
-) -> tuple[tuple[float, float], tuple[float, float], float]:
-    """*chain_db_obj*'s two peg-board anchors as plain ``(x, z)`` tuples,
-    plus its real (3D-derived) ``length_mm`` -- exactly what
-    ``rope_pull.solve_chain`` needs, read fresh every call since
-    ``length_mm`` has no cache/signal of its own (confirmed: a plain
-    computed property, see its own docstring on ``PJTBundle``/``PJTWire``).
+    ptables: "_PJTPegboardTable", chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
+) -> tuple[tuple[float, float], tuple[float, float], float, int, int]:
+    """*chain_db_obj*'s two EFFECTIVE peg-board anchors as plain
+    ``(x, z)`` tuples, the EFFECTIVE length the rope-pull solver should
+    treat as available slack between them, and the leading/trailing
+    terminal-stub counts (see :func:`_stub_boundary`) every caller that
+    touches this chain's own interior needs to exclude from it --
+    exactly what ``rope_pull.solve_chain`` needs, plus what
+    :func:`_reconcile_interior`/:func:`_apply_mid_drag` need, read fresh
+    every call since ``length_mm`` has no cache/signal of its own
+    (confirmed: a plain computed property, see its own docstring on
+    ``PJTBundle``/``PJTWire``).
+
+    For a bundle, or a wire whose end isn't attached to a terminal,
+    "effective" is simply the chain's own real start/stop anchor and
+    its real ``length_mm``, same as always. For a wire attached to a
+    terminal, it instead means: past that terminal's own fixed
+    wire-stub point (and, if seated, past its cavity's own wire-stub
+    point too) -- see :func:`_structural_stub_ids` for why those points
+    are never part of the solver's own free interior. The fixed 3D
+    length of whatever stub segment(s) this excludes is subtracted from
+    ``length_mm``, since that portion of the wire's real length is
+    consumed by fixed housing/connector geometry, never available as 2D
+    zigzag slack.
     """
     start = chain_db_obj.start_position_pegboard
     stop = chain_db_obj.stop_position_pegboard
-    return (float(start.x), float(start.z)), (float(stop.x), float(stop.z)), chain_db_obj.length_mm
+    length = chain_db_obj.length_mm
+
+    leading, trailing = _stub_boundary_for_chain(ptables, chain_db_obj)
+
+    if leading or trailing:
+        length -= _wire_stub_length3d(chain_db_obj, leading, trailing)
+
+        if leading:
+            start = chain_db_obj.waypoints_pegboard[leading - 1].point
+        if trailing:
+            stop = chain_db_obj.waypoints_pegboard[-trailing].point
+
+    return (float(start.x), float(start.z)), (float(stop.x), float(stop.z)), length, leading, trailing
 
 
 @_check_types.do
@@ -237,7 +429,9 @@ def _reconcile_interior(
     layout_facade_cls: _Union[type["_bundle_layout.BundleLayout"], type["_wire_layout.WireLayout"]],
     new_interior: list[tuple[float, float]],
     pin_point_id: bytes | None,
-    pin_xz: tuple[float, float] | None
+    pin_xz: tuple[float, float] | None,
+    leading: int = 0,
+    trailing: int = 0
 ) -> None:
     """Rewrite *chain_db_obj*'s peg-board interior waypoints to
     *new_interior*, preserving *pin_point_id* (the point actively being
@@ -257,11 +451,38 @@ def _reconcile_interior(
     it mattered, falling through to the neutral-gray "no bundle"
     fallback color instead of the bundle's own -- confirmed live by the
     user (2026-10-01): "spheres... not the same color as the bundle."
+
+    *leading*/*trailing* (``_anchors_and_length``'s own terminal-stub
+    exclusion counts, see :func:`_stub_boundary`) are how many of this
+    chain's own real interior point ids -- read fresh below, before
+    anything else happens -- are fixed terminal/cavity structural stubs
+    carved out before the reuse/insert/delete dance runs and spliced
+    back verbatim at the very end: never reused, repositioned, or
+    deleted here, same as *new_interior* itself never includes them
+    (the caller's own *start_xz*/*stop_xz* already stopped short of
+    them). Without this, collapsing a wire's free interior to zero
+    (a straight, taut run) could delete these two points outright,
+    which doesn't just mis-place them -- a wire with no interior
+    waypoints at a Terminal end renders as one single bare-conductor
+    segment end to end (``objects_pegboard.wire.Wire.render``'s own
+    ``_conductor_segment_ends``), losing its insulation color AND its
+    stripe, confirmed live, 2026-10-13, alongside the position
+    corruption this same gap caused.
     """
     project = mainframe.project
     points_table = project.ptables.pjt_points_pegboard_table
 
     old_ids = list(path_table.point_ids(chain_db_obj.db_id, 'pegboard'))
+
+    if pin_point_id is not None and (leading or trailing):
+        boundary_ids = set(old_ids[:leading]) | set(old_ids[len(old_ids) - trailing:])
+        if pin_point_id in boundary_ids:
+            leading = trailing = 0
+
+    tail_start = len(old_ids) - trailing
+    structural_lead_ids = old_ids[:leading]
+    structural_tail_ids = old_ids[tail_start:]
+    old_ids = old_ids[leading:tail_start]
 
     pin_new_index = None
     if pin_point_id is not None:
@@ -296,7 +517,10 @@ def _reconcile_interior(
         final_ids[new_index] = point_id
 
     # Only the raw point rows are inserted here -- the layout row and
-    # facade object for each come after set_route, below.
+    # facade object for each come after set_route, below. Each insert()/
+    # delete() below runs inside the drag's own open gesture and defers
+    # into the project's row cache rather than touching the database
+    # per row -- see PJTTableBase.insert/delete's own comments.
     new_indexes = []
     for i in range(reuse_count, len(remaining_new_indexes)):
         new_index = remaining_new_indexes[i]
@@ -307,7 +531,8 @@ def _reconcile_interior(
 
     removed_ids = remaining_old_ids[reuse_count:]
 
-    path_table.set_route(chain_db_obj.db_id, 'pegboard', final_ids)
+    path_table.set_route(
+        chain_db_obj.db_id, 'pegboard', structural_lead_ids + final_ids + structural_tail_ids)
 
     for new_index in new_indexes:
         layout_db = layouts_table.insert(point_pegboard_id=final_ids[new_index])
@@ -339,7 +564,7 @@ def _reconcile_interior(
 
 
 @_check_types.do
-def _chains_for_point(ptables: "_ProjectTables", point_id: bytes) -> list[tuple]:
+def _chains_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> list[tuple]:
     """Every chain (bundle or wire) that *point_id* is part of, each as
     ``(chain_db_obj, path_table, layouts_table, layout_facade_cls,
     drag_end)`` -- ``drag_end`` is :attr:`rope_pull.DragEnd.WAYPOINT` if
@@ -415,7 +640,7 @@ def _pulled_far_position(
 
 
 @_check_types.do
-def _node_for_point(ptables: "_ProjectTables", point_id: bytes) -> tuple[str, list[bytes]] | None:
+def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, list[bytes]] | None:
     """The rigid structural object that owns *point_id*, as
     ``(kind, points)`` -- *points* is every peg-board point that moves
     together with it as one object (a Transition's own centre PLUS
@@ -427,25 +652,58 @@ def _node_for_point(ptables: "_ProjectTables", point_id: bytes) -> tuple[str, li
     point in *points*). ``None`` if *point_id* belongs to none of
     these (a genuinely free point, owned by nothing).
 
-    **Terminal is deliberately not one of the types recognised here.**
-    A wire's real attachment point on a terminal
-    (``PJTTerminal.wire_position_pegboard_id``) is a separate, derived
-    point -- offset from the terminal's own structural
-    ``position_pegboard_id`` by its own angle -- and nothing is known
-    to keep that offset point in sync if the terminal's own body were
-    pulled, the way a Transition's branch tips already are (see
-    ``objects_pegboard.transition.Transition._update_position`` ->
-    ``write_tips_to_db``, confirmed to already run on exactly this kind
-    of move; there is no equivalent for a terminal's own
-    wire-attachment point today). Modeling that correctly is its own
-    task, left for later -- a wire reaching a terminal pulls only that
-    one attachment point for now, same as a genuinely free end, with
-    nothing further to cascade into past it (the point ends up in the
-    right place; the terminal's own rendered body just doesn't visibly
-    follow it yet).
+    **A seated Terminal resolves to its own Housing.** *point_id* being
+    a terminal's real wire-attachment point
+    (``PJTTerminal.attach_position_pegboard_id``) does not by itself
+    mean a Housing owns it -- a free-standing/"ring" terminal (not
+    seated in any cavity) has nothing further to cascade into, same as
+    a genuinely free end -- but a SEATED terminal's own attach point
+    moves rigidly with its housing already
+    (``PJTHousing._update_position_pegboard``'s own cavity/terminal
+    cascade, bound the moment anything first reads the housing's own
+    ``position_pegboard``), the exact same mechanism a Transition's
+    branch tips already use (``objects_pegboard.transition.
+    Transition._update_position`` -> ``write_tips_to_db``). *points*
+    for a seated terminal is therefore the housing's own point PLUS
+    every OTHER seated terminal's own attach point across every one of
+    that housing's own cavities -- not just the one point_id arrived
+    through -- so :func:`_evaluate_points`'s own cascade actually
+    visits (and can refuse the whole move over) every wire plugged
+    into this housing, not only the one that triggered the pull.
+    Deliberately excludes each terminal's OWN ``wire_position_pegboard``/
+    its cavity's ``wire_position_pegboard`` (the structural stub points
+    :func:`_structural_stub_ids` excludes from a wire's own free
+    interior) -- those are interior WAYPOINTS of their own wire, not a
+    second real anchor, and feeding one into this cascade as if it were
+    a draggable point would wrongly treat it as a WAYPOINT drag target
+    (see :func:`_chains_for_point`'s own ``DragEnd.WAYPOINT`` case).
     """
     if ptables.pjt_housings_table.select('id', point_pegboard_id=point_id):
         return 'rigid', [point_id]
+
+    terminal_rows = ptables.pjt_terminals_table.select('id', attach_point_pegboard_id=point_id)
+    if terminal_rows:
+        terminal = ptables.pjt_terminals_table[terminal_rows[0][0]]
+        cavity_id = terminal.cavity_id
+
+        if cavity_id is not None:
+            housing_rows = ptables.pjt_cavities_table.select('housing_id', id=cavity_id)
+            housing_id = housing_rows[0][0] if housing_rows else None
+
+            if housing_id is not None:
+                housing = ptables.pjt_housings_table[housing_id]
+                points = [housing.position_pegboard_id]
+
+                for other_cavity in housing.cavities:
+                    other_terminal = other_cavity.terminal
+                    if other_terminal is None:
+                        continue
+
+                    attach_id = other_terminal.attach_position_pegboard_id_raw
+                    if attach_id is not None:
+                        points.append(attach_id)
+
+                return 'rigid', points
 
     branch_rows = ptables.pjt_transition_branches_table.select(
         'transition_id', point_pegboard_id=point_id)
@@ -557,7 +815,7 @@ def _fixed_count_span(
 
 @_check_types.do
 def _evaluate_points(
-    ptables: "_ProjectTables", point_targets: list[tuple[bytes, tuple[float, float]]],
+    ptables: "_PJTPegboardTable", point_targets: list[tuple[bytes, tuple[float, float]]],
     cascade: bool = True,
 ) -> tuple[list[tuple], dict[bytes, tuple[float, float]], dict[bytes, float]] | None:
     """Pure solve, no DB writes -- every ``(point_id, target_xz)`` pair
@@ -589,10 +847,15 @@ def _evaluate_points(
     *write_points* for :func:`_commit_points` to actually write.
 
     **Why no explicit cycle detection is needed to satisfy the "refuse
-    the whole move on a cycle" policy (user, 2026-10-01).** A point
-    already in *fixed* is never pulled a second time with a different
-    delta -- whichever chain reaches it FIRST decides its position for
-    the rest of this resolve. A closed loop (several Transitions/
+    the whole move on a cycle" policy (user, 2026-10-01).** A DRAGGED
+    point is authoritative and never moved. A point an earlier pull
+    decided can be pulled again -- by whatever a later chain still
+    needs on top (several wires between the same two housings each
+    need a different amount, and which one is processed first depends
+    on seed order, so "first one wins" refused the move in one drag
+    direction and not the other) -- but only up to ``_MAX_REPULLS``
+    times per node, and every chain already solved against its old
+    position is forgotten and solved again. A closed loop (several Transitions/
     bundles forming a ring, say) therefore either happens to still fit
     once every node along it has been independently pulled this way --
     accepted, nothing further needed, a strictly BETTER outcome than
@@ -603,14 +866,19 @@ def _evaluate_points(
     outcomes satisfy the chosen policy without a solver for the loop's
     simultaneous constraints ever being written.
 
-    :returns: ``(entries, write_points)`` -- *entries* is every
-        ``(chain_db_obj, path_table, layouts_table, layout_facade_cls,
-        drag_end, point_id, target_xz, result)`` :func:`_commit_points`
-        needs to reconcile each chain's own interior, and *write_points*
-        is every ``point_id -> (x, z)`` a pull decided that isn't one of
-        *point_targets* itself (the caller already owns moving those).
-        ``None`` if anything, anywhere in the whole cascade, is
-        infeasible even after every pull it allows.
+    :returns: ``(entries, write_points, write_yaws)`` -- *entries* is
+        every ``(chain_db_obj, path_table, layouts_table,
+        layout_facade_cls, drag_end, point_id, target_xz, result,
+        start_xz, stop_xz, required_length, leading, trailing)``
+        :func:`_commit_points` needs to reconcile each chain's own
+        interior -- *leading*/*trailing* are :func:`_anchors_and_length`'s
+        own terminal-stub exclusion counts, carried through so
+        :func:`_reconcile_interior`/:func:`_apply_mid_drag` never touch
+        those points either -- and *write_points*/*write_yaws* are every
+        ``point_id -> (x, z)``/``center_id -> phi`` a pull decided that
+        isn't one of *point_targets* itself (the caller already owns
+        moving those). ``None`` if anything, anywhere in the whole
+        cascade, is infeasible even after every pull it allows.
     """
     points_table = ptables.pjt_points_pegboard_table
 
@@ -621,26 +889,49 @@ def _evaluate_points(
     seen_chains: set[bytes] = set()
     entries = []
 
-    def pull_if_needed(
-        far_point_id: bytes, far_xz: tuple[float, float],
-        near_target_xz: tuple[float, float], required_length: float
-    ) -> tuple[float, float]:
-        if far_point_id in fixed:
-            return fixed[far_point_id]
+    # How many times each pulled node (keyed by its first point id) has been
+    # pulled AGAIN after its first pull in this solve -- see pull_node. A
+    # node that keeps being re-pulled never settles (a closed loop that does
+    # not fit): past _MAX_REPULLS it is left where it is and the chain is
+    # left to fail its own feasibility check, which refuses the move.
+    repulls: dict[bytes, int] = {}
 
-        if not cascade:
-            return far_xz
+    def pull_node(
+        point_id: bytes, from_xz: tuple[float, float], to_xz: tuple[float, float],
+        chain_id: bytes, is_repull: bool
+    ) -> bool:
+        """Move the rigid node that owns *point_id* so that point's
+        EFFECTIVE position goes from *from_xz* to *to_xz*, deciding every
+        one of the node's points in fixed/write_points and queuing them.
 
-        pulled_xz = _pulled_far_position(far_xz, near_target_xz, required_length)
-        if pulled_xz == far_xz:
-            return far_xz
+        *is_repull*: the node was already pulled earlier in this solve, so
+        its points move on from where this solve put them (fixed[]) instead
+        of from where the DB has them.
 
-        node = _node_for_point(ptables, far_point_id)
-        kind, node_points = ('rigid', [far_point_id]) if node is None else node
+        :returns: ``False`` when a re-pull would exceed _MAX_REPULLS -- the
+            node is left untouched.
+        """
+        node = _node_for_point(ptables, point_id)
+        kind, node_points = ('rigid', [point_id]) if node is None else node
+
+        if is_repull:
+            repull_count = repulls.get(node_points[0], 0) + 1
+            repulls[node_points[0]] = repull_count
+            if repull_count > _MAX_REPULLS:
+                return False
+
+        def moved_from(p: bytes) -> tuple[float, float]:
+            # A first pull moves a point from where the DB has it; a
+            # re-pull from where this solve already put it.
+            if is_repull:
+                return fixed[p]
+
+            p_point = points_table[p].point
+            return float(p_point.x), float(p_point.z)
 
         if kind == 'transition':
             # BUNDLE_PLACEMENT.md section 6's own pivot/trailing rule:
-            # far_point_id IS the branch the pull arrives through (the
+            # point_id IS the branch the pull arrives through (the
             # "handle"), always node_points[1:]'s member, never the
             # centre -- a bundle/wire anchors at a branch's own point,
             # never a transition's bare centre point (see this module's
@@ -648,39 +939,105 @@ def _evaluate_points(
             # points the vector from the handle to the transition's own
             # (pre-pull) centre in the direction OPPOSITE the pull, so
             # the body trails behind the branch being pulled, same as
-            # the real world.
+            # the real world. A re-pull rotates the already-pulled pose
+            # again about the handle's current spot; the yaws add up.
             center_id = node_points[0]
-            center_point = points_table[center_id].point
-            center_old = (float(center_point.x), float(center_point.z))
+            center_old = moved_from(center_id)
 
-            dx = pulled_xz[0] - far_xz[0]
-            dz = pulled_xz[1] - far_xz[1]
-            vx = center_old[0] - far_xz[0]
-            vz = center_old[1] - far_xz[1]
+            dx = to_xz[0] - from_xz[0]
+            dz = to_xz[1] - from_xz[1]
+            vx = center_old[0] - from_xz[0]
+            vz = center_old[1] - from_xz[1]
 
             if math.hypot(dx, dz) < 1e-9 or math.hypot(vx, vz) < 1e-9:
                 phi = 0.0
             else:
                 phi = math.atan2(vz, vx) - math.atan2(-dz, -dx)
 
-            write_yaws[center_id] = phi
+            write_yaws[center_id] = write_yaws.get(center_id, 0.0) + phi
 
             for p in node_points:
-                p_point = points_table[p].point
-                p_old = (float(p_point.x), float(p_point.z))
-                new_xz = _rotated_and_translated(p_old, far_xz, pulled_xz, phi)
+                new_xz = _rotated_and_translated(moved_from(p), from_xz, to_xz, phi)
                 fixed[p] = new_xz
                 write_points[p] = new_xz
                 pending.append(p)
         else:
-            delta = (pulled_xz[0] - far_xz[0], pulled_xz[1] - far_xz[1])
+            delta = (to_xz[0] - from_xz[0], to_xz[1] - from_xz[1])
 
             for p in node_points:
-                p_point = points_table[p].point
-                new_xz = (float(p_point.x) + delta[0], float(p_point.z) + delta[1])
+                p_xz = moved_from(p)
+                new_xz = (p_xz[0] + delta[0], p_xz[1] + delta[1])
                 fixed[p] = new_xz
                 write_points[p] = new_xz
                 pending.append(p)
+
+        # Every OTHER chain already evaluated against this node's old
+        # position is stale now -- its interior was solved against an
+        # anchor that has since moved. Forget it, so it is evaluated again
+        # from the pulled node's side.
+        stale_ids: set[bytes] = set()
+        for p in node_points:
+            for touching in _chains_for_point(ptables, p):
+                if touching[0].db_id != chain_id:
+                    stale_ids.add(touching[0].db_id)
+
+        if stale_ids:
+            seen_chains.difference_update(stale_ids)
+            entries[:] = [entry for entry in entries if entry[0].db_id not in stale_ids]
+
+        return True
+
+    def pull_if_needed(
+        chain_id: bytes, far_point_id: bytes, far_xz: tuple[float, float],
+        near_target_xz: tuple[float, float], required_length: float
+    ) -> tuple[float, float]:
+        is_repull = False
+
+        if far_point_id in fixed:
+            # fixed[] holds the far end's RAW (terminal attach point) new
+            # position, but far_xz is the EFFECTIVE anchor -- already past
+            # the terminal/cavity structural stubs (see _anchors_and_length)
+            # -- and so is what the solver, and the stub-excluded
+            # required_length, expect back. Every one of those stubs rides
+            # rigidly with the same housing, so the effective anchor moves
+            # by exactly the delta the raw point does; returning the raw
+            # position outright put the anchor a stub length too far out
+            # (the interior then aimed at the crimp point instead of the
+            # cavity stub, or the move refused). A free end has no stubs,
+            # so raw == effective and this reduces to fixed[far_point_id].
+            far_raw = points_table[far_point_id].point
+            far_xz = (
+                far_xz[0] + fixed[far_point_id][0] - float(far_raw.x),
+                far_xz[1] + fixed[far_point_id][1] - float(far_raw.z))
+
+            # A dragged point's own target is authoritative -- never moved
+            # here. A point an EARLIER PULL in this same solve decided is
+            # not: several wires between the same two housings each pull
+            # the far housing only as far as that one wire needs, so
+            # whichever happens to be processed first used to fix the
+            # housing where it alone was relieved, and a longer-run-out
+            # sibling processed second found it "already decided" and
+            # could not pull it any further -- the whole move was refused
+            # and the dragged housing just stopped, in one drag direction
+            # and not the other (which housing is dragged decides which
+            # wire comes first). The node is pulled again by whatever this
+            # chain still needs on top.
+            if far_point_id not in write_points or not cascade:
+                return far_xz
+
+            is_repull = True
+        elif not cascade:
+            return far_xz
+
+        pulled_xz = _pulled_far_position(far_xz, near_target_xz, required_length)
+        if is_repull:
+            if math.hypot(pulled_xz[0] - far_xz[0], pulled_xz[1] - far_xz[1]) <= _REPULL_TOLERANCE_MM:
+                return far_xz
+        elif pulled_xz == far_xz:
+            return far_xz
+
+        if not pull_node(far_point_id, far_xz, pulled_xz, chain_id, is_repull):
+            return far_xz
 
         return pulled_xz
 
@@ -693,21 +1050,74 @@ def _evaluate_points(
                 continue
             seen_chains.add(chain_db_obj.db_id)
 
-            start_xz, stop_xz, required_length = _anchors_and_length(chain_db_obj)
+            start_xz, stop_xz, required_length, leading, trailing = _anchors_and_length(
+                ptables, chain_db_obj)
+
+            # target_xz is where point_id -- the chain's own RAW
+            # start/stop anchor (a terminal's attach_position_pegboard)
+            # -- is headed. When this end has its own leading/trailing
+            # stub exclusion, that is NOT where the solver's own anchor
+            # for this end should land: the EFFECTIVE anchor (start_xz/
+            # stop_xz above, already past the stub -- the terminal's
+            # own wire_position_pegboard, or the cavity's if seated,
+            # see _stub_boundary) moves by the exact same rigid delta
+            # (never a different one -- the whole terminal/housing only
+            # ever translates), so it is this end's own OLD effective
+            # position plus that same delta, not target_xz itself.
+            # Using target_xz directly here measured every zig-zag span
+            # from the terminal's own raw crimp point instead, double-
+            # counting the stub segment's own length against a
+            # required_length that had already excluded it -- confirmed
+            # live, 2026-10-13: a housing's own terminal never let its
+            # wire reach taut/pull its far end correctly, because the
+            # solver always saw less slack than the chain actually had.
+            effective_target = target_xz
+            if drag_end is _rope_pull.DragEnd.START and leading:
+                raw_anchor = chain_db_obj.start_position_pegboard
+                effective_target = (
+                    start_xz[0] + (target_xz[0] - float(raw_anchor.x)),
+                    start_xz[1] + (target_xz[1] - float(raw_anchor.z)))
+            elif drag_end is _rope_pull.DragEnd.STOP and trailing:
+                raw_anchor = chain_db_obj.stop_position_pegboard
+                effective_target = (
+                    stop_xz[0] + (target_xz[0] - float(raw_anchor.x)),
+                    stop_xz[1] + (target_xz[1] - float(raw_anchor.z)))
 
             if drag_end is _rope_pull.DragEnd.START:
                 stop_xz = pull_if_needed(
-                    chain_db_obj.stop_position_pegboard_id, stop_xz, target_xz, required_length)
+                    chain_db_obj.db_id, chain_db_obj.stop_position_pegboard_id, stop_xz,
+                    effective_target, required_length)
             elif drag_end is _rope_pull.DragEnd.STOP:
                 start_xz = pull_if_needed(
-                    chain_db_obj.start_position_pegboard_id, start_xz, target_xz, required_length)
+                    chain_db_obj.db_id, chain_db_obj.start_position_pegboard_id, start_xz,
+                    effective_target, required_length)
             # DragEnd.WAYPOINT: both real anchors stay exactly as read --
             # the anchor model never lets a waypoint drag move them, and
             # a waypoint belongs to exactly one chain by construction,
             # so nothing ever cascades INTO this branch either.
 
+            # The near end can itself be a point an earlier pull in this
+            # solve moved (this chain is being evaluated from the pulled
+            # node's side, with its far end a dragged -- authoritative --
+            # point). If it still does not fit, the node is the only thing
+            # that can give: pull it again toward the far end by whatever
+            # is still missing, instead of refusing the move.
+            if cascade and drag_end is not _rope_pull.DragEnd.WAYPOINT and point_id in write_points:
+                other_xz = stop_xz
+                if drag_end is _rope_pull.DragEnd.STOP:
+                    other_xz = start_xz
+
+                relieved_xz = _pulled_far_position(effective_target, other_xz, required_length)
+                shift = math.hypot(
+                    relieved_xz[0] - effective_target[0], relieved_xz[1] - effective_target[1])
+
+                if shift > _REPULL_TOLERANCE_MM:
+                    if pull_node(point_id, effective_target, relieved_xz, chain_db_obj.db_id, True):
+                        effective_target = relieved_xz
+                        target_xz = fixed[point_id]
+
             result = _rope_pull.solve_chain(
-                start_xz, stop_xz, required_length, drag_end, target_xz,
+                start_xz, stop_xz, required_length, drag_end, effective_target,
                 _chain_diameter(chain_db_obj), Config.zigzag_length_factor, Config.threshold_factor)
 
             if not result.accepted:
@@ -715,13 +1125,56 @@ def _evaluate_points(
 
             entries.append((
                 chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                drag_end, point_id, target_xz, result, start_xz, stop_xz, required_length))
+                drag_end, point_id, target_xz, result, start_xz, stop_xz, required_length,
+                leading, trailing))
 
     return entries, write_points, write_yaws
 
 
+# How many _commit_points calls are on the stack right now -- see
+# is_committing(). Module level on purpose: the slack handler it protects
+# is per wire, but a commit moves points belonging to several wires at once.
+_commit_depth: int = 0
+
+
+@_check_types.do
+def is_committing() -> bool:
+    """Whether :func:`_commit_points` is running right now.
+
+    Every peg-board write this module makes goes through
+    :func:`_commit_points`, and it already reconciles every chain its
+    cascade touched. ``Point +=`` fires bound callbacks synchronously, so
+    without this the per-wire ``WireSlackHandler`` safety net re-entered
+    ``realize_length_change`` -> ``_apply_mid_drag`` from inside the
+    ``_place_active`` loop of an outer commit, on the very same overlay
+    list and offline store, with the outer call's ``tail_start`` already
+    stale -- which drops or reorders a both-ends-terminal-attached wire's
+    far-end stub entries (a free end has no trailing stubs, so it
+    survived). The slack handler checks this and stays out of a commit.
+    """
+    return _commit_depth > 0
+
+
 @_check_types.do
 def _commit_points(
+    mainframe: "_ui.MainFrame", entries: list[tuple], write_points: dict[bytes, tuple[float, float]],
+    write_yaws: dict[bytes, float], in_progress: bool = False
+) -> None:
+    """Run :func:`_commit_points_body` with :func:`is_committing` true, so
+    nothing it moves can re-enter a wire's own slack handler -- see
+    :func:`is_committing`. Exception-safe: the depth is always restored.
+    """
+    global _commit_depth
+
+    _commit_depth += 1
+    try:
+        _commit_points_body(mainframe, entries, write_points, write_yaws, in_progress)
+    finally:
+        _commit_depth -= 1
+
+
+@_check_types.do
+def _commit_points_body(
     mainframe: "_ui.MainFrame", entries: list[tuple], write_points: dict[bytes, tuple[float, float]],
     write_yaws: dict[bytes, float], in_progress: bool = False
 ) -> None:
@@ -769,7 +1222,7 @@ def _commit_points(
 
     for (
         chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
-        result, start_xz, stop_xz, required_length
+        result, start_xz, stop_xz, required_length, leading, trailing
     ) in entries:
         interior = result.points[1:-1]
         pin_point_id = point_id if drag_end is _rope_pull.DragEnd.WAYPOINT else None
@@ -778,14 +1231,32 @@ def _commit_points(
         if in_progress or _offline_store.overlay(chain_db_obj.db_id) is not None:
             _apply_mid_drag(
                 mainframe, chain_db_obj, path_table, layouts_table,
-                drag_end, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+                drag_end, interior, start_xz, stop_xz, pin_point_id, pin_xz, leading, trailing)
 
             if not in_progress:
                 _commit_overlay(mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls)
         else:
             _reconcile_interior(
                 mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                interior, pin_point_id, pin_xz)
+                interior, pin_point_id, pin_xz, leading, trailing)
+
+        # A bundle's own peg-board interior just got its REAL (not
+        # overlay) shape written -- the 3D-side counterpart of this is
+        # drag_handlers.editor_3d.generic.py's own guard-reposition
+        # hooks; this is the one shared place every peg-board path that
+        # changes a bundle's interior (a genuine peg-board drag's own
+        # release frame, or a 3D-triggered realize_length_change) ends
+        # up, so one hook here covers all of them. Skipped while
+        # in_progress=True (an ordinary mid-drag frame): that writes
+        # only the in-memory overlay, never real pjt_bundle_paths rows,
+        # so recomputing from bundle.waypoints_pegboard here would read
+        # stale pre-drag positions -- the guard catches up once this
+        # runs for real, at release or a non-dragging realize.
+        if not in_progress and isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+            _wire_routing_handler.reposition_guards_for_bundle_end(
+                ptables, chain_db_obj, chain_db_obj.start_position_pegboard, 'pegboard')
+            _wire_routing_handler.reposition_guards_for_bundle_end(
+                ptables, chain_db_obj, chain_db_obj.stop_position_pegboard, 'pegboard')
 
 
 class _Waypoint:
@@ -878,7 +1349,9 @@ def _apply_mid_drag(
     start_xz: tuple[float, float],
     stop_xz: tuple[float, float],
     pin_point_id: bytes | None,
-    pin_xz: tuple[float, float] | None
+    pin_xz: tuple[float, float] | None,
+    leading: int = 0,
+    trailing: int = 0
 ) -> None:
     """One mid-drag frame for one chain. No database row is inserted or
     deleted here.
@@ -888,6 +1361,13 @@ def _apply_mid_drag(
     takes the store's most recent entries back first, and only creates new
     in-memory points when the store is empty. The overlay is then placed on the
     solver's shape (see :func:`_place_active`).
+
+    *leading*/*trailing* exclude the chain's own terminal/cavity
+    structural-stub entries (see :func:`_stub_boundary`) from all of
+    that -- they're never grown, shrunk, given up to the store, or
+    repositioned by :func:`_place_active`, only carved out of the
+    overlay before this runs and spliced back verbatim after, same
+    reasoning as :func:`_reconcile_interior`'s own identical guard.
     """
     chain_id = chain_db_obj.db_id
     points_table = mainframe.project.ptables.pjt_points_pegboard_table
@@ -896,27 +1376,37 @@ def _apply_mid_drag(
     from_tail = drag_end is not _rope_pull.DragEnd.STOP
     wanted = len(interior)
 
-    if wanted < len(overlay):
-        for _ in range(len(overlay) - wanted):
+    if pin_point_id is not None and (leading or trailing):
+        boundary_ids = (
+            {e.point_id for e in overlay[:leading]}
+            | {e.point_id for e in overlay[len(overlay) - trailing:]})
+        if pin_point_id in boundary_ids:
+            leading = trailing = 0
+
+    tail_start = len(overlay) - trailing
+    active = overlay[leading:tail_start]
+
+    if wanted < len(active):
+        for _ in range(len(active) - wanted):
             if from_tail:
-                entry = overlay[-1]
+                entry = active[-1]
             else:
-                entry = overlay[0]
+                entry = active[0]
 
             if pin_point_id is not None and entry.point_id == pin_point_id:
                 break
 
             if from_tail:
-                overlay.pop()
+                active.pop()
             else:
-                overlay.pop(0)
+                active.pop(0)
 
             _offline_store.push(chain_id, entry)
             if entry.point_id is not None:
                 _set_layout_visible(layouts_table, entry.point_id, False)
 
-    elif wanted > len(overlay):
-        for _ in range(wanted - len(overlay)):
+    elif wanted > len(active):
+        for _ in range(wanted - len(active)):
             if store:
                 entry = _offline_store.pop_front(chain_id)
                 if entry.point_id is not None:
@@ -926,11 +1416,13 @@ def _apply_mid_drag(
                 entry = _Waypoint(None, position, _make_pseudo_layout(chain_db_obj, position))
 
             if from_tail:
-                overlay.append(entry)
+                active.append(entry)
             else:
-                overlay.insert(0, entry)
+                active.insert(0, entry)
 
-    _place_active(overlay, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+    _place_active(active, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+
+    overlay[:] = overlay[:leading] + active + overlay[tail_start:]
 
     chain_obj = chain_db_obj.get_object()
     if chain_obj is not None:
@@ -990,6 +1482,13 @@ def _commit_overlay(
     after the route is set (see :func:`_reconcile_interior`'s ordering note),
     and every layout that is no longer in the route is deleted. The store is
     discarded, so nothing given up mid-drag survives unless it is in the route.
+
+    Every insert()/delete() here runs inside the drag's own open gesture
+    (opened by the concrete drag handler, e.g. ``drag_handlers.
+    editor_pegboard.generic.Generic``) -- see ``PJTTableBase.insert``/
+    ``delete``'s own comments: both defer into the project's row cache
+    rather than touching the database per row, and the gesture's own
+    outermost close flushes everything accumulated in one transaction.
     """
     project = mainframe.project
     points_table = project.ptables.pjt_points_pegboard_table
@@ -1055,7 +1554,7 @@ def clamp_to_length_from_anchor(
 
 @_check_types.do
 def _pinned_chain(
-    ptables: "_ProjectTables", point_starts: list[tuple[bytes, _point.Point]]
+    ptables: "_PJTPegboardTable", point_starts: list[tuple[bytes, _point.Point]]
 ) -> _Union[tuple[_Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"], _point.Point,
                   tuple[float, float], float], None]:
     """The one chain a drag group is pinned to, as
@@ -1075,7 +1574,7 @@ def _pinned_chain(
         if drag_end is _rope_pull.DragEnd.WAYPOINT:
             continue
 
-        start_xz, stop_xz, length = _anchors_and_length(chain_db_obj)
+        start_xz, stop_xz, length, _leading, _trailing = _anchors_and_length(ptables, chain_db_obj)
         far_xz = stop_xz if drag_end is _rope_pull.DragEnd.START else start_xz
         pinned.append((chain_db_obj, start, far_xz, length))
 
@@ -1346,7 +1845,8 @@ def resolve_rigid_move(
 @_check_types.do
 def realize_length_change(
     mainframe: "_ui.MainFrame",
-    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
+    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
+    in_progress: bool = False
 ) -> bool:
     """Re-solve *chain_db_obj*'s peg-board chain after its real 3D
     length changed (a ``BundleLayout``/``WireLayout`` marker was dragged
@@ -1372,6 +1872,17 @@ def realize_length_change(
     fresh for every chain the cascade touches, this one included, so
     there is nothing left for a caller to hand in.
 
+    :param in_progress: Passed straight through to :func:`_commit_points`
+        -- ``True`` while a gesture/drag is still open holds every
+        touched chain's own waypoint COUNT fixed (repositioning only,
+        via the in-memory overlay), so a caller that re-runs this every
+        frame (e.g. a point-bound callback firing on every move) never
+        creates/destroys a real ``WireLayout``/``BundleLayout`` object
+        on every single frame. ``False`` (the default -- every call
+        site that only ever runs once per real change, plus whatever
+        runs the drag's own very last frame) lets the waypoint count
+        finally catch up to whatever it actually needs.
+
     :returns: Whether the whole cascade this change triggers (if any)
         was feasible. ``False`` means something in it is infeasible
         even after every pull it allows -- a closed loop that doesn't
@@ -1381,19 +1892,27 @@ def realize_length_change(
         guessed at.
     """
     ptables = mainframe.project.ptables
-    start_xz, _stop_xz, _required_length = _anchors_and_length(chain_db_obj)
+    raw_start = chain_db_obj.start_position_pegboard
+    raw_start_xz = (float(raw_start.x), float(raw_start.z))
 
+    # The RAW anchor's own current position, not _anchors_and_length's
+    # EFFECTIVE one -- _evaluate_points' own main loop now derives the
+    # effective target from a raw-position delta (see its own comment),
+    # so a genuine no-move target has to be expressed in the same raw
+    # terms, or that delta math reads a nonzero "move" (the stub
+    # segment's own fixed offset) out of what should be a pure no-op.
     result = _evaluate_points(
-        ptables, [(chain_db_obj.start_position_pegboard_id, start_xz)], cascade=is_enabled())
+        ptables, [(chain_db_obj.start_position_pegboard_id, raw_start_xz)], cascade=is_enabled())
     if result is None:
         return False
 
-    _commit_points(mainframe, *result)
+    _commit_points(mainframe, *result, in_progress=in_progress)
     return True
 
 
 @_check_types.do
-def realize_3d_move(mainframe: "_ui.MainFrame", point3d_ids: list[bytes]) -> None:
+def realize_3d_move(
+        mainframe: "_ui.MainFrame", point3d_ids: list[bytes], in_progress: bool = False) -> None:
     """Call :func:`realize_length_change` for every bundle/wire whose
     own start or stop 3D point is one of *point3d_ids* -- the 3D-side
     counterpart of :func:`resolve_rigid_move` for every anchor
@@ -1420,14 +1939,89 @@ def realize_3d_move(mainframe: "_ui.MainFrame", point3d_ids: list[bytes]) -> Non
     resolved and committed before the next matched chain's own call
     even starts. A chain (or its cascade) that's infeasible is simply
     left alone while every other matched chain still updates.
+
+    :param in_progress: Passed straight through to every
+        :func:`realize_length_change` call -- see that function's own
+        comment.
     """
     ptables = mainframe.project.ptables
     ids = set(point3d_ids)
 
     for bundle_db_obj in ptables.pjt_bundles_table:
         if bundle_db_obj.start_position3d_id in ids or bundle_db_obj.stop_position3d_id in ids:
-            realize_length_change(mainframe, bundle_db_obj)
+            realize_length_change(mainframe, bundle_db_obj, in_progress=in_progress)
 
     for wire_db_obj in ptables.pjt_wires_table:
         if wire_db_obj.start_position3d_id in ids or wire_db_obj.stop_position3d_id in ids:
-            realize_length_change(mainframe, wire_db_obj)
+            realize_length_change(mainframe, wire_db_obj, in_progress=in_progress)
+
+
+@_check_types.do
+def finalize_drag(mainframe: "_ui.MainFrame") -> bool:
+    """The release-time commit of a drag: reconcile every chain still
+    holding an overlay one final time with ``in_progress=False`` -- see the
+    module docstring's "Waypoint add/remove deferred to mouse-up" section.
+    Called by ``objects.project.Project.end_gesture`` on the outermost
+    gesture close, so it covers every drag/rotate handler (peg-board, 3D
+    through the slack handler's own in-gesture reconciles, schematic).
+
+    Every frame before this one ran with ``in_progress=True``, which only
+    repositions each chain's in-memory overlay (:mod:`rope_pull.
+    offline_store`) and never touches its real route. Without this call the
+    overlay is never written: the database path keeps every waypoint the
+    drag gave up, each frozen at whatever position it last had and still in
+    the old order, interleaved with the live ones -- the wire reads back
+    (after a reload, or the moment anything else releases the overlay) as a
+    back-and-forth tangle. Confirmed from a live project snapshot,
+    2026-10-15: one wire's saved interior ran x = 29.8, 28.5, 14.8, 15.3
+    between two housings while its live overlay held a single bend.
+
+    Each overlay chain is committed on its own, with both of its anchors
+    "dragged" to exactly where they already are, so nothing moves -- this
+    only lets :func:`_commit_overlay` write the overlay and the waypoint
+    count settle on whatever the final position needs. Found from the
+    overlay store itself rather than from the dragged points: the cascade
+    (a far housing pulled along, and whatever else hangs off it) overlays
+    chains no dragged point touches. One chain that cannot be solved never
+    blocks the others.
+
+    :returns: Whether every overlay chain could be committed. A chain that
+        could not is left exactly as the last drag frame left it.
+    """
+    ptables = mainframe.project.ptables
+    points_table = ptables.pjt_points_pegboard_table
+
+    chains = (*ptables.pjt_wires_table, *ptables.pjt_bundles_table)
+    live_ids = {chain_db_obj.db_id for chain_db_obj in chains}
+    feasible = True
+
+    for chain_db_obj in chains:
+        # Re-checked per chain, not taken from a snapshot: committing one
+        # chain also commits any other overlay chain that shares an anchor
+        # with it (a terminal several wires plug into).
+        if _offline_store.overlay(chain_db_obj.db_id) is None:
+            continue
+
+        seeds: list[tuple[bytes, tuple[float, float]]] = []
+        for point_id in (chain_db_obj.start_position_pegboard_id, chain_db_obj.stop_position_pegboard_id):
+            if point_id is None:
+                continue
+
+            point = points_table[point_id].point
+            seeds.append((point_id, (float(point.x), float(point.z))))
+
+        result = _evaluate_points(ptables, seeds, cascade=is_enabled())
+        if result is None:
+            feasible = False
+            continue
+
+        _commit_points(mainframe, *result, in_progress=False)
+
+    # An overlay whose chain no longer exists (deleted mid-drag) has nothing
+    # to write -- just drop the dead state.
+    for chain_id in _offline_store.overlay_chain_ids():
+        if chain_id not in live_ids:
+            _offline_store.release_overlay(chain_id)
+            _offline_store.release(chain_id)
+
+    return feasible

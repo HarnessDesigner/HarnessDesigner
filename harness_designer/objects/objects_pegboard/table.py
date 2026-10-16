@@ -52,6 +52,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...ui.pegboard_table import mdi_host as _mdi_host
 from ... import color as _color
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -196,6 +197,7 @@ class _TableInteractionHandler:
 _TABLE_HANDLER = _TableInteractionHandler()
 
 
+@capturable()
 class Table(_base_pegboard.BasePegboard):
     """Peg Board Editor representation of a floating wire table -- not
     view-specific (the same table also exists in the 3D view, and
@@ -203,6 +205,14 @@ class Table(_base_pegboard.BasePegboard):
     BUNDLE_DESIGN.md section 2.7); this module holds the peg-board
     view's own implementation.
     """
+
+    __dump_schema__ = (
+        Attr('_anchor', severity=2),
+        Attr('_anchor_position', severity=2),
+        Attr('_anchor_is_visible', severity=2),
+        Attr('render_id', severity=1),
+        Attr('_texture_id', severity=1),
+    )
 
     db_obj: "_pjt_pegboard_table.PJTPegboardTable"
 

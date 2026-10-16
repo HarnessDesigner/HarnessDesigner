@@ -149,14 +149,20 @@ class WireTypeMixin:
         before ever falling back to this closest-point-on-the-raw-chain
         path.
 
-        :returns: (position, is_endpoint, endpoint_name).
+        :returns: (position, is_endpoint). When *is_endpoint* is True,
+            *position* IS this object's own actual ``start_position`` or
+            ``stop_position`` (the live Point, not a copy) -- compare it
+            with ``is`` against those two if the caller needs to know
+            which one, rather than a 'start'/'stop' label. When False,
+            *position* is just a plain value copy of an arbitrary point
+            along the wire/bundle, not identity-comparable to anything.
         """
         p1 = self.start_position.as_numpy
         p2 = self.stop_position.as_numpy
 
         closest_point, _seg_idx = self._point_on_wire(mouse_pos)
         if closest_point is None:
-            return _point.Point(*p1), False, None
+            return _point.Point(*p1), False
 
         dist_to_p1 = np.linalg.norm(closest_point - p1)
         dist_to_p2 = np.linalg.norm(closest_point - p2)
@@ -165,8 +171,8 @@ class WireTypeMixin:
         tolerance = max(wire_diameter, endpoint_tolerance)
 
         if dist_to_p1 < tolerance:
-            return _point.Point(*p1), True, 'start'
+            return self.start_position, True
         elif dist_to_p2 < tolerance:
-            return _point.Point(*p2), True, 'stop'
+            return self.stop_position, True
         else:
-            return _point.Point(*closest_point), False, None
+            return _point.Point(*closest_point), False

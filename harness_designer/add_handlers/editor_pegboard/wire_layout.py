@@ -38,13 +38,16 @@ _SNAP_THRESHOLD_MM = 5.0
 
 @_check_types.do
 def closest_point_on_chain(
-    wire_or_bundle: _Union["_wire.Wire", "_bundle.Bundle"], world_pos: np.ndarray
+    wire_or_bundle: _Union["_wire.Wire", "_bundle.Bundle"],
+    world_pos: np.ndarray
 ) -> tuple[np.ndarray, bool, str | None]:
+
     """Closest point on *wire_or_bundle*'s own pegboard chain
     (``objpegboard._segments()``) to *world_pos* -- returns
     ``(position, is_at_endpoint, endpoint)``, same shape as
     ``objects_3d.mixins.wire_type.WireTypeMixin.get_closest_endpoint``.
     """
+
     objpegboard = wire_or_bundle.objpegboard
     segments = objpegboard._segments()  # NOQA
 
@@ -82,8 +85,10 @@ def closest_point_on_chain(
 
 @_check_types.do
 def segment_insertion_index(
-    wire_or_bundle: _Union["_wire.Wire", "_bundle.Bundle"], world_pos: np.ndarray
+    wire_or_bundle: _Union["_wire.Wire", "_bundle.Bundle"],
+    world_pos: np.ndarray
 ) -> int:
+
     """Which sub-segment of *wire_or_bundle*'s own pegboard chain
     (``objpegboard._segments()``) *world_pos* falls closest to --
     equivalently, how many of its existing interior peg-board waypoints
@@ -94,6 +99,7 @@ def segment_insertion_index(
     so the insertion index has to come from this view's own geometry,
     not the 3D one.
     """
+
     objpegboard = wire_or_bundle.objpegboard
     segments = objpegboard._segments()  # NOQA
 
@@ -119,8 +125,12 @@ def segment_insertion_index(
 
 @_check_types.do
 def create_wire_layout_on_wire_pegboard(
-    project: "_project.Project", wire: "_wire.Wire", position: _point.Point, insert_idx: int
+    project: "_project.Project",
+    wire: "_wire.Wire",
+    position: _point.Point,
+    insert_idx: int
 ) -> "_wire_layout_facade.WireLayout":
+
     """Insert a new interior peg-board waypoint into *wire*'s own
     peg-board path at *position* and mark it with a WireLayout --
     peg-board equivalent of ``handlers.wire_layout_handler.
@@ -135,7 +145,9 @@ def create_wire_layout_on_wire_pegboard(
     only point, with no ``position3d``/``position2d`` counterpart at
     all.
     """
-    from ...objects import wire_layout as _wire_layout_facade  # NOQA -- avoid a cycle at import time
+
+    # avoid a cycle at import time
+    from ...objects import wire_layout as _wire_layout_facade  # NOQA
 
     ptables = project.ptables
 
@@ -145,7 +157,8 @@ def create_wire_layout_on_wire_pegboard(
     ptables.pjt_wire_paths_table.add(
         wire.db_obj.db_id, 'pegboard', insert_idx, pos_db.db_id)
 
-    db_obj = ptables.pjt_wire_layouts_table.insert(point_pegboard_id=pos_db.db_id)
+    db_obj = ptables.pjt_wire_layouts_table.insert(
+        point_pegboard_id=pos_db.db_id)
 
     layout_obj = _wire_layout_facade.WireLayout(project.mainframe, db_obj)
     project.add_wire_layout(layout_obj)
@@ -159,9 +172,9 @@ class WireLayout(_base.AddHandlerBase):
     """Interactive wire-waypoint placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", wire: "_wire.Wire"
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 wire: "_wire.Wire") -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -175,25 +188,30 @@ class WireLayout(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction,
-        clicked_object: _Union["_objects.ObjectBase", None]
-    ) -> bool:
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
+
         if self._finalized:
             return False
 
         if interaction_type is _interaction.MouseInteraction.CANCEL:
             self._finalized = True
             self.cancel()
+
             return True
 
         if interaction_type is _interaction.MouseInteraction.MOVE:
             self.hover(current_pos)
+
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize(current_pos)
+
             return True
 
         return False
@@ -201,6 +219,7 @@ class WireLayout(_base.AddHandlerBase):
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
         world_pos = self.camera.screen_to_world(mouse_pos)
+
         raw_pos, _is_at_endpoint, _endpoint = closest_point_on_chain(
             self._wire, world_pos.as_numpy)
 
@@ -222,11 +241,15 @@ class WireLayout(_base.AddHandlerBase):
 
         if is_at_endpoint:
             if endpoint == 'start':
-                self._wire.objpegboard.start_position.attach(self.target.objpegboard.position)
+                self._wire.objpegboard.start_position.attach(
+                    self.target.objpegboard.position)
             else:
-                self._wire.objpegboard.stop_position.attach(self.target.objpegboard.position)
+                self._wire.objpegboard.stop_position.attach(
+                    self.target.objpegboard.position)
 
-            self.target.db_obj.position_pegboard_id = self.target.objpegboard.position.db_id[:-2]
+            self.target.db_obj.position_pegboard_id = (
+                self.target.objpegboard.position.db_id[:-2])
+
             self.target.objpegboard.is_visible = True
             self.mainframe.project.add_wire_layout(self.target)
         else:

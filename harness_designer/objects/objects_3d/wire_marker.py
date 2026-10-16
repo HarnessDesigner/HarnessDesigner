@@ -19,6 +19,7 @@ from ... import config as _config
 from ... import color as _color
 from ... import logger as _logger
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -32,11 +33,20 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_3d
 
 
+@capturable()
 class WireMarker(_base_3d.Base3D):
     """Represent a wire marker in :mod:`harness_designer.objects.objects_3d.wire_marker`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_marker_length', severity=2),
+        Attr('_p1', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_percent', severity=2),
+    )
+
     parent: "_wire_marker.WireMarker" = None
     db_obj: "_pjt_wire_marker.PJTWireMarker" = None
 

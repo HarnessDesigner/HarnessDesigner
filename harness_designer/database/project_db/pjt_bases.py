@@ -6,12 +6,85 @@ from collections.abc import Callable, Generator as _Generator
 import weakref
 import threading
 import functools
+import pkgutil
+import importlib
 
 from ... import logger as _logger
 from ..common_db import callback as _callback
 from ... import check_types as _check_types
 from .. import id_generator as _id_generator
 from . import table_data as _table_data
+from ...crash_dump import Attr, capturable, dump_property
+
+
+_dependency_order_cache: list[str] | None = None
+
+
+def _schema_dependency_order() -> list[str]:
+    """Every ``create_database`` module's own SQL table name,
+    topologically sorted so a table always comes after every OTHER
+    table one of its own columns holds a foreign key into (parent
+    before child) -- the real insert-safe order, derived straight from
+    each table's own ``SQLField.references`` metadata.
+
+    :meth:`PJTTables._ordered_project_tables`'s own hand-picked list is
+    NOT a valid order for this -- confirmed by its own prior comment
+    (``PJTTableBase.batch_insert``'s docstring): ``pjt_bundles``
+    references ``pjt_points3d`` but is visited before it there. That
+    list still exists for :meth:`~PJTTables.load`'s own use (plain
+    reads, so ordering doesn't matter for correctness); this is the
+    one the gesture flush actually needs for real cross-table inserts.
+
+    Computed once and cached -- the schema is fixed for the process's
+    whole lifetime, and building it imports every module under
+    ``database.create_database`` (global and project tables alike;
+    whichever aren't project tables just never show up in a flush's own
+    dirty set, so including them here is harmless).
+    """
+    global _dependency_order_cache
+    if _dependency_order_cache is not None:
+        return _dependency_order_cache
+
+    from .. import create_database as _create_database
+
+    schema_tables = {}
+    for module_info in pkgutil.iter_modules(_create_database.__path__):
+        module = importlib.import_module(
+            f'{_create_database.__name__}.{module_info.name}')
+        pjt_table = getattr(module, 'pjt_table', None)
+        if pjt_table is not None:
+            schema_tables[pjt_table.name] = pjt_table
+
+    graph: dict[str, set[str]] = {}
+    for name, table in schema_tables.items():
+        deps = set()
+        for field in table.fields:
+            reference = getattr(field, 'references', None)
+            if reference is not None and reference.table.name != name:
+                deps.add(reference.table.name)
+        graph[name] = deps
+
+    ordered: list[str] = []
+    visited: set[str] = set()
+    visiting: set[str] = set()
+
+    def _visit(name: str) -> None:
+        if name in visited or name not in graph:
+            return
+        if name in visiting:
+            raise RuntimeError(f'circular foreign-key reference involving {name!r}')
+        visiting.add(name)
+        for dep in graph[name]:
+            _visit(dep)
+        visiting.discard(name)
+        visited.add(name)
+        ordered.append(name)
+
+    for name in graph:
+        _visit(name)
+
+    _dependency_order_cache = ordered
+    return ordered
 
 
 if TYPE_CHECKING:
@@ -166,6 +239,7 @@ class _PJTEntrySingleton(type):
             return instance
 
 
+@capturable(severity=2)
 class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
     """Represent a PJT entry base in :mod:`harness_designer.database.project_db.pjt_bases`.
 
@@ -192,6 +266,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         _callback.CallbackMixin.__init__(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def project_id(self) -> int:
         """Return the owning project's id.
@@ -294,6 +369,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
     _selected: bool = False
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def selected(self) -> bool:
         """Return the selected.
@@ -318,6 +394,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         self._selected = flag
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def db_id(self) -> int | bytes:
         """Return the database ID.
@@ -330,6 +407,7 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
         return self._db_id
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def table(self) -> "PJTTableBase":
         """Return the table.
@@ -356,11 +434,14 @@ class PJTEntryBase(_callback.CallbackMixin, metaclass=_PJTEntrySingleton):
                 del self.__class__._instances[key]  # NOQA
 
 
+@capturable(severity=1)
 class PJTTableBase:
     """Represent a PJT table base in :mod:`harness_designer.database.project_db.pjt_bases`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (Attr('_cache', severity=1),)
+
     __table_name__: str = None
 
     # True for every migrated pjt_* table (client-generated UUID row ids).
@@ -621,22 +702,52 @@ class PJTTableBase:
             or a plain ``int`` for ``ProjectsTable`` (still AUTO_INCREMENT).
         :rtype: int | bytes
         """
-        cache = None
-        fields = []
-        values = []
-        args = []
-        new_id = None
-
         if self.__uses_uuid_id__:
             cache = self._require_cache()
             new_id = _id_generator.generate_project_row_id(self._con, self.project_id)
-            fields.append('id')
-            values.append('?')
-            args.append(new_id.bytes)
 
-        # There is no real project_id column -- see _project_id_bounds()
-        # for why -- so project_id is never inserted directly; it's only
-        # ever read back out of the leading bytes of id.
+            # A gesture (drag/rotate in progress -- WRITE_DESIGN.md
+            # section 4.12) defers this into the cache instead of
+            # touching the database, same as update()/batch_update()
+            # already do. Safe here (unlike a plain AUTO_INCREMENT
+            # table) because the row's own id is already fully known --
+            # generated in Python, never read back from the database --
+            # and every insert() override in this codebase already
+            # supplies every column explicitly (confirmed 2026-10-13: no
+            # caller relies on a schema-level DEFAULT for a column it
+            # silently omits, so there is nothing left for a real INSERT
+            # to discover that kwargs doesn't already have). The
+            # outermost end_gesture() flushes everything that
+            # accumulated in one transaction.
+            if self.db.gesture_depth > 0:
+                cache.insert(id=new_id.bytes, **kwargs)
+                return new_id.bytes
+
+            fields = ['id'] + list(kwargs.keys())
+            values = ['?'] * len(fields)
+            args = [new_id.bytes] + list(kwargs.values())
+
+            fields_sql = ', '.join(fields)
+            values_sql = ', '.join(values)
+            self._con.execute(
+                f'INSERT INTO {self.__table_name__} ({fields_sql}) VALUES ({values_sql});', args)
+            self._con.commit()
+
+            # Read the row back rather than assembling it from kwargs, since
+            # kwargs can omit columns that the database fills with a default.
+            self._con.execute(
+                f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id = ?;',
+                (new_id.bytes,))
+            row = self._con.fetchall()[0]
+            cache.mirror_insert(**dict(zip(self.field_names, row)))
+            return new_id.bytes
+
+        # ProjectsTable only -- no cache, never gesture-deferred, still
+        # AUTO_INCREMENT (there is no real project_id column for it to
+        # scope a Python-generated id against -- see _project_id_bounds()).
+        fields = []
+        values = []
+        args = []
 
         for key, value in kwargs.items():
             fields.append(key)
@@ -647,16 +758,6 @@ class PJTTableBase:
         values = ', '.join(values)
         self._con.execute(f'INSERT INTO {self.__table_name__} ({fields}) VALUES ({values});', args)
         self._con.commit()
-
-        if self.__uses_uuid_id__:
-            # Read the row back rather than assembling it from kwargs, since
-            # kwargs can omit columns that the database fills with a default.
-            self._con.execute(
-                f'SELECT {", ".join(self.field_names)} FROM {self.__table_name__} WHERE id = ?;',
-                (new_id.bytes,))
-            row = self._con.fetchall()[0]
-            cache.mirror_insert(**dict(zip(self.field_names, row)))
-            return new_id.bytes
 
         return self._con.lastrowid
 
@@ -728,6 +829,16 @@ class PJTTableBase:
         :type db_id: int | bytes
         """
         cache = self._require_cache() if self.__uses_uuid_id__ else None
+
+        # A gesture defers this into the cache instead of touching the
+        # database, same as insert()/update() -- see insert()'s own
+        # comment on why that's safe here. The row is marked for deletion
+        # now (so anything that reads this table during the same gesture
+        # sees it gone -- WRITE_DESIGN.md section 4.5a); the outermost
+        # end_gesture() flushes the real DELETE in one transaction.
+        if cache is not None and self.db.gesture_depth > 0:
+            cache.delete(db_id)
+            return
 
         self._con.execute(f'DELETE FROM {self.__table_name__} WHERE id = ?;',
                           (db_id,))
@@ -1222,6 +1333,13 @@ class PJTTables:
         # accumulated in one transaction.
         self._gesture_depth = 0
 
+        # This instance's own fixed table SET never changes after this
+        # __init__ returns, so the real insert-safe ordering of them
+        # (see _insert_safe_project_tables) is computed once, lazily, on
+        # the first gesture flush, and reused for this PJTTables' whole
+        # lifetime -- never rebuilt per flush.
+        self._insert_order_cache: list["PJTTableBase"] | None = None
+
     @property
     @_check_types.do
     def tables(self) -> list[PJTTableBase]:
@@ -1329,6 +1447,41 @@ class PJTTables:
             self._pjt_points_pegboard_table, self._pjt_pegboard_tables_table,
         ]
 
+    @_check_types.do
+    def _insert_safe_project_tables(self) -> list[PJTTableBase]:
+        """Every project table this :class:`PJTTables` holds, ordered so
+        a table's own row can always be inserted before anything that
+        references it -- the real dependency order from
+        :func:`_schema_dependency_order`, not
+        :meth:`_ordered_project_tables`'s own hand-picked list.
+
+        Computed once and cached on ``self`` -- this instance's own
+        table set is fixed for its whole lifetime (built once in
+        ``__init__``), so there is nothing here that could ever change
+        between flushes; a fresh project load gets its own new
+        ``PJTTables`` (and so its own fresh cache) regardless.
+
+        :returns: Every project table, in true parent-before-child order.
+        :rtype: list[PJTTableBase]
+        """
+        if self._insert_order_cache is not None:
+            return self._insert_order_cache
+
+        by_name = {
+            table.__table_name__: table for table in self._ordered_project_tables()
+            if table is not None}
+        order = _schema_dependency_order()
+
+        ordered = [by_name[name] for name in order if name in by_name]
+
+        # Anything this PJTTables holds that the schema scan somehow
+        # missed still gets flushed, just appended rather than dropped.
+        ordered_set = set(ordered)
+        ordered.extend(table for table in by_name.values() if table not in ordered_set)
+
+        self._insert_order_cache = ordered
+        return ordered
+
     @property
     @_check_types.do
     def gesture_depth(self) -> int:
@@ -1383,11 +1536,16 @@ class PJTTables:
         :meth:`end_gesture` on the outermost close.
 
         Deletes run before inserts (children before the parents they
-        reference go away), inserts run before updates (a row's own insert
-        must exist before anything can update it -- though in today's
-        scope, section 4.12, only ``update``/``batch_update`` ever defer, so
-        this table is usually empty), and tables are visited in
-        :meth:`_ordered_project_tables` order within each phase.
+        reference go away), inserts run before updates (a row's own
+        insert must exist before anything can update it -- now a real
+        case, not just a defensive one, since ``insert()`` defers too --
+        see its own comment). Both the delete and insert phases visit
+        tables in :meth:`_insert_safe_project_tables`'s own real
+        dependency order (reversed for delete) -- NOT
+        :meth:`_ordered_project_tables`'s hand-picked one, which is not
+        a valid insert order in general. The update phase's own order
+        never mattered either way (a plain ``UPDATE`` never depends on
+        another table's row existing).
         """
         tables = [table for table in self._ordered_project_tables() if table is not None]
         dirty = [table for table in tables if table._cache is not None and table._cache.is_dirty]
@@ -1395,13 +1553,16 @@ class PJTTables:
         if not dirty:
             return
 
-        for table in reversed(dirty):
+        dirty_set = set(dirty)
+        insert_order = [table for table in self._insert_safe_project_tables() if table in dirty_set]
+
+        for table in reversed(insert_order):
             statement = table._cache.delete_statement()
             if statement is not None:
                 sql, rows = statement
                 self.connector.executemany(sql, rows)
 
-        for table in dirty:
+        for table in insert_order:
             statement = table._cache.insert_statement()
             if statement is not None:
                 sql, rows = statement

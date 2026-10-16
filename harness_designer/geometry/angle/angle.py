@@ -16,6 +16,7 @@ from .. import point as _point
 from ..decimal import Decimal as _d
 from ... import app_mixins as _app_mixins
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -90,6 +91,7 @@ class AngleMeta(type):
         return instance
 
 
+@capturable(severity=2)
 class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
     """Represent an orientation using quaternion and Euler-angle forms."""
 
@@ -733,6 +735,7 @@ class Angle(_app_mixins.CallbackMixin, metaclass=AngleMeta):
         return self.__euler_angles
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def as_euler_float(self) -> tuple[float, float, float]:
         """

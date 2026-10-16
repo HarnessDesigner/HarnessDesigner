@@ -20,6 +20,7 @@ from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -44,11 +45,20 @@ _BASE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')
 _GENERIC_MODEL_PATH = os.path.join(_BASE_PATH, 'models')
 
 
+@capturable()
 class Terminal(_base_3d.Base3D):
     """Represent a terminal in :mod:`harness_designer.objects.objects_3d.terminal`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_overlay_cavity_id', severity=2),
+        Attr('_overlay_cavity_obj', severity=2),
+        Attr('_overlay_wire_surf_idx', severity=2),
+        Attr('_overlay_pin_surf_idx', severity=2),
+    )
+
     parent: "_terminal.Terminal" = None
     db_obj: "_pjt_terminal.PJTTerminal" = None
 
@@ -603,10 +613,18 @@ class Terminal(_base_3d.Base3D):
     @classmethod
     @_check_types.do
     def add_at_wire_end(
-        cls, mainframe: "_ui.MainFrame", wire: "_wire.Wire", end: str
+        cls, mainframe: "_ui.MainFrame", wire: "_wire.Wire", end_point: _point.Point
     ) -> _Union["_terminal.Terminal", None]:
         """Crimp a new terminal, not seated in any cavity, onto the free
-        (dangling) *end* ('start' or 'stop') of *wire*.
+        (dangling) end of *wire* identified by *end_point* -- the actual
+        ``Point`` the caller picked (``pick_free_end``'s own result, in
+        whichever view the user interacted with), not a 'start'/'stop'
+        label. Since this method itself has to act across all three of
+        the wire's views at once (unlike a single-view caller), which
+        logical end that is gets resolved once, by comparing *end_point*
+        against the wire's own 3D/peg-board start points directly --
+        exactly one can ever match, regardless of which view the caller's
+        point came from.
 
         The terminal's back (wire-side) face center lands on the wire's end
         in both the 3D and peg-board views, its front facing away along the
@@ -617,10 +635,10 @@ class Terminal(_base_3d.Base3D):
         """
         from ...handlers import terminal_handler as _terminal_handler
 
-        if end == 'start':
-            sibling = wire.start_sibling
-        else:
-            sibling = wire.stop_sibling
+        wire_db = wire.db_obj
+        is_start = end_point is wire_db.start_position3d or end_point is wire_db.start_position_pegboard
+
+        sibling = wire.start_sibling if is_start else wire.stop_sibling
 
         if sibling is not None:
             return None
@@ -629,27 +647,25 @@ class Terminal(_base_3d.Base3D):
         if part is None:
             return None
 
-        wire_db = wire.db_obj
-
         def _end_and_direction(
             waypoints: list, start_point: _point.Point, stop_point: _point.Point
         ) -> tuple[_point.Point, tuple[float, float, float]]:
-            if end == 'start':
-                end_point = start_point
+            if is_start:
+                this_end = start_point
 
                 if waypoints:
                     neighbor = waypoints[0].point
                 else:
                     neighbor = stop_point
             else:
-                end_point = stop_point
+                this_end = stop_point
 
                 if waypoints:
                     neighbor = waypoints[-1].point
                 else:
                     neighbor = start_point
 
-            return end_point, _terminal_handler.free_end_direction(end_point, neighbor)
+            return this_end, _terminal_handler.free_end_direction(this_end, neighbor)
 
         end3d, direction3d = _end_and_direction(
             wire_db.waypoints3d, wire_db.start_position3d, wire_db.stop_position3d)
@@ -663,10 +679,7 @@ class Terminal(_base_3d.Base3D):
 
         # The ring goes where the wire already ends in the schematic, so its
         # wire attach point matches the wire's end for reconnect_free_wires.
-        if end == 'start':
-            end2d = wire_db.start_position2d
-        else:
-            end2d = wire_db.stop_position2d
+        end2d = wire_db.start_position2d if is_start else wire_db.stop_position2d
 
         return cls._create_free(
             mainframe, part, direction3d, direction_pegboard, _place, end2d.as_float)

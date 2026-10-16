@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 class PJTPoints2DTable(PJTTableBase):
@@ -110,6 +111,7 @@ class PJTPoints2DTable(PJTTableBase):
         return PJTPoint2D(self, db_id)
 
 
+@capturable()
 class PJTPoint2D(PJTEntryBase):
     """Represent a PJT point 2D in :mod:`harness_designer.database.project_db.pjt_point2d`.
 
@@ -132,6 +134,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def x(self) -> float:
         """Return the x.
@@ -162,6 +165,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_y: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def y(self) -> float:
         """Return the y.
@@ -192,6 +196,7 @@ class PJTPoint2D(PJTEntryBase):
     _stored_z: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def z(self) -> float:
         """Return the z.

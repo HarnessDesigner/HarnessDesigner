@@ -5,6 +5,7 @@ from typing import Iterable as _Iterable
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 class PJTPoints3DTable(PJTTableBase):
@@ -98,6 +99,7 @@ class PJTPoints3DTable(PJTTableBase):
         return PJTPoint3D(self, db_id)
 
 
+@capturable()
 class PJTPoint3D(PJTEntryBase):
     """ORM entry for a single row in ``pjt_points3d``, with a reactive geometry Point.
 
@@ -194,6 +196,7 @@ class PJTPoint3D(PJTEntryBase):
     _stored_x: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def x(self) -> float:
         """Return the x.
@@ -224,6 +227,7 @@ class PJTPoint3D(PJTEntryBase):
     _stored_y: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def y(self) -> float:
         """Return the y.
@@ -254,6 +258,7 @@ class PJTPoint3D(PJTEntryBase):
     _stored_z: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def z(self) -> float:
         """Return the z.
@@ -332,6 +337,7 @@ class PJTPoint3D(PJTEntryBase):
     _stored_parent_point_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def parent_point_id(self) -> bytes | None:
         """Return the id of the "real"/canonical point this one was cloned

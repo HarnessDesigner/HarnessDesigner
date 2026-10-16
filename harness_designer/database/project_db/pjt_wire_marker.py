@@ -22,6 +22,7 @@ from .mixins import (
     SmoothMixin, SmoothControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -163,6 +164,7 @@ class PJTWireMarkersTable(PJTTableBase):
         return PJTWireMarker(self, db_id)
 
 
+@capturable()
 class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegboardMixin,
                     VisiblePegboardMixin, PartMixin,
                     Visible3DMixin, Visible2DMixin, NameMixin, NotesMixin, SmoothMixin):
@@ -225,6 +227,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def wire(self) -> "_pjt_wire.PJTWire":
         """Return the wire.
@@ -269,6 +272,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
     _stored_part: _wire_marker.WireMarker | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _wire_marker.WireMarker:
         """Return the part.
@@ -292,6 +296,7 @@ class PJTWireMarker(PJTEntryBase, Position2DMixin, Position3DMixin, PositionPegb
         return self._stored_part
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def label(self) -> str:
         """Return the label.

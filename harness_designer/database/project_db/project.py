@@ -8,6 +8,7 @@ import numpy as np
 from .pjt_bases import PJTEntryBase, PJTTableBase, DefaultStoredValue, DefaultStoredValueType
 from .mixins import ColorMixin
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 if TYPE_CHECKING:
     from ...objects import project as _project_obj
@@ -166,6 +167,7 @@ class ProjectsTable(PJTTableBase):
         return Project(self, db_id)
 
 
+@capturable()
 class Project(PJTEntryBase, ColorMixin):
     """Represent a project in :mod:`harness_designer.database.project_db.project`.
 
@@ -223,6 +225,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_name: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def name(self) -> str:
         """Return the name.
@@ -253,6 +256,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_description: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def description(self) -> str:
         """Return the description.
@@ -283,6 +287,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_creator: str | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def creator(self) -> str:
         """Return the creator.
@@ -313,6 +318,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_wire_stripe_max_length: float | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def wire_stripe_max_length(self) -> float:
         """Length (mm) the shared wire-stripe helix VBO is currently built
@@ -333,6 +339,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_model_id: bytes | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def model_id(self) -> bytes | None:
         if self._stored_model_id is DefaultStoredValue:
@@ -351,6 +358,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_model: _Union["_model3d.Model3D", None, DefaultStoredValueType] = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def model(self) -> "_model3d.Model3D":
         if self._stored_model is DefaultStoredValue:
@@ -371,6 +379,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_bounds_3d: list[list[float]] | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def bounds_3d(self) -> list[list[float]] | None:
         if self._stored_bounds_3d is DefaultStoredValue:
@@ -389,6 +398,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_bounds_schematic: list[list[float]] | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def bounds_schematic(self) -> list[list[float]] | None:
         if self._stored_bounds_schematic is DefaultStoredValue:
@@ -407,6 +417,7 @@ class Project(PJTEntryBase, ColorMixin):
     _stored_bounds_pegboard: list[list[float]] | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def bounds_pegboard(self) -> list[list[float]] | None:
         if self._stored_bounds_pegboard is DefaultStoredValue:

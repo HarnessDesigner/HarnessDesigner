@@ -19,6 +19,7 @@ from ... import utils as _utils
 from ... import logger as _logger
 from ... import check_types as _check_types
 from ... import config as _config
+from ...crash_dump import Attr, capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -660,6 +661,7 @@ class _PegBody:
                 material.set(shaders)
 
 
+@capturable()
 class Transition(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a transition -- own independent
@@ -684,6 +686,11 @@ class Transition(_base_pegboard.BasePegboard):
     peg-board's own rotation control only ever writes Y (never X), so
     this default is never overwritten once set.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+    )
+
     db_obj: "_pjt_transition.PJTTransition"
 
     @_check_types.do
@@ -761,6 +768,7 @@ class Transition(_base_pegboard.BasePegboard):
             self._body.write_tips_to_db(force=True)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def branches(self) -> list:
         """See ``objects_3d.transition.Transition.branches``'s own

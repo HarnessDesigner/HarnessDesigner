@@ -214,6 +214,26 @@ class Bundle(_editor_pegboard.DragHandlerPegboard):
         self._last_x = float(world_pos.x)
         self._last_z = float(world_pos.z)
 
+        # Open the move gesture for this drag's whole lifetime -- see
+        # drag_handlers.editor_pegboard.generic.Generic.__init__ for the
+        # same hook and WRITE_DESIGN.md section 4.12. Closed in delete()
+        # below. Without this, every point this drag moves hits the
+        # database immediately and individually on every frame instead
+        # of deferring into the gesture's own batched flush -- confirmed
+        # live, 2026-10-12: this class never opened a gesture at all.
+        canvas.mainframe.project.begin_gesture()
+
+    @_check_types.do
+    def delete(self) -> None:
+        try:
+            super().delete()
+        finally:
+            # Close the gesture opened in __init__ -- see that method's
+            # comment. Must run even if super().delete() raises, or the
+            # gesture would silently stay open and defer every later
+            # write app-wide until something else closes it.
+            self.canvas.mainframe.project.end_gesture()
+
     @staticmethod
     @_check_types.do
     def _max_scale_within_budget(px: float, pz: float, dx: float, dz: float,

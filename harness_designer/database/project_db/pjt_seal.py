@@ -25,6 +25,7 @@ from .mixins import (
     ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -172,6 +173,7 @@ class PJTSealsTable(PJTTableBase):
         return seal
 
 
+@capturable()
 class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin,
               AnglePegboardMixin, VisiblePegboardMixin, NotesMixin, Scale3DMixin,
               ScalePegboardMixin, PartMixin, HousingMixin, Visible3DMixin, NameMixin,
@@ -248,6 +250,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
     _stored_part: _seal.Seal | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _seal.Seal:
         """Return the part.
@@ -272,6 +275,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
         return self._stored_part
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def terminal(self) -> "_pjt_terminal.PJTTerminal":
         """Return the terminal.
@@ -313,6 +317,7 @@ class PJTSeal(PJTEntryBase, Angle3DMixin, Position3DMixin, PositionPegboardMixin
     _stored_cavity: "_pjt_cavity.PJTCavity" = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cavity(self) -> "_pjt_cavity.PJTCavity":
         """Return the cavity.

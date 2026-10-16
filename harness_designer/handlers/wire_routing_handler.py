@@ -106,6 +106,7 @@ from .. import config as _config
 from .. import check_types as _check_types
 from . import wire_topology as _wire_topology
 from ..objects import terminal as _terminal_obj
+from ..objects import wire_layout as _wire_layout_obj
 
 
 if TYPE_CHECKING:
@@ -151,16 +152,6 @@ def _points_table(ptables: "_ProjectTables", view: str) -> _Union["_pjt_point3d.
 
 
 @_check_types.do
-def _bundle_end_point_id(bundle: "_PJTBundle", end: str, view: str) -> bytes:
-    """*bundle*'s own start/stop point id for *view*."""
-    check_view(view)
-    if view == '3d':
-        return bundle.start_position3d_id if end == 'start' else bundle.stop_position3d_id
-
-    return bundle.start_position_pegboard_id if end == 'start' else bundle.stop_position_pegboard_id
-
-
-@_check_types.do
 def _branch_point_id(branch: "_PJTTransitionBranch", view: str) -> bytes:
     """*branch*'s own position point id for *view*."""
     check_view(view)
@@ -188,17 +179,14 @@ class EnterBundle:
     """Entry terminus: a bundle's own free end.
 
     :param bundle: The bundle being entered.
-    :param end: Which of the bundle's own ends is free and being entered,
-        ``'start'`` or ``'stop'``.
+    :param point: The actual ``Point`` of whichever of the bundle's own
+        ends is free and being entered -- not a 'start'/'stop' label.
     """
 
     @_check_types.do
-    def __init__(self, bundle: "_PJTBundle", end: str) -> None:
-        if end not in ('start', 'stop'):
-            raise ValueError("end must be 'start' or 'stop'")
-
+    def __init__(self, bundle: "_PJTBundle", point: _Point) -> None:
         self.bundle = bundle
-        self.end = end
+        self.point = point
 
 
 class EnterBranch:
@@ -277,35 +265,212 @@ def _centroid(points: list[_Point]) -> np.ndarray:
 
 
 @_check_types.do
-def compute_guard_position(bundle_end: _Point, group_center: np.ndarray, diameter: float) -> _Point:
-    """A guard's position: along the line from *group_center* to
-    *bundle_end*, at :func:`guard_distance` (*diameter*) from the end --
-    BUNDLE_PLACEMENT.md 2.7's own guard-placement rule. View-independent:
-    *bundle_end*/*group_center* are already whichever view's own
-    coordinates the caller resolved.
+def _bundle_end_direction(bundle: "_PJTBundle", end_point: _Point, view: str) -> np.ndarray:
+    """The unit vector pointing OUTWARD from *bundle*'s own end
+    (*end_point*, the actual Point -- not a 'start'/'stop' label),
+    continuing the direction of its own last section there -- the
+    direction a wire guard's stub should travel in, per BUNDLE_PLACEMENT.md
+    section 12's 2026-10-10 fix ("the stub should travel in the same
+    direction the bundle is", superseding the group-center-based guard
+    direction below for the bundle-end case specifically).
 
-    *group_center* is a plain world-space vector (not a live ``Point``):
-    this is a one-shot placement, not a thing the guard stays bound to
-    (see this module's own docstring, gap 4) -- so there is nothing to
-    hold a reference to.
+    The "last section" is the one between *end_point* and whichever point
+    sits next to it: the nearest interior waypoint if the bundle has any
+    at that end, else the bundle's OTHER end (a bundle with no waypoints
+    at all is just the one straight section between its two ends).
     """
-    end_pos = bundle_end.as_numpy
-    direction = group_center - end_pos
+    check_view(view)
+
+    start_point = bundle.start_position3d if view == '3d' else bundle.start_position_pegboard
+
+    if end_point is start_point:
+        other_point = bundle.stop_position3d if view == '3d' else bundle.stop_position_pegboard
+        waypoints = bundle.waypoints3d if view == '3d' else bundle.waypoints_pegboard
+        adjacent = waypoints[0].point if waypoints else other_point
+    else:
+        other_point = start_point
+        waypoints = bundle.waypoints3d if view == '3d' else bundle.waypoints_pegboard
+        adjacent = waypoints[-1].point if waypoints else other_point
+
+    direction = end_point.as_numpy - adjacent.as_numpy
     length = float(np.linalg.norm(direction))
 
     if length < 1e-9:
-        # Degenerate: the group's center coincides with the bundle end
-        # itself (not expected in the normal single-wire case -- see the
-        # module docstring's gap 1 -- but guarded rather than dividing by
-        # zero). Falls back to an arbitrary horizontal direction so the
-        # guard still lands somewhere sane instead of raising.
-        direction = np.array([1.0, 0.0, 0.0])
-        length = 1.0
+        # Degenerate: the end coincides with its own adjacent point (a
+        # zero-length bundle/section -- not expected, but guarded rather
+        # than dividing by zero).
+        return np.array([1.0, 0.0, 0.0])
+
+    return direction / length
+
+
+@_check_types.do
+def compute_guard_position(
+    bundle_end: _Point, group_center: np.ndarray, diameter: float,
+    direction_override: np.ndarray | None = None,
+) -> _Point:
+    """A guard's position, :func:`guard_distance` (*diameter*) out from
+    *bundle_end*.
+
+    When *direction_override* is given (the bundle's own outward end
+    tangent -- see :func:`_bundle_end_direction`), the guard continues
+    straight out along it, so the stub leaving the bundle/branch travels
+    in the SAME direction the bundle itself does there, before anything
+    about the wire's own remaining path comes into play.
+
+    Otherwise (no bundle at this terminus -- a bare free branch, which
+    has no "bundle direction" of its own) falls back to
+    BUNDLE_PLACEMENT.md 2.7's original rule: along the line from
+    *group_center* to *bundle_end*. *group_center* is a plain world-space
+    vector (not a live ``Point``): this is a one-shot placement, not a
+    thing the guard stays bound to (see this module's own docstring, gap
+    4) -- so there is nothing to hold a reference to.
+    """
+    end_pos = bundle_end.as_numpy
+
+    if direction_override is not None:
+        length = float(np.linalg.norm(direction_override))
+        direction = direction_override if length >= 1e-9 else None
+    else:
+        direction = None
+
+    if direction is None:
+        direction = group_center - end_pos
+        length = float(np.linalg.norm(direction))
+
+        if length < 1e-9:
+            # Degenerate: the group's center coincides with the bundle end
+            # itself (not expected in the normal single-wire case -- see
+            # the module docstring's gap 1 -- but guarded rather than
+            # dividing by zero). Falls back to an arbitrary horizontal
+            # direction so the guard still lands somewhere sane instead of
+            # raising.
+            direction = np.array([1.0, 0.0, 0.0])
+            length = 1.0
 
     unit = direction / length
     guard_pos = end_pos + unit * guard_distance(diameter)
 
     return _Point(float(guard_pos[0]), float(guard_pos[1]), float(guard_pos[2]))
+
+
+@_check_types.do
+def guard_points_at(ptables: "_ProjectTables", view: str, point_id: bytes) -> list[bytes]:
+    """Every guard point sitting immediately next to *point_id* (usually
+    a bundle's own start/stop point -- what actually moved) in some
+    wire's route for *view*, de-duplicated.
+
+    No schema marker is needed for this (user, 2026-10-10): a guard is
+    simply whichever route point is next to *point_id*, one index up or
+    down, that is NOT itself part of a bundle's own span (no ``bundle_id``
+    tag -- which also rules out *point_id* being an ordinary interior
+    bundle waypoint rather than a true end, and rules out the OTHER
+    direction's neighbor when *point_id* is the first/last point of a
+    wire's own route). This is only ever run once per drag, not per
+    frame of anything else, so a plain per-wire scan is fine -- no
+    caching, no stored "is this a guard" flag.
+
+    Callers move each returned point by the same delta they just moved
+    *point_id* by -- the whole of BUNDLE_PLACEMENT.md section 12's "only
+    movable when the bundle moves" rule.
+    """
+    paths_table = ptables.pjt_wire_paths_table
+    guard_ids: list[bytes] = []
+    seen: set = set()
+
+    for wire_id in paths_table.wire_ids_for_point(view, point_id):
+        ordered = paths_table.for_wire(wire_id, view)
+        point_ids = [row.point_id for row in ordered]
+
+        try:
+            idx = point_ids.index(point_id)
+        except ValueError:
+            continue
+
+        for neighbor_idx in (idx - 1, idx + 1):
+            if neighbor_idx < 0 or neighbor_idx >= len(ordered):
+                continue
+
+            neighbor_row = ordered[neighbor_idx]
+            if neighbor_row.bundle_id is not None:
+                continue  # still inside a bundle's own span -- not a guard
+
+            if neighbor_row.point_id not in seen:
+                seen.add(neighbor_row.point_id)
+                guard_ids.append(neighbor_row.point_id)
+
+    return guard_ids
+
+
+@_check_types.do
+def is_guard_point(ptables: "_ProjectTables", view: str, point_id: bytes) -> bool:
+    """Whether *point_id* is itself a guard waypoint in some wire's
+    route for *view* -- the direct lock check for a ``WireLayout``'s own
+    ``can_drag()`` (BUNDLE_PLACEMENT.md section 12: a guard cannot be
+    dragged directly). Mirrors :func:`guard_points_at`'s own neighbor
+    check from the other point's side: *point_id* carries no ``bundle_id``
+    tag of its own, but sits immediately next to a point that does, in
+    the same wire's route.
+    """
+    paths_table = ptables.pjt_wire_paths_table
+
+    for wire_id in paths_table.wire_ids_for_point(view, point_id):
+        ordered = paths_table.for_wire(wire_id, view)
+        point_ids = [row.point_id for row in ordered]
+
+        try:
+            idx = point_ids.index(point_id)
+        except ValueError:
+            continue
+
+        if ordered[idx].bundle_id is not None:
+            continue  # part of a bundle's own span itself, not a guard
+
+        for neighbor_idx in (idx - 1, idx + 1):
+            if 0 <= neighbor_idx < len(ordered) and ordered[neighbor_idx].bundle_id is not None:
+                return True
+
+    return False
+
+
+@_check_types.do
+def reposition_guards_for_bundle_end(ptables: "_ProjectTables", bundle: "_PJTBundle", end_position: _Point, view: str) -> None:
+    """Move every guard at *bundle*'s own end (*end_position*, the actual
+    Point -- not a 'start'/'stop' label) to where it belongs NOW -- call
+    whenever something changes the bundle's SHAPE near that end (the end
+    itself moved independently of the rest of the bundle -- an attached
+    transition was dragged -- or the bundle's own nearest waypoint there
+    moved), not just its position: a plain rigid translation of the whole
+    bundle (``drag_handlers.editor_3d.bundle.Bundle``'s own whole-body
+    drag) keeps every direction unchanged and needs no recompute, only a
+    matching delta -- this is for every OTHER case, where the end's own
+    outward tangent (:func:`_bundle_end_direction`) can have changed too,
+    not just its position.
+
+    Safe (and cheap enough -- user, 2026-10-10: "not something where the
+    calculation gets done over and over again") to call unconditionally
+    on every drag frame that could matter; a no-op when *end_position* has
+    no guards at all.
+    """
+    check_view(view)
+
+    if view == '3d':
+        start_id, stop_id = bundle.start_position3d_id, bundle.stop_position3d_id
+    else:
+        start_id, stop_id = bundle.start_position_pegboard_id, bundle.stop_position_pegboard_id
+
+    start_point = bundle.start_position3d if view == '3d' else bundle.start_position_pegboard
+    end_point_id = start_id if end_position is start_point else stop_id
+
+    direction = _bundle_end_direction(bundle, end_position, view)
+    diameter = float(bundle.diameter)
+    points_table = _points_table(ptables, view)
+
+    for guard_id in guard_points_at(ptables, view, end_point_id):
+        guard_point = points_table[guard_id].point
+        target = compute_guard_position(end_position, np.zeros(3), diameter, direction)
+        delta = target.as_numpy - guard_point.as_numpy
+        guard_point += _Point(float(delta[0]), float(delta[1]), float(delta[2]))
 
 
 @_check_types.do
@@ -452,16 +617,23 @@ class RouteWalk:
         self._point_tags: dict[bytes, dict] = {}
         self._ordered: list[bytes] = []
         self._bundle = None
-        self._current_end = None
+        self._current_point: _Union[_Point, None] = None
         self._branch = None
         self._exit_diameter = None
+        # (bundle, point) when the entry/exit terminus is a bundle's own
+        # end -- None for a bare branch or a splice, which have no
+        # "bundle direction" of their own. Drives the guard's direction
+        # (bundle's own outward tangent, see _bundle_end_direction) and
+        # its guard_bundle_id/guard_end tags, set in _commit_route.
+        self._entry_bundle_end: _Union[tuple["_PJTBundle", _Point], None] = None
+        self._exit_bundle_end: _Union[tuple["_PJTBundle", _Point], None] = None
         self._finished = False
 
         if isinstance(entry, EnterBundle):
             self._bundle = entry.bundle
-            self._current_end = entry.end
-            entry_point_id = _bundle_end_point_id(self._bundle, self._current_end, view)
-            self._add(entry_point_id, bundle_id=self._bundle.db_id)
+            self._current_point = entry.point
+            self._entry_bundle_end = (self._bundle, self._current_point)
+            self._add(self._current_point.db_id, bundle_id=self._bundle.db_id)
         elif isinstance(entry, EnterBranch):
             self._branch = entry.branch
             self._add(
@@ -488,20 +660,24 @@ class RouteWalk:
         """
         if self._bundle is not None:
             bundle = self._bundle
+            start_point = bundle.start_position3d if self._view == '3d' else bundle.start_position_pegboard
+            stop_point = bundle.stop_position3d if self._view == '3d' else bundle.stop_position_pegboard
+
             waypoint_ids = self._ptables.pjt_bundle_paths_table.point_ids(bundle.db_id, self._view)
-            if self._current_end == 'stop':
+            if self._current_point is not start_point:
                 waypoint_ids = list(reversed(waypoint_ids))
 
             for point_id in waypoint_ids:
                 self._add(point_id, bundle_id=bundle.db_id)
 
-            far_end = 'stop' if self._current_end == 'start' else 'start'
-            far_point_id = _bundle_end_point_id(bundle, far_end, self._view)
+            far_point = stop_point if self._current_point is start_point else start_point
+            far_point_id = far_point.db_id
 
             far_branch = _branch_at_point(self._ptables, far_point_id, self._view)
             if far_branch is None:
                 self._add(far_point_id, bundle_id=bundle.db_id)
                 self._exit_diameter = _diameter_of_terminus(bundle)
+                self._exit_bundle_end = (bundle, far_point)
                 self._finished = True
                 self._bundle = None
                 return
@@ -579,13 +755,14 @@ class RouteWalk:
             raise ValueError('chosen branch does not belong to the transition just reached')
 
         next_bundle = next_branch.bundle
+        branch_point = next_branch.position3d if self._view == '3d' else next_branch.position_pegboard
 
         # A branch's own point row carries the attached bundle's id too
         # (2.6: "a branch with a bundle plugged in always carries that
         # bundle's id") -- next_bundle must be resolved before this _add()
         # call, not after, or that tag is silently dropped.
         self._add(
-            _branch_point_id(next_branch, self._view),
+            branch_point.db_id,
             bundle_id=(next_bundle.db_id if next_bundle is not None else None),
             transition_id=transition.db_id, transition_branch_id=next_branch.db_id)
 
@@ -595,10 +772,11 @@ class RouteWalk:
             self._branch = None
             return
 
-        if _bundle_end_point_id(next_bundle, 'start', self._view) == _branch_point_id(next_branch, self._view):
-            self._bundle, self._current_end = next_bundle, 'start'
-        else:
-            self._bundle, self._current_end = next_bundle, 'stop'
+        # The branch's own point IS one of next_bundle's two end points
+        # (the same shared row, by BUNDLE_DESIGN.md 2.6's point-sharing
+        # design) -- no need to work out which one, just carry it over
+        # directly as the walk's new current point.
+        self._bundle, self._current_point = next_bundle, branch_point
         self._branch = None
 
         self._advance()
@@ -618,7 +796,8 @@ class RouteWalk:
             self._ptables, self._wire, self._section_idx, self._view,
             entry_point=first_point, entry_diameter=self._entry_diameter,
             exit_point=last_point, exit_diameter=self._exit_diameter,
-            skeleton_point_ids=self._ordered, point_tags=self._point_tags)
+            skeleton_point_ids=self._ordered, point_tags=self._point_tags,
+            entry_bundle_end=self._entry_bundle_end, exit_bundle_end=self._exit_bundle_end)
 
 
 @_check_types.do
@@ -684,6 +863,8 @@ def _commit_route(
     entry_point: _Point, entry_diameter: float,
     exit_point: _Point, exit_diameter: float,
     skeleton_point_ids: list[bytes], point_tags: dict,
+    entry_bundle_end: _Union[tuple["_PJTBundle", _Point], None],
+    exit_bundle_end: _Union[tuple["_PJTBundle", _Point], None],
 ) -> None:
     """Splice [entry guard, *skeleton_point_ids*, exit guard] into
     *wire*'s own *view* interior waypoint list at *section_idx* (see
@@ -692,6 +873,14 @@ def _commit_route(
     interior point's own existing route tags (``pjt_wire_paths_table.
     set_route`` wholesale-replaces and drops tags -- see that method's
     own docstring) and applying *point_tags* to the newly-inserted ones.
+
+    *entry_bundle_end*/*exit_bundle_end* are ``(bundle, end_point)`` when
+    that terminus is a bundle's own end (``None`` for a bare branch or a
+    splice, which have no bundle direction of their own) -- used to point
+    each guard's stub straight out along the bundle's own end tangent
+    (see :func:`_bundle_end_direction`) instead of toward the wire's own
+    remaining path. Each guard also gets a real ``WireLayout`` marker, so
+    it renders and behaves like any other waypoint.
     """
     wire_db = wire.db_obj
     paths_table = ptables.pjt_wire_paths_table
@@ -733,11 +922,33 @@ def _commit_route(
     entry_group_center = _group_center_for_wire_point(p_i_sibling, p_i_point, view)
     exit_group_center = _group_center_for_wire_point(p_i1_sibling, p_i1_point, view)
 
-    entry_guard_point = compute_guard_position(entry_point, entry_group_center, entry_diameter)
-    exit_guard_point = compute_guard_position(exit_point, exit_group_center, exit_diameter)
+    entry_direction = (
+        _bundle_end_direction(entry_bundle_end[0], entry_bundle_end[1], view)
+        if entry_bundle_end is not None else None)
+    exit_direction = (
+        _bundle_end_direction(exit_bundle_end[0], exit_bundle_end[1], view)
+        if exit_bundle_end is not None else None)
+
+    entry_guard_point = compute_guard_position(
+        entry_point, entry_group_center, entry_diameter, entry_direction)
+    exit_guard_point = compute_guard_position(
+        exit_point, exit_group_center, exit_diameter, exit_direction)
 
     entry_guard_row = points_table.insert(entry_guard_point.x, entry_guard_point.y, entry_guard_point.z)
     exit_guard_row = points_table.insert(exit_guard_point.x, exit_guard_point.y, exit_guard_point.z)
+
+    # Each guard gets a real WireLayout marker, like any other waypoint
+    # (BUNDLE_DESIGN.md 2.7) -- so it renders and is reachable the same
+    # way; whether it's a GUARD specifically (locked against a direct
+    # drag, only moved by its bundle end) is derived on demand from the
+    # route itself (see guard_points_at/is_guard_point), not stored here.
+    layouts_table = ptables.pjt_wire_layouts_table
+    mainframe = wire.mainframe
+    for guard_row in (entry_guard_row, exit_guard_row):
+        point_kwargs = {'point3d_id': guard_row.db_id} if view == '3d' else {'point_pegboard_id': guard_row.db_id}
+        layout_db = layouts_table.insert(**point_kwargs)
+        layout_obj = _wire_layout_obj.WireLayout(mainframe, layout_db)
+        mainframe.project.add_wire_layout(layout_obj)
 
     detour = [entry_guard_row.db_id] + list(skeleton_point_ids) + [exit_guard_row.db_id]
     new_interior_ids = existing_interior_ids[:section_idx] + detour + existing_interior_ids[section_idx:]

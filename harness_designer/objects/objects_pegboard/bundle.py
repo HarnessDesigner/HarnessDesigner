@@ -22,6 +22,7 @@ from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
 from ...rope_pull import offline_store as _offline_store
 from ... import config as _config
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 Config =_config.Config.editor_pegboard
 
 
+@capturable()
 class Bundle(_base_pegboard.BasePegboard):
     """Peg-board representation of a bundle -- a chain of straight
     cylinder segments from its start point, through every interior
@@ -62,6 +64,14 @@ class Bundle(_base_pegboard.BasePegboard):
     Like ``Wire``, has no independent anchor presence of its own on the
     board (no single ``point3d_id``) -- it's a chain, not a point.
     """
+
+    __dump_schema__ = (
+        Attr('_diameter', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_waypoint_points', severity=2),
+        Attr('_is_tight', severity=1),
+    )
+
     _parent: "_bundle.Bundle" = None
     db_obj: "_pjt_bundle.PJTBundle"
 

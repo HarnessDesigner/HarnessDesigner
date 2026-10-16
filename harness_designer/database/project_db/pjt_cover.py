@@ -21,6 +21,7 @@ from .mixins import (
     Scale3DMixin, Scale3DControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -155,6 +156,7 @@ class PJTCoversTable(PJTTableBase):
         return PJTCover(self, db_id)
 
 
+@capturable()
 class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
                PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
     """Represent a PJT cover in :mod:`harness_designer.database.project_db.pjt_cover`.
@@ -219,6 +221,7 @@ class PJTCover(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DM
     _stored_part: _cover.Cover | None | DefaultStoredValueType = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _cover.Cover:
         """Return the part.

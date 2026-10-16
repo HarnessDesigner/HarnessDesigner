@@ -11,6 +11,7 @@ from ...shapes import cylinder as _cylinder
 from ...gl import materials as _materials
 from ... import check_types as _check_types
 from ... import config as _config
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -21,6 +22,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
+@capturable()
 class Splice(_base_pegboard.BasePegboard):
     """
     Peg Board Editor representation of a splice -- mirrors
@@ -41,6 +43,13 @@ class Splice(_base_pegboard.BasePegboard):
     them up the same way the 3D view already uses
     ``start_position3d``/``stop_position3d``/``branch_position3d``.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_model', severity=2),
+        Attr('_p2', severity=2),
+    )
+
     db_obj: "_pjt_splice.PJTSplice"
 
     @_check_types.do

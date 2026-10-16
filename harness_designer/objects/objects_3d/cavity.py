@@ -15,6 +15,7 @@ from ...gl import materials as _materials
 from ...geometry import point as _point
 from ... import color as _color
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -24,11 +25,20 @@ if TYPE_CHECKING:
     from ...gl import shaders as _shaders
 
 
+@capturable()
 class Cavity(_base_3d.Base3D):
     """Represent a cavity in :mod:`harness_designer.objects.objects_3d.cavity`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('surf_idx', severity=2),
+        Attr('wire_surf_idx', severity=2),
+        Attr('_terminal_marker', severity=2),
+        Attr('_wire_marker', severity=2),
+    )
+
     parent: "_cavity.Cavity" = None
     db_obj: "_pjt_cavity.PJTCavity" = None
 

@@ -6,6 +6,7 @@ import weakref
 
 from ..gl import materials as _materials
 from .. import check_types as _check_types
+from ..crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -17,11 +18,21 @@ if TYPE_CHECKING:
     from ..ui.object_browser import objectbrowser as _objectbrowser
 
 
+@capturable(severity=2)
 class ObjectBase:
     """Represent an object base in :mod:`harness_designer.objects.object_base`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('db_obj', severity=2),
+        Attr('_is_selected', severity=2),
+        Attr('_deleted', severity=2),
+        Attr('objschematic', severity=1),
+        Attr('obj3d', severity=1),
+        Attr('objpegboard', severity=1),
+    )
+
     objschematic: "_base_schematic.BaseSchematic" = None
     obj3d: "_base_3d.Base3D" = None
     objpegboard: "_base_pegboard.BasePegboard" = None

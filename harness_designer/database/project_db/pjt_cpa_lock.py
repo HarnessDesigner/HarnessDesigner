@@ -21,6 +21,7 @@ from .mixins import (
     Scale3DMixin, Scale3DControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -155,6 +156,7 @@ class PJTCPALocksTable(PJTTableBase):
         return PJTCPALock(self, db_id)
 
 
+@capturable()
 class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3DMixin,
                  PartMixin, HousingMixin, Visible3DMixin, NameMixin, SmoothMixin):
     """Represent a pjtcpa lock in :mod:`harness_designer.database.project_db.pjt_cpa_lock`.
@@ -219,6 +221,7 @@ class PJTCPALock(PJTEntryBase, Angle3DMixin, Position3DMixin, NotesMixin, Scale3
     _stored_part: _cpa_lock.CPALock | None | DefaultStoredValue = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> _cpa_lock.CPALock:
         """Return the part.

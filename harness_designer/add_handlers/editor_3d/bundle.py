@@ -100,7 +100,10 @@ def drop_joint_layout(
     from ...objects import bundle_layout as _bundle_layout
 
     ptables = mainframe.project.ptables
-    layout_db = ptables.pjt_bundle_layouts_table.insert(point3d_id=branch.db_obj.position3d_id)
+
+    layout_db = ptables.pjt_bundle_layouts_table.insert(
+        point3d_id=branch.db_obj.position3d_id)
+
     layout = _bundle_layout.BundleLayout(mainframe, layout_db)
     mainframe.project.add_bundle_layout(layout)
 
@@ -276,11 +279,15 @@ class Bundle(_base.AddHandlerBase):
 
             origin, direc = _object_picker.build_ray(mouse_pos, self.camera)
             hit = None
+
             # The start end already landed on a branch with wires on it --
             # the stop end is restricted to a free placement, so no branch
             # (of any transition) is ever offered here. See
             # _start_branch_has_wires's own docstring in __init__.
-            if origin is not None and not (self._phase != 0 and self._start_branch_has_wires):
+            if (
+                origin is not None and
+                not (self._phase != 0 and self._start_branch_has_wires)
+            ):
                 hit = _transition_handler._find_free_branch_ray(  # NOQA
                     origin, direc, self.mainframe.project,
                     exclude_transition=exclude_transition)
@@ -303,6 +310,7 @@ class Bundle(_base.AddHandlerBase):
                 self._move_growing_point(branch.tip_point)
             else:
                 self._clear_branch_hover()
+
                 self._move_growing_point(
                     self.camera.get_position_on_focal_plane(mouse_pos))
 
@@ -338,7 +346,9 @@ class Bundle(_base.AddHandlerBase):
         ``pjt_wire_paths`` row carries ``transition_branch_id`` with
         ``bundle_id`` left ``NULL``) -- checked only in the 3D view,
         since this handler never touches the peg-board one."""
-        rows = self.ptables.pjt_wire_paths_table.for_transition_branch(branch.db_obj.db_id)
+        rows = self.ptables.pjt_wire_paths_table.for_transition_branch(
+            branch.db_obj.db_id)
+
         return any(row.point3d_id is not None for row in rows)
 
     @_check_types.do
@@ -352,7 +362,10 @@ class Bundle(_base.AddHandlerBase):
         *branch* has no wires.
         """
         bundle_id = self.target.db_obj.db_id
-        for row in self.ptables.pjt_wire_paths_table.for_transition_branch(branch.db_obj.db_id):
+        rows = self.ptables.pjt_wire_paths_table.for_transition_branch(
+            branch.db_obj.db_id)
+
+        for row in rows:
             if row.point3d_id is not None:
                 row.bundle_id = bundle_id
 
@@ -385,7 +398,10 @@ class Bundle(_base.AddHandlerBase):
             self._start_branch_orig_diameter = branch.diameter
             self._start_branch_has_wires = self._branch_has_wires(branch)
             self._attach_growing_end_to_branch(branch)
-            t_obj.add_bundle(self.target, 'start', branch.db_obj.branch_id)
+
+            t_obj.add_bundle(self.target, self.target.obj3d.start_position,
+                             branch.db_obj.branch_id)
+
             self._start_branch = (t_obj, branch)
             self._narrow_diameter_range(branch)
             self._start_layout = drop_joint_layout(self.mainframe, branch)
@@ -424,10 +440,8 @@ class Bundle(_base.AddHandlerBase):
         self._commit_waypoint()
 
     @_check_types.do
-    def _attach_growing_end_to_branch(
-        self,
-        branch: "_transition_3d.Branch"
-    ) -> None:
+    def _attach_growing_end_to_branch(self,
+                                      branch: "_transition_3d.Branch") -> None:
 
         stale_id = self._growing_point.db_id[:-2]
 
@@ -461,14 +475,14 @@ class Bundle(_base.AddHandlerBase):
             layout_obj.obj3d.set_diameter(self._diameter_lo)
 
     @_check_types.do
-    def _finish_attached(
-        self,
-        t_obj: "_transition_obj.Transition",
-        branch: "_transition_3d.Branch"
-    ) -> None:
+    def _finish_attached(self, t_obj: "_transition_obj.Transition",
+                         branch: "_transition_3d.Branch") -> None:
 
         self._attach_growing_end_to_branch(branch)
-        t_obj.add_bundle(self.target, 'stop', branch.db_obj.branch_id)
+
+        t_obj.add_bundle(self.target, self.target.obj3d.stop_position,
+                         branch.db_obj.branch_id)
+
         self._stop_branch = (t_obj, branch)
         self._narrow_diameter_range(branch)
         self._stop_layout = drop_joint_layout(self.mainframe, branch)
@@ -612,10 +626,8 @@ class Bundle(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def _drop_joint_layout_pegboard(
-        self,
-        branch: "_transition_3d.Branch"
-    ) -> None:
+    def _drop_joint_layout_pegboard(self,
+                                    branch: "_transition_3d.Branch") -> None:
 
         """
         Peg-board counterpart of :func:`drop_joint_layout` -- a branch
@@ -754,7 +766,10 @@ class Bundle(_base.AddHandlerBase):
             self._drop_joint_layout_pegboard(branch)
         else:
             stop_pos = obj_peg.stop_position
-            target_pos = _point.Point(float(walked_stop_np[0]), 0.0, float(walked_stop_np[2]))
+
+            target_pos = _point.Point(float(walked_stop_np[0]), 0.0,
+                                      float(walked_stop_np[2]))
+
             stop_pos += target_pos - stop_pos
 
         self.target.objpegboard.refresh_waypoints()

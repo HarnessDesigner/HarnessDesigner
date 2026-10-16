@@ -21,9 +21,9 @@ what's different is only *how* a session gets constructed and driven:
   used to create nothing until the first click (phase 0 was pure hover
   highlighting, no visible preview). Now the preview wire exists from
   the moment placement begins, at a placeholder point, so phase 0 also
-  live-previews the start point following the cursor (``_growing_end``
-  is ``'start'`` during phase 0 instead of only ever being read as
-  ``'stop'``) -- ``_hover_phase0``/``_handle_first_click`` are
+  live-previews the start point following the cursor (``_growing_point``
+  is the wire's own start position during phase 0 instead of only ever
+  being the stop position) -- ``_hover_phase0``/``_handle_first_click`` are
   restructured to mirror ``_hover_phase1``/``_handle_second_click``'s
   own shape for this reason, not because the underlying attach rules
   changed.
@@ -74,19 +74,11 @@ class Wire(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(
-        self,
-        canvas: "_canvas.Canvas",
-        target: "_objects.ObjectBase",
-        part_id: bytes,
-        phase: int,
-        growing_end: str = 'stop',
-        preexisting_wire: bool = False,
-        start_circuit_id: bytes | None = None,
-        extension_mode: bool = False,
-        source_wire: _wire.Wire | None = None,
-        source_endpoint: str | None = None,
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 part_id: bytes, phase: int, growing_point: _point.Point | None = None,
+                 preexisting_wire: bool = False, start_circuit_id: bytes | None = None,
+                 extension_mode: bool = False, source_wire: _wire.Wire | None = None,
+                 source_point: _point.Point | None = None) -> None:
 
         super().__init__(canvas, target)
 
@@ -96,7 +88,11 @@ class Wire(_base.AddHandlerBase):
 
         self.part_id = part_id
         self._phase = phase
-        self._growing_end = growing_end
+        if growing_point is not None:
+            self._growing_point = growing_point
+        else:
+            self._growing_point = target.obj3d.stop_position  # NOQA
+
         self._preexisting_wire = preexisting_wire
         self._start_circuit_id = start_circuit_id
         self._finalized = False
@@ -109,7 +105,7 @@ class Wire(_base.AddHandlerBase):
         # freshly-created preview.
         self._extension_mode = extension_mode
         self._source_wire = source_wire
-        self._source_endpoint = source_endpoint
+        self._source_point = source_point
         self._extension_dir: np.ndarray | None = None
         self._extension_origin: np.ndarray | None = None
         self._extension_original_pos: np.ndarray | None = None
@@ -167,8 +163,8 @@ class Wire(_base.AddHandlerBase):
     # ------------------------------------------------------------------
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-                 interaction_type: _interaction.MouseInteraction,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
@@ -330,46 +326,56 @@ class Wire(_base.AddHandlerBase):
             self._hover_obj = None
 
     # ------------------------------------------------------------------
-    # Growing-end plumbing -- 'start' during phase 0 (free-space start
-    # only) or _start_add_to_wire's own continue-from-start case;
-    # 'stop' everywhere else, including all of phase 1.
+    # Growing-end plumbing -- self._growing_point is the actual live
+    # Point currently following the cursor: self.target.obj3d.
+    # start_position during phase 0 (free-space start only) or
+    # _start_add_to_wire's own continue-from-start case; stop_position
+    # everywhere else, including all of phase 1. The four column-setters
+    # below are the one blessed place that still picks between the
+    # 'start'/'stop' DB columns -- callers determine which column via an
+    # identity check against self.target.obj3d.start_position, captured
+    # ONCE as a local before any of these run (a setter may replace
+    # self.target.obj3d's own start_position/stop_position, which would
+    # invalidate a check made only after that swap).
     # ------------------------------------------------------------------
 
-    @property
     @_check_types.do
-    def _growing_point(self) -> _point.Point:
-        if self._growing_end == 'stop':
-            return self.target.obj3d.stop_position
+    def _set_growing_position3d_id(self, is_start: bool,
+                                   point_id: bytes) -> None:
 
-        return self.target.obj3d.start_position
-
-    @_check_types.do
-    def _set_growing_position3d_id(self, point_id: bytes) -> None:
-        if self._growing_end == 'stop':
-            self.target.db_obj.stop_position3d_id = point_id
-        else:
+        if is_start:
             self.target.db_obj.start_position3d_id = point_id
+        else:
+            self.target.db_obj.stop_position3d_id = point_id
 
     @_check_types.do
-    def _set_growing_position2d_id(self, point_id: bytes) -> None:
-        if self._growing_end == 'stop':
-            self.target.db_obj.stop_position2d_id = point_id
-        else:
+    def _set_growing_position2d_id(self, is_start: bool,
+                                   point_id: bytes) -> None:
+
+        if is_start:
             self.target.db_obj.start_position2d_id = point_id
+        else:
+            self.target.db_obj.stop_position2d_id = point_id
 
     @_check_types.do
-    def _set_growing_obj3d_position(self, point: _point.Point) -> None:
-        if self._growing_end == 'stop':
-            self.target.obj3d.set_stop_position(point)
-        else:
+    def _set_growing_obj3d_position(self, is_start: bool,
+                                    point: _point.Point) -> None:
+
+        if is_start:
             self.target.obj3d.set_start_position(point)
+        else:
+            self.target.obj3d.set_stop_position(point)
+
+        self._growing_point = point
 
     @_check_types.do
-    def _set_growing_objschematic_position(self, point: _point.Point) -> None:
-        if self._growing_end == 'stop':
-            self.target.objschematic.set_stop_position(point)
-        else:
+    def _set_growing_objschematic_position(self, is_start: bool,
+                                           point: _point.Point) -> None:
+
+        if is_start:
             self.target.objschematic.set_start_position(point)
+        else:
+            self.target.objschematic.set_stop_position(point)
 
     @_check_types.do
     def _update_preview_stop(self, world_pos: _point.Point) -> None:
@@ -392,11 +398,7 @@ class Wire(_base.AddHandlerBase):
         proj = self._project_extension(world_np)
         proj_pt = _point.Point(*proj)
 
-        if self._source_endpoint == 'stop':
-            ep = self._source_wire.obj3d.stop_position
-        else:
-            ep = self._source_wire.obj3d.start_position
-
+        ep = self._source_point
         ep += proj_pt - ep
 
         self.mainframe.editor3d.Refresh(False)
@@ -449,11 +451,7 @@ class Wire(_base.AddHandlerBase):
 
             target_point = _wire_snap.snap_point(kind, target)
 
-            if self._source_endpoint == 'stop':
-                ep = self._source_wire.obj3d.stop_position
-            else:
-                ep = self._source_wire.obj3d.start_position
-
+            ep = self._source_point
             ep += target_point - ep
 
             self._extension_snap_kind = kind
@@ -692,7 +690,7 @@ class Wire(_base.AddHandlerBase):
             self.ptables.pjt_points3d_table[stale_start_id].delete()
 
             splice.add_wire(self.target)
-            self.target.set_sibling(splice, 'start')
+            self.target.set_sibling(splice, self.target.obj3d.start_position)
 
         elif isinstance(self._hover_obj, _wire_layout.WireLayout):
             layout = self._hover_obj
@@ -713,7 +711,7 @@ class Wire(_base.AddHandlerBase):
         self._clear_hover()
         self._overlay.hide_message()
 
-        self._growing_end = 'stop'
+        self._growing_point = self.target.obj3d.stop_position
         self._phase = 1
 
     @_check_types.do
@@ -723,8 +721,14 @@ class Wire(_base.AddHandlerBase):
 
         if self._extension_mode:
             if self._extension_snap_kind is not None:
+                # commit_snap's own `end` parameter stays a string (see
+                # its own definition in handlers.wire_snap) -- reconstruct
+                # it here, once, right at this boundary.
+                source_endpoint = (
+                    'start' if self._source_point is self._source_wire.obj3d.start_position
+                    else 'stop')
                 _wire_snap.commit_snap(
-                    self.mainframe, self._source_wire, self._source_endpoint,
+                    self.mainframe, self._source_wire, source_endpoint,
                     self._extension_snap_kind, self._extension_snap_target)
 
             self._cleanup()
@@ -758,8 +762,11 @@ class Wire(_base.AddHandlerBase):
             if circuit_id is None:
                 circuit_id = picked.db_obj.circuit_id
 
+            # Terminal.add_wire's own `end` parameter stays a string --
+            # reconstruct it here, once, right at this boundary.
+            is_start = self._growing_point is self.target.obj3d.start_position
             stale_stop_id = self._growing_point.db_id[:-2]
-            picked.add_wire(self.target, self._growing_end)
+            picked.add_wire(self.target, 'start' if is_start else 'stop')
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
         elif isinstance(picked, _wire_layout.WireLayout):
@@ -770,9 +777,15 @@ class Wire(_base.AddHandlerBase):
                 _wire_3d.Wire.wire_layout_end_wire(picked, project, self.part_id))
 
             if end_wire is not None:
+                # merge_wire_into's own `own_end` parameter stays a
+                # string -- reconstruct it here, once, right at this
+                # boundary.
+                own_end = (
+                    'start' if self._growing_point is self.target.obj3d.start_position
+                    else 'stop')
                 merged = _wire_3d.Wire.merge_wire_into(
                     project, self.target, end_wire,
-                    other_end, own_end=self._growing_end)
+                    other_end, own_end=own_end)
 
                 self.target = merged
                 self.target.identify(None)
@@ -796,16 +809,19 @@ class Wire(_base.AddHandlerBase):
                     if button == QtWidgets.QMessageBox.StandardButton.No:
                         return
 
+            is_start = self._growing_point is self.target.obj3d.start_position
             stale_stop_id = self._growing_point.db_id[:-2]
-            self._set_growing_obj3d_position(picked.obj3d.wire_position)
-            self._set_growing_position3d_id(picked.db_obj.branch_position3d_id)
+            self._set_growing_obj3d_position(is_start, picked.obj3d.wire_position)
+            self._set_growing_position3d_id(is_start, picked.db_obj.branch_position3d_id)
             self.ptables.pjt_points3d_table[stale_stop_id].delete()
 
-            self._set_growing_position2d_id(picked.db_obj.position2d_id)
-            self._set_growing_objschematic_position(picked.db_obj.position2d)
+            self._set_growing_position2d_id(is_start, picked.db_obj.position2d_id)
+            self._set_growing_objschematic_position(is_start, picked.db_obj.position2d)
 
             picked.add_wire(self.target)
-            self.target.set_sibling(picked, self._growing_end)
+            self.target.set_sibling(
+                picked,
+                self.target.obj3d.start_position if is_start else self.target.obj3d.stop_position)
             _wire_reroute.on_wire_attached(project, self.target)
 
             branch_id = picked.db_obj.branch_position3d_id
@@ -838,14 +854,16 @@ class Wire(_base.AddHandlerBase):
 
                 return
 
-            if near_start:
-                other_end = 'start'
-            else:
-                other_end = 'stop'
+            other_end = 'start' if near_start else 'stop'
+
+            # merge_wire_into's own `own_end` parameter stays a string --
+            # reconstruct it here, once, right at this boundary.
+            own_end = (
+                'start' if self._growing_point is self.target.obj3d.start_position else 'stop')
 
             merged = _wire_3d.Wire.merge_wire_into(
                 project, self.target, picked,
-                other_end, own_end=self._growing_end)
+                other_end, own_end=own_end)
 
             self.target = merged
 
@@ -883,16 +901,17 @@ class Wire(_base.AddHandlerBase):
 
         self._has_committed_waypoint = True
 
+        is_start = self._growing_point is self.target.obj3d.start_position
         growing_point_id = self._growing_point.db_id[:-2]
         growing_pos = self._growing_point
 
         wire_id = self.target.db_obj.db_id
         paths_table = self.ptables.pjt_wire_paths_table
 
-        if self._growing_end == 'stop':
-            paths_table.append(wire_id, '3d', growing_point_id)
-        else:
+        if is_start:
             paths_table.add(wire_id, '3d', 0, growing_point_id)
+        else:
+            paths_table.append(wire_id, '3d', growing_point_id)
 
         layout_db = self.ptables.pjt_wire_layouts_table.insert(growing_point_id)
         layout_obj = _wire_layout.WireLayout(self.mainframe, layout_db)
@@ -903,8 +922,8 @@ class Wire(_base.AddHandlerBase):
         new_point_db = self.ptables.pjt_points3d_table.insert(
             float(growing_pos.x), float(growing_pos.y), float(growing_pos.z))
 
-        self._set_growing_position3d_id(new_point_db.db_id)
-        self._set_growing_obj3d_position(new_point_db.point)
+        self._set_growing_position3d_id(is_start, new_point_db.db_id)
+        self._set_growing_obj3d_position(is_start, new_point_db.point)
         self.target.obj3d.refresh_waypoints()
 
     @_check_types.do
@@ -942,20 +961,21 @@ class Wire(_base.AddHandlerBase):
 
     @_check_types.do
     def _promote_last_committed(self) -> None:
+        is_start = self._growing_point is self.target.obj3d.start_position
         stale_id = self._growing_point.db_id[:-2]
 
-        if self._growing_end == 'stop':
-            last_waypoint = self.target.db_obj.waypoints3d[-1]
-        else:
+        if is_start:
             last_waypoint = self.target.db_obj.waypoints3d[0]
+        else:
+            last_waypoint = self.target.db_obj.waypoints3d[-1]
 
         last_point = last_waypoint.point
 
         self.ptables.pjt_wire_paths_table.remove(
             self.target.db_obj.db_id, '3d', last_waypoint.db_id)
 
-        self._set_growing_position3d_id(last_waypoint.db_id)
-        self._set_growing_obj3d_position(last_point)
+        self._set_growing_position3d_id(is_start, last_waypoint.db_id)
+        self._set_growing_obj3d_position(is_start, last_point)
 
         self.ptables.pjt_points3d_table[stale_id].delete()
 
@@ -974,10 +994,7 @@ class Wire(_base.AddHandlerBase):
         if self._extension_mode and self._extension_original_pos is not None:
             orig_pt = _point.Point(*self._extension_original_pos)
 
-            ep = (self._source_wire.obj3d.stop_position
-                  if self._source_endpoint == 'stop'
-                  else self._source_wire.obj3d.start_position)
-
+            ep = self._source_point
             ep += orig_pt - ep
 
             self._cleanup()

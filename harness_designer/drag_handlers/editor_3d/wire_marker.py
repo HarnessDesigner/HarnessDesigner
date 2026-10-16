@@ -54,10 +54,27 @@ class WireMarker(_editor_3d.DragHandler3D):
         self._arrows = _wire_marker_arrow.WireMarkerArrow(
             target.obj3d.position, direction, canvas.mainframe, target.obj3d.aabb)
 
+        # Open the move gesture for this drag's whole lifetime -- see
+        # drag_handlers.editor_pegboard.generic.Generic.__init__ for the
+        # same hook and WRITE_DESIGN.md section 4.12. Closed in delete()
+        # below. Without this, every position write this drag makes
+        # hits the database immediately and individually on every frame
+        # instead of deferring into the gesture's own batched flush --
+        # confirmed live, 2026-10-12: this class never opened a gesture
+        # at all.
+        canvas.mainframe.project.begin_gesture()
+
     @_check_types.do
     def delete(self) -> None:
-        self._arrows.delete()
-        super().delete()
+        try:
+            self._arrows.delete()
+            super().delete()
+        finally:
+            # Close the gesture opened in __init__ -- see that method's
+            # comment. Must run even if the teardown above raises, or
+            # the gesture would silently stay open and defer every later
+            # write app-wide until something else closes it.
+            self.canvas.mainframe.project.end_gesture()
 
     @_debug.logfunc
     @_check_types.do

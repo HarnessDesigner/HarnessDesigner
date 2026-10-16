@@ -45,6 +45,7 @@ from .mixins import (
     ScalePegboardMixin, ScalePegboardControl
 )
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 if TYPE_CHECKING:
     # from . import pjt_accessory as _pjt_accessory
@@ -482,6 +483,7 @@ class PJTHousingsTable(PJTTableBase):
         return db_obj
 
 
+@capturable()
 class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3DMixin,
                  PositionPegboardMixin, TablePositionPegMixin, TableHiddenMixin,
                  Visible3DMixin, Visible2DMixin, VisiblePegboardMixin, NotesMixin,
@@ -865,6 +867,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_cavities: list = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cavities(self) -> list[_pjt_cavity.PJTCavity]:
         """Return the cavities.
@@ -1026,6 +1029,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_terminals: list = None
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def terminals(self) -> list["_pjt_terminal.PJTTerminal"]:
         """Every seated terminal across this housing's own cavities.
@@ -1598,6 +1602,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return cavity
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def seal(self) -> _pjt_seal.PJTSeal | None:
         """Return the seal.
@@ -1618,6 +1623,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return seal
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cpa_lock(self) -> _pjt_cpa_lock.PJTCPALock | None:
         """Return the CPA lock.
@@ -1670,6 +1676,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return self._table.db.pjt_tpa_locks_table[db_id]
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def tpa_locks(self) -> list[_pjt_tpa_lock.PJTTPALock]:
         """Return the TPA locks.
@@ -1692,6 +1699,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
         return res
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def cover(self) -> _pjt_cover.PJTCover | None:
         """Return the cover.
@@ -1712,6 +1720,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
             return cover
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def boot(self) -> _pjt_boot.PJTBoot | None:
         """Return the boot.
@@ -1749,6 +1758,7 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
     _stored_part: _Union["_housing.Housing", None, DefaultStoredValue] = DefaultStoredValue
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def part(self) -> "_housing.Housing":
         """Return the part.

@@ -15,6 +15,7 @@ from ...gl.canvas_base import interaction as _interaction
 from ...shapes import text as _text
 from ... import check_types as _check_types
 from ... import bounds as _bounds
+from ...crash_dump import Attr, capturable
 
 if TYPE_CHECKING:
     from ...database import project_db as _project_db
@@ -31,7 +32,22 @@ Config = _config.Config.colors
 _debug_config = _config.Config.debug.rendering3d
 
 
+@capturable(severity=2)
 class BaseVar:
+
+    __dump_schema__ = (
+        Attr('parent', severity=2),
+        Attr('db_obj', severity=2),
+        Attr('_position', severity=2),
+        Attr('_angle', severity=2),
+        Attr('_scale', severity=2),
+        Attr('_aabb', severity=2),
+        Attr('_obb', severity=2),
+        Attr('_is_selected', severity=2),
+        Attr('_is_visible', severity=2),
+        Attr('_is_deleted', severity=2),
+        Attr('_smooth', severity=1),
+    )
 
     # Tie-breaker for gl.object_picker.find_object when multiple
     # OBB/AABB hits land on the same ray -- see Base3D._pick_priority

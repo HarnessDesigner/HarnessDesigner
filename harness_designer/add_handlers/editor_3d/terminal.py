@@ -44,14 +44,10 @@ class Terminal(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(
-        self,
-        canvas: "_canvas.Canvas",
-        target: "_objects.ObjectBase",
-        part: "_glb_terminal.Terminal",
-        project_cavities: list["_cavity.Cavity"],
-        is_male: bool
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 part: "_glb_terminal.Terminal",
+                 project_cavities: list["_cavity.Cavity"],
+                 is_male: bool) -> None:
 
         super().__init__(canvas, target)
 
@@ -70,8 +66,8 @@ class Terminal(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-                 interaction_type: _interaction.MouseInteraction,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:

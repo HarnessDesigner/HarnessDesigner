@@ -19,6 +19,7 @@ from ... import utils as _utils
 from ...shapes import cylinder as _cylinder
 from ...shapes import helix as _helix
 from ... import check_types as _check_types
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -97,6 +98,7 @@ def _yaw_matrix(degrees: float) -> np.ndarray:
     return matrix
 
 
+@capturable()
 class Wire(_base_schematic.BaseSchematic):
     """
     2D representation of a wire for schematic view
@@ -140,6 +142,14 @@ class Wire(_base_schematic.BaseSchematic):
     # The chord yaw this wire's own angle was last set to (infinity so the very
     # first recompute always sets it).
     _chord_yaw: float = float('inf')
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_waypoint_points', severity=2),
+        Attr('_length', severity=2),
+        Attr('_preview_points', severity=1),
+    )
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", db_obj: "_pjt_wire.PJTWire") -> None:

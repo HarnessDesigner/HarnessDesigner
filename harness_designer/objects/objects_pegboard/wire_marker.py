@@ -13,6 +13,7 @@ from ...gl import materials as _materials
 from ... import logger as _logger
 from ... import check_types as _check_types
 from ... import config as _config
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 Config = _config.Config.editor_pegboard
 
 
+@capturable()
 class WireMarker(_base_pegboard.BasePegboard):
     """Peg-board representation of a wire marker -- a short cylinder
     riding on its wire's own peg-board path, positioned as a fixed
@@ -41,6 +43,15 @@ class WireMarker(_base_pegboard.BasePegboard):
     no stripe overlay at all (a 3D-only cosmetic refinement), so this
     always uses the plain no-stripe sizing.
     """
+
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_percent', severity=2),
+        Attr('_p1', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_marker_length', severity=1),
+    )
+
     db_obj: "_pjt_wire_marker.PJTWireMarker"
 
     @_check_types.do

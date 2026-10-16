@@ -26,12 +26,10 @@ from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import PositionPegboardMixin, VisiblePegboardMixin
 from ...geometry import point as _point
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
-    from . import pjt_housing as _pjt_housing
-    from . import pjt_bundle as _pjt_bundle
-    from . import pjt_transition as _pjt_transition
     from ...objects import pegboard_table as _pegboard_table_obj
 
     _Anchor = _Union["_pjt_housing.PJTHousing", "_pjt_bundle.PJTBundle",
@@ -125,7 +123,7 @@ class PJTPegboardTablesTable(PJTTableBase):
 
     @_check_types.do
     def insert(self, point_id: bytes, position: _point.Point,
-              width: float, height: float) -> "PJTPegboardTable":
+               width: float, height: float) -> "PJTPegboardTable":
         """Create a new data-table overlay, anchored to *point_id* --
         the owning anchor's own shared table-position point (its
         ``table_point_peg_id``, see :class:`~.mixins.table_position_peg.
@@ -195,6 +193,7 @@ class PJTPegboardTablesTable(PJTTableBase):
         return PJTPegboardTable(self, rows[0][0])
 
 
+@capturable()
 class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin):
     """A single floating Excel-like data-table overlay on the peg-board
     view.
@@ -250,6 +249,7 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
             self._obj = obj
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def anchor(self) -> _Union["_Anchor", None]:
         """Return the owning anchor row -- a housing, bundle,
@@ -277,12 +277,13 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         db = self._table.db
 
         for table in (db.pjt_housings_table, db.pjt_bundles_table,
-                     db.pjt_transitions_table):
+                      db.pjt_transitions_table):
             rows = table.select('id', table_point_peg_id=point_id)
             if rows:
                 return table[rows[0][0]]
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def size(self) -> tuple[float, float]:
         """Return the table's ``(width, height)``, in world units.
@@ -305,6 +306,7 @@ class PJTPegboardTable(PJTEntryBase, PositionPegboardMixin, VisiblePegboardMixin
         self._populate('size')
 
     @property
+    @dump_property(severity=1)
     @_check_types.do
     def visible_columns(self) -> list[int]:
         """Return which columns are shown, and in what order.

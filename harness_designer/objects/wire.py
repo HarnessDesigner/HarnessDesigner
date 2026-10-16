@@ -10,7 +10,9 @@ from . import splice as _splice
 from .objects_schematic import wire as _wire_schematic
 from .objects_3d import wire as _wire_3d
 from .objects_pegboard import wire as _wire_pegboard
+from ..geometry import point as _point
 from .. import check_types as _check_types
+from ..crash_dump import Attr, capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -20,11 +22,16 @@ if TYPE_CHECKING:
     from . import wire_service_loop as _wire_service_loop_obj
 
 
+@capturable()
 class Wire(_ObjectBase):
     """Represent a wire in :mod:`harness_designer.objects.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('route_prefix', severity=2),
+    )
+
     objschematic: _wire_schematic.Wire = None
     obj3d: _wire_3d.Wire = None
     objpegboard: _wire_pegboard.Wire = None
@@ -60,6 +67,30 @@ class Wire(_ObjectBase):
         self.objpegboard = _wire_pegboard.Wire(self, db_obj)
         self.objschematic = _wire_schematic.Wire(self, db_obj)
 
+        # Deferred (not module-level) import: wire_slack_handler
+        # transitively imports rope_pull_handler -> wire_routing_handler
+        # -> wire_topology, which needs objects.wire.Wire already fully
+        # defined -- a module-level import here creates a circular
+        # import that fails with "partially initialized module ... has
+        # no attribute 'Wire'" the first time anything imports this
+        # module (this class statement hasn't run yet while THIS
+        # module's own top-level imports are still executing). By
+        # __init__ actually running (not just this class being defined)
+        # the whole module graph has already settled, so the cycle
+        # doesn't apply here -- same pattern as
+        # gl.canvas_base.canvas_base.CanvasBase.__init__'s own deferred
+        # import.
+        from ..handlers import wire_slack_handler as _wire_slack_handler
+
+        # Safety net: binds its own callback onto every one of this
+        # wire's points, in both views, so any move re-runs this wire's
+        # own slack/rope-pull reconcile regardless of what moved it --
+        # see handlers.wire_slack_handler's own module docstring. A
+        # plain attribute (not a weakref): this wire facade owns the
+        # handler's whole lifetime, and the handler itself holds no
+        # Point references back, so there's no cycle that matters here.
+        self._slack_handler = _wire_slack_handler.WireSlackHandler(self)
+
         # Sibling graph: whatever this wire's own start/stop end attaches to
         # -- a Terminal, Splice, or WireServiceLoop, never another Wire (two
         # wires touching are merged into one row instead of staying linked,
@@ -72,6 +103,7 @@ class Wire(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def start_sibling(
             self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None]:
@@ -80,6 +112,7 @@ class Wire(_ObjectBase):
         return None if self._start_sibling_ref is None else self._start_sibling_ref()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def stop_sibling(
             self) -> _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None]:
@@ -91,9 +124,11 @@ class Wire(_ObjectBase):
     def set_sibling(
             self,
             other: _Union[_terminal.Terminal, _splice.Splice, "_wire_service_loop_obj.WireServiceLoop", None],
-            end: str) -> None:
-        """Record *other* as what this wire's *end* ('start' or 'stop')
-        attaches to.
+            end_position: _point.Point) -> None:
+        """Record *other* as what this wire's end attaches to, where
+        *end_position* is the actual ``Point`` of that end (this wire's
+        own ``obj3d.start_position``/``stop_position`` or the matching
+        ``objpegboard`` one -- not a 'start'/'stop' label).
 
         One-sided: this only stores this wire's own side of the link. The
         reverse direction (Terminal.add_wire, Splice.set_siblings/add_wire,
@@ -102,19 +137,22 @@ class Wire(_ObjectBase):
         handlers.splice_handler/handlers.wire_service_loop_handler.
 
         :param other: The Terminal/Splice/WireServiceLoop object attached
-            at *end*, or None to clear it.
-        :param end: 'start' or 'stop'.
+            at *end_position*, or None to clear it.
+        :param end_position: This wire's own start or stop ``Point``, in
+            whichever of its views (3D or peg-board) the caller has.
         """
         ref = None if other is None else weakref.ref(other)
 
-        if end == 'start':
+        if end_position is self.obj3d.start_position or end_position is self.objpegboard.start_position:
             self._start_sibling_ref = ref
-        elif end == 'stop':
+        elif end_position is self.obj3d.stop_position or end_position is self.objpegboard.stop_position:
             self._stop_sibling_ref = ref
         else:
-            raise ValueError(f"end must be 'start' or 'stop', got {end!r}")
+            raise ValueError(
+                f'end_position must be this wire\'s own start or stop position, got {end_position!r}')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def is_connected(self) -> bool:
         """Whether this wire has a completed connection (a Terminal or a
@@ -130,6 +168,7 @@ class Wire(_ObjectBase):
                 and isinstance(self.stop_sibling, (_terminal.Terminal, _splice.Splice)))
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def layouts(self) -> list["_wire_layout_obj.WireLayout"]:
         """Every WireLayout marking a point on this wire's own path --

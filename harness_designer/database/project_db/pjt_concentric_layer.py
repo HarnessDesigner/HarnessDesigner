@@ -6,6 +6,7 @@ from ...ui import prop_ctrls as _prop_ctrls
 from .pjt_bases import PJTEntryBase, PJTTableBase
 from .mixins import NotesMixin
 from ... import check_types as _check_types
+from ...crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -114,6 +115,7 @@ class PJTConcentricLayersTable(PJTTableBase):
         return PJTConcentricLayer(self, db_id)
 
 
+@capturable()
 class PJTConcentricLayer(PJTEntryBase, NotesMixin):
     """Represent a PJT concentric layer in :mod:`harness_designer.database.project_db.pjt_concentric_layer`.
 
@@ -150,6 +152,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return self._table
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def wires(self) -> list["_pjt_concentric_wire.PJTConcentricWire"]:
         """Return the wires.
@@ -167,6 +170,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         return res
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def concentric(self) -> "_pjt_concentric.PJTConcentric":
         """Return the concentric.
@@ -204,6 +208,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._populate('concentric_id')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def idx(self) -> int:
         """Return the idx.
@@ -229,6 +234,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._populate('idx')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def num_wires(self) -> int:
         """Return the num wires.
@@ -254,6 +260,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._populate('num_wires')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def num_fillers(self) -> int:
         """Return the num fillers.
@@ -279,6 +286,7 @@ class PJTConcentricLayer(PJTEntryBase, NotesMixin):
         self._populate('num_fillers')
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def diameter(self) -> float:
         """Return the diameter.

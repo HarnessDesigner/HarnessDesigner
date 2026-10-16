@@ -17,6 +17,7 @@ from ... import config as _config
 from ...shapes import cylinder_helix as _cylinder_helix
 from ... import check_types as _check_types
 from ... import color as _color
+from ...crash_dump import Attr, capturable
 
 
 if TYPE_CHECKING:
@@ -316,6 +317,7 @@ class _MoveSession:
     candidate_obb_edge_owner: np.ndarray | None = None
 
 
+@capturable()
 class WireServiceLoop(_base_3d.Base3D):
     """A wire service loop: a helix-shaped part connecting a start point to
     a derived stop point (see _sync_stop_position) offset from it by the
@@ -331,6 +333,14 @@ class WireServiceLoop(_base_3d.Base3D):
     point, and rotation pivoting around the loop's own centroid rather than
     its start point -- is handled here.
     """
+    __dump_schema__ = (
+        Attr('_part', severity=2),
+        Attr('_p1', severity=2),
+        Attr('_p2', severity=2),
+        Attr('_stripe', severity=2),
+        Attr('_last_centroid', severity=2),
+    )
+
     parent: "_wire_service_loop.WireServiceLoop" = None
     db_obj: "_pjt_wire_service_loop.PJTWireServiceLoop" = None
 
@@ -914,8 +924,8 @@ class WireServiceLoop(_base_3d.Base3D):
             facade.identify(preview_material)
 
             facade.set_siblings(split_state.wire1, split_state.wire2)
-            split_state.wire1.set_sibling(facade, 'stop')
-            split_state.wire2.set_sibling(facade, 'start')
+            split_state.wire1.set_sibling(facade, split_state.wire1.obj3d.stop_position)
+            split_state.wire2.set_sibling(facade, split_state.wire2.obj3d.start_position)
 
             facade.obj3d.begin_move_session()
 
@@ -975,11 +985,15 @@ class WireServiceLoop(_base_3d.Base3D):
         return self._p2
 
 
+@capturable()
 class WireServiceLoopStripe(_base_3d.Base3D):
     """Represent a wire stripe in :mod:`harness_designer.objects.objects_3d.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
     """
+    __dump_schema__ = (
+        Attr('_wireserviceloop', severity=2),
+    )
 
     @_check_types.do
     def __init__(self, parent: "_wire.Wire", wireserviceloop: WireServiceLoop, color: _color.Color, scale: _point.Point,

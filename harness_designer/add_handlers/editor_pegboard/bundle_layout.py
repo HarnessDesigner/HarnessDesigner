@@ -28,8 +28,12 @@ if TYPE_CHECKING:
 
 @_check_types.do
 def create_bundle_layout_on_bundle_pegboard(
-    project: "_project.Project", bundle: "_bundle.Bundle", position: _point.Point, insert_idx: int
+    project: "_project.Project",
+    bundle: "_bundle.Bundle",
+    position: _point.Point,
+    insert_idx: int
 ) -> "_bundle_layout_facade.BundleLayout":
+
     """Insert a new interior peg-board waypoint into *bundle*'s own
     peg-board path at *position* and mark it with a BundleLayout --
     peg-board equivalent of ``handlers.bundle_layout_handler.
@@ -42,7 +46,9 @@ def create_bundle_layout_on_bundle_pegboard(
     diameter is derived automatically from the bundle it's now attached
     to -- see ``PJTBundleLayout.diameter``, never passed in here).
     """
-    from ...objects import bundle_layout as _bundle_layout_facade  # NOQA -- avoid a cycle at import time
+
+    # avoid a cycle at import time
+    from ...objects import bundle_layout as _bundle_layout_facade  # NOQA
 
     ptables = project.ptables
 
@@ -52,7 +58,8 @@ def create_bundle_layout_on_bundle_pegboard(
     ptables.pjt_bundle_paths_table.add(
         bundle.db_obj.db_id, 'pegboard', insert_idx, pos_db.db_id)
 
-    db_obj = ptables.pjt_bundle_layouts_table.insert(point_pegboard_id=pos_db.db_id)
+    db_obj = ptables.pjt_bundle_layouts_table.insert(
+        point_pegboard_id=pos_db.db_id)
 
     layout_obj = _bundle_layout_facade.BundleLayout(project.mainframe, db_obj)
     project.add_bundle_layout(layout_obj)
@@ -66,9 +73,9 @@ class BundleLayout(_base.AddHandlerBase):
     """Interactive bundle-waypoint placement -- see the module docstring."""
 
     @_check_types.do
-    def __init__(
-        self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase", bundle: "_bundle.Bundle"
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 bundle: "_bundle.Bundle") -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -82,11 +89,10 @@ class BundleLayout(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(
-        self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-        interaction_type: _interaction.MouseInteraction,
-        clicked_object: _Union["_objects.ObjectBase", None]
-    ) -> bool:
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
+                 clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
+
         if self._finalized:
             return False
 
@@ -99,7 +105,10 @@ class BundleLayout(_base.AddHandlerBase):
             self.hover(current_pos)
             return True
 
-        if interaction_type is _interaction.MouseInteraction.LEFT_UP and not had_motion:
+        if (
+            interaction_type is _interaction.MouseInteraction.LEFT_UP and
+            not had_motion
+        ):
             self._finalize(current_pos)
             return True
 
@@ -108,8 +117,10 @@ class BundleLayout(_base.AddHandlerBase):
     @_check_types.do
     def hover(self, mouse_pos: _point.Point) -> None:
         world_pos = self.camera.screen_to_world(mouse_pos)
-        raw_pos, _is_at_endpoint, _endpoint = _wire_layout_pegboard.closest_point_on_chain(
-            self._bundle, world_pos.as_numpy)
+
+        raw_pos, _is_at_endpoint, _endpoint = (
+            _wire_layout_pegboard.closest_point_on_chain(
+                self._bundle, world_pos.as_numpy))
 
         pos = self.target.objpegboard.position
         pos += _point.Point(*raw_pos.tolist()) - pos
@@ -124,16 +135,21 @@ class BundleLayout(_base.AddHandlerBase):
         self._finalized = True
 
         world_pos = self.camera.screen_to_world(mouse_pos)
-        raw_pos, is_at_endpoint, endpoint = _wire_layout_pegboard.closest_point_on_chain(
-            self._bundle, world_pos.as_numpy)
+        raw_pos, is_at_endpoint, endpoint = (
+            _wire_layout_pegboard.closest_point_on_chain(
+                self._bundle, world_pos.as_numpy))
 
         if is_at_endpoint:
             if endpoint == 'start':
-                self._bundle.objpegboard.start_position.attach(self.target.objpegboard.position)
+                self._bundle.objpegboard.start_position.attach(
+                    self.target.objpegboard.position)
             else:
-                self._bundle.objpegboard.stop_position.attach(self.target.objpegboard.position)
+                self._bundle.objpegboard.stop_position.attach(
+                    self.target.objpegboard.position)
 
-            self.target.db_obj.position_pegboard_id = self.target.objpegboard.position.db_id[:-2]
+            self.target.db_obj.position_pegboard_id = (
+                self.target.objpegboard.position.db_id[:-2])
+
             self.target.objpegboard.is_visible = True
             self.mainframe.project.add_bundle_layout(self.target)
         else:
@@ -143,7 +159,8 @@ class BundleLayout(_base.AddHandlerBase):
             # it was added in", explicit direction) -- never the
             # bundle's 3D chord the way an earlier version of this
             # branch mapped onto.
-            insert_idx = _wire_layout_pegboard.segment_insertion_index(self._bundle, raw_pos)
+            insert_idx = _wire_layout_pegboard.segment_insertion_index(
+                self._bundle, raw_pos)
 
             self.target.delete()
 

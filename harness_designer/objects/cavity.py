@@ -7,6 +7,7 @@ from .objects_schematic import cavity as _cavity_schematic
 from .objects_3d import cavity as _cavity_3d
 from .objects_pegboard import cavity as _cavity_pegboard
 from .. import check_types as _check_types
+from ..crash_dump import capturable, dump_property
 
 
 if TYPE_CHECKING:
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
     from . import seal as _seal
 
 
+@capturable()
 class Cavity(_ObjectBase):
     """Represent a cavity in :mod:`harness_designer.objects.cavity`.
 
@@ -52,6 +54,7 @@ class Cavity(_ObjectBase):
         self.mainframe.add_object(self)
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def terminal(self) -> _Union["_terminal.Terminal", None]:
         terminal = self.db_obj.terminal
@@ -61,6 +64,7 @@ class Cavity(_ObjectBase):
         return terminal.get_object()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def housing(self) -> _Union["_housing.Housing", None]:
         """This cavity's owning ``Housing`` wrapper -- lets a terminal
@@ -84,6 +88,7 @@ class Cavity(_ObjectBase):
         return housing_db.get_object()
 
     @property
+    @dump_property(severity=2)
     @_check_types.do
     def seal(self) -> _Union["_seal.Seal", None]:
         seal = self.db_obj.seal

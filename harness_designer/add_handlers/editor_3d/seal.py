@@ -59,7 +59,10 @@ if TYPE_CHECKING:
 
 
 @_check_types.do
-def cavity_midpoint(pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
+def cavity_midpoint(
+    pjt_cavity: "_pjt_cavity.PJTCavity"
+) -> tuple[float, float, float]:
+
     """
     World-space midpoint of *pjt_cavity* along its insertion axis.
     """
@@ -75,7 +78,10 @@ def cavity_midpoint(pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, 
 
 
 @_check_types.do
-def cavity_midpoint_pegboard(pjt_cavity: "_pjt_cavity.PJTCavity") -> tuple[float, float, float]:
+def cavity_midpoint_pegboard(
+    pjt_cavity: "_pjt_cavity.PJTCavity"
+) -> tuple[float, float, float]:
+
     """
     Peg-board equivalent of :func:`cavity_midpoint` -- same insertion-
     axis-midpoint math, using the cavity's own ``position_pegboard``/
@@ -133,17 +139,12 @@ class Seal(_base.AddHandlerBase):
     """
 
     @_check_types.do
-    def __init__(
-        self,
-        canvas: "_canvas.Canvas",
-        target: "_objects.ObjectBase",
-        housing: _housing.Housing | None,
-        terminal: _terminal.Terminal | None,
-        cavity: _Union["_cavity.Cavity", None],
-        is_instant: bool,
-        snap_targets: list[_Union[_housing.Housing, _terminal.Terminal, "_cavity.Cavity"]],
-        is_dummy_pin: bool
-    ) -> None:
+    def __init__(self, canvas: "_canvas.Canvas", target: "_objects.ObjectBase",
+                 housing: _housing.Housing | None, terminal: _terminal.Terminal | None,
+                 cavity: _Union["_cavity.Cavity", None], is_instant: bool,
+                 snap_targets: list[_Union[_housing.Housing, _terminal.Terminal, "_cavity.Cavity"]],
+                 is_dummy_pin: bool) -> None:
+
         super().__init__(canvas, target)
 
         self.mainframe = canvas.mainframe
@@ -164,8 +165,8 @@ class Seal(_base.AddHandlerBase):
         return self._finalized
 
     @_check_types.do
-    def __call__(self, last_pos: _point.Point, current_pos: _point.Point, had_motion: bool,
-                 interaction_type: _interaction.MouseInteraction,
+    def __call__(self, last_pos: _point.Point, current_pos: _point.Point,
+                 had_motion: bool, interaction_type: _interaction.MouseInteraction,
                  clicked_object: _Union["_objects.ObjectBase", None]) -> bool:
 
         if self._finalized:
@@ -205,12 +206,15 @@ class Seal(_base.AddHandlerBase):
                 positions.append(target.db_obj.wire_position3d)
             else:  # Cavity
                 pjt_cav = target.db_obj
+
                 if self._is_dummy_pin:
                     gender = pjt_cav.housing.part.gender.name.lower()
+
                     if gender == 'male':
                         x, y, z = pjt_cav.position3d.as_float
                     else:
                         x, y, z = cavity_midpoint(pjt_cav)
+
                 else:
                     x, y, z = cavity_midpoint(pjt_cav)
 

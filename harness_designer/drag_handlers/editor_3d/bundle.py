@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING
 from ...geometry import point as _point
 from ...geometry import line as _line
 from .. import editor_3d as _editor_3d
+from ...handlers import wire_routing_handler as _wire_routing_handler
 from ... import debug as _debug
 from ... import check_types as _check_types
 
@@ -70,6 +71,27 @@ class Bundle(_editor_3d.DragHandler3D):
         self._anchor = anchor
         self.last_pos = self._anchor.copy()
 
+        # Open the move gesture for this drag's whole lifetime -- see
+        # drag_handlers.editor_pegboard.generic.Generic.__init__ for the
+        # same hook and WRITE_DESIGN.md section 4.12. Closed in delete()
+        # below. Without this, every point this drag moves (start, stop,
+        # every waypoint, every wire guard) hits the database immediately
+        # and individually on every frame instead of deferring into the
+        # gesture's own batched flush -- confirmed live, 2026-10-12: this
+        # class never opened a gesture at all.
+        canvas.mainframe.project.begin_gesture()
+
+    @_check_types.do
+    def delete(self) -> None:
+        try:
+            super().delete()
+        finally:
+            # Close the gesture opened in __init__ -- see that method's
+            # comment. Must run even if super().delete() raises, or the
+            # gesture would silently stay open and defer every later
+            # write app-wide until something else closes it.
+            self.canvas.mainframe.project.end_gesture()
+
     @_debug.logfunc
     @_check_types.do
     def __call__(self, delta: _point.Point, mouse_pos: _point.Point) -> None:  # NOQA -- mouse_pos unused, nothing to snap onto
@@ -79,15 +101,27 @@ class Bundle(_editor_3d.DragHandler3D):
             return
 
         obj3d = self.target.obj3d
+        db_obj = obj3d.db_obj
 
         start_position = obj3d.start_position
         stop_position = obj3d.stop_position
 
         start_position += delta3d
-        for waypoint in obj3d.db_obj.waypoints3d:
+        for waypoint in db_obj.waypoints3d:
             point = waypoint.point
             point += delta3d
         stop_position += delta3d
+
+        # Wire guards (BUNDLE_PLACEMENT.md section 12) are owned by their
+        # own wire, not this bundle, so they are never in db_obj.waypoints3d
+        # above -- but they can only ever move when the bundle end they
+        # sit next to moves, which is exactly what just happened. Carry
+        # each one along by the same rigid delta.
+        ptables = self.target.mainframe.project.ptables
+        for end_point_id in (db_obj.start_position3d_id, db_obj.stop_position3d_id):
+            for guard_id in _wire_routing_handler.guard_points_at(ptables, '3d', end_point_id):
+                guard_point = ptables.pjt_points3d_table[guard_id].point
+                guard_point += delta3d
 
         self._anchor += delta3d
         self.last_pos = self._anchor.copy()
