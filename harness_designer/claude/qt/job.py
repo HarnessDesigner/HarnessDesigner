@@ -121,7 +121,12 @@ class ClaudeJob(QtCore.QObject):
         except _errors.Cancelled:
             self._finish(self.cancelled.emit)
         except _errors.ClaudeError as err:
-            self._finish(lambda: self.failed.emit(err))
+            # Cython can't compile `except ... as err` when a nested closure (the lambda
+            # below) captures `err` directly: it needs to implicitly `del err` at the end
+            # of the block but can't delete a name that's become a closure cell. Rebinding
+            # to a plain local first keeps `err` itself out of the closure.
+            caught = err
+            self._finish(lambda: self.failed.emit(caught))
         except Exception as err:  # NOQA -- a bug must reach the user as a failure, not vanish with the thread
             wrapped = _errors.ClaudeError(f'Unexpected {type(err).__name__}: {err}',
                                           details=traceback.format_exc())
