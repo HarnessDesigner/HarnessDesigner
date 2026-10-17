@@ -1941,20 +1941,56 @@ class PJTHousing(PJTEntryBase, NameMixin, PartMixin, Position2DMixin, Position3D
 
         f_position_array = [[float(str(axis)) for axis in point] for point in new_pos_arr]
 
-        # Set every point's new value directly -- see _update_position3d's
-        # identical comment (WRITE_DESIGN.md section 4.12). No explicit
-        # batch DB write here anymore: the move drag handlers open a
-        # gesture before touching position_pegboard, so each point's own
-        # DB-writing callback defers into its table's cache instead of
-        # running real SQL, and the gesture's end flushes everything this
-        # drag touched in one batched UPDATE.
-        for i, pos in enumerate(all_positions):
-            with pos:
-                pos.x = f_position_array[i][0]
-                pos.y = f_position_array[i][1]
-                pos.z = f_position_array[i][2]
+        # Every chain (wire/bundle) touching any of these points gets its
+        # own geometry rebuild suspended for the whole loop below, instead
+        # of once per point moved. All of these points move by the exact
+        # same delta, every time -- a seated terminal's own attach point,
+        # its own stub, and its cavity's stub are the SAME wire's three
+        # points, and firing that wire's rebuild once per point instead of
+        # once for this whole housing move is pure repeated work for the
+        # identical result (confirmed live, 2026-10-17). See
+        # objects_pegboard.wire.Wire.suspend_updates's own docstring.
+        #
+        # Found via each point's own already-bound callbacks
+        # (chains_bound_to_point), not a peg-board-path-table lookup by
+        # point id -- confirmed live, 2026-10-17, that a lookup by id
+        # silently found nothing for several of these points (terminal.
+        # wire_position_pegboard/cavity.wire_position_pegboard can
+        # return a per-wire CLONE of a structural stub point whose own
+        # id a path-table lookup never resolves back to the wire
+        # actually bound to it -- see chains_bound_to_point's own
+        # docstring). Lazy import to avoid a cycle at import time --
+        # rope_pull_handler transitively imports this whole package,
+        # same reason objects_pegboard.wire.Wire._bind_waypoints already
+        # imports this same module lazily.
+        from ...handlers import rope_pull_handler as _rope_pull_handler  # NOQA
 
-            pos._process_callbacks()  # NOQA
+        suspended: dict[int, object] = {}
+        for pos in all_positions:
+            for objpegboard in _rope_pull_handler.chains_bound_to_point(pos):
+                suspended[id(objpegboard)] = objpegboard
+
+        for objpegboard in suspended.values():
+            objpegboard.suspend_updates()
+
+        try:
+            # Set every point's new value directly -- see _update_position3d's
+            # identical comment (WRITE_DESIGN.md section 4.12). No explicit
+            # batch DB write here anymore: the move drag handlers open a
+            # gesture before touching position_pegboard, so each point's own
+            # DB-writing callback defers into its table's cache instead of
+            # running real SQL, and the gesture's end flushes everything this
+            # drag touched in one batched UPDATE.
+            for i, pos in enumerate(all_positions):
+                with pos:
+                    pos.x = f_position_array[i][0]
+                    pos.y = f_position_array[i][1]
+                    pos.z = f_position_array[i][2]
+
+                pos._process_callbacks()  # NOQA
+        finally:
+            for objpegboard in suspended.values():
+                objpegboard.resume_updates()
 
     _o_position_pegboard: _point.Point = None
 

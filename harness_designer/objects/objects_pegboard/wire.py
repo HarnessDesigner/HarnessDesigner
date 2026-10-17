@@ -121,6 +121,10 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             # objects.terminal.Terminal.add_wire).
             self._waypoint_points: list[_point.Point] = []
 
+            # See suspend_updates/resume_updates/_recalculate_geometry.
+            self._update_suspended = False
+            self._update_pending = False
+
             # Raw point ids (see handlers.wire_topology.hidden_waypoint_ids)
             # that sit inside a bundle/transition this wire is routed
             # through -- recomputed only in _bind_waypoints (waypoint-
@@ -272,49 +276,48 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
     @_debug.logfunc
     @_check_types.do
-    def unregister_geometry_updates(self) -> None:
-        """Temporarily stop every one of this wire's own interior
-        waypoints from triggering :meth:`_update_position` (and so a
-        full :meth:`_recalculate_geometry`/GL-stripe-capacity rebuild)
-        on every individual move.
+    def suspend_updates(self) -> None:
+        """Defer this wire's own :meth:`_recalculate_geometry` rebuild
+        (OBB/AABB, GL-stripe capacity, length) across a batch of several
+        of its own points moving one at a time, instead of paying for a
+        full rebuild after every individual move.
 
-        For a caller about to move several of this wire's own
-        waypoints one at a time (``rope_pull_handler._apply_mid_drag``'s
-        own per-point ``_place_active`` loop, chief among them) so the
-        rebuild happens once, after all of them have their final
-        position, instead of once per point moved. Always paired
-        afterward with either :meth:`reregister_geometry_updates` (the
-        waypoint set itself is unchanged -- a cheap rebind) or
-        :meth:`refresh_waypoints` (it might not be) -- in a ``finally``,
-        so a raised exception never leaves this wire's own waypoints
-        permanently unbound.
+        A simple bool, set here and cleared by :meth:`resume_updates` --
+        :meth:`_recalculate_geometry` checks :attr:`_update_suspended`
+        and, while it's set, only marks :attr:`_update_pending` instead
+        of actually recalculating. The caller iterating over this
+        wire's own points for one batch sets this before that loop and
+        calls :meth:`resume_updates` right after it -- so the LAST
+        point of the batch to move is the one whose deferred update
+        :meth:`resume_updates` turns into the one real rebuild,
+        regardless of how many moved before it.
+
+        Confirmed live, 2026-10-17: before this existed, one housing
+        drag's cascade -- the housing's own direct point moves, the
+        slack-handler safety net, and the rope-pull solver's own
+        commit -- rebuilt this wire's geometry several times over for
+        what was logically one move.
         """
-        for point in self._waypoint_points:
-            point.unbind(self._update_position)
+        self._update_suspended = True
 
     @_debug.logfunc
     @_check_types.do
-    def reregister_geometry_updates(self) -> None:
-        """Cheap undo of :meth:`unregister_geometry_updates` for a
-        caller that already knows this wire's own waypoint SET didn't
-        change (same count, same identities) -- rebinds
-        :meth:`_update_position` to the exact same points just
-        unbound, with no re-derivation from the DB/offline-store
-        (:meth:`_bind_waypoints`'s own job) and no
-        :meth:`WireSlackHandler.register_pegboard` rebind (nothing for
-        it to pick up, since the set it would rebind to is identical).
+    def resume_updates(self, recalculate: bool = True) -> None:
+        """Undo :meth:`suspend_updates` -- see its own docstring.
 
-        Not a substitute for :meth:`refresh_waypoints` when the
-        waypoint set itself might have changed -- only when the caller
-        has already confirmed it didn't (``rope_pull_handler.
-        _apply_mid_drag``'s own true-no-op case -- see
-        :func:`rope_pull_handler._move_point`'s no-op short-circuit).
-        Calling this after a real set change would silently leave
-        :class:`WireSlackHandler` and this wire's own ``_update_position``
-        bound to a stale point list.
+        :param recalculate: ``False`` just clears :attr:`_update_pending`
+            without acting on it -- for a caller that already knows
+            it's about to run :meth:`refresh_waypoints` right after
+            regardless (the waypoint SET itself changed, not just
+            positions), so running the deferred recalculation here
+            first would only be immediately redone there.
         """
-        for point in self._waypoint_points:
-            point.bind(self._update_position)
+        self._update_suspended = False
+
+        was_pending = self._update_pending
+        self._update_pending = False
+        if recalculate and was_pending:
+            self._recalculate_geometry()
 
     @_debug.logfunc
     @_check_types.do
@@ -323,11 +326,12 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         waypoint rows change (added, removed, or reordered) so live
         callbacks, cached length, and geometry all catch up.
 
-        A caller that already knows the waypoint SET itself is
-        unchanged (a true no-op reconcile -- see ``rope_pull_handler.
-        _move_point``'s own no-op short-circuit) has nothing to
-        recompute or re-derive here; :meth:`reregister_geometry_updates`
-        is the cheap path for exactly that case instead.
+        Always re-derives the waypoint set and recalculates
+        unconditionally -- for a caller moving several of this wire's
+        own EXISTING points without changing the set itself, bracket
+        the moves with :meth:`suspend_updates`/:meth:`resume_updates`
+        instead, which defers to one recalculation (or none, if nothing
+        actually moved) rather than paying for this full re-derivation.
         """
         self._bind_waypoints()
         self._recalculate_geometry()
@@ -461,7 +465,18 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         WireTypeMixin._segments() -- this only maintains the aggregate
         values anything outside this class still reads (.length, .scale,
         .angle, .obb, .aabb).
+
+        No-ops (just marking :attr:`_update_pending`) while
+        :meth:`suspend_updates` has this wire's own recalculation
+        suspended -- see that method's own docstring. The gate lives
+        here, not in :meth:`_update_position`, so EVERY path that
+        reaches this method honors it, not only the one that happens to
+        go through that callback.
         """
+        if self._update_suspended:
+            self._update_pending = True
+            return
+
         segments = self._segments()
 
         total_length = 0.0
@@ -472,6 +487,24 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             return
 
         self._length = total_length
+
+        # This assignment ALREADY computes the OBB/AABB: Point.z's setter
+        # unconditionally fires _process_callbacks(), and BaseVar's own
+        # _update_scale (bound to self._scale) calls self._compute_obb()/
+        # self._compute_aabb() itself (inside self.editor.context, with
+        # its own Refresh() after -- a more complete job than a bare call
+        # would do). An explicit self._compute_obb()/_compute_aabb() call
+        # after this point used to run the exact same computation AGAIN
+        # -- confirmed live, 2026-10-17, via a logged call stack: every
+        # _recalculate_geometry() call fired _compute_obb() twice, once
+        # through this assignment and once from its own old trailing
+        # calls, doubling the real cost (a GL-stripe-capacity-adjacent
+        # rebuild, not a cheap one) of every waypoint move during a drag.
+        # Safe to rely on this one alone because _compute_obb/_compute_aabb
+        # only ever read _segment_transforms()'s own fresh-each-call
+        # segment data (never self._scale or self._angle, both still
+        # unset for this call at this point) -- see _segment_transforms's
+        # own docstring.
         self._scale.z = total_length
 
         if self._stripe is not None:
@@ -488,9 +521,6 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
             angle = self._rotation_from_direction(chord / chord_length)
             self._angle._q = angle._q  # NOQA
 
-        self._compute_obb()
-        self._compute_aabb()
-
     @_debug.logfunc
     @_check_types.do
     def _update_position(self, _: _point.Point) -> None:
@@ -499,8 +529,10 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         interior waypoint (see _bind_waypoints), so any of them moving
         keeps the wire's aggregate length/OBB/AABB and the stripe's
         mesh capacity current before the next repaint.
-        """
 
+        See :meth:`_recalculate_geometry`'s own docstring for the
+        suspend/resume gate -- it lives there, not here.
+        """
         self._recalculate_geometry()
 
     @_check_types.do

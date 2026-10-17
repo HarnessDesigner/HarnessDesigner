@@ -656,6 +656,51 @@ def _chains_for_point(
 
 @_debug.logfunc
 @_check_types.do
+def chains_bound_to_point(point: "_point.Point") -> list:
+    """Every chain's own peg-board facade (``Wire.objpegboard``/
+    ``Bundle.objpegboard``) with ``suspend_updates()``/
+    ``resume_updates()`` bound to *point* right now (see
+    ``objects_pegboard.wire.Wire.suspend_updates``'s own docstring) --
+    found by inspecting *point*'s own already-bound callbacks (the
+    exact weakref list ``CallbackMixin._process_callbacks`` itself
+    fires from), not by looking up which chain owns this point's id
+    through the peg-board path tables (:func:`_chains_for_point`'s own
+    job, for a different purpose).
+
+    That distinction matters: a structural stub point
+    (``terminal.wire_position_pegboard``/``cavity.wire_position_pegboard``)
+    can be a per-wire CLONE whose own id a path-table lookup never
+    resolves back to the wire actually bound to it (see
+    :func:`_structural_stub_ids`'s own docstring -- "every terminal/
+    cavity stub past the first wire on that terminal is a clone at
+    the same spot"). Confirmed live, 2026-10-17: a path-table lookup
+    by point id silently found nothing for several of
+    ``PJTHousing._update_position_pegboard``'s own moved points,
+    leaving their wires' geometry rebuild unsuspended. Inspecting the
+    point's own bindings directly has no such gap -- whatever object
+    actually bound itself to THIS exact ``Point`` instance is exactly
+    what needs suspending, no id resolution involved at all.
+
+    Skips a dead weakref (its owner already collected) and any bound
+    callback whose owner isn't chain-like (``WireSlackHandler``'s own
+    ``_on_pegboard_changed``, bound to some of the same points, has no
+    ``suspend_updates`` of its own and is correctly skipped here).
+    """
+    result = []
+    for ref in list(point.__callbacks__):
+        cb = ref()
+        if cb is None:
+            continue
+
+        owner = getattr(cb, '__self__', None)
+        if owner is not None and hasattr(owner, 'suspend_updates'):
+            result.append(owner)
+
+    return result
+
+
+@_debug.logfunc
+@_check_types.do
 def _pulled_far_position(
     far_xz: tuple[float, float], near_target_xz: tuple[float, float], required_length: float
 ) -> tuple[float, float]:
@@ -1269,65 +1314,92 @@ def _commit_points_body(
     ptables = mainframe.project.ptables
     points_table = ptables.pjt_points_pegboard_table
 
-    # Yaw first, then points: the transition's own angle callback rebuilds
-    # its branch tips from whatever position/angle it holds at that moment,
-    # so the point writes below must run last to leave the cached Points
-    # and the DB rows agreeing with the new pose.
-    for center_id, phi in write_yaws.items():
-        transition_rows = ptables.pjt_transitions_table.select('id', point_pegboard_id=center_id)
-        transition = ptables.pjt_transitions_table[transition_rows[0][0]]
-        angle = transition.angle_pegboard
-        angle += _angle.Angle.from_axis_angle(np.array([0.0, 1.0, 0.0]), phi)
+    # Every chain's own pegboard facade this whole commit could touch, so
+    # each one's own geometry rebuild (Wire/Bundle._recalculate_geometry)
+    # can be suspended for the WHOLE commit below instead of once per
+    # point moved -- see Wire.suspend_updates's own docstring. Covers
+    # every chain _evaluate_points already found (entries) AND every
+    # chain actually bound to a write_points anchor (chains_bound_to_
+    # point -- not a path-table lookup by id, see its own docstring for
+    # why: a cascade-pulled node can belong to a chain that doesn't
+    # otherwise appear in entries).
+    suspended: dict[int, object] = {}
 
-    # Apply each move as a delta with += on the cached Point: plain x/z
-    # assignment never fires the bound callbacks that write the row back
-    # to the DB and refresh every live view holding this Point.
-    for point_id, (x, z) in write_points.items():
-        # _move_point's own no-op short-circuit applies here too: a
-        # cascade-pulled anchor this solve decided doesn't actually
-        # need to move (its own far-end delta already rounded to
-        # nothing) shouldn't fire every one of its bound callbacks --
-        # WireSlackHandler among them, for a wire/bundle anchor -- for
-        # a write that changes nothing.
-        _move_point(points_table[point_id].point, x, z)
+    for entry in entries:
+        chain_obj = entry[0].get_object()
+        if chain_obj is not None:
+            suspended[id(chain_obj.objpegboard)] = chain_obj.objpegboard
 
-    for (
-        chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
-        result, start_xz, stop_xz, required_length, leading, trailing
-    ) in entries:
-        interior = result.points[1:-1]
-        pin_point_id = point_id if drag_end is _rope_pull.DragEnd.WAYPOINT else None
-        pin_xz = target_xz if drag_end is _rope_pull.DragEnd.WAYPOINT else None
+    for point_id in write_points:
+        for objpegboard in chains_bound_to_point(points_table[point_id].point):
+            suspended[id(objpegboard)] = objpegboard
 
-        if in_progress or _offline_store.overlay(chain_db_obj.db_id) is not None:
-            _apply_mid_drag(
-                mainframe, chain_db_obj, path_table, layouts_table,
-                drag_end, interior, start_xz, stop_xz, pin_point_id, pin_xz, leading, trailing)
+    for objpegboard in suspended.values():
+        objpegboard.suspend_updates()
 
-            if not in_progress:
-                _commit_overlay(mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls)
-        else:
-            _reconcile_interior(
-                mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
-                interior, pin_point_id, pin_xz, leading, trailing)
+    try:
+        # Yaw first, then points: the transition's own angle callback rebuilds
+        # its branch tips from whatever position/angle it holds at that moment,
+        # so the point writes below must run last to leave the cached Points
+        # and the DB rows agreeing with the new pose.
+        for center_id, phi in write_yaws.items():
+            transition_rows = ptables.pjt_transitions_table.select('id', point_pegboard_id=center_id)
+            transition = ptables.pjt_transitions_table[transition_rows[0][0]]
+            angle = transition.angle_pegboard
+            angle += _angle.Angle.from_axis_angle(np.array([0.0, 1.0, 0.0]), phi)
 
-        # A bundle's own peg-board interior just got its REAL (not
-        # overlay) shape written -- the 3D-side counterpart of this is
-        # drag_handlers.editor_3d.generic.py's own guard-reposition
-        # hooks; this is the one shared place every peg-board path that
-        # changes a bundle's interior (a genuine peg-board drag's own
-        # release frame, or a 3D-triggered realize_length_change) ends
-        # up, so one hook here covers all of them. Skipped while
-        # in_progress=True (an ordinary mid-drag frame): that writes
-        # only the in-memory overlay, never real pjt_bundle_paths rows,
-        # so recomputing from bundle.waypoints_pegboard here would read
-        # stale pre-drag positions -- the guard catches up once this
-        # runs for real, at release or a non-dragging realize.
-        if not in_progress and isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
-            _wire_routing_handler.reposition_guards_for_bundle_end(
-                ptables, chain_db_obj, chain_db_obj.start_position_pegboard, 'pegboard')
-            _wire_routing_handler.reposition_guards_for_bundle_end(
-                ptables, chain_db_obj, chain_db_obj.stop_position_pegboard, 'pegboard')
+        # Apply each move as a delta with += on the cached Point: plain x/z
+        # assignment never fires the bound callbacks that write the row back
+        # to the DB and refresh every live view holding this Point.
+        for point_id, (x, z) in write_points.items():
+            # _move_point's own no-op short-circuit applies here too: a
+            # cascade-pulled anchor this solve decided doesn't actually
+            # need to move (its own far-end delta already rounded to
+            # nothing) shouldn't fire every one of its bound callbacks --
+            # WireSlackHandler among them, for a wire/bundle anchor -- for
+            # a write that changes nothing.
+            _move_point(points_table[point_id].point, x, z)
+
+        for (
+            chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
+            result, start_xz, stop_xz, required_length, leading, trailing
+        ) in entries:
+            interior = result.points[1:-1]
+            pin_point_id = point_id if drag_end is _rope_pull.DragEnd.WAYPOINT else None
+            pin_xz = target_xz if drag_end is _rope_pull.DragEnd.WAYPOINT else None
+
+            if in_progress or _offline_store.overlay(chain_db_obj.db_id) is not None:
+                _apply_mid_drag(
+                    mainframe, chain_db_obj, path_table, layouts_table,
+                    drag_end, interior, start_xz, stop_xz, pin_point_id, pin_xz, leading, trailing)
+
+                if not in_progress:
+                    _commit_overlay(mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls)
+            else:
+                _reconcile_interior(
+                    mainframe, chain_db_obj, path_table, layouts_table, layout_facade_cls,
+                    interior, pin_point_id, pin_xz, leading, trailing)
+
+            # A bundle's own peg-board interior just got its REAL (not
+            # overlay) shape written -- the 3D-side counterpart of this is
+            # drag_handlers.editor_3d.generic.py's own guard-reposition
+            # hooks; this is the one shared place every peg-board path that
+            # changes a bundle's interior (a genuine peg-board drag's own
+            # release frame, or a 3D-triggered realize_length_change) ends
+            # up, so one hook here covers all of them. Skipped while
+            # in_progress=True (an ordinary mid-drag frame): that writes
+            # only the in-memory overlay, never real pjt_bundle_paths rows,
+            # so recomputing from bundle.waypoints_pegboard here would read
+            # stale pre-drag positions -- the guard catches up once this
+            # runs for real, at release or a non-dragging realize.
+            if not in_progress and isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
+                _wire_routing_handler.reposition_guards_for_bundle_end(
+                    ptables, chain_db_obj, chain_db_obj.start_position_pegboard, 'pegboard')
+                _wire_routing_handler.reposition_guards_for_bundle_end(
+                    ptables, chain_db_obj, chain_db_obj.stop_position_pegboard, 'pegboard')
+    finally:
+        for objpegboard in suspended.values():
+            objpegboard.resume_updates()
 
 
 class _Waypoint:
@@ -1521,45 +1593,51 @@ def _apply_mid_drag(
             else:
                 active.insert(0, entry)
 
-    # Suspend the chain's own per-point geometry rebuild for the duration of
-    # the move loop below -- _place_active moves every active waypoint one
-    # at a time, and each one left bound would otherwise trigger its own
+    # Suspend the chain's own geometry rebuild for the duration of the move
+    # loop below -- _place_active moves every active waypoint one at a
+    # time, and each one left unsuspended would otherwise trigger its own
     # full _recalculate_geometry()/GL-stripe-capacity rebuild (confirmed
     # live, 2026-10-16: this was the dominant per-point cost of a drag).
-    # One rebuild after all of them have their final position, in the
-    # refresh_waypoints() call below, replaces all of those. Always
-    # resumed in the finally, via refresh_waypoints()'s own unconditional
-    # rebind half, so a raised exception never leaves this chain's own
-    # waypoints permanently unbound.
+    # suspend_updates/resume_updates (Wire/Bundle) turn that into at most
+    # one rebuild for the whole batch -- see suspend_updates's own
+    # docstring. Always resumed in the finally, so a raised exception
+    # never leaves this chain's own recalculation suspended forever.
     chain_obj = chain_db_obj.get_object()
     if chain_obj is not None:
-        chain_obj.objpegboard.unregister_geometry_updates()
+        chain_obj.objpegboard.suspend_updates()
 
     try:
-        moved = _place_active(active, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+        _place_active(active, interior, start_xz, stop_xz, pin_point_id, pin_xz)
     finally:
         overlay[:] = overlay[:leading] + active + overlay[tail_start:]
 
         if chain_obj is not None:
-            # A true no-op -- same count, same positions -- needs only
-            # the cheap rebind (reregister_geometry_updates: back onto
-            # the exact same points just unbound, no DB/offline-store
-            # re-derivation, no WireSlackHandler rebind, since the set
-            # it would rebind to is provably identical). This is what
-            # makes a redundant reconcile (WireSlackHandler's own
-            # per-point safety net firing on points a housing/transition
-            # move rigidly carries along -- see its own module
-            # docstring) cheap end to end: by the time it runs, this
-            # chain is already exactly where the real pass just put it,
-            # confirmed by _move_point's own no-op short-circuit (exact
-            # equality, never a tolerance). Only a real change pays for
-            # the full refresh_waypoints() -- re-derive the waypoint
-            # set, rebind everything (this wire's own geometry callback
-            # AND WireSlackHandler's), recalculate, repaint.
-            if original_count != len(active) or moved:
+            if original_count != len(active):
+                # The waypoint SET itself changed -- resume_updates
+                # (recalculate=False) just closes this suspend level
+                # without acting on it; refresh_waypoints() below
+                # re-derives the set, rebinds everything (this chain's
+                # own geometry callback AND WireSlackHandler's, for a
+                # wire), recalculates, and repaints regardless, so
+                # resuming with its own recalculation first would only
+                # be immediately redone there.
+                chain_obj.objpegboard.resume_updates(recalculate=False)
                 chain_obj.objpegboard.refresh_waypoints()
             else:
-                chain_obj.objpegboard.reregister_geometry_updates()
+                # Same count: resume_updates() alone recalculates
+                # exactly once if anything in this batch actually
+                # moved, or does nothing at all if the whole call was a
+                # true no-op (nothing was ever marked pending, since
+                # _move_point's own no-op short-circuit means a point
+                # that didn't move never fired _update_position in the
+                # first place). This is what makes a redundant
+                # reconcile (WireSlackHandler's own per-point safety
+                # net firing on points a housing/transition move
+                # rigidly carries along -- see its own module
+                # docstring) cheap end to end: by the time it runs,
+                # this chain is already exactly where the real pass
+                # just put it.
+                chain_obj.objpegboard.resume_updates()
 
 
 @_debug.logfunc
@@ -1571,14 +1649,19 @@ def _place_active(
     stop_xz: tuple[float, float],
     pin_point_id: bytes | None,
     pin_xz: tuple[float, float] | None
-) -> bool:
+) -> None:
     """Move the overlay's points onto the solver's shape, keeping the pinned
     (dragged) point on its own target. When the counts disagree, the others are
     spread evenly on the straight line between the anchors (a transient state
     that only lasts until the drag releases).
 
-    :returns: Whether any point actually moved -- see :func:`_move_point`'s
-        own no-op short-circuit.
+    Whether any point actually moved doesn't need tracking here --
+    :func:`_move_point`'s own no-op short-circuit means a point that
+    didn't move never fires a callback at all, and the chain-level
+    ``Wire``/``Bundle.suspend_updates``/``resume_updates`` bracketing
+    this call (see :func:`_apply_mid_drag`) already turns "did anything
+    in this whole batch actually move" into "was anything left
+    pending," with no help needed from this function.
     """
     pinned = [entry for entry in overlay if pin_point_id is not None and entry.point_id == pin_point_id]
     others = [entry for entry in overlay if not (pin_point_id is not None and entry.point_id == pin_point_id)]
@@ -1601,12 +1684,8 @@ def _place_active(
     if pinned and pin_xz is not None:
         targets.append((pinned[0], pin_xz))
 
-    moved = False
     for entry, (x, z) in targets:
-        if _move_point(entry.point, x, z):
-            moved = True
-
-    return moved
+        _move_point(entry.point, x, z)
 
 
 @_debug.logfunc

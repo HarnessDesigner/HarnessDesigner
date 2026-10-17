@@ -4,21 +4,18 @@ Point-and-click scraper authoring inside harness_designer: a built-in web browse
 user sees/selects (page source text, XHR/fetch responses) into Python code, a script editor, and a Claude
 assistant that helps design the scraper. Add new scraper decisions HERE, not in MEMORY.md.
 
-Status (2026-10-16): design agreed. Phases 1 (snippet engine) and 2 (browser, XHR capture, inspector) are built and
-tested headless; they have NOT been run in the real application. Phases 3-5 are not started. See "Phasing" and
-"Phase 2 as built".
+Status (2026-10-17): design agreed. Phases 1 (snippet engine), 2 (browser, XHR capture, inspector), 3 (script
+editor dock + Claude assistant) and 4 (run / stop, console, examples) are built; they have NOT been run in the real
+application, and the assistant has only ever talked to a fake server, never the live API. Phase 5 (toolbar buttons,
+menu entries) is partly done. See "Phasing" and the "Phase N as built" sections.
 
-Running the tests (no app launch, no `Config`/log side effects -- `tests/_bootstrap.py` loads the real modules
-under a stub package so `harness_designer/__init__.py` never runs):
-
-    C:\python3.11.14\python.exe -m unittest discover -s tests -t .
-
-The interpreter needs the new dependencies first (`pip install -r requirements.txt`: `beautifulsoup4`, `lxml`,
-`anthropic`). 176 tests at the end of Phase 2: each snippet action is checked by executing its output against
-sample pages (indented, minified, CRLF, and one made of identical rows); the widgets are driven headless
-(`QT_QPA_PLATFORM=offscreen`); and `test_browser_integration.py` runs the real QtWebEngine against a local
-`http.server` on 127.0.0.1 (about 15 s). Generated scripts are executed with `requests` swapped out in
-`sys.modules`, so no test touches the network. The browser tests need a Qt install with QtWebEngine.
+Tests: there are none, and none are to be written (user, 2026-10-17). Phases 1-2 and the Claude package had
+`unittest` suites (the snippet engine run against sample pages, the widgets headless, QtWebEngine against a local
+HTTP server, the Claude client against a fake Messages API server); they are gone from the working tree and exist
+only in git history. The checks made while building Phases 3 and 4 (the assistant panel, the runner, the examples,
+the editor) were made the same way and never committed. So where this file says something was "checked" or "seen
+working", it was checked once, headless, and cannot be re-checked from the repository; none of it has been run in
+the real application.
 
 ## Decisions (user, 2026-10-16)
 
@@ -43,8 +40,9 @@ sample pages (indented, minified, CRLF, and one made of identical rows); the wid
   see CLAUDE_API_DESIGN.md. The old `requests`-based `scraping/claude_client.py` is gone. The scraper assistant
   (Phase 3) is a CONSUMER of that package: it builds its prompts, calls `ClaudeClient` / `ClaudeJob`, and shows
   the settings with `claude.qt.key_dialog.ApiKeyDialog`; it contains no API code of its own.
-- **Running scripts: see "Running scripts" -- user asked how other apps do it; recommendation below, awaiting
-  the user's reaction before Phase 4.**
+- **Running scripts (user, 2026-10-17): in a thread of the application process; a Stop button raises `SystemExit`
+  in it.** A warning says when that cannot work (a wait at the OS level) and examples show how to write scripts whose
+  waits can be ended from outside. See "Running scripts".
 
 ## Already in the tree when this started (untracked, from an earlier session)
 
@@ -73,8 +71,11 @@ harness_designer/scraping/              non-UI logic; no Qt
     script_builder.py  where imports go, how warnings become comments                             [Phase 2]
     browser_pick.py    "element under the pointer" JS + its answer -> snippet                     [Phase 2]
     url_input.py       address-bar text -> URL                                                    [Phase 2]
-    assistant.py       prompt + context packing/truncation + reply parsing (uses `claude/`)       [Phase 3]
-    runner.py          run a script in a child process, stream output, terminate                  [Phase 4]
+    assistant.py       system prompt, what can be sent + its budgets, the message, reply parsing   [Phase 3]
+    assistant_tools.py the tools Claude checks selectors / JSON paths with, against the real page  [Phase 3]
+    script_files.py    read / atomic write of scripts, the autosaved working copy's path           [Phase 3]
+    runner.py          run a script in a thread of this process; Stop raises SystemExit in it    [Phase 4]
+    examples.py        the editor's Examples: scripts whose waits can be ended from outside       [Phase 4]
 harness_designer/ui/scraper_inspector/  the inspector widgets; no QtWebEngine, so testable alone  [Phase 2]
     source_viewer.py   Source tab: highlighted read-only text, right-click -> code actions
     network_panel.py   Network tab: the captured requests, filter, JSON-only
@@ -87,8 +88,11 @@ harness_designer/ui/web_viewer/         the browser dock (imports QtWebEngine --
     browser_widget.py  address bar, QWebEngineView, profile, hook injection, page context menu
     capture_bridge.py  the QWebChannel object the hook calls (validates everything)
     browser_dock.py    ScraperBrowser(DockBase) = browser | inspector, side by side
-harness_designer/ui/editor_script/      ScriptEditor dock: CodeEditorCtrl, toolbar, console, assistant [Phase 3]
-tests/                                  unittest; `_bootstrap.py` loads modules without `import harness_designer`
+harness_designer/ui/editor_script/      the Script Editor dock                                         [Phase 3]
+    script_editor.py   ScriptEditorPanel (CodeEditorCtrl, file toolbar, working copy) + ScriptEditor(DockBase)
+    assistant_panel.py AssistantPanel -- the Claude assistant under the editor
+    console_panel.py   ConsolePanel -- the runs, their output, Stop's state and the "did not stop" signal [Phase 4]
+    message_dialog.py  ask() -- a message with buttons in the application's dialog style              [Phase 4]
 ```
 
 **One dock holds the browser and the inspector** (changed from the three-dock sketch): the user asked for
@@ -138,8 +142,8 @@ occurrence. The marker grows outward (left context for "after", right context fo
 occurrence in the document is the selected one (that is all `partition` / `find` need), and the snippet says
 so in its warnings; if the selection already is the first occurrence it warns that the code uses the first.
 Regex actions use the shortest left/right context (whole tags, whitespace-flexible) whose first match is exactly
-the selection. Every action's output is verified by tests that `exec` the generated code against sample
-documents (indented, minified, CRLF, repeated rows) -- no GUI needed. Not built: "Strip tags / get text".
+the selection. Every action's output was checked by `exec`-ing the generated code against sample
+documents (indented, minified, CRLF, repeated rows) while the tests existed. Not built: "Strip tags / get text".
 
 ## XHR capture
 
@@ -180,6 +184,8 @@ documents (indented, minified, CRLF, repeated rows) -- no GUI needed. Not built:
   stdlib; reply with one complete code block; match the existing variable names; keep a polite `timeout=`
   and a realistic `User-Agent`.
 - A reply is shown in the assistant panel with Insert / Replace Script / Copy, never auto-applied.
+- As built (it differs from this sketch in places -- per-piece budgets instead of one truncation cap, tools that
+  check selectors, a refresh rule for the tick boxes): see "Phase 3 as built".
 
 ## Running scripts
 
@@ -199,34 +205,58 @@ swallows it. Real editors that need Stop to work (IDLE, Thonny, Spyder, Jupyter,
 a **separate process** and interrupt or kill that; editors that run scripts inside the host process (QGIS,
 Maya and Blender consoles) simply freeze the application on a runaway script.
 
-Plan: a `runner.py` that starts the script in a child process (`multiprocessing`, spawn; the app already calls
-`freeze_support()` and has `process/`), streams stdout/stderr and the final status back to the console pane
-through a queue read by a worker thread, and implements Stop as `terminate()`. The GUI thread never blocks.
-"From a thread" is satisfied in the sense that matters (the UI stays live and the run is stoppable); the run
-itself is a process. Child-process caveat to solve in Phase 4: importing anything under `harness_designer`
-runs the package `__init__` (Config, logger), so the child must use a runner entry point that avoids that or
-tolerates it (see MEMORY.md "Config is a live DB").
+**Decision (user, 2026-10-17): the script runs in a THREAD of the application process, and a Stop button raises
+`SystemExit` inside it** (`PyThreadState_SetAsyncExc`, as in the user's own snippet). The child-process plan that was
+recommended here (a `multiprocessing` runner with Stop = `terminate()`) was heard and not taken: the user's position
+is that some responsibility is left to the person writing the script, because no scheme makes a script editor
+completely safe. Do not move this to a child process without asking. What the choice costs, measured on this
+machine on 2026-10-17 (`kick_experiment*.py`):
+
+- Stop only reaches a thread while it is running Python code. A thread inside a blocking OS call is not reached:
+  `time.sleep()`, a socket read with no timeout, `Thread.join()`, `Queue.get()`, `Lock.acquire()`. A bare
+  `except:` swallows it (pressing Stop again helps).
+- A single thread cannot be signalled: Windows has no `pthread_kill`; `CancelSynchronousIo` answered "nothing to
+  cancel" for a thread in `recv`; `socket.shutdown()` from another thread did not wake it. What does wake it is
+  closing the socket from outside: plain `sock.close()` for a bare socket, and for `requests` (which reads through
+  `makefile()`, so `close()` is deferred) the C-level `_socket.socket.close(sock)`. On Linux/macOS `shutdown()`
+  is what wakes a reader, so the examples do `shutdown()` then `close()`.
+- A catastrophic regex (any long native call that holds the GIL) cannot be interrupted and freezes the whole
+  application, GUI included: the main thread's heartbeat stopped when the regex started and never resumed.
+  Accepted by the user; the only way out is to close the application.
+- `os._exit()`, a crash inside a C extension, or a script that closes the application's own resources take the
+  application with them.
+
+What is built instead of the guarantee: Run / Stop with a console (several runs may be alive at once), a **warning
+that appears when Stop has not taken effect** (the script is waiting at the OS level, and what to do about it),
+and **Examples** in the editor that teach the pattern that makes a wait endable: do the blocking work in a
+`threading.Thread` SUBCLASS that keeps the socket / `Event` / `Queue` it waits on as instance attributes and has a
+`stop()` method; then a second script, run while the first is stuck, walks `threading.enumerate()`, finds the thread
+that holds such an object and ends the wait on it.
 
 ## Phasing
 
-1. **Snippet engine (pure Python, tested by execution).** DONE 2026-10-16: `snippets.py`, `html_locate.py`,
-   `request_code.py`, dependencies added to `pyproject.toml` / `requirements.txt`, `tests/scraping/`. No Qt,
-   no app launch. Not yet covered: a Source-tab "mark start, then select end" UI flow for `between` (the
-   function exists; the UI is Phase 2), and `json_extract` has no tests yet.
-2. **Browser + capture + inspector.** DONE 2026-10-16 (see "Phase 2 as built"). Verified headless against a
-   local HTTP server; NOT yet run in the real application.
-3. **Script editor dock + Claude assistant.** Editor dock, insert-at-cursor (`insertion.insert_snippet` is
-   ready and reused), assistant panel. The Claude API layer it needs (client, key dialog, jobs) is DONE in
-   `harness_designer/claude/` (2026-10-17); the assistant only supplies prompts and UI on top of it.
-4. **Run / Stop.** `runner.py`, console pane.
-5. **MainFrame wiring.** PARTLY DONE: `MainFrame.show_scraper_browser()` creates the dock on first call, restores
-   its saved position, shows it, and is torn down in `closeEvent`'s sequence. Still to do: the same for the
-   script editor, the toolbar buttons (icons), and the system-menu entries (location undecided by the user).
-   Until a button or menu entry calls `show_scraper_browser()`, nothing in the app opens the browser.
+1. **Snippet engine (pure Python).** DONE 2026-10-16: `snippets.py`, `html_locate.py`, `request_code.py`,
+   dependencies added to `pyproject.toml` / `requirements.txt`. No Qt, no app launch. Not yet covered: a
+   Source-tab "mark start, then select end" UI flow for `between` (the function exists; the UI is Phase 2).
+2. **Browser + capture + inspector.** DONE 2026-10-16 (see "Phase 2 as built"). NOT yet run in the real
+   application.
+3. **Script editor dock + Claude assistant.** DONE 2026-10-17 (see "Phase 3 as built"): editor dock,
+   insert-at-cursor (`insertion.insert_snippet` reused), assistant panel. The Claude API layer it sits on (client,
+   key dialog, jobs) is `harness_designer/claude/`; the assistant only supplies prompts, tools and UI. NOT yet run
+   in the real application or against the live API.
+4. **Run / Stop.** DONE 2026-10-17 (see "Phase 4 as built"): `runner.py`, console tab, the "did not stop" warning,
+   Examples. Thread-based, as the user decided; NOT yet run in the real application.
+5. **MainFrame wiring.** PARTLY DONE: `MainFrame.show_scraper_browser()` and `MainFrame.show_script_editor()` each
+   create their dock on first call, restore its saved position, show it, and are torn down in `closeEvent`'s
+   sequence; `_link_scraper_docks()` joins the two once both exist. The General toolbar opens them (2026-10-17): the
+   existing "Internet" button (its handler was an empty stub) calls `show_scraper_browser()`, and a new "Script
+   Editor" button (icon `note_pen`, which nothing else used) calls `show_script_editor()`; the editor's Run / Stop
+   use the `run_script` / `stop_script` icons that were already in the set. Still to do: the system-menu entries
+   (location undecided by the user).
 
 ## Phase 2 as built
 
-- **Opening it:** call `mainframe.show_scraper_browser()` (from a toolbar button or menu action). The dock is
+- **Opening it:** the General toolbar's Internet button (`mainframe.show_scraper_browser()`). The dock is
   `Web Browser`, right dock area, browser on the left and the inspector on the right (a splitter).
 - **Address bar** takes `example.com/shop`, `localhost:8000`, or a full URL (`scraping/url_input.py`).
 - **Profile:** persistent under `<appdata>/scraper/browser_profile` (cookies survive, so logged-in sites work).
@@ -246,19 +276,117 @@ tolerates it (see MEMORY.md "Config is a live DB").
 - **Code lands in** the inspector's "generated script" pane (a `CodeEditorCtrl`): imports are merged at the
   top once, warnings become `# NOTE:` comments, each insertion is one undo step, and the line that downloads
   the page (or replays the request) is inserted first when the script does not have it yet.
-- **Gotchas found while building it** (each has a test):
+- **Gotchas found while building it:**
   - PySide6: the wrapper `QAction.menu()` returns OWNS the submenu -- a temporary one that is collected destroys
-    the submenu and its actions. Production code never calls it (`addMenu()` results are fine); tests use
-    `findChildren`.
+    the submenu and its actions. Never call it (`addMenu()` results are fine); find submenus with `findChildren`.
   - `QWebEngineHistory` has no change signal; the back/forward buttons follow `urlChanged`.
   - `QSortFilterProxyModel.invalidateFilter()` is deprecated in Qt 6.9+; use `beginFilterChange()` /
     `endFilterChange()`.
   - `QWebEnginePage.runJavaScript` cannot await a promise, so the "as served" source comes back through the
     channel (`bridge.pageSource`) instead of the callback.
-  - Executing a snippet's `import requests` line in a test replaces a fake `requests` with the real one (one
-    test made a real GET before this was caught); tests now swap `sys.modules['requests']`.
+
+## Phase 3 as built
+
+- **Opening it:** the General toolbar's Script Editor button (`mainframe.show_script_editor()`). The dock is `Script Editor` (right dock area): the editor on
+  top, a tab area underneath that holds the assistant (Phase 4's console will be a second tab). When both docks
+  exist `MainFrame._link_scraper_docks()` connects them -- creating the second one triggers it, in either order:
+  `inspector.set_sink(editor)` (code made in the Source / Response tabs lands in the editor, and a closed editor
+  is shown again) and `assistant.set_context(inspector)`.
+- **The editor** (`ui/editor_script/script_editor.py`): `CodeEditorCtrl` with New / Open / Save / Save as / Undo /
+  Redo; the header shows the file name and `*` when there are unsaved changes. Saving is atomic
+  (`scraping/script_files.py`: temporary file + `os.replace`), always UTF-8 with `\n` line ends. The dialogs start
+  in `<Documents>/HarnessDesigner/scrapers`. **The working copy is not lost:** a second after the last change the
+  unsaved text is written to `<appdata>/scraper/scratch_script.py`, and when the application closes it is written
+  once more; next time it comes back marked "recovered". Saving to a file, or New, removes it. New / Open with
+  unsaved changes asks Save / Discard / Cancel.
+- **What the assistant sends** (`scraping/assistant.py`). The user ticks pieces: the script, the text selected in
+  the editor, the open page's address, the text selected in the page source (with 1,500 characters either side,
+  the selection marked), the network request picked in the inspector, and the start of the page source (off by
+  default). Each has a budget (script 60,000 characters, selected editor text 8,000, selected source text 4,000,
+  request body 4,000, response 8,000, page source 40,000) and the whole message is capped at 100,000 characters
+  (about 33,000 tokens). A script over its budget makes its box unavailable, with the reason as the tooltip -- it
+  is never cut silently. Cookie / Authorization / Set-Cookie header values are replaced by "[omitted - secret]";
+  a JSON response goes as a digest (long lists and strings shortened). The panel shows the size and a cost
+  estimate for the model in use, "Preview" shows the exact text, and nothing is sent until Send (Ctrl+Enter).
+  "Edit my script" asks for one complete script in a single python block; "Just answer" asks only for an answer.
+- **The tick boxes are current when it matters.** They are refreshed when the editor's text or selection changes,
+  every 0.7 s while the panel is visible (nothing signals a selection change in the browser dock), and at the
+  moment Send is pressed. A box the user has clicked keeps their choice.
+- **Claude checks before it answers.** Four tools run against the real page and the picked response, on the worker
+  thread (`scraping/assistant_tools.py`): `find_text`, `test_css_selector` (BeautifulSoup + lxml, as the script will
+  run it), `test_xpath` (lxml.html) and `inspect_json`. They only read plain Python state through the context
+  (`page_source()`, `selected_request()`), never a widget. A tool with nothing to look at says so, and the model is
+  told to ask the user to load a page or pick a request. There is deliberately no regex tool: a pattern with
+  catastrophic backtracking cannot be interrupted, which would break Stop. Each check is listed under the
+  answer ("Claude checked: ...").
+- **An answer is never applied by itself.** The code blocks in the reply are listed, the last Python block is
+  preselected (replies end with the whole script), and the user chooses Insert at cursor, Replace script (one
+  undo step each) or Copy. "View changes" shows a coloured unified diff against the current script first.
+- **The chat.** One append-only `Conversation` (system prompt and the four tools fixed when it is created);
+  the next message continues it and "New chat" starts over. Changing the model or effort in the settings dialog
+  starts a new chat by itself (a conversation's settings are fixed) and says so. A failed or stopped turn is rolled
+  back, so the next message does not carry it. With no key the panel opens the settings dialog instead of sending.
+- **Settings button:** opens `claude.qt.key_dialog.ApiKeyDialog` (key, model, effort, Test) and then refreshes the
+  header line ("<model>, <effort> effort"). This is the first place in the UI that opens that dialog.
+- **`ScraperInspector` is the `AssistantContext`** (`page_url`, `page_source`, `source_selection`,
+  `selected_request`); `EmptyContext` is what the assistant sees when there is no browser.
+- **Gotchas found while building it:**
+  - Qt's `QAction.triggered(bool)` passes `checked` as the first argument, so connecting a bound method such as
+    `open_script(path)` directly puts `False` in `path`. The toolbar goes through `lambda checked=False: callback()`.
+  - The tick boxes were only refreshed by the timer, so a task typed right after the script was written was sent
+    without it. Now they refresh on every editor change and again at Send.
+  - The editor's highlighter re-lexes the whole document for every line (it says so in `code_editor_ctrl.py`), so
+    its cost grows with the square of the line count: a 20,000-line paste froze the editor for minutes. That is
+    fine for scraper scripts, but opening a very large file will hang it.
+
+## Phase 4 as built
+
+- **Run / Stop** (`F5` / `Shift+F5`, in the editor's toolbar). Run takes the text in the editor as it is now, saved
+  or not, and starts it in a `ScriptRun` thread (`scraping/runner.py`, no Qt). Several runs may be alive at once --
+  that is what lets a second script release a stuck first one. The script gets a fresh namespace
+  (`__name__ == '__main__'`, `__file__` = the saved path or `<name run N>`), so runs share nothing but the process.
+  `print` is the script's own (the thread's output goes to the console, not to `sys.stdout`, so nothing global is
+  patched); `print(file=sys.stderr)` also goes to the console; `input()` raises (there is no keyboard input). A
+  failure shows the traceback from the script's first frame on, with the script's own lines. `sys.exit()` is a
+  normal end. Threads are daemon threads, so a stuck script cannot keep the application from closing.
+- **Stop** raises `SystemExit` in the script's thread (`PyThreadState_SetAsyncExc`, as in the user's own snippet), so
+  `finally` blocks run. It is not lost when it cannot be delivered: it stays pending and fires the moment the thread
+  next runs Python code -- when the wait ends. Pressing Stop again sends it again.
+  Stop goes to the thread the script runs in, NOT to threads the script started: those keep running unless the
+  script stops them (the examples do it in an `except BaseException:` clause around the wait).
+- **The Console tab** (`ui/editor_script/console_panel.py`) lists the runs (`#2 shop.py - running`), shows the
+  selected run's output, keeps collecting a run's output after it ended (threads the script started may still print),
+  and shows the state (`Running (12 s)` / `Stopping...` / `Finished in 3.2 s` / `Failed ...` / `Stopped ...`).
+  "Clear finished" forgets ended runs; the 20 newest ended runs are kept. Output the console cannot keep up with is
+  dropped oldest-first and counted. Stop in the toolbar is enabled only while the run shown is running.
+- **The warning.** If a run is still going 2 seconds after Stop, a dialog (the application's dialog style,
+  `ui/editor_script/message_dialog.py`; not `QMessageBox`) says why -- the script is waiting at the operating system
+  level, out of Stop's reach; the Stop stays pending -- and what to do, with a button that opens the "Release a
+  stuck script" example. Once per Stop press. The same text is in the console's status line.
+- **Examples** (toolbar menu; code in `scraping/examples.py`): "A wait that can be ended from outside" (the user's
+  own pattern: a `Thread` subclass with `exit_event = threading.Event()`), "A download whose network read can be ended"
+  (the socket kept as `self.sock`; `stop()` does `shutdown()` then `close()`), "A plain script with its socket on the
+  thread" (`threading.current_thread().sock = ...`), and "Release a stuck script": run it while another script is
+  stuck; it lists every thread with the public attributes it holds, and when `TARGET` names one, sets its
+  `exit_event` and closes its `sock`. Opening an example replaces the editor's text (asking Save / Discard / Cancel
+  first). Conventions the examples agree on: `exit_event`, `sock`, short `join(0.2)` slices instead of a bare
+  `join()`, `daemon=True`. The examples were run for real against a local server that never answers (stuck in
+  `join()`, Stop ignored, the release script run, the stuck script ends) while the tests existed; they have not
+  been run since.
+- **Dialogs:** the Phase 3 save / warn prompts used `QMessageBox`, which nothing else in the application does; they
+  now use `message_dialog.ask()` (a `BaseDialog`).
+- **Not built, on purpose:** an automatic "close this script's network connections" button in the warning (the
+  tracked-socket approach measured in `kick_experiment3.py` would work); the user chose examples that teach the pattern
+  instead. Easy to add later if the examples prove too much work for users.
 
 ## Open points
+
+- The assistant has never talked to the live API (only the fake server). The first real session will show whether
+  the prompts, the tool loop and the thinking-with-tools handling behave as intended; worth doing once, with a
+  cheap effort setting, before relying on it.
+- `CodeEditorCtrl`'s highlighter is quadratic in the number of lines (see Phase 3 gotchas): opening or pasting a
+  file of a few thousand lines will freeze the editor for a long while. Not changed (it is not part of this
+  feature and is documented in the widget); a cheap fix would be to lex once per edit instead of once per line.
 
 - QtWebEngine adds roughly 150-300 MB to the frozen build (Chromium); not measured here.
 - Browser profile: persistent (cookies survive, so logged-in sites work) under `get_appdata()`. Built that way

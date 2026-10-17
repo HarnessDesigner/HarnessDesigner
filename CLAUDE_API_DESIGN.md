@@ -4,10 +4,12 @@
 (the scraper assistant today, concentric twisting later, whatever comes after) imports this package; nothing else
 imports `anthropic`. Add new decisions about it HERE, not in MEMORY.md.
 
-Status (2026-10-17): built and tested (130 tests, against a fake Messages API server and a headless Qt).
-NOT yet exercised against the live API (no key was used). The only caller so far is `scraping/json_extract.describe()`;
-the scraper assistant (SCRAPER_DESIGN.md, Phase 3) is the first real consumer, concentric twisting the next.
-Nothing opens the settings dialog yet (a menu entry is still to be placed) and nothing calls
+Status (2026-10-17): built, and checked against a fake Messages API server and a headless Qt while the tests existed
+(see "Testing"; there are no unit tests now).
+NOT yet exercised against the live API (no key was used). Callers so far: `scraping/json_extract.describe()` and the
+scraper assistant (`ui/editor_script/assistant_panel.py`, SCRAPER_DESIGN.md "Phase 3 as built" -- the first real
+consumer: a tool-using, streamed conversation run through `ClaudeJob`); concentric twisting is the next. Only the
+assistant panel's settings button opens the key / model dialog (no menu entry elsewhere yet), and nothing calls
 `claude.set_settings_backend()` yet, so settings are in-memory until the app wires them to Config.
 
 ## What the user asked for (2026-10-17)
@@ -40,7 +42,6 @@ harness_designer/claude/              no Qt, no UI; importable from a worker pro
         job.py        ClaudeJob -- run a call on a thread, signals back on the GUI thread, cancel()
         gui_call.py   call_in_gui() -- let a tool running on the worker thread ask the user something
         key_dialog.py ApiKeyDialog -- enter / test / clear the key, pick model and effort
-tests/claude/         unittest; a local fake of the Messages API (no network, no key)
 ```
 
 ## Decisions
@@ -157,16 +158,17 @@ for whoever builds it, so the intent survives:
 - The SDK's beta stream accepts the refusal-fallback parameters and parses `fallback` content blocks and
   `usage.iterations` (verified against the fake server; the live API is still unverified). When a fallback model
   finished a turn, the cleaned content (`wire.echo_content`) is what is kept and sent back.
-- Tests that wait with `QTest.qWait` starve other Python threads (it does not release the GIL), so a worker doing
-  its first SDK import never finishes; the Qt tests wait with `processEvents()` + `time.sleep()`. The real event loop
-  releases the GIL while idle, so the app is not affected.
-- The real credential store on this machine is Windows Credential Manager (it holds the user's actual key). Every
-  test injects an in-memory backend; `ApiKeyStore(backend=...)` exists for that.
+- Code that waits with `QTest.qWait` starves other Python threads (it does not release the GIL), so a worker doing
+  its first SDK import never finishes; wait with `processEvents()` + `time.sleep()`. The real event loop releases
+  the GIL while idle, so the app is not affected.
+- The real credential store on this machine is Windows Credential Manager (it holds the user's actual key). Anything
+  that exercises the key store must inject an in-memory backend (`ApiKeyStore(backend=...)` exists for that).
 
 ## Testing
 
-`tests/claude/` runs the real SDK against a local fake of the Messages API (`fake_api.py`): scripted SSE streams
-and error responses, every request recorded so the tests assert exactly what was sent (model, effort, system,
-tools, betas, cache control, message history). Nothing touches the network. What this cannot show is that the
-live API accepts the request shapes; the first real call from the app is the first real proof. A manual smoke test
-would be `ClaudeClient().ask('Say OK.', max_tokens=512)` with a real key stored.
+There are no unit tests (user, 2026-10-17). While `tests/claude/` existed (it is in git history) it ran the real SDK
+against a local fake of the Messages API (`fake_api.py`): scripted SSE streams and error responses, every request
+recorded so what was sent (model, effort, system, tools, betas, cache control, message history) could be asserted.
+What that could not show is that the live API accepts the request shapes; the first real call from the app is the
+first real proof. A manual smoke test would be `ClaudeClient().ask('Say OK.', max_tokens=512)` with a real key
+stored.

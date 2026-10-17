@@ -122,6 +122,10 @@ class Bundle(_base_pegboard.BasePegboard):
         # bundle's own peg-board waypoints.
         self._waypoint_points: list[_point.Point] = []
 
+        # See suspend_updates/resume_updates/_recalculate_geometry.
+        self._update_suspended = False
+        self._update_pending = False
+
         position = self._p1
         angle = _angle.Angle()
         scale = _point.Point(self._diameter, self._diameter, 0.0)
@@ -225,26 +229,27 @@ class Bundle(_base_pegboard.BasePegboard):
 
     @_debug.logfunc
     @_check_types.do
-    def unregister_geometry_updates(self) -> None:
-        """Temporarily stop every one of this bundle's own interior
-        waypoints from triggering :meth:`_update_position` (and so a
-        full :meth:`_recalculate_geometry` rebuild) on every individual
-        move -- mirrors ``objects_pegboard.wire.Wire``'s identical
+    def suspend_updates(self) -> None:
+        """Defer this bundle's own :meth:`_recalculate_geometry` rebuild
+        across a batch of several of its own points moving one at a
+        time -- mirrors ``objects_pegboard.wire.Wire``'s identical
         method exactly; see its own docstring.
         """
-        for point in self._waypoint_points:
-            point.unbind(self._update_position)
+        self._update_suspended = True
 
     @_debug.logfunc
     @_check_types.do
-    def reregister_geometry_updates(self) -> None:
-        """Cheap undo of :meth:`unregister_geometry_updates` when the
-        waypoint set itself is unchanged -- mirrors
+    def resume_updates(self, recalculate: bool = True) -> None:
+        """Undo :meth:`suspend_updates` -- mirrors
         ``objects_pegboard.wire.Wire``'s identical method exactly; see
         its own docstring.
         """
-        for point in self._waypoint_points:
-            point.bind(self._update_position)
+        self._update_suspended = False
+
+        was_pending = self._update_pending
+        self._update_pending = False
+        if recalculate and was_pending:
+            self._recalculate_geometry()
 
     @_debug.logfunc
     @_check_types.do
@@ -253,11 +258,9 @@ class Bundle(_base_pegboard.BasePegboard):
         peg-board waypoint rows change (added, removed, or reordered) so
         live callbacks and cached geometry all catch up.
 
-        A caller that already knows the waypoint SET itself is
-        unchanged has nothing to recompute or re-derive here --
-        :meth:`reregister_geometry_updates` is the cheap path for
-        exactly that case instead -- mirrors ``objects_pegboard.wire.
-        Wire.refresh_waypoints`` exactly; see its own docstring.
+        Always re-derives the waypoint set and recalculates
+        unconditionally -- mirrors ``objects_pegboard.wire.Wire.
+        refresh_waypoints`` exactly; see its own docstring.
         """
         self._bind_waypoints()
         self._recalculate_geometry()
@@ -391,7 +394,17 @@ class Bundle(_base_pegboard.BasePegboard):
         self._angle for anything other than triggering _update_angle's
         own recompute, unlike 3D where other code reads .angle on a
         bundle).
+
+        No-ops (just marking :attr:`_update_pending`) while
+        :meth:`suspend_updates` has this bundle's own recalculation
+        suspended -- mirrors ``objects_pegboard.wire.Wire``'s identical
+        gate exactly; see its own docstring for why it lives here and
+        not in :meth:`_update_position`.
         """
+        if self._update_suspended:
+            self._update_pending = True
+            return
+
         segments = self._segments()
 
         total_length = 0.0
@@ -401,10 +414,13 @@ class Bundle(_base_pegboard.BasePegboard):
         if total_length < 0.001:
             total_length = 0.001
 
+        # This assignment already computes the OBB/AABB via BaseVar's own
+        # _update_scale (bound to self._scale, fires on every Point.z
+        # set unconditionally) -- mirrors objects_pegboard.wire.Wire's
+        # identical fix exactly; see its own comment for why an explicit
+        # self._compute_obb()/_compute_aabb() call after this would just
+        # repeat the exact same computation a second time.
         self._scale.z = total_length
-
-        self._compute_obb()
-        self._compute_aabb()
 
     @_debug.logfunc
     @_check_types.do
@@ -412,6 +428,9 @@ class Bundle(_base_pegboard.BasePegboard):
         """Recompute geometry immediately, not deferred to the next
         render pass -- bound to the start/stop endpoints and every
         interior waypoint (see :meth:`_bind_waypoints`).
+
+        See :meth:`_recalculate_geometry`'s own docstring for the
+        suspend/resume gate -- it lives there, not here.
         """
         self._recalculate_geometry()
 

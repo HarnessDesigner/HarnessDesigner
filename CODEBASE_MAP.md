@@ -607,7 +607,20 @@ Contents/structure of the `harness_designer/` package.
 - `editor_obj/`: object property editor
   - `editorobj.py`
   - `prop_grid.py`
-- `editor_script/`: empty stub
+- `editor_script/`: the scraper's Script Editor dock (design: `SCRAPER_DESIGN.md`, "Phase 3 as built").
+  `MainFrame.show_script_editor()` creates it on first use and `_link_scraper_docks()` joins it to the Web Browser
+  dock; the General toolbar's Script Editor button calls that method (no menu entry yet)
+  - `script_editor.py`: `ScriptEditorPanel` (`CodeEditorCtrl`; toolbar: New / Open / Save, Run / Stop, Examples;
+    autosaved working copy; tabs: Assistant, Console; it is a `SnippetSink`, so the inspector's code lands in it) and
+    `ScriptEditor(DockBase)` (creates the `ClaudeClient`; opens the key dialog from the assistant's settings button)
+  - `assistant_panel.py`: `AssistantPanel` -- the Claude assistant under the editor: tick what to send, preview,
+    Send / Stop, the streamed answer, Insert / Replace / Copy / View changes. All API work is `claude/`
+    (`ClaudeJob`); the prompts and tools are `scraping/assistant.py` / `assistant_tools.py`
+  - `console_panel.py`: `ConsolePanel` -- the Console tab: the runs started with Run (F5), the selected run's output,
+    Stop (`Shift+F5`) and its state; emits `stopIgnored` when a run is still going 2 s after Stop (the owner shows
+    the warning). Runs are `scraping/runner.py`'s, in threads of this process
+  - `message_dialog.py`: `ask()` / `MessageDialog` -- a message with standard buttons and one optional extra button,
+    as a `BaseDialog` (used for "save changes?", problems, and the "script did not stop" warning)
 - `object_browser/objectbrowser.py`: scene tree
 - `prop_ctrls/`: property-grid controls 
   - `prop_base.py` + one file per type: 
@@ -692,7 +705,9 @@ Contents/structure of the `harness_designer/` package.
   - toolbar.py — `GeneralToolbar`, `EditorToolbar`, `NoteToolbar`, `EditorObjectToolbar`,
     `Setting3DToolbar`, `PegBoardToolbar`; all constructed unconditionally in
     `mainframe.py` regardless of which editor dock has focus (existing convention:
-    toolbars are global, not per-editor-focus)
+    toolbars are global, not per-editor-focus). `GeneralToolbar`: the Internet button opens the scraper Web
+    Browser dock (`MainFrame.show_scraper_browser()`), the Script Editor button (icon `note_pen`) opens the script
+    editor dock (`show_script_editor()`); both docks are created on first click
   - float_spin_button.py
   - snap_angle_button.py (rotation-snap toggle: left click = enable/disable with 
     checkbox icon overlay, right click = AutoCompleteComboBox popup of the 71 
@@ -721,8 +736,8 @@ Contents/structure of the `harness_designer/` package.
 - `datasheet_viewer/viewer.py`
 - `web_viewer/`: the scraper's Web Browser dock (design: `SCRAPER_DESIGN.md`). Imports QtWebEngine, so it is
   imported only when the user first opens the browser -- `MainFrame.show_scraper_browser()` creates it, restores
-  its saved position, and `closeEvent` destroys it. Nothing in the UI calls that method yet (toolbar button /
-  menu entry still to be placed)
+  its saved position, and `closeEvent` destroys it. The General toolbar's Internet button calls it (no menu entry
+  yet)
   - `browser_dock.py`: `ScraperBrowser(DockBase)` and `ScraperBrowserPanel` (browser | inspector in a splitter)
   - `browser_widget.py`: `BrowserWidget` -- address bar, `QWebEngineView`, persistent profile, hook injection,
     downloads refused / permissions denied / new windows opened in place, "Scraper" page context menu, source
@@ -730,7 +745,8 @@ Contents/structure of the `harness_designer/` package.
   - `capture_bridge.py`: `CaptureBridge`, the `QWebChannel` object the page's hook calls
 - `scraper_inspector/`: the inspector widgets (no QtWebEngine, so they can be tested alone)
   - `inspector.py`: `ScraperInspector` -- Source / Network / Response tabs + the generated-script pane; `set_sink()`
-    sends snippets to the script editor instead of the pane
+    sends snippets to the script editor instead of the pane. It is also the assistant's `AssistantContext` (page
+    address and source, the source selection, the picked request)
   - `source_viewer.py`: `SourceViewer` -- highlighted read-only text; its right-click menu turns a selection into
     code (`build_menu()`)
   - `network_panel.py`: `NetworkPanel` / `NetworkModel` -- the captured requests (rolling window of 2000)
@@ -862,12 +878,10 @@ Contents/structure of the `harness_designer/` package.
   - `bvh.pyx` (Cython, compiled to `bvh.c`) + `kernel.cl` (OpenCL kernel): BVH build/traversal
   - dialog
 - `scraping/`: point-and-click scraper authoring -- design in `SCRAPER_DESIGN.md` (repo root). Non-UI logic only
-  (no Qt); the widgets are in `ui/scraper_inspector/` and `ui/web_viewer/`; the script editor dock and the
-  Claude assistant are not built yet (Phase 3 in that file; the assistant will use `claude/`). Tests are in
-  `tests/scraping/` (outside the package)
+  (no Qt); the widgets are in `ui/scraper_inspector/`, `ui/web_viewer/` and `ui/editor_script/`
   - `snippets.py`: `Snippet` + the source-text actions (`split_at_every`, `text_after`, `text_before`,
     `find_position`, `between`, `regex_capture`, `regex_all`). A selection is `document[start:end]`; the code
-    returned must reproduce it when run (tested). Markers grow until their FIRST occurrence is the selected one
+    returned must reproduce it when run. Markers grow until their FIRST occurrence is the selected one
     and the snippet warns when they had to; `Names` hands out collision-free variable names
   - `capture_hook.py`: the JavaScript injected into every page that records `fetch` / `XMLHttpRequest` calls and
     reports them through a `QWebChannel` object named `bridge`; also `window.__hdPageSource()` (re-download the
@@ -890,9 +904,21 @@ Contents/structure of the `harness_designer/` package.
     Authorization are never written into code; handles JSON, urlencoded and multipart bodies
   - `json_extract.py`: JSON path clicks -> extraction code (`generate_extraction_code`, `every_item=` for "this
     field from every element", `suggest_name`, `snippet_for`); `describe()` asks Claude through `claude/`
+  - `assistant.py`: the scraper assistant's logic -- `SYSTEM_PROMPT`, `AssistantContext` (what the open page offers;
+    `ScraperInspector` implements it), `list_items()` / `assemble()` (which pieces of context can be sent and the
+    exact message, with per-piece budgets and a total cap), `request_summary()` (secret headers omitted, JSON
+    digested), and `extract_code_blocks()` / `proposed_script()` / `unified_diff()` for the reply
+  - `assistant_tools.py`: `make_tools()` -- the four tools Claude uses to check a selector or JSON path against the
+    real page (`find_text`, `test_css_selector`, `test_xpath`, `inspect_json`); they run on a worker thread
+  - `script_files.py`: `read_script()`, `write_script()` (atomic), `scratch_path()` (the autosaved working copy)
+  - `runner.py`: `Runner` / `ScriptRun` -- a script runs in a daemon thread of this process with its own namespace and
+    `print`; `ScriptRun.request_stop()` raises `SystemExit` in it (`PyThreadState_SetAsyncExc`), which cannot reach a
+    thread waiting at the OS level (the Stop stays pending). The user's decision, see `SCRAPER_DESIGN.md` "Running
+    scripts". Public attributes of a run are readable by other scripts through `threading.enumerate()`
+  - `examples.py`: `EXAMPLES` -- the editor's Examples menu: scripts showing how to keep a socket / `Event` on a
+    `Thread` so a second script ("Release a stuck script") can end the wait
 - `claude/`: the application's ONE doorway to the Claude API -- design in `CLAUDE_API_DESIGN.md` (repo root). Nothing
-  else imports `anthropic`. No Qt in the package itself (importing it imports neither Qt nor the SDK); tests are in
-  `tests/claude/` against a fake Messages API server (`fake_api.py`)
+  else imports `anthropic`. No Qt in the package itself (importing it imports neither Qt nor the SDK)
   - `client.py`: `ClaudeClient` -- owns the SDK client built from the stored key; `ask()` (one question),
     `conversation()`, `check_connection()`, `derive()`; always streams (nothing times out, calls can be
     cancelled); translates SDK errors; keeps a running `usage` total. `warm_up()` pre-imports the SDK (the first
