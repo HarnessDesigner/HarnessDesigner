@@ -120,10 +120,10 @@ class ClaudeJob(QtCore.QObject):
             response = self._work(self._token, self.textDelta.emit, self._tool_called)
         except _errors.Cancelled:
             self._finish(self.cancelled.emit)
-        except _errors.ClaudeError as error:
-            self._finish(lambda: self.failed.emit(error))
-        except Exception as error:  # NOQA -- a bug must reach the user as a failure, not vanish with the thread
-            wrapped = _errors.ClaudeError(f'Unexpected {type(error).__name__}: {error}',
+        except _errors.ClaudeError as err:
+            self._finish(lambda: self.failed.emit(err))
+        except Exception as err:  # NOQA -- a bug must reach the user as a failure, not vanish with the thread
+            wrapped = _errors.ClaudeError(f'Unexpected {type(err).__name__}: {err}',
                                           details=traceback.format_exc())
             self._finish(lambda: self.failed.emit(wrapped))
         else:
