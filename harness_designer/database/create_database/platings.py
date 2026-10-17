@@ -132,11 +132,11 @@ def get_plating_id(con: "_connector_base.ConnectorBase", symbol: str) -> bytes:
 
         if items:
             description = symbol
-            symbol = []
+            symbol_parts = []
             for key in sorted(list(items.keys())):
-                symbol.append(items[key])
+                symbol_parts.append(items[key])
 
-            symbol = '/'.join(symbol)
+            symbol = '/'.join(symbol_parts)
 
             con.execute('SELECT id FROM platings WHERE symbol=?;', (symbol,))
             rows = con.fetchall()

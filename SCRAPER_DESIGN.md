@@ -17,6 +17,12 @@ the editor) were made the same way and never committed. So where this file says 
 working", it was checked once, headless, and cannot be re-checked from the repository; none of it has been run in
 the real application.
 
+Setup: the scraper needs `beautifulsoup4`, `lxml` and `anthropic` (pinned in `requirements.txt` and `pyproject.toml`)
+in the interpreter the application runs under (`C:\python3.11.14`): `pip install -r requirements.txt`. Without them
+opening the browser or the script editor from the toolbar fails with `ModuleNotFoundError: No module named 'bs4'`
+(first seen 2026-10-17; both docks import `scraping/`, whose `html_locate.py` imports `bs4` and `lxml`; `anthropic`
+is imported later, the first time Claude is used). The frozen build must bundle them too.
+
 ## Decisions (user, 2026-10-16)
 
 - **Placement: docks in the main window.** `ui/web_viewer/` and `ui/editor_script/` (both empty stubs until now)
