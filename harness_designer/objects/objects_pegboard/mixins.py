@@ -29,6 +29,7 @@ from ...geometry import point as _point
 from .. import mixins as _wire_type_base
 from ...rope_pull import offline_store as _offline_store
 from ... import check_types as _check_types
+from ... import debug as _debug
 
 
 if TYPE_CHECKING:
@@ -83,6 +84,7 @@ class WireTypeMixin(_wire_type_base.WireTypeMixin):
 
         return [waypoint.db_id for waypoint in self._waypoints(self.db_obj)]
 
+    @_debug.logfunc
     @_check_types.do
     def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
         """Every (p1, p2) sub-segment from start, through each interior

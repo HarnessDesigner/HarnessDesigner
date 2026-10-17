@@ -21,6 +21,7 @@ from ...gl import materials as _materials
 from ... import color as _color
 from ... import config as _config
 from ... import utils as _utils
+from ... import debug as _debug
 from . import mixins as _mixins
 from ... import check_types as _check_types
 from ...rope_pull import offline_store as _offline_store
@@ -218,6 +219,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
         return math.sqrt(dx * dx + dy * dy + dz * dz)
 
+    @_debug.logfunc
     @_check_types.do
     def _bind_waypoints(self) -> None:
         """(Re-)bind this wire's own _update_position callback to every
@@ -227,15 +229,38 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         Called once at construction and again (as refresh_waypoints) by
         any handler that adds/removes/reorders this wire's own waypoints,
         so live position-change callbacks always match the current set.
+
+        Binds only ONE point per rigidly-coupled structural-stub group
+        at each end, not every stub individually -- mirrors
+        ``handlers.wire_slack_handler.WireSlackHandler.register_pegboard``'s
+        identical fix exactly (confirmed live, 2026-10-16: this binding
+        was the OTHER half of the same redundancy that fix addressed --
+        ``WireSlackHandler``'s own reconcile dropped to once per housing
+        move, but this wire's own ``_update_position``/geometry rebuild,
+        bound here, kept firing once per structural-stub point moved
+        regardless, since this method was untouched by that fix). See
+        that method's own docstring for why binding to the innermost
+        stub present at each end (the cavity's own stub if seated, else
+        the terminal's own stub) is equivalent to binding every stub --
+        ``PJTHousing._update_position_pegboard`` always moves all of
+        them by the exact same delta, never independently.
         """
         for point in self._waypoint_points:
             point.unbind(self._update_position)
 
         overlay_points = _offline_store.overlay_points(self.db_obj.db_id)
         if overlay_points is None:
-            self._waypoint_points = [wp.point for wp in self.db_obj.waypoints_pegboard]
+            waypoints = [wp.point for wp in self.db_obj.waypoints_pegboard]
         else:
-            self._waypoint_points = overlay_points
+            waypoints = overlay_points
+
+        from ...handlers import rope_pull_handler as _rope_pull_handler  # NOQA -- avoid a cycle at import time
+
+        ptables = self.parent.mainframe.project.ptables
+        leading, trailing = _rope_pull_handler.stub_boundary_for_chain(ptables, self.db_obj)
+        bound_start = leading - 1 if leading else 0
+        bound_end = (len(waypoints) - trailing + 1) if trailing else len(waypoints)
+        self._waypoint_points = waypoints[bound_start:bound_end]
 
         for point in self._waypoint_points:
             point.bind(self._update_position)
@@ -245,11 +270,65 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         self._hidden_waypoint_ids = _wire_topology.hidden_waypoint_ids(
             self.parent.mainframe.project.ptables, self.db_obj.db_id, 'pegboard')
 
+    @_debug.logfunc
+    @_check_types.do
+    def unregister_geometry_updates(self) -> None:
+        """Temporarily stop every one of this wire's own interior
+        waypoints from triggering :meth:`_update_position` (and so a
+        full :meth:`_recalculate_geometry`/GL-stripe-capacity rebuild)
+        on every individual move.
+
+        For a caller about to move several of this wire's own
+        waypoints one at a time (``rope_pull_handler._apply_mid_drag``'s
+        own per-point ``_place_active`` loop, chief among them) so the
+        rebuild happens once, after all of them have their final
+        position, instead of once per point moved. Always paired
+        afterward with either :meth:`reregister_geometry_updates` (the
+        waypoint set itself is unchanged -- a cheap rebind) or
+        :meth:`refresh_waypoints` (it might not be) -- in a ``finally``,
+        so a raised exception never leaves this wire's own waypoints
+        permanently unbound.
+        """
+        for point in self._waypoint_points:
+            point.unbind(self._update_position)
+
+    @_debug.logfunc
+    @_check_types.do
+    def reregister_geometry_updates(self) -> None:
+        """Cheap undo of :meth:`unregister_geometry_updates` for a
+        caller that already knows this wire's own waypoint SET didn't
+        change (same count, same identities) -- rebinds
+        :meth:`_update_position` to the exact same points just
+        unbound, with no re-derivation from the DB/offline-store
+        (:meth:`_bind_waypoints`'s own job) and no
+        :meth:`WireSlackHandler.register_pegboard` rebind (nothing for
+        it to pick up, since the set it would rebind to is identical).
+
+        Not a substitute for :meth:`refresh_waypoints` when the
+        waypoint set itself might have changed -- only when the caller
+        has already confirmed it didn't (``rope_pull_handler.
+        _apply_mid_drag``'s own true-no-op case -- see
+        :func:`rope_pull_handler._move_point`'s no-op short-circuit).
+        Calling this after a real set change would silently leave
+        :class:`WireSlackHandler` and this wire's own ``_update_position``
+        bound to a stale point list.
+        """
+        for point in self._waypoint_points:
+            point.bind(self._update_position)
+
+    @_debug.logfunc
     @_check_types.do
     def refresh_waypoints(self) -> None:
         """Public entry point for handlers: call after this wire's own
         waypoint rows change (added, removed, or reordered) so live
-        callbacks, cached length, and geometry all catch up."""
+        callbacks, cached length, and geometry all catch up.
+
+        A caller that already knows the waypoint SET itself is
+        unchanged (a true no-op reconcile -- see ``rope_pull_handler.
+        _move_point``'s own no-op short-circuit) has nothing to
+        recompute or re-derive here; :meth:`reregister_geometry_updates`
+        is the cheap path for exactly that case instead.
+        """
         self._bind_waypoints()
         self._recalculate_geometry()
         self.pegboard.Refresh()
@@ -371,6 +450,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
     def _endpoint_diameter(self) -> float:
         return self.db_obj.part.od_mm
 
+    @_debug.logfunc
     @_check_types.do
     def _recalculate_geometry(self) -> None:
         """Compute total length, an aggregate angle, and OBB/AABB from
@@ -411,6 +491,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         self._compute_obb()
         self._compute_aabb()
 
+    @_debug.logfunc
     @_check_types.do
     def _update_position(self, _: _point.Point) -> None:
         """Recompute geometry immediately, not deferred to the next
@@ -464,6 +545,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
 
             yield seg_position, seg_angle, seg_scale, seg_len
 
+    @_debug.logfunc
     @_check_types.do
     def _compute_obb(self) -> None:
         """Union AABB across every sub-segment, expressed as an 8-corner
@@ -500,6 +582,7 @@ class Wire(_base_pegboard.BasePegboard, _mixins.WireTypeMixin):
         else:
             self._obb[:] = obb
 
+    @_debug.logfunc
     @_check_types.do
     def _compute_aabb(self) -> None:
         """See _compute_obb -- same union-of-segments envelope."""
@@ -1268,6 +1351,7 @@ class WireStripe(_base_pegboard.BasePegboard):
         super().__init__(parent, None, vbo, angle, position, stripe_scale, material)
 
     @staticmethod
+    @_debug.logfunc
     @_check_types.do
     def _ensure_stripe_capacity(mainframe: "_ui.MainFrame", required: float) -> None:
         """Grow the shared wire-stripe helix mesh -- and persist the new

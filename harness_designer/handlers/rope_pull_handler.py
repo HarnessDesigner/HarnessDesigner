@@ -160,6 +160,7 @@ from ..objects import wire_layout as _wire_layout
 from ..database.project_db import pjt_bundle as _pjt_bundle
 from . import wire_routing_handler as _wire_routing_handler
 from .. import check_types as _check_types
+from .. import debug as _debug
 
 
 if TYPE_CHECKING:
@@ -185,6 +186,7 @@ _MAX_REPULLS = 16
 _REPULL_TOLERANCE_MM = 1e-6
 
 
+@_debug.logfunc
 @_check_types.do
 def is_enabled() -> bool:
     """Whether the rope-pull solver is on (``Config.editor_pegboard.rope_pull.enabled``,
@@ -193,6 +195,7 @@ def is_enabled() -> bool:
     return bool(Config.enabled)
 
 
+@_debug.logfunc
 @_check_types.do
 def _chain_diameter(
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
@@ -208,6 +211,7 @@ def _chain_diameter(
     return float(chain_db_obj.part.od_mm)
 
 
+@_debug.logfunc
 @_check_types.do
 def _structural_stub_ids(ptables: "_PJTPegboardTable", attach_point_id: bytes | None) -> list[bytes]:
     """The real (canonical, never a per-wire clone) terminal/cavity
@@ -263,6 +267,7 @@ def _structural_stub_ids(ptables: "_PJTPegboardTable", attach_point_id: bytes | 
     return ids
 
 
+@_debug.logfunc
 @_check_types.do
 def _canonical_point_id(points_table: object, point_id: bytes) -> bytes:
     """*point_id*'s own canonical identity -- itself, or whatever
@@ -274,6 +279,7 @@ def _canonical_point_id(points_table: object, point_id: bytes) -> bytes:
     return parent_id if parent_id is not None else point_id
 
 
+@_debug.logfunc
 @_check_types.do
 def _stub_boundary(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire") -> tuple[int, int]:
     """How many of *wire_db_obj*'s own leading (start-side) and trailing
@@ -317,18 +323,27 @@ def _stub_boundary(ptables: "_PJTPegboardTable", wire_db_obj: "_pjt_wire.PJTWire
     return leading, trailing
 
 
+@_debug.logfunc
 @_check_types.do
-def _stub_boundary_for_chain(
+def stub_boundary_for_chain(
     ptables: "_PJTPegboardTable", chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
 ) -> tuple[int, int]:
     """``(0, 0)`` for a bundle -- a bundle never attaches through a
-    terminal the way a wire does, see :func:`_stub_boundary`."""
+    terminal the way a wire does, see :func:`_stub_boundary`.
+
+    Public (no leading underscore): also used by
+    ``handlers.wire_slack_handler.WireSlackHandler.register_pegboard``
+    to decide which of a wire's own structural stub points are
+    rigidly-coupled duplicates of the SAME housing move, and so don't
+    each need their own binding -- see that method's own docstring.
+    """
     if isinstance(chain_db_obj, _pjt_bundle.PJTBundle):
         return 0, 0
 
     return _stub_boundary(ptables, chain_db_obj)
 
 
+@_debug.logfunc
 @_check_types.do
 def _distance3d(a: "_point.Point", b: "_point.Point") -> float:
     dx = float(b.x) - float(a.x)
@@ -337,6 +352,7 @@ def _distance3d(a: "_point.Point", b: "_point.Point") -> float:
     return math.sqrt(dx * dx + dy * dy + dz * dz)
 
 
+@_debug.logfunc
 @_check_types.do
 def _wire_stub_length3d(wire_db_obj: "_pjt_wire.PJTWire", leading: int, trailing: int) -> float:
     """Real 3D length of *wire_db_obj*'s own leading/trailing structural
@@ -360,6 +376,7 @@ def _wire_stub_length3d(wire_db_obj: "_pjt_wire.PJTWire", leading: int, trailing
     return total
 
 
+@_debug.logfunc
 @_check_types.do
 def _anchors_and_length(
     ptables: "_PJTPegboardTable", chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]
@@ -391,7 +408,7 @@ def _anchors_and_length(
     stop = chain_db_obj.stop_position_pegboard
     length = chain_db_obj.length_mm
 
-    leading, trailing = _stub_boundary_for_chain(ptables, chain_db_obj)
+    leading, trailing = stub_boundary_for_chain(ptables, chain_db_obj)
 
     if leading or trailing:
         length -= _wire_stub_length3d(chain_db_obj, leading, trailing)
@@ -404,22 +421,7 @@ def _anchors_and_length(
     return (float(start.x), float(start.z)), (float(stop.x), float(stop.z)), length, leading, trailing
 
 
-@_check_types.do
-def _drag_end_for(
-    chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"], point_id: bytes
-) -> _rope_pull.DragEnd | None:
-    """Whether *point_id* is *chain_db_obj*'s own start or stop anchor,
-    or neither.
-    """
-    if chain_db_obj.start_position_pegboard_id == point_id:
-        return _rope_pull.DragEnd.START
-
-    if chain_db_obj.stop_position_pegboard_id == point_id:
-        return _rope_pull.DragEnd.STOP
-
-    return None
-
-
+@_debug.logfunc
 @_check_types.do
 def _reconcile_interior(
     mainframe: "_ui.MainFrame",
@@ -563,8 +565,52 @@ def _reconcile_interior(
         chain_obj.objpegboard.refresh_waypoints()
 
 
+@_debug.logfunc
 @_check_types.do
-def _chains_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> list[tuple]:
+def _anchor_index(ptables: "_PJTPegboardTable") -> dict[bytes, list[tuple]]:
+    """Every bundle/wire in *ptables*, indexed by the point id(s) it
+    anchors (its start and/or stop) -- the reverse of the one-chain-at-
+    a-time scan :func:`_chains_for_point` used to do per call. Built
+    once and reused across every :func:`_chains_for_point` lookup that
+    shares the same *cache* (see its own docstring) -- a resolve's whole
+    binary search re-asks this question up to 34 times per mouse move
+    (:func:`resolve_rigid_move`/:func:`resolve_local_move`/
+    :func:`_resolve_pinned_move`) without the DB changing in between
+    (``_evaluate_points`` is a pure, read-only solve), so the
+    bundles+wires scan this builds from need happen only once per
+    resolve instead of once per lookup.
+
+    START-before-STOP precedence: a chain whose start and stop anchor
+    the SAME point (a degenerate zero-length chain) gets exactly one
+    entry there, tagged START, not two -- matching what the old
+    per-chain scan (START checked, then STOP only if different) would
+    have produced for that one chain.
+    """
+    index: dict[bytes, list[tuple]] = {}
+
+    def add(chain_db_obj, path_table, layouts_table, layout_facade_cls) -> None:
+        start_id = chain_db_obj.start_position_pegboard_id
+        stop_id = chain_db_obj.stop_position_pegboard_id
+        index.setdefault(start_id, []).append((
+            chain_db_obj, path_table, layouts_table, layout_facade_cls, _rope_pull.DragEnd.START))
+        if stop_id != start_id:
+            index.setdefault(stop_id, []).append((
+                chain_db_obj, path_table, layouts_table, layout_facade_cls, _rope_pull.DragEnd.STOP))
+
+    for bundle_db_obj in ptables.pjt_bundles_table:
+        add(bundle_db_obj, ptables.pjt_bundle_paths_table, ptables.pjt_bundle_layouts_table, _bundle_layout.BundleLayout)
+
+    for wire_db_obj in ptables.pjt_wires_table:
+        add(wire_db_obj, ptables.pjt_wire_paths_table, ptables.pjt_wire_layouts_table, _wire_layout.WireLayout)
+
+    return index
+
+
+@_debug.logfunc
+@_check_types.do
+def _chains_for_point(
+    ptables: "_PJTPegboardTable", point_id: bytes, cache: dict | None = None
+) -> list[tuple]:
     """Every chain (bundle or wire) that *point_id* is part of, each as
     ``(chain_db_obj, path_table, layouts_table, layout_facade_cls,
     drag_end)`` -- ``drag_end`` is :attr:`rope_pull.DragEnd.WAYPOINT` if
@@ -574,6 +620,13 @@ def _chains_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> list[tup
     every chain *point_id* anchors (zero or more -- e.g. several wires
     entering the same housing, or a bundle plugged into one of a
     transition's branches).
+
+    *cache*: an optional dict a caller making several of these calls
+    against the same (unwritten) *ptables* state can pass in to share
+    the anchor-side lookup's one-time index (:func:`_anchor_index`)
+    across all of them instead of rebuilding it per call -- see that
+    function's own docstring. ``None`` (the default) rebuilds it fresh
+    every call, exactly like the old unconditional per-call scan.
     """
     bundle_ids = ptables.pjt_bundle_paths_table.bundle_ids_for_point('pegboard', point_id)
     if bundle_ids:
@@ -591,25 +644,17 @@ def _chains_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> list[tup
             ptables.pjt_wire_layouts_table, _wire_layout.WireLayout,
             _rope_pull.DragEnd.WAYPOINT)]
 
-    chains = []
+    if cache is None:
+        index = _anchor_index(ptables)
+    else:
+        index = cache.get('anchor_index')
+        if index is None:
+            index = cache['anchor_index'] = _anchor_index(ptables)
 
-    for bundle_db_obj in ptables.pjt_bundles_table:
-        drag_end = _drag_end_for(bundle_db_obj, point_id)
-        if drag_end is not None:
-            chains.append((
-                bundle_db_obj, ptables.pjt_bundle_paths_table,
-                ptables.pjt_bundle_layouts_table, _bundle_layout.BundleLayout, drag_end))
-
-    for wire_db_obj in ptables.pjt_wires_table:
-        drag_end = _drag_end_for(wire_db_obj, point_id)
-        if drag_end is not None:
-            chains.append((
-                wire_db_obj, ptables.pjt_wire_paths_table,
-                ptables.pjt_wire_layouts_table, _wire_layout.WireLayout, drag_end))
-
-    return chains
+    return list(index.get(point_id, ()))
 
 
+@_debug.logfunc
 @_check_types.do
 def _pulled_far_position(
     far_xz: tuple[float, float], near_target_xz: tuple[float, float], required_length: float
@@ -639,6 +684,7 @@ def _pulled_far_position(
     return near_target_xz[0] + dx * scale, near_target_xz[1] + dz * scale
 
 
+@_debug.logfunc
 @_check_types.do
 def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str, list[bytes]] | None:
     """The rigid structural object that owns *point_id*, as
@@ -731,6 +777,7 @@ def _node_for_point(ptables: "_PJTPegboardTable", point_id: bytes) -> tuple[str,
     return None
 
 
+@_debug.logfunc
 @_check_types.do
 def _rotated_and_translated(
     old_xz: tuple[float, float], pivot_old_xz: tuple[float, float],
@@ -766,6 +813,7 @@ def _rotated_and_translated(
         pivot_new_xz[1] - x * sin_phi + z * cos_phi)
 
 
+@_debug.logfunc
 @_check_types.do
 def _fixed_count_span(
     a: tuple[float, float], b: tuple[float, float], target_length: float, count: int
@@ -813,15 +861,26 @@ def _fixed_count_span(
     return waypoints
 
 
+@_debug.logfunc
 @_check_types.do
 def _evaluate_points(
     ptables: "_PJTPegboardTable", point_targets: list[tuple[bytes, tuple[float, float]]],
-    cascade: bool = True,
+    cascade: bool = True, chain_cache: dict | None = None,
 ) -> tuple[list[tuple], dict[bytes, tuple[float, float]], dict[bytes, float]] | None:
     """Pure solve, no DB writes -- every ``(point_id, target_xz)`` pair
     in *point_targets* moving AT ONCE, cascading through whatever else
     needs to move as a result (see the module docstring's own "The
     cascade" section for the rule in plain words).
+
+    *chain_cache*: forwarded to every :func:`_chains_for_point` call
+    this makes (see that function's own *cache* parameter). ``None``
+    (the default) builds one locally so this call's own repeated
+    lookups -- one per :func:`pull_node`, one per point popped off
+    *pending* -- still share a single anchor-index build instead of
+    one each; a caller making several of these calls back to back
+    against the same unwritten *ptables* (every binary-search resolver
+    in this module) passes its own dict in to share that index across
+    the whole search too.
 
     **How.** *fixed* is this whole resolve's one authoritative map of
     "every point whose position is already decided" -- seeded from
@@ -881,6 +940,8 @@ def _evaluate_points(
         cascade, is infeasible even after every pull it allows.
     """
     points_table = ptables.pjt_points_pegboard_table
+    if chain_cache is None:
+        chain_cache = {}
 
     fixed: dict[bytes, tuple[float, float]] = dict(point_targets)
     write_points: dict[bytes, tuple[float, float]] = {}
@@ -977,7 +1038,7 @@ def _evaluate_points(
         # from the pulled node's side.
         stale_ids: set[bytes] = set()
         for p in node_points:
-            for touching in _chains_for_point(ptables, p):
+            for touching in _chains_for_point(ptables, p, chain_cache):
                 if touching[0].db_id != chain_id:
                     stale_ids.add(touching[0].db_id)
 
@@ -1045,7 +1106,9 @@ def _evaluate_points(
         point_id = pending.pop()
         target_xz = fixed[point_id]
 
-        for chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end in _chains_for_point(ptables, point_id):
+        for chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end in _chains_for_point(
+            ptables, point_id, chain_cache
+        ):
             if chain_db_obj.db_id in seen_chains:
                 continue
             seen_chains.add(chain_db_obj.db_id)
@@ -1137,6 +1200,7 @@ def _evaluate_points(
 _commit_depth: int = 0
 
 
+@_debug.logfunc
 @_check_types.do
 def is_committing() -> bool:
     """Whether :func:`_commit_points` is running right now.
@@ -1155,6 +1219,7 @@ def is_committing() -> bool:
     return _commit_depth > 0
 
 
+@_debug.logfunc
 @_check_types.do
 def _commit_points(
     mainframe: "_ui.MainFrame", entries: list[tuple], write_points: dict[bytes, tuple[float, float]],
@@ -1173,6 +1238,7 @@ def _commit_points(
         _commit_depth -= 1
 
 
+@_debug.logfunc
 @_check_types.do
 def _commit_points_body(
     mainframe: "_ui.MainFrame", entries: list[tuple], write_points: dict[bytes, tuple[float, float]],
@@ -1217,8 +1283,13 @@ def _commit_points_body(
     # assignment never fires the bound callbacks that write the row back
     # to the DB and refresh every live view holding this Point.
     for point_id, (x, z) in write_points.items():
-        point = points_table[point_id].point
-        point += _point.Point(x - float(point.x), 0.0, z - float(point.z))
+        # _move_point's own no-op short-circuit applies here too: a
+        # cascade-pulled anchor this solve decided doesn't actually
+        # need to move (its own far-end delta already rounded to
+        # nothing) shouldn't fire every one of its bound callbacks --
+        # WireSlackHandler among them, for a wire/bundle anchor -- for
+        # a write that changes nothing.
+        _move_point(points_table[point_id].point, x, z)
 
     for (
         chain_db_obj, path_table, layouts_table, layout_facade_cls, drag_end, point_id, target_xz,
@@ -1275,6 +1346,7 @@ class _Waypoint:
         self.pseudo_layout = pseudo_layout
 
 
+@_debug.logfunc
 def _make_pseudo_layout(chain_db_obj: object, position: "_point.Point") -> object:
     """A pseudo layout (never a database row) carrying *position* for a new
     in-memory waypoint, built on the same template as the wire probe layout."""
@@ -1297,12 +1369,38 @@ def _make_pseudo_layout(chain_db_obj: object, position: "_point.Point") -> objec
     return layout
 
 
-def _move_point(point: "_point.Point", x: float, z: float) -> None:
+@_debug.logfunc
+def _move_point(point: "_point.Point", x: float, z: float) -> bool:
     """Move a cached peg-board ``Point`` to (x, z) by a delta (``+=``), so its
-    bound callbacks fire -- plain assignment would not."""
-    point += _point.Point(x - float(point.x), 0.0, z - float(point.z))
+    bound callbacks fire -- plain assignment would not.
+
+    No-ops (skips the ``+=`` entirely) when *point* is already exactly at
+    (x, z) -- a real case, not a hypothetical one: a drag's own cascade
+    settles a chain's interior once, but something else touching one of
+    this SAME chain's own points (:class:`~handlers.wire_slack_handler.
+    WireSlackHandler`'s per-point safety net, chief among them -- see its
+    own module docstring) can re-run this exact reconcile again
+    immediately after, recomputing the identical already-correct
+    positions. Firing every bound callback (each one potentially a real
+    GL rebuild) for a move that doesn't actually move anything is pure
+    waste -- confirmed live, 2026-10-16: a single housing+wire drag spent
+    multiple seconds re-settling the same wire several times a frame.
+    Exact equality, not a tolerance -- this only ever skips a call whose
+    inputs are bit-identical to the point's current value, never one that
+    merely rounds close.
+
+    :returns: Whether the point's position actually changed.
+    """
+    dx = x - float(point.x)
+    dz = z - float(point.z)
+    if dx == 0.0 and dz == 0.0:
+        return False
+
+    point += _point.Point(dx, 0.0, dz)
+    return True
 
 
+@_debug.logfunc
 def _overlay_for(
     points_table: object,
     chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"],
@@ -1322,6 +1420,7 @@ def _overlay_for(
     return entries
 
 
+@_debug.logfunc
 @_check_types.do
 def _set_layout_visible(
     layouts_table: _Union["_pjt_bundle_layout.PJTBundleLayoutsTable", "_pjt_wire_layout.PJTWireLayoutsTable"],
@@ -1338,6 +1437,7 @@ def _set_layout_visible(
         layout_obj.objpegboard.set_visible_cache(visible)
 
 
+@_debug.logfunc
 @_check_types.do
 def _apply_mid_drag(
     mainframe: "_ui.MainFrame",
@@ -1385,6 +1485,7 @@ def _apply_mid_drag(
 
     tail_start = len(overlay) - trailing
     active = overlay[leading:tail_start]
+    original_count = len(active)
 
     if wanted < len(active):
         for _ in range(len(active) - wanted):
@@ -1420,15 +1521,48 @@ def _apply_mid_drag(
             else:
                 active.insert(0, entry)
 
-    _place_active(active, interior, start_xz, stop_xz, pin_point_id, pin_xz)
-
-    overlay[:] = overlay[:leading] + active + overlay[tail_start:]
-
+    # Suspend the chain's own per-point geometry rebuild for the duration of
+    # the move loop below -- _place_active moves every active waypoint one
+    # at a time, and each one left bound would otherwise trigger its own
+    # full _recalculate_geometry()/GL-stripe-capacity rebuild (confirmed
+    # live, 2026-10-16: this was the dominant per-point cost of a drag).
+    # One rebuild after all of them have their final position, in the
+    # refresh_waypoints() call below, replaces all of those. Always
+    # resumed in the finally, via refresh_waypoints()'s own unconditional
+    # rebind half, so a raised exception never leaves this chain's own
+    # waypoints permanently unbound.
     chain_obj = chain_db_obj.get_object()
     if chain_obj is not None:
-        chain_obj.objpegboard.refresh_waypoints()
+        chain_obj.objpegboard.unregister_geometry_updates()
+
+    try:
+        moved = _place_active(active, interior, start_xz, stop_xz, pin_point_id, pin_xz)
+    finally:
+        overlay[:] = overlay[:leading] + active + overlay[tail_start:]
+
+        if chain_obj is not None:
+            # A true no-op -- same count, same positions -- needs only
+            # the cheap rebind (reregister_geometry_updates: back onto
+            # the exact same points just unbound, no DB/offline-store
+            # re-derivation, no WireSlackHandler rebind, since the set
+            # it would rebind to is provably identical). This is what
+            # makes a redundant reconcile (WireSlackHandler's own
+            # per-point safety net firing on points a housing/transition
+            # move rigidly carries along -- see its own module
+            # docstring) cheap end to end: by the time it runs, this
+            # chain is already exactly where the real pass just put it,
+            # confirmed by _move_point's own no-op short-circuit (exact
+            # equality, never a tolerance). Only a real change pays for
+            # the full refresh_waypoints() -- re-derive the waypoint
+            # set, rebind everything (this wire's own geometry callback
+            # AND WireSlackHandler's), recalculate, repaint.
+            if original_count != len(active) or moved:
+                chain_obj.objpegboard.refresh_waypoints()
+            else:
+                chain_obj.objpegboard.reregister_geometry_updates()
 
 
+@_debug.logfunc
 @_check_types.do
 def _place_active(
     overlay: list[_Waypoint],
@@ -1437,11 +1571,15 @@ def _place_active(
     stop_xz: tuple[float, float],
     pin_point_id: bytes | None,
     pin_xz: tuple[float, float] | None
-) -> None:
+) -> bool:
     """Move the overlay's points onto the solver's shape, keeping the pinned
     (dragged) point on its own target. When the counts disagree, the others are
     spread evenly on the straight line between the anchors (a transient state
-    that only lasts until the drag releases)."""
+    that only lasts until the drag releases).
+
+    :returns: Whether any point actually moved -- see :func:`_move_point`'s
+        own no-op short-circuit.
+    """
     pinned = [entry for entry in overlay if pin_point_id is not None and entry.point_id == pin_point_id]
     others = [entry for entry in overlay if not (pin_point_id is not None and entry.point_id == pin_point_id)]
 
@@ -1463,10 +1601,15 @@ def _place_active(
     if pinned and pin_xz is not None:
         targets.append((pinned[0], pin_xz))
 
+    moved = False
     for entry, (x, z) in targets:
-        _move_point(entry.point, x, z)
+        if _move_point(entry.point, x, z):
+            moved = True
+
+    return moved
 
 
+@_debug.logfunc
 @_check_types.do
 def _commit_overlay(
     mainframe: "_ui.MainFrame",
@@ -1533,6 +1676,7 @@ def _commit_overlay(
         chain_obj.objpegboard.refresh_waypoints()
 
 
+@_debug.logfunc
 @_check_types.do
 def clamp_to_length_from_anchor(
     anchor_xz: tuple[float, float], target_xz: tuple[float, float], length: float
@@ -1552,6 +1696,7 @@ def clamp_to_length_from_anchor(
     return anchor_xz[0] + dx * scale, anchor_xz[1] + dz * scale
 
 
+@_debug.logfunc
 @_check_types.do
 def _pinned_chain(
     ptables: "_PJTPegboardTable", point_starts: list[tuple[bytes, _point.Point]]
@@ -1584,6 +1729,7 @@ def _pinned_chain(
     return pinned[0]
 
 
+@_debug.logfunc
 @_check_types.do
 def _chain_is_tight(chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJTWire"]) -> bool:
     """The chain's own live ``is_tight`` (see objects_pegboard.bundle/wire).
@@ -1597,6 +1743,7 @@ def _chain_is_tight(chain_db_obj: _Union["_pjt_bundle.PJTBundle", "_pjt_wire.PJT
     return bool(chain_obj.objpegboard.is_tight)
 
 
+@_debug.logfunc
 @_check_types.do
 def _resolve_pinned_move(
     mainframe: "_ui.MainFrame",
@@ -1654,24 +1801,32 @@ def _resolve_pinned_move(
         center_placed_x, center_placed_z = center_at(s, cast)
         return center_placed_x - center_x, center_placed_z - center_z
 
+    # Shared across every _evaluate_points call this resolve makes below --
+    # all read-only against the same unwritten ptables state (nothing here
+    # commits until the winning candidate is found), so the anchor-side
+    # chain lookup's one-time index (_anchor_index, via _chains_for_point)
+    # only needs building once for the whole search instead of once per
+    # candidate. See _evaluate_points' own chain_cache docstring.
+    chain_cache: dict = {}
+
     if not _chain_is_tight(chain_db_obj):
-        free_result = _evaluate_points(ptables, candidate(1.0, False), cascade=False)
+        free_result = _evaluate_points(ptables, candidate(1.0, False), cascade=False, chain_cache=chain_cache)
         if free_result is not None:
             _commit_points(mainframe, *free_result, in_progress=in_progress)
             return displacement_at(1.0, False)
 
-    full_result = _evaluate_points(ptables, candidate(1.0, True), cascade=False)
+    full_result = _evaluate_points(ptables, candidate(1.0, True), cascade=False, chain_cache=chain_cache)
     if full_result is not None:
         _commit_points(mainframe, *full_result, in_progress=in_progress)
         return displacement_at(1.0, True)
 
     lo, hi = 0.0, 1.0
     best_s = 0.0
-    best_result = _evaluate_points(ptables, candidate(0.0, True), cascade=False)
+    best_result = _evaluate_points(ptables, candidate(0.0, True), cascade=False, chain_cache=chain_cache)
 
     for _ in range(iterations):
         mid = (lo + hi) / 2.0
-        mid_result = _evaluate_points(ptables, candidate(mid, True), cascade=False)
+        mid_result = _evaluate_points(ptables, candidate(mid, True), cascade=False, chain_cache=chain_cache)
 
         if mid_result is not None:
             lo = mid
@@ -1686,6 +1841,7 @@ def _resolve_pinned_move(
     return displacement_at(best_s, True)
 
 
+@_debug.logfunc
 @_check_types.do
 def resolve_local_move(
     mainframe: "_ui.MainFrame",
@@ -1721,18 +1877,23 @@ def resolve_local_move(
             (point_id, (float(start.x) + dx * t, float(start.z) + dz * t))
             for point_id, start in point_starts]
 
-    full_result = _evaluate_points(ptables, candidate(1.0), cascade=False)
+    # See _resolve_pinned_move's identical comment -- shared across this
+    # whole search since every call below is a read-only solve against
+    # the same unwritten ptables state.
+    chain_cache: dict = {}
+
+    full_result = _evaluate_points(ptables, candidate(1.0), cascade=False, chain_cache=chain_cache)
     if full_result is not None:
         _commit_points(mainframe, *full_result, in_progress=in_progress)
         return dx, dz
 
     lo, hi = 0.0, 1.0
     best_t = 0.0
-    best_result = _evaluate_points(ptables, candidate(0.0), cascade=False)
+    best_result = _evaluate_points(ptables, candidate(0.0), cascade=False, chain_cache=chain_cache)
 
     for _ in range(iterations):
         mid = (lo + hi) / 2.0
-        mid_result = _evaluate_points(ptables, candidate(mid), cascade=False)
+        mid_result = _evaluate_points(ptables, candidate(mid), cascade=False, chain_cache=chain_cache)
 
         if mid_result is not None:
             lo = mid
@@ -1747,6 +1908,7 @@ def resolve_local_move(
     return dx * best_t, dz * best_t
 
 
+@_debug.logfunc
 @_check_types.do
 def resolve_rigid_move(
     mainframe: "_ui.MainFrame",
@@ -1816,18 +1978,23 @@ def resolve_rigid_move(
             (point_id, (float(start.x) + dx * t, float(start.z) + dz * t))
             for point_id, start in point_starts]
 
-    full_result = _evaluate_points(ptables, candidate(1.0))
+    # See _resolve_pinned_move's identical comment -- shared across this
+    # whole search since every call below is a read-only solve against
+    # the same unwritten ptables state.
+    chain_cache: dict = {}
+
+    full_result = _evaluate_points(ptables, candidate(1.0), chain_cache=chain_cache)
     if full_result is not None:
         _commit_points(mainframe, *full_result, in_progress=in_progress)
         return 1.0
 
     lo, hi = 0.0, 1.0
     best_t = 0.0
-    best_result = _evaluate_points(ptables, candidate(0.0))
+    best_result = _evaluate_points(ptables, candidate(0.0), chain_cache=chain_cache)
 
     for _ in range(iterations):
         mid = (lo + hi) / 2.0
-        mid_result = _evaluate_points(ptables, candidate(mid))
+        mid_result = _evaluate_points(ptables, candidate(mid), chain_cache=chain_cache)
 
         if mid_result is not None:
             lo = mid
@@ -1842,6 +2009,7 @@ def resolve_rigid_move(
     return best_t
 
 
+@_debug.logfunc
 @_check_types.do
 def realize_length_change(
     mainframe: "_ui.MainFrame",
@@ -1910,6 +2078,7 @@ def realize_length_change(
     return True
 
 
+@_debug.logfunc
 @_check_types.do
 def realize_3d_move(
         mainframe: "_ui.MainFrame", point3d_ids: list[bytes], in_progress: bool = False) -> None:
@@ -1956,6 +2125,7 @@ def realize_3d_move(
             realize_length_change(mainframe, wire_db_obj, in_progress=in_progress)
 
 
+@_debug.logfunc
 @_check_types.do
 def finalize_drag(mainframe: "_ui.MainFrame") -> bool:
     """The release-time commit of a drag: reconcile every chain still

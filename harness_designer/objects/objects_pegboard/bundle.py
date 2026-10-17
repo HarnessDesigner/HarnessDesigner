@@ -22,6 +22,7 @@ from ...handlers import bundle_diameter as _bundle_diameter
 from ... import check_types as _check_types
 from ...rope_pull import offline_store as _offline_store
 from ... import config as _config
+from ... import debug as _debug
 from ...crash_dump import Attr, capturable
 
 
@@ -202,6 +203,7 @@ class Bundle(_base_pegboard.BasePegboard):
         self._scale.x = value
         self._scale.y = value
 
+    @_debug.logfunc
     @_check_types.do
     def _bind_waypoints(self) -> None:
         """(Re-)bind this bundle's own _update_position callback to every
@@ -221,11 +223,41 @@ class Bundle(_base_pegboard.BasePegboard):
         for point in self._waypoint_points:
             point.bind(self._update_position)
 
+    @_debug.logfunc
+    @_check_types.do
+    def unregister_geometry_updates(self) -> None:
+        """Temporarily stop every one of this bundle's own interior
+        waypoints from triggering :meth:`_update_position` (and so a
+        full :meth:`_recalculate_geometry` rebuild) on every individual
+        move -- mirrors ``objects_pegboard.wire.Wire``'s identical
+        method exactly; see its own docstring.
+        """
+        for point in self._waypoint_points:
+            point.unbind(self._update_position)
+
+    @_debug.logfunc
+    @_check_types.do
+    def reregister_geometry_updates(self) -> None:
+        """Cheap undo of :meth:`unregister_geometry_updates` when the
+        waypoint set itself is unchanged -- mirrors
+        ``objects_pegboard.wire.Wire``'s identical method exactly; see
+        its own docstring.
+        """
+        for point in self._waypoint_points:
+            point.bind(self._update_position)
+
+    @_debug.logfunc
     @_check_types.do
     def refresh_waypoints(self) -> None:
         """Public entry point for handlers: call after this bundle's own
         peg-board waypoint rows change (added, removed, or reordered) so
         live callbacks and cached geometry all catch up.
+
+        A caller that already knows the waypoint SET itself is
+        unchanged has nothing to recompute or re-derive here --
+        :meth:`reregister_geometry_updates` is the cheap path for
+        exactly that case instead -- mirrors ``objects_pegboard.wire.
+        Wire.refresh_waypoints`` exactly; see its own docstring.
         """
         self._bind_waypoints()
         self._recalculate_geometry()
@@ -288,6 +320,7 @@ class Bundle(_base_pegboard.BasePegboard):
         # override.
         self._update_position(None)
 
+    @_debug.logfunc
     @_check_types.do
     def _segments(self) -> list[tuple[np.ndarray, np.ndarray]]:
         """Every (p1, p2) sub-segment from start, through each interior
@@ -348,6 +381,7 @@ class Bundle(_base_pegboard.BasePegboard):
 
             yield seg_position, seg_angle, seg_scale, seg_len
 
+    @_debug.logfunc
     @_check_types.do
     def _recalculate_geometry(self) -> None:
         """Compute total length and OBB/AABB from the bundle's current
@@ -372,6 +406,7 @@ class Bundle(_base_pegboard.BasePegboard):
         self._compute_obb()
         self._compute_aabb()
 
+    @_debug.logfunc
     @_check_types.do
     def _update_position(self, _: _point.Point | None) -> None:
         """Recompute geometry immediately, not deferred to the next
@@ -380,6 +415,7 @@ class Bundle(_base_pegboard.BasePegboard):
         """
         self._recalculate_geometry()
 
+    @_debug.logfunc
     @_check_types.do
     def _compute_obb(self) -> None:
         """Union AABB across every sub-segment, expressed as an 8-corner
@@ -413,6 +449,7 @@ class Bundle(_base_pegboard.BasePegboard):
         else:
             self._obb[:] = obb
 
+    @_debug.logfunc
     @_check_types.do
     def _compute_aabb(self) -> None:
         """See :meth:`_compute_obb` -- same union-of-segments envelope."""

@@ -54,17 +54,46 @@ references).
 
 from typing import TYPE_CHECKING
 
+import os
+import time
+
 from .. import editor_pegboard as _editor_pegboard
 from .. import base as _base
 from ...handlers import rope_pull_handler as _rope_pull_handler
 from ...geometry import point as _point
 from ... import debug as _debug
 from ... import check_types as _check_types
+from ...utils import paths as _paths
 
 
 if TYPE_CHECKING:
     from ...gl.canvas_pegboard import canvas as _canvas
     from ... import objects as _objects
+
+
+def _write_profile_report() -> None:
+    """Dump whatever :mod:`debug` captured during one drag gesture to a
+    timestamped file under the appdata log directory (same convention
+    as :mod:`crash_dump`'s own dumps), in addition to the normal
+    :func:`debug.end_capture` print. Guarded like every diagnostic in
+    this codebase -- a broken profile dump must never break the drag's
+    own teardown (see :mod:`crash_dump.entrypoints`'s identical
+    reasoning).
+    """
+    try:
+        text = _debug.end_capture()
+    except Exception:  # NOQA -- a broken diagnostic must never mask the real teardown
+        return
+
+    try:
+        log_dir = os.path.join(_paths.get_appdata(), 'log')
+        os.makedirs(log_dir, exist_ok=True)
+        stamp = time.strftime('%Y%m%d_%H%M%S')
+        path = os.path.join(log_dir, f'rope_pull_profile_{stamp}.txt')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(text)
+    except Exception:  # NOQA -- same
+        pass
 
 
 class Generic(_editor_pegboard.DragHandlerPegboard):
@@ -132,6 +161,15 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
                         self._point_starts.append(
                             (attach_id, terminal.attach_position_pegboard.copy()))
 
+        # Profiling: see the module's debug.logfunc-decorated functions in
+        # rope_pull_handler.py. Gated on the same config flag that controls
+        # whether those are even wrapped (see debug.py's own module
+        # docstring) -- off by default, so this costs nothing in normal use.
+        # Started here rather than in __call__ so the very first frame's
+        # resolve is captured too, not just subsequent ones.
+        if _debug.Config.log_duration:
+            _debug.begin_capture()
+
         # Open the move gesture for this drag's whole lifetime -- see
         # editor_3d/generic.py Generic.__init__ for the same hook, and
         # WRITE_DESIGN.md section 4.12. Closed in delete() below (this
@@ -195,3 +233,8 @@ class Generic(_editor_pegboard.DragHandlerPegboard):
             # gesture would silently stay open and defer every later write
             # app-wide until something else happened to close it.
             self.canvas.mainframe.project.end_gesture()
+
+            # Mirror the begin_capture() in __init__ -- see that call's
+            # comment.
+            if _debug.Config.log_duration:
+                _write_profile_report()

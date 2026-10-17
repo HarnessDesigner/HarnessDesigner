@@ -31,6 +31,7 @@ import weakref
 
 from . import rope_pull_handler as _rope_pull_handler
 from .. import check_types as _check_types
+from .. import debug as _debug
 
 
 if TYPE_CHECKING:
@@ -76,6 +77,7 @@ class WireSlackHandler:
         self.register_pegboard()
 
     @staticmethod
+    @_debug.logfunc
     @_check_types.do
     def _rebind(refs: list[weakref.ref], points: list, callback) -> list[weakref.ref]:  # NOQA -- points/callback: no clean static type here
         """Unbind *callback* from whatever *refs* points to, then bind it
@@ -123,18 +125,58 @@ class WireSlackHandler:
 
         self._bound_3d_refs = self._rebind(self._bound_3d_refs, points, self._on_3d_changed)
 
+    @_debug.logfunc
     @_check_types.do
     def register_pegboard(self) -> None:
         """Peg-board mirror of :meth:`register_3d` -- called from
         ``objects_pegboard.wire.Wire.refresh_waypoints``.
+
+        Binds only ONE point per RIGIDLY-COUPLED group at each end,
+        not every point in it. A terminal seated in a housing cavity
+        gives this wire's own end up to three such points --
+        ``PJTTerminal.attach_position_pegboard`` (this wire's own true
+        start/stop anchor), the terminal's own ``wire_position_pegboard``
+        stub, and the cavity's own ``wire_position_pegboard`` stub,
+        the leading/trailing structural-stub waypoints
+        :func:`rope_pull_handler.stub_boundary_for_chain` already
+        identifies for a completely different reason (excluding them
+        from the rope-pull solver's own free interior). All three only
+        ever move together: ``PJTHousing._update_position_pegboard``
+        carries every one of a seated terminal's points by the exact
+        same delta, every time the housing moves -- there is no path
+        that moves one without the other two. Binding to all three
+        anyway meant one housing move fired this wire's own full
+        reconcile three times over, once per point, each a redundant
+        repeat of the same result (confirmed live, 2026-10-16: the
+        dominant cost of a housing+wire peg-board drag). Binding to
+        the INNERMOST point present at each end -- the cavity's own
+        stub if seated, else the terminal's own stub, else this wire's
+        own true start/stop anchor if that end isn't terminal-attached
+        at all -- observes the exact same rigid movement with exactly
+        one callback instead of up to three.
+
+        The free interior waypoints in between (the ones the rope-pull
+        solver CAN reposition independently) are still bound
+        individually, same as before.
         """
+        wire_db_obj = self._wire.db_obj
+        ptables = self._wire.mainframe.project.ptables
+        leading, trailing = _rope_pull_handler.stub_boundary_for_chain(ptables, wire_db_obj)
+
         objpegboard = self._wire.objpegboard
-        points = [objpegboard.start_position, objpegboard.stop_position]
-        points.extend(waypoint.point for waypoint in self._wire.db_obj.waypoints_pegboard)
+        waypoints = list(wire_db_obj.waypoints_pegboard)
+        tail_start = len(waypoints) - trailing
+
+        start_point = waypoints[leading - 1].point if leading else objpegboard.start_position
+        stop_point = waypoints[tail_start].point if trailing else objpegboard.stop_position
+
+        points = [start_point, stop_point]
+        points.extend(waypoint.point for waypoint in waypoints[leading:tail_start])
 
         self._bound_pegboard_refs = self._rebind(
             self._bound_pegboard_refs, points, self._on_pegboard_changed)
 
+    @_debug.logfunc
     @_check_types.do
     def unregister_pegboard(self) -> None:
         """Unbind from every currently-tracked peg-board point, with no
@@ -153,10 +195,12 @@ class WireSlackHandler:
     def _on_3d_changed(self, point) -> None:  # NOQA -- point unused, Point.bind's own callback contract
         self._reconcile()
 
+    @_debug.logfunc
     @_check_types.do
     def _on_pegboard_changed(self, point) -> None:  # NOQA -- point unused
         self._reconcile()
 
+    @_debug.logfunc
     @_check_types.do
     def _reconcile(self) -> None:
         """Re-run this wire's own slack/rope-pull reconcile.
