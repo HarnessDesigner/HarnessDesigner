@@ -1475,9 +1475,10 @@ class PegBoardToolbar(QtWidgets.QToolBar):
 # ---------------------------------------------------------------------------
 
 class GeneralToolbar(QtWidgets.QToolBar):
-    """Application-level toolbar (browser, settings, tools, connect, BOM)."""
+    """Application-level toolbar (browser, script editor, settings, tools, connect, BOM)."""
 
     ID_BROWSER = _new_id()
+    ID_SCRIPT_EDITOR = _new_id()
     ID_SETTINGS = _new_id()
     ID_TOOLS = _new_id()
     ID_CONNECT = _new_id()
@@ -1526,6 +1527,7 @@ class GeneralToolbar(QtWidgets.QToolBar):
 
         icons = _image.icons
         _push(self.ID_BROWSER, 'Internet', _make_icon(icons.internet), self.on_browser)
+        _push(self.ID_SCRIPT_EDITOR, 'Script Editor', _make_icon(icons.note_pen), self.on_script_editor)
         _push(self.ID_SETTINGS, 'Settings', _make_icon(icons.settings), self.on_settings)
         _push(self.ID_TOOLS, 'Tools', _make_icon(icons.tool), self.on_tools)
         _push(self.ID_CONNECT, 'Connect Database', _make_icon(icons.connect), self.on_database)
@@ -1535,14 +1537,21 @@ class GeneralToolbar(QtWidgets.QToolBar):
 
     @_check_types.do
     def on_browser(self, checked: bool = False) -> None:
-        """Handle the browser event.
+        """Open the scraper's Web Browser dock (it is created the first time).
 
-        UNKNOWN details are inferred from the callable name and signature.
-
-        :param checked: Value for ``checked``.
+        :param checked: Unused -- present to match the ``QAction.triggered`` signal.
         :type checked: bool
         """
-        pass
+        self.mainframe.show_scraper_browser()
+
+    @_check_types.do
+    def on_script_editor(self, checked: bool = False) -> None:
+        """Open the scraper's Script Editor dock (it is created the first time).
+
+        :param checked: Unused -- present to match the ``QAction.triggered`` signal.
+        :type checked: bool
+        """
+        self.mainframe.show_script_editor()
 
     @_check_types.do
     def on_settings(self, checked: bool = False) -> None:

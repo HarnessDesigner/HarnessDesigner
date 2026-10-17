@@ -11,6 +11,7 @@ from . import network_panel as _network_panel
 from . import response_panel as _response_panel
 from . import snippet_pane as _snippet_pane
 from . import source_viewer as _source_viewer
+from ...scraping import assistant as _assistant
 from ...scraping import browser_pick as _browser_pick
 from ...scraping import capture_model as _capture_model
 from ...scraping import request_code as _request_code
@@ -22,7 +23,7 @@ _RENDERED_WARNING = (
     'with requests sees the original HTML, which may not contain this -- check the "As served" source.')
 
 
-class ScraperInspector(QtWidgets.QWidget):
+class ScraperInspector(QtWidgets.QWidget, _assistant.AssistantContext):
     """:ivar messageRaised: Something the user should be told (``str``)."""
 
     messageRaised = QtCore.Signal(str)
@@ -133,6 +134,36 @@ class ScraperInspector(QtWidgets.QWidget):
     @_check_types.do
     def show_message(self, text: str) -> None:
         self._show_message(text)
+
+    # -- AssistantContext: what the script editor's assistant can see ------------
+    #
+    # The assistant's tools call page_source() and selected_request() from a
+    # worker thread, so those two only read plain Python attributes. The other
+    # two touch widgets and are called on the GUI thread only.
+
+    @_check_types.do
+    def page_url(self) -> str:
+        return self._page_url
+
+    @_check_types.do
+    def page_source(self) -> str | None:
+        text = self.source.document_text()
+        if not text:
+            return None
+
+        return text
+
+    @_check_types.do
+    def source_selection(self) -> tuple[str, int, int] | None:
+        selection = self.source.selection()
+        if selection is None:
+            return None
+
+        return self.source.document_text(), selection[0], selection[1]
+
+    @_check_types.do
+    def selected_request(self) -> _capture_model.CapturedRequest | None:
+        return self.response.current_request()
 
     @_check_types.do
     def _page_preamble(self, taken: set[str], warn_if_rendered: bool = True) -> _snippets.Snippet | None:

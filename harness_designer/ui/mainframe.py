@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from .editor_pegboard import editor_pegboard as _editor_pegboard
     from .editor_schematic import editor_schematic as _editor_schematic
     from . import web_viewer as _web_viewer
+    from . import editor_script as _editor_script
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
     from ..objects import project as _project
@@ -124,6 +125,7 @@ class MainFrame(QtWidgets.QMainWindow):
         # The scraper's web browser is created the first time it is opened
         # (show_scraper_browser), not at startup: it pulls in QtWebEngine.
         self.scraper_browser: _Union["_web_viewer.ScraperBrowser", None] = None
+        self.scraper_editor: _Union["_editor_script.ScriptEditor", None] = None
 
         splash.SetText('Startup logging ...')
         splash.flush()
@@ -789,8 +791,38 @@ class MainFrame(QtWidgets.QMainWindow):
             # Pick up the position the user left it in last time; a dock
             # created after restoreState() at startup is not restored by it.
             self.restoreDockWidget(self.scraper_browser.dock)
+            self._link_scraper_docks()
 
         self.scraper_browser.Show()
+
+    @_check_types.do
+    def show_script_editor(self) -> None:
+        """
+        Open the scraper's script editor (and its Claude assistant),
+        creating the dock the first time. Meant for a toolbar button or a
+        menu entry.
+        """
+
+        if self.scraper_editor is None:
+            from . import editor_script
+
+            self.scraper_editor = editor_script.ScriptEditor(self)
+            self.restoreDockWidget(self.scraper_editor.dock)
+            self._link_scraper_docks()
+
+        self.scraper_editor.Show()
+
+    @_check_types.do
+    def _link_scraper_docks(self) -> None:
+        """Once both scraper docks exist, connect them: code made in the
+        browser's inspector goes into the script editor, and the editor's
+        assistant can see the page, its selection and the picked request."""
+
+        if self.scraper_browser is None or self.scraper_editor is None:
+            return
+
+        self.scraper_browser.panel.set_sink(self.scraper_editor)
+        self.scraper_editor.panel.assistant.set_context(self.scraper_browser.panel.inspector)
 
     @_check_types.do
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
@@ -898,6 +930,9 @@ class MainFrame(QtWidgets.QMainWindow):
             _run('Closing Object Editor....', self.editor_obj.Destroy, 8)
             _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 9)
             _run('Closing Log Viewer....', self.log_viewer.Destroy, 10)
+
+            if self.scraper_editor is not None:
+                _run('Closing Script Editor....', self.scraper_editor.Destroy, 10)
 
             if self.scraper_browser is not None:
                 _run('Closing Web Browser....', self.scraper_browser.Destroy, 10)
