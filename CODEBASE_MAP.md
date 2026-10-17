@@ -634,6 +634,8 @@ Contents/structure of the `harness_designer/` package.
   - empty_space_menus.py: menus for right-clicking empty space in each view (3D: wire/terminal/housing/project model; pegboard: wire/terminal/housing; schematic: terminal/housing); the click position is where the new object goes
   - search_db
   - *_ctrl wrappers
+  - `code_editor_ctrl.py`: `CodeEditorCtrl`, a `QPlainTextEdit` Python editor (line numbers, Pygments highlighting,
+    auto-indent); the script editor widget for the scraper tool
 - `dialogs/`:
   - dialog_base.py
   - about_dialog.py: About box — app info, update check (GitHub releases API),
@@ -717,7 +719,26 @@ Contents/structure of the `harness_designer/` package.
   - `mdi_host.py`: hosts the table in an off-screen `QMdiSubWindow` for texture grabbing
 - `log_viewer/viewer.py`
 - `datasheet_viewer/viewer.py`
-- `web_viewer/` (empty)
+- `web_viewer/`: the scraper's Web Browser dock (design: `SCRAPER_DESIGN.md`). Imports QtWebEngine, so it is
+  imported only when the user first opens the browser -- `MainFrame.show_scraper_browser()` creates it, restores
+  its saved position, and `closeEvent` destroys it. Nothing in the UI calls that method yet (toolbar button /
+  menu entry still to be placed)
+  - `browser_dock.py`: `ScraperBrowser(DockBase)` and `ScraperBrowserPanel` (browser | inspector in a splitter)
+  - `browser_widget.py`: `BrowserWidget` -- address bar, `QWebEngineView`, persistent profile, hook injection,
+    downloads refused / permissions denied / new windows opened in place, "Scraper" page context menu, source
+    fetching (as served / rendered DOM)
+  - `capture_bridge.py`: `CaptureBridge`, the `QWebChannel` object the page's hook calls
+- `scraper_inspector/`: the inspector widgets (no QtWebEngine, so they can be tested alone)
+  - `inspector.py`: `ScraperInspector` -- Source / Network / Response tabs + the generated-script pane; `set_sink()`
+    sends snippets to the script editor instead of the pane
+  - `source_viewer.py`: `SourceViewer` -- highlighted read-only text; its right-click menu turns a selection into
+    code (`build_menu()`)
+  - `network_panel.py`: `NetworkPanel` / `NetworkModel` -- the captured requests (rolling window of 2000)
+  - `response_panel.py`: `ResponsePanel` -- one request: JSON tree or source text, request details, "repeat request"
+  - `json_tree.py`: `JsonTree` -- lazy JSON tree; selected values -> extraction code
+  - `snippet_pane.py`: `SnippetPane` -- the built-in generated-script pane (`CodeEditorCtrl`)
+  - `insertion.py`: `SnippetSink` (what snippets are sent to) and `insert_snippet()` (merges imports, one undo step)
+  - `background.py`: `BackgroundJob` -- run a function off the GUI thread, result back via signal
 
 ## Other subsystems
 - `exporter/`: project export
@@ -840,6 +861,60 @@ Contents/structure of the `harness_designer/` package.
   - bvh_processor.py: Python driver for the BVH build
   - `bvh.pyx` (Cython, compiled to `bvh.c`) + `kernel.cl` (OpenCL kernel): BVH build/traversal
   - dialog
+- `scraping/`: point-and-click scraper authoring -- design in `SCRAPER_DESIGN.md` (repo root). Non-UI logic only
+  (no Qt); the widgets are in `ui/scraper_inspector/` and `ui/web_viewer/`; the script editor dock and the
+  Claude assistant are not built yet (Phase 3 in that file; the assistant will use `claude/`). Tests are in
+  `tests/scraping/` (outside the package)
+  - `snippets.py`: `Snippet` + the source-text actions (`split_at_every`, `text_after`, `text_before`,
+    `find_position`, `between`, `regex_capture`, `regex_all`). A selection is `document[start:end]`; the code
+    returned must reproduce it when run (tested). Markers grow until their FIRST occurrence is the selected one
+    and the snippet warns when they had to; `Names` hands out collision-free variable names
+  - `capture_hook.py`: the JavaScript injected into every page that records `fetch` / `XMLHttpRequest` calls and
+    reports them through a `QWebChannel` object named `bridge`; also `window.__hdPageSource()` (re-download the
+    page without it showing up as a request)
+  - `capture_model.py`: `CapturedRequest` (one finished call; `is_json`, `parsed_json()`, `to_spec()`) and
+    `parse_record()`, which validates what the page reports (it is untrusted)
+  - `soft_wrap.py`: `SoftWrap` -- the document with extra line breaks for display (minified pages are one line)
+    and the map from display positions back to offsets in the original text (also across CRLF)
+  - `highlight.py`: `highlight_spans()` -- one-pass Pygments highlighting (HTML / XML / JSON) as plain data
+  - `script_builder.py`: `snippet_block()` (warnings -> `# NOTE:` comments), `import_text()` / `import_position()`
+    (where new imports go, no repeats)
+  - `browser_pick.py`: the JS that finds the element under the pointer in the live page and builds a selector,
+    `parse_pick()` (validates the answer) and `pick_snippet()`
+  - `url_input.py`: `normalize_url()` -- address-bar text to a URL
+  - `html_locate.py`: `LocatedDocument` (source offset -> enclosing element, positions from `html.parser`, element
+    re-found by tag name + document order in the tree the generated code uses) and the element actions
+    (`css_text`, `css_all`, `css_attribute`, `xpath_text`, `xpath_all`, `xpath_attribute`); selectors skip
+    machine-generated class names and pin only the level that needs `:nth-of-type`
+  - `request_code.py`: `RequestSpec` -> `requests` code (`generate_request_code`, `generate_page_load`); Cookie /
+    Authorization are never written into code; handles JSON, urlencoded and multipart bodies
+  - `json_extract.py`: JSON path clicks -> extraction code (`generate_extraction_code`, `every_item=` for "this
+    field from every element", `suggest_name`, `snippet_for`); `describe()` asks Claude through `claude/`
+- `claude/`: the application's ONE doorway to the Claude API -- design in `CLAUDE_API_DESIGN.md` (repo root). Nothing
+  else imports `anthropic`. No Qt in the package itself (importing it imports neither Qt nor the SDK); tests are in
+  `tests/claude/` against a fake Messages API server (`fake_api.py`)
+  - `client.py`: `ClaudeClient` -- owns the SDK client built from the stored key; `ask()` (one question),
+    `conversation()`, `check_connection()`, `derive()`; always streams (nothing times out, calls can be
+    cancelled); translates SDK errors; keeps a running `usage` total. `warm_up()` pre-imports the SDK (the first
+    import takes ~3 s) on a background thread
+  - `conversation.py`: `Conversation` -- APPEND-ONLY (model, tools and system prompt fixed at creation, history
+    only grows; Claude's thinking is bound to the conversation, so editing earlier turns is an API error).
+    `send()` runs the tool loop and structured output; `note()` adds later-learned facts as `role: system`
+    messages; a failed or cancelled `send()` leaves the history exactly as it was
+  - `messages.py`: `Tool`, `Usage` (with cost estimate), `Response`
+  - `context.py`: `ContextProvider` / `ContextBlock` / `StaticContext` -- how outside knowledge is rendered once
+    into a conversation's frozen system prompt (the seam for what concentric twisting will learn from the user)
+  - `settings.py`: `ClaudeSettings` (model, effort, max_tokens, refusal fallback, retries, timeout), the
+    application-wide `current()` / `update()`, and `SettingsBackend` so the app can persist them (e.g. in Config)
+  - `keys.py`: `ApiKeyStore` -- the user's key in the system credential store (same slot as the earlier scraper
+    client: service `HarnessDesigner`, name `anthropic_api_key`); `MemoryKeyring` for a key that is not saved
+  - `models.py`: the offered models, prices (cost estimates only), `DEFAULT_MODEL` = `claude-opus-5-5`
+  - `errors.py`: `ClaudeError` and subclasses, each with a `user_message` fit to show
+  - `cancel.py`: `CancelToken`
+  - `wire.py`: reads SDK messages (text, usage, tool calls, refusal-fallback cleaning)
+  - `qt/`: the Qt layer -- `ClaudeJob` (a call on a thread; signals back on the GUI thread; `cancel()`),
+    `call_in_gui()` (a tool on the worker thread asks the user something and waits), `key_dialog.ApiKeyDialog`
+    (key / model / effort; `BaseDialog`-based; has a Test button)
 - `logger/`: logging
   - log_handler
   - redirect (stdout/stderr redirection)
@@ -860,6 +935,10 @@ Contents/structure of the `harness_designer/` package.
 - `PIL`: Pillow
 - `requests`: requests
 - `keyring`: keyring
+- `pygments`: Pygments (syntax highlighting in `ui/widgets/code_editor_ctrl.py`)
+- `bs4`: beautifulsoup4 (scraper CSS selectors, `scraping/html_locate.py`)
+- `lxml`: lxml (scraper XPath / parser, `scraping/html_locate.py`)
+- `anthropic`: anthropic (the Claude API; imported only by `claude/client.py`)
 - `win32ctypes`: pywin32-ctypes
 - `mysql`: mysql-connector-python
 - `build123d`: build123d

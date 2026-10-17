@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from .editor_3d import editor_3d as _editor_3d
     from .editor_pegboard import editor_pegboard as _editor_pegboard
     from .editor_schematic import editor_schematic as _editor_schematic
+    from . import web_viewer as _web_viewer
     from ..database import global_db as _global_db
     from ..database import project_db as _project_db
     from ..objects import project as _project
@@ -119,6 +120,10 @@ class MainFrame(QtWidgets.QMainWindow):
 
         self.config = _config.Config
         self._is_closing = False
+
+        # The scraper's web browser is created the first time it is opened
+        # (show_scraper_browser), not at startup: it pulls in QtWebEngine.
+        self.scraper_browser: _Union["_web_viewer.ScraperBrowser", None] = None
 
         splash.SetText('Startup logging ...')
         splash.flush()
@@ -771,6 +776,23 @@ class MainFrame(QtWidgets.QMainWindow):
         QtCore.QTimer.singleShot(0, self._save_size)
 
     @_check_types.do
+    def show_scraper_browser(self) -> None:
+        """
+        Open the scraper's web browser (and its inspector), creating the
+        dock the first time. Meant for a toolbar button or a menu entry.
+        """
+
+        if self.scraper_browser is None:
+            from . import web_viewer
+
+            self.scraper_browser = web_viewer.ScraperBrowser(self)
+            # Pick up the position the user left it in last time; a dock
+            # created after restoreState() at startup is not restored by it.
+            self.restoreDockWidget(self.scraper_browser.dock)
+
+        self.scraper_browser.Show()
+
+    @_check_types.do
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """
         Execute the close event operation.
@@ -876,6 +898,10 @@ class MainFrame(QtWidgets.QMainWindow):
             _run('Closing Object Editor....', self.editor_obj.Destroy, 8)
             _run('Closing Assembly Editor....', self.editor_assembly.Destroy, 9)
             _run('Closing Log Viewer....', self.log_viewer.Destroy, 10)
+
+            if self.scraper_browser is not None:
+                _run('Closing Web Browser....', self.scraper_browser.Destroy, 10)
+
             _run('Closing Database Connection....', self.db_connector.close, 11)
 
             _app.CallLater(_finished)
