@@ -1,3 +1,5 @@
 # harness_designer/drag_handlers/editor_pegboard/generic.py
 
-`__call__` ignores the delta (the locked orthogonal direction supplies the position). Per move: a short calculation. Cheap.
+`__call__` ignores the delta (the locked orthogonal direction supplies the position). Per move: a short calculation itself, but it calls straight into `rope_pull_handler.resolve_rigid_move`/`resolve_local_move` (line 161/165) -- see `handlers/rope_pull_handler.md` for where that cost actually goes; this function's own work is cheap.
+
+**Added (2026-10-16):** `__init__`/`delete` now bracket this drag's whole gesture with `debug.begin_capture()`/`debug.end_capture()`, gated on `Config.debug.functions.log_duration` (off by default, zero cost when off). `_write_profile_report` saves the report to `<appdata>/log/rope_pull_profile_<timestamp>.txt` in addition to the normal debug-logger print, for exactly this kind of "still slow after the known fix, need real numbers" investigation. Every top-level function in `rope_pull_handler.py` is now `@debug.logfunc`-decorated so a capture's call tree actually breaks down where time goes inside the resolve. To use: Settings -> Debug Settings -> check "Log Function Duration" -> restart the app -> perform one drag -> the file (or the printed report) has the per-function self/inclusive time breakdown.
