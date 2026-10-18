@@ -98,10 +98,23 @@ def _clean_dist(app_dir):
     # PyOpenGL ships freeglut/gle DLLs for vc9 (VS2008) and vc10 (VS2010) that
     # require MSVCR90.dll / MSVCR100.dll — old runtimes absent on modern Windows.
     # The vc15 (VS2017+) variants use the universal CRT and are sufficient.
+    #
+    # On non-Windows targets, several cross-platform wheels bundle Windows-only
+    # binaries as data regardless of platform — pip's vendored distlib ships
+    # its w32/w64/w64-arm/t32/t64/t64-arm.exe launcher stubs unconditionally,
+    # PyOpenGL bundles its freeglut/gle .dll accelerators the same way, and
+    # ctypes.macholib carries a .bat helper — none of which the Linux/macOS
+    # build has any runtime use for. Beyond being dead weight, shipping real
+    # Windows PE binaries inside a Linux/macOS archive is also exactly the
+    # "foreign executable embedded in an unrelated-platform archive" shape
+    # that browser/AV download scanners flag as suspicious, so strip every
+    # .exe/.dll/.bat unconditionally on those targets.
     if sys.platform.startswith('win'):
         _remove_dll_suffixes = ('.vc9.dll', '.vc10.dll')
+        _foreign_platform_exts = frozenset()
     else:
         _remove_dll_suffixes = ()
+        _foreign_platform_exts = frozenset(['.exe', '.dll', '.bat'])
 
     # File names (lower-cased) treated as license files worth keeping
     # _LICENSE_NAMES = frozenset([
@@ -167,8 +180,9 @@ def _clean_dist(app_dir):
             flower = fname.lower()
 
             has_suffix = any(flower.endswith(s) for s in _remove_dll_suffixes)
-            if (os.path.splitext(fname)[1] in _REMOVE_EXTS or has_suffix
-                    or flower == 'py.typed'):
+            ext = os.path.splitext(fname)[1]
+            if (ext in _REMOVE_EXTS or has_suffix or flower == 'py.typed'
+                    or ext in _foreign_platform_exts):
                 try:
                     os.remove(os.path.join(root, fname))
                     n_files += 1
