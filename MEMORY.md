@@ -133,6 +133,11 @@ When the user works out a detailed multi-round design spec in conversation (e.g.
 
 **How to apply:** The moment a multi-message clarification round converges on a concrete design (not just a one-line answer), capture it in writing before moving on to implementation — a TODO.md entry, a plan file, or a docstring on the relevant class/function. Don't wait until "right before implementing" if there's any chance of a long research/debugging detour first (the CullingThreadPool hang investigation above is exactly what intervened between this spec being given and it actually being implemented).
 
+### QtWebEngine in the main window needs Qt Quick on OpenGL (2026-10-17)
+`app.py` sets `QSG_RHI_BACKEND=opengl` (via `os.environ.setdefault`, next to `AA_ShareOpenGLContexts`, before the `QApplication` exists). **Why:** the 3D canvases are `QOpenGLWidget`s, so Qt composes the main window with OpenGL, but `QWebEngineView` is a `QQuickWidget` whose default API on Windows is Direct3D 11. Without the setting, the first browser dock re-creates the main window's native window (a Hide then a second Show -- and `MainFrame.showEvent` re-runs `_open_project`, so the open-project dialog comes up again) and the page renders black; Qt logs "The top-level window is not using the expected graphics API for composition, 'OpenGL' is not compatible with this QQuickWidget". Creating the browser before the window is first shown only hides the flicker, the page stays black. Measured with a scratch stand-in main window on Windows (not on macOS).
+
+**How to apply:** Do not remove that line. Any new Qt Quick / QML / QtWebEngine widget placed in the main window relies on it. A web view put in a different top-level window would not need it.
+
 ### Do not write unit tests (user, 2026-10-17)
 Do not create `unittest` / pytest files, a `tests/` folder, or anything that exists only so a test can reach into the code (hook constants, test helpers). Build what was asked; check it with throwaway scripts in the session scratchpad (outside the repo), by reading the code, and say plainly what was and was not verified.
 

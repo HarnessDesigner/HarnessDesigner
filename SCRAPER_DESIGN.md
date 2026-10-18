@@ -264,6 +264,11 @@ that holds such an object and ends the wait on it.
 
 - **Opening it:** the General toolbar's Internet button (`mainframe.show_scraper_browser()`). The dock is
   `Web Browser`, right dock area, browser on the left and the inspector on the right (a splitter).
+- **Needs Qt Quick on OpenGL (found 2026-10-17):** `app.py` sets `QSG_RHI_BACKEND=opengl`. Without it, opening the
+  browser in the main window (whose 3D canvases are `QOpenGLWidget`s) made Qt re-create the main window -- a Hide
+  and a second Show, which re-ran the open-project prompt -- and the page stayed black ("The top-level window is not
+  using the expected graphics API for composition ... not compatible with this QQuickWidget"). Creating the dock
+  at start-up instead only hides the flicker. Not seen with the script editor dock alone (it uses no Qt Quick).
 - **Address bar** takes `example.com/shop`, `localhost:8000`, or a full URL (`scraping/url_input.py`).
 - **Profile:** persistent under `<appdata>/scraper/browser_profile` (cookies survive, so logged-in sites work).
   The user agent has the `QtWebEngine/x.y.z` token removed so sites see an ordinary Chrome.

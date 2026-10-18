@@ -1241,8 +1241,13 @@ class MainFrame(QtWidgets.QMainWindow):
                 )
                 context_menu.exec(global_pos)
 
+    # `menu_cls` is a PySide6 widget *class* (e.g. `EmptySpaceMenu3D`) --
+    # every Qt widget class's metaclass is `Shiboken.ObjectType`, a `type`
+    # subclass, so a bare `type` annotation here would trip Cython's
+    # pure-Python-mode ArgTypeTest (it rejects any `type` subclass) the
+    # moment this is actually called. Keep this `object`, not `type`.
     @_check_types.do
-    def _show_empty_space_menu(self, gl_widget: QtWidgets.QWidget, menu_cls: type, evt: _gl.GLEvent) -> None:
+    def _show_empty_space_menu(self, gl_widget: QtWidgets.QWidget, menu_cls: object, evt: _gl.GLEvent) -> None:
         """
         Pop up *menu_cls* (see ``ui.widgets.empty_space_menus``) at the
         position of the right click *evt* reports, over *gl_widget* (the

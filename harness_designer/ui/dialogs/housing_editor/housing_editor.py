@@ -1641,9 +1641,13 @@ class HousingEditorDialog(_dialog_base.BaseDialog):
     def get_selected(self) -> _Union["_objects.ObjectBase", None]:
         return self._selected_obj
 
+    # `Config.editor_3d`'s metaclass is `ConfigDB`, a `type` subclass, so a
+    # bare `type` return annotation here would trip Cython's pure-Python-mode
+    # ArgTypeTest (it rejects any `type` subclass) on every access. Keep this
+    # `object`, not `type`.
     @property
     @_check_types.do
-    def config(self) -> type:
+    def config(self) -> object:
         return Config.editor_3d
 
     @_check_types.do

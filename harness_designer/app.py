@@ -5,6 +5,7 @@
 from typing import Any
 from collections.abc import Callable
 
+import os
 import sys
 import time
 import threading
@@ -18,6 +19,14 @@ from . import themes as _themes
 from . import check_types as _check_types
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+
+# The 3D canvases are QOpenGLWidgets, so Qt composes the whole main window with OpenGL. QtWebEngine (the scraper's
+# browser) draws through a QQuickWidget, and Qt Quick's own default graphics API is Direct3D 11 on Windows (Metal on
+# macOS). That mismatch makes Qt re-create the main window's native window the first time a browser is opened -- the
+# window hides and shows again, which runs the open-project prompt a second time -- and then leaves the page black.
+# Telling Qt Quick to use OpenGL as well keeps one API for the whole window. This has to be in place before the first
+# Qt Quick object exists; a value already set in the environment is left alone.
+os.environ.setdefault('QSG_RHI_BACKEND', 'opengl')
 
 _call_on_main = None
 

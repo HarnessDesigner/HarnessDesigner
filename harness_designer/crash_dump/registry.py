@@ -6,6 +6,12 @@ always safe regardless. All cascade/override/merge work happens once, at
 decoration time, so a dump-time lookup is a single MRO walk with no merge
 work left to do.
 
+Every ``cls``/``source_class`` parameter in this module is annotated
+``object``, not ``type``, on purpose: Cython's pure-Python-mode ArgTypeTest
+for a bare builtin ``type`` annotation rejects any *subclass* of ``type``
+(e.g. a custom metaclass like ``PointMeta``), so decorating a class whose
+metaclass isn't exactly ``type`` crashes a compiled build at import time.
+
 A registered class's entry is a tuple of ``CaptureGroup``s, one per class in
 its hierarchy that actually declared something (its own ``__dump_schema__``
 and/or its own ``@dump_property``-tagged properties). Each group keeps the
@@ -29,7 +35,7 @@ _registry: dict[type, tuple['CaptureGroup', ...]] = {}
 class CaptureGroup:
     __slots__ = ('source_class', 'severity', 'attrs')
 
-    def __init__(self, source_class: type, severity: int, attrs: tuple[Attr, ...]) -> None:
+    def __init__(self, source_class: object, severity: int, attrs: tuple[Attr, ...]) -> None:
         self.source_class = source_class
         self.severity = severity
         self.attrs = attrs
@@ -41,7 +47,7 @@ class CaptureGroup:
         )
 
 
-def _own_dump_property_attrs(cls: type) -> list[Attr]:
+def _own_dump_property_attrs(cls: object) -> list[Attr]:
     found: list[Attr] = []
     for name, value in vars(cls).items():
         if not isinstance(value, property) or value.fget is None:
@@ -53,7 +59,7 @@ def _own_dump_property_attrs(cls: type) -> list[Attr]:
     return found
 
 
-def _resolve_own_severity(cls: type, explicit_severity: int | None) -> int:
+def _resolve_own_severity(cls: object, explicit_severity: int | None) -> int:
     if explicit_severity is not None:
         return explicit_severity
     for ancestor in cls.__mro__[1:]:
@@ -78,7 +84,7 @@ def capturable(*, severity: int | None = None):
     ``severity`` is this class's own gate: explicit, else inherited from
     the nearest already-decorated ancestor, else ``1``.
     """
-    def decorator(cls: type) -> type:
+    def decorator(cls: object) -> object:
         own_severity = _resolve_own_severity(cls, severity)
 
         raw_entries: dict[str, Attr] = {}
@@ -115,7 +121,7 @@ def capturable(*, severity: int | None = None):
     return decorator
 
 
-def capture_groups_for(cls: type) -> tuple[CaptureGroup, ...] | None:
+def capture_groups_for(cls: object) -> tuple[CaptureGroup, ...] | None:
     """The full, already-merged set of capture groups for ``cls`` -- itself
     if registered, else its nearest registered ancestor. ``None`` if
     nothing in ``cls``'s MRO was ever decorated (not registered == not

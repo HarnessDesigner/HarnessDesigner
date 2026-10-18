@@ -359,8 +359,13 @@ class CanvasBase(QtOpenGLWidgets.QOpenGLWidget):
     # per-frame debug output can be told apart -- see _on_draw.
     _debug_frame_end: bool = False
 
+    # `config` is a `Config.editor_3d`/`.editor_pegboard`/etc. *class*, not an
+    # instance -- its metaclass is `ConfigDB`, a `type` subclass, so a bare
+    # `type` annotation here would trip Cython's pure-Python-mode ArgTypeTest
+    # (it rejects any `type` subclass) the moment a real config section is
+    # passed in. Keep this `object`, not `type`.
     @_check_types.do
-    def __init__(self, mainframe: "_ui.MainFrame", config: type, size: QtCore.QSize = None) -> None:
+    def __init__(self, mainframe: "_ui.MainFrame", config: object, size: QtCore.QSize = None) -> None:
         """
         Initialise the :class:`CanvasBase` instance.
 

@@ -43,8 +43,13 @@ class CanvasWindowBase(QtWidgets.QWidget):
     # the canvas must be set before calling super()
     _canvas: _canvas_base.CanvasBase = None
 
+    # `config` is a `Config.editor_3d`/`.editor_pegboard`/etc. *class*, not an
+    # instance -- its metaclass is `ConfigDB`, a `type` subclass, so a bare
+    # `type` annotation here would trip Cython's pure-Python-mode ArgTypeTest
+    # (it rejects any `type` subclass) the moment a real config section is
+    # passed in. Keep this `object`, not `type`.
     @_check_types.do
-    def __init__(self, parent: "_ui.MainFrame", config: type, size: tuple[int, int]) -> None:
+    def __init__(self, parent: "_ui.MainFrame", config: object, size: tuple[int, int]) -> None:
         """
         Initialise the :class:`Canvas3D` instance.
 
