@@ -269,6 +269,11 @@ that holds such an object and ends the wait on it.
   and a second Show, which re-ran the open-project prompt -- and the page stayed black ("The top-level window is not
   using the expected graphics API for composition ... not compatible with this QQuickWidget"). Creating the dock
   at start-up instead only hides the flicker. Not seen with the script editor dock alone (it uses no Qt Quick).
+- **Long addresses must not widen the window (found 2026-10-17):** a Google search link (1,155 characters) in the
+  inspector's message line ("The page could not be loaded: ...") made a word-wrapped `QLabel` ask for ~5,200 px, so the
+  main window grew past the screen, the browser/inspector sash would not move, and the size was saved to `Config`.
+  Every label that shows page- or server-derived text is now a `WrapLabel` (`ui/widgets/wrap_label.py`), and messages
+  cut an address to 100 characters (`browser_widget.shorten_url`).
 - **Address bar** takes `example.com/shop`, `localhost:8000`, or a full URL (`scraping/url_input.py`).
 - **Profile:** persistent under `<appdata>/scraper/browser_profile` (cookies survive, so logged-in sites work).
   The user agent has the `QtWebEngine/x.y.z` token removed so sites see an ordinary Chrome.

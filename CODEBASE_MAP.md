@@ -112,6 +112,8 @@ Contents/structure of the `harness_designer/` package.
     - temperature
     - direction
     - protection
+    - wire_type (`wire_types`: "Wire" = the nil default row, "Coaxial", "Ribbon", ...;
+      `wires.wire_type_id` points at it)
     - setting
   - `bases.py` (~1300 lines): table base class. `TableBase._row_cache` is a
     per-row read/write-through cache (`db_id -> {column: value}`), not a
@@ -147,6 +149,7 @@ Contents/structure of the `harness_designer/` package.
     - gender
     - plating
     - protection
+    - wire_type (`WireTypeMixin` / `WireTypeControl`, used by `wire.py`)
     - series
     - temperature
     - wire_size
@@ -280,6 +283,10 @@ Contents/structure of the `harness_designer/` package.
     `points2d.py` (real x/y/z and `parent_point_id`; the `wire_id`/`bundle_id`/`idx` waypoint tags
     were REMOVED 2026-09-26 -- a point is pure geometry, order lives in `pjt_wire_paths`/
     `pjt_bundle_paths`; existing databases keep the old, now unused columns)
+  - `wire_types.py`: schema, default rows ("Wire" is the nil UUID row, "Coaxial", "Ribbon") and
+    `get_wire_type_id` of the `wire_types` lookup table; `wires.py` has the matching `wire_type_id` column and
+    `add_wire(wire_type=...)`. Mirrored in the sibling `harness_designer_database` repo
+    (`builder/create_database/wire_types.py`, seeded from `Universal/wire_types.json`)
 - `common_db/`
   - `callback.py`: DB callback plumbing
   - `lazy_tab_mixin.py`: lazy per-tab DB table loading
@@ -649,6 +656,8 @@ Contents/structure of the `harness_designer/` package.
   - *_ctrl wrappers
   - `code_editor_ctrl.py`: `CodeEditorCtrl`, a `QPlainTextEdit` Python editor (line numbers, Pygments highlighting,
     auto-indent); the script editor widget for the scraper tool
+  - `wrap_label.py`: `WrapLabel`, a `QLabel` whose size hints are capped so a long unbroken string (a page address)
+    can never widen its dock or the main window; use it for text the app does not control
 - `dialogs/`:
   - dialog_base.py
   - about_dialog.py: About box — app info, update check (GitHub releases API),

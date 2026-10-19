@@ -34,6 +34,24 @@ _LICENSE_FILENAMES = frozenset([
     'NOTICE', 'NOTICE.txt',
 ])
 
+# PySide6's PyPI wheels (pyside6 / pyside6-essentials / pyside6-addons /
+# shiboken6) declare "License: LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+# in their own dist-info metadata, but the only file they actually ship under
+# License-File is a commercial-license referral notice (not the LGPLv3/GPLv3
+# text) -- and that file's bare name, "LicenseRef-Qt-Commercial.txt", isn't
+# in _LICENSE_FILENAMES anyway, so _dist_license_text() falls through to the
+# bare SPDX expression string for these packages. Since this project chooses
+# the LGPL-3.0-only branch of that expression, LGPLv3 section 4(b) requires
+# accompanying the combined work with the actual LGPLv3 and GPLv3 text --
+# this project supplies that text itself (harness_designer/licenses/) rather
+# than relying on PySide6's own wheel to provide it.
+_QT_FAMILY_DISTRIBUTIONS = frozenset([
+    'pyside6', 'pyside6-essentials', 'pyside6-addons', 'shiboken6',
+])
+
+_LICENSES_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), 'licenses')
+
 
 class _PackageInfo:
     """Metadata for one credited package (a third-party dist, or the interpreter)."""
@@ -67,6 +85,48 @@ def _dist_license_text(dist: _importlib_metadata.Distribution) -> str:
         return license_field
 
     return 'No license information was found for this package.'
+
+
+@_check_types.do
+def _read_license_file(filename: str) -> str:
+    """Read one of this project's bundled license texts (harness_designer/licenses/)."""
+
+    try:
+        with open(os.path.join(_LICENSES_DIR, filename), 'r', encoding='utf-8') as f:
+            return f.read()
+    except OSError:
+        return f'[{filename} was not found alongside this application.]'
+
+
+@_check_types.do
+def _qt_license_text() -> str:
+    """LGPLv3 section 4(a)-(c) notice + the actual LGPLv3/GPLv3 text for PySide6/Qt.
+
+    PySide6's own dist-info doesn't ship this text (see the comment on
+    _QT_FAMILY_DISTRIBUTIONS above), so it's supplied directly here instead.
+    """
+
+    notice = (
+        'This application uses PySide6, the official Python bindings for the\n'
+        'Qt framework, provided by The Qt Company. PySide6 is used here under\n'
+        'the GNU Lesser General Public License, Version 3 (LGPLv3), dynamically\n'
+        'linked as a separate, independently replaceable component -- it is not\n'
+        'compiled into this application\'s own code.\n\n'
+        'Copyright (C) The Qt Company Ltd. and contributors.\n\n'
+        'The full text of the LGPLv3 and the GPLv3 (which the LGPLv3 '
+        'incorporates by\nreference) follows, along with the commercial-license '
+        'referral notice\nshipped in PySide6\'s own package metadata.\n'
+    )
+
+    sep = '\n' + ('=' * 78) + '\n\n'
+
+    return (
+        notice
+        + sep + _read_license_file('LGPLv3.txt')
+        + sep + _read_license_file('GPLv3.txt')
+        + sep + 'PySide6\'s own bundled notice:\n\n'
+        + _read_license_file('Qt-Commercial-Reference.txt')
+    )
 
 
 @_check_types.do
@@ -123,13 +183,18 @@ def _collect_packages() -> list[_PackageInfo]:
             continue
         seen.add(key)
 
+        if key in _QT_FAMILY_DISTRIBUTIONS:
+            license_text = _qt_license_text()
+        else:
+            license_text = _dist_license_text(dist)
+
         packages.append(_PackageInfo(
             name=name,
             version=dist.version or '',
             summary=meta.get('Summary') or '',
             author=meta.get('Author') or meta.get('Author-email') or '',
             homepage=_dist_homepage(dist),
-            license_text=_dist_license_text(dist),
+            license_text=license_text,
         ))
 
     packages.append(_PackageInfo(
@@ -260,6 +325,14 @@ class AboutDialog(_dialog_base.BaseDialog):
         copyright_lbl = QtWidgets.QLabel('© 2025-2026 Kevin G. Schlosser')
         copyright_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
         layout.addWidget(copyright_lbl)
+
+        qt_notice_lbl = QtWidgets.QLabel(
+            'Includes PySide6/Qt, © The Qt Company Ltd., used under the '
+            'GNU Lesser General Public\nLicense v3 (LGPLv3) -- see the '
+            '"PySide6" entry in the list at left for the full license text.')
+        qt_notice_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)
+        qt_notice_lbl.setWordWrap(True)
+        layout.addWidget(qt_notice_lbl)
 
         link_lbl = QtWidgets.QLabel(f'<a href="{_HOMEPAGE_URL}">{_HOMEPAGE_URL}</a>')
         link_lbl.setAlignment(QtCore.Qt.AlignmentFlag.AlignHCenter)

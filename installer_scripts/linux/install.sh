@@ -150,6 +150,29 @@ if command -v gtk-update-icon-cache &>/dev/null; then
     run gtk-update-icon-cache -f -t "$(dirname "$ICON_DIR")" 2>/dev/null || true
 fi
 
+# ── Third-party license notice: PySide6/Qt (LGPLv3) ──────────────────────────
+# PySide6 itself gets pip-installed by dep_installer below; its own PyPI
+# package doesn't ship the actual LGPLv3/GPLv3 text (see harness_designer/
+# ui/dialogs/about_dialog.py for the same notice shown post-install), so this
+# project prints it here and ships the real text alongside the installed app
+# (harness_designer/licenses/, bundled automatically into $APP_DIR since it's
+# part of the harness_designer package).
+
+echo "This application uses PySide6, the official Python bindings for the"
+echo "Qt framework, provided by The Qt Company. PySide6 is used here under"
+echo "the GNU Lesser General Public License, Version 3 (LGPLv3), dynamically"
+echo "linked as a separate, independently replaceable component -- it is not"
+echo "compiled into this application's own code."
+echo ""
+echo "Copyright (C) The Qt Company Ltd. and contributors."
+echo ""
+echo "The full text of the LGPLv3 and the GPLv3 (which the LGPLv3 incorporates"
+echo "by reference) is installed with the application at:"
+echo "  $APP_DIR/licenses/LGPLv3.txt"
+echo "  $APP_DIR/licenses/GPLv3.txt"
+echo "and is also available from the app's Help -> About dialog."
+echo ""
+
 # ── Install dependencies ──────────────────────────────────────────────────────
 
 echo "Installing required Python components..."

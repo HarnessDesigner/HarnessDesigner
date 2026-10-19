@@ -78,6 +78,16 @@ Source: "{#InstallerSrc}"; \
     DestDir: "{tmp}"; \
     Flags: deleteafterinstall
 
+; PySide6/Qt's LGPLv3+GPLv3 notice — embedded in the installer binary itself
+; (dontcopy: never installed to {app}, only extracted on demand to {tmp} for
+; the wizard page below to read, see InitializeWizard in [Code]).
+Source: "..\..\harness_designer\licenses\LGPLv3.txt"; \
+    DestDir: "{tmp}"; Flags: dontcopy
+Source: "..\..\harness_designer\licenses\GPLv3.txt"; \
+    DestDir: "{tmp}"; Flags: dontcopy
+Source: "..\..\harness_designer\licenses\Qt-Commercial-Reference.txt"; \
+    DestDir: "{tmp}"; Flags: dontcopy
+
 [Icons]
 Name: "{group}\{#AppName}";             Filename: "{app}\{#AppExeName}"
 Name: "{group}\Uninstall {#AppName}";   Filename: "{uninstallexe}"
@@ -111,6 +121,59 @@ begin
   Result := '"' + ExpandConstant('{app}') + '"';
   if IsTaskSelected('mysqlconnector') then
     Result := Result + ' --with-mysql';
+end;
+
+// ── Third-party license page: PySide6/Qt (LGPLv3) ──
+// dep_installer.exe pip-installs PySide6 into {app} after this wizard runs
+// (see [Run] below); PySide6's own PyPI package doesn't ship the actual
+// LGPLv3/GPLv3 text (see harness_designer/ui/dialogs/about_dialog.py for the
+// same notice shown post-install), so this project supplies it directly as
+// an additional wizard page the user must click past, right after the
+// application's own [Setup] LicenseFile page.
+procedure InitializeWizard();
+var
+  MemoText: String;
+  NoticeHeader: String;
+  Nl: String;
+  Rule: String;
+  LgplText: AnsiString;
+  GplText: AnsiString;
+  QtRefText: AnsiString;
+begin
+  ExtractTemporaryFile('LGPLv3.txt');
+  ExtractTemporaryFile('GPLv3.txt');
+  ExtractTemporaryFile('Qt-Commercial-Reference.txt');
+
+  LoadStringFromFile(ExpandConstant('{tmp}\LGPLv3.txt'), LgplText);
+  LoadStringFromFile(ExpandConstant('{tmp}\GPLv3.txt'), GplText);
+  LoadStringFromFile(ExpandConstant('{tmp}\Qt-Commercial-Reference.txt'), QtRefText);
+
+  Nl := #13#10;
+  Rule := Nl + Nl + StringOfChar('=', 78) + Nl + Nl;
+
+  NoticeHeader :=
+    'This application uses PySide6, the official Python bindings for the ' +
+    'Qt framework, provided by The Qt Company. PySide6 is used here under ' +
+    'the GNU Lesser General Public License, Version 3 (LGPLv3), dynamically ' +
+    'linked as a separate, independently replaceable component installed ' +
+    'after this wizard finishes -- it is not compiled into this ' +
+    'application''s own code.' + Nl + Nl +
+    'Copyright (C) The Qt Company Ltd. and contributors.' + Nl + Nl +
+    'The full text of the LGPLv3 and the GPLv3 (which the LGPLv3 ' +
+    'incorporates by reference) follows, along with the commercial-license ' +
+    'referral notice shipped in PySide6''s own package metadata.' + Rule;
+
+  MemoText := NoticeHeader
+    + String(LgplText) + Rule
+    + String(GplText) + Rule
+    + 'PySide6''s own bundled notice:' + Nl + Nl
+    + String(QtRefText);
+
+  CreateOutputMsgMemoPage(wpLicense,
+    'Third-Party License', 'PySide6 / Qt (LGPLv3)',
+    'This application depends on PySide6/Qt, licensed separately under the ' +
+    'terms below. Please review before continuing.',
+    MemoText);
 end;
 
 // ── Uninstall: optionally preserve the user's database/parts library/projects ──
