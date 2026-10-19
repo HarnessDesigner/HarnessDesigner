@@ -114,15 +114,20 @@ def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", 
             # carries a leftover integer "id" per entry -- discard it so
             # every row gets a freshly generated UUID id instead of
             # colliding integers.
-            item.pop('id', None)
-            add_manufacturer(con, commit=False, **item)
+            # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
+            # default to; every other entry gets a generated id
+            id = item.pop('id', None)
+            if id == 0:
+                add_manufacturer(con, id=id, commit=False, **item)
+            else:
+                add_manufacturer(con, commit=False, **item)
 
     con.commit()
 
 
 @_check_types.do
 def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, description: str = '', address: str = '', contact_person: str = '', phone: str = '',
-                     ext: str = '', email: str = '', website: str = '', commit: bool = True) -> bytes:  # NOQA
+                     ext: str = '', email: str = '', website: str = '', id: int | None = None, commit: bool = True) -> bytes:  # NOQA
     """
     Add a manufacturer.
 
@@ -153,6 +158,10 @@ def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, descriptio
     :param website: Value for ``website``.
     :type website: UNKNOWN
 
+    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
+        default to) instead of a generated id; ``None`` generates one.
+    :type id: int | None
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
 
@@ -160,7 +169,10 @@ def add_manufacturer(con: "_connector_base.ConnectorBase", name: str, descriptio
     :rtype: UNKNOWN
     """
 
-    id = _id_generator.generate_global_row_id(con).bytes
+    if id is None:
+        id = _id_generator.generate_global_row_id(con).bytes
+    else:
+        id = _id_generator.NIL_UUID.bytes
 
     con.execute(
         'INSERT INTO manufacturers (id, name, description, address, contact_person, phone, ext, email, website) '

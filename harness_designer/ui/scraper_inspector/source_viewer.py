@@ -20,6 +20,7 @@ from PySide6 import QtGui
 from PySide6 import QtWidgets
 
 from . import background as _background
+from ..widgets import wrap_label as _wrap_label
 from ...scraping import highlight as _highlight
 from ...scraping import html_locate as _html_locate
 from ...scraping import snippets as _snippets
@@ -132,7 +133,7 @@ class SourceViewer(QtWidgets.QWidget):
 
         self._edit = _SourceEdit(self)
         self._highlighter = SpanHighlighter(self._edit.document())
-        self._status = QtWidgets.QLabel(self)
+        self._status = _wrap_label.WrapLabel('', self, wrap=False)
         self._status.setStyleSheet('color: gray;')
 
         layout = QtWidgets.QVBoxLayout(self)

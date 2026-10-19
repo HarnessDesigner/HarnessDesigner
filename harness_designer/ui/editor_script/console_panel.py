@@ -20,6 +20,7 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtWidgets
 
+from ..widgets import wrap_label as _wrap_label
 from ...scraping import runner as _runner
 from ... import check_types as _check_types
 
@@ -58,8 +59,7 @@ class ConsolePanel(QtWidgets.QWidget):
         self._runs = QtWidgets.QComboBox(self)
         self._runs.setSizeAdjustPolicy(QtWidgets.QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self._runs.setMinimumContentsLength(24)
-        self._status = QtWidgets.QLabel(self)
-        self._status.setWordWrap(True)
+        self._status = _wrap_label.WrapLabel('', self)
         self._clear = QtWidgets.QPushButton('Clear finished', self)
         self._clear.setToolTip('Forget the runs that have ended.')
 

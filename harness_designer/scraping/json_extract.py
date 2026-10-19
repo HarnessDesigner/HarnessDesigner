@@ -26,7 +26,7 @@ import re
 
 from . import snippets as _snippets
 from .. import check_types as _check_types
-from .. import claude as _claude
+from ..plugins.plugins import claude_ai as _claude
 
 PathStep = str | int
 Path = tuple[PathStep, ...]

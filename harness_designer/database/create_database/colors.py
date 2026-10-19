@@ -58,14 +58,19 @@ def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", 
         # colors.json is a pre-UUID-migration seed file and still carries a
         # leftover integer "id" per entry -- discard it so every row gets a
         # freshly generated UUID id instead of colliding integers.
-        item.pop('id', None)
-        add_color(con, commit=False, **item)
+        # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
+        # default to; every other entry gets a generated id
+        id = item.pop('id', None)
+        if id == 0:
+            add_color(con, id=id, commit=False, **item)
+        else:
+            add_color(con, commit=False, **item)
 
     con.commit()
 
 
 @_check_types.do
-def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int, commit: bool = True) -> bytes: # NOQA
+def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int, id: int | None = None, commit: bool = True) -> bytes: # NOQA
     """
     Add a color.
 
@@ -78,6 +83,10 @@ def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int, commit:
     :param rgb: Value for ``rgb``.
     :type rgb: UNKNOWN
 
+    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
+        default to) instead of a generated id; ``None`` generates one.
+    :type id: int | None
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
 
@@ -85,7 +94,10 @@ def add_color(con: "_connector_base.ConnectorBase", name: str, rgb: int, commit:
     :rtype: UNKNOWN
     """
 
-    id = _id_generator.generate_global_row_id(con).bytes
+    if id is None:
+        id = _id_generator.generate_global_row_id(con).bytes
+    else:
+        id = _id_generator.NIL_UUID.bytes
 
     con.execute('INSERT INTO colors (id, name, rgb) '
                 'VALUES (?, ?, ?);', (id, name, rgb))

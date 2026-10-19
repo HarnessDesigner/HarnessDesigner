@@ -13,6 +13,7 @@ from PySide6 import QtWidgets
 
 from . import json_tree as _json_tree
 from . import source_viewer as _source_viewer
+from ..widgets import wrap_label as _wrap_label
 from ...scraping import capture_model as _capture_model
 from ...scraping import request_code as _request_code
 from ...scraping import snippets as _snippets
@@ -38,8 +39,7 @@ class ResponsePanel(QtWidgets.QWidget):
         self._request: _capture_model.CapturedRequest | None = None
         self._taken_provider: Callable[[], set[str]] = _no_names
 
-        self._header = QtWidgets.QLabel('Select a request in the Network tab', self)
-        self._header.setWordWrap(True)
+        self._header = _wrap_label.WrapLabel('Select a request in the Network tab', self)
         self._header.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
 
         self._tree = _json_tree.JsonTree(self)

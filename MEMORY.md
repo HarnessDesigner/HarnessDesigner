@@ -6,59 +6,61 @@ Compiled from prior auto-memory on 2026-07-28. Entries are point-in-time observa
 
 ---
 
-## MANDATORY: CODEBASE_MAP.md
+## MANDATORY: per-directory MAP.md files (replaces the old single CODEBASE_MAP.md, 2026-10-19)
 
-- **Read `CODEBASE_MAP.md` (repo root) at the start of every new session**, before exploring the tree, to get oriented on where things live.
-- **Update `CODEBASE_MAP.md` any time a file is added, removed, renamed, or otherwise changed in a way that affects the map** (new module, moved file, restructured directory, etc.) — do this as part of the same change, not as a follow-up. Don't leave the map stale for the user to catch later.
-- Follow the map's own "## Formatting" section (bulleted lists for readability, never compressed to prose).
+Documentation of "what's in this directory, what each file does, known oddities/pitfalls" now
+lives **one `MAP.md` per directory**, right next to the code it describes, not in one giant
+root-level file.
+
+- **Read `CODEBASE_MAP.md` (repo root) once at the start of every new session** — it is now just a
+  bare directory/file tree (no descriptions), fast to skim for orientation.
+- **Before working in any directory, read that directory's own `MAP.md` in full.** It has the
+  real description of every file and subfolder there, plus any known oddities/pitfalls — this is
+  more reliable than `CODEBASE_MAP.md`'s bare tree or asking me (MEMORY.md) for structural detail.
+- **Update that directory's `MAP.md` any time a file is added, removed, renamed, or otherwise
+  changed in a way that affects it** — do this as part of the same change, not as a follow-up.
+  If the change also adds/removes a whole directory, update `CODEBASE_MAP.md`'s tree too.
+- Every `MAP.md` follows the same minimal shape: a `## FILES` section with one `####` header per
+  file, and a `## FOLDERS` section with one `####` header per subdirectory — each header followed
+  by a short paragraph (what it's for, plus any oddity/pitfall folded in). No other sections.
 
 ---
 
 ## MANDATORY: use `diagnostics/dep_trace.py` for "where/what/who" code questions
 
-This is a large (~530 file) codebase. Before reading files or grepping to answer "where is X
-defined," "what does this file import," "who calls this method," or "does this override call
-its superclass" — run `diagnostics/dep_trace.py` first. It's a static-AST tool built specifically
-for this: fast, cheap on tokens, and it won't miss a call site the way a guessed grep pattern can.
-Fall back to Read/Grep only once it's told you which file(s)/line(s) to actually look at.
 
-```
-python diagnostics/dep_trace.py <file_or_dir> [--depth shallow|deep] [--name PATTERN] [--local] [--json]
-python diagnostics/dep_trace.py <file_or_dir> --types       [--name PATTERN] [--json]
-python diagnostics/dep_trace.py <file_or_dir> --calls       [--name PATTERN] [--json]
-python diagnostics/dep_trace.py <file_or_dir> --overrides   [--name PATTERN] [--json]
-python diagnostics/dep_trace.py <file_or_dir> --imported-by [--name PATTERN] [--json]
-```
-
-- No mode flag, no `--name` — default import-trace: what a file imports and what's used from it.
-- No mode flag, `--name PATTERN` given — definition lookup: every class/function/method matching it.
-- `--types` — where a type is used as a param/return/variable annotation.
-- `--calls` — every call site of a function/method; resolves `self.`/`cls.`/`super().` receivers
-  against the class hierarchy to report which class's implementation actually runs.
-- `--overrides` — override chains: which ancestor defines the same method, and whether the
-  override calls `super()` (extends) or not (fully shadows) — check this before touching a mixin
-  method, since this codebase leans heavily on mixins (`DimensionMixin`, `NameMixin`,
-  `CallbackMixin`, etc.) and a method may not be defined where you'd expect.
-- `--imported-by` — reverse lookup: every file that imports a given file — check this before
-  renaming/moving/deleting a file or changing its public surface.
-- `--types`/`--calls`/`--overrides`/`--imported-by` can be combined in one run (share one
-  `--name`); `--calls`/`--overrides`/`--imported-by` need a directory target (usually
-  `harness_designer/`) for real cross-file resolution — a single file only resolves against
-  itself. `PATTERN` is always a regex (`re.search`); a plain literal behaves as a substring match.
-
-Full usage, every flag, and the reasoning behind the CLI design (why there's no `--find` or
-`--regex` flag, the argparse ambiguity that shaped the `--name` design) are in the module
-docstring at the top of `diagnostics/dep_trace.py` itself — read that if a flag's behavior is
-unclear rather than guessing from this summary.
-
----
 
 ## Reference
 
 ### Codebase map
-See the MANDATORY section above for the read-at-start / update-on-change rule. The full directory/file map of the harness_designer package lives in the repo at `CODEBASE_MAP.md` (repo root) — the single source of truth, since the user also edits it directly.
+See the MANDATORY section above for the read-at-start / per-directory-`MAP.md` rule. `CODEBASE_MAP.md` (repo root) is now just a bare tree; the actual descriptions live in each directory's own `MAP.md`.
 
-Key insight: **part-type fan-out** — a part type (e.g. "seal") has parallel files in `database/global_db`, `database/project_db` (`pjt_*`), `database/create_database`, `objects/objects2d`, `objects/objects3d`, `handlers`, and `ui/editor_db`. Changing a part type usually touches all seven.
+Key insight: **part-type fan-out** — a part type (e.g. "seal") has parallel files in `database/global_db`, `database/project_db` (`pjt_*`), `database/create_database`, `objects/objects_schematic`, `objects/objects_3d`, `handlers`, and `ui/editor_db`. Changing a part type usually touches all seven.
+
+### Third-party dependencies (non-stdlib imports)
+Quick reference — which package a given import name comes from, and anything non-obvious about where it's used. For what each file in a directory actually does, read that directory's `MAP.md` instead.
+- `PySide6` → PySide6
+- `OpenGL` → PyOpenGL
+- `numpy` → numpy
+- `pandas` → pandas
+- `PIL` → Pillow
+- `requests` → requests
+- `keyring` → keyring
+- `pygments` → Pygments (syntax highlighting, `ui/widgets/code_editor_ctrl.py`)
+- `bs4` → beautifulsoup4 (scraper CSS selectors, `scraping/html_locate.py`)
+- `lxml` → lxml (scraper XPath/parser, `scraping/html_locate.py`)
+- `anthropic` → anthropic (the Claude API; imported only by `plugins/plugins/claude_ai/client.py` — relocated from `claude/client.py`, see `plugins/MAP.md`)
+- `win32ctypes` → pywin32-ctypes
+- `mysql` → mysql-connector-python
+- `build123d` → build123d
+- `OCP` → cadquery-ocp
+- `pyassimp` → pyassimp
+- `pyfqmr` → pyfqmr
+- `ezdxf` → ezdxf
+- `pyopencl` → pyopencl
+- `pynvml` → nvidia-ml-py
+- `amdsmi` → amdsmi
+- `apple_smi` → apple_smi (Apple-only)
 
 ### Local tooling: LibreOffice (for xlsx skill recalculation)
 LibreOffice is installed on this machine at `C:\Program Files\LibreOffice\program\soffice.exe` (not on `PATH`; `which soffice`/`where soffice.exe` find nothing).
@@ -134,14 +136,12 @@ When the user works out a detailed multi-round design spec in conversation (e.g.
 **How to apply:** The moment a multi-message clarification round converges on a concrete design (not just a one-line answer), capture it in writing before moving on to implementation — a TODO.md entry, a plan file, or a docstring on the relevant class/function. Don't wait until "right before implementing" if there's any chance of a long research/debugging detour first (the CullingThreadPool hang investigation above is exactly what intervened between this spec being given and it actually being implemented).
 
 ### QtWebEngine in the main window needs Qt Quick on OpenGL (2026-10-17)
-`app.py` sets `QSG_RHI_BACKEND=opengl` (via `os.environ.setdefault`, next to `AA_ShareOpenGLContexts`, before the `QApplication` exists). **Why:** the 3D canvases are `QOpenGLWidget`s, so Qt composes the main window with OpenGL, but `QWebEngineView` is a `QQuickWidget` whose default API on Windows is Direct3D 11. Without the setting, the first browser dock re-creates the main window's native window (a Hide then a second Show -- and `MainFrame.showEvent` re-runs `_open_project`, so the open-project dialog comes up again) and the page renders black; Qt logs "The top-level window is not using the expected graphics API for composition, 'OpenGL' is not compatible with this QQuickWidget". Creating the browser before the window is first shown only hides the flicker, the page stays black. Measured with a scratch stand-in main window on Windows (not on macOS).
-
-**How to apply:** Do not remove that line. Any new Qt Quick / QML / QtWebEngine widget placed in the main window relies on it. A web view put in a different top-level window would not need it.
+`app.py`'s `QSG_RHI_BACKEND=opengl` setting and why it can't be removed is now documented in full
+in `harness_designer/MAP.md`'s `app.py` entry — see there.
 
 ### A QLabel's minimum width is its longest unbreakable word -- use `WrapLabel` for text the app does not control (2026-10-17)
-`ui/widgets/wrap_label.py` (`WrapLabel`) caps a label's `sizeHint` / `minimumSizeHint` widths, shows plain text only, and puts long text in the tooltip. **Why:** a Google search link (1,155 characters, no spaces) went into the inspector's word-wrapped message label ("The page could not be loaded: <url>"); Qt cannot break an unbroken word, so the label demanded about 5,200 px and the stand-in main window became 5,805 px wide. In the real app the window outgrew the screen, the browser/inspector sash could not move, and `MainFrame._save_size` writes whatever size the window has into `Config` on every resize. `setMinimumWidth(1)` on a label is NOT enough: layouts take `max(sizeHint, minimumSizeHint)` of each widget, so both hints are overridden.
-
-**How to apply:** any label (or button/combo) that can show a page address, a server or API message, a file path or a script's output belongs on `WrapLabel`, not `QLabel`. Messages that embed an address also cut it with `browser_widget.shorten_url`. Already switched: the inspector message line and Response header, the snippet pane title, the source status line, and the assistant / console / editor labels.
+Full incident and rule now documented in `harness_designer/ui/widgets/MAP.md`'s `wrap_label.py`
+entry — see there.
 
 ### The sibling database repo builds the downloaded global database -- keep it aligned (2026-10-17)
 `C:\Users\drsch\PycharmProjects\harness_designer_database` (CI: `.github/workflows/build-database.yml`) builds the SQLite file the app downloads on first run. It builds ONLY the global tables (the 43 modules in `builder/build_database.py`'s `TABLE_MODULES`), never `pjt_*`. Its `builder/create_database/*.py` and `builder/sql_table.py` are ported from this repo's `database/create_database/*.py` and `database/db_connectors/sqlite_connector/sql_table.py`, so a global table's `table = _con.SQLTable(...)` must read the same in both repos.
@@ -311,9 +311,23 @@ x = QtCore.Signal(...)
 ### Cython variable type reuse
 Never reassign a type-annotated parameter/variable to a value of a **different type** in the same function. Works fine interpreted (dynamic typing), but crashes only once Cython-compiled — Cython gives the variable a fixed C-level storage type from the annotation, and reassigning to an incompatible type triggers a coercion failure.
 
-**Why:** `gl/canvas2d/camera.py::Camera2D.zoom_at_point` reused `delta: float` for a later `Point` value (`delta = world_pos_before - world_pos_after`). Ran fine interpreted; crashed post-compile with `TypeError: must be real number, not Point`. Fixed by giving the Point-typed value its own name (`focal_delta`).
+**Why:** a camera class's `zoom_at_point` reused `delta: float` for a later `Point` value (`delta = world_pos_before - world_pos_after`) — this predates the `gl/canvas2d` → `gl/canvas_base`+`canvas_schematic`+`canvas_pegboard`+`canvas_3d` rename (see `gl/MAP.md`), so don't trust an old mention of `canvas2d`/`camera.py` as a current path. Ran fine interpreted; crashed post-compile with `TypeError: must be real number, not Point`. Fixed by giving the Point-typed value its own name (`focal_delta`).
 
 **How to apply:** Never reuse a parameter or annotated-variable name for a different type later in the function body, even though it "works" when run as plain interpreted `.py`. If debugging a report where dynamic-Python testing shows no problem but the user reports a live crash, ask whether the crash only happens in a Cython-compiled build before looking elsewhere.
+
+### Concrete return types are load-bearing for Cython — never weaken to a base/abstract type
+Every `@property` return type, `__iter__` yield type, and `__getitem__` return type must name the
+**most specific concrete class**, not a base class, abstract type, `TypeVar`, or `Generic`. The
+whole codebase compiles to C extension modules via Cython for release builds; Cython uses concrete
+type annotations to emit statically typed C, and if a hint is generalized, Cython falls back to
+plain Python object boxing for that value, silently losing the compiled build's performance
+advantage — no error, just slower code.
+
+**How to apply:** A refactor that "reduces boilerplate" by moving a typed method into a base class,
+or that widens a return type to a shared ancestor for API-surface reasons, can quietly destroy
+Cython's ability to specialize that method — check whether the concrete type information survives
+before doing either. `TYPE_CHECKING` blocks are unaffected (Cython ignores them at compile time);
+this only bites real runtime annotations on hot paths.
 
 ### Cython typing + DB cache convention
 The whole app (except `__init__.py`/`__main__.py`, see `builder/cython_build.py` `_SKIP_STEMS`) is Cython-compiled in frozen builds; type annotations are load-bearing for C-level optimization.
@@ -370,20 +384,15 @@ When a `.pyx` is added or edited, compile it and put the binary where the packag
 **How to apply:** whenever a new `.pyx` is written (whether or not it has a pure-Python fallback), add its path to `_HAND_WRITTEN_EXTENSIONS` in the same change, not as a follow-up -- the ad hoc dev-time compile-and-place-the-.pyd step makes it work locally, but says nothing about whether a clean packaged build will ever compile it.
 
 ### SQLite runs in WAL mode (decided 2026-09-20): commits cost per COMMIT, not per row
-`database/db_connectors/sqlite_connector/connector.py` calls `_enable_wal()` right after `sqlite3.connect` (`journal_mode=WAL`, `synchronous=NORMAL`, the latter only if WAL actually took). **Why:** measured on the user's machine, a default-mode commit takes ~3 ms whether it carries 1 row or 8, and `update()`/`batch_update()`/`insert()` all commit -- a live drag paid ~6-10 commits per mouse move (~20-30 ms of disk waiting). With WAL a commit is ~0.02 ms. There is ONE connector for the whole app: the parts catalog (`GLBTables`) and the project (`PJTTables`) live in the same file on the same connection, so this is app-wide, not project-only.
-
-**Costs the user accepted:** `-wal`/`-shm` sidecar files exist while the app runs (folded back on a clean `close()`, recovered automatically after a crash); copying the `.db` WHILE the app runs can miss the newest commits; after a power failure (not an app crash) the last few commits can be lost, never corruption. WAL is stored in the file, so it stays on for other connections (`process/db_broker.py` opens the same file from another process -- fine on a local disk). Not possible on network shares/read-only files -- `_enable_wal` then logs a warning and leaves the defaults.
+Full writeup now in `harness_designer/database/db_connectors/sqlite_connector/MAP.md`'s
+`connector.py` entry — see there. One line worth keeping visible here since it applies app-wide:
+there is ONE connector for the whole app (parts catalog `GLBTables` and project `PJTTables` share
+the same file/connection), so this is app-wide, not project-only.
 
 **How to apply:** when a hot path (mouse-move handlers, drags) writes to the DB, the cost driver is the NUMBER OF COMMITS, so batch writes into one `batch_update` (see `PJTHousing._update_position2d`, `reroute.apply_shifts`) rather than one write per row. Measure with a real commit loop before assuming a batch was the fast one -- an earlier test here looked 50x faster by accident because it rewrote unchanged values.
 
 ### Rotation matrix convention
-`Angle.as_matrix_numpy` returns the **column-vector** rotation matrix `R` where `R @ v` rotates a column vector. But everywhere in the codebase that applies rotation via numpy `@` (e.g. `corners @= angle`) uses **row-vector** convention, equivalent to `v @ R.T`.
-
-So: `world = (local * scale) @ R.T + position`, and inverse: `local = (world - position) @ R / scale`.
-
-**Why:** A bug in `MeshSurfacePicker` had `rot_mat = R` and `inv_rot = R.T` swapped — worked at zero rotation (R=I) but broke picking/overlay rendering once a housing was rotated.
-
-**How to apply:** When building a matrix-based ray/point transform cache from `Angle.as_matrix_numpy`: store `rot = angle.as_matrix_numpy`; forward (local→world) uses `rot.T`; inverse (world→local) uses `rot`. Fixed in `harness_designer/utils/mesh_surface_picker.py` `_refresh_transform_cache` and `_on_angle`.
+`Angle.as_matrix_numpy` returns the **column-vector** rotation matrix `R` where `R @ v` rotates a column vector, but the rest of the codebase applies rotation in **row-vector** convention (`v @ R.T`) via numpy `@`. Full rule, the `MeshSurfacePicker` bug this caused, and how to apply it in a new transform cache are now in `harness_designer/geometry/MAP.md` (and `geometry/angle/angle.py`'s entry in `geometry/angle/MAP.md`) — see there.
 
 ### Use VBO not file
 When mesh data is already loaded and transformed in an in-memory object (e.g. a VBO), read from that object directly rather than re-reading the source file and re-applying the same transforms.
@@ -432,11 +441,7 @@ Across this codebase, patterns that look unusual or inconsistent at first read h
 **How to apply:** When something looks odd, redundant, or like it "should" be refactored, default to investigating *why* before proposing a change — read the surrounding class, check for mixins, check whether the same shape repeats elsewhere (a repeated pattern is itself evidence of intent), and ask the user rather than assuming inconsistency.
 
 ### Point/Angle callback system is THE architectural backbone — default to it for any new reactive behavior
-The `CallbackMixin`-backed `bind()`/`unbind()`/`with:`-batching system on `Point`/`Angle` (see `app_mixins/callback_mixin.py`, and the dunder-both-sides naming convention above) isn't just one pattern among several — the user (sole author) stated directly and emphatically (2026-08-17): "the whole callback system I designed for the angles and the points was a genius way to go about it. it is literally the backbone to this entire program."
-
-**Why this matters beyond the compliment:** confirmed empirically, not just asserted — in one session alone this same mechanism, unmodified, ended up driving: camera dirty-gating (`position`/`focal_position` bound to `_update_camera`), the 3D headlight's direction tracking (bound to both camera points), the rotation-rings gizmo following the selected object's angle/scale/position, the 2D camera's `position` mirroring `focal_position` on every pan, and — mid-design, not yet built — the planned protractor feature's camera-facing labels (binding to `camera.position`/`camera.focal_position`, unbound on hide, same lifecycle `Rings3D.detach()` already uses for `obj_angle`). Every one of those is a materially different problem, solved without inventing anything new — just another `bind()` call plus the object's own `__iadd__`/`__imatmul__`/`with:` usage already fires the right updates.
-
-**How to apply:** When a new feature needs "recompute X whenever Y changes," the default answer in this codebase is *not* a bespoke observer, a polling flag, or a manual "call this after that" wiring — it's `Y.bind(self._on_y_changed)` (or the equivalent `Angle`/`Color` primitive), with `unbind()` at the matching teardown point if the binding shouldn't outlive the feature. Reach for this first; treat inventing a parallel update mechanism as a sign you've missed how the existing one already covers the case.
+The user (sole author) stated directly and emphatically (2026-08-17): "the whole callback system I designed for the angles and the points was a genius way to go about it. it is literally the backbone to this entire program." Full writeup — the mechanism, confirmed real-world reach, and the default-to-this-first rule — now lives in `harness_designer/app_mixins/MAP.md`'s `callback_mixin.py` entry and `harness_designer/geometry/MAP.md`; see there.
 
 ### Context-building conversations
 The user deliberately initiates conversational, non-task segments (explaining rationale, business/architectural intent) specifically to transfer understanding into persistent memory for future sessions — not idle chat.
@@ -471,51 +476,20 @@ When a multi-step design gets worked out in detail (e.g. the `smooth` tri-state 
 
 **How to apply:** When a design is agreed upon but not immediately implemented (deferred for a legitimate reason, e.g. the user wants to keep going on something else first), explicitly track it as still-open (TODO.md, or a running mental checklist) and surface it again before declaring a broader task "done" — don't let scope drift silently swallow a committed piece of work. When asked "is there anything else we missed," this is exactly the category of thing to check for first.
 
-### No bulk mechanical code edits
-Don't build an automated script to bulk-apply source edits across many functions/files (e.g. inserting `-> None` on every function flagged by a static-analysis pass), even when the underlying analysis is unambiguous. Report findings (file/line lists, CSVs) and let the user apply/review edits himself.
-
-**Why:** Python function/method signature syntax has too much variety (multi-line signatures, decorators, `*args`/`**kwargs`, positional/keyword-only markers, overloads, embedded comments, existing string annotations) for a mechanical rewrite script to handle every case safely. A single bad rule applied at scale risks widespread broken/subtly-wrong code — worse than the original problem. The user explicitly declined a follow-up auto-fix script for this exact reason after reviewing an implicit-`None`-return report.
-
-**How to apply:** When a static-analysis pass produces a list of "safe"/"unambiguous" fixes, stop at the report. Don't propose or write an automated multi-file transform unless explicitly asked after seeing the report — and even then, show a diff/sample first before running broadly.
-
-**Exception (2026-07-30):** for a large-scale but genuinely single-shape insertion — adding `@_check_types.do` (plus its matching import) to every function/method across 587 files, ~6179 call sites, rolling out a new runtime type-checking decorator — the user asked upfront for a bulk approach and, when offered the choice explicitly, picked an AST-based codemod script over manual/agent-based editing. This doesn't reverse the general rule above: still ask before building a bulk-edit script, and still offer the choice rather than assuming. But it confirms the user will approve scripted bulk edits for a narrow, mechanical, single-line insertion at high volume — distinct from the free-form signature rewrites (e.g. inferring and inserting the correct `-> None` per function) declined before. The codemod itself needed two real bug-fixes after the first pass (it anchored a new import after a deliberately-deferred later import instead of the leading import block, and needed to detect files already containing the decorator for idempotency) — verify with `py_compile`/import tests before trusting a first pass, even for "unambiguous" mechanical edits.
-
-### Setup.py CLI is deprecated, the file isn't
-Running `python setup.py <command>` directly (install, bdist_wheel, develop, etc.) is deprecated regardless of which command follows — setuptools throws `SetuptoolsDeprecationWarning`, pip has moved fully to PEP 517 builds. This does **not** mean `setup.py` itself is deprecated — `setuptools.build_meta` still executes that file internally even when invoked via `pip install .`/`python -m build`. The fix for "setup.py throws deprecation warnings" is "stop invoking it directly," never "delete setup.py."
-
-**How to apply:** Never recommend or write code invoking `python setup.py <command>` directly, for this or any setuptools-based project. Static metadata belongs in `pyproject.toml`'s `[project]` table; only things requiring runtime Python belong in `setup.py`, reached only via `pip install .`/`python -m build`. (Note: this project has since gone further and removed setuptools/setup.py entirely — see Build system wheel rewrite below.)
-
-### Validate against captured logs
-When reimplementing something a real system already does correctly (compiler/linker invocations, wire protocols, binary formats), proactively ask for or use real captured ground truth (verbose build logs, network traces, hex dumps) rather than deriving purely from docs/training knowledge.
-
-**Why:** While replacing setuptools' `build_ext` with a hand-rolled compiler invocation, real verbatim compile/link command lines from actual passing CI runs caught a real gap before shipping: a first-draft Windows link command was missing `/LTCG` (required to pair with `/GL`) and an explicit `/IMPLIB:` redirect — both visible in the captured log, neither obvious from general MSVC knowledge. Low-level system-integration code has a lot of "works by convention, not spec" surface area where being subtly wrong looks plausible but fails in ways hard to catch without running it.
-
-**How to apply:** Treat provided ground truth as the source of truth over what would otherwise be guessed — diff derived output against it token-by-token before considering the implementation done.
-
-### spawn.py is mandatory, don't touch/bypass
-Every subprocess invocation in this codebase goes through `builder/spawn.py`'s `spawn()` — never replace with `subprocess.run()`/`Popen.communicate()`, even though it looks replaceable.
-
-**Three distinct reasons:**
-1. Classic dual-pipe deadlock — `communicate()` does solve this correctly.
-2. **Windows pipe-handle inheritance by grandchild processes** — what `communicate()` does NOT solve. A grandchild (e.g. `cl.exe` spawning `mspdbsrv.exe`, or `cmd.exe` relaying to whatever it runs) can inherit the pipe's write handle. Windows won't signal EOF until every write-handle closes, so if a grandchild holds one open, any blocking read hangs forever regardless of threading/`select()`. Confirmed against bpo-23213 and MS pipe handle inheritance docs — not folklore.
-3. Observability for long-running commands — `communicate()` is all-or-nothing (blocks until full exit); for a multi-minute build, that's total silence indistinguishable from a hang. `spawn.spawn()`'s live stdout streaming keeps a long build looking alive.
-
-**Why:** The user has hit real, hard-to-diagnose hangs from exactly this class of issue before; `spawn.py` reliably avoids it across Windows/macOS/Linux for this project's toolchain (MSVC, cmake, ninja — known for spawning helper processes on Windows).
-
-**How to apply:** Never modify `spawn.py`'s read loop, return value semantics, or threading model. Never introduce raw `subprocess`/`Popen` calls anywhere in `builder/` as an "improvement" — always route through `spawn.spawn()`. If a caller needs stronger failure semantics, do it in the caller using the `(returncode, error_lines)` spawn.spawn() already returns, never inside spawn.py itself.
-
 ### Config is a live DB, not a fixture
-`harness_designer.config.Config.*` nested classes (e.g. `Config.logging`) use the `ConfigDB(type)` metaclass, whose `__setattr__` writes through to a real SQLite database (`%APPDATA%\HarnessDesigner\config.db`) on **every** non-underscore attribute assignment. `Config.logging.save_path = x` is a permanent, immediate change to the user's real app settings — indistinguishable from changes made through the running app.
-
-**Why:** A debugging session did ad-hoc `Config.logging.save_path = <temp dir>` and `Config.logging.max_logfile_size = 200` to exercise log rotation in isolation. Those wrote straight to the live config.db; the temp dir was later deleted by the test's own cleanup, and the tiny size cap made ordinary startup logging trigger rotation on almost every write — corrupting the real config and causing a startup hang/crash loop.
-
-**How to apply:** Never read from or assign to `Config.*` attributes in throwaway scripts. Before writing any config-touching test, check if the class is metaclass-backed (`type(cls) is not type`); if so, monkeypatch/mock at the Python level without going through the metaclass `__setattr__`, use a fully isolated copy of the config module, or explicitly save+restore in try/finally. Prefer passing a value as a constructor/function argument over mutating the shared class.
-
-**Also applies to a bare `import harness_designer`, not just explicit attribute access:** `config.py` calls `Config.open()` unconditionally at module import time, and `harness_designer/logger/__init__.py` constructs the `Log()` singleton (starting `LogHandler`, which scans/creates files under `%APPDATA%\HarnessDesigner\log\`) at import time too — so a throwaway verification script that only does `import harness_designer` (no explicit Config/log call anywhere in it) still writes to the user's real `config.db` and appends to the user's real, in-use pending log file. Confirmed 2026-07-30 during the check_types.do rollout: repeated import-only test runs polluted the user's actual pending log file with test noise.
-
-**How to apply:** Before running any script that imports `harness_designer` — even just to confirm it doesn't crash — sandbox `USERPROFILE`/`HOME` to a scratch directory (pre-create `<scratch>/appdata/roaming` yourself first: `get_appdata()` uses non-recursive `os.mkdir` and will raise `FileNotFoundError` otherwise). Never run more than one such process concurrently against the same app-data directory (real or shared scratch) — `LogHandler`'s startup file scan/rotation isn't safe against concurrent processes and can hang in a way that looks like an unrelated deadlock. See "Don't run overlapping background test processes for this app" below.
-
-**Also applies to subagent prompts:** a delegated agent building `gl/canvas_pegboard` ran real QTest-driven runtime smoke tests calling `Canvas.set_grid_snap`/`set_grid_display`, which wrote `snap=True`/`enabled=True` straight into the live config.db's new `config_editor_pegboard_grid` table. The permission system blocked both the agent's own `DROP TABLE` cleanup attempt and a follow-up `UPDATE` fix — the user opted to fix it manually. When delegating any task involving runtime-testing GL canvases/editors/config-backed UI, explicitly instruct the agent not to exercise code paths that read/write live `Config.*` attributes, or to restore any value it changes before finishing.
+`Config.*` writes through to the real `%APPDATA%\HarnessDesigner\config.db` on every non-underscore
+attribute assignment — indistinguishable from a change made through the running app. **Never read
+from or assign to `Config.*` in a throwaway script, and never run more than one process concurrently
+against the same (real or shared-scratch) app-data directory.** This also fires on a bare
+`import harness_designer` (`Config.open()` and the logger singleton both run at import time) —
+sandbox `USERPROFILE`/`HOME` to a scratch directory before running anything that imports this
+package at all, even just to check it doesn't crash. When delegating a task that runtime-tests GL
+canvases/editors/config-backed UI, explicitly instruct the agent not to exercise code paths that
+read/write live `Config.*`, or to restore any value it changes before finishing (a past agent's
+`Canvas.set_grid_snap`/`set_grid_display` smoke test wrote straight into the live config.db and had
+to be fixed by hand — the permission system blocked its own cleanup attempt). Full incident history
+(the log-rotation corruption that prompted this rule) is in `harness_designer/MAP.md`'s `config.py`
+entry.
 
 ### Silent crash debugging
 When the app dies with **zero diagnostics** (no Python traceback, nothing in the log, no console output), that pattern means a genuine native/C-stack-level crash, not a normal Python exception — this codebase compiles to Cython C extensions, and deep Python recursion doing real work per frame (e.g. a DB query) can blow the C stack before Python's own `RecursionError` trips.
@@ -551,11 +525,10 @@ For a visual/behavioral bug the user can't precisely describe in words (intermit
 **How to apply:** When a bug report is hard to pin down verbally, or when 2+ rounds of code-reasoning-driven fixes haven't resolved a report the user says is still happening, stop guessing further and add print statements at the actual computation boundary (inputs and outputs, every frame/call if the bug is per-frame) — then ask the user to reproduce the bad state and paste the console output from that exact moment. Prefer this over another synthetic/offline reproduction attempt once reasoning has already produced 2+ non-fixes; synthetic tests only probe the hypothesis already in mind; real captured data can reveal a hypothesis was never considered at all. Remove the temporary prints once the root cause is confirmed and fixed — don't leave them in.
 
 ### `Angle`/`Quaternion` negation vs. inverse — two different operations, easy to conflate
-`Quaternion.__neg__` (and `Angle.__neg__`/`Angle.inverse`, which delegate to it) computes the **multiplicative inverse** (`q⁻¹ = conj(q)/|q|²`, `= conj(q) = (w, -x, -y, -z)` for a unit quaternion) — this is a *compositional* operation: composing a rotation with its inverse undoes it (`q ∘ q⁻¹ = identity`). This is deliberate design (confirmed by the user, who wrote the `Quaternion` class specifically so `-q` behaves as "undo a previously applied rotation," matching how `point @= -angle` reads naturally as "un-rotate this point") and every real call site (`objects_3d/transition.py`'s `inverse_angle = -angle`, `objectsvar/base_var.py`'s `self._angle_inverse = -angle`) already relies on exactly that.
-
-**Distinct from:** true four-component negation (`(-w, -x, -y, -z)`) — this represents the *same* rotation as the original (quaternions double-cover rotations: `q` and its full negation always map to the identical rotation matrix), used only to relabel which of the two equivalent quaternions you're holding (e.g. canonicalizing sign after extracting one from a matrix via Shepperd's algorithm), never to undo/remove a rotation. Added as `Quaternion.negation` (a `@property`, mirroring `Angle.inverse`'s shape) specifically because there was previously no named operation for it — `Angle.from_matrix`'s canonicalization step had been misusing `-q` (the inverse) for this, which silently produced the *inverse rotation* instead of an equivalent relabeling whenever the raw computed `w` came out negative (~half of all possible inputs) — see the `from_matrix` bug entry elsewhere in this file (or the geometry/angle architecture notes) for the full incident.
-
-**How to apply:** Never use `-quaternion`/`-angle` to mean "flip all the signs but keep it the same rotation" — that's `q.negation`, not `-q`. Reserve `-q`/`.inverse` strictly for "undo/remove a previously applied rotation" via composition. If a future method needs to canonicalize a quaternion's sign (or otherwise needs the same-rotation relabeling), reach for `.negation`, not `-q`.
+`inverse()`/`__neg__`/`conj()`/`negation()` are four related-but-different operations across
+`angle.py`/`quaternion.py` — easy to reach for the wrong one (the `Angle.from_matrix` canonicalization
+bug is the cautionary example). Full breakdown now in `harness_designer/geometry/angle/MAP.md` — see
+there before using any of them interchangeably.
 
 ### Never use `getattr()`/`hasattr()` as a way to control code flow
 Don't reach for `getattr(obj, 'attr', default)` or `hasattr(obj, 'attr')` to decide which of several duck-typed code paths to run. Use a real `isinstance()` check against the concrete type(s) involved, and if a shared method needs to exist on every branch, add a real (even if no-op) method to the common base class so it's always callable.
@@ -582,67 +555,12 @@ If the user has stated a specific root cause and a specific fix approach ("mimic
 ## Project (current state, plans, open work)
 
 ### Material system rewrite (2026-09-15) — hue-preserving weight-based materials
-`gl/materials/` (material.py, generic/plastic/metallic/polished/rubber/glowing.py) was rebuilt
-from scratch at the user's request: "the system I have currently ends up changing the actual
-color that is seen" — picking a color and rendering it wasn't showing back that same color.
-Root-caused (not just patched) to three separate, compounding issues in the OLD design, all now
-fixed:
-
-1. Each material subclass invented its own ad hoc ambient/diffuse/specular RGB formula from the
-   input color, several mixing in a **fixed, colorless constant** (a flat grey specular, a flat
-   ambient floor) alongside the true color — adding a flat grey to an unevenly-saturated color
-   desaturates/tints it, and how much depended on the specific formula each material class
-   happened to use.
-2. `gl/shaders/faces/fragment.frag` (and `edges/fragment.frag`) sum `ambient + diffuse +
-   specular (+ emissive for edges)` and let the GPU's implicit per-channel clamp-on-write handle
-   overflow past 1.0 — clamping each channel **independently** changes the ratio between
-   channels (i.e. the hue) whenever the sum overflows unevenly, which happens often since the
-   scene light alone (`Config.editor3d.lighting`: ambient 0.6, diffuse 0.8, specular 1.0) plus
-   the headlight (`Config.editor3d.headlight.color`, default `[0.6, 0.6, 0.4, 0.8]` — itself
-   non-neutral/warm-tinted, left as-is, not treated as a bug) can each add close to full-strength
-   contributions on the same lit face.
-3. The offline ray tracer (`ray_tracing/kernel.cl`'s `Material` struct) already modeled
-   ambient/diffuse/specular as **plain scalar multipliers on the true color** (`mat.r * (ambient
-   + diffuse)`, `total_specular` added as a flat colorless scalar) — the rasterizer's RGB-triple
-   scheme was inconsistent with its own sibling renderer, and the old `_cl_ambient`/`_cl_diffuse`/
-   `_cl_specular` fields were a hacky per-channel-average of the (already color-derived) RGB
-   triple rather than a real independent material property.
-
-**New design:** every material type is now just a handful of scalar weights
-(`_ambient_weight`/`_diffuse_weight`/`_specular_weight`/`_metallic`/`_shine`, plus
-`_cl_roughness`/`_cl_reflectivity`/`_cl_ior` for the ray tracer) applied directly to the caller's
-own `Color` in `GLMaterial.__init__` — ambient/diffuse are the true color times a scalar (same
-scalar for every channel, so hue can never shift on its own), specular is a per-channel lerp
-between neutral white and the true color driven by `_metallic` (0.0 dielectric = white highlight,
-1.0 metal = highlight tinted by the material's own color — the intentional, expected place hue
-*can* shift, confined to the small hot-spot the shininess exponent produces). Subclasses
-(`PlasticMaterial`/`MetallicMaterial`/`PolishedMaterial`/`RubberMaterial`/`GenericMaterial`) are
-now pure declarative weight sets with no `__init__` override needed; `GlowingMaterial` adds the
-emissive term on top of the same base fill. The old unused hardcoded color-preset classes
-(`BlackPlasticMaterial`/`CyanPlasticMaterial`/`RedPlasticMaterial`/etc. in the old plastic.py —
-confirmed dead via `dep_trace.py --calls`, never constructed anywhere) were deleted, not ported.
-`cl_array`'s 12-float layout is unchanged (`r,g,b,ambient,diffuse,specular,shininess,metallic,
-roughness,reflectivity,alpha,ior`, matching the kernel.cl struct) but its values now come directly
-from the same weights instead of an averaged RGB triple.
-
-Both fragment shaders were also changed (small, surgical): after summing ambient+diffuse+specular
-(+emissive for edges), if the peak channel exceeds 1.0, **all three channels are divided by that
-peak together** instead of relying on the implicit per-channel clamp — this preserves the color's
-true ratio/hue on overflow instead of distorting it, fixing point (2) above for every material,
-not just the new ones. Skipped for the faces shader's emissive glow branch (rim-glow effect is
-intentionally allowed to run hot).
-
-**Public API unchanged** — `materials.Plastic(color)` / `.Metallic(color)` / `.Polished(color)` /
-`.Rubber(color)` / `.Generic(color)` / `.Glowing(color)` (all single-`Color`-arg constructors via
-`gl/materials/__init__.py`) are exactly what all 61 existing call sites already used
-(`dep_trace.py --imported-by` confirmed the full list); none of those call sites needed changes.
-
-**How to apply:** when tuning a material's "look," change its weight constants
-(`_ambient_weight`/`_diffuse_weight`/`_specular_weight`/`_metallic`/`_shine`), never add a
-hardcoded RGB triple or a colorless additive constant back in — that's exactly the anti-pattern
-this rewrite removed. If a rendered color still looks off after this, suspect the light config
-(`Config.editor3d.lighting`/`.headlight`) or a genuinely new overflow case, not the material
-weights, before reintroducing per-material color hacks.
+`gl/materials/` was rebuilt from scratch at the user's request: "the system I have currently ends
+up changing the actual color that is seen" — picking a color and rendering it wasn't showing back
+that same color. Root-caused to three compounding issues in the old per-material ad hoc RGB
+formulas plus the fragment shaders' per-channel overflow clamp; fixed via scalar material weights
+applied directly to the caller's `Color`. Full root-cause writeup and the new design are now in
+`harness_designer/gl/materials/MAP.md` — see there.
 
 ### Current priority order
 As of 2026-07-10: CI/build squared away. Sequence, in order:
@@ -1222,5 +1140,48 @@ Same layout as Molex (`scrapers/<name>/collect.py` -> `raw/` -> `convert.py` -> 
 - **KET** (`ket.com/en`, 5,356 parts in 13 categories): needs the session cookie from `/kr/changeLang.ket?language=en`; `POST /en/product/feature-search.ket` (`categoryCd`, `page`) gives 20 full records per page; the product page lists the 2D PDF / 3D PDF / STEP / IGES downloads that exist. Its STEP and image links (`/cm/fileDownMan.ket?attcFilSn=N`) are extension-less `application/octet-stream`, and `resources.py` only accepts a download whose content type is known or whose address contains a known extension, so `convert.py` appends `&file=<part>.stp` (the server ignores it).
 - **Not built, and why** (all details in `scrapers/README.md`): `amphenol-cs.com`'s GraphQL (the captured requests in `amphenol/scraper.py`) answers the collector's client with 403, and JAE, Wurth and amphenol.com serve "Access Denied" / a challenge page -- bot protection is left alone, not worked around; Harting's list loads through `webapi.harting.com` with a key from the page's own config (industrial Han connectors); Radiall (Magento, RF and aerospace, no open GraphQL), Rosenberger, ITT Cannon and Glenair (series pages, configurators, PDFs), FIT/Foxconn (part pages exist but the CMS fills the lists by script), and Luxshare, BizLink, Foxlink, Lear, Leoni, Sumitomo Electric, YEU (corporate pages or harness / cable assembly makers) have nothing to scrape.
 
-### Claude API: one shared package, `harness_designer/claude/`; design in CLAUDE_API_DESIGN.md (repo root) (started 2026-10-17)
-User's instruction: the Claude API code lives in its own package inside `harness_designer`, written to be used from more than one place -- the scraper assistant first, then **concentric twisting** (Claude works out how the bundle's layers should be arranged and is meant to LEARN what the user wants: questions asked of the user about wire positions are saved so Claude reasons better next time -- explicitly NOT being built yet). Read `CLAUDE_API_DESIGN.md` in full before touching anything under `claude/` or adding any code that talks to Claude, and add new decisions THERE, not here. Standing rules: nothing outside `claude/` imports `anthropic`; the user's own key lives only in the system credential store (service `HarnessDesigner`, name `anthropic_api_key`), never env vars/files/Config; a `Conversation` is APPEND-ONLY (model, tools, system prompt fixed at creation -- Opus 5.5 binds thinking blocks to the conversation, so editing history is a 400; later-learned facts go in via `note()`); saved user decisions will enter through a `ContextProvider` (rendered once at conversation start). Claude is the judgement layer and calls the packing solver as a tool -- it does not compute geometry (see "Wire bundle packing requirements"). Anything that exercises the key store must use an in-memory backend -- never the real Windows Credential Manager, which holds the user's actual key.
+### Claude API: one shared package, now `harness_designer/plugins/plugins/claude_ai/` (moved from `harness_designer/claude/` during the plugin-system rewrite, 2026-10-19); design in CLAUDE_API_DESIGN.md (repo root) (started 2026-10-17)
+User's instruction: the Claude API code lives in its own package inside `harness_designer`, written to be used from more than one place -- the scraper assistant first, then **concentric twisting** (Claude works out how the bundle's layers should be arranged and is meant to LEARN what the user wants: questions asked of the user about wire positions are saved so Claude reasons better next time -- explicitly NOT being built yet). Read `CLAUDE_API_DESIGN.md` in full before touching anything under `claude_ai/` or adding any code that talks to Claude, and add new decisions THERE, not here (note: that doc, `AI_PLUGIN_DESIGN.md`, and several `MAP.md` files still say `harness_designer/claude/` in places -- not yet swept for the rename, don't trust the literal path in prose, check the actual directory). Standing rules: nothing outside `claude_ai/` imports `anthropic`; the user's own key lives only in the system credential store (service `HarnessDesigner`, name `anthropic_api_key`), never env vars/files/Config; a `Conversation` is APPEND-ONLY (model, tools, system prompt fixed at creation -- Opus 5.5 binds thinking blocks to the conversation, so editing history is a 400; later-learned facts go in via `note()`); saved user decisions will enter through a `ContextProvider` (rendered once at conversation start). Claude is the judgement layer and calls the packing solver as a tool -- it does not compute geometry (see "Wire bundle packing requirements"). Anything that exercises the key store must use an in-memory backend -- never the real Windows Credential Manager, which holds the user's actual key.
+
+**Rename pitfall, found + fixed 2026-10-19 (see "PyInstaller collect_submodules..." below for the full story):** moving `claude/` two directories deeper (`plugins/plugins/claude_ai/`) left every relative import that reached *outside* the package (`from .. import check_types` at the `claude_ai/` level, `from ... import check_types`/`from ...ui...` at the `claude_ai/qt/` level) pointing 2 levels too shallow -- they resolved to `harness_designer.plugins.plugins` (or `.plugins`) instead of `harness_designer`. Imports *within* the package (`from . import X`, and `qt/`'s `from .. import <claude_ai sibling>`) were unaffected since the internal depth didn't change. Also left behind: three external callers still importing the module by its pre-move name -- `ui/editor_script/{assistant_panel,script_editor}.py` and `scraping/{assistant_tools,json_extract}.py` all had `from .. import claude` / `from ... import claude`. Whenever a package moves to a different depth under `harness_designer`, grep the whole tree for both patterns (relative imports *inside* the moved package that cross its old boundary, and any external `import <old name>`) rather than assuming the move is just a `git mv`.
+
+### PyInstaller's `--collect-all`/`collect_submodules` silently drops a subtree on ANY import-time exception, not just `ImportError`, and warns only once per build (found 2026-10-19, matches user's filed-and-closed-not-planned pyinstaller/pyinstaller#9495)
+Installed app (`C:\Program Files\HarnessDesigner`) was missing most of `harness_designer/ui/` -- `ui/toolbar/`, `dock_base.py`, every `editor_*` dock, `system_menu/`, etc. all absent; only `mainframe.*.pyd` and `widgets/` survived -- with the frozen app's own error being a bare `ImportError: cannot import name 'toolbar'` and no earlier stack frames (the frozen traceback can't show what's missing, only that an import failed).
+
+**Why this happens, mechanically:** this app is built almost entirely as compiled Cython `.pyd` extensions (everything except `__init__.py`/`__main__.py`, see `cython_build.py`'s `_SKIP_STEMS`). PyInstaller's static `modulegraph` analysis parses plain `.py` source via AST and never executes it, so it CAN trace an edge like `ui/__init__.py: from . import mainframe` (plain, uncythonized) -- but a compiled `.pyd` is opaque to it; modulegraph cannot see what `mainframe.pyd` itself imports. That's why `--collect-all=harness_designer` is load-bearing here, not cosmetic: it's the ONLY mechanism that discovers the app's own internal import graph. `collect_all` -> `collect_submodules()` -> `_collect_submodules()` does a REAL `__import__()` of every *subpackage* it finds (plain modules are just listed by `pkgutil.iter_modules` without being imported, so a non-package file is always included regardless of whether it would run). If that real import raises **any** `Exception` (PyInstaller's code literally says "treat all exceptions equally", not just `ImportError`/`ModuleNotFoundError`), the default `on_error='warn once'` logs exactly ONE warning for the whole build and then silently flips to `ignore` for every subsequent failure -- so if two unrelated subpackages are both broken, only the first one's name ever appears anywhere in the build log, and a failed subpackage is dropped whole (it, and everything under it, never reaches `modules`/hiddenimports -- see `--imported-by`-style reasoning: parent failing means children are never even listed, since the listing loop that would enumerate them never runs).
+
+**What this means for this project specifically:** any import-time bug anywhere under `harness_designer` -- not just in the file whose name appears in the end-user's crash -- can make an entire unrelated subpackage silently vanish from the installed app with zero build-time signal. The actual trigger this time was the `claude` -> `claude_ai` rename leaving broken imports in `ui/editor_script/`, `scraping/` and inside `claude_ai/` itself (see the entry above) -- `ui.editor_script` failing to import took the whole `ui` package down with it in `collect_submodules`'s walk (a child subpackage raising during `__import__('harness_designer.ui.editor_script')`, triggered while walking `ui`'s own children, still only drops `editor_script` itself normally -- but here `editor_script` was reached recursively FROM `ui`'s own import for an unrelated reason tied up in processing order; the robust fix is always "make every subpackage importable standalone," not "figure out exactly which failure took down which sibling").
+
+**How to catch this before it ships, every time this app is rebuilt after touching imports:** run a full-tree import sanity check that does NOT swallow after the first failure (unlike PyInstaller's own default), e.g.:
+```python
+import sys, pkgutil, traceback
+import harness_designer
+fails = []
+for info in pkgutil.walk_packages(harness_designer.__path__, 'harness_designer.',
+                                   onerror=lambda n: fails.append((n, sys.exc_info()))):
+    pass
+for name, exc in fails:
+    traceback.print_exception(*exc, limit=3)
+```
+This reports every genuinely broken subpackage in one pass, with its real traceback -- run it (with the Python that matches the build env) before packaging, not after a user reports missing menus/docks. `builder/` has no equivalent check today; worth adding to `build.py` as a pre-flight step that fails the build loudly (`on_error='raise'` would also work if `collect_modules.py` called `collect_submodules()` directly instead of going through the `--collect-all` CLI flag, but the standalone walk above needs no build-script change and catches it earlier).
+
+### AI plugin contract: `harness_designer/plugins/ai/`; design in `plugins/ai/AI_PLUGIN_DESIGN.md` (started 2026-10-18)
+User wants more than one AI backend available (Claude today, Google AI/Gemini next -- free tier, so no cost
+outside a Claude subscription, user supplies their own key same as Claude), selectable so the app's two AI call
+sites (scraper assistant, concentric twisting) don't need to know which is active. Worked out over a long
+conversation: vocabulary (**Session** = one open-ended activity holding history, maps onto `claude.Conversation`/
+Google AI's `ChatSession`; **Job** = one instruction, ends `complete`/`error`; **steering** = anything that
+continues the current Job rather than starting a new one -- answering a tool's question, or "Send now"
+interrupting a running Job -- a genuinely new Job only ever comes from an explicit, distinct user action, never
+inferred from message content); threading (one plain Python thread per Session, owned by `AIBase`, no `QThread`,
+`app.CallAfter` is always the `Job` subclass's own call); cancellation (`CancelToken` generalized from
+`claude/cancel.py`, with a reason so a steering cancel never reports as a Job error). "Asking the user" turned
+out to need no new tracked state once checked against what `claude/qt/gui_call.call_in_gui()` already does
+(blocks the worker thread, not the GUI thread) -- that's the pattern formalized, not reinvented. Read
+`plugins/ai/AI_PLUGIN_DESIGN.md` (and `plugins/PLUGIN_DESIGN.md` for the generic registration mechanism it sits
+on, deliberately not inherited from directly -- `_PluginMeta` needs a registration right before every `Plugin`
+subclass, which `AIBase` as an abstract intermediate base can't supply) in full before touching anything under
+`plugins/`, and add new decisions THERE, not here. User is building a settings-panel base class for plugins in
+parallel (not done here). Status: `Job`/`Session`/`AIBase`/`CancelToken` built and logic-checked with a
+throwaway script (deleted after, not committed -- "Do not write unit tests" applies here too); no concrete
+backend (Claude, Google AI) wired to it yet, and `claude/` itself is untouched by this work.

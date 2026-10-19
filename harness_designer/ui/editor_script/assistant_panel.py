@@ -10,7 +10,7 @@ nothing is sent until Send is clicked. An answer is never applied by
 itself: its code blocks can be inserted at the cursor, swapped in for the
 whole script (after looking at the changes), or copied.
 
-All the API work is in ``harness_designer.claude``; this module is the
+All the API work is in ``harness_designer.plugins.plugins.claude_ai``; this module is the
 panel and the prompts (``scraping/assistant.py``) around it.
 """
 
@@ -20,11 +20,12 @@ from PySide6 import QtCore
 from PySide6 import QtGui
 from PySide6 import QtWidgets
 
+from ..widgets import wrap_label as _wrap_label
 from ...scraping import assistant as _assistant
 from ...scraping import assistant_tools as _assistant_tools
 from ... import check_types as _check_types
-from ... import claude as _claude
-from ...claude import qt as _claude_qt
+from ...plugins.plugins import claude_ai as _claude
+from ...plugins.plugins.claude_ai import qt as _claude_qt
 
 if TYPE_CHECKING:
     from . import script_editor as _script_editor
@@ -80,7 +81,7 @@ class AssistantPanel(QtWidgets.QWidget):
 
     @_check_types.do
     def _build(self) -> None:
-        self._model_label = QtWidgets.QLabel(self)
+        self._model_label = _wrap_label.WrapLabel('', self, wrap=False)
         self._settings_button = QtWidgets.QPushButton('Claude settings...', self)
         self._new_chat_button = QtWidgets.QPushButton('New chat', self)
         self._new_chat_button.setToolTip('Forget this conversation and start again. Costs nothing.')
@@ -129,7 +130,7 @@ class AssistantPanel(QtWidgets.QWidget):
         prompt_row.addWidget(self._prompt, 1)
         prompt_row.addLayout(buttons)
 
-        self._size_label = QtWidgets.QLabel(self)
+        self._size_label = _wrap_label.WrapLabel('', self, wrap=False)
         self._preview = QtWidgets.QPlainTextEdit(self)
         self._preview.setReadOnly(True)
         self._preview.setMaximumHeight(160)
@@ -138,8 +139,7 @@ class AssistantPanel(QtWidgets.QWidget):
         mono.setStyleHint(QtGui.QFont.StyleHint.Monospace)
         self._preview.setFont(mono)
 
-        self._activity = QtWidgets.QLabel(self)
-        self._activity.setWordWrap(True)
+        self._activity = _wrap_label.WrapLabel('', self)
         self._activity.setStyleSheet('color: gray;')
         self._activity.hide()
 
@@ -167,8 +167,7 @@ class AssistantPanel(QtWidgets.QWidget):
         self._diff.setFont(mono)
         self._diff.hide()
 
-        self._status = QtWidgets.QLabel(self)
-        self._status.setWordWrap(True)
+        self._status = _wrap_label.WrapLabel('', self)
         self._cost = QtWidgets.QLabel(self)
         self._cost.setStyleSheet('color: gray;')
 

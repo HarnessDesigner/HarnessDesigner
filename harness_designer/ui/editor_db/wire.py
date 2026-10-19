@@ -45,6 +45,7 @@ class WiresPage(_base.EditorList):
         20: ('Resistance (Ω/km)', {'alias': 'resistance_1km', 'field_name': 'resistance_1km'}),
         21: ('Volts (V)', {'alias': 'volts', 'field_name': 'volts'}),
         22: ('Strands', {'alias': 'strands', 'field_name': 'strands'}),
+        23: ('Wire Type', {'alias': 'wire_type_name', 'field_name': 'wire_type_id', 'ref_table': 'wire_types', 'ref_field': 'name'}),
     }
 
     table: "_wire.WiresTable" = None

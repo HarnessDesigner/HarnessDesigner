@@ -59,14 +59,19 @@ def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", 
             # carries a leftover integer "id" per entry -- discard it so
             # every row gets a freshly generated UUID id instead of
             # colliding integers.
-            item.pop('id', None)
-            add_plating(con, commit=False, **item)
+            # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
+            # default to; every other entry gets a generated id
+            id = item.pop('id', None)
+            if id == 0:
+                add_plating(con, id=id, commit=False, **item)
+            else:
+                add_plating(con, commit=False, **item)
 
     con.commit()
 
 
 @_check_types.do
-def add_plating(con: "_connector_base.ConnectorBase", symbol: str, description: str = '', commit: bool = True) -> bytes:  # NOQA
+def add_plating(con: "_connector_base.ConnectorBase", symbol: str, description: str = '', id: int | None = None, commit: bool = True) -> bytes:  # NOQA
     """Add a plating.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -77,13 +82,20 @@ def add_plating(con: "_connector_base.ConnectorBase", symbol: str, description: 
     :type symbol: UNKNOWN
     :param description: Value for ``description``.
     :type description: UNKNOWN
+    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
+        default to) instead of a generated id; ``None`` generates one.
+    :type id: int | None
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
 
-    id = _id_generator.generate_global_row_id(con).bytes
+    if id is None:
+        id = _id_generator.generate_global_row_id(con).bytes
+    else:
+        id = _id_generator.NIL_UUID.bytes
 
     con.execute('INSERT INTO platings (id, symbol, description) '
                 'VALUES (?, ?, ?);', (id, symbol, description))

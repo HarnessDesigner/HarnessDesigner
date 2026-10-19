@@ -59,14 +59,19 @@ def add_records(con: "_connector_base.ConnectorBase", splash: "_splash.Splash", 
             # carries a leftover integer "id" per entry -- discard it so
             # every row gets a freshly generated UUID id instead of
             # colliding integers.
-            item.pop('id', None)
-            add_splice_type(con, commit=False, **item)
+            # the catalog's 0 entry is the "none" row: it keeps the nil UUID that unassigned foreign keys
+            # default to; every other entry gets a generated id
+            id = item.pop('id', None)
+            if id == 0:
+                add_splice_type(con, id=id, commit=False, **item)
+            else:
+                add_splice_type(con, commit=False, **item)
 
     con.commit()
 
 
 @_check_types.do
-def add_splice_type(con: "_connector_base.ConnectorBase", name: str, commit: bool = True) -> bytes:  # NOQA
+def add_splice_type(con: "_connector_base.ConnectorBase", name: str, id: int | None = None, commit: bool = True) -> bytes:  # NOQA
     """Add a splice type.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -75,13 +80,20 @@ def add_splice_type(con: "_connector_base.ConnectorBase", name: str, commit: boo
     :type con: UNKNOWN
     :param name: Name value.
     :type name: UNKNOWN
+    :param id: ``0`` from the catalog JSON stores the nil UUID (the "none" row that unassigned foreign keys
+        default to) instead of a generated id; ``None`` generates one.
+    :type id: int | None
+
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
     :returns: Return value. UNKNOWN details.
     :rtype: UNKNOWN
     """
 
-    id = _id_generator.generate_global_row_id(con).bytes
+    if id is None:
+        id = _id_generator.generate_global_row_id(con).bytes
+    else:
+        id = _id_generator.NIL_UUID.bytes
 
     con.execute(
         'INSERT INTO splice_types (id, name) '

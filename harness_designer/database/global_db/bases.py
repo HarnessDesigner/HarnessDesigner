@@ -923,6 +923,7 @@ from .shape import ShapesTable  # NOQA
 from .transition_branch import TransitionBranchesTable  # NOQA
 from .adhesive import AdhesivesTable  # NOQA
 from .protection import ProtectionsTable  # NOQA
+from .wire_type import WireTypesTable  # NOQA
 from .transition import TransitionsTable  # NOQA
 from .splice import SplicesTable  # NOQA
 from .model3d import Models3DTable  # NOQA
@@ -983,6 +984,7 @@ class GLBTables:
         self._directions_table = DirectionsTable(self, tables, splash, load_database)
         self._splice_types_table = SpliceTypesTable(self, tables, splash, load_database)
         self._protections_table = ProtectionsTable(self, tables, splash, load_database)
+        self._wire_types_table = WireTypesTable(self, tables, splash, load_database)
         self._ip_solids_table = IPSolidsTable(self, tables, splash, load_database)
         self._ip_fluids_table = IPFluidsTable(self, tables, splash, load_database)
         self._ip_supps_table = IPSuppsTable(self, tables, splash, load_database)
@@ -1437,6 +1439,16 @@ class GLBTables:
         :rtype: :class:`ProtectionsTable`
         """
         return self._protections_table
+
+    @property
+    @_check_types.do
+    def wire_types_table(self) -> WireTypesTable:
+        """Return the wire types table.
+
+        :returns: The table of wire types ("Wire", "Coaxial", "Ribbon", ...).
+        :rtype: :class:`WireTypesTable`
+        """
+        return self._wire_types_table
 
     @property
     @_check_types.do

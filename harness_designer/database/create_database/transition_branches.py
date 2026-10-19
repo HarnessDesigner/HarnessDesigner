@@ -160,8 +160,8 @@ table = _con.SQLTable(
     _con.FloatField('length', no_null=True),
     # Both are "[x, y, z]" strings: ``offset`` in mm, ``angle`` as euler
     # degrees about the X, Y and Z axes.
-    _con.TextField('offset', default='"[0.0, 0.0, 0.0]"', no_null=True),
-    _con.TextField('angle', default='"[0.0, 0.0, 0.0]"', no_null=True),
+    _con.TextField('offset', default="'[0.0, 0.0, 0.0]'", no_null=True),
+    _con.TextField('angle', default="'[0.0, 0.0, 0.0]'", no_null=True),
     _con.FloatField('flange_height', default='NULL'),
     _con.FloatField('flange_width', default='NULL')
 )

@@ -32,9 +32,10 @@ from ...scraping import script_files as _script_files
 from ...scraping import snippets as _snippets
 from ...utils import paths as _paths
 from ... import check_types as _check_types
-from ... import claude as _claude
+from ...plugins.plugins import claude_ai as _claude
 from ... import image as _image
 from ..widgets import code_editor_ctrl as _code_editor_ctrl
+from ..widgets import wrap_label as _wrap_label
 
 if TYPE_CHECKING:
     from .. import mainframe as _mainframe
@@ -93,8 +94,8 @@ class ScriptEditorPanel(QtWidgets.QWidget, _insertion.SnippetSink):
         self._recovered = False
 
         self.editor = _code_editor_ctrl.CodeEditorCtrl(self)
-        self._name_label = QtWidgets.QLabel(self)
-        self._message_label = QtWidgets.QLabel(self)
+        self._name_label = _wrap_label.WrapLabel('', self, wrap=False)
+        self._message_label = _wrap_label.WrapLabel('', self, wrap=False)
         self._message_label.setStyleSheet('color: gray;')
 
         self._toolbar = QtWidgets.QToolBar(self)
@@ -531,7 +532,7 @@ class ScriptEditor(_dock_base.DockBase, _insertion.SnippetSink):
 
     @_check_types.do
     def _open_settings(self) -> None:
-        from ...claude.qt import key_dialog
+        from ...plugins.plugins.claude_ai.qt import key_dialog
 
         dialog = key_dialog.ApiKeyDialog(self.mainframe, self._client)
         dialog.exec()

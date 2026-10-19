@@ -18,7 +18,8 @@ from .mixins import (
     FamilyMixin, FamilyControl,
     MaterialMixin, MaterialControl,
     TemperatureMixin, TemperatureControl,
-    PlatingControl
+    PlatingControl,
+    WireTypeMixin, WireTypeControl
 )
 from ... import check_types as _check_types
 
@@ -318,6 +319,11 @@ class WiresTable(TableBase):
                 'label': 'Weight (1km)(g)',
                 'type': [float],
                 'search_params': ['weight_1km']
+            },
+            20: {
+                'label': 'Wire Type',
+                'type': [int, str],
+                'search_params': ['wire_type_id', 'wire_types', 'name']
             }
         }
 
@@ -326,7 +332,7 @@ class WiresTable(TableBase):
 
 class Wire(EntryBase, PartNumberMixin, ManufacturerMixin, DescriptionMixin,
            FamilyMixin, SeriesMixin, ResourceMixin, ColorMixin, MaterialMixin,
-           TemperatureMixin):
+           TemperatureMixin, WireTypeMixin):
     """Represent a wire in :mod:`harness_designer.database.global_db.wire`.
 
     UNKNOWN details are inferred from the class name and surrounding code.
@@ -1131,6 +1137,7 @@ class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
         if page is self._general_page:
             self.part_number_ctrl.set_obj(self.db_obj)
             self.description_ctrl.set_obj(self.db_obj)
+            self.wire_type_ctrl.set_obj(self.db_obj)
             if self.db_obj is None:
                 self.tpi_ctrl.SetValue(0.0)
                 self.weight_1km_ctrl.SetValue(0.0)
@@ -1357,6 +1364,7 @@ class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
 
         self.part_number_ctrl = PartNumberControl(general_page)
         self.description_ctrl = DescriptionControl(general_page)
+        self.wire_type_ctrl = WireTypeControl(general_page)
 
         self.tpi_ctrl = _prop_ctrls.FloatProperty(
             general_page, 'Twists per Inch',
@@ -1385,6 +1393,7 @@ class WireControl(QtWidgets.QTabWidget, LazyTabMixin):
 
         general_page.addWidget(self.part_number_ctrl)
         general_page.addWidget(self.description_ctrl)
+        general_page.addWidget(self.wire_type_ctrl)
         general_page.addWidget(self.tpi_ctrl)
         general_page.addWidget(self.weight_1km_ctrl)
         general_page.addWidget(self.volts_ctrl)

@@ -36,12 +36,26 @@ _ENGINE_TOKEN = re.compile(r'\s*QtWebEngine/[\d.]+')
 # What a popup page is allowed to report before it is discarded.
 _BLANK_URLS = ('', 'about:blank')
 
+# An address in a message is cut to this many characters (its start and its end are kept).
+_URL_SHOWN = 100
+_URL_HEAD = 70
+
 
 @_check_types.do
 def clean_user_agent(user_agent: str) -> str:
     """The default user agent without its ``QtWebEngine/x.y.z`` token, so
     sites see an ordinary Chrome."""
     return _ENGINE_TOKEN.sub('', user_agent)
+
+
+@_check_types.do
+def shorten_url(url: str) -> str:
+    """*url* as it goes into a message: a long address (search links run past
+    a thousand characters) keeps its start and its end."""
+    if len(url) <= _URL_SHOWN:
+        return url
+
+    return f'{url[:_URL_HEAD]}...{url[-(_URL_SHOWN - _URL_HEAD - 3):]}'
 
 
 class _ScraperPage(QtWebEngineCore.QWebEnginePage):
@@ -344,7 +358,7 @@ class BrowserWidget(QtWidgets.QWidget):
         self._update_buttons()
 
         if not ok:
-            self.messageRaised.emit(f'The page could not be loaded: {self._view.url().toString()}')
+            self.messageRaised.emit(f'The page could not be loaded: {shorten_url(self._view.url().toString())}')
             return
 
         self.pageLoaded.emit(self._view.url().toString(), self._profile.httpUserAgent())
@@ -365,7 +379,7 @@ class BrowserWidget(QtWidgets.QWidget):
     @_check_types.do
     def _served_received(self, url: str, text: str) -> None:
         if not text:
-            self.messageRaised.emit(f'The source of {url} could not be downloaded.')
+            self.messageRaised.emit(f'The source of {shorten_url(url)} could not be downloaded.')
             return
 
         self.sourceReady.emit(url, text, False)

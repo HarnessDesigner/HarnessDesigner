@@ -12,6 +12,7 @@ from PySide6 import QtWidgets
 
 from . import insertion as _insertion
 from ..widgets import code_editor_ctrl as _code_editor_ctrl
+from ..widgets import wrap_label as _wrap_label
 from ...scraping import snippets as _snippets
 from ... import check_types as _check_types
 
@@ -26,7 +27,7 @@ class SnippetPane(QtWidgets.QWidget, _insertion.SnippetSink):
         self._editor.setPlaceholderText('Code you generate from the page appears here.')
         self._copy = QtWidgets.QPushButton('Copy all', self)
         self._clear = QtWidgets.QPushButton('Clear', self)
-        self._label = QtWidgets.QLabel('Generated script', self)
+        self._label = _wrap_label.WrapLabel('Generated script', self, wrap=False)
 
         bar = QtWidgets.QHBoxLayout()
         bar.addWidget(self._label, 1)

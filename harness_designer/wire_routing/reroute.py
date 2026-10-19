@@ -209,7 +209,7 @@ def wire_ends(project: "_project.Project", wire: "_wire_obj.Wire") -> _wire_rout
 
 
 def build_frame(project: "_project.Project", wires: list["_wire_obj.Wire"],
-                pack_with: list["_wire_obj.Wire"] = ()) -> "_wire_routing.RoutingFrame":
+                pack_with: list["_wire_obj.Wire"] = []) -> "_wire_routing.RoutingFrame":
     """One shared routing grid for *wires* (see
     :class:`~.routing.RoutingFrame`), to pass to :func:`reroute_wire` as
     ``frame`` for each of them -- or ``None`` if it can't be built (nothing

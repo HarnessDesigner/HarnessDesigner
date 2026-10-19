@@ -1,0 +1,9 @@
+## FILES
+
+#### __init__.py
+
+Re-exports the module as `_objectbrowser` only; no public symbols of its own.
+
+#### objectbrowser.py
+
+`ObjectBrowser(DockBase)` wraps `ObjectBrowserPanel`, which owns the actual scene-tree `QTreeWidget`. The tree has one top-level item per object category (Boots, Bundles, Cavities, Circuits, Covers, CPA Locks, Housings, Notes, Seals, Splices, Terminals, TPA Locks, Transitions, Wires, Wire Markers), rebuilt fresh by `reset()`. Each placed object gets an `add_<type>()` call (`add_boot`, `add_bundle`, `add_cavity`, ...) that inserts a tree item holding a `weakref` back to the object's DB-row facade rather than a strong reference -- when the object is GC'd, the weakref callback (`__remove_refs`) prunes the now-dead item itself, so nothing else in the app needs to explicitly tell the browser to remove an entry. This weakref self-pruning design is one of the few caches in the codebase that is *not* a place to worry about stale strong references, in contrast to the per-table control-widget singletons documented in `ui/prop_ctrls/MAP.md`, which must be cleared explicitly. A canonical entry (the object's one real listing under its type group) is tagged via `_mark_canonical` so it can be told apart from plain-text cross-reference mentions of the same object nested under an unrelated item (e.g. a wire mentioned under the terminal it's attached to). The tree also supports a small path-search query language: `:`/`.` act as path-level separators only when they have no adjacent whitespace (`_PATH_SEPARATOR_RE`'s lookaround, `(?<=\S)[:.](?=\S)`), which is the whole mechanism letting a literal `.`/`:` inside an object's own name (e.g. "Housing 1.5") survive without being misread as a separator -- any change to the path-query syntax must preserve that no-adjacent-whitespace rule or names containing `.`/`:` will mis-parse.

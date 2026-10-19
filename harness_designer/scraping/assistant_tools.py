@@ -25,7 +25,7 @@ import soupsieve
 
 from . import assistant as _assistant
 from .. import check_types as _check_types
-from .. import claude as _claude
+from ..plugins.plugins import claude_ai as _claude
 
 # How much of each match the model is shown.
 MAX_MATCHES = 5

@@ -11,6 +11,7 @@ from . import network_panel as _network_panel
 from . import response_panel as _response_panel
 from . import snippet_pane as _snippet_pane
 from . import source_viewer as _source_viewer
+from ..widgets import wrap_label as _wrap_label
 from ...scraping import assistant as _assistant
 from ...scraping import browser_pick as _browser_pick
 from ...scraping import capture_model as _capture_model
@@ -46,8 +47,7 @@ class ScraperInspector(QtWidgets.QWidget, _assistant.AssistantContext):
         self.tabs.addTab(self.network, 'Network')
         self.tabs.addTab(self.response, 'Response')
 
-        self._message = QtWidgets.QLabel(self)
-        self._message.setWordWrap(True)
+        self._message = _wrap_label.WrapLabel('', self)
         self._message.setStyleSheet('color: #d7ba7d;')
 
         self._splitter = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical, self)

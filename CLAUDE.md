@@ -4,8 +4,18 @@
 1. **`MEMORY.md`** (repo root, full file) — persistent project memory: user background, coding
    conventions, feedback on how to work in this repo, architecture decisions. Read it in full
    before doing anything else.
-2. **`CODEBASE_MAP.md`** (repo root) — directory/file map of the package, per its own mandatory
-   note at the top of that file.
+2. **`CODEBASE_MAP.md`** (repo root) — a bare directory/file tree, no descriptions, just for
+   orientation. It is NOT where file/directory documentation lives anymore (see next point).
+
+## MANDATORY: read a directory's own `MAP.md` before working in it
+Every real directory under `harness_designer/`, `builder/`, and `diagnostics/` has its own
+`MAP.md` file (same folder as the code it describes): a `## FILES` section with one `####`
+header per file and a `## FOLDERS` section with one `####` header per subdirectory, each followed
+by a short paragraph covering what it's for and any known oddities/pitfalls. **Before reading or
+editing code in a directory, read that directory's `MAP.md` in full** — it's more reliable and
+more current than `CODEBASE_MAP.md`'s bare tree or guessing from file names. Update it in the same
+change whenever a file is added, removed, or renamed in that directory; update `CODEBASE_MAP.md`'s
+tree too if a whole directory was added/removed/renamed.
 
 ## Locating code: use `diagnostics/dep_trace.py`, not grep-and-read
 
@@ -17,15 +27,17 @@ fast and cheap. **Reach for it before Read/Grep whenever the question is a "wher
 question about code structure** — use Read/Grep once dep_trace.py has told you which file(s) and
 line(s) to actually look at.
 
-**Cross-check dep_trace.py results against MEMORY.md/CODEBASE_MAP.md.** dep_trace.py's default
-mode shows a file's import tree, and every mode's `--name` is a regex search over code (types,
-definitions, call sites, overrides, importers). Whenever a file, class, function, or topic that
-search touches also shows up in MEMORY.md's table of contents (its `###` headings, e.g. a search
-around rotation code lining up with "Rotation matrix convention") or CODEBASE_MAP.md's section
-for that area, read that section in full before making changes — it likely documents a
-convention, a past bug, or a reason something looks the way it does that dep_trace.py's purely
-structural view of the code can't tell you. (At session start this table of contents arrives
-pre-loaded via the SessionStart hook; outside that, read the files directly.)
+**Cross-check dep_trace.py results against MEMORY.md and the relevant directory's `MAP.md`.**
+dep_trace.py's default mode shows a file's import tree, and every mode's `--name` is a regex
+search over code (types, definitions, call sites, overrides, importers). Whenever a file, class,
+function, or topic that search touches also shows up in MEMORY.md's table of contents (its `###`
+headings, e.g. a search around rotation code lining up with "Rotation matrix convention") or in
+that file's own entry in its directory's `MAP.md`, read that section/entry in full before making
+changes — it likely documents a convention, a past bug, or a reason something looks the way it
+does that dep_trace.py's purely structural view of the code can't tell you. (At session start
+MEMORY.md's table of contents arrives pre-loaded via the SessionStart hook; outside that, read the
+files directly. `MAP.md` files are not pre-loaded — read the specific directory's file directly
+when a search lands you there.)
 
 ```
 python diagnostics/dep_trace.py <file_or_dir> [--depth shallow|deep] [--name PATTERN] [--local] [--json]

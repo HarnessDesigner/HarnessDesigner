@@ -15,6 +15,7 @@ from . import datasheets as _datasheets
 from . import cads as _cads
 from . import temperatures as _temperatures
 from . import platings as _platings
+from . import wire_types as _wire_types
 from . import projects as _projects
 from . import points2d as _points2d
 from . import points3d as _points3d
@@ -116,7 +117,7 @@ def add_wire(con: "_connector_base.ConnectorBase", part_number: str, description
              max_temp: str | None = None, material: str | None = None, stripe_color: str | None = None, core_material: str | None = None,
              num_conductors: int = 1, shielded: int = 0, tpi: float = 0.0, wire_size_dia: float | None = None, wire_size_cross: float | None = None,
              wire_size_awg: int | None = None, od_mm: float = 0.0, weight_1km: float = 0.0, resistance_1km: float = 0.0, volts: float = 0.0,
-             strands: int = 1, commit: bool = True) -> bytes:
+             strands: int = 1, wire_type: str | None = None, commit: bool = True) -> bytes:
     """Add a wire.
 
     UNKNOWN details are inferred from the callable name and signature.
@@ -173,6 +174,8 @@ def add_wire(con: "_connector_base.ConnectorBase", part_number: str, description
     :type volts: UNKNOWN
     :param strands: Value for ``strands``.
     :type strands: UNKNOWN
+    :param wire_type: Name of the wire type ("Wire", "Coaxial", "Ribbon", ...); blank is "Wire".
+    :type wire_type: str | None
     :param commit: Value for ``commit``.
     :type commit: UNKNOWN
     :returns: Return value. UNKNOWN details.
@@ -193,19 +196,20 @@ def add_wire(con: "_connector_base.ConnectorBase", part_number: str, description
     datasheet_id = _datasheets.get_datasheet_id(con, datasheet)
     image_id = _images.get_image_id(con, image)
     cad_id = _cads.get_cad_id(con, cad)
+    wire_type_id = _wire_types.get_wire_type_id(con, wire_type)
 
     new_id = _id_generator.generate_global_row_id(con).bytes
     con.execute('INSERT INTO wires (id, part_number, description, mfg_id, family_id, '
                 'series_id, color_id, image_id, datasheet_id, cad_id, min_temp_id, '
                 'max_temp_id, material_id, stripe_color_id, core_material_id, '
                 'num_conductors, shielded, tpi, wire_size_dia, wire_size_cross, wire_size_awg, '
-                'od_mm, weight_1km, resistance_1km, volts, strands) '
-                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
+                'od_mm, weight_1km, resistance_1km, volts, strands, wire_type_id) '
+                'VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);',
                 (new_id, part_number, description, mfg_id, family_id, series_id, color_id,
                  image_id, datasheet_id, cad_id, min_temp_id, max_temp_id, material_id,
                  stripe_color_id, core_material_id, num_conductors, shielded, tpi,
                  wire_size_dia, wire_size_cross, wire_size_awg, od_mm, weight_1km, resistance_1km,
-                 volts, strands))
+                 volts, strands, wire_type_id))
 
     _logger.database(f'wire added "{part_number}"')
 
@@ -280,6 +284,10 @@ table = _con.SQLTable(
     _con.FloatField('resistance_1km', default='"0.0"', no_null=True),
     _con.FloatField('volts', default='"0.0"', no_null=True),
     _con.IntField('strands', default='1'),
+    _con.UUIDField('wire_type_id', default="X'00000000000000000000000000000000'", no_null=True,
+                  references=_con.SQLFieldReference(_wire_types.table,
+                                                    _wire_types.id_field,
+                                                    on_update=_con.REFERENCE_NO_ACTION)),
 )
 
 

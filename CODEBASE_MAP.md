@@ -1,1173 +1,1599 @@
-
-### `CODEBASE_MAP.md` Formatting
-This file is read both by people (in a rendered markdown viewer) and by AI agents.
-When adding or modifying entries, retain the general structure of the file:
-
-- keep the bulleted-list style: 
-  - one item per line
-  - nested to mirror the directory hierarchy
-- do not compress lists into comma-separated prose, even to save tokens — human readability comes first
-- keep section ordering: 
-  - package directories
-  - dependencies
-  - layer relationships/patterns
-
-### `CODEBASE_MAP.md` Maintenance
-**This file must be updated whenever the file structure changes.**
-That includes:
-- adding, removing, or renaming any `.py` file or directory
-- converting a single-file module into a package (or vice versa)
-- moving code between modules
-- adding or removing third-party dependencies
-- any change to layer relationships or architectural patterns
-
-Keeping this file accurate is as important as keeping the code correct —
-AI agents that work on this project depend on it to avoid re-exploring
-the entire codebase from scratch every session.
-
 # harness_designer codebase map
 
-PySide6 (Qt) desktop app for designing wire harnesses. ~530 .py files. GUI toolkit is **PySide6**, with a wx-style `CallAfter` shim in `app.py`. OpenGL rendering for 2D/3D editors. Multi-process architecture for DB/model/image work. For release builds the project's Python code is converted to C extension modules and compiled, so hot numeric loops run much faster than the interpreted dev environment suggests.
+**MANDATORY: before working in any directory under `harness_designer/`, `builder/`, or
+`diagnostics/`, read that directory's own `MAP.md` file first.** This file (`CODEBASE_MAP.md`) is
+now just a bare directory/file tree for quick orientation — it has no descriptions. Every real
+directory has a `MAP.md` next to it (same folder) with what each file/subfolder is for, plus known
+oddities and pitfalls. Read the map in full before reading or editing code there; update it in the
+same change whenever a file is added, removed, or renamed. See `MEMORY.md`'s "MANDATORY:
+per-directory MAP.md files" section for the full rule.
 
-Contents/structure of the `harness_designer/` package.
+PySide6 (Qt) desktop app for designing wire harnesses. GUI toolkit is **PySide6**, with a wx-style
+`CallAfter` shim in `app.py`. OpenGL rendering for 2D/3D editors. Multi-process architecture for
+DB/model/image work. For release builds the project's Python code is converted to C extension
+modules and compiled, so hot numeric loops run much faster than the interpreted dev environment
+suggests.
 
-## `.`
-- `app.py`: Qt application bootstrap
-  - `App` class
-  - splash + background loading + shutdown
-  - `CallAfter()` (run callable on main thread)
-- `config.py`: `Config` object 
-  - app settings
-  - database config under `Config.database`
-  - `ConfigDB` metaclass persists settings to sqlite, but **only values changed 
-    via a UI element get written** — untouched settings always follow the 
-    class defaults in code, so editing a default in `config.py` propagates 
-    to users who haven't customized it
-- `resources.py`
-- `color.py`
-- `utils/`: utility helpers (layered package)
-  - `paths.py`: `get_appdata()`, `get_documents()`
-  - `remap.py`: `remap()` value range conversion
-  - `wire_conversions.py`: AWG/mm²/diameter conversions
-  - `snap_pool.py`: `SnapPool` (numpy-backed nearest-point lookup)
-  - `ui_utils.py`: `HSizer()`, `IMAGE_FILE_WILDCARDS`, `MODEL_FILE_WILDCARDS`
-  - `bounding_boxes.py`: `compute_aabb()`, `compute_obb()`, `adjust_aabb()`
-  - `mesh_normals.py`: `compute_normals()`, `compute_smooth_normals()`, `compute_face_normals()`, `compute_face_indexes()`
-  - `mesh_surface_picker.py`: mesh surface picking (ray/triangle hit testing)
-  - `model_utils.py`: `compute_edges()`, `convert_model_to_mesh()`
-- `app_mixins/`: application-level mixins
-  - `callback_mixin.py`
-- `check_types.py`: `do()` runtime type-checking decorator (applied via `@_check_types.do` across most of the package; see MEMORY.md Architecture notes)
-- `monkey_patch.py`
-- `splash.py`
-- `critical_error_dialog.py`
-- `__version__.py`
+Bare tree below (files and folders, no descriptions — read the relevant `MAP.md` for those).
+Third-party dependencies, layer relationships, the 3D rendering pipeline, and cross-cutting
+patterns are no longer summarized here; the parts of that content tied to a specific
+file/directory now live in that directory's `MAP.md`, and the genuinely cross-cutting parts are in
+`MEMORY.md`.
 
-## database
-- `config_db.py`
-- `utils.py`
-- `db_connectors/`:
-  - `base.py`: (`BaseConnector` wrapping con+cursor)
-  - `db_data.py`
-  - `mysql_connector/`
-    - `connector.py`
-    - `settings_dialog.py`
-    - `sql_table.py`
-  - `sqlite_connector/`: same as `mysql_connector/`
-- `global_db/`: shared parts-catalog tables, one file per entity
-  - part entities:
-    - housing
-    - terminal
-    - seal
-    - seal_type
-    - boot
-    - cover
-    - cpa_lock
-    - cpa_lock_type
-    - tpa_lock
-    - splice
-    - splice_types
-    - wire
-    - wire_marker
-    - transition (+_branch)
-    - cavity
-    - cavity_lock
-    - accessory
-    - adhesive
-    - bundle_cover
-  - file/resource entities:
-    - image
-    - datasheet
-    - cad
-    - file_types
-  - lookup tables:
-    - color
-    - material
-    - manufacturer
-    - gender
-    - plating
-    - series
-    - family
-    - shape
-    - temperature
-    - direction
-    - protection
-    - wire_type (`wire_types`: "Wire" = the nil default row, "Coaxial", "Ribbon", ...;
-      `wires.wire_type_id` points at it)
-    - setting
-  - `bases.py` (~1300 lines): table base class. `TableBase._row_cache` is a
-    per-row read/write-through cache (`db_id -> {column: value}`), not a
-    per-table bulk load (see WRITE_DESIGN.md section 4.9) — populated once in
-    `EntryBase.__init__` (every row is an `_EntrySingleton`, so this only runs
-    once per row) and evicted by `_EntrySingleton`'s existing weakref cleanup
-    once nothing references that row's wrapper. `select()`/`update()`/
-    `delete()`/`insert()` all read or write through it
-  - `resource_state.py`: tracks resource sync state
-  - `used_part.py`: `used_parts` table — tracks which accessory parts (tpa_lock/cpa_lock/cover/
-    terminal, all nullable FKs, `ON DELETE CASCADE`) have previously been used with a given
-    housing (`housing_id`, not-null FK, `ON DELETE CASCADE`); history table, not a placeable
-    part type, so no `project_db`/`objects`/`handlers` counterpart — mirrors `resource_state.py`'s
-    shape. UI to surface this per-housing not yet built (2026-07-20).
-  - `mixins/`: column mixins
-    - base
-    - part_number
-    - name
-    - description
-    - manufacturer
-    - color
-    - material
-    - dimension
-    - weight
-    - image
-    - resource
-    - model3d
-    - adhesive
-    - cavity_lock
-    - compat_housings/seals/terminals
-    - direction
-    - family
-    - gender
-    - plating
-    - protection
-    - wire_type (`WireTypeMixin` / `WireTypeControl`, used by `wire.py`)
-    - series
-    - temperature
-    - wire_size
-  - `model3d.py`: 3D model storage (`Models3DTable`, `Model3D`)
-  - `ip/`: IP rating tables
-    - fluid
-    - solid
-    - supp
-- `project_db/`: per-project tables, all prefixed `pjt_`
-  - pjt_housing — has `position_pegboard`/`angle_pegboard` (`PositionPegboardMixin`/
-    `AnglePegboardMixin`, own property overrides binding `_update_position_pegboard`/
-    `_update_angle_pegboard`) — batch-cascades to every cavity's/terminal's peg-board
-    position/angle (+ clones via `parent_point_id`), mirroring `_update_position3d`/
-    `_update_angle3d` minus the housing-accessory (cover/seal/boot/tpa-lock/cpa-lock) groups,
-    which aren't viewable in the peg-board editor. Y axis always honored/stored here — locking
-    is object-level only (`objects/objects_pegboard/`)
-  - pjt_terminal — `PositionPegboardMixin`/`AnglePegboardMixin`/`VisiblePegboardMixin`, leaf
-    (no cascade of its own, matches 3D)
-  - pjt_seal
-  - pjt_boot — peg-board support deferred (not yet added)
-  - pjt_cover
-  - pjt_cpa_lock
-  - pjt_tpa_lock
-  - pjt_cavity — `PositionPegboardMixin`/`AnglePegboardMixin`/`VisiblePegboardMixin`; own
-    `_update_angle_pegboard` mirrors `_update_angle3d` minus aabb/obb rotation (no peg-board
-    mesh geometry) and minus the `or self.seal` fallback (seal not viewable in peg-board)
-  - pjt_splice — excluded from peg-board entirely (not shown in that view); mechanical
-    rename-breakage fixes only (`PositionPegMixin`/`AnglePegMixin` → `...Pegboard...`), no new
-    capability
-  - pjt_transition (+_branch) — transition has `PositionPegboardMixin`/`AnglePegboardMixin`/
-    `VisiblePegboardMixin` (leaf, no cascade) and owns ONE peg-board wire table (`wires` = the
-    de-duplicated union of its branches' wires); transition_branch has `PositionPegboardMixin`
-    only (no angle, matches its 3D shape) + `VisiblePegboardMixin`, and NO table of its own
-    (no `TablePositionPegMixin`; its `table_point_peg_id`/`table_hidden` schema columns are unused)
-  - pjt_wire — `StartStopPositionPegboardMixin`/`VisiblePegboardMixin`; `waypoints_pegboard`
-    property (own independent waypoint set via `pjt_points_pegboard_table.for_wire`, separate
-    from `waypoints3d`/`waypoints2d` — counts differ per view)
-  - pjt_wire_marker
-  - pjt_wire_service_loop — `AnglePegboardMixin`/`StartStopPositionPegboardMixin`/
-    `VisiblePegboardMixin`, leaf
-  - pjt_wire_layout — hand-written (NOT mixin-based) exclusive position handling: exactly one
-    of `position3d`/`position2d`/`position_pegboard` (`point3d_id`/`point2d_id`/
-    `point_pegboard_id` columns) is ever non-NULL per row, each setter clears the other two.
-    Deliberately doesn't use `Position3DMixin`/`Position2DMixin`/`PositionPegboardMixin` — their
-    shared blind auto-create-on-NULL getter is wrong here. `VisiblePegboardMixin` added
-  - pjt_wire_path — NEW 2026-09-26, untested (see `BUNDLE_DESIGN.md` section 2.6):
-    `PJTWirePathsTable`/`PJTWirePath` for `pjt_wire_paths`, one row per INTERIOR waypoint per wire per
-    view (`wire_id`, `idx`, exactly one of `point3d_id`/`point_pegboard_id`/`point2d_id`, plus optional
-    `bundle_id`/`concentric_id`/`transition_id`/`transition_branch_id` tags; a wire's start/stop stay
-    columns on `pjt_wires`). Rows reference SHARED point rows, so `idx` lives here, not on the point.
-    THE source of every wire waypoint index: everything writes through the table's `add`/`append`/
-    `remove`/`set_route` (which renumber in one `batch_update`), and `PJTWire.waypoints3d`/
-    `waypoints2d`/`waypoints_pegboard` read from it
-  - pjt_bundle_path — NEW 2026-09-26, untested: `PJTBundlePathsTable`/`PJTBundlePath` for
-    `pjt_bundle_paths`, the bundle equivalent (`bundle_id`, `idx`, exactly one of `point3d_id`/
-    `point_pegboard_id` -- no schematic), same `add`/`append`/`remove`/`set_route` API;
-    `PJTBundle.waypoints3d`/`waypoints_pegboard` read from it
-  - pjt_bundle (`length_mm`/`length_m` properties added — mirrors `pjt_wire`'s, via
-    `geometry.line.Line.length()`) — `StartStopPositionPegboardMixin`/`VisiblePegboardMixin`;
-    `waypoints_pegboard` property (no schematic equivalent — bundles never shown in schematic)
-  - pjt_bundle_layout — same hand-written exclusive-position pattern as `pjt_wire_layout`, but
-    only `position3d`/`position_pegboard` (no schematic variant). `VisiblePegboardMixin` added
-  - pjt_concentric*
-  - pjt_point2d — real `x`/`y`/`z` columns/properties, 1:1 with `Point`'s axes (schematic plane is
-    X/Z, so `y` is 0.0); `insert(x, y, z, wire_id=None, idx=None)`
-  - pjt_point3d
-  - pjt_point_pegboard — `PJTPointPegboard`/`PJTPointsPegboardTable`, structurally identical to
-    `pjt_point3d.PJTPoint3D` (same singleton/attach/clone/self-heal lifecycle, `parent_point_id`
-    column, `_skip_db_write` batch flag) against
-    `pjt_points_pegboard` instead — uses an 8-byte `b'pegboard'` `Point.db_id` suffix for
-    clone-detection (`pjt_point3d`/`pjt_point2d` use 2-byte `b'3d'`/`b'2d'` suffixes)
-  - pjt_circuit
-  - pjt_note
-  - **Peg Board Editor DB support (2026-08-13)**: every peg-board-viewable object (housing,
-    terminal, cavity, wire, wire layout, bundle, bundle layout, transition, transition branch,
-    wire service loop — boot deferred) gets its own `position_pegboard`/`angle_pegboard`
-    (or `start_position_pegboard`/`stop_position_pegboard` for wire/bundle) backed by a shared
-    `pjt_points_pegboard` table, plus a `visible_pegboard` column/`VisiblePegboardMixin`. Wire/
-    bundle waypoints are independent rows in `pjt_points_pegboard` (own set per view, not shared
-    with the 3D/schematic point tables), each requiring a `pjt_wire_layouts`/`pjt_bundle_layouts`
-    row referencing it. Orphaned-point batch cleanup on project close is planned but not yet
-    implemented (`TODO.md`). The OLD isolated `pjt_pegboard_points`/`pjt_pegboard_waypoints`/
-    `pjt_pegboard_tables` overlay-table design (previously described here) has been fully
-    superseded by this mixin-based approach — those old tables are gone. `pjt_pegboard_tables`
-    (the *data-table-overlay* position feature — unrelated to an anchor's own position) is a
-    separate surviving concept, still keyed by `TablePositionPegMixin`/`table_point_peg_id`
-  - pjt_bases.py (~1100 lines): base class
-  - `project.py`: project table
-  - `cleanup.py`
-  - `table_data.py`: `TableData` -- one project table's cache (WRITE_DESIGN.md section 4). One load per project,
-    reads from memory, changes recorded per row and column, inserts and deletes cancelled or queued, and the
-    flush's `DELETE`/`INSERT`/`UPDATE` statements built from the cache. `RowDeletedError` is raised on a read
-    or change to a deleted row. `RAW_DELETE_IMMEDIATE` selects the immediate or deferred delete path. Project
-    tables only; not yet wired into `PJTTables`.
-  - `mixins/`:
-    - base
-    - position2d/3d
-    - **Object-editor controls (all `*Control` classes in `mixins/`)**: `PositionProperty(axes=...)`/`AngleProperty(axes=...)`
-      only (old `Position2D/3DProperty`/`Angle3DProperty` are gone) — schematic = `axes='xz'` position /
-      `axes='y'` angle, 3D/pegboard position = `'xyz'`, pegboard angle = `'y'`. Every `PJT*Control` composite
-      has a `*_pegboard_ctrl` next to its 3D one wherever the row class has the pegboard mixin
-      (splice deliberately excluded — not in the pegboard view)
-    - position_pegboard (mirrors `position3d`, no default `.bind()` — subclasses needing a
-      cascade override the property itself, e.g. `PJTHousing.position_pegboard`)
-    - angle2d/3d
-    - angle_pegboard (mirrors `angle3d`, binds `self._update_angle_pegboard` by default —
-      subclasses needing a cascade only need to override that method, not the property)
-    - scale3d
-    - visible2d/3d
-    - visible_pegboard (`is_visible_pegboard` column, mirrors `visible3d`'s `is_visible3d`
-      naming convention)
-    - color
-    - name
-    - notes
-    - part
-    - housing
-    - smooth
-    - start_stop_position2d
-    - start_stop_position3d
-    - start_stop_position_pegboard (mirrors `start_stop_position3d`)
-    - table_position_peg (the data-table-overlay position — deliberately NOT renamed to
-      "pegboard", a distinct feature from an anchor's own `position_pegboard`)
-- `create_database/`: one file per table containing seed/creation 
-                      logic (mirrors global_db naming)
-  - `bundle_paths.py`: schema for `pjt_bundle_paths` (see `pjt_bundle_path` above); same sibling-repo
-    note as `wire_paths.py` below
-  - `wire_paths.py`: schema for `pjt_wire_paths` (see `pjt_wire_path` above); NOT yet in the sibling
-    `harness_designer_database` repo's `builder/create_database/`, which has already drifted (no
-    `bundle_cover_layouts.py`, `wire_layouts.py`, `points_pegboard.py`, ...)
-  - `points_pegboard.py`: schema for `pjt_points_pegboard` — same shape as `points3d.py`/
-    `points2d.py` (real x/y/z and `parent_point_id`; the `wire_id`/`bundle_id`/`idx` waypoint tags
-    were REMOVED 2026-09-26 -- a point is pure geometry, order lives in `pjt_wire_paths`/
-    `pjt_bundle_paths`; existing databases keep the old, now unused columns)
-  - `wire_types.py`: schema, default rows ("Wire" is the nil UUID row, "Coaxial", "Ribbon") and
-    `get_wire_type_id` of the `wire_types` lookup table; `wires.py` has the matching `wire_type_id` column and
-    `add_wire(wire_type=...)`. Mirrored in the sibling `harness_designer_database` repo
-    (`builder/create_database/wire_types.py`, seeded from `Universal/wire_types.json`)
-- `common_db/`
-  - `callback.py`: DB callback plumbing
-  - `lazy_tab_mixin.py`: lazy per-tab DB table loading
-- `update_monitor/` — currently empty
+## Tree
 
-## `process/` (multiprocessing)
-- `manager.py`: keyring-backed credential management for DB monitor processes (HMAC handshake)
-- `db_broker.py`: handles the database connections for the processes.
-- `db_process.py`: database worker process
-- `model_process.py`: 3D model processing worker
-- `image_process.py`: image worker
-- `clean_creds/win.py`: Windows credential cleanup
-
-## `objects/` (scene objects rendered in editors)
-- wrapper classes (`ObjectBase` in `object_base.py`): one wrapper per scene part
-  holding `obj2d` + `obj3d` plus child wrappers (e.g. `objects/housing.py` `Housing`
-  owns cavities, tpa/cpa locks, seal, cover, boot) and fanning select/delete/identify
-  out to both views.
-  - housing
-  - terminal
-  - wire
-  - wire_layout
-  - wire_marker
-  - wire_service_loop
-  - bundle
-  - bundle_layout
-  - circuit
-  - note
-  - splice
-  - transition
-  - seal
-  - boot
-  - cover
-  - cpa_lock
-  - tpa_lock
-  - cavity
-  - project
-  - project_model
-  - generic
-- `objects3d/`: the actual renderable 3D views (constructed with `(parent=wrapper, db_obj=pjt entry)`)
-  - one file per harness part (housing, terminal, wire, wire_layout, wire_marker, wire_service_loop,
-    bundle, bundle_layout, splice, transition, seal, boot, cover, tpa_lock, cpa_lock, cavity, note,
-    project_model, generic)
-  - `base3d.py` (~960 lines): base 3D object
-  - `menu_ops.py`: context-menu operations
-  - `mixins/`:
-    - angle
-    - move
-    - wire_type
-- `objects2d/`: same structure as `objects3d` except for 2D rendering, minus the `wire_type` mixin
-  - one file per harness part (housing, terminal, wire, wire_layout, wire_marker, wire_service_loop,
-    bundle, bundle_layout, splice, transition, seal, boot, cover, tpa_lock, cpa_lock, cavity, note,
-    project_model, generic)
-  - `base2d.py`: base 2D object
-  - `mixins/`:
-    - angle
-    - move
-- `objects_pegboard/`: the peg-board views (same one-file-per-part layout as `objects3d`/`objects2d`)
-  - `table.py`: `Table` — the floating wire table (GL texture of a hosted `WireTable`); not view-
-    specific (same class name mirrored in `objects3d`/`objects_schematic`'s own `table.py`, the
-    facade is `objects/pegboard_table.py` still named for its DB table), just the peg-board view's
-    own implementation; forwards the table's `wire_selected`/`wire_deselected` signals to the
-    editor's `WireHighlight`
-  - `wire_highlight.py`: `WireHighlight` (one per editor, `EditorPegboard.wire_highlight`) — when a wire
-    is selected in ANY wire table, lights up everything it touches in `Config.editor_pegboard.
-    wire_highlight_color` via `identify()`: the wire (if visible in the peg board) or its bundle(s),
-    each transition BRANCH it is routed through (never the whole transition), and its end housings
-    (or the terminal itself when not seated in a housing); bundle/branch membership comes from
-    `pjt_wire_paths` tags
-
-  
-
-## `handlers/` (selection/interaction handlers, one per part type)
-- `handler_base.py` (~290 lines): base class
-  - `HandlerBase.__init__`: captures mainframe/part_id/camera/ptables state for the handler
-  - `capture_position()`/`release_capture()`/`ignore_next_input()`: mouse-capture lifecycle
-    (`release_capture` raises `NotImplementedError` — subclasses must implement placement)
-  - orientation-alignment helpers, used to snap a newly placed accessory to the face of the
-    housing/cavity it's being dropped into:
-    - `obb_face_direction()`: outward-normal for one OBB face
-    - `euler_from_matrix_continuous()`: YXZ Euler from a rotation matrix, unwrapped continuous
-      with the previous angle (avoids ±180° flips)
-    - `set_angle_from_housing()` / `set_angle_from_cavity()`: align an object's angle3d to a
-      housing's/cavity's world rotation via `model3d.forward_up` face indices
-    - `reset_angle()`: reset angle3d to identity
-- `*_handler.py`:
-  - bundle
-  - bundle_layout
-  - cover
-  - cpa_lock
-  - housing
-  - note
-  - seal
-  - splice
-  - terminal
-  - tpa_lock
-  - transition
-  - wire
-  - wire_layout
-  - wire_routing (`wire_routing_handler.py` -- skeleton-first wire routing
-    engine, BUNDLE_DESIGN.md 2.7: `RouteWalk` (resumable, one hop at a
-    time) + `route_wire` (thin wrapper for an already-resolved hop list)
-    walk bundles/transitions, computing guard/housing-breakout-point
-    geometry, and commit to `pjt_wire_paths`. Takes a `view` arg
-    ('3d'/'pegboard') throughout -- same skeleton topology, each view's
-    own point columns. `wire_routing_drag.py` is the UI half --
-    BUNDLE_PLACEMENT.md section 12: drag-start eligibility scan + two-tier
-    highlight (`compute_eligible_targets`/`highlight_eligible`/
-    `set_hover_highlight`), `WireRouteMixin` (mixed into `drag_handlers.
-    editor_3d/editor_pegboard.wire_route.WireRoute`, alongside that
-    view's own ordinary `wire.Wire` drag handler), and `RouteSession` (the
-    click-driven continuation through further transitions, installed as a
-    Wire view object's own `_active_handler` -- see `objects.objects_3d/
-    objects_pegboard.wire.Wire.handle_interaction`'s dispatch))
-  - wire_service_loop
-
-## `gl/` (OpenGL)
-- `context.py`
-- `vbo.py` (~930 lines, VBO pipeline) 
-- `events.py` 
-- `info.py`
-- `canvas2d/`: 
-  - camera 
-  - canvas.py + canvas2d.py
-  - `grid.py`: `Grid` — procedural top-down dot grid, shared unchanged by both
-    `canvas2d` and `canvas_pegboard` (both editors just call `set(flag)`/
-    `render(zoom)`). Draws one small quad sized to exactly cover the current
-    viewport every frame; the fragment shader (`gl/shaders/grid2d.py`, real
-    now, no longer dead code) computes every dot procedurally from world
-    position with no CPU-side per-dot precompute at all — replaced an earlier
-    CPU-generated-VBO-of-dot-positions approach (Decimal-heavy nested Python
-    loop building up to ~650k points into a background thread) that turned
-    out to have a latent GL-context-timing bug (VBO upload not wrapped in
-    `canvas.context`, so `glGenBuffers`/`glBufferData` could silently produce
-    invalid buffers with no Python exception if the context wasn't current
-    by the time the deferred callback fired). Adaptive spacing snaps to a
-    "nice" 1/5 × 10^n tick sequence (`nice_value()`/`nice_index_for()`
-    module functions, mirrored by hand in the GLSL — every group of 2
-    sequence indices covers one decade) targeting
-    `distance / Config.editor2d.grid.zoom_ratio` (same field on
-    `Config.editor_pegboard.grid`) as the raw spacing to snap. A 3-per-decade
-    1/2/5 sequence was tried first but rejected — its 2→5 step is a 2.5x
-    ratio, not an integer, so minor-tier dots didn't land on every
-    major-tier dot. 1/5 alternates integer ×5/×2 steps, so every major dot
-    is guaranteed to also be a minor dot (full nesting) at the cost of one
-    fewer step per zoom decade. Same formula evaluated per-pixel in the
-    shader and once on the CPU (`Grid._current_major_spacing`) to keep
-    `grid_spacing` (read by
-    `Canvas.snap_to_grid`) correct.
-  - dragging
-  - key_handler.py / mouse_handler.py
-  - object_picker
-  - ⚠ `key_handler.py`'s `KeyHandler` is dead/unreachable code: never
-    instantiated by `canvas.py` (only `MouseHandler2D` is), doesn't
-    inherit `QObject` (so `installEventFilter()` would raise `TypeError`
-    if it were ever constructed), reads `config.rotate`/`pan_tilt`/
-    `truck_pedestal`/`walk`/`keyboard_settings` which don't exist on
-    `Config.editor2d` (that's the 3D camera's config shape), and its
-    `_key_loop` fires repeat ticks via `QTimer.singleShot()` from a plain
-    `threading.Thread` with no Qt event loop, which never fires. Found
-    while building `canvas_pegboard/` (below); not fixed here since
-    canvas2d/ is out of scope for that task.
-  - ⚠ `mouse_handler.py`'s `_show_canvas_context_menu` (right-click on a
-    selected object) calls `self.canvas.grid_enabled`/`set_snap_to_grid`/
-    `set_grid`/`self.canvas.camera.reset()` — none of which exist on
-    `canvas.py`'s `Canvas` or `camera.py`'s `Camera2D` (the real
-    attributes are `config.grid.enabled`/`set_grid_snap`/
-    `set_grid_display`/`camera.Reset()`). Same discovery, same
-    out-of-scope non-fix.
-- `canvas_pegboard/`: Peg Board Editor canvas — Phases 1-2 complete (static
-  top-down read-only render, incl. bundle strands + bare-wire visibility, plus
-  click-to-select with cross-editor sync added afterward; no drag/waypoints/
-  tables yet — Phases 3-4). Mirrors `canvas2d/`'s file layout and reuses
-  `canvas2d.camera.Camera2D` and `canvas2d.grid.Grid` directly (both are
-  canvas-agnostic, just duck-type against `.config`/`.context`/`.Refresh()`)
-  instead of copying them. `key_handler.py`/`mouse_handler.py` are NOT straight
-  ports of `canvas2d`'s (see the ⚠ notes above) — they're wired to
-  `Config.editor_pegboard`'s actual fields, `KeyHandler` inherits `QObject`, and
-  its repeat loop dispatches via `app.CallAfter` (not `QTimer.singleShot` from a
-  bare thread) so held-key pan/zoom/reset are genuinely functional, verified
-  with real `QTest` mouse/keyboard events. Click-to-select is implemented
-  (`mouse_handler.py`'s `_find_anchor_at_point`/`_find_selected_anchor`,
-  driving `ObjectBase.set_selected()` exactly like the 2D/3D editors, so
-  selection sync is automatic); dragging/waypoint-adding is still `TODO`.
-  - `flatten.py`: derives the "lay it flat" rotation for a placed part purely
-    from its own stored (unrotated) local OBB + `Model3D.forward_up`
-    (`[forward_face_idx, up_face_idx]`) — deliberately ignores the part's
-    current 3D-scene rotation (a harness is pulled off the vehicle and laid
-    flat on a table, so its as-mounted angle is irrelevant). Falls back to the
-    smallest-OBB-extent axis when `forward_up` was never set; transitions (no
-    `Model3D` at all) use a dedicated function hard-coding local axis Z as
-    "up", since `objects.objects3d.transition._build_model` confines every
-    branch to the local XY plane by construction.
-  - `layout_graph.py`: `PegboardAnchor` + `build_anchors(project)` — walks
-    housings/splices/transitions/bare terminals (`cavity_id is None`) with a
-    live 3D scene object, computing each one's default peg-board position as
-    the (X, Z) projection of its real 3D position (no persistence yet — that's
-    Phase 3). Splices (no single `position3d`, only start/stop) use the
-    start/stop midpoint as a deliberate Phase-1 simplification.
-  - `strand_mesh.py`: `build_strand_quad()` — flat rectangle "strand" mesh
-    builder, now wired into rendering (Phase 2). `layout_graph.py`'s
-    `build_bundle_strands()`/`build_bare_wire_strands()` collect one
-    `BundleStrand` per `PJTBundle` row (straight XZ segment, start→stop) and
-    one `BareWireStrand` per bare-terminated wire end (`PJTWire.terminals()`
-    resolved terminal with `cavity_id is None`, drawn from the nearer bundle
-    endpoint out to that terminal's own position) — implements the plan's
-    "bundles only, except bare-terminated wires" visibility rule.
-    `canvas.py` builds one `(NonPooledVBOHandler, materials.Generic)` pair per
-    strand (deferred from `load_project()` to `_render_objects()`, since GPU
-    buffer creation needs a current GL context that isn't guaranteed at
-    `load_project()` time) and draws them under the *same* schematic2d
-    program/uniforms anchors use, with an identity `objectPosition`/
-    `objectRotation`/`objectScale` transform — `build_strand_quad` already
-    bakes final world-space XZ vertices directly, so no per-strand transform
-    is needed. ⚠ `PJTBundle.diameter`'s existing bug (selects the wrong
-    column, `pjt_bundle.py`) is worked around locally
-    (`layout_graph._safe_bundle_width`, sanity-clamps or falls back to a
-    fixed default) rather than fixed at the source — still a known,
-    separately-tracked bug.
-  - `canvas.py`'s `_render_objects()` reuses each anchor's EXISTING
-    `obj3d._vbo`/material/scale (no new upload, same shared VBO/arena the 3D
-    editor draws from) under the schematic2d shader
-    (`gl/shaders/schematic2d.py` — previously dead code, now actually compiled
-    via `gl.shaders.compile_schematic2d_program()` and exercised for the first
-    time), replicating `objects.objects3d.base3d.Base3D._render_geometry`'s
-    exact uniform-setting contract (`objectPosition`/`objectRotation`/
-    `objectScale`/`normalMode`, `GLMaterial.set()` reused as-is) plus the
-    shader's own once-per-frame uniforms (`projection`/`view`/`flipY`/
-    `cameraPos2D`/`lightColor`/`lightIntensity`/`renderMode`).
-  - `Canvas.load_project(project)` rebuilds the full anchor list from scratch
-    (safe to call repeatedly) — `ui/mainframe.py`'s `add_object`/`remove_object`
-    fan-out calls it on every project object add/remove (guarded on
-    `self._project`, NOT the `self.project` property, since that property's
-    getter blocks on a project-open dialog when none is open yet), so it
-    converges to a complete render as a project loads. This is an accepted
-    O(n) full-rebuild-per-object Phase-1 simplification, not an oversight —
-    incremental add/remove is later-phase work.
-- `canvas3d/`: same as `canvas2d` (canvas.py + canvas3d.py, key_handler.py/mouse_handler.py) plus
-  - arcball (dormant — replaced by rotation_rings; pending decision to expose as option or remove)
-  - axis_overlay
-  - floor
-  - focal_target
-  - headlight
-  - scene_light
-  - move_arrows
-  - rotation_rings (rotation gizmo + DragRotate; see Patterns section)
-- `shaders/`
-  - compiler
-  - faces
-  - edges
-  - vertices
-  - floor
-  - `grid2d`: procedural top-down dot-grid shader (see `gl/canvas2d/grid.py`)
-    — single quad, all detail computed per-pixel from world position, same
-    technique `floor.py` uses for the 3D floor grid
-  - `schematic2d`: standalone shader module, **not currently wired up** —
-    nothing compiles or uses it; the schematic canvas actually reuses the
-    3D `faces`/`edges`/`vertices` programs via `CanvasBase`. Deliberately
-    left unused (2026-08-23 decision) — do not add a `Program` wrapper for
-    it without checking with the user first.
-  - `program.py` / `__init__.py`: **single entry point for every shader
-    program** — `ShaderProgram()` (singleton via `_ShaderProgramMeta`) exposes
-    `.faces`/`.edges`/`.vertices`/`.floor`/`.grid`, each a `Program` subclass
-    (`FacesProgram`/`EdgesProgram`/`VerticesProgram`/`FloorProgram`/
-    `GridProgram`) wrapping a compiled GL program int. `Program` supports
-    `with program:` (ref-counted `glUseProgram`/`glUseProgram(0)`) and
-    exposes typed write-only properties (`.position`, `.projection`,
-    `.material_diffuse`, `.stripe_clip_start`, etc.) whose setters call the
-    correct `GL.glUniform*`, with the uniform location cached once at
-    construction. This is the only place in the app that should call
-    `GL.glGetUniformLocation`/raw `GL.glUniform*`/`GL.glUseProgram` —
-    every consumer (canvases, `gl/vbo.py`, `gl/materials/material.py`,
-    `objects/objectsvar/base_var.py`, drag/rotation gizmo handlers, floor
-    renderers) gets a `Program` instance handed to it and sets uniforms only
-    through its properties, never raw GL calls. `gl/vbo.py`'s
-    `VBOHandlerBase.render(program, position, angle, scale, smooth)` takes
-    the `Program` object itself (not location ints) — `smooth=None` means
-    "leave normalMode untouched" (gizmos that never wanted it touched),
-    `True`/`False` sets it via `program.normal_mode` when the program type
-    supports that property (checked via `hasattr(type(program), ...)`,
-    a class-level check that never triggers the write-only getter).
-    `FacesProgram` also owns the headlight spotlight uniforms
-    (`headlight_position/direction/diffuse/diameter/enabled`) — the
-    headlight shading term was added to `faces.py`'s fragment shader
-    2026-08-23 (previously a confirmed no-op: the uniforms didn't exist in
-    the GLSL at all).
-- `materials/`: weight-based material system (rewritten 2026-09-15, see
-  MEMORY.md "Material system rewrite" for the full root-cause/design
-  writeup) -- every material type is just scalar weights
-  (`_ambient_weight`/`_diffuse_weight`/`_specular_weight`/`_metallic`/
-  `_shine`, plus `_cl_roughness`/`_cl_reflectivity`/`_cl_ior` for the
-  offline ray tracer) applied directly to the caller's `Color`, never a
-  separate hand-picked ambient/diffuse/specular RGB triple -- this is
-  what keeps the on-screen color matching the color that was asked for
-  - `material.py`: `GLMaterial` base -- computes ambient/diffuse as the
-    true color times a scalar (hue can't shift), specular as a
-    per-channel lerp between neutral white and the true color driven by
-    `_metallic` (a metal's tinted highlight is the only place hue can
-    move, confined to the shininess-exponent hot spot)
-  - `generic.py` / `plastic.py` / `metallic.py` / `polished.py` /
-    `rubber.py`: each just declares that class's weights; no per-class
-    `__init__` override needed anymore
-  - `glowing.py`: adds the emissive term on top of the same base fill
-- `model_preview/canvas.py`: small preview canvas
-
-## `ui/`
-- `mainframe.py` (~2000 lines): main window, docking, ties everything together
-- `editor_2d/editor2d.py`, `editor_3d/editor3d.py`: schematic & 3D editors
-- `editor_pegboard/editor_pegboard.py`: Peg Board Editor dock (`EditorPegBoard` +
-  `EditorPegBoardPanel(gl.canvas_pegboard.CanvasPegBoard)`) — structural mirror of
-  `editor_2d/editor2d.py`, wired into `mainframe.py` the same way (dock creation, full
-  `EVT_GL_*` signal set, closing sequence, `add_object`/`remove_object`/`set_selected`/
-  `set_clone_obj` fan-out). Unlike `editor2d`/`editor3d`, its `add_object`/`remove_object`/
-  `set_selected`/`set_clone_obj` are no-op stubs (Phase 1 has no peg-board selection/object
-  model) — real work happens through the separate `load_project(project)` method, called
-  from `mainframe.py`'s `add_object`/`remove_object` fan-out to keep the peg board's bulk
-  static render in sync as a project loads (see `gl/canvas_pegboard/` in the gl/ section).
-- `editor_assembly/`, `editor_ciruit/` (note typo "ciruit"): assembly & circuit editors (circuit has `editor_circuit.py`, `editor_widget.py`, `design_rules.py`, `bitmaps.py`)
-- `editor_db/`: parts-database editor
-  - `base.py` (~1100 lines) + one file per part type
-    (accessory, boot, bundle_cover, cover, cpa_lock, housing, seal, splice, terminal,
-    tpa_lock, transition, wire, wire_marker)
-  - `editordb.py`
-  - `edit_dialog.py`
-- `editor_obj/`: object property editor
-  - `editorobj.py`
-  - `prop_grid.py`
-- `editor_script/`: the scraper's Script Editor dock (design: `SCRAPER_DESIGN.md`, "Phase 3 as built").
-  `MainFrame.show_script_editor()` creates it on first use and `_link_scraper_docks()` joins it to the Web Browser
-  dock; the General toolbar's Script Editor button calls that method (no menu entry yet)
-  - `script_editor.py`: `ScriptEditorPanel` (`CodeEditorCtrl`; toolbar: New / Open / Save, Run / Stop, Examples;
-    autosaved working copy; tabs: Assistant, Console; it is a `SnippetSink`, so the inspector's code lands in it) and
-    `ScriptEditor(DockBase)` (creates the `ClaudeClient`; opens the key dialog from the assistant's settings button)
-  - `assistant_panel.py`: `AssistantPanel` -- the Claude assistant under the editor: tick what to send, preview,
-    Send / Stop, the streamed answer, Insert / Replace / Copy / View changes. All API work is `claude/`
-    (`ClaudeJob`); the prompts and tools are `scraping/assistant.py` / `assistant_tools.py`
-  - `console_panel.py`: `ConsolePanel` -- the Console tab: the runs started with Run (F5), the selected run's output,
-    Stop (`Shift+F5`) and its state; emits `stopIgnored` when a run is still going 2 s after Stop (the owner shows
-    the warning). Runs are `scraping/runner.py`'s, in threads of this process
-  - `message_dialog.py`: `ask()` / `MessageDialog` -- a message with standard buttons and one optional extra button,
-    as a `BaseDialog` (used for "save changes?", problems, and the "script did not stop" warning)
-- `object_browser/objectbrowser.py`: scene tree
-- `prop_ctrls/`: property-grid controls 
-  - `prop_base.py` + one file per type: 
-    - float
-    - int
-    - string
-    - color
-    - position2d/3d
-    - angle3d
-    - scale3d
-    - model3d
-    - image
-    - path
-    - enum
-    - choice
-    - combobox
-    - array_*…
-- `widgets/`: reusable controls
-  - autocomplete combos/textctrls
-  - color_ctrl
-  - list_ctrl
-  - foldpanelbar
-  - context_menus
-  - empty_space_menus.py: menus for right-clicking empty space in each view (3D: wire/terminal/housing/project model; pegboard: wire/terminal/housing; schematic: terminal/housing); the click position is where the new object goes
-  - search_db
-  - *_ctrl wrappers
-  - `code_editor_ctrl.py`: `CodeEditorCtrl`, a `QPlainTextEdit` Python editor (line numbers, Pygments highlighting,
-    auto-indent); the script editor widget for the scraper tool
-  - `wrap_label.py`: `WrapLabel`, a `QLabel` whose size hints are capped so a long unbroken string (a page address)
-    can never widen its dock or the main window; use it for text the app does not control
-- `dialogs/`:
-  - dialog_base.py
-  - about_dialog.py: About box — app info, update check (GitHub releases API),
-    package credits (left list, alphabetical) + metadata/license viewer
-    (`importlib.metadata` over installed dist-info dirs, incl. Python itself)
-  - part_search.py
-  - part_orientation.py
-  - properties_dialog.py
-  - bundle_wires_dialog.py
-  - export_dialog.py
-  - transition_routing.py
-  - add_project
-  - project_model_dialog.py: pick/change the project's own 3D model file + color (3D empty-space menu's Add/Edit Project Model)
-  - add_note
-  - project_dialog
-  - render_setings (typo)
-  - debug_settings
-  - closing_dialog.py
-  - database_error_dialog.py: `DatabaseErrorDialog(BaseDialog)` -- shows a database error with its context
-    (table, row id, SQL and params) and traceback; OK is the only way out (Escape ignored, no native close).
-    The caller logs the error; the dialog only displays it.
-  - error
-  - header
-  - `housing_editor/`:
-    - housing, cavity, accessory: obj+panel pairs (`housing_obj.py`/`housing_panel.py`, etc.)
-    - `analysis_panel.py`: `AnalysisItem` (one detected/pending cavity) + `EditPanel`
-      (name/shape/radius/half-w/half-h/length editor for the cavity-preview
-      tree's selected item) + `connector_analysis.py`: fit/clearance analysis
-    - `tree_panels.py`: the three always-visible bottom-panel tree controls
-      (wire-side surfaces, terminal-side surfaces, pending-cavity preview) --
-      `_TreeControlBase` (shared caption/toolbar/tree/info-label shell,
-      multi-select, Delete-key + auto-reselect-next-after-remove),
-      `PlaneTreePanel` (wire/terminal, Group-by-Plane/Group-by-Size views),
-      `CavityTreePanel` (flat list of `AnalysisItem`s pending Accept Cavities).
-      The terminal tree's right-click menu also has "Select Holes Instead of
-      Surface" (`invertHolesRequested`) for housings whose cavities are holes
-      cut through a face -- the dialog swaps the plane for its holes
-      (`connector_analysis.surface_holes`), which are analysed/committed as
-      manual (synthetic-marker) cavities so they're selectable in the 3D editor
-    - `config.py`
-    - `housing_editor.py`: dialog orchestration, 3D surface picking/overlay,
-      toolbar, the wire/terminal/cavity tree row + edit form <-> Cavities/
-      Accessories notebook `QStackedWidget` swap (triggered by "Accept
-      Cavities", which also one-time-gates the dialog's own OK button)
-- `system_menu/`: menubar menus
-  - file
-  - edit
-  - view
-  - database
-  - settings
-  - window
-  - help
-- `toolbar/`: 
-  - toolbar.py — `GeneralToolbar`, `EditorToolbar`, `NoteToolbar`, `EditorObjectToolbar`,
-    `Setting3DToolbar`, `PegBoardToolbar`; all constructed unconditionally in
-    `mainframe.py` regardless of which editor dock has focus (existing convention:
-    toolbars are global, not per-editor-focus). `GeneralToolbar`: the Internet button opens the scraper Web
-    Browser dock (`MainFrame.show_scraper_browser()`), the Script Editor button (icon `note_pen`) opens the script
-    editor dock (`show_script_editor()`); both docks are created on first click
-  - float_spin_button.py
-  - snap_angle_button.py (rotation-snap toggle: left click = enable/disable with 
-    checkbox icon overlay, right click = AutoCompleteComboBox popup of the 71 
-    valid snap angles; writes Config.editor3d.rotation_rings)
-  - pegboard_snap_button.py (`PegboardSnapButton` — Peg Board grid-snap toggle,
-    same left/right-click shape as `snap_angle_button.py`: left click =
-    enable/disable with checkbox icon overlay (icon: `icons.mip_mapping`, the
-    only checkerboard/grid-like icon asset available — no dedicated grid icon
-    exists), right click = popup with an "Auto" QCheckBox + QDoubleSpinBox
-    (no enumerable fixed-value set like snap angle has, so no
-    AutoCompleteComboBox). Writes `Config.editor_pegboard.grid.snap` /
-    `.manual_snap_spacing` (`None` = Auto, float = fixed override); registered
-    via new `toolbar.PegBoardToolbar`, since none of the other toolbars share
-    this button's theme (`EditorObjectToolbar` = 3D transforms,
-    `Setting3DToolbar` = 3D viewport display toggles, `GeneralToolbar` =
-    app-level dialogs). `gl/canvas_pegboard/canvas.py`'s `Canvas.snap_to_grid()`
-    was changed to check `config.grid.manual_snap_spacing` first, falling back
-    to `self._grid.grid_spacing` (the live LOD tier) when it's `None`.
-- `pegboard_table/`: the peg-board wire table widget
-  - `wire_table.py`: `WireTable` (an `EditorList`) — columns from `column_defs.py`, cross-table wire
-    selection sync, `wire_selected`/`wire_deselected` signals; the transition-only Branch column
-    (`transition_only` in `COLUMN_DEFS`, index 33) lists the `branch_id`s a wire passes through
-  - `column_defs.py`: append-only `COLUMN_DEFS` catalog + default column sets
-  - `mdi_host.py`: hosts the table in an off-screen `QMdiSubWindow` for texture grabbing
-- `log_viewer/viewer.py`
-- `datasheet_viewer/viewer.py`
-- `web_viewer/`: the scraper's Web Browser dock (design: `SCRAPER_DESIGN.md`). Imports QtWebEngine, so it is
-  imported only when the user first opens the browser -- `MainFrame.show_scraper_browser()` creates it, restores
-  its saved position, and `closeEvent` destroys it. The General toolbar's Internet button calls it (no menu entry
-  yet)
-  - `browser_dock.py`: `ScraperBrowser(DockBase)` and `ScraperBrowserPanel` (browser | inspector in a splitter)
-  - `browser_widget.py`: `BrowserWidget` -- address bar, `QWebEngineView`, persistent profile, hook injection,
-    downloads refused / permissions denied / new windows opened in place, "Scraper" page context menu, source
-    fetching (as served / rendered DOM)
-  - `capture_bridge.py`: `CaptureBridge`, the `QWebChannel` object the page's hook calls
-- `scraper_inspector/`: the inspector widgets (no QtWebEngine, so they can be tested alone)
-  - `inspector.py`: `ScraperInspector` -- Source / Network / Response tabs + the generated-script pane; `set_sink()`
-    sends snippets to the script editor instead of the pane. It is also the assistant's `AssistantContext` (page
-    address and source, the source selection, the picked request)
-  - `source_viewer.py`: `SourceViewer` -- highlighted read-only text; its right-click menu turns a selection into
-    code (`build_menu()`)
-  - `network_panel.py`: `NetworkPanel` / `NetworkModel` -- the captured requests (rolling window of 2000)
-  - `response_panel.py`: `ResponsePanel` -- one request: JSON tree or source text, request details, "repeat request"
-  - `json_tree.py`: `JsonTree` -- lazy JSON tree; selected values -> extraction code
-  - `snippet_pane.py`: `SnippetPane` -- the built-in generated-script pane (`CodeEditorCtrl`)
-  - `insertion.py`: `SnippetSink` (what snippets are sent to) and `insert_snippet()` (merges imports, one undo step)
-  - `background.py`: `BackgroundJob` -- run a function off the GUI thread, result back via signal
-
-## Other subsystems
-- `exporter/`: project export
-  - `exporter.py`
-- `bounds/`: pooled bounding-box / wire-path storage, one set per view
-  (3D, schematic, pegboard) held by `Manager` in `manager.py`
-  - `array_pool.py`: `ArrayPool`, the block/slot engine behind AABB/OBB
-    -- fixed-size numpy blocks (a row's address never moves), per-slot
-    weak refs, visible flags and category tags (`TAG_OBSTACLE`, see
-    `set_tag`/`rows_tagged`), free-list reuse via `release()`
-  - `aabb.py` / `obb.py`: the two concrete pools (row shape + the
-    vectorized ray test each defines)
-  - `segment_pool.py`: `SegmentPool`, wire paths as a vertex list (each
-    `Point.as_numpy` buffer referenced live, deduped, refcounted) plus
-    per-wire index pairs; `segments(exclude, window)` returns every
-    wire's segments as one array -- what the router's wire-to-wire lane
-    check reads (registered by `objects_schematic/wire.py`)
-  - `manager.py`: `Manager` / `View` (`.aabb`, `.obb`, `.segments`)
-- `wire_routing/`: orthogonal (H/V-only) auto-routing for the 2D
-  schematic editor's wires (moved out of `objects/objects_schematic/`
-  2026-09-16, into its own top-level package)
-  - `routing.py`: the A* pathfinder itself -- `route()`, obstacle
-    (housing/splice/note) avoidance, wire-to-wire spacing, single entry
-    point for "give me an orthogonal path between these two points"
-  - `astar.pyx`: the compiled (Cython) hot loops behind `routing.py`, all
-    in scaled-integer math -- `build_tables()` + `astar()` (a one-off grid
-    for a single `route()` call) and `Router`, one drag frame's shared
-    grid (obstacle / lane counts painted in and out, generation-stamped
-    search buffers) that `RoutingFrame` drives. Built in place to `astar.<abi>.pyd` (gitignored); `routing.py`
-    falls back to its pure-Python `_astar_py` if the binary isn't there.
-    Found 2026-09-30, missing from `builder/cython_build.py`'s
-    `_HAND_WRITTEN_EXTENSIONS` the whole time -- a from-scratch wheel
-    build never compiled it from source at all (only ever picked up a
-    pre-built `.pyd` if one happened to already be in the tree, which a
-    clean checkout never has, since `.pyd` is gitignored); added to that
-    list so a packaged build always ships the compiled path
-  - `routing.py` also holds `RoutingFrame` / `build_frame()`: one grid for a
-    whole batch of wires (the ones attached to a dragged object), built once
-    per drag frame instead of once per wire. Routes also PACK: `Router.paint_pack`
-    marks sibling runs (wires that followed the dragged housing, plus each batch
-    wire as it settles) and a step not one lane spacing beside one costs an extra
-    1/16 of its length, so a re-routed wire hugs its bundle where it can
-  - `routing.py` also has `free_segment_blocked()`: whether a hand-placed segment (any angle) cuts through
-    a housing/splice/note or runs parallel over another wire -- what the schematic add-wire handler
-    (`add_handlers/editor_schematic/wire.py`: click to place waypoints, click a terminal/splice to end and
-    auto-route the rest, right-click undoes, Esc cancels) checks each click against
-  - `reroute.py`: the stateful orchestration layer built on `routing.py`
-    -- `reroute_wire()` (the single choke point that reconciles a
-    wire's persisted waypoint rows against a fresh route, moving what
-    it can reuse and only inserting/deleting the difference),
-    `on_wire_attached()` (the cross-editor "wire just became fully
-    connected" hook), `_terminal_exit_stub_point()` (the mandatory
-    straight-exit-off-a-terminal stub), `wires_attached_to()`/
-    `sweep_for_overlaps()` (drag-time helpers)
-- `rope_pull/`: the peg-board rope-pull solver that keeps a WIRE's or a
-  BUNDLE's peg-board polyline length identical to its real 3D length
-  while it's dragged (`BUNDLE_PLACEMENT.md` section 6b) -- pure numeric
-  geometry, no DB/objects (works unchanged for either chain type, since
-  a `PJTWire`/`PJTBundle` row exposes the same anchor/length shape, per
-  `objects_pegboard.chain_edges`'s own docstring); same `.pyx` +
-  pure-Python-reference split as `wire_routing/`. Compiled and verified
-  2026-09-30 (2000 randomized cases, exact agreement with the reference);
-  not yet wired into any drag handler
-  - `__init__.py`: the single public entry point, `solve_chain()` --
-    prefers the compiled extension when built, falls back to the
-    pure-Python reference otherwise (same pattern `wire_routing.routing`
-    uses for `astar`)
-  - `rope_pull_py.py`: the pure-Python reference. `solve_chain()` --
-    given the chain's two peg-board anchors, the required total length,
-    which point is being dragged (`DragEnd.START`/`STOP`/`WAYPOINT`) and
-    its target, returns the WHOLE new chain (stateless -- recomputes
-    every interior waypoint from scratch every call, never reads the
-    old ones) or refuses outright if even the bare anchor-to-anchor
-    skeleton already needs more than the required length. Slack beyond
-    the bare skeleton is split across its segment(s) proportional to
-    their own straight length, then laid out per segment as independent
-    diamond-shaped bumps (closed-form bow count/height, `count == 1`
-    matches `geometry.line.Line.bow_midpoint`'s own construction
-    exactly)
-  - `rope_pull.pyx`/`.pyi`: the compiled hot path, a line-for-line port
-    of `rope_pull_py.py` with `drag_end` as a plain `int` instead of
-    `DragEnd` (no Python-level objects at this boundary at all).
-    Registered in `builder/cython_build.py`'s `_HAND_WRITTEN_EXTENSIONS`
-    so a from-scratch wheel build always compiles it (see that list's
-    own comment for why -- `wire_routing/astar.pyx` was found missing
-    from it the same day and added too, see that package's own entry)
-- `geometry/`: 
-  - point
-  - line
-  - decimal
-- `geometry/angle/`: 
-  - angle
-  - quaternion
-- `shapes/`:procedural geometry generators 
-  (ported from a small C 3D library; deliberately NOT build123d — direct mesh 
-  generation is far faster for primitives)
-  - box
-  - sphere
-  - cylinder
-  - cone
-  - torus
-  - helix
-  - cylinder_helix
-  - arrow
-  - circle
-  - rectangle
-  - line
-- `gpu_mem/`: GPU memory monitoring per vendor
-  - `gpu_base.py`: base class
-  - `gpu_vendor.py`: vendor enum/dispatch
-  - nvidia
-  - amd
-  - intel
-  - apple
-  - manager
-- `ray_tracing/`: offline renderer
-  - renderer
-  - scene
-  - light
-  - bvh_processor.py: Python driver for the BVH build
-  - `bvh.pyx` (Cython, compiled to `bvh.c`) + `kernel.cl` (OpenCL kernel): BVH build/traversal
-  - dialog
-- `scraping/`: point-and-click scraper authoring -- design in `SCRAPER_DESIGN.md` (repo root). Non-UI logic only
-  (no Qt); the widgets are in `ui/scraper_inspector/`, `ui/web_viewer/` and `ui/editor_script/`
-  - `snippets.py`: `Snippet` + the source-text actions (`split_at_every`, `text_after`, `text_before`,
-    `find_position`, `between`, `regex_capture`, `regex_all`). A selection is `document[start:end]`; the code
-    returned must reproduce it when run. Markers grow until their FIRST occurrence is the selected one
-    and the snippet warns when they had to; `Names` hands out collision-free variable names
-  - `capture_hook.py`: the JavaScript injected into every page that records `fetch` / `XMLHttpRequest` calls and
-    reports them through a `QWebChannel` object named `bridge`; also `window.__hdPageSource()` (re-download the
-    page without it showing up as a request)
-  - `capture_model.py`: `CapturedRequest` (one finished call; `is_json`, `parsed_json()`, `to_spec()`) and
-    `parse_record()`, which validates what the page reports (it is untrusted)
-  - `soft_wrap.py`: `SoftWrap` -- the document with extra line breaks for display (minified pages are one line)
-    and the map from display positions back to offsets in the original text (also across CRLF)
-  - `highlight.py`: `highlight_spans()` -- one-pass Pygments highlighting (HTML / XML / JSON) as plain data
-  - `script_builder.py`: `snippet_block()` (warnings -> `# NOTE:` comments), `import_text()` / `import_position()`
-    (where new imports go, no repeats)
-  - `browser_pick.py`: the JS that finds the element under the pointer in the live page and builds a selector,
-    `parse_pick()` (validates the answer) and `pick_snippet()`
-  - `url_input.py`: `normalize_url()` -- address-bar text to a URL
-  - `html_locate.py`: `LocatedDocument` (source offset -> enclosing element, positions from `html.parser`, element
-    re-found by tag name + document order in the tree the generated code uses) and the element actions
-    (`css_text`, `css_all`, `css_attribute`, `xpath_text`, `xpath_all`, `xpath_attribute`); selectors skip
-    machine-generated class names and pin only the level that needs `:nth-of-type`
-  - `request_code.py`: `RequestSpec` -> `requests` code (`generate_request_code`, `generate_page_load`); Cookie /
-    Authorization are never written into code; handles JSON, urlencoded and multipart bodies
-  - `json_extract.py`: JSON path clicks -> extraction code (`generate_extraction_code`, `every_item=` for "this
-    field from every element", `suggest_name`, `snippet_for`); `describe()` asks Claude through `claude/`
-  - `assistant.py`: the scraper assistant's logic -- `SYSTEM_PROMPT`, `AssistantContext` (what the open page offers;
-    `ScraperInspector` implements it), `list_items()` / `assemble()` (which pieces of context can be sent and the
-    exact message, with per-piece budgets and a total cap), `request_summary()` (secret headers omitted, JSON
-    digested), and `extract_code_blocks()` / `proposed_script()` / `unified_diff()` for the reply
-  - `assistant_tools.py`: `make_tools()` -- the four tools Claude uses to check a selector or JSON path against the
-    real page (`find_text`, `test_css_selector`, `test_xpath`, `inspect_json`); they run on a worker thread
-  - `script_files.py`: `read_script()`, `write_script()` (atomic), `scratch_path()` (the autosaved working copy)
-  - `runner.py`: `Runner` / `ScriptRun` -- a script runs in a daemon thread of this process with its own namespace and
-    `print`; `ScriptRun.request_stop()` raises `SystemExit` in it (`PyThreadState_SetAsyncExc`), which cannot reach a
-    thread waiting at the OS level (the Stop stays pending). The user's decision, see `SCRAPER_DESIGN.md` "Running
-    scripts". Public attributes of a run are readable by other scripts through `threading.enumerate()`
-  - `examples.py`: `EXAMPLES` -- the editor's Examples menu: scripts showing how to keep a socket / `Event` on a
-    `Thread` so a second script ("Release a stuck script") can end the wait
-- `claude/`: the application's ONE doorway to the Claude API -- design in `CLAUDE_API_DESIGN.md` (repo root). Nothing
-  else imports `anthropic`. No Qt in the package itself (importing it imports neither Qt nor the SDK)
-  - `client.py`: `ClaudeClient` -- owns the SDK client built from the stored key; `ask()` (one question),
-    `conversation()`, `check_connection()`, `derive()`; always streams (nothing times out, calls can be
-    cancelled); translates SDK errors; keeps a running `usage` total. `warm_up()` pre-imports the SDK (the first
-    import takes ~3 s) on a background thread
-  - `conversation.py`: `Conversation` -- APPEND-ONLY (model, tools and system prompt fixed at creation, history
-    only grows; Claude's thinking is bound to the conversation, so editing earlier turns is an API error).
-    `send()` runs the tool loop and structured output; `note()` adds later-learned facts as `role: system`
-    messages; a failed or cancelled `send()` leaves the history exactly as it was
-  - `messages.py`: `Tool`, `Usage` (with cost estimate), `Response`
-  - `context.py`: `ContextProvider` / `ContextBlock` / `StaticContext` -- how outside knowledge is rendered once
-    into a conversation's frozen system prompt (the seam for what concentric twisting will learn from the user)
-  - `settings.py`: `ClaudeSettings` (model, effort, max_tokens, refusal fallback, retries, timeout), the
-    application-wide `current()` / `update()`, and `SettingsBackend` so the app can persist them (e.g. in Config)
-  - `keys.py`: `ApiKeyStore` -- the user's key in the system credential store (same slot as the earlier scraper
-    client: service `HarnessDesigner`, name `anthropic_api_key`); `MemoryKeyring` for a key that is not saved
-  - `models.py`: the offered models, prices (cost estimates only), `DEFAULT_MODEL` = `claude-opus-5-5`
-  - `errors.py`: `ClaudeError` and subclasses, each with a `user_message` fit to show
-  - `cancel.py`: `CancelToken`
-  - `wire.py`: reads SDK messages (text, usage, tool calls, refusal-fallback cleaning)
-  - `qt/`: the Qt layer -- `ClaudeJob` (a call on a thread; signals back on the GUI thread; `cancel()`),
-    `call_in_gui()` (a tool on the worker thread asks the user something and waits), `key_dialog.ApiKeyDialog`
-    (key / model / effort; `BaseDialog`-based; has a Test button)
-- `logger/`: logging
-  - log_handler
-  - redirect (stdout/stderr redirection)
-- `themes/`: theme manager 
-  - Dark
-  - Light
-- `image/`: image loading (`utils.py` + resource subdirs)
-  - icons
-  - cursors
-  - images (connector images)
-  - ip (IP-rating icon overlays)
-
-## Third-party dependencies (non-stdlib imports)
-- `PySide6`: PySide6
-- `OpenGL`: PyOpenGL
-- `numpy`: numpy
-- `pandas`: pandas
-- `PIL`: Pillow
-- `requests`: requests
-- `keyring`: keyring
-- `pygments`: Pygments (syntax highlighting in `ui/widgets/code_editor_ctrl.py`)
-- `bs4`: beautifulsoup4 (scraper CSS selectors, `scraping/html_locate.py`)
-- `lxml`: lxml (scraper XPath / parser, `scraping/html_locate.py`)
-- `anthropic`: anthropic (the Claude API; imported only by `claude/client.py`)
-- `win32ctypes`: pywin32-ctypes
-- `mysql`: mysql-connector-python
-- `build123d`: build123d
-- `OCP`: cadquery-ocp
-- `pyassimp`: pyassimp
-- `pyfqmr`: pyfqmr
-- `ezdxf`: ezdxf
-- `pyopencl`: pyopencl
-- `pynvml`: nvidia-ml-py
-- `amdsmi`: amdsmi
-- `apple_smi`: apple_smi (Apple-only)
-
-## Same-name modules: layer relationships & loading order
-A part type (e.g. "housing") has same-named modules in several packages. They 
-are distinct layers of one pipeline, from catalog definition to pixels on screen:
-
-```
-database/create_database/housings.py     DDL/seed — creates/updates both tables below
-        │
-database/global_db/housing.py            catalog part: part_number, dims, materials, model3d ref
-        ▲  (part_id foreign key; entry exposed as .part)
-database/project_db/pjt_housing.py       PJTHousing — an instance placed in a project:
-        │                                position/angle/scale + part_id → global part.
-        │                                Holds weakref to its scene object
-        │                                (get_object()/set_object()).
-        ▼  creates
-objects/housing.py                       Housing(ObjectBase) wrapper — owns obj2d + obj3d
-        │                                and child wrappers (cavities, locks, seal, cover, boot);
-        │                                fans select/delete/identify to both views
-        ▼  creates both
-objects/objects2d/housing.py + objects/objects3d/housing.py   renderable views;
-                                              ctor(parent=wrapper, db_obj=PJTHousing);
-                                              geometry from db_obj.part (model3d, dims)
-                                              via gl/ VBOs
-```
-
-- **Creation flow (user adds a part):** `handlers/housing_handler.py` (`Add*Handler`) → 
-                                        `ui/dialogs/part_search.py` picks a global_db part → 
-                                         inserts a `pjt_*` row → 
-                                         builds the `objects/` wrapper → 
-                                         wrapper builds the 2d/3d objects → 
-                                         editors render them.
-- **Project load flow:** project_db tables iterate `pjt_*` entries → 
-                         each entry builds its wrapper + 2d/3d objects 
-                         (3D models fetched/meshed via `process/model_process.py`).
-- **Catalog editing** is a separate path: `ui/editor_db/housing.py` edits the global_db table 
-                                          directly and never touches `pjt_*` or scene objects.
-- Naming convention per layer: 
-  - `create_database`: uses plural (`housings.py`)
-  - `global_db`: singular (`housing.py`)
-  - `project_db`: prefixed (`pjt_housing.py`)
-  - `handlers`: suffixed (`housing_handler.py`) 
-  - `objects` all just `housing.py` (wrapper, 2d, 3d).
-
-## 3D rendering pipeline (model file → GPU)
-How a part's 3D model gets from disk to the screen:
-
-- **Model save file** (`process/model_process.py` worker):
-  - imports the source CAD file (STEP/IGES via OCP, others via pyassimp)
-  - simplifies the mesh (pyfqmr), computes smooth + face normals
-  - packs vertices + both normal sets into one flat float array
-  - saves it as a plain **uncompressed `.npy`** file at `<model_dir>/<uuid[:2]>/<uuid>.npy`
-  - only metadata goes to the DB: uuid, vertex_count, aabb, obb
-- **Loading** (`global_db/model3d.py`):
-  - the parent process opens the `.npy` with `np.load(mmap_mode='r')`
-  - the **memmap** is streamed straight into the GPU vertex buffer — model data is never fully loaded into RAM
-- **Shared GL contexts** (`app.py`, `gl/context.py`):
-  - `AA_ShareOpenGLContexts` is set at import time in `app.py` (before the QApplication is created)
-  - so the uploaded model data (VBOs) is **shared across every GL canvas** 
-    (editor3d, model_preview) — one upload serves them all
-  - editor2d does **not** use the shared context yet — planned but not yet scheduled
-    (noted 2026-06-11, still true as of 2026-07-09); remove this note once it does
-  - VAOs are **not** shareable across contexts, so `vbo.py` tracks/rebuilds VAOs per canvas 
-    (`_clear_vaos`, `_clear_model_vaos_for_arena`)
-  - `gl/context.py` `GLContext`: thread-safe acquire/release wrapper around each canvas's 
-    `makeCurrent()` (re-entrant, skips redundant makeCurrent calls)
-- **VBO handling** (`gl/vbo.py`):
-  - the shader reads all 3 vertex attributes (position / smooth normal / face normal) 
-    from **ONE buffer** at byte offsets baked into a per-context VAO — geometry must be 
-    uploaded as a single packed buffer (the `compute_normals` layout); 
-    `Base3D._render_geometry`'s separate-client-array fallback path is **legacy** 
-    (`rotation_rings.py` `_GizmoBuffer` is the reference for a private single-buffer 
-    mesh outside the arena)
-  - ⚠ the `vbo=None`/`_data` path assumes **world-space** geometry: `_update_position` 
-    shifts `_data[0]` by the position delta AND re-applies the floor lock on every 
-    position write — local-space users must override `_update_position` (see `Rings3D`)
-  - ⚠ `Base3D.__init__` and `_update_position` apply the **floor lock** to any object 
-    whose AABB dips below ground — UI gizmos must opt out via a `_floor_guard` during 
-    init + an `_update_position` override (see `Rings3D` and `Arrows3D`)
-  - `_MeshArena`: a **managed GPU buffer pool** — one large arena buffer, sub-allocated per model
-  - tracks **fragmentation** of freed ranges; when it crosses a threshold 
-    (`MODEL_ARENA_FRAGMENTATION_THRESHOLD`) the arena **compacts** via GPU-to-GPU copies 
-    (`_gpu_copy`), no CPU round-trip
-  - `VBOHandler` is a per-id refcounted singleton (`VBOSingleton` metaclass + 
-    `acquire()`/release): objects sharing the same model **reuse the same uploaded data** — 
-    the model is uploaded once no matter how many instances exist
-- **Shaders** (`gl/shaders/faces.py` etc.):
-  - vertex attributes are **local/model space** (vertex, smooth normal, face normal)
-  - per-object transform is done **in the shader** via uniforms: 
-    - `objectPosition` (vec3)
-    - `objectRotation` (quaternion, vec4)
-    - `objectScale` (vec3)
-  - every uniform above (and everything else the shaders declare) is set
-    through the `ShaderProgram()`/`Program` mechanism (see `gl/shaders/`
-    above) — `gl/vbo.py`'s `render(program, position, angle, scale, smooth)`
-    is what actually pushes `objectPosition`/`objectRotation`/`objectScale`/
-    `normalMode` via `program.position = ...` etc., not raw
-    `GL.glGetUniformLocation`/`GL.glUniform*` calls
-  - **quaternion ordering is scalar-first: `(w, x, y, z)`** — used consistently in 
-    `geometry/angle/quaternion.py` (`_data = [w, x, y, z]`) and the shader uniform
-    - ⚠ in GLSL the vec4 component names do NOT match the quaternion components: 
-      `q.x` = w, `q.y` = x, `q.z` = y, `q.w` = z (see `quaternionToMatrix` in 
-      `gl/shaders/faces.py`)
-    - libraries that are xyzw-ordered (e.g. scipy) need reordering at the boundary
-  - **Euler angles are stored in the database alongside the quaternion** 
-    (`geometry/angle/angle.py` `Angle` holds both forms; `project_db/mixins/angle3d.py` 
-    writes both, and reload passes the stored Euler into `Angle.from_quat` instead of 
-    deriving it):
-    - **any change to an angle MUST be made via the Euler angles, never the quaternion**
-    - reason: Euler → quaternion conversion is safe, but quaternion → Euler 
-      (and any rotation-form → Euler conversion) suffers **gimbal lock** — 
-      deriving Euler from the quaternion can produce wrong/ambiguous angles
-    - the quaternion is the derived form (kept for the shader); the Euler angles 
-      are the editable source of truth
-  - so position/angle/scale changes never touch the VBO — only uniform updates
-
-## Patterns to remember
-- Part-type fan-out: a part (e.g. "seal") usually has files in 
-  - global_db
-  - project_db (pjt_)
-  - create_database
-  - objects (wrapper)
-  - objects/objects2d
-  - objects/objects3d
-  - handlers
-  - editor_db. 
-
-  Adding/altering a part type typically touches all of those.
-  
-
-- **Change propagation via instance singletons** (`geometry/point.py` `Point`, 
-  `geometry/angle/angle.py` `Angle`, also `color.py` `Color`):
-  - instances are cached by `db_id` — every lookup for the same id returns the 
-    **same object**, so holding a reference IS the subscription
-  - `bind(callback)` / `unbind(callback)` notify on any change; this is how state 
-    propagates across UI controls, scene objects, and gizmos (no event/signal 
-    library involved)
-  - writers that are also bound listeners MUST use the **unbind → write → rebind** 
-    idiom to avoid feedback loops (see prop_ctrls and `Rings3D.apply_drag_angle` 
-    for the reference pattern)
-- **Type hints are load-bearing — do not weaken them.**
-  The entire codebase is compiled to C extension modules via Cython for release builds.
-  Cython uses concrete type annotations to emit statically typed C; if a hint is 
-  removed, generalised to a base class, or replaced with a TypeVar/Generic, Cython 
-  falls back to Python object boxing for that value and the compiled code loses its 
-  performance advantage. This means:
-  - every `@property` return type, `__iter__` yield type, and `__getitem__` return 
-    type must name the most specific concrete class, not a base or abstract type
-  - refactors that appear to reduce boilerplate by moving typed methods into a base 
-    class often destroy Cython's ability to specialise those methods — check whether 
-    the type information survives before proceeding
-  - `TYPE_CHECKING` blocks are fine (Cython ignores them at compile time), but 
-    runtime annotations on hot paths must be concrete
-- Lazy imports are used in objects3d context menus.
-- Dialogs use a custom title bar and close only via bottom buttons — no native window chrome.
-- **Mouse-drag interaction: axis locking** (`gl/canvas3d/dragging.py` `DragObject`):
-  - on the first movement, the axis with the greatest absolute delta becomes the 
-    **locked axis** (`axis_lock` mask + `MoveArrows` indicator created at that moment)
-  - all movement is constrained to that axis until the mouse button is released — 
-    makes positioning predictable
-- **Mouse-drag interaction: rotation rings / angle mode** (`gl/canvas3d/rotation_rings.py`):
-  - right-click a **selected** object → rotation ring gizmo appears (angle mode)
-  - three rings (x=red, y=green, z=blue), each with a sphere grab handle
-  - dragging a handle locks that Euler axis; screen-space cursor angle around the 
-    object's projected center is accumulated **directly into that axis's Euler angle** 
-    (wrapped to -180…180) — no quaternion → Euler conversion ever happens
-  - exits: left-click the object, or click+release (no motion) anywhere that is not 
-    a grab handle; drag not on a handle moves the camera; rings survive handle drags
-  - ring planes follow the **nested Euler order** (see below); each ring spins with 
-    its own slot's angle so the handle tracks the drag
-  - drag features: **0.0 detent** (snap-free mode only) and **angle snapping** 
-    (`snap_enable`/`snap_angle` config, toolbar `snap_angle_button.py`); valid snap 
-    angles = divisors of 36000 in hundredths (71 values ≤ 180°), enforced by 
-    `validate_snap_angle()`; settings are read **per mouse event** so changes apply 
-    live mid-drag
-  - gizmo position is the object's **shared Point instance** (not a copy); culling 
-    mirrors the object's AABB/OBB; floor lock is opted out via `_floor_guard`
-  - rendering: private single-buffer meshes (`_GizmoBuffer`), config dirty-checked 
-    per frame (dimensions/colors apply in real time)
-  - **Euler nesting order (verified numerically): effective matrix is `Ry·Rx·Rz` — 
-    Z innermost, X middle, Y outermost.** Per-slot world rotation axes: 
-    - y slot: world Y (fixed)
-    - x slot: `Ry @ X`
-    - z slot: `Ry·Rx @ Z` (full rotation applied to Z)
-  - the old `arcball.py` is no longer wired into the mouse handler (kept dormant)
-- Euler-angle UI controls are clamped to **-180…180** so rotation direction stays 
-  intuitive for the user; keep that range when adding angle controls.
+- harness_designer/
+  - __init__.py
+  - __version__.py
+  - app.py
+  - check_types.py
+  - color.py
+  - config.py
+  - critical_error_dialog.py
+  - debug.py
+  - memory_diagnostics.py
+  - monkey_patch.py
+  - ocp_ops.py
+  - ocp_threadworker.py
+  - process_memory.py
+  - resources.py
+  - splash.py
+  - add_handlers/
+    - __init__.py
+    - base.py
+    - editor_3d/
+      - __init__.py
+      - bundle.py
+      - bundle_layout.py
+      - cover.py
+      - cpa_lock.py
+      - housing.py
+      - note.py
+      - seal.py
+      - splice.py
+      - terminal.py
+      - tpa_lock.py
+      - transition.py
+      - wire.py
+      - wire_layout.py
+      - wire_service_loop.py
+    - editor_pegboard/
+      - __init__.py
+      - bundle_layout.py
+      - housing.py
+      - wire.py
+      - wire_layout.py
+    - editor_schematic/
+      - __init__.py
+      - housing.py
+      - splice.py
+      - terminal.py
+      - wire.py
+  - app_mixins/
+    - __init__.py
+    - callback_mixin.py
+  - bounds/
+    - __init__.py
+    - aabb.py
+    - array_pool.py
+    - manager.py
+    - obb.py
+    - segment_pool.py
+  - crash_dump/
+    - __init__.py
+    - entrypoints.py
+    - registry.py
+    - render.py
+    - schema.py
+    - walker.py
+    - extras/
+      - __init__.py
+      - datetime_support.py
+      - decimal_support.py
+      - numpy_support.py
+      - uuid_support.py
+    - writer/
+      - __init__.py
+      - html_writer.py
+      - json_writer.py
+  - database/
+    - __init__.py
+    - config_db.py
+    - id_generator.py
+    - utils.py
+    - common_db/
+      - __init__.py
+      - callback.py
+      - lazy_tab_mixin.py
+    - create_database/
+      - __init__.py
+      - accessories.py
+      - adhesives.py
+      - app_users.py
+      - boots.py
+      - bundle_cover_layouts.py
+      - bundle_covers.py
+      - bundle_paths.py
+      - cads.py
+      - cavities.py
+      - cavity_locks.py
+      - circuits.py
+      - colors.py
+      - concentric_layers.py
+      - concentric_wires.py
+      - concentrics.py
+      - covers.py
+      - cpa_lock_types.py
+      - cpa_locks.py
+      - datasheets.py
+      - directions.py
+      - families.py
+      - file_types.py
+      - genders.py
+      - housings.py
+      - images.py
+      - ip_fluids.py
+      - ip_ratings.py
+      - ip_solids.py
+      - ip_supps.py
+      - manufacturers.py
+      - materials.py
+      - models3d.py
+      - notes.py
+      - pegboard_tables.py
+      - platings.py
+      - points2d.py
+      - points3d.py
+      - points_pegboard.py
+      - projects.py
+      - protections.py
+      - resource_state.py
+      - seal_types.py
+      - seals.py
+      - series.py
+      - settings.py
+      - shapes.py
+      - splice_types.py
+      - splices.py
+      - temperatures.py
+      - terminals.py
+      - tpa_locks.py
+      - transition_branches.py
+      - transition_series.py
+      - transitions.py
+      - used_parts.py
+      - wire_layouts.py
+      - wire_markers.py
+      - wire_paths.py
+      - wire_service_loops.py
+      - wire_types.py
+      - wires.py
+    - db_connectors/
+      - __init__.py
+      - base.py
+      - db_data.py
+      - mysql_connector/
+        - __init__.py
+        - connector.py
+        - row_id_functions.py
+        - settings_dialog.py
+        - sql_table.py
+      - sqlite_connector/
+        - __init__.py
+        - connector.py
+        - settings_dialog.py
+        - sql_table.py
+    - global_db/
+      - __init__.py
+      - accessory.py
+      - adhesive.py
+      - app_users.py
+      - bases.py
+      - boot.py
+      - bundle_cover.py
+      - cad.py
+      - cavity.py
+      - cavity_lock.py
+      - color.py
+      - cover.py
+      - cpa_lock.py
+      - cpa_lock_type.py
+      - datasheet.py
+      - direction.py
+      - family.py
+      - file_types.py
+      - gender.py
+      - housing.py
+      - image.py
+      - manufacturer.py
+      - material.py
+      - model3d.py
+      - plating.py
+      - protection.py
+      - resource_state.py
+      - seal.py
+      - seal_type.py
+      - series.py
+      - setting.py
+      - shape.py
+      - splice.py
+      - splice_types.py
+      - temperature.py
+      - terminal.py
+      - tpa_lock.py
+      - transition.py
+      - transition_branch.py
+      - used_part.py
+      - wire.py
+      - wire_marker.py
+      - wire_type.py
+      - ip/
+        - __init__.py
+        - fluid.py
+        - solid.py
+        - supp.py
+      - mixins/
+        - __init__.py
+        - adhesive.py
+        - base.py
+        - cavity_lock.py
+        - color.py
+        - compat_housings.py
+        - compat_seals.py
+        - compat_terminals.py
+        - description.py
+        - dimension.py
+        - direction.py
+        - family.py
+        - gender.py
+        - image.py
+        - manufacturer.py
+        - material.py
+        - model3d.py
+        - name.py
+        - part_number.py
+        - plating.py
+        - protection.py
+        - resource.py
+        - series.py
+        - temperature.py
+        - weight.py
+        - wire_size.py
+        - wire_type.py
+    - project_db/
+      - __init__.py
+      - cleanup.py
+      - pjt_bases.py
+      - pjt_boot.py
+      - pjt_bundle.py
+      - pjt_bundle_layout.py
+      - pjt_bundle_path.py
+      - pjt_cavity.py
+      - pjt_circuit.py
+      - pjt_concentric.py
+      - pjt_concentric_layer.py
+      - pjt_concentric_wire.py
+      - pjt_cover.py
+      - pjt_cpa_lock.py
+      - pjt_housing.py
+      - pjt_note.py
+      - pjt_pegboard_table.py
+      - pjt_point2d.py
+      - pjt_point3d.py
+      - pjt_point_pegboard.py
+      - pjt_seal.py
+      - pjt_splice.py
+      - pjt_terminal.py
+      - pjt_tpa_lock.py
+      - pjt_transition.py
+      - pjt_transition_branch.py
+      - pjt_wire.py
+      - pjt_wire_layout.py
+      - pjt_wire_marker.py
+      - pjt_wire_path.py
+      - pjt_wire_service_loop.py
+      - project.py
+      - pseudo_bundle_layout.py
+      - pseudo_wire_layout.py
+      - table_data.py
+      - mixins/
+        - __init__.py
+        - angle2d.py
+        - angle3d.py
+        - angle3d_lock.py
+        - angle_pegboard.py
+        - base.py
+        - color.py
+        - housing.py
+        - name.py
+        - notes.py
+        - part.py
+        - position2d.py
+        - position3d.py
+        - position_pegboard.py
+        - scale2d.py
+        - scale3d.py
+        - scale_pegboard.py
+        - smooth.py
+        - start_stop_position2d.py
+        - start_stop_position3d.py
+        - start_stop_position_pegboard.py
+        - table_hidden.py
+        - table_position_peg.py
+        - visible2d.py
+        - visible3d.py
+        - visible_pegboard.py
+  - drag_handlers/
+    - __init__.py
+    - base.py
+    - move_arrows.py
+    - wire_marker_arrow.py
+    - editor_3d/
+      - __init__.py
+      - bundle.py
+      - generic.py
+      - wire.py
+      - wire_marker.py
+      - wire_route.py
+      - wire_snap.py
+    - editor_pegboard/
+      - __init__.py
+      - bundle.py
+      - generic.py
+      - wire.py
+      - wire_route.py
+      - wire_snap.py
+    - editor_schematic/
+      - __init__.py
+      - generic.py
+      - wire.py
+      - wire_marker.py
+  - exporter/
+    - __init__.py
+    - exporter.py
+  - geometry/
+    - __init__.py
+    - cavity_layout.py
+    - decimal.py
+    - line.py
+    - point.py
+    - angle/
+      - __init__.py
+      - angle.py
+      - quaternion.py
+  - gl/
+    - __init__.py
+    - context.py
+    - events.py
+    - info.py
+    - object_picker.py
+    - vbo.py
+    - canvas_3d/
+      - __init__.py
+      - axis_overlay.py
+      - camera.py
+      - canvas.py
+      - canvas_window.py
+      - floor.py
+      - focal_target.py
+      - headlight.py
+      - mouse_handler.py
+    - canvas_base/
+      - __init__.py
+      - camera_base.py
+      - canvas_base.py
+      - canvas_window_base.py
+      - floor_base.py
+      - interaction.py
+      - key_handler.py
+      - mouse_handler_base.py
+      - scene_light.py
+    - canvas_pegboard/
+      - __init__.py
+      - camera.py
+      - canvas.py
+      - canvas_window.py
+      - floor.py
+      - mouse_handler.py
+    - canvas_schematic/
+      - __init__.py
+      - camera.py
+      - canvas.py
+      - canvas_window.py
+      - floor.py
+      - mouse_handler.py
+    - culling/
+      - __init__.py
+      - culling.cp311-win_amd64.pyd
+      - culling.pyi
+      - culling.pyx
+    - materials/
+      - __init__.py
+      - generic.py
+      - glowing.py
+      - material.py
+      - metallic.py
+      - plastic.py
+      - polished.py
+      - rubber.py
+    - model_preview/
+      - __init__.py
+      - canvas.py
+    - shaders/
+      - __init__.py
+      - compiler.py
+      - program.py
+      - shader_program.py
+      - edges/
+        - __init__.py
+        - edges.py
+        - fragment.frag
+        - geometry.geom
+        - vertex.vert
+      - faces/
+        - __init__.py
+        - faces.py
+        - fragment.frag
+        - geometry.geom
+        - vertex.vert
+      - floor/
+        - __init__.py
+        - floor.py
+        - fragment.frag
+        - vertex.vert
+      - grid2d/
+        - __init__.py
+        - fragment.frag
+        - grid2d.py
+        - vertex.vert
+      - texture/
+        - __init__.py
+        - fragment.frag
+        - texture.py
+        - vertex.vert
+      - vertices/
+        - __init__.py
+        - fragment.frag
+        - geometry.geom
+        - vertex.vert
+        - vertices.py
+  - gpu/
+    - __init__.py
+    - _dxgi_win.py
+    - backend_base.py
+    - gl_meminfo.py
+    - gpu.py
+    - gpu_base.py
+    - gpu_specs_lookup.py
+    - gpu_table.json
+    - gpu_vendor.py
+    - os_vram_usage.py
+    - amd/
+      - __init__.py
+      - backend.py
+    - apple/
+      - __init__.py
+      - backend.py
+    - intel/
+      - __init__.py
+      - backend.py
+    - nvidia/
+      - __init__.py
+      - backend.py
+  - handlers/
+    - __init__.py
+    - bundle_diameter.py
+    - bundle_layout_handler.py
+    - bundle_topology.py
+    - handler_base.py
+    - rope_pull_handler.py
+    - seal_handler.py
+    - snap_probe_set.py
+    - splice_handler.py
+    - terminal_handler.py
+    - transition_handler.py
+    - wire_drag_base.py
+    - wire_handler.py
+    - wire_layout_handler.py
+    - wire_routing_drag.py
+    - wire_routing_handler.py
+    - wire_slack.py
+    - wire_slack_handler.py
+    - wire_snap.py
+    - wire_topology.py
+  - image/
+    - __init__.py
+    - icon_128x128.png
+    - icon_16x16.png
+    - icon_256x256.png
+    - icon_32x32.png
+    - icon_64x64.png
+    - large_splash.png
+    - small_splash.png
+    - utils.py
+    - cursors/
+      - back_angle.png
+      - forward_angle.png
+      - grab.png
+      - hand.png
+      - left_bottom_corner_rotate.png
+      - left_right.png
+      - left_top_corner_rotate.png
+      - move.png
+      - pointer.png
+      - right_bottom_corner_rotate.png
+      - right_top_corner_rotate.png
+      - rotate.png
+      - up_down.png
+    - electrical/
+      - darlington_pair_transistor.png
+      - data_latch.png
+      - diode.png
+      - dpdt_relay.png
+      - dpst_relay.png
+      - indicator_lamp.png
+      - led.png
+      - n_jfet.png
+      - n_mosfet.png
+      - npn.png
+      - p_jfet.png
+      - photodiode.png
+      - photoresistor.png
+      - pnp.png
+      - schottky_diode.png
+      - solar_cell.png
+      - spdt_relay.png
+      - spst_relay.png
+      - zener_diode.png
+    - icons/
+      - aabb.png
+      - align_bottom_edge.png
+      - align_horizontal_center.png
+      - align_left_edge.png
+      - align_right_edge.png
+      - align_top_edge.png
+      - align_vertical_center.png
+      - aspect_ratio.png
+      - bom.png
+      - bundle_cover.png
+      - camera.png
+      - checkbox.png
+      - circle.png
+      - collapse.png
+      - connect.png
+      - connector.png
+      - cover.png
+      - cpa_lock.png
+      - crop.png
+      - cut.png
+      - duplicate.png
+      - eraser.png
+      - expand.png
+      - faces.png
+      - file_3ds.png
+      - file_import_3d.png
+      - flashlight.png
+      - flip.png
+      - flip_backward.png
+      - flip_forward.png
+      - flip_horizontal.png
+      - flip_vertical.png
+      - flip_x.png
+      - flip_y.png
+      - flip_z.png
+      - hor_vert.png
+      - hor_vert_ang.png
+      - internet.png
+      - layers.png
+      - light_bulb.png
+      - lighting.png
+      - lock.png
+      - mip_mapping.png
+      - move.png
+      - move_x.png
+      - move_y.png
+      - move_z.png
+      - normals.png
+      - note_pen.png
+      - notes.png
+      - obb.png
+      - reflections.png
+      - roll_left.png
+      - roll_right.png
+      - rotate.png
+      - rotate_camera.png
+      - rotate_left.png
+      - rotate_right.png
+      - rotate_x.png
+      - rotate_y.png
+      - rotate_z.png
+      - rotation_snap.png
+      - run_script.png
+      - scale.png
+      - scale_x.png
+      - scale_y.png
+      - scale_z.png
+      - seal.png
+      - select_object.png
+      - settings.png
+      - splice.png
+      - spot_light.png
+      - square.png
+      - stop_script.png
+      - subdivide_mesh.png
+      - terminal.png
+      - tool.png
+      - tpa_lock.png
+      - transition.png
+      - uncheckbox.png
+      - unlock.png
+      - vertices.png
+      - windows.png
+      - wire.png
+      - wireframe.png
+      - zoom_in.png
+      - zoom_out.png
+    - images/
+      - download_0.png
+      - download_1.png
+      - download_2.png
+      - download_3.png
+      - download_4.png
+      - download_5.png
+      - header.png
+      - header_1200x80.png
+      - header_600x80.png
+      - icon_256x256.png
+      - large_splash.png
+      - no_image.png
+      - small_splash.png
+      - wire_base.png
+      - wire_conductor.png
+      - wire_shadow.png
+      - wire_stripe.png
+    - ip/
+      - IP0X.png
+      - IP1X.png
+      - IP2X.png
+      - IP3X.png
+      - IP4X.png
+      - IP5X.png
+      - IP6X.png
+      - IPX0.png
+      - IPX1.png
+      - IPX2.PNG
+      - IPX3.png
+      - IPX4.png
+      - IPX5.png
+      - IPX6.png
+      - IPX6K.png
+      - IPX7.png
+      - IPX8.png
+      - IPX9.png
+      - IPX9K.png
+      - IPXX.png
+  - licenses/
+    - GPLv3.txt
+    - LGPLv3.txt
+    - Qt-Commercial-Reference.txt
+  - logger/
+    - __init__.py
+    - log_handler.py
+    - redirect.py
+  - models/
+    - deutsch terminal female solid.stl
+    - deutsch terminal male solid.stl
+    - generic terminal female 1.2.stp
+    - generic terminal female 1.5.stp
+    - generic terminal female 2.6 round.stp
+    - generic terminal female 2.8.stp
+    - generic terminal female 4.8.stp
+    - generic terminal female 6.3.stp
+    - generic terminal male 1.2.stp
+    - generic terminal male 1.5.stp
+    - generic terminal male 10.0.stp
+    - generic terminal male 2.4 round.stp
+    - generic terminal male 2.6 round.stp
+    - generic terminal male 2.8.stp
+    - generic terminal male 4.8.stp
+    - generic terminal male 6.3.stp
+    - generic terminal male 6.35.stp
+  - objects/
+    - __init__.py
+    - bom.py
+    - boot.py
+    - bundle.py
+    - bundle_layout.py
+    - cavity.py
+    - circuit.py
+    - cover.py
+    - cpa_lock.py
+    - generic.py
+    - housing.py
+    - note.py
+    - object_base.py
+    - pegboard_table.py
+    - project.py
+    - project_model.py
+    - seal.py
+    - splice.py
+    - terminal.py
+    - tpa_lock.py
+    - transition.py
+    - wire.py
+    - wire_layout.py
+    - wire_marker.py
+    - wire_service_loop.py
+    - mixins/
+      - __init__.py
+      - wire.py
+    - objects_3d/
+      - __init__.py
+      - base_3d.py
+      - boot.py
+      - bundle.py
+      - bundle_layout.py
+      - cavity.py
+      - cover.py
+      - cpa_lock.py
+      - generic.py
+      - housing.py
+      - menu_ops.py
+      - note.py
+      - project_model.py
+      - seal.py
+      - splice.py
+      - table.py
+      - terminal.py
+      - tpa_lock.py
+      - transition.py
+      - wire.py
+      - wire_layout.py
+      - wire_marker.py
+      - wire_service_loop.py
+      - mixins/
+        - __init__.py
+        - wire_type.py
+    - objects_pegboard/
+      - __init__.py
+      - base_pegboard.py
+      - boot.py
+      - bundle.py
+      - bundle_layout.py
+      - cavity.py
+      - chain_edges.py
+      - circuit.py
+      - cover.py
+      - cpa_lock.py
+      - generic.py
+      - housing.py
+      - mixins.py
+      - note.py
+      - project_model.py
+      - seal.py
+      - splice.py
+      - table.py
+      - table_placement.py
+      - terminal.py
+      - tpa_lock.py
+      - transition.py
+      - wire.py
+      - wire_highlight.py
+      - wire_layout.py
+      - wire_marker.py
+      - wire_service_loop.py
+    - objects_schematic/
+      - __init__.py
+      - auto_arrange.py
+      - base_schematic.py
+      - boot.py
+      - bundle.py
+      - bundle_layout.py
+      - cavity.py
+      - cover.py
+      - cpa_lock.py
+      - generic.py
+      - housing.py
+      - note.py
+      - project_model.py
+      - seal.py
+      - splice.py
+      - table.py
+      - terminal.py
+      - tpa_lock.py
+      - transition.py
+      - wire.py
+      - wire_layout.py
+      - wire_marker.py
+      - wire_service_loop.py
+      - mixins/
+        - __init__.py
+    - objectsvar/
+      - __init__.py
+      - base_var.py
+  - plugins/
+    - PLUGIN_DESIGN.md
+    - __init__.py
+    - plugin.py
+    - register.py
+    - ai/
+      - AI_PLUGIN_DESIGN.md
+      - __init__.py
+      - base.py
+      - cancel.py
+      - job.py
+      - session.py
+    - plugins/
+      - __init__.py
+      - claude_ai/
+        - __init__.py
+        - cancel.py
+        - client.py
+        - context.py
+        - conversation.py
+        - errors.py
+        - keys.py
+        - messages.py
+        - models.py
+        - settings.py
+        - wire.py
+        - qt/
+          - __init__.py
+          - gui_call.py
+          - job.py
+          - key_dialog.py
+  - process/
+    - __init__.py
+    - db_broker.py
+    - image_process.py
+    - manager.py
+    - model_process.py
+    - clean_creds/
+      - __init__.py
+      - win.py
+  - ray_tracing/
+    - __init__.py
+    - bvh.c
+    - bvh.pyx
+    - bvh_processor.py
+    - dialog.py
+    - kernel.cl
+    - light.py
+    - renderer.py
+    - scene.py
+  - rope_pull/
+    - __init__.py
+    - offline_store.py
+    - rope_pull.cp311-win_amd64.pyd
+    - rope_pull.pyi
+    - rope_pull.pyx
+    - rope_pull_py.py
+  - rotation_handlers/
+    - __init__.py
+    - _axis.py
+    - rotation_mesh.py
+    - rotation_rings.py
+    - editor_3d/
+      - __init__.py
+      - generic.py
+    - editor_pegboard/
+      - __init__.py
+      - generic.py
+    - editor_schematic/
+      - __init__.py
+      - generic.py
+    - rotation_ring/
+      - __init__.py
+      - _hit_test.py
+      - _protractor_base.py
+      - inner_ring.py
+      - outer_ring.py
+      - tick_pick_object.py
+      - torus_ring.py
+  - scraping/
+    - __init__.py
+    - assistant.py
+    - assistant_tools.py
+    - browser_pick.py
+    - capture_hook.py
+    - capture_model.py
+    - examples.py
+    - highlight.py
+    - html_locate.py
+    - json_extract.py
+    - request_code.py
+    - runner.py
+    - script_builder.py
+    - script_files.py
+    - snippets.py
+    - soft_wrap.py
+    - url_input.py
+  - shapes/
+    - __init__.py
+    - arrow.py
+    - box.py
+    - circle.py
+    - cone.py
+    - cylinder.py
+    - cylinder_helix.py
+    - disc_ring.py
+    - helix.py
+    - line.py
+    - mesh_cache.py
+    - rectangle.py
+    - sphere.py
+    - square_outline.py
+    - text.py
+    - torus.py
+    - triangle.py
+  - themes/
+    - __init__.py
+    - themes.py
+    - Dark/
+      - Dark.qss
+      - icons/
+        - arrow_down.png
+        - arrow_down@2x.png
+        - arrow_down_disabled.png
+        - arrow_down_disabled@2x.png
+        - arrow_down_focus.png
+        - arrow_down_focus@2x.png
+        - arrow_down_pressed.png
+        - arrow_down_pressed@2x.png
+        - arrow_left.png
+        - arrow_left@2x.png
+        - arrow_left_disabled.png
+        - arrow_left_disabled@2x.png
+        - arrow_left_focus.png
+        - arrow_left_focus@2x.png
+        - arrow_left_pressed.png
+        - arrow_left_pressed@2x.png
+        - arrow_right.png
+        - arrow_right@2x.png
+        - arrow_right_disabled.png
+        - arrow_right_disabled@2x.png
+        - arrow_right_focus.png
+        - arrow_right_focus@2x.png
+        - arrow_right_pressed.png
+        - arrow_right_pressed@2x.png
+        - arrow_up.png
+        - arrow_up@2x.png
+        - arrow_up_disabled.png
+        - arrow_up_disabled@2x.png
+        - arrow_up_focus.png
+        - arrow_up_focus@2x.png
+        - arrow_up_pressed.png
+        - arrow_up_pressed@2x.png
+        - base_icon.png
+        - base_icon@2x.png
+        - base_icon_disabled.png
+        - base_icon_disabled@2x.png
+        - base_icon_focus.png
+        - base_icon_focus@2x.png
+        - base_icon_pressed.png
+        - base_icon_pressed@2x.png
+        - branch_closed.png
+        - branch_closed@2x.png
+        - branch_closed_disabled.png
+        - branch_closed_disabled@2x.png
+        - branch_closed_focus.png
+        - branch_closed_focus@2x.png
+        - branch_closed_pressed.png
+        - branch_closed_pressed@2x.png
+        - branch_end.png
+        - branch_end@2x.png
+        - branch_end_disabled.png
+        - branch_end_disabled@2x.png
+        - branch_end_focus.png
+        - branch_end_focus@2x.png
+        - branch_end_pressed.png
+        - branch_end_pressed@2x.png
+        - branch_line.png
+        - branch_line@2x.png
+        - branch_line_disabled.png
+        - branch_line_disabled@2x.png
+        - branch_line_focus.png
+        - branch_line_focus@2x.png
+        - branch_line_pressed.png
+        - branch_line_pressed@2x.png
+        - branch_more.png
+        - branch_more@2x.png
+        - branch_more_disabled.png
+        - branch_more_disabled@2x.png
+        - branch_more_focus.png
+        - branch_more_focus@2x.png
+        - branch_more_pressed.png
+        - branch_more_pressed@2x.png
+        - branch_open.png
+        - branch_open@2x.png
+        - branch_open_disabled.png
+        - branch_open_disabled@2x.png
+        - branch_open_focus.png
+        - branch_open_focus@2x.png
+        - branch_open_pressed.png
+        - branch_open_pressed@2x.png
+        - checkbox_checked.png
+        - checkbox_checked@2x.png
+        - checkbox_checked_disabled.png
+        - checkbox_checked_disabled@2x.png
+        - checkbox_checked_focus.png
+        - checkbox_checked_focus@2x.png
+        - checkbox_checked_pressed.png
+        - checkbox_checked_pressed@2x.png
+        - checkbox_indeterminate.png
+        - checkbox_indeterminate@2x.png
+        - checkbox_indeterminate_disabled.png
+        - checkbox_indeterminate_disabled@2x.png
+        - checkbox_indeterminate_focus.png
+        - checkbox_indeterminate_focus@2x.png
+        - checkbox_indeterminate_pressed.png
+        - checkbox_indeterminate_pressed@2x.png
+        - checkbox_unchecked.png
+        - checkbox_unchecked@2x.png
+        - checkbox_unchecked_disabled.png
+        - checkbox_unchecked_disabled@2x.png
+        - checkbox_unchecked_focus.png
+        - checkbox_unchecked_focus@2x.png
+        - checkbox_unchecked_pressed.png
+        - checkbox_unchecked_pressed@2x.png
+        - line_horizontal.png
+        - line_horizontal@2x.png
+        - line_horizontal_disabled.png
+        - line_horizontal_disabled@2x.png
+        - line_horizontal_focus.png
+        - line_horizontal_focus@2x.png
+        - line_horizontal_pressed.png
+        - line_horizontal_pressed@2x.png
+        - line_vertical.png
+        - line_vertical@2x.png
+        - line_vertical_disabled.png
+        - line_vertical_disabled@2x.png
+        - line_vertical_focus.png
+        - line_vertical_focus@2x.png
+        - line_vertical_pressed.png
+        - line_vertical_pressed@2x.png
+        - radio_checked.png
+        - radio_checked@2x.png
+        - radio_checked_disabled.png
+        - radio_checked_disabled@2x.png
+        - radio_checked_focus.png
+        - radio_checked_focus@2x.png
+        - radio_checked_pressed.png
+        - radio_checked_pressed@2x.png
+        - radio_unchecked.png
+        - radio_unchecked@2x.png
+        - radio_unchecked_disabled.png
+        - radio_unchecked_disabled@2x.png
+        - radio_unchecked_focus.png
+        - radio_unchecked_focus@2x.png
+        - radio_unchecked_pressed.png
+        - radio_unchecked_pressed@2x.png
+        - toolbar_move_horizontal.png
+        - toolbar_move_horizontal@2x.png
+        - toolbar_move_horizontal_disabled.png
+        - toolbar_move_horizontal_disabled@2x.png
+        - toolbar_move_horizontal_focus.png
+        - toolbar_move_horizontal_focus@2x.png
+        - toolbar_move_horizontal_pressed.png
+        - toolbar_move_horizontal_pressed@2x.png
+        - toolbar_move_vertical.png
+        - toolbar_move_vertical@2x.png
+        - toolbar_move_vertical_disabled.png
+        - toolbar_move_vertical_disabled@2x.png
+        - toolbar_move_vertical_focus.png
+        - toolbar_move_vertical_focus@2x.png
+        - toolbar_move_vertical_pressed.png
+        - toolbar_move_vertical_pressed@2x.png
+        - toolbar_separator_horizontal.png
+        - toolbar_separator_horizontal@2x.png
+        - toolbar_separator_horizontal_disabled.png
+        - toolbar_separator_horizontal_disabled@2x.png
+        - toolbar_separator_horizontal_focus.png
+        - toolbar_separator_horizontal_focus@2x.png
+        - toolbar_separator_horizontal_pressed.png
+        - toolbar_separator_horizontal_pressed@2x.png
+        - toolbar_separator_vertical.png
+        - toolbar_separator_vertical@2x.png
+        - toolbar_separator_vertical_disabled.png
+        - toolbar_separator_vertical_disabled@2x.png
+        - toolbar_separator_vertical_focus.png
+        - toolbar_separator_vertical_focus@2x.png
+        - toolbar_separator_vertical_pressed.png
+        - toolbar_separator_vertical_pressed@2x.png
+        - transparent.png
+        - transparent@2x.png
+        - transparent_disabled.png
+        - transparent_disabled@2x.png
+        - transparent_focus.png
+        - transparent_focus@2x.png
+        - transparent_pressed.png
+        - transparent_pressed@2x.png
+        - window_close.png
+        - window_close@2x.png
+        - window_close_disabled.png
+        - window_close_disabled@2x.png
+        - window_close_focus.png
+        - window_close_focus@2x.png
+        - window_close_pressed.png
+        - window_close_pressed@2x.png
+        - window_grip.png
+        - window_grip@2x.png
+        - window_grip_disabled.png
+        - window_grip_disabled@2x.png
+        - window_grip_focus.png
+        - window_grip_focus@2x.png
+        - window_grip_pressed.png
+        - window_grip_pressed@2x.png
+        - window_minimize.png
+        - window_minimize@2x.png
+        - window_minimize_disabled.png
+        - window_minimize_disabled@2x.png
+        - window_minimize_focus.png
+        - window_minimize_focus@2x.png
+        - window_minimize_pressed.png
+        - window_minimize_pressed@2x.png
+        - window_undock.png
+        - window_undock@2x.png
+        - window_undock_disabled.png
+        - window_undock_disabled@2x.png
+        - window_undock_focus.png
+        - window_undock_focus@2x.png
+        - window_undock_pressed.png
+        - window_undock_pressed@2x.png
+    - Light/
+      - Light.qss
+      - icons/
+        - arrow_down.png
+        - arrow_down@2x.png
+        - arrow_down_disabled.png
+        - arrow_down_disabled@2x.png
+        - arrow_down_focus.png
+        - arrow_down_focus@2x.png
+        - arrow_down_pressed.png
+        - arrow_down_pressed@2x.png
+        - arrow_left.png
+        - arrow_left@2x.png
+        - arrow_left_disabled.png
+        - arrow_left_disabled@2x.png
+        - arrow_left_focus.png
+        - arrow_left_focus@2x.png
+        - arrow_left_pressed.png
+        - arrow_left_pressed@2x.png
+        - arrow_right.png
+        - arrow_right@2x.png
+        - arrow_right_disabled.png
+        - arrow_right_disabled@2x.png
+        - arrow_right_focus.png
+        - arrow_right_focus@2x.png
+        - arrow_right_pressed.png
+        - arrow_right_pressed@2x.png
+        - arrow_up.png
+        - arrow_up@2x.png
+        - arrow_up_disabled.png
+        - arrow_up_disabled@2x.png
+        - arrow_up_focus.png
+        - arrow_up_focus@2x.png
+        - arrow_up_pressed.png
+        - arrow_up_pressed@2x.png
+        - base_icon.png
+        - base_icon@2x.png
+        - base_icon_disabled.png
+        - base_icon_disabled@2x.png
+        - base_icon_focus.png
+        - base_icon_focus@2x.png
+        - base_icon_pressed.png
+        - base_icon_pressed@2x.png
+        - branch_closed.png
+        - branch_closed@2x.png
+        - branch_closed_disabled.png
+        - branch_closed_disabled@2x.png
+        - branch_closed_focus.png
+        - branch_closed_focus@2x.png
+        - branch_closed_pressed.png
+        - branch_closed_pressed@2x.png
+        - branch_end.png
+        - branch_end@2x.png
+        - branch_end_disabled.png
+        - branch_end_disabled@2x.png
+        - branch_end_focus.png
+        - branch_end_focus@2x.png
+        - branch_end_pressed.png
+        - branch_end_pressed@2x.png
+        - branch_line.png
+        - branch_line@2x.png
+        - branch_line_disabled.png
+        - branch_line_disabled@2x.png
+        - branch_line_focus.png
+        - branch_line_focus@2x.png
+        - branch_line_pressed.png
+        - branch_line_pressed@2x.png
+        - branch_more.png
+        - branch_more@2x.png
+        - branch_more_disabled.png
+        - branch_more_disabled@2x.png
+        - branch_more_focus.png
+        - branch_more_focus@2x.png
+        - branch_more_pressed.png
+        - branch_more_pressed@2x.png
+        - branch_open.png
+        - branch_open@2x.png
+        - branch_open_disabled.png
+        - branch_open_disabled@2x.png
+        - branch_open_focus.png
+        - branch_open_focus@2x.png
+        - branch_open_pressed.png
+        - branch_open_pressed@2x.png
+        - checkbox_checked.png
+        - checkbox_checked@2x.png
+        - checkbox_checked_disabled.png
+        - checkbox_checked_disabled@2x.png
+        - checkbox_checked_focus.png
+        - checkbox_checked_focus@2x.png
+        - checkbox_checked_pressed.png
+        - checkbox_checked_pressed@2x.png
+        - checkbox_indeterminate.png
+        - checkbox_indeterminate@2x.png
+        - checkbox_indeterminate_disabled.png
+        - checkbox_indeterminate_disabled@2x.png
+        - checkbox_indeterminate_focus.png
+        - checkbox_indeterminate_focus@2x.png
+        - checkbox_indeterminate_pressed.png
+        - checkbox_indeterminate_pressed@2x.png
+        - checkbox_unchecked.png
+        - checkbox_unchecked@2x.png
+        - checkbox_unchecked_disabled.png
+        - checkbox_unchecked_disabled@2x.png
+        - checkbox_unchecked_focus.png
+        - checkbox_unchecked_focus@2x.png
+        - checkbox_unchecked_pressed.png
+        - checkbox_unchecked_pressed@2x.png
+        - line_horizontal.png
+        - line_horizontal@2x.png
+        - line_horizontal_disabled.png
+        - line_horizontal_disabled@2x.png
+        - line_horizontal_focus.png
+        - line_horizontal_focus@2x.png
+        - line_horizontal_pressed.png
+        - line_horizontal_pressed@2x.png
+        - line_vertical.png
+        - line_vertical@2x.png
+        - line_vertical_disabled.png
+        - line_vertical_disabled@2x.png
+        - line_vertical_focus.png
+        - line_vertical_focus@2x.png
+        - line_vertical_pressed.png
+        - line_vertical_pressed@2x.png
+        - radio_checked.png
+        - radio_checked@2x.png
+        - radio_checked_disabled.png
+        - radio_checked_disabled@2x.png
+        - radio_checked_focus.png
+        - radio_checked_focus@2x.png
+        - radio_checked_pressed.png
+        - radio_checked_pressed@2x.png
+        - radio_unchecked.png
+        - radio_unchecked@2x.png
+        - radio_unchecked_disabled.png
+        - radio_unchecked_disabled@2x.png
+        - radio_unchecked_focus.png
+        - radio_unchecked_focus@2x.png
+        - radio_unchecked_pressed.png
+        - radio_unchecked_pressed@2x.png
+        - toolbar_move_horizontal.png
+        - toolbar_move_horizontal@2x.png
+        - toolbar_move_horizontal_disabled.png
+        - toolbar_move_horizontal_disabled@2x.png
+        - toolbar_move_horizontal_focus.png
+        - toolbar_move_horizontal_focus@2x.png
+        - toolbar_move_horizontal_pressed.png
+        - toolbar_move_horizontal_pressed@2x.png
+        - toolbar_move_vertical.png
+        - toolbar_move_vertical@2x.png
+        - toolbar_move_vertical_disabled.png
+        - toolbar_move_vertical_disabled@2x.png
+        - toolbar_move_vertical_focus.png
+        - toolbar_move_vertical_focus@2x.png
+        - toolbar_move_vertical_pressed.png
+        - toolbar_move_vertical_pressed@2x.png
+        - toolbar_separator_horizontal.png
+        - toolbar_separator_horizontal@2x.png
+        - toolbar_separator_horizontal_disabled.png
+        - toolbar_separator_horizontal_disabled@2x.png
+        - toolbar_separator_horizontal_focus.png
+        - toolbar_separator_horizontal_focus@2x.png
+        - toolbar_separator_horizontal_pressed.png
+        - toolbar_separator_horizontal_pressed@2x.png
+        - toolbar_separator_vertical.png
+        - toolbar_separator_vertical@2x.png
+        - toolbar_separator_vertical_disabled.png
+        - toolbar_separator_vertical_disabled@2x.png
+        - toolbar_separator_vertical_focus.png
+        - toolbar_separator_vertical_focus@2x.png
+        - toolbar_separator_vertical_pressed.png
+        - toolbar_separator_vertical_pressed@2x.png
+        - transparent.png
+        - transparent@2x.png
+        - transparent_disabled.png
+        - transparent_disabled@2x.png
+        - transparent_focus.png
+        - transparent_focus@2x.png
+        - transparent_pressed.png
+        - transparent_pressed@2x.png
+        - window_close.png
+        - window_close@2x.png
+        - window_close_disabled.png
+        - window_close_disabled@2x.png
+        - window_close_focus.png
+        - window_close_focus@2x.png
+        - window_close_pressed.png
+        - window_close_pressed@2x.png
+        - window_grip.png
+        - window_grip@2x.png
+        - window_grip_disabled.png
+        - window_grip_disabled@2x.png
+        - window_grip_focus.png
+        - window_grip_focus@2x.png
+        - window_grip_pressed.png
+        - window_grip_pressed@2x.png
+        - window_minimize.png
+        - window_minimize@2x.png
+        - window_minimize_disabled.png
+        - window_minimize_disabled@2x.png
+        - window_minimize_focus.png
+        - window_minimize_focus@2x.png
+        - window_minimize_pressed.png
+        - window_minimize_pressed@2x.png
+        - window_undock.png
+        - window_undock@2x.png
+        - window_undock_disabled.png
+        - window_undock_disabled@2x.png
+        - window_undock_focus.png
+        - window_undock_focus@2x.png
+        - window_undock_pressed.png
+        - window_undock_pressed@2x.png
+  - ui/
+    - __init__.py
+    - dock_base.py
+    - mainframe.py
+    - datasheet_viewer/
+      - __init__.py
+      - viewer.py
+    - dialogs/
+      - __init__.py
+      - about_dialog.py
+      - add_note.py
+      - add_project.py
+      - bom_dialog.py
+      - bundle_wires_dialog.py
+      - closing_dialog.py
+      - database_error_dialog.py
+      - debug_settings.py
+      - dialog_base.py
+      - dimensions_dialog.py
+      - error.py
+      - export_dialog.py
+      - header.py
+      - part_orientation.py
+      - part_search.py
+      - project_dialog.py
+      - project_model_dialog.py
+      - properties_dialog.py
+      - render_setings.py
+      - transition_routing.py
+      - housing_editor/
+        - __init__.py
+        - accessory_obj.py
+        - accessory_panel.py
+        - analysis_panel.py
+        - cavity_obj.py
+        - cavity_panel.py
+        - config.py
+        - connector_analysis.py
+        - housing_editor.py
+        - housing_obj.py
+        - housing_panel.py
+        - tree_panels.py
+      - transition_editor/
+        - __init__.py
+        - dialog.py
+        - preview.py
+    - editor_3d/
+      - __init__.py
+      - editor_3d.py
+    - editor_assembly/
+      - __init__.py
+      - editor_assembly.py
+    - editor_ciruit/
+      - __init__.py
+      - bitmaps.py
+      - design_rules.py
+      - editor_circuit.py
+      - editor_widget.py
+    - editor_db/
+      - __init__.py
+      - accessory.py
+      - base.py
+      - boot.py
+      - bundle_cover.py
+      - cover.py
+      - cpa_lock.py
+      - edit_dialog.py
+      - editordb.py
+      - housing.py
+      - seal.py
+      - splice.py
+      - terminal.py
+      - tpa_lock.py
+      - transition.py
+      - wire.py
+      - wire_marker.py
+    - editor_obj/
+      - __init__.py
+      - editorobj.py
+      - prop_grid.py
+    - editor_pegboard/
+      - __init__.py
+      - editor_pegboard.py
+    - editor_schematic/
+      - __init__.py
+      - editor_schematic.py
+    - editor_script/
+      - __init__.py
+      - assistant_panel.py
+      - console_panel.py
+      - message_dialog.py
+      - script_editor.py
+    - log_viewer/
+      - __init__.py
+      - logviewer.py
+      - viewer.py
+    - object_browser/
+      - __init__.py
+      - objectbrowser.py
+    - pegboard_table/
+      - __init__.py
+      - column_defs.py
+      - mdi_host.py
+      - wire_table.py
+    - prop_ctrls/
+      - __init__.py
+      - _array_dialog_base.py
+      - _image_ctrl_base.py
+      - _path_ctrl_base.py
+      - angle_prop.py
+      - array_float_prop.py
+      - array_int_prop.py
+      - array_string_prop.py
+      - autocomplete_string_prop.py
+      - bitmap_combobox_prop.py
+      - bool_prop.py
+      - category.py
+      - choice_prop.py
+      - color_prop.py
+      - combobox_prop.py
+      - datasheet_cad_prop.py
+      - enum_prop.py
+      - events.py
+      - float_prop.py
+      - image_prop.py
+      - int_prop.py
+      - long_string_prop.py
+      - model3d_prop.py
+      - path_prop.py
+      - point_prop.py
+      - position_prop.py
+      - prop_base.py
+      - scale_prop.py
+      - string_prop.py
+      - tri_state_checkbox_prop.py
+    - scraper_inspector/
+      - __init__.py
+      - background.py
+      - insertion.py
+      - inspector.py
+      - json_tree.py
+      - network_panel.py
+      - response_panel.py
+      - snippet_pane.py
+      - source_viewer.py
+    - system_menu/
+      - __init__.py
+      - database.py
+      - edit.py
+      - file.py
+      - help.py
+      - settings.py
+      - system_menu.py
+      - view.py
+      - window.py
+    - toolbar/
+      - __init__.py
+      - float_spin_button.py
+      - pegboard_drag_mode_button.py
+      - pegboard_snap_button.py
+      - snap_angle_button.py
+      - toolbar.py
+    - web_viewer/
+      - __init__.py
+      - browser_dock.py
+      - browser_widget.py
+      - capture_bridge.py
+    - widgets/
+      - __init__.py
+      - auto_complete.py
+      - autocomplete_combobox.py
+      - autocomplete_textctrl.py
+      - bitmap_autocomplete_combobox.py
+      - cad_datasheet_ctrl.py
+      - checkbox_ctrl.py
+      - choice_ctrl.py
+      - code_editor_ctrl.py
+      - color_ctrl.py
+      - combobox_ctrl.py
+      - context_menus.py
+      - editable_tab_ctrl.py
+      - empty_space_menus.py
+      - float_ctrl.py
+      - foldpanelbar.py
+      - int_ctrl.py
+      - list_ctrl.py
+      - search_db.py
+      - stipple_ctrl.py
+      - text_ctrl.py
+      - tri_state_checkbox_ctrl.py
+      - triple_float_ctrl.py
+      - wrap_label.py
+      - resources/
+        - images/
+          - down_button.png
+          - up_button.png
+  - utils/
+    - __init__.py
+    - bounding_boxes.py
+    - mesh_normals.py
+    - mesh_surface.py
+    - mesh_surface_picker.py
+    - model_utils.py
+    - natural_sort.py
+    - paths.py
+    - remap.py
+    - snap_pool.py
+    - ui_utils.py
+    - window_geometry.py
+    - wire_conversions.py
+  - wire_routing/
+    - __init__.py
+    - astar.cp311-win_amd64.pyd
+    - astar.pyi
+    - astar.pyx
+    - reroute.py
+    - routing.py
+- builder/
+  - __init__.py
+  - __main__.py
+  - _backend.py
+  - build.py
+  - build_native_deps.py
+  - collect_modules.py
+  - collect_stdlib.py
+  - compiler.py
+  - cython_build.py
+  - installer.py
+  - msvc_env.py
+  - prepare_installer_assets.py
+  - prune_dist.py
+  - spawn.py
+  - version_info.txt
+  - wheel_build.py
+  - scripts/
+    - bootstrap.py
+    - dep_installer.py
+    - rthook_pip_distlib.py
+    - run.py
+- diagnostics/
+  - CLAUDE.md
+  - compare_snapshots.py
+  - dep_trace.py
+  - find_unused_functions.py
+  - fix_string_annotations.py
+  - query_memory.py

@@ -16,6 +16,7 @@ from . import series as _series
 from . import temperature as _temperature
 from . import wire_size as _wire_size
 from . import protection as _protection
+from . import wire_type as _wire_type
 from . import weight as _weight
 from . import cavity_lock as _cavity_lock
 from . import model3d as _model3d
@@ -73,6 +74,9 @@ AdhesiveControl = _adhesive.AdhesiveControl
 ProtectionMixin = _protection.ProtectionMixin
 ProtectionControl = _protection.ProtectionControl
 
+WireTypeMixin = _wire_type.WireTypeMixin
+WireTypeControl = _wire_type.WireTypeControl
+
 WeightMixin = _weight.WeightMixin
 WeightControl = _weight.WeightControl
 
@@ -111,6 +115,7 @@ del _series
 del _temperature
 del _wire_size
 del _protection
+del _wire_type
 del _weight
 del _cavity_lock
 del _model3d
