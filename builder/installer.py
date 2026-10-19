@@ -19,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 
 from . import prepare_installer_assets
 
@@ -275,6 +276,212 @@ exec "$DIR/installer_scripts/linux/install.sh" "$@"
     print(f'    # user-only:  ./{stem}/install.sh --user')
 
 
+# ── Linux (.deb) ─────────────────────────────────────────────────────────────
+
+# platform.machine() -> Debian Architecture field. Add entries here as CI
+# picks up more runner architectures.
+_DEB_ARCH = {
+    'x86_64': 'amd64',
+    'aarch64': 'arm64',
+}
+
+# PySide6's bundled xcb platform plugin dlopen()s these rather than linking
+# them directly, so PyInstaller's dependency walker never sees them -- same
+# non-dev runtime packages apt-get installs on the CI runner (see
+# .github/workflows/unix.yml), minus the -dev/build-only ones. Best-effort:
+# not verified against a clean target VM.
+_DEB_DEPENDS = [
+    'libgl1',
+    'libglu1-mesa',
+    'libxcb-cursor0',
+    'libxkbcommon-x11-0',
+    'libxcb-icccm4',
+    'libxcb-image0',
+    'libxcb-keysyms1',
+    'libxcb-randr0',
+    'libxcb-render-util0',
+    'libxcb-shape0',
+    'libxcb-xinerama0',
+    'libxcb-xfixes0',
+    'libdbus-1-3',
+    'ocl-icd-libopencl1',
+]
+
+# dep_installer needs a GUI and network access to pip-install PySide6 itself
+# (see builder/scripts/dep_installer.py) -- Debian policy forbids interactive/
+# GUI work in maintainer scripts, and postinst runs as root with no
+# guaranteed DISPLAY, so it can't be run from postinst the way install.sh
+# runs it during a normal (non-package) install. Instead this wrapper runs it
+# once, under the invoking user's own session, the first time the app is
+# actually launched.
+_LAUNCHER_SH = '''\
+#!/bin/sh
+set -e
+APP_DIR="/opt/harness_designer"
+MARKER="$APP_DIR/.deps_installed"
+
+if [ ! -f "$MARKER" ]; then
+    "$APP_DIR/dep_installer" "$APP_DIR"
+    touch "$MARKER"
+fi
+
+exec "$APP_DIR/HD" "$@"
+'''
+
+_DESKTOP_ENTRY = '''\
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Harness Designer
+GenericName=Electrical Harness Designer
+Comment=Design and document electrical harnesses
+Exec=harness_designer %F
+Icon=harness_designer
+Terminal=false
+Categories=Engineering;Electronics;
+MimeType=application/x-harness-designer;
+StartupNotify=true
+'''
+
+_POSTINST_SH = '''\
+#!/bin/sh
+set -e
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+fi
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+fi
+
+exit 0
+'''
+
+_POSTRM_SH = '''\
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove|purge)
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+        fi
+        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+        fi
+        ;;
+esac
+
+exit 0
+'''
+
+
+def _control_file(pkg_version, arch):
+    depends = ', '.join(_DEB_DEPENDS)
+    return (
+        'Package: harness-designer\n'
+        f'Version: {pkg_version}\n'
+        'Section: electronics\n'
+        'Priority: optional\n'
+        f'Architecture: {arch}\n'
+        f'Depends: {depends}\n'
+        'Maintainer: Kevin G. Schlosser <kevin.g.schlosser@gmail.com>\n'
+        'Description: design and document electrical wire harnesses\n'
+        ' Harness Designer is a desktop application for designing and\n'
+        ' documenting electrical wire harnesses.\n'
+        ' .\n'
+        ' NOTE: on first launch, /opt/harness_designer/dep_installer installs\n'
+        ' the PySide6 (Qt) runtime and a few platform-specific components --\n'
+        ' this requires network access the first time the application runs.\n'
+    )
+
+
+def _write_text(path, text, mode):
+    with open(path, 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write(text)
+    os.chmod(path, mode)
+
+
+def build_deb(version):
+    """
+    Package the compiled app as a real, installable .deb (Debian/Ubuntu).
+
+    This is in addition to build_linux()'s .tar.gz, which install.sh (and
+    Fedora/RHEL/Arch users) still rely on -- see its docstring for why a
+    plain zip-of-tar.gz CI artifact gets flagged as malware by some
+    browsers/SmartScreen, which a real .deb (a standardized, recognized
+    container format) does not.
+    """
+    app_src = os.path.join(BUILD_DIR, 'harness_designer')
+    installer_src = os.path.join(BUILD_DIR, 'dep_installer')
+
+    machine = platform.machine().lower()
+    arch = _DEB_ARCH.get(machine)
+    if arch is None:
+        print(f'Error: no Debian architecture mapping for machine {machine!r}')
+        print(f'  Add it to _DEB_ARCH in {__file__}')
+        sys.exit(1)
+
+    pkg_version = f'{version}-1'
+    deb_name = f'harness-designer_{pkg_version}_{arch}.deb'
+    out_dir = os.path.join(DIST_DIR, 'linux_deb')
+    deb_path = os.path.join(out_dir, deb_name)
+    os.makedirs(out_dir, exist_ok=True)
+
+    staging = tempfile.mkdtemp(prefix='harness_designer_deb_')
+    try:
+        debian_dir = os.path.join(staging, 'DEBIAN')
+        app_dir = os.path.join(staging, 'opt', 'harness_designer')
+        bin_dir = os.path.join(staging, 'usr', 'bin')
+        desktop_dir = os.path.join(staging, 'usr', 'share', 'applications')
+        icon_dir = os.path.join(
+            staging, 'usr', 'share', 'icons', 'hicolor', '256x256', 'apps',
+        )
+
+        for d in (debian_dir, app_dir, bin_dir, desktop_dir, icon_dir):
+            os.makedirs(d, exist_ok=True)
+
+        print('   Copying application files ...')
+        shutil.copytree(app_src, app_dir, dirs_exist_ok=True)
+
+        installer_dst = os.path.join(app_dir, 'dep_installer')
+        shutil.copy2(installer_src, installer_dst)
+        os.chmod(installer_dst, 0o755)
+        os.chmod(os.path.join(app_dir, 'HD'), 0o755)
+
+        icon_dst = os.path.join(icon_dir, 'harness_designer.png')
+        shutil.copy2(ICON_PNG, icon_dst)
+        os.chmod(icon_dst, 0o644)
+
+        _write_text(os.path.join(bin_dir, 'harness_designer'), _LAUNCHER_SH, 0o755)
+        _write_text(
+            os.path.join(desktop_dir, 'harness_designer.desktop'),
+            _DESKTOP_ENTRY,
+            0o644,
+        )
+        _write_text(
+            os.path.join(debian_dir, 'control'),
+            _control_file(pkg_version, arch),
+            0o644,
+        )
+        _write_text(os.path.join(debian_dir, 'postinst'), _POSTINST_SH, 0o755)
+        _write_text(os.path.join(debian_dir, 'postrm'), _POSTRM_SH, 0o755)
+
+        print(f'Building {deb_name} ...')
+        rc = subprocess.run(
+            ['dpkg-deb', '--root-owner-group', '--build', staging, deb_path],
+            check=False,
+        ).returncode
+        if rc != 0:
+            print(f'Error: dpkg-deb exited with code {rc}')
+            sys.exit(rc)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+    print(f'\nLinux .deb:  {deb_path}')
+    print(f'  To install:  sudo apt install ./{deb_name}')
+
+
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 
@@ -311,6 +518,7 @@ def main():
         build_macos(version, args.sign)
     elif sys.platform.startswith('linux'):
         build_linux(version)
+        build_deb(version)
     else:
         print(f'Error: unsupported platform: {sys.platform!r}')
         sys.exit(1)

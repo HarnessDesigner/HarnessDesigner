@@ -135,39 +135,9 @@ jobs:
           path: dist/linux/
           if-no-files-found: error
 
-      # ── Diagnostic only: does packaging as a real .deb (vs. a zip wrapping
-      # a .tar.gz) avoid the download being flagged? Not a real installer --
-      # dpkg-deb just needs a DEBIAN/control file and a payload tree. Remove
-      # once the download-flagging question is answered.
-      - name: Package diagnostic pseudo-deb
-        continue-on-error: true
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEB_ROOT="$(mktemp -d)"
-          mkdir -p "$DEB_ROOT/DEBIAN" "$DEB_ROOT/opt/harness_designer"
-          cp -r builder/scripts/dist/harness_designer/. "$DEB_ROOT/opt/harness_designer/"
-          cp builder/scripts/dist/dep_installer "$DEB_ROOT/opt/harness_designer/dep_installer"
-          chmod +x "$DEB_ROOT/opt/harness_designer/dep_installer"
-          {
-            echo "Package: harness-designer-test"
-            echo "Version: 0.0.1"
-            echo "Section: misc"
-            echo "Priority: optional"
-            echo "Architecture: amd64"
-            echo "Maintainer: Kevin Schlosser <kevin.g.schlosser@gmail.com>"
-            echo "Description: Diagnostic test package, not a real installer"
-            echo " Built only to test whether a download is flagged because of the"
-            echo " .tar.gz container shape rather than its contents. Do not install."
-          } > "$DEB_ROOT/DEBIAN/control"
-          mkdir -p dist/linux-deb-test
-          dpkg-deb --root-owner-group --build "$DEB_ROOT" dist/linux-deb-test/harness_designer-test.deb
-          ls -la dist/linux-deb-test/
-
-      - name: Upload diagnostic pseudo-deb artifact
-        continue-on-error: true
+      - name: Upload Linux .deb artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: harness_designer-linux-deb-test.zip
-          path: dist/linux-deb-test/
+          name: harness_designer-linux-deb.zip
+          path: dist/linux_deb/
           if-no-files-found: error
