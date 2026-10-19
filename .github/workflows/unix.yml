@@ -149,17 +149,17 @@ jobs:
           cp -r builder/scripts/dist/harness_designer/. "$DEB_ROOT/opt/harness_designer/"
           cp builder/scripts/dist/dep_installer "$DEB_ROOT/opt/harness_designer/dep_installer"
           chmod +x "$DEB_ROOT/opt/harness_designer/dep_installer"
-          cat > "$DEB_ROOT/DEBIAN/control" <<'EOF'
-Package: harness-designer-test
-Version: 0.0.1
-Section: misc
-Priority: optional
-Architecture: amd64
-Maintainer: Kevin Schlosser <kevin.g.schlosser@gmail.com>
-Description: Diagnostic test package, not a real installer
- Built only to test whether a download is flagged because of the
- .tar.gz container shape rather than its contents. Do not install.
-EOF
+          {
+            echo "Package: harness-designer-test"
+            echo "Version: 0.0.1"
+            echo "Section: misc"
+            echo "Priority: optional"
+            echo "Architecture: amd64"
+            echo "Maintainer: Kevin Schlosser <kevin.g.schlosser@gmail.com>"
+            echo "Description: Diagnostic test package, not a real installer"
+            echo " Built only to test whether a download is flagged because of the"
+            echo " .tar.gz container shape rather than its contents. Do not install."
+          } > "$DEB_ROOT/DEBIAN/control"
           mkdir -p dist/linux-deb-test
           dpkg-deb --root-owner-group --build "$DEB_ROOT" dist/linux-deb-test/harness_designer-test.deb
           ls -la dist/linux-deb-test/
