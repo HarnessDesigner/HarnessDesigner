@@ -256,8 +256,19 @@ def build_installer():
     # pip must be importable from inside the frozen bootstrap.
     args.extend(['--collect-all=pip'])
 
-    # PySide6, MySQL, and the GPU vendor SMI bindings are installed at
-    # runtime by the dependency installer, not bundled with the app.
+    # Same fix as build_dependency_installer(): distlib.resources.finder()
+    # resolves finders by loader type, and PyInstaller's FrozenImporter
+    # isn't registered, causing DistlibException at pip import time.
+    # bootstrap.py's install() runs pip from inside THIS build too (the
+    # comment above -- "pip must be importable from inside the frozen
+    # bootstrap" -- already says so), so it needs the same runtime hook;
+    # omitting it here was the actual bug behind a user-reported crash
+    # ("Unable to locate finder for 'pip._vendor.distlib'") when bootstrap's
+    # self-heal path actually ran pip inside the main app, 2026-10-19.
+    args.extend(['--runtime-hook=rthook_pip_distlib.py'])
+
+    # PySide6, MySQL, and macOS's GPU/SoC monitoring binding are installed
+    # at runtime by the dependency installer, not bundled with the app.
     # Exclude them even if they are importable in the build environment so
     # they do not end up in the PyInstaller bundle.
     #
@@ -266,14 +277,20 @@ def build_installer():
     # Excluding the top-level names covers all submodules (QtCore, QtWidgets,
     # etc.) because PyInstaller excludes children when a parent is excluded.
     #
-    # amdsmi / pynvml (nvidia-ml-py) / apple_smi are GPU vendor bindings that
-    # probe for a display driver's shared library at import time. CI build
-    # machines don't have GPU drivers installed, so PyInstaller's binary
-    # dependency walk can't resolve (and therefore can't bundle) whatever
-    # driver DLL those compiled extensions link against — the module would
-    # look bundled but be broken at runtime even on a end-user machine that
-    # does have the driver. Installed at runtime instead, on the actual
-    # target machine, exactly like PySide6.
+    # apple_smi is a GPU/SoC vendor binding that probes for a display
+    # driver's shared library at import time. CI build machines don't have
+    # GPU drivers installed, so PyInstaller's binary dependency walk can't
+    # resolve (and therefore can't bundle) whatever driver DLL the compiled
+    # extension links against — the module would look bundled but be broken
+    # at runtime even on an end-user machine that does have the driver.
+    # Installed at runtime instead, on the actual target machine, exactly
+    # like PySide6. Windows/Linux GPU monitoring (nvapi, pyamd_adl) doesn't
+    # have this problem -- they're ctypes wrappers that only dlopen the
+    # driver on first actual use, not at import time -- so they're ordinary
+    # bundled pyproject.toml dependencies, not excluded here (replaced
+    # nvidia-ml-py/amdsmi, which used to be in this exclude list and were
+    # runtime-installed the same way apple_smi still is -- see
+    # harness_designer/gpu/nvidia/backend.py, harness_designer/gpu/amd/backend.py).
     for mod in (
         'PySide6',
         'PySide6.QtCore',
@@ -285,8 +302,6 @@ def build_installer():
         'shiboken6',
         'mysql',
         'mysql.connector',
-        'amdsmi',
-        'pynvml',
         'apple_smi',
         # optional extras whose dependencies are not installed
         'pyparsing.diagram',                    # needs railroad
@@ -316,6 +331,26 @@ def build_installer():
         # ipykernel is the Jupyter kernel — not needed at runtime
         'ipykernel',
         'matplotlib_inline',    # IPython/Jupyter display hook
+        # wxPython is never imported by harness_designer itself (the app is
+        # pure PySide6/Qt) -- it's only importable here because it happens to
+        # be installed in the build environment for an unrelated reason.
+        # --collect-all=IPython reaches IPython.terminal.pt_inputhooks.wx /
+        # IPython.lib.guisupport (plain `import wx`, one of several optional
+        # GUI event-loop integrations IPython ships); since the import
+        # actually succeeds in this build env, PyInstaller bundles the whole
+        # wx package (core/msw/html/adv/siplib binaries) instead of treating
+        # it as the optional dependency it is -- found 2026-10-19 when the
+        # installer turned out ~100+ MB heavier than expected.
+        'wx',
+        # PyMuPDF (`fitz`) -- harness_designer only ever uses ezdxf's PyQt
+        # drawing backend (ezdxf.addons.drawing.pyqt.PyQtBackend, see
+        # ui/widgets/cad_datasheet_ctrl.py), never the pymupdf one, but
+        # ezdxf.addons.drawing.pymupdf's `import fitz` gets swept in the same
+        # way wx did above (also importable here, also never actually used;
+        # this used to arrive transitively through wx.lib.pdfviewer.viewer's
+        # own `import fitz` too, before wx was excluded -- found 2026-10-19).
+        'fitz',
+        'pymupdf',
         # Cython compiler itself — already ran at build time, not needed at runtime
         'Cython',
         'prompt_toolkit.contrib.ssh',           # needs asyncssh which is not installed

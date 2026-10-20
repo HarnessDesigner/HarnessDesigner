@@ -97,11 +97,32 @@ Name: "{commondesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; Tasks: 
 ; Launch the component installer after the main application files are in place.
 ; installer.exe opens its own window (progress bar only — component choice is
 ; now made via the mysqlconnector task above) and must finish before InnoSetup
-; continues to the Finish page.
+; continues to the Finish page. It installs into {tmp}\deps, NOT directly into
+; {app} -- see GetDepInstallerParams below and the [Run] step right after this
+; one for why.
 Filename: "{tmp}\dep_installer.exe"; \
     Parameters: "{code:GetDepInstallerParams}"; \
     StatusMsg: "Installing required components (PySide6)..."; \
     Flags: waituntilterminated
+
+; pip's own --target install of PySide6/shiboken6/amdsmi/pynvml directly into
+; {app} was observed (2026-10-19) to leave those specific directories with a
+; broken ACL -- no BUILTIN\Users read access at all, unlike every other file
+; in {app}, which this installer's own [Files] section placed and which all
+; correctly inherit {app}'s normal permissions. The cause was never fully
+; root-caused (not an AV quarantine -- Defender's logs were clean -- and not
+; simply "pip ran elevated", since NTFS inheritance doesn't depend on the
+; creating process's elevation). Rather than patch pip's behavior, sidestep
+; it: dep_installer.exe installs into a disposable {tmp}\deps scratch folder
+; instead, and this step copies the result into {app} the same ordinary way
+; every other file got there, which is the one thing already proven to
+; produce correct permissions. xcopy does not copy source ACLs by default,
+; so the copied files inherit {app}'s ACL fresh, regardless of whatever
+; pip left behind in {tmp}\deps.
+Filename: "{cmd}"; \
+    Parameters: "/c xcopy ""{tmp}\deps"" ""{app}\"" /E /H /Y /I"; \
+    StatusMsg: "Finishing component installation..."; \
+    Flags: waituntilterminated runhidden
 
 ; Offer to launch the app from the Finish page, checked by default.
 Filename: "{app}\{#AppExeName}"; \
@@ -118,7 +139,10 @@ Type: filesandordirs; Name: "{app}"
 [Code]
 function GetDepInstallerParams(Param: String): String;
 begin
-  Result := '"' + ExpandConstant('{app}') + '"';
+  // Installs into a scratch temp folder, not {app} directly -- see the
+  // [Run] section's comments for why. The xcopy step right after this one
+  // moves the result into {app} for real.
+  Result := '"' + ExpandConstant('{tmp}\deps') + '"';
   if IsTaskSelected('mysqlconnector') then
     Result := Result + ' --with-mysql';
 end;

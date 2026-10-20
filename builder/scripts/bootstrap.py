@@ -30,6 +30,27 @@ def _is_importable(name):
         return False
 
 
+def _fix_permissions(path):
+    """See dep_installer.py's _fix_permissions -- same fix, same reason.
+
+    bootstrap.install() mirrors dep_installer's own pip --target install for
+    the "app run without going through the installer" fallback case, so it
+    needs the same defensive re-inherit-permissions step.
+    """
+    if sys.platform != 'win32':
+        return
+
+    import subprocess
+
+    try:
+        subprocess.run(
+            ['icacls', path, '/reset', '/T', '/C', '/Q'],
+            capture_output=True, check=False,
+        )
+    except OSError:
+        pass
+
+
 def install(package, import_name=None):
     lib = _lib_dir()
 
@@ -53,6 +74,8 @@ def install(package, import_name=None):
         ])
     finally:
         sys.executable = original_executable
+
+    _fix_permissions(os.path.join(lib, (import_name or package).split('.')[0]))
 
     importlib.invalidate_caches()
     return exit_code == 0

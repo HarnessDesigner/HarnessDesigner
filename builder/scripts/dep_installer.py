@@ -10,20 +10,21 @@ from tkinter import ttk
 # Required packages — always installed.
 # Format: ('pip install name', 'import name', 'friendly label')
 #
-# GPU vendor SMI bindings are excluded from the PyInstaller bundle (see
-# builder/build.py / builder/collect_modules.py) because CI build machines
-# have no GPU driver installed for PyInstaller to resolve against, and are
-# installed here instead — on the actual target machine — same as PySide6.
-# Versions match the platform markers in pyproject.toml.
+# apple_smi is excluded from the PyInstaller bundle (see builder/build.py)
+# because CI build machines have no GPU driver installed for PyInstaller to
+# resolve against, and is installed here instead — on the actual target
+# machine — same as PySide6. Version matches the platform marker in
+# pyproject.toml.
 if sys.platform == 'darwin':
     _GPU_PACKAGES = [
         ('apple_smi==0.1.4', 'apple_smi', 'Apple SMI (GPU/SoC monitoring)'),
     ]
 else:
-    _GPU_PACKAGES = [
-        ('nvidia-ml-py==13.610.43', 'pynvml', 'NVIDIA Management Library (GPU monitoring)'),
-        ('amdsmi==7.0.2', 'amdsmi', 'AMD SMI (GPU monitoring)'),
-    ]
+    # nvapi/pyamd_adl (harness_designer/gpu/nvidia/backend.py,
+    # harness_designer/gpu/amd/backend.py) replaced nvidia-ml-py/amdsmi and
+    # are regular pyproject.toml dependencies bundled into the main build
+    # directly -- nothing to install here on Windows/Linux any more.
+    _GPU_PACKAGES = []
 
 REQUIRED_PACKAGES = [
     ('PySide6', 'PySide6', 'PySide6 (Qt UI framework)'),
